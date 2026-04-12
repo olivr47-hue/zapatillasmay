@@ -343,8 +343,7 @@ async function cargarSucursales() {
         </div>
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th></tr>
-          </thead>
+           <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr>          </thead>
           <tbody>
             ${data.map(s => `
               <tr>
@@ -353,6 +352,9 @@ async function cargarSucursales() {
                 <td>${s.direccion || '—'}</td>
                 <td>${s.telefono || '—'}</td>
                 <td><span class="badge badge-success">Activa</span></td>
+             <td>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormSucursal('${s.id}')">Editar</button>
+              </td>
               </tr>
             `).join('')}
           </tbody>
@@ -1995,5 +1997,70 @@ window.guardarInventarioMasivo = async () => {
     alert(`Guardados: ${guardados}, Errores: ${errores}, Sin cambios: ${sinCambios}`)
   } else {
     alert(`Inventario actualizado. ${guardados} cambios guardados, ${sinCambios} sin cambios.`)
+  }
+}
+window.mostrarFormSucursal = async (id) => {
+  const content = document.getElementById('content')
+  let d = {}
+  if (id) {
+    try {
+      const res = await fetch(API + '/sucursales/')
+      const data = await res.json()
+      d = data.find(s => s.id === id) || {}
+    } catch(e) {}
+  }
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">← Volver</button>
+        <h3>${id ? 'Editar sucursal' : 'Nueva sucursal'}</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="suc-nombre" placeholder="Ej: Leon Matriz" value="${d.nombre || ''}">
+        </div>
+        <div>
+          <label class="form-label">Tipo</label>
+          <select class="form-input" id="suc-tipo">
+            <option value="fisica" ${d.tipo === 'fisica' ? 'selected' : ''}>Fisica</option>
+            <option value="online" ${d.tipo === 'online' ? 'selected' : ''}>Online</option>
+            <option value="bodega" ${d.tipo === 'bodega' ? 'selected' : ''}>Bodega</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Direccion</label>
+          <input class="form-input" id="suc-direccion" placeholder="Calle y numero" value="${d.direccion || ''}">
+        </div>
+        <div>
+          <label class="form-label">Telefono</label>
+          <input class="form-input" id="suc-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarSucursal('${id || ''}')">Guardar</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarSucursal = async (id) => {
+  const nombre = document.getElementById('suc-nombre').value
+  if (!nombre) { alert('El nombre es obligatorio'); return }
+  const sucursal = {
+    nombre,
+    tipo: document.getElementById('suc-tipo').value,
+    direccion: document.getElementById('suc-direccion').value || null,
+    telefono: document.getElementById('suc-telefono').value || null
+  }
+  try {
+    const method = id ? 'PATCH' : 'POST'
+    const url = id ? API + '/sucursales/' + id : API + '/sucursales/'
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sucursal) })
+    if (res.ok) { alert('Sucursal guardada'); navegarA('sucursales') }
+    else alert('Error al guardar')
+  } catch(e) {
+    alert('Error conectando con el servidor')
   }
 }
