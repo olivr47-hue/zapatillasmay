@@ -395,7 +395,10 @@ async function cargarInventario() {
         </select>
         <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
         <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">Alertas</button>
-        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">Ajuste</button>
+        <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Inventario masivo</button>
+        <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
+        <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">- Salida</button>
+        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
         <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
       </div>
       <div id="inv-contenido"></div>
@@ -1654,4 +1657,343 @@ window.verCliente = async (id) => {
 }
 window.editarCliente = (id) => {
   mostrarFormCliente(id)
+}
+window.mostrarEntrada = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#2e7d32">+ Entrada de mercancia</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto cuando llega mercancia nueva. Se suma al inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="ent-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="ent-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'ent')">
+          <div id="ent-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="ent">
+          <div id="ent-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad que llego *</label>
+          <input class="form-input" id="ent-cantidad" type="number" min="1" placeholder="Cuantos pares llegaron">
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="ent-motivo">
+            <option value="Compra a proveedor">Compra a proveedor</option>
+            <option value="Devolucion de cliente">Devolucion de cliente</option>
+            <option value="Traspaso entre sucursales">Traspaso entre sucursales</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #a5d6a7">
+        <p style="font-size:0.85rem;color:#2e7d32">El sistema sumara esta cantidad al inventario actual del producto seleccionado.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="guardarEntrada()">Guardar entrada</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarEntrada = async () => {
+  const variante_id = document.getElementById('ent').value
+  const sucursal_id = document.getElementById('ent-sucursal').value
+  const cantidad = document.getElementById('ent-cantidad').value
+  const motivo = document.getElementById('ent-motivo').value
+  if (!variante_id || !sucursal_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/entrada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(cantidad), motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Entrada guardada. Anterior: ' + data.cantidad_anterior + ' pares → Nuevo: ' + data.cantidad_nueva + ' pares')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.mostrarSalida = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#c62828">- Salida de inventario</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto para registrar mermas, perdidas o errores. Se resta del inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="sal-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="sal-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'sal')">
+          <div id="sal-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="sal">
+          <div id="sal-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#ffebee;border-radius:6px;font-size:0.85rem;color:#c62828"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a restar *</label>
+          <input class="form-input" id="sal-cantidad" type="number" min="1" placeholder="Cuantos pares salen">
+        </div>
+        <div>
+          <label class="form-label">Motivo *</label>
+          <select class="form-input" id="sal-motivo">
+            <option value="Merma">Merma o perdida</option>
+            <option value="Producto danado">Producto danado</option>
+            <option value="Robo">Robo</option>
+            <option value="Traspaso entre sucursales">Traspaso entre sucursales</option>
+            <option value="Correccion de error">Correccion de error</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:#ffebee;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #ffcdd2">
+        <p style="font-size:0.85rem;color:#c62828">El sistema restara esta cantidad del inventario actual. Esta accion queda registrada en el historial.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#c62828;border-color:#c62828" onclick="guardarSalida()">Guardar salida</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarSalida = async () => {
+  const variante_id = document.getElementById('sal').value
+  const sucursal_id = document.getElementById('sal-sucursal').value
+  const cantidad = document.getElementById('sal-cantidad').value
+  const motivo = document.getElementById('sal-motivo').value
+  if (!variante_id || !sucursal_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/entrada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: -parseInt(cantidad), motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Salida registrada. Anterior: ' + data.cantidad_anterior + ' pares → Nuevo: ' + data.cantidad_nueva + ' pares')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.mostrarInventarioMasivo = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+
+  try {
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const resProductos = await fetch(API + '/productos/')
+    const productos = await resProductos.json()
+    const resVariantes = await fetch(API + '/variantes/')
+    const variantes = await resVariantes.json()
+    const resInv = await fetch(API + '/inventario/')
+    const inventario = await resInv.json()
+
+    const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))]
+    const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+    window._invMasivo = { sucursales, productos, variantes, inventario }
+
+    content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Inventario masivo</h3>
+      </div>
+      <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end">
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="im-sucursal" onchange="renderTablasMasivo()">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Categoria</label>
+            <select class="form-input" id="im-categoria" onchange="renderTablasMasivo()">
+              <option value="">Todas las categorias</option>
+              ${categorias.map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="guardarInventarioMasivo()" style="white-space:nowrap">Guardar todo</button>
+        </div>
+        <p style="font-size:0.8rem;color:#888;margin-top:0.75rem">Los campos muestran el inventario actual. Modifica solo lo que cambio y guarda al final.</p>
+      </div>
+      <div id="im-tablas"></div>
+    `
+    renderTablasMasivo()
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando inventario</p>'
+  }
+}
+
+window.renderTablasMasivo = () => {
+  const { productos, variantes, inventario } = window._invMasivo
+  const sucursalId = document.getElementById('im-sucursal').value
+  const categoriaFiltro = document.getElementById('im-categoria').value
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  const productosFiltrados = productos.filter(p => {
+    if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
+    return true
+  })
+
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+
+  const html = productosFiltrados.map(prod => {
+    const variantesProd = variantes.filter(v => v.producto_id === prod.id)
+    if (variantesProd.length === 0) return ''
+
+    const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
+
+    const coloresHtml = colores.map(color => {
+      const variantesColor = variantesProd
+        .filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+      const colorHex = variantesColor[0] ? variantesColor[0].color_hex : '#888'
+
+      return `
+        <div style="margin-bottom:1rem">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="width:14px;height:14px;border-radius:50%;background:${colorHex};border:1px solid #ddd;flex-shrink:0"></div>
+            <span style="font-size:0.85rem;font-weight:500;color:#444">${color}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${variantesColor.map(v => {
+              const inv = invSucursal.find(i => i.variante_id === v.id)
+              const cantidad = inv ? inv.cantidad : 0
+              const minimo = inv ? inv.stock_minimo : 3
+              let borderColor = '#ddd'
+              if (cantidad === 0) borderColor = '#ffcdd2'
+              else if (cantidad <= minimo) borderColor = '#ffe082'
+              else borderColor = '#a5d6a7'
+              return `
+                <div style="text-align:center">
+                  <div style="font-size:0.72rem;color:#888;margin-bottom:4px;font-weight:500">${v.talla}</div>
+                  <input type="number" min="0"
+                         id="im-${v.id}"
+                         value="${cantidad}"
+                         data-variante="${v.id}"
+                         data-anterior="${cantidad}"
+                         style="width:58px;text-align:center;padding:6px 4px;border:2px solid ${borderColor};border-radius:8px;font-size:0.9rem;font-weight:600"
+                         oninput="this.style.borderColor='#E91E8C'">
+                </div>
+              `
+            }).join('')}
+          </div>
+        </div>
+      `
+    }).join('')
+
+    return `
+      <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <div>
+            <span style="font-weight:600;font-size:1rem">${prod.nombre}</span>
+            <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
+          </div>
+        </div>
+        ${coloresHtml}
+      </div>
+    `
+  }).join('')
+
+  const tablas = document.getElementById('im-tablas')
+  if (tablas) tablas.innerHTML = html || '<div style="padding:2rem;text-align:center;color:#888">No hay productos en esta categoria</div>'
+}
+
+window.guardarInventarioMasivo = async () => {
+  const sucursalId = document.getElementById('im-sucursal').value
+  const inputs = document.querySelectorAll('[data-variante]')
+  
+  let guardados = 0
+  let errores = 0
+  let sinCambios = 0
+
+  const btn = document.querySelector('[onclick="guardarInventarioMasivo()"]')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  for (const input of inputs) {
+    const varianteId = input.dataset.variante
+    const cantidadAnterior = parseInt(input.dataset.anterior) || 0
+    const cantidadNueva = parseInt(input.value) || 0
+
+    if (cantidadNueva === cantidadAnterior) { sinCambios++; continue }
+
+    try {
+      const res = await fetch(API + '/movimientos/ajuste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: varianteId,
+          sucursal_id: sucursalId,
+          cantidad: cantidadNueva,
+          motivo: 'Inventario masivo'
+        })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        guardados++
+        input.dataset.anterior = cantidadNueva
+        input.style.borderColor = '#a5d6a7'
+      } else {
+        errores++
+        input.style.borderColor = '#ffcdd2'
+      }
+    } catch(e) {
+      errores++
+    }
+  }
+
+  if (btn) { btn.textContent = 'Guardar todo'; btn.disabled = false }
+
+  if (errores > 0) {
+    alert(`Guardados: ${guardados}, Errores: ${errores}, Sin cambios: ${sinCambios}`)
+  } else {
+    alert(`Inventario actualizado. ${guardados} cambios guardados, ${sinCambios} sin cambios.`)
+  }
 }
