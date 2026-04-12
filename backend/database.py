@@ -25,15 +25,23 @@ def supabase_post(tabla, data):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read())
+    try:
+        with urllib.request.urlopen(req) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        raise Exception(f"HTTP {e.code}: {error_body}")
 
 def supabase_patch(tabla, data):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=HEADERS, method="PATCH")
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read())
+    try:
+        with urllib.request.urlopen(req) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        raise Exception(f"HTTP {e.code}: {error_body}")
 
 def obtener_consecutivo(nombre):
     resultado = supabase_get(f"consecutivos?id=eq.{nombre}")

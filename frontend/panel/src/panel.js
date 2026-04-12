@@ -1,4 +1,4 @@
-const API = 'http://127.0.0.1:3000'
+const API = '/api'
 
 const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
@@ -681,7 +681,7 @@ window.guardarProducto = async () => {
     porcentaje_descuento: document.getElementById('f-pct') ? parseInt(document.getElementById('f-pct').value) || 0 : 0,
     tallas_disponibles: tallas,
     peso_gramos: pesoGramos,
-    slug: document.getElementById('f-slug').value || null,
+    slug: document.getElementById('f-slug').value ? document.getElementById('f-slug').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : null,
     meta_titulo: document.getElementById('f-metatitulo').value || null,
     meta_descripcion: document.getElementById('f-metadesc').value || null,
     imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,
@@ -692,6 +692,7 @@ window.guardarProducto = async () => {
   try {
     const method = window._productoEditandoId ? 'PATCH' : 'POST'
     const url = window._productoEditandoId ? API + '/productos/' + window._productoEditandoId : API + '/productos/'
+    console.log('Enviando producto:', JSON.stringify(producto))
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
