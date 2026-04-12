@@ -402,6 +402,7 @@ async function cargarInventario() {
         <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">- Salida</button>
         <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
         <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
+        <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">⇄ Traspaso</button>
       </div>
       <div id="inv-contenido"></div>
     `
@@ -1694,12 +1695,17 @@ window.mostrarEntrada = async () => {
         </div>
         <div>
           <label class="form-label">Motivo</label>
-          <select class="form-input" id="ent-motivo">
-            <option value="Compra a proveedor">Compra a proveedor</option>
-            <option value="Devolucion de cliente">Devolucion de cliente</option>
-            <option value="Traspaso entre sucursales">Traspaso entre sucursales</option>
-            <option value="Otro">Otro</option>
-          </select>
+          <select class="form-input" id="ent-motivo" onchange="toggleSucursalDestino('ent', this.value)">
+                <option value="Compra a proveedor">Compra a proveedor</option>
+                <option value="Devolucion de cliente">Devolucion de cliente</option>
+                <option value="Otro">Otro</option>
+       </select>
+          <div id="ent-sucursal-destino-container" style="display:none;margin-top:1rem">
+         <label class="form-label">Sucursal de origen (de donde viene)</label>
+           <select class="form-input" id="ent-sucursal-destino">
+         ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+         </select>
+        </div>
         </div>
       </div>
       <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #a5d6a7">
@@ -1774,14 +1780,19 @@ window.mostrarSalida = async () => {
         </div>
         <div>
           <label class="form-label">Motivo *</label>
-          <select class="form-input" id="sal-motivo">
+          <select class="form-input" id="sal-motivo" onchange="toggleSucursalDestino('sal', this.value)">
             <option value="Merma">Merma o perdida</option>
-            <option value="Producto danado">Producto danado</option>
-            <option value="Robo">Robo</option>
-            <option value="Traspaso entre sucursales">Traspaso entre sucursales</option>
-            <option value="Correccion de error">Correccion de error</option>
-            <option value="Otro">Otro</option>
+             <option value="Producto danado">Producto danado</option>
+          <option value="Robo">Robo</option>
+          <option value="Correccion de error">Correccion de error</option>
+          <option value="Otro">Otro</option>
+        </select>
+          <div id="sal-sucursal-destino-container" style="display:none;margin-top:1rem">
+          <label class="form-label">Sucursal destino (a donde va)</label>
+         <select class="form-input" id="sal-sucursal-destino">
+       ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
           </select>
+        </div>
         </div>
       </div>
       <div style="background:#ffebee;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #ffcdd2">
@@ -2060,6 +2071,103 @@ window.guardarSucursal = async (id) => {
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sucursal) })
     if (res.ok) { alert('Sucursal guardada'); navegarA('sucursales') }
     else alert('Error al guardar')
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.toggleSucursalDestino = (prefijo, motivo) => {
+  const container = document.getElementById(prefijo + '-sucursal-destino-container')
+  if (container) {
+    container.style.display = motivo === 'Traspaso entre sucursales' ? 'block' : 'none'
+  }
+}
+window.mostrarTraspaso = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#283593">⇄ Traspaso entre sucursales</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Mueve inventario de una sucursal a otra. Se resta de origen y se suma en destino.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Buscar producto *</label>
+          <input class="form-input" id="tra-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'tra')">
+          <div id="tra-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="tra">
+          <div id="tra-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8eaf6;border-radius:6px;font-size:0.85rem;color:#283593"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="background:#ffebee;border-radius:8px;padding:1rem;border:1px solid #ffcdd2">
+            <label class="form-label" style="color:#c62828">Sucursal origen (sale de aqui)</label>
+            <select class="form-input" id="tra-origen">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div style="background:#e8f5e9;border-radius:8px;padding:1rem;border:1px solid #a5d6a7">
+            <label class="form-label" style="color:#2e7d32">Sucursal destino (llega aqui)</label>
+            <select class="form-input" id="tra-destino">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a traspasar *</label>
+          <input class="form-input" id="tra-cantidad" type="number" min="1" placeholder="Cuantos pares">
+        </div>
+      </div>
+      <div style="background:#e8eaf6;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #c5cae9">
+        <p style="font-size:0.85rem;color:#283593">El sistema verifica que haya suficiente inventario en origen antes de mover.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#283593;border-color:#283593" onclick="guardarTraspaso()">Confirmar traspaso</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarTraspaso = async () => {
+  const variante_id = document.getElementById('tra').value
+  const sucursal_origen_id = document.getElementById('tra-origen').value
+  const sucursal_destino_id = document.getElementById('tra-destino').value
+  const cantidad = document.getElementById('tra-cantidad').value
+
+  if (!variante_id || !sucursal_origen_id || !sucursal_destino_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+
+  if (sucursal_origen_id === sucursal_destino_id) {
+    alert('La sucursal origen y destino no pueden ser la misma')
+    return
+  }
+
+  try {
+    const res = await fetch(API + '/movimientos/traspaso', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id,
+        sucursal_origen_id,
+        sucursal_destino_id,
+        cantidad: parseInt(cantidad)
+      })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Traspaso realizado correctamente. Se movieron ' + data.cantidad_movida + ' pares.')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
   } catch(e) {
     alert('Error conectando con el servidor')
   }

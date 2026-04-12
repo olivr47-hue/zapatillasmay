@@ -146,3 +146,60 @@ def registrar_cambio(datos: dict):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/traspaso")
+def registrar_traspaso(datos: dict):
+    try:
+        variante_id = datos.get("variante_id")
+        sucursal_origen_id = datos.get("sucursal_origen_id")
+        sucursal_destino_id = datos.get("sucursal_destino_id")
+        cantidad = datos.get("cantidad")
+        motivo = "Traspaso entre sucursales"
+
+        if sucursal_origen_id == sucursal_destino_id:
+            return JSONResponse(status_code=400, content={"error": "La sucursal origen y destino no pueden ser la misma"})
+
+        inv_origen = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_origen_id}")
+        if not inv_origen or inv_origen[0]["cantidad"] < cantidad:
+            return JSONResponse(status_code=400, content={"error": "No hay suficiente inventario en la sucursal origen"})
+
+        cantidad_origen = inv_origen[0]["cantidad"]
+        supabase_patch(
+            f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_origen_id}",
+            {"cantidad": cantidad_origen - cantidad}
+        )
+
+        inv_destino = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_destino_id}")
+        if inv_destino:
+            cantidad_destino = inv_destino[0]["cantidad"]
+            supabase_patch(
+                f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_destino_id}",
+                {"cantidad": cantidad_destino + cantidad}
+            )
+        else:
+            supabase_post("inventario", {
+                "variante_id": variante_id,
+                "sucursal_id": sucursal_destino_id,
+                "cantidad": cantidad,
+                "stock_minimo": 3
+            })
+
+        supabase_post("movimientos_inventario", {
+            "tipo": "traspaso_salida",
+            "variante_id": variante_id,
+            "sucursal_id": sucursal_origen_id,
+            "cantidad": -cantidad,
+            "motivo": motivo
+        })
+
+        supabase_post("movimientos_inventario", {
+            "tipo": "traspaso_entrada",
+            "variante_id": variante_id,
+            "sucursal_id": sucursal_destino_id,
+            "cantidad": cantidad,
+            "motivo": motivo
+        })
+
+        return {"ok": True, "cantidad_movida": cantidad}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
