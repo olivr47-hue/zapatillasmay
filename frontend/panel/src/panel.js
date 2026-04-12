@@ -294,41 +294,6 @@ async function cargarClientes() {
   }
 }
 
-async function cargarPedidos() {
-  const content = document.getElementById('content')
-  try {
-    const res = await fetch(API + '/pedidos/')
-    const data = await res.json()
-    content.innerHTML = `
-      <div class="table-card">
-        <div class="table-header">
-          <h3>Pedidos (${data.length})</h3>
-          <button class="btn btn-primary">+ Nuevo pedido</button>
-        </div>
-        <table>
-          <thead>
-            <tr><th>Cliente</th><th>Total</th><th>Canal</th><th>Status</th><th>Fecha</th></tr>
-          </thead>
-          <tbody>
-            ${data.length === 0
-              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
-              : data.map(p => `
-                <tr>
-                  <td>${p.clientes ? p.clientes.nombre : '—'}</td>
-                  <td>$${p.total || '0'}</td>
-                  <td>${p.canal}</td>
-                  <td><span class="badge badge-warning">${p.status}</span></td>
-                  <td>${new Date(p.created_at).toLocaleDateString('es-MX')}</td>
-                </tr>
-              `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `
-  } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
-  }
-}
 
 async function cargarSucursales() {
   const content = document.getElementById('content')
@@ -818,24 +783,35 @@ window.buscarVariante = (texto, prefijo) => {
     const completo = nombre + ' ' + color + ' ' + talla + ' ' + sku
     return terminos.every(t => completo.includes(t))
   }).slice(0, 15)
+
   if (filtradas.length === 0) {
     resultadosDiv.innerHTML = '<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron resultados</div>'
     resultadosDiv.style.display = 'block'
     return
   }
-  resultadosDiv.innerHTML = filtradas.map(v => `
-    <div onclick="seleccionarVariante('${v.id}', '${(v.productos ? v.productos.nombre || '' : '').replace(/'/g, '')} - ${v.color} - T${v.talla}', '${prefijo}')"
-         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
-         onmouseover="this.style.background='#f5f5f5'"
-         onmouseout="this.style.background='white'">
-      ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
-      <div>
-        <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
-        <span style="color:#888"> · ${v.color} · Talla ${v.talla}</span>
-        <span style="color:#ccc;font-size:0.75rem"> · ${v.sku || ''}</span>
+
+  const esPedido = prefijo === 'ped-prod'
+
+  resultadosDiv.innerHTML = filtradas.map(v => {
+    const nombreCompleto = (v.productos ? v.productos.nombre || '' : '') + ' - ' + v.color + ' - T' + v.talla
+    const accion = esPedido
+      ? `agregarItemPedido('${v.id}', '${nombreCompleto.replace(/'/g, '')}')`
+      : `seleccionarVariante('${v.id}', '${nombreCompleto.replace(/'/g, '')}', '${prefijo}')`
+    return `
+      <div onclick="${accion}; document.getElementById('${prefijo}-resultados').style.display='none'; document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}') && (document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}').value='')"
+           style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
+           onmouseover="this.style.background='#f5f5f5'"
+           onmouseout="this.style.background='white'">
+        ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
+        <div>
+          <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
+          <span style="color:#888"> · ${v.color} · Talla ${v.talla}</span>
+          <span style="color:#ccc;font-size:0.75rem"> · ${v.sku || ''}</span>
+        </div>
       </div>
-    </div>
-  `).join('')
+    `
+  }).join('')
+
   resultadosDiv.style.display = 'block'
 }
 
@@ -2171,4 +2147,540 @@ window.guardarTraspaso = async () => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+async function cargarPedidos() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/pedidos/')
+    const data = await res.json()
+    content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('online')">Online</button>
+        <button class="btn btn-secondary" style="background:#fff8e1;border-color:#f57f17;color:#f57f17" onclick="cargarPedidosFiltro('pendiente_pago')">Pendientes SPEI</button>
+        <button class="btn btn-secondary" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="cargarPedidosFiltro('credito')">Creditos</button>
+        <button class="btn btn-primary" style="margin-left:auto" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Canal</th>
+              <th>Total</th>
+              <th>Forma de pago</th>
+              <th>Status</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.length === 0
+              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
+              : data.map(p => {
+                const statusColor = {
+                  'borrador': 'badge-warning',
+                  'pendiente_pago': 'badge-warning',
+                  'confirmado': 'badge-success',
+                  'cancelado': 'badge-danger',
+                  'pagado': 'badge-success'
+                }[p.status] || 'badge-warning'
+                return `
+                  <tr>
+                    <td><strong>${p.clientes ? p.clientes.nombre : 'Sin cliente'}</strong></td>
+                    <td>${p.canal || '—'}</td>
+                    <td><strong>$${p.total || '0'}</strong></td>
+                    <td>${p.forma_pago || '—'}</td>
+                    <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
+                    <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : '—'}</td>
+                    <td>
+                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+                    </td>
+                  </tr>
+                `
+              }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    window._pedidosData = data
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
+  }
+}
+
+window.cargarPedidosFiltro = async (filtro) => {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/pedidos/')
+    const data = await res.json()
+    let filtrados = data
+    if (filtro === 'pendiente_pago') {
+      filtrados = data.filter(p => p.status === 'pendiente_pago')
+    } else if (filtro === 'credito') {
+      filtrados = data.filter(p => p.forma_pago === 'credito')
+    } else if (filtro) {
+      filtrados = data.filter(p => p.canal === filtro)
+    }
+    await cargarPedidos()
+  } catch(e) {}
+}
+
+window.mostrarFormPedido = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+
+  try {
+    const resClientes = await fetch(API + '/clientes/')
+    const clientes = await resClientes.json()
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const resProductos = await fetch(API + '/productos/')
+    const productos = await resProductos.json()
+    const resVariantes = await fetch(API + '/variantes/')
+    const variantes = await resVariantes.json()
+    window._variantesCache = variantes
+    window._productosCache = productos
+    window._pedidoItems = []
+
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
+          <h3>Nuevo pedido</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div>
+            <label class="form-label">Cliente *</label>
+            <select class="form-input" id="ped-cliente" onchange="actualizarTipoCliente()">
+              <option value="">Selecciona cliente...</option>
+              ${clientes.map(c => `<option value="${c.id}" data-tipo="${c.tipo}" data-telefono="${c.telefono || ''}">${c.nombre} (${c.tipo})</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Canal *</label>
+            <select class="form-input" id="ped-canal">
+              <option value="sucursal">Sucursal</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="ped-sucursal">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Forma de pago *</label>
+            <select class="form-input" id="ped-pago" onchange="toggleComprobante()">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="spei">SPEI / Transferencia</option>
+              <option value="credito">Credito</option>
+              <option value="mercadopago">Mercado Pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="spei-info" style="display:none;background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+          <p style="font-size:0.85rem;color:#f57f17;font-weight:600;margin-bottom:4px">Pago por SPEI</p>
+          <p style="font-size:0.8rem;color:#888">El pedido quedara pendiente hasta que confirmes el comprobante manualmente. El inventario no se descuenta hasta confirmar.</p>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Agregar productos</p>
+          <div style="display:flex;gap:8px;margin-bottom:1rem">
+            <input class="form-input" id="ped-buscar-prod" placeholder="Buscar producto por nombre, color o talla..." style="flex:1" oninput="buscarVariante(this.value, 'ped-prod')">
+          </div>
+          <div id="ped-prod-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-bottom:1rem"></div>
+          <input type="hidden" id="ped-prod">
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos en el pedido</p>
+          <div id="ped-items-lista">
+            <p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
+            <div style="text-align:right">
+              <p style="font-size:0.85rem;color:#888">Total del pedido</p>
+              <p style="font-size:1.5rem;font-weight:700;color:#E91E8C" id="ped-total">$0.00</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <label class="form-label">Comentarios internos</label>
+          <textarea class="form-input" id="ped-comentarios" rows="2" placeholder="Notas internas del pedido..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">Cancelar</button>
+          <button class="btn btn-primary" id="btn-ped-guardar" onclick="guardarPedido()">Crear pedido</button>
+        </div>
+      </div>
+    `
+
+    document.getElementById('ped-prod-resultados').addEventListener('click', (e) => {
+      const item = e.target.closest('[data-variante-id]')
+      if (item) {
+        const vid = item.dataset.varianteId
+        const nombre = item.dataset.nombre
+        agregarItemPedido(vid, nombre)
+        document.getElementById('ped-prod-resultados').style.display = 'none'
+        document.getElementById('ped-buscar-prod').value = ''
+      }
+    })
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando formulario de pedido</p>'
+  }
+}
+
+window.toggleComprobante = () => {
+  const pago = document.getElementById('ped-pago').value
+  const speiInfo = document.getElementById('spei-info')
+  if (speiInfo) speiInfo.style.display = pago === 'spei' ? 'block' : 'none'
+}
+
+window.actualizarTipoCliente = () => {
+  const select = document.getElementById('ped-cliente')
+  const option = select.options[select.selectedIndex]
+  window.recalcularTotal()
+}
+
+window.agregarItemPedido = async (varianteId, nombre) => {
+  const variantes = window._variantesCache || []
+  const productos = window._productosCache || []
+  const variante = variantes.find(v => v.id === varianteId)
+  if (!variante) return
+
+  const sucursalId = document.getElementById('ped-sucursal') ? document.getElementById('ped-sucursal').value : ''
+
+  if (sucursalId) {
+    try {
+      const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+      const inventario = await resInv.json()
+      const invVariante = inventario.find(i => i.variante_id === varianteId)
+      const existente = window._pedidoItems.find(i => i.variante_id === varianteId)
+      console.log('Inventario:', inventario)
+      console.log('Buscando variante:', varianteId)
+      console.log('Encontrado:', invVariante)
+      const cantidadEnCarrito = existente ? existente.cantidad : 0
+      const cantidadDisponible = invVariante ? invVariante.cantidad : 0
+
+      if (cantidadDisponible <= cantidadEnCarrito) {
+        alert('No hay suficiente existencia de este producto. Disponible: ' + cantidadDisponible + ' pares')
+        return
+      }
+    } catch(e) {
+      console.error('Error verificando inventario', e)
+    }
+  }
+
+  const existente = window._pedidoItems.find(i => i.variante_id === varianteId)
+  if (existente) {
+    existente.cantidad++
+    window.recalcularTotal()
+    renderItemsPedido()
+    return
+  }
+
+  const producto = productos.find(p => p.id === variante.producto_id) || {}
+  const precioBase = parseFloat(producto.precio_menudeo) || 0
+
+  window._pedidoItems.push({
+    variante_id: varianteId,
+    nombre: (producto.nombre || '') + ' - ' + (variante.color || '') + ' - T' + (variante.talla || ''),
+    cantidad: 1,
+    precio_unitario: precioBase,
+    precio_menudeo: precioBase,
+    precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (precioBase - 30),
+    precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (precioBase - 70),
+    precio_corrida: parseFloat(producto.precio_corrida) || (precioBase - 110),
+    es_oferta: producto.es_oferta || false,
+    foto_url: variante.foto_url || producto.imagen_principal || null
+  })
+
+  window.recalcularTotal()
+  renderItemsPedido()
+}
+
+window.renderItemsPedido = () => {
+  const lista = document.getElementById('ped-items-lista')
+  if (!lista) return
+
+  if (window._pedidoItems.length === 0) {
+    lista.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>'
+    window.recalcularTotal()
+    return
+  }
+
+  lista.innerHTML = window._pedidoItems.map((item, idx) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+      ${item.foto_url ? '<img src="' + item.foto_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+      <div style="flex:1">
+        <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${item.nombre}</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">−</button>
+            <span style="font-weight:600;min-width:24px;text-align:center">${item.cantidad}</span>
+            <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">+</button>
+          </div>
+          <span style="color:#888;font-size:0.8rem">× $${item.precio_unitario}</span>
+          <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
+        </div>
+      </div>
+      <button onclick="eliminarItemPedido(${idx})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+  `).join('')
+
+  window.recalcularTotal()
+}
+
+window.cambiarCantidadItem = async (idx, delta) => {
+  if (delta > 0) {
+    const item = window._pedidoItems[idx]
+    const sucursalId = document.getElementById('ped-sucursal') ? document.getElementById('ped-sucursal').value : ''
+    if (sucursalId) {
+      try {
+        const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+        const inventario = await resInv.json()
+        const invVariante = inventario.find(i => i.variante_id === item.variante_id)
+        const cantidadDisponible = invVariante ? invVariante.cantidad : 0
+        if (item.cantidad >= cantidadDisponible) {
+          alert('No hay mas existencia disponible. Maximo: ' + cantidadDisponible + ' pares')
+          return
+        }
+      } catch(e) {}
+    }
+  }
+  window._pedidoItems[idx].cantidad = Math.max(1, window._pedidoItems[idx].cantidad + delta)
+  window.recalcularTotal()
+  renderItemsPedido()
+}
+
+window.guardarPedido = async () => {
+  const cliente_id = document.getElementById('ped-cliente').value
+  const canal = document.getElementById('ped-canal').value
+  const sucursal_id = document.getElementById('ped-sucursal').value
+  const forma_pago = document.getElementById('ped-pago').value
+  const comentarios = document.getElementById('ped-comentarios').value
+
+  if (!cliente_id) { alert('Selecciona un cliente'); return }
+  if (window._pedidoItems.length === 0) { alert('Agrega al menos un producto'); return }
+
+  const btn = document.getElementById('btn-ped-guardar')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  const total = window._pedidoItems.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const status = forma_pago === 'spei' ? 'pendiente_pago' : 'confirmado'
+
+  try {
+    const resPedido = await fetch(API + '/pedidos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id,
+        canal,
+        sucursal_id,
+        forma_pago,
+        comentarios: comentarios || null,
+        total,
+        subtotal: total,
+        status
+      })
+    })
+
+    if (!resPedido.ok) {
+      alert('Error creando pedido')
+      if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+      return
+    }
+
+    const pedidoData = await resPedido.json()
+    const pedidoId = pedidoData[0].id
+
+    for (const item of window._pedidoItems) {
+      await fetch(API + '/pedidos/' + pedidoId + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: item.variante_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.cantidad * item.precio_unitario
+        })
+      })
+    }
+
+    if (forma_pago !== 'spei' && forma_pago !== 'mercadopago') {
+      await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forma_pago })
+      })
+    }
+
+    alert('Pedido creado correctamente')
+    window._pedidoItems = []
+    verPedido(pedidoId)
+
+  } catch(e) {
+    alert('Error conectando con el servidor')
+    if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+  }
+}
+
+window.verPedido = async (id) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando pedido...</p>'
+  try {
+    const res = await fetch(API + '/pedidos/' + id)
+    const data = await res.json()
+    if (!data || data.length === 0) { alert('Pedido no encontrado'); return }
+    const p = data[0]
+    const items = p.pedido_items || []
+    const cliente = p.clientes || {}
+
+    const statusColor = {
+      'borrador': '#f57f17',
+      'pendiente_pago': '#f57f17',
+      'confirmado': '#2e7d32',
+      'pagado': '#2e7d32',
+      'cancelado': '#c62828'
+    }[p.status] || '#888'
+
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
+          <h3 style="flex:1">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
+          <span class="badge" style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:6px 12px">${p.status}</span>
+          ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=Hola%20' + encodeURIComponent(cliente.nombre) + '%2C%20tu%20pedido%20está%20listo" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
+            <p style="font-weight:600">${cliente.nombre || '—'}</p>
+            <p style="font-size:0.8rem;color:#888">${cliente.telefono || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
+            <p style="font-weight:600">${p.canal || '—'}</p>
+            <p style="font-size:0.8rem;color:#888">${p.forma_pago || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${p.total || '0'}</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos</p>
+          ${items.map(item => {
+            const variante = item.variantes || {}
+            const producto = variante.productos || {}
+            return `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+                ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+                <div style="flex:1">
+                  <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
+                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares × $${item.precio_unitario}</p>
+                </div>
+                <strong style="color:#E91E8C">$${item.subtotal}</strong>
+              </div>
+            `
+          }).join('')}
+        </div>
+
+        ${p.status === 'pendiente_pago' ? `
+          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+            <p style="font-weight:600;color:#f57f17;margin-bottom:0.5rem">Pendiente de pago SPEI</p>
+            <p style="font-size:0.85rem;color:#888;margin-bottom:1rem">Cuando recibas el comprobante confirma el pago para descontar el inventario.</p>
+            <button class="btn btn-primary" onclick="confirmarPagoSPEI('${p.id}')">Confirmar pago recibido</button>
+          </div>
+        ` : ''}
+
+        ${p.comentarios ? `
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Comentarios internos</p>
+            <p>${p.comentarios}</p>
+          </div>
+        ` : ''}
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? '<button class="btn btn-primary" onclick="confirmarPedidoAdmin(\'' + p.id + '\')">Confirmar pedido</button>' : ''}
+          <button class="btn btn-secondary" onclick="alert(\'PDF proximamente\')">Generar PDF</button>
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando pedido</p>'
+  }
+}
+
+window.confirmarPagoSPEI = async (id) => {
+  if (!confirm('Confirmar que recibiste el pago por SPEI?')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: 'spei' })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Pago confirmado. Inventario actualizado.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.confirmarPedidoAdmin = async (id) => {
+  if (!confirm('Confirmar este pedido? El inventario se descontara.')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: 'efectivo' })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Pedido confirmado correctamente.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.recalcularTotal = () => {
+  const items = window._pedidoItems || []
+  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  items.forEach(item => {
+    if (item.es_oferta) {
+      item.precio_unitario = item.precio_menudeo
+    } else if (totalPares >= 6) {
+      item.precio_unitario = item.precio_mayoreo6 || (item.precio_menudeo - 70)
+    } else if (totalPares >= 3) {
+      item.precio_unitario = item.precio_mayoreo3 || (item.precio_menudeo - 30)
+    } else {
+      item.precio_unitario = item.precio_menudeo
+    }
+  })
+
+  const total = items.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const totalEl = document.getElementById('ped-total')
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
 }
