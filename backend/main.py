@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import supabase_get
-from routers import productos, sucursales, inventario, clientes, pedidos
+from routers import productos, sucursales, inventario, clientes, pedidos, imagenes
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -22,6 +22,7 @@ app.include_router(sucursales.router)
 app.include_router(inventario.router)
 app.include_router(clientes.router)
 app.include_router(pedidos.router)
+app.include_router(imagenes.router)
 
 @app.get("/")
 def inicio():
