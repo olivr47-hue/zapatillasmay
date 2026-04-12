@@ -18,7 +18,7 @@ def siguiente_sku(categoria: str, proveedor: str):
 
 @router.get("/")
 def listar_productos():
-    return supabase_get("productos?activo=eq.true&order=created_at.desc")
+    return supabase_get("productos?order=created_at.desc")
 
 @router.get("/destacados")
 def productos_destacados():
@@ -43,3 +43,11 @@ def crear_producto(producto: dict):
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict):
     return supabase_patch(f"productos?id=eq.{id}", producto)
+
+@router.patch("/{id}/desactivar")
+def desactivar_producto(id: str):
+    return supabase_patch(f"productos?id=eq.{id}", {"activo": False})
+
+@router.patch("/{id}/activar")
+def activar_producto(id: str):
+    return supabase_patch(f"productos?id=eq.{id}", {"activo": True})

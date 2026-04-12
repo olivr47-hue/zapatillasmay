@@ -167,15 +167,27 @@ function renderDashboard() {
   `
 }
 
-async function cargarProductos() {
+async function cargarProductos(categoriaFiltro) {
   const content = document.getElementById('content')
   try {
     const res = await fetch(API + '/productos/')
     const data = await res.json()
+
+    const categorias = [...new Set(data.map(p => p.categoria).filter(Boolean))]
+    const filtrados = categoriaFiltro ? data.filter(p => p.categoria === categoriaFiltro) : data
+
     content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn ${!categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="cargarProductosFiltro(null)">Todos (${data.length})</button>
+        ${categorias.map(c => `
+          <button class="btn ${categoriaFiltro === c ? 'btn-primary' : 'btn-secondary'}" onclick="cargarProductosFiltro('${c}')">
+            ${c.charAt(0).toUpperCase() + c.slice(1)} (${data.filter(p => p.categoria === c).length})
+          </button>
+        `).join('')}
+      </div>
       <div class="table-card">
         <div class="table-header">
-          <h3>Productos (${data.length})</h3>
+          <h3>${categoriaFiltro ? categoriaFiltro.charAt(0).toUpperCase() + categoriaFiltro.slice(1) : 'Todos los productos'} (${filtrados.length})</h3>
           <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
         </div>
         <table>
@@ -191,12 +203,12 @@ async function cargarProductos() {
             </tr>
           </thead>
           <tbody>
-            ${data.length === 0
-              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos aun</td></tr>'
-              : data.map(p => `
+            ${filtrados.length === 0
+              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos en esta categoria</td></tr>'
+              : filtrados.map(p => `
                 <tr>
                   <td style="display:flex;align-items:center;gap:10px">
-                    ${p.imagen_principal ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">' : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0"></div>'}
+                    ${p.imagen_principal ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">' : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc">?</div>'}
                     <strong>${p.nombre}</strong>
                   </td>
                   <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
@@ -204,9 +216,10 @@ async function cargarProductos() {
                   <td>$${p.precio_menudeo}</td>
                   <td>$${p.precio_mayoreo || '—'}</td>
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
-                  <td>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="editarProducto('${p.id}')">Editar</button>
-                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;margin-left:4px" onclick="duplicarProducto('${p.id}')">Duplicar</button>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#E91E8C' : 'green'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
                   </td>
                 </tr>
               `).join('')}
@@ -767,5 +780,28 @@ window.duplicarProducto = async (id) => {
     }
   } catch(e) {
     alert('Error duplicando el producto')
+  }
+}
+
+window.cargarProductosFiltro = (categoria) => {
+  cargarProductos(categoria)
+}
+
+window.toggleProducto = async (id, activo) => {
+  const accion = activo ? 'desactivar' : 'activar'
+  const confirmMsg = activo ? 'Desactivar este producto?' : 'Activar este producto?'
+  if (!confirm(confirmMsg)) return
+  try {
+    const res = await fetch(API + '/productos/' + id + '/' + accion, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    if (res.ok) {
+      cargarProductos()
+    } else {
+      alert('Error al cambiar el estado del producto')
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
   }
 }
