@@ -1,4 +1,6 @@
-document.querySelector('#app').innerHTML = `<h1>Cargando...</h1>`
 import './style.css'
 import { renderPanel } from './panel.js'
+
+document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%'
+
 renderPanel()
