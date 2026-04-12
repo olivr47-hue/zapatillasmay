@@ -1,28 +1,40 @@
 from fastapi import APIRouter
-from database import supabase_get, supabase_post
+from fastapi.responses import JSONResponse
+from database import supabase_get, supabase_post, supabase_patch
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 @router.get("/")
 def listar_clientes():
-    return supabase_get("clientes?order=nombre.asc")
-
-@router.get("/mayoreo")
-def clientes_mayoreo():
-    return supabase_get("clientes?tipo=eq.mayoreo&order=nombre.asc")
-
-@router.get("/menudeo")
-def clientes_menudeo():
-    return supabase_get("clientes?tipo=eq.menudeo&order=nombre.asc")
+    try:
+        return supabase_get("clientes?activo=eq.true&order=nombre.asc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/{id}")
 def obtener_cliente(id: str):
-    return supabase_get(f"clientes?id=eq.{id}")
-
-@router.get("/{id}/pedidos")
-def pedidos_cliente(id: str):
-    return supabase_get(f"pedidos?cliente_id=eq.{id}&order=created_at.desc")
+    try:
+        return supabase_get(f"clientes?id=eq.{id}")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/")
 def crear_cliente(cliente: dict):
-    return supabase_post("clientes", cliente)
+    try:
+        return supabase_post("clientes", cliente)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/{id}")
+def actualizar_cliente(id: str, cliente: dict):
+    try:
+        return supabase_patch(f"clientes?id=eq.{id}", cliente)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/{id}/desactivar")
+def desactivar_cliente(id: str):
+    try:
+        return supabase_patch(f"clientes?id=eq.{id}", {"activo": False})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

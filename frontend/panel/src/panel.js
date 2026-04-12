@@ -239,27 +239,56 @@ async function cargarClientes() {
       <div class="table-card">
         <div class="table-header">
           <h3>Clientes (${data.length})</h3>
-          <button class="btn btn-primary">+ Nuevo cliente</button>
+          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
         </div>
-        <table>
+        <div style="padding:0 1.5rem 1rem;display:flex;gap:8px;flex-wrap:wrap">
+          <input class="form-input" id="cli-buscar" placeholder="Buscar por nombre o telefono..." style="max-width:280px" oninput="filtrarClientes()">
+          <select class="form-input" id="cli-tipo" style="max-width:150px" onchange="filtrarClientes()">
+            <option value="">Todos los tipos</option>
+            <option value="menudeo">Menudeo</option>
+            <option value="mayoreo">Mayoreo</option>
+            <option value="zapateria">Zapateria</option>
+          </select>
+        </div>
+        <table id="cli-tabla">
           <thead>
-            <tr><th>Nombre</th><th>Telefono</th><th>Tipo</th><th>Email</th></tr>
+            <tr>
+              <th>Nombre</th>
+              <th>Telefono</th>
+              <th>Tipo</th>
+              <th>Credito</th>
+              <th>Ciudad</th>
+              <th>Acciones</th>
+            </tr>
           </thead>
-          <tbody>
+          <tbody id="cli-tbody">
             ${data.length === 0
-              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes</td></tr>'
+              ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay clientes registrados</td></tr>'
               : data.map(c => `
                 <tr>
-                  <td><strong>${c.nombre}</strong></td>
-                  <td>${c.telefono || '—'}</td>
-                  <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : 'badge-success'}">${c.tipo}</span></td>
-                  <td>${c.email || '—'}</td>
+                  <td>
+                    <strong>${c.nombre}</strong>
+                    ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">📝 ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+                  </td>
+                  <td>
+                    ${c.telefono || '—'}
+                    ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
+                  </td>
+                  <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
+                  <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
+                  <td>${c.ciudad || '—'}</td>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
+                    ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
+                  </td>
                 </tr>
               `).join('')}
           </tbody>
         </table>
       </div>
     `
+    window._clientesData = data
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
@@ -1374,4 +1403,255 @@ window.toggleProducto = async (id, activo) => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+window.filtrarClientes = () => {
+  const buscar = document.getElementById('cli-buscar').value.toLowerCase()
+  const tipo = document.getElementById('cli-tipo').value
+  const data = window._clientesData || []
+  const filtrados = data.filter(c => {
+    if (buscar && !c.nombre.toLowerCase().includes(buscar) && !(c.telefono || '').includes(buscar)) return false
+    if (tipo && c.tipo !== tipo) return false
+    return true
+  })
+  const tbody = document.getElementById('cli-tbody')
+  if (!tbody) return
+  tbody.innerHTML = filtrados.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No se encontraron clientes</td></tr>'
+    : filtrados.map(c => `
+      <tr>
+        <td>
+          <strong>${c.nombre}</strong>
+          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">📝 ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+        </td>
+        <td>
+          ${c.telefono || '—'}
+          ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
+        </td>
+        <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
+        <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
+        <td>${c.ciudad || '—'}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
+          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
+        </td>
+      </tr>
+    `).join('')
+}
+
+window.mostrarFormCliente = async (id) => {
+  const content = document.getElementById('content')
+  let d = {}
+  if (id) {
+    try {
+      const res = await fetch(API + '/clientes/' + id)
+      const data = await res.json()
+      if (data && data.length > 0) d = data[0]
+    } catch(e) {}
+  }
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+        <h3>${id ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366;margin-left:auto">WhatsApp</a>' : ''}      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Nombre completo *</label>
+          <input class="form-input" id="cli-nombre" placeholder="Nombre del cliente" value="${d.nombre || ''}">
+        </div>
+        <div>
+          <label class="form-label">Telefono (WhatsApp)</label>
+        <div style="display:flex;gap:8px">
+        <select class="form-input" id="cli-lada" style="max-width:120px">
+            <option value="52" ${(d.lada || '52') === '52' ? 'selected' : ''}>🇲🇽 +52</option>
+            <option value="1" ${d.lada === '1' ? 'selected' : ''}>🇺🇸 +1</option>
+            <option value="1" ${d.lada === '1CA' ? 'selected' : ''}>🇨🇦 +1</option>
+            <option value="34" ${d.lada === '34' ? 'selected' : ''}>🇪🇸 +34</option>
+            <option value="57" ${d.lada === '57' ? 'selected' : ''}>🇨🇴 +57</option>
+            <option value="54" ${d.lada === '54' ? 'selected' : ''}>🇦🇷 +54</option>
+            </select>
+            <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
+        </div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="cli-email" type="email" placeholder="correo@ejemplo.com" value="${d.email || ''}">
+        </div>
+        <div>
+          <label class="form-label">Tipo de cliente *</label>
+          <select class="form-input" id="cli-tipo">
+            <option value="menudeo" ${d.tipo === 'menudeo' ? 'selected' : ''}>Menudeo</option>
+            <option value="mayoreo" ${d.tipo === 'mayoreo' ? 'selected' : ''}>Mayoreo</option>
+            <option value="zapateria" ${d.tipo === 'zapateria' ? 'selected' : ''}>Zapateria</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Direccion de entrega</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="grid-column:1/-1">
+            <label class="form-label">Calle y numero</label>
+            <input class="form-input" id="cli-direccion" placeholder="Ej: Calle Juarez 123 Col. Centro" value="${d.direccion || ''}">
+          </div>
+          <div>
+            <label class="form-label">Ciudad</label>
+            <input class="form-input" id="cli-ciudad" placeholder="Ej: Leon" value="${d.ciudad || ''}">
+          </div>
+          <div>
+            <label class="form-label">Estado</label>
+            <input class="form-input" id="cli-estado" placeholder="Ej: Guanajuato" value="${d.estado || ''}">
+          </div>
+          <div>
+            <label class="form-label">Codigo postal</label>
+            <input class="form-input" id="cli-cp" placeholder="Ej: 37000" value="${d.codigo_postal || ''}">
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Credito</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Limite de credito ($)</label>
+            <input class="form-input" id="cli-credito" type="number" step="0.01" placeholder="0.00" value="${d.limite_credito || '0'}">
+          </div>
+          <div>
+            <label class="form-label">Dias de credito</label>
+            <select class="form-input" id="cli-dias">
+              <option value="0" ${d.dias_credito === 0 ? 'selected' : ''}>Sin credito</option>
+              <option value="15" ${d.dias_credito === 15 ? 'selected' : ''}>15 dias</option>
+              <option value="30" ${d.dias_credito === 30 ? 'selected' : ''}>30 dias</option>
+              <option value="60" ${d.dias_credito === 60 ? 'selected' : ''}>60 dias</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Comentarios internos</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Solo visibles para el equipo, el cliente no los ve.</p>
+        <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${d.comentarios_internos || ''}</textarea>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-cli-guardar" onclick="guardarCliente('${id || ''}')">Guardar cliente</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarCliente = async (id) => {
+  const nombre = document.getElementById('cli-nombre').value
+  if (!nombre) {
+    alert('El nombre del cliente es obligatorio')
+    return
+  }
+  const btn = document.getElementById('btn-cli-guardar')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  const cliente = {
+    nombre,
+    telefono: document.getElementById('cli-telefono').value || null,
+    email: document.getElementById('cli-email').value || null,
+    tipo: document.getElementById('cli-tipo').value,
+    direccion: document.getElementById('cli-direccion').value || null,
+    lada: document.getElementById('cli-lada').value || '52',
+    ciudad: document.getElementById('cli-ciudad').value || null,
+    estado: document.getElementById('cli-estado').value || null,
+    codigo_postal: document.getElementById('cli-cp').value || null,
+    limite_credito: parseFloat(document.getElementById('cli-credito').value) || 0,
+    dias_credito: parseInt(document.getElementById('cli-dias').value) || 0,
+    comentarios_internos: document.getElementById('cli-comentarios').value || null,
+    activo: true
+  }
+
+  try {
+    const method = id ? 'PATCH' : 'POST'
+    const url = id ? API + '/clientes/' + id : API + '/clientes/'
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cliente)
+    })
+    if (res.ok) {
+      alert('Cliente guardado correctamente')
+      navegarA('clientes')
+    } else {
+      const err = await res.text()
+      alert('Error al guardar: ' + err)
+      if (btn) { btn.textContent = 'Guardar cliente'; btn.disabled = false }
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+    if (btn) { btn.textContent = 'Guardar cliente'; btn.disabled = false }
+  }
+}
+
+window.verCliente = async (id) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/clientes/' + id)
+    const data = await res.json()
+    if (!data || data.length === 0) { alert('Cliente no encontrado'); return }
+    const c = data[0]
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+          <h3 style="flex:1">${c.nombre}</h3>
+          <button class="btn btn-secondary" onclick="editarCliente('${c.id}')">Editar</button>
+          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Tipo</p>
+            <span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Telefono</p>
+            <p style="font-weight:600">${c.telefono || '—'}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Email</p>
+            <p style="font-weight:600">${c.email || '—'}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Direccion</p>
+            <p style="font-weight:600">${c.direccion || '—'}</p>
+            <p style="font-size:0.8rem;color:#888">${c.ciudad || ''} ${c.estado || ''} ${c.codigo_postal || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Credito</p>
+            <p style="font-weight:600">${c.limite_credito > 0 ? '$' + c.limite_credito : 'Sin credito'}</p>
+            <p style="font-size:0.8rem;color:#888">${c.dias_credito > 0 ? c.dias_credito + ' dias' : ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente desde</p>
+            <p style="font-weight:600">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : '—'}</p>
+          </div>
+        </div>
+
+        ${c.comentarios_internos ? `
+          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1.5rem;border:1px solid #ffe082">
+            <p style="font-size:0.75rem;color:#f57f17;font-weight:600;margin-bottom:4px">Comentarios internos</p>
+            <p style="color:#555">${c.comentarios_internos}</p>
+          </div>
+        ` : ''}
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="alert('Modulo de pedidos proximamente')">+ Nuevo pedido</button>
+          <button class="btn btn-secondary" onclick="alert('Historial proximamente')">Ver historial</button>
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando cliente</p>'
+  }
+}
+window.editarCliente = (id) => {
+  mostrarFormCliente(id)
 }
