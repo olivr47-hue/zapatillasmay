@@ -204,4 +204,53 @@ tr:hover td { background: #fafafa; }
 
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
+}.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 4px;
 }
+
+.form-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: 'Segoe UI', sans-serif;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #E91E8C;
+}
+
+textarea.form-input { resize: vertical; }
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: 'Segoe UI', sans-serif;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #E91E8C;
+}
+
+textarea.form-input { resize: vertical; }
