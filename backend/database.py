@@ -1,6 +1,5 @@
 import os
 import urllib.request
-import urllib.parse
 import json
 from dotenv import load_dotenv
 
@@ -12,7 +11,8 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
 }
 
 def supabase_get(tabla):
@@ -27,6 +27,21 @@ def supabase_post(tabla, data):
     req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read())
+
+def supabase_patch(tabla, data):
+    url = f"{SUPABASE_URL}/rest/v1/{tabla}"
+    body = json.dumps(data).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=HEADERS, method="PATCH")
+    with urllib.request.urlopen(req) as response:
+        return json.loads(response.read())
+
+def obtener_consecutivo(nombre):
+    resultado = supabase_get(f"consecutivos?id=eq.{nombre}")
+    if resultado and len(resultado) > 0:
+        valor = resultado[0]["valor"]
+        supabase_patch(f"consecutivos?id=eq.{nombre}", {"valor": valor + 1})
+        return valor
+    return 1
 
 def get_url():
     return SUPABASE_URL

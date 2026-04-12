@@ -1,22 +1,76 @@
 const API = 'http://127.0.0.1:3000'
 
+const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+const COLORES_SUGERIDOS = [
+  { nombre: 'Negro', hex: '#000000' },
+  { nombre: 'Blanco', hex: '#FFFFFF' },
+  { nombre: 'Hueso', hex: '#F5F0E8' },
+  { nombre: 'Beige', hex: '#E8D5B0' },
+  { nombre: 'Camel', hex: '#C19A6B' },
+  { nombre: 'Miel', hex: '#B8860B' },
+  { nombre: 'Cafe claro', hex: '#A0785A' },
+  { nombre: 'Cafe medio', hex: '#7B4F2E' },
+  { nombre: 'Cafe oscuro', hex: '#4A2C1A' },
+  { nombre: 'Chocolate', hex: '#3B1F0E' },
+  { nombre: 'Cognac', hex: '#8B4513' },
+  { nombre: 'Taupe', hex: '#8B7D6B' },
+  { nombre: 'Gris claro', hex: '#C0C0C0' },
+  { nombre: 'Gris', hex: '#808080' },
+  { nombre: 'Gris oscuro', hex: '#404040' },
+  { nombre: 'Rojo', hex: '#CC0000' },
+  { nombre: 'Vino', hex: '#722F37' },
+  { nombre: 'Bordo', hex: '#800020' },
+  { nombre: 'Rosa claro', hex: '#FFB6C1' },
+  { nombre: 'Rosa', hex: '#FF69B4' },
+  { nombre: 'Fusha', hex: '#E91E8C' },
+  { nombre: 'Coral', hex: '#FF6B6B' },
+  { nombre: 'Salmon', hex: '#FA8072' },
+  { nombre: 'Naranja', hex: '#FF6600' },
+  { nombre: 'Amarillo', hex: '#FFD700' },
+  { nombre: 'Dorado', hex: '#C8A951' },
+  { nombre: 'Plateado', hex: '#A8A8A8' },
+  { nombre: 'Azul claro', hex: '#6CA0DC' },
+  { nombre: 'Azul', hex: '#0000CC' },
+  { nombre: 'Azul marino', hex: '#001F5B' },
+  { nombre: 'Turquesa', hex: '#40E0D0' },
+  { nombre: 'Verde', hex: '#006400' },
+  { nombre: 'Verde menta', hex: '#98FF98' },
+  { nombre: 'Morado', hex: '#800080' },
+  { nombre: 'Lila', hex: '#C8A2C8' },
+  { nombre: 'Multicolor', hex: '#FF69B4' },
+]
+
+const CATEGORIAS = [
+  { value: 'tacones', label: 'Tacones', prefix: 'TAC' },
+  { value: 'sandalias', label: 'Sandalias', prefix: 'SAN' },
+  { value: 'botas', label: 'Botas', prefix: 'BOT' },
+  { value: 'botines', label: 'Botines', prefix: 'BTN' },
+  { value: 'flats', label: 'Flats', prefix: 'FLT' },
+  { value: 'plataformas', label: 'Plataformas', prefix: 'PLT' },
+  { value: 'tenis', label: 'Tenis', prefix: 'TEN' },
+  { value: 'nina', label: 'Calzado de nina', prefix: 'NIN' },
+  { value: 'accesorios', label: 'Accesorios', prefix: 'ACC' },
+]
+
 const modulos = [
   { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal' },
-  { id: 'productos', icon: '👠', label: 'Productos', section: 'Catálogo' },
-  { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catálogo' },
+  { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
+  { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
-  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuración' },
+  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
 ]
 
 let moduloActivo = 'dashboard'
+let varianteCount = 1
 
 export function renderPanel() {
   document.querySelector('#app').innerHTML = `
     <div class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <h2>Zapatillas <span>May</span></h2>
-        <p>Panel de administración</p>
+        <p>Panel de administracion</p>
       </div>
       <nav class="sidebar-nav">
         ${renderNav()}
@@ -29,7 +83,7 @@ export function renderPanel() {
           <h1 id="topbar-title">Dashboard</h1>
         </div>
         <div class="topbar-actions">
-          <span style="font-size:0.8rem;color:#888">León, Gto.</span>
+          <span style="font-size:0.8rem;color:#888">Leon, Gto.</span>
         </div>
       </div>
       <div class="content" id="content">
@@ -43,7 +97,7 @@ export function renderPanel() {
   window.navegarA = (id) => {
     moduloActivo = id
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
-    document.querySelector(`[data-modulo="${id}"]`).classList.add('active')
+    document.querySelector('[data-modulo="' + id + '"]').classList.add('active')
     document.getElementById('topbar-title').textContent = modulos.find(m => m.id === id).label
     cargarModulo(id)
   }
@@ -83,7 +137,7 @@ function renderDashboard() {
       <div class="stat-card">
         <div class="stat-label">Productos activos</div>
         <div class="stat-value">—</div>
-        <div class="stat-sub">En catálogo</div>
+        <div class="stat-sub">En catalogo</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Pedidos hoy</div>
@@ -106,8 +160,8 @@ function renderDashboard() {
         <h3>Bienvenido al ERP Zapatillas May</h3>
       </div>
       <div style="padding:2rem;color:#888;text-align:center">
-        <p style="font-size:1.1rem;margin-bottom:0.5rem">Sistema funcionando correctamente ✅</p>
-        <p>Selecciona un módulo del menú para comenzar</p>
+        <p style="font-size:1.1rem;margin-bottom:0.5rem">Sistema funcionando correctamente</p>
+        <p>Selecciona un modulo del menu para comenzar</p>
       </div>
     </div>
   `
@@ -116,7 +170,7 @@ function renderDashboard() {
 async function cargarProductos() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(`${API}/productos/`)
+    const res = await fetch(API + '/productos/')
     const data = await res.json()
     content.innerHTML = `
       <div class="table-card">
@@ -127,23 +181,33 @@ async function cargarProductos() {
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Precio menudeo</th>
-              <th>Precio mayoreo</th>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>Categoria</th>
+              <th>Menudeo</th>
+              <th>Mayoreo</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay productos aún</td></tr>'
+              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos aun</td></tr>'
               : data.map(p => `
                 <tr>
-                  <td><strong>${p.nombre}</strong><br><small style="color:#888">${p.sku_interno || '—'}</small></td>
+                  <td style="display:flex;align-items:center;gap:10px">
+                    ${p.imagen_principal ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">' : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0"></div>'}
+                    <strong>${p.nombre}</strong>
+                  </td>
+                  <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
                   <td>${p.categoria || '—'}</td>
                   <td>$${p.precio_menudeo}</td>
                   <td>$${p.precio_mayoreo || '—'}</td>
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                  <td>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="editarProducto('${p.id}')">Editar</button>
+                    <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;margin-left:4px" onclick="duplicarProducto('${p.id}')">Duplicar</button>
+                  </td>
                 </tr>
               `).join('')}
           </tbody>
@@ -158,7 +222,7 @@ async function cargarProductos() {
 async function cargarClientes() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(`${API}/clientes/`)
+    const res = await fetch(API + '/clientes/')
     const data = await res.json()
     content.innerHTML = `
       <div class="table-card">
@@ -168,11 +232,11 @@ async function cargarClientes() {
         </div>
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Teléfono</th><th>Tipo</th><th>Email</th></tr>
+            <tr><th>Nombre</th><th>Telefono</th><th>Tipo</th><th>Email</th></tr>
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes aún</td></tr>'
+              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes aun</td></tr>'
               : data.map(c => `
                 <tr>
                   <td><strong>${c.nombre}</strong></td>
@@ -193,7 +257,7 @@ async function cargarClientes() {
 async function cargarPedidos() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(`${API}/pedidos/`)
+    const res = await fetch(API + '/pedidos/')
     const data = await res.json()
     content.innerHTML = `
       <div class="table-card">
@@ -207,7 +271,7 @@ async function cargarPedidos() {
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos aún</td></tr>'
+              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos aun</td></tr>'
               : data.map(p => `
                 <tr>
                   <td>${p.clientes ? p.clientes.nombre : '—'}</td>
@@ -229,7 +293,7 @@ async function cargarPedidos() {
 async function cargarSucursales() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(`${API}/sucursales/`)
+    const res = await fetch(API + '/sucursales/')
     const data = await res.json()
     content.innerHTML = `
       <div class="table-card">
@@ -239,7 +303,7 @@ async function cargarSucursales() {
         </div>
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th>Dirección</th><th>Teléfono</th><th>Estado</th></tr>
+            <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th></tr>
           </thead>
           <tbody>
             ${data.map(s => `
@@ -264,194 +328,276 @@ async function cargarInventario() {
   const content = document.getElementById('content')
   content.innerHTML = `
     <div class="table-card">
-      <div class="table-header">
-        <h3>Inventario por sucursal</h3>
-      </div>
+      <div class="table-header"><h3>Inventario por sucursal</h3></div>
       <div style="padding:2rem;color:#888;text-align:center">
-        <p>Agrega productos primero para ver el inventario aquí</p>
+        <p>Agrega productos primero para ver el inventario aqui</p>
       </div>
     </div>
   `
 }
 
-const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Única']
+function generarSKU(categoria, nombre) {
+  const cat = CATEGORIAS.find(c => c.value === categoria)
+  const prefix = cat ? cat.prefix : 'MAY'
+  const palabras = nombre.trim().split(' ').slice(0, 2).map(p => p.substring(0, 3).toUpperCase()).join('')
+  const num = Math.floor(Math.random() * 900) + 100
+  return prefix + '-' + palabras + '-' + num
+}
 
-window.mostrarFormProducto = () => {
+function renderVariante(i, datos) {
+  const d = datos || {}
+  return `
+    <div class="variante-item" id="variante-${i}" style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+        <p style="font-weight:500;color:#333;font-size:0.9rem">Color ${i + 1}</p>
+        ${i > 0 ? '<button type="button" onclick="this.closest(\'.variante-item\').remove()" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar</button>' : ''}
+      </div>
+      <div style="margin-bottom:0.75rem">
+        <label class="form-label">Paleta de colores</label>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;max-width:100%">
+          ${COLORES_SUGERIDOS.map(c => `
+            <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
+                 title="${c.nombre}"
+                 style="width:24px;height:24px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0">
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:end">
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
+                 style="width:40px;height:36px;border:1px solid #ddd;border-radius:6px;cursor:pointer;padding:2px">
+          <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color" value="${d.color || ''}" style="width:160px">
+        </div>
+        <div>
+          <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
+          <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
+          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+window.mostrarFormProducto = (datos) => {
+  varianteCount = 1
+  const d = datos || {}
   const content = document.getElementById('content')
   content.innerHTML = `
     <div class="table-card" style="padding:2rem">
-      <h3 style="margin-bottom:1.5rem">Nuevo producto</h3>
-      <form id="form-producto">
+      <h3 style="margin-bottom:1.5rem">${datos ? 'Editar producto' : 'Nuevo producto'}</h3>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-          <div>
-            <label class="form-label">Nombre del producto *</label>
-            <input class="form-input" id="f-nombre" required placeholder="Ej: Sandalia de tacón Valentina">
-          </div>
-          <div>
-            <label class="form-label">SKU interno</label>
-            <input class="form-input" id="f-sku" placeholder="Ej: MAY-001">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Nombre del producto *</label>
+          <input class="form-input" id="f-nombre" required placeholder="Ej: Sandalia de tacon Valentina" value="${d.nombre || ''}" oninput="actualizarSKU()">
+        </div>
+        <div>
+          <label class="form-label">SKU interno <span style="color:#E91E8C;font-size:0.75rem">(auto-generado)</span></label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="f-sku" placeholder="Se genera automaticamente" value="${d.sku_interno || ''}">
+            <button type="button" class="btn btn-secondary" onclick="regenerarSKU()" style="white-space:nowrap;padding:8px 12px">Regenerar</button>
           </div>
         </div>
+      </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-          <div>
-            <label class="form-label">Marca (visible al cliente)</label>
-            <input class="form-input" id="f-marca" placeholder="Ej: Zapatillas May">
-          </div>
-          <div>
-            <label class="form-label">Proveedor (interno)</label>
-            <input class="form-input" id="f-proveedor" placeholder="Nombre del proveedor">
-          </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Marca (visible al cliente)</label>
+          <input class="form-input" id="f-marca" placeholder="Ej: Zapatillas May" value="${d.marca || ''}">
         </div>
+        <div>
+          <label class="form-label">Proveedor (interno)</label>
+          <input class="form-input" id="f-proveedor" placeholder="Nombre del proveedor" value="${d.proveedor || ''}">
+        </div>
+      </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Categoria *</label>
+          <select class="form-input" id="f-categoria" required onchange="actualizarSKU()">
+            <option value="">Selecciona...</option>
+            ${CATEGORIAS.map(c => `<option value="${c.value}" ${d.categoria === c.value ? 'selected' : ''}>${c.label}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Subcategoria</label>
+          <input class="form-input" id="f-subcategoria" placeholder="Ej: Casual, Fiesta, Trabajo" value="${d.subcategoria || ''}">
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Descripcion</label>
+        <textarea class="form-input" id="f-descripcion" rows="3" placeholder="Describe el producto detalladamente para SEO...">${d.descripcion || ''}</textarea>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Detalles tecnicos</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+          <div><label class="form-label">Material</label><input class="form-input" id="f-material" placeholder="Ej: Cuero sintetico" value="${d.material || ''}"></div>
+          <div><label class="form-label">Material suela</label><input class="form-input" id="f-suela" placeholder="Ej: Hule" value="${d.material_suela || ''}"></div>
+          <div><label class="form-label">Forro</label><input class="form-input" id="f-forro" placeholder="Ej: Textil" value="${d.forro || ''}"></div>
           <div>
-            <label class="form-label">Categoría *</label>
-            <select class="form-input" id="f-categoria" required>
+            <label class="form-label">Horma</label>
+            <select class="form-input" id="f-horma">
               <option value="">Selecciona...</option>
-              <option value="tacones">Tacones</option>
-              <option value="sandalias">Sandalias</option>
-              <option value="botas">Botas</option>
-              <option value="botines">Botines</option>
-              <option value="flats">Flats</option>
-              <option value="plataformas">Plataformas</option>
-              <option value="tenis">Tenis</option>
-              <option value="nina">Calzado de niña</option>
-              <option value="accesorios">Accesorios</option>
+              <option value="normal" ${d.horma === 'normal' ? 'selected' : ''}>Normal</option>
+              <option value="reducida" ${d.horma === 'reducida' ? 'selected' : ''}>Reducida</option>
+              <option value="amplia" ${d.horma === 'amplia' ? 'selected' : ''}>Amplia</option>
             </select>
           </div>
+          <div><label class="form-label">Altura tacon (cm)</label><input class="form-input" id="f-tacon" type="number" step="0.5" placeholder="Ej: 8.5" value="${d.altura_tacon || ''}"></div>
           <div>
-            <label class="form-label">Subcategoría</label>
-            <input class="form-input" id="f-subcategoria" placeholder="Ej: Casual, Fiesta, Trabajo">
+            <label class="form-label">Tipo de tacon</label>
+            <select class="form-input" id="f-tipotacon">
+              <option value="">Selecciona...</option>
+              <option value="aguja" ${d.tipo_tacon === 'aguja' ? 'selected' : ''}>Aguja</option>
+              <option value="bloque" ${d.tipo_tacon === 'bloque' ? 'selected' : ''}>Bloque</option>
+              <option value="cuna" ${d.tipo_tacon === 'cuna' ? 'selected' : ''}>Cuna</option>
+              <option value="plataforma" ${d.tipo_tacon === 'plataforma' ? 'selected' : ''}>Plataforma</option>
+              <option value="sin_tacon" ${d.tipo_tacon === 'sin_tacon' ? 'selected' : ''}>Sin tacon</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        <div style="margin-bottom:1rem">
-          <label class="form-label">Descripción</label>
-          <textarea class="form-input" id="f-descripcion" rows="3" placeholder="Describe el producto detalladamente para SEO..."></textarea>
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
+          <div><label class="form-label">Costo (interno) *</label><input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${d.costo || ''}"></div>
+          <div><label class="form-label">Precio menudeo *</label><input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${d.precio_menudeo || ''}"></div>
+          <div><label class="form-label">Precio mayoreo</label><input class="form-input" id="f-mayoreo" type="number" step="0.01" placeholder="0.00" value="${d.precio_mayoreo || ''}"></div>
+          <div><label class="form-label">Precio antes (tachado)</label><input class="form-input" id="f-antes" type="number" step="0.01" placeholder="0.00" value="${d.precio_antes || ''}"></div>
         </div>
-
-        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-          <p style="font-weight:600;margin-bottom:1rem;color:#333">Detalles técnicos</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-            <div>
-              <label class="form-label">Material</label>
-              <input class="form-input" id="f-material" placeholder="Ej: Cuero sintético">
-            </div>
-            <div>
-              <label class="form-label">Material suela</label>
-              <input class="form-input" id="f-suela" placeholder="Ej: Hule">
-            </div>
-            <div>
-              <label class="form-label">Forro</label>
-              <input class="form-input" id="f-forro" placeholder="Ej: Textil">
-            </div>
-            <div>
-              <label class="form-label">Horma</label>
-              <select class="form-input" id="f-horma">
-                <option value="">Selecciona...</option>
-                <option value="normal">Normal</option>
-                <option value="reducida">Reducida</option>
-                <option value="amplia">Amplia</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Altura tacón (cm)</label>
-              <input class="form-input" id="f-tacon" type="number" step="0.5" placeholder="Ej: 8.5">
-            </div>
-            <div>
-              <label class="form-label">Tipo de tacón</label>
-              <select class="form-input" id="f-tipotacon">
-                <option value="">Selecciona...</option>
-                <option value="aguja">Aguja</option>
-                <option value="bloque">Bloque</option>
-                <option value="cuña">Cuña</option>
-                <option value="plataforma">Plataforma</option>
-                <option value="sin_tacon">Sin tacón</option>
-              </select>
-            </div>
+        <div style="margin-top:1rem;display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="f-descuento" onchange="toggleDescuento()" ${d.tiene_descuento ? 'checked' : ''}>
+            <span class="form-label" style="margin:0">Tiene descuento</span>
+          </label>
+          <div id="descuento-pct" style="display:${d.tiene_descuento ? 'flex' : 'none'};align-items:center;gap:6px">
+            <input class="form-input" id="f-pct" type="number" min="0" max="100" placeholder="%" style="width:70px" value="${d.porcentaje_descuento || ''}">
+            <span class="form-label" style="margin:0">%</span>
           </div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
+            <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional de mayoreo ni corrida)</span>
+          </label>
         </div>
+      </div>
 
-        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-          <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
-            <div>
-              <label class="form-label">Costo (interno) *</label>
-              <input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00">
-            </div>
-            <div>
-              <label class="form-label">Precio menudeo *</label>
-              <input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00">
-            </div>
-            <div>
-              <label class="form-label">Precio mayoreo</label>
-              <input class="form-input" id="f-mayoreo" type="number" step="0.01" placeholder="0.00">
-            </div>
-            <div>
-              <label class="form-label">Precio antes (tachado)</label>
-              <input class="form-input" id="f-antes" type="number" step="0.01" placeholder="0.00">
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="f-descuento" onchange="toggleDescuento()">
-              <span class="form-label" style="margin:0">Tiene descuento</span>
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
+        <div id="variantes-container">${renderVariante(0, null)}</div>
+        <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Tallas disponibles</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${TALLAS.map(t => `
+            <label class="talla-label" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:6px;cursor:pointer;border:2px solid ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#E91E8C' : 'transparent'};background:${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#fce4f3' : '#f5f5f5'}">
+              <input type="checkbox" value="${t}" style="display:none" onchange="toggleTalla(this)" ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? 'checked' : ''}>
+              <span>${t}</span>
             </label>
-            <div id="descuento-pct" style="display:none">
-              <input class="form-input" id="f-pct" type="number" min="0" max="100" placeholder="%" style="width:80px">
-            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Logistica y SEO</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Peso en kilos (para envio)</label>
+            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="${d.peso_gramos ? (d.peso_gramos / 1000).toFixed(2) : ''}">
           </div>
+          <div><label class="form-label">Slug URL (para SEO)</label><input class="form-input" id="f-slug" placeholder="Ej: sandalia-tacon-valentina" value="${d.slug || ''}"></div>
+          <div><label class="form-label">Meta titulo (SEO)</label><input class="form-input" id="f-metatitulo" placeholder="Ej: Sandalia de tacon Valentina | Zapatillas May" value="${d.meta_titulo || ''}"></div>
+          <div><label class="form-label">Meta descripcion (SEO)</label><input class="form-input" id="f-metadesc" placeholder="Descripcion para Google (max 160 caracteres)" value="${d.meta_descripcion || ''}"></div>
         </div>
+      </div>
 
-        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-          <p style="font-weight:600;margin-bottom:1rem;color:#333">Tallas disponibles</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            ${TALLAS.map(t => `
-              <label class="talla-label" style="display:flex;align-items:center;gap:4px;background:#f5f5f5;padding:6px 12px;border-radius:6px;cursor:pointer;border:2px solid transparent">
-                <input type="checkbox" value="${t}" style="display:none" onchange="toggleTalla(this)">
-                <span>${t}</span>
-              </label>
-            `).join('')}
-          </div>
-        </div>
-
-        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-          <p style="font-weight:600;margin-bottom:1rem;color:#333">Logística y SEO</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-            <div>
-              <label class="form-label">Peso en gramos (para envío)</label>
-              <input class="form-input" id="f-peso" type="number" placeholder="Ej: 450">
-            </div>
-            <div>
-              <label class="form-label">Slug URL (para SEO)</label>
-              <input class="form-input" id="f-slug" placeholder="Ej: sandalia-tacon-valentina">
-            </div>
-            <div>
-              <label class="form-label">Meta título (SEO)</label>
-              <input class="form-input" id="f-metatitulo" placeholder="Ej: Sandalia de tacón Valentina | Zapatillas May">
-            </div>
-            <div>
-              <label class="form-label">Meta descripción (SEO)</label>
-              <input class="form-input" id="f-metadesc" placeholder="Descripción para Google (máx 160 caracteres)">
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
-          <button type="button" class="btn btn-secondary" onclick="navegarA('productos')">Cancelar</button>
-          <button type="button" class="btn btn-primary" onclick="guardarProducto()">Guardar producto</button>
-        </div>
-
-      </form>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button type="button" class="btn btn-secondary" onclick="navegarA('productos')">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">Guardar producto</button>
+      </div>
     </div>
   `
+  window._productoEditandoId = null
+}
+
+window.actualizarSKU = async () => {
+  const nombre = document.getElementById('f-nombre').value
+  const categoria = document.getElementById('f-categoria').value
+  const proveedor = document.getElementById('f-proveedor').value
+  const skuInput = document.getElementById('f-sku')
+  if (!skuInput.value && nombre && categoria && proveedor) {
+    try {
+      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
+      const data = await res.json()
+      skuInput.value = data.sku_base
+    } catch(e) {
+      console.error('Error generando SKU', e)
+    }
+  }
+}
+
+window.regenerarSKU = async () => {
+  const categoria = document.getElementById('f-categoria').value
+  const proveedor = document.getElementById('f-proveedor').value
+  if (categoria && proveedor) {
+    try {
+      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
+      const data = await res.json()
+      document.getElementById('f-sku').value = data.sku_base
+    } catch(e) {
+      console.error('Error generando SKU', e)
+    }
+  } else {
+    alert('Selecciona categoria y escribe el proveedor primero')
+  }
+}
+
+window.regenerarSKU = () => {
+  const nombre = document.getElementById('f-nombre').value
+  const categoria = document.getElementById('f-categoria').value
+  if (nombre && categoria) {
+    document.getElementById('f-sku').value = generarSKU(categoria, nombre)
+  }
+}
+
+window.seleccionarColor = (idx, hex, nombre) => {
+  document.getElementById('v' + idx + '-hex').value = hex
+  document.getElementById('v' + idx + '-nombre').value = nombre
+}
+
+window.agregarVariante = () => {
+  const i = varianteCount++
+  const container = document.getElementById('variantes-container')
+  const div = document.createElement('div')
+  div.innerHTML = renderVariante(i, null)
+  container.appendChild(div.firstElementChild)
+}
+
+window.previsualizarImagenes = (input, idx) => {
+  const preview = document.getElementById('v' + idx + '-preview')
+  preview.innerHTML = ''
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = document.createElement('img')
+      img.src = e.target.result
+      img.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd'
+      preview.appendChild(img)
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
 window.toggleDescuento = () => {
   const chk = document.getElementById('f-descuento')
-  document.getElementById('descuento-pct').style.display = chk.checked ? 'block' : 'none'
+  document.getElementById('descuento-pct').style.display = chk.checked ? 'flex' : 'none'
 }
 
 window.toggleTalla = (input) => {
@@ -465,6 +611,34 @@ window.toggleTalla = (input) => {
   }
 }
 
+async function subirImagenesVariantes() {
+  const variantes = document.querySelectorAll('.variante-item')
+  const resultado = []
+  for (const v of variantes) {
+    const id = v.id.replace('variante-', '')
+    const hex = document.getElementById('v' + id + '-hex')
+    const nombre = document.getElementById('v' + id + '-nombre')
+    const inputImgs = document.getElementById('v' + id + '-imgs')
+    if (!nombre || !nombre.value) continue
+    const urls = []
+    if (inputImgs && inputImgs.files.length > 0) {
+      for (const file of inputImgs.files) {
+        const formData = new FormData()
+        formData.append('archivo', file)
+        try {
+          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+          const data = await res.json()
+          if (data.url) urls.push(data.url)
+        } catch(e) {
+          console.error('Error subiendo imagen', e)
+        }
+      }
+    }
+    resultado.push({ color: nombre.value, color_hex: hex ? hex.value : '#000000', imagenes: urls })
+  }
+  return resultado
+}
+
 window.guardarProducto = async () => {
   const nombre = document.getElementById('f-nombre').value
   const costo = document.getElementById('f-costo').value
@@ -472,11 +646,18 @@ window.guardarProducto = async () => {
   const categoria = document.getElementById('f-categoria').value
 
   if (!nombre || !costo || !precio_menudeo || !categoria) {
-    alert('Por favor completa los campos obligatorios: Nombre, Categoría, Costo y Precio menudeo')
+    alert('Por favor completa los campos obligatorios: Nombre, Categoria, Costo y Precio menudeo')
     return
   }
 
+  const btn = document.getElementById('btn-guardar')
+  btn.textContent = 'Guardando...'
+  btn.disabled = true
+
   const tallas = [...document.querySelectorAll('.talla-label input:checked')].map(i => i.value)
+  const variantesData = await subirImagenesVariantes()
+  const pesoKilos = document.getElementById('f-peso').value
+  const pesoGramos = pesoKilos ? Math.round(parseFloat(pesoKilos) * 1000) : null
 
   const producto = {
     nombre,
@@ -499,28 +680,91 @@ window.guardarProducto = async () => {
     tiene_descuento: document.getElementById('f-descuento').checked,
     porcentaje_descuento: document.getElementById('f-pct') ? parseInt(document.getElementById('f-pct').value) || 0 : 0,
     tallas_disponibles: tallas,
-    peso_gramos: document.getElementById('f-peso').value ? parseInt(document.getElementById('f-peso').value) : null,
+    peso_gramos: pesoGramos,
     slug: document.getElementById('f-slug').value || null,
     meta_titulo: document.getElementById('f-metatitulo').value || null,
     meta_descripcion: document.getElementById('f-metadesc').value || null,
+    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,
     activo: true,
-    nuevo: true
+    nuevo: !window._productoEditandoId
   }
 
   try {
-    const res = await fetch(`${API}/productos/`, {
-      method: 'POST',
+    const method = window._productoEditandoId ? 'PATCH' : 'POST'
+    const url = window._productoEditandoId ? API + '/productos/' + window._productoEditandoId : API + '/productos/'
+    const res = await fetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(producto)
     })
+
     if (res.ok) {
+      const prod = await res.json()
+      const pid = window._productoEditandoId || (prod && prod.length > 0 ? prod[0].id : null)
+
+      if (pid && variantesData.length > 0) {
+        const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
+        for (const v of variantesData) {
+          for (const talla of tallasGuardar) {
+            await fetch(API + '/variantes/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                producto_id: pid,
+                color: v.color,
+                color_hex: v.color_hex,
+                talla: talla,
+                foto_url: v.imagenes[0] || null
+              })
+            })
+          }
+        }
+      }
       alert('Producto guardado correctamente')
+      window._productoEditandoId = null
       navegarA('productos')
     } else {
       const err = await res.text()
       alert('Error al guardar: ' + err)
+      btn.textContent = 'Guardar producto'
+      btn.disabled = false
     }
   } catch(e) {
     alert('Error conectando con el servidor')
+    btn.textContent = 'Guardar producto'
+    btn.disabled = false
+  }
+}
+
+window.editarProducto = async (id) => {
+  try {
+    const res = await fetch(API + '/productos/' + id)
+    const data = await res.json()
+    if (data && data.length > 0) {
+      window._productoEditandoId = id
+      mostrarFormProducto(data[0])
+    }
+  } catch(e) {
+    alert('Error cargando el producto')
+  }
+}
+
+window.duplicarProducto = async (id) => {
+  try {
+    const res = await fetch(API + '/productos/' + id)
+    const data = await res.json()
+    if (data && data.length > 0) {
+      const d = Object.assign({}, data[0])
+      delete d.id
+      delete d.created_at
+      delete d.updated_at
+      d.nombre = d.nombre + ' (copia)'
+      d.slug = d.slug ? d.slug + '-copia' : null
+      d.sku_interno = null
+      window._productoEditandoId = null
+      mostrarFormProducto(d)
+    }
+  } catch(e) {
+    alert('Error duplicando el producto')
   }
 }

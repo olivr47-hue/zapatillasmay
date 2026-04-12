@@ -1,7 +1,20 @@
 from fastapi import APIRouter
-from database import supabase_get, supabase_post
+from database import supabase_get, supabase_post, supabase_patch, obtener_consecutivo
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
+
+@router.get("/siguiente-sku/{categoria}/{proveedor}")
+def siguiente_sku(categoria: str, proveedor: str):
+    num = obtener_consecutivo("productos")
+    cat_prefijos = {
+        "tacones": "TAC", "sandalias": "SAN", "botas": "BOT",
+        "botines": "BTN", "flats": "FLT", "plataformas": "PLT",
+        "tenis": "TEN", "nina": "NIN", "accesorios": "ACC"
+    }
+    prefix = cat_prefijos.get(categoria, "MAY")
+    prov = proveedor[0].upper() if proveedor else "M"
+    sku_base = f"{prov}-{prefix}-{str(num).zfill(4)}"
+    return {"sku_base": sku_base, "consecutivo": num}
 
 @router.get("/")
 def listar_productos():
@@ -19,10 +32,14 @@ def productos_nuevos():
 def productos_por_categoria(categoria: str):
     return supabase_get(f"productos?categoria=eq.{categoria}&activo=eq.true")
 
-@router.get("/{slug}")
-def obtener_producto(slug: str):
-    return supabase_get(f"productos?slug=eq.{slug}")
+@router.get("/{id}")
+def obtener_producto(id: str):
+    return supabase_get(f"productos?id=eq.{id}")
 
 @router.post("/")
 def crear_producto(producto: dict):
     return supabase_post("productos", producto)
+
+@router.patch("/{id}")
+def actualizar_producto(id: str, producto: dict):
+    return supabase_patch(f"productos?id=eq.{id}", producto)
