@@ -474,30 +474,54 @@ window.mostrarFormProducto = (datos) => {
           </div>
         </div>
       </div>
+      
+</div>
 
-      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-        <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem">
-          <div><label class="form-label">Costo (interno) *</label><input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${d.costo || ''}"></div>
-          <div><label class="form-label">Precio menudeo *</label><input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${d.precio_menudeo || ''}"></div>
-          <div><label class="form-label">Precio mayoreo</label><input class="form-input" id="f-mayoreo" type="number" step="0.01" placeholder="0.00" value="${d.precio_mayoreo || ''}"></div>
-          <div><label class="form-label">Precio antes (tachado)</label><input class="form-input" id="f-antes" type="number" step="0.01" placeholder="0.00" value="${d.precio_antes || ''}"></div>
-        </div>
-        <div style="margin-top:1rem;display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" id="f-descuento" onchange="toggleDescuento()" ${d.tiene_descuento ? 'checked' : ''}>
-            <span class="form-label" style="margin:0">Tiene descuento</span>
-          </label>
-          <div id="descuento-pct" style="display:${d.tiene_descuento ? 'flex' : 'none'};align-items:center;gap:6px">
-            <input class="form-input" id="f-pct" type="number" min="0" max="100" placeholder="%" style="width:70px" value="${d.porcentaje_descuento || ''}">
-            <span class="form-label" style="margin:0">%</span>
-          </div>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
-            <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional de mayoreo ni corrida)</span>
-          </label>
-        </div>
+<div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+  <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+    <div>
+      <label class="form-label">Costo (interno, no visible) *</label>
+      <input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${d.costo || ''}">
+    </div>
+    <div>
+      <label class="form-label">Precio menudeo (1 par) *</label>
+      <input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${d.precio_menudeo || ''}">
+    </div>
+  </div>
+  <div style="background:#f9f9f9;border-radius:8px;padding:1rem;border:1px solid #eee">
+    <p style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;color:#333">Precios mayoreo y corrida</p>
+    <p style="font-size:0.75rem;color:#888;margin-bottom:1rem">Deja en blanco para calcular automatico. Si pones un valor ese tiene prioridad sobre el automatico.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div>
+        <label class="form-label">Mayoreo 3-5 pares variados</label>
+        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $30</p>
+        <input class="form-input" id="f-mayoreo3" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo3 || ''}">
       </div>
+      <div>
+        <label class="form-label">Mayoreo 6+ pares variados</label>
+        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $70</p>
+        <input class="form-input" id="f-mayoreo6" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo6 || ''}">
+      </div>
+      <div>
+        <label class="form-label">Media corrida (6 mismo estilo)</label>
+        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $110</p>
+        <input class="form-input" id="f-corrida" type="number" step="0.01" placeholder="Automatico" value="${d.precio_corrida || ''}">
+      </div>
+    </div>
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="f-corrida-activa" ${d.corrida_activa ? 'checked' : ''}>
+        <span class="form-label" style="margin:0">Permite media corrida</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
+        <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional)</span>
+      </label>
+    </div>
+    <div style="margin-top:1rem;display:flex
+  </div>
+</div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
@@ -688,7 +712,6 @@ window.guardarProducto = async () => {
     tipo_tacon: document.getElementById('f-tipotacon').value || null,
     costo: parseFloat(costo),
     precio_menudeo: parseFloat(precio_menudeo),
-    precio_mayoreo: document.getElementById('f-mayoreo').value ? parseFloat(document.getElementById('f-mayoreo').value) : null,
     precio_antes: document.getElementById('f-antes').value ? parseFloat(document.getElementById('f-antes').value) : null,
     tiene_descuento: document.getElementById('f-descuento').checked,
     porcentaje_descuento: document.getElementById('f-pct') ? parseInt(document.getElementById('f-pct').value) || 0 : 0,
@@ -697,7 +720,11 @@ window.guardarProducto = async () => {
     slug: document.getElementById('f-slug').value ? document.getElementById('f-slug').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : null,
     meta_titulo: document.getElementById('f-metatitulo').value || null,
     meta_descripcion: document.getElementById('f-metadesc').value || null,
-    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,
+    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,precio_mayoreo3: document.getElementById('f-mayoreo3').value ? parseFloat(document.getElementById('f-mayoreo3').value) : null,
+    precio_mayoreo6: document.getElementById('f-mayoreo6').value ? parseFloat(document.getElementById('f-mayoreo6').value) : null,
+    precio_corrida: document.getElementById('f-corrida').value ? parseFloat(document.getElementById('f-corrida').value) : null,
+    corrida_activa: document.getElementById('f-corrida-activa').checked,
+    es_oferta: document.getElementById('f-oferta').checked,
     activo: true,
     nuevo: !window._productoEditandoId
   }
