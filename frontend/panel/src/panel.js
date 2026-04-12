@@ -2618,8 +2618,7 @@ window.verPedido = async (id) => {
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
           ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? '<button class="btn btn-primary" onclick="confirmarPedidoAdmin(\'' + p.id + '\')">Confirmar pedido</button>' : ''}
-          <button class="btn btn-secondary" onclick="alert(\'PDF proximamente\')">Generar PDF</button>
-        </div>
+         <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>        </div>
       </div>
     `
   } catch(e) {
@@ -3356,4 +3355,184 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
     </html>
   `)
   ticket.document.close()
+}
+window.generarPDFPedido = async (pedidoId) => {
+  const res = await fetch(API + '/pedidos/' + pedidoId)
+  const data = await res.json()
+  if (!data || data.length === 0) return
+  const pedido = data[0]
+  const items = pedido.pedido_items || []
+  const cliente = pedido.clientes || {}
+  const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+  const total = pedido.total || 0
+  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Pedido ${pedidoId.substring(0,8).toUpperCase()}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; font-size:13px; color:#333; padding:40px; }
+        .header { display:flex; justify-content:space-between; align-items:start; margin-bottom:30px; }
+        .logo { font-size:24px; font-weight:bold; color:#E91E8C; }
+        .logo span { color:#333; }
+        .empresa-datos { font-size:11px; color:#666; margin-top:4px; line-height:1.6; }
+        .pedido-info { text-align:right; }
+        .pedido-num { font-size:18px; font-weight:bold; color:#333; }
+        .pedido-fecha { font-size:12px; color:#888; margin-top:4px; }
+        .divider { border-top:2px solid #E91E8C; margin:20px 0; }
+        .divider-light { border-top:1px solid #eee; margin:15px 0; }
+        .section-title { font-weight:bold; font-size:12px; color:#888; text-transform:uppercase; margin-bottom:8px; }
+        .cliente-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+        .campo { margin-bottom:6px; }
+        .campo-label { font-size:11px; color:#888; }
+        .campo-valor { font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        thead tr { background:#f5f5f5; }
+        th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
+        td { padding:10px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; }
+        .text-right { text-align:right; }
+        .total-section { display:flex; justify-content:flex-end; }
+        .total-box { width:250px; }
+        .total-row { display:flex; justify-content:space-between; padding:6px 0; }
+        .total-final { display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid #E91E8C; font-size:16px; font-weight:bold; color:#E91E8C; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:100px; font-size:11px; font-weight:600; }
+        .badge-success { background:#e8f5e9; color:#2e7d32; }
+        .badge-warning { background:#fff8e1; color:#f57f17; }
+        .footer { margin-top:40px; padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+        .leyenda { margin-top:20px; font-size:11px; color:#888; font-style:italic; }
+        @media print {
+          body { padding:20px; }
+          @page { margin:15mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo">Zapatillas <span>May</span></div>
+          <div class="empresa-datos">
+            RFC: SAPL620614JD7<br>
+            Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
+            Tel: 477 530 8983 | zapatillasmay.mx
+          </div>
+        </div>
+        <div class="pedido-info">
+          <div class="pedido-num">Pedido #${pedidoId.substring(0,8).toUpperCase()}</div>
+          <div class="pedido-fecha">${fecha}</div>
+          <div style="margin-top:8px">
+            <span class="badge ${pedido.status === 'confirmado' || pedido.status === 'pagado' ? 'badge-success' : 'badge-warning'}">${pedido.status}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="cliente-grid">
+        <div>
+          <div class="section-title">Datos del cliente</div>
+          <div class="campo">
+            <div class="campo-label">Nombre</div>
+            <div class="campo-valor">${cliente.nombre || 'Cliente general'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Telefono</div>
+            <div class="campo-valor">${cliente.telefono || '—'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Email</div>
+            <div class="campo-valor">${cliente.email || '—'}</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Informacion del pedido</div>
+          <div class="campo">
+            <div class="campo-label">Canal</div>
+            <div class="campo-valor">${pedido.canal || '—'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Forma de pago</div>
+            <div class="campo-valor">${pedido.forma_pago || '—'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Sucursal</div>
+            <div class="campo-valor">${pedido.sucursales ? pedido.sucursales.nombre : '—'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-light"></div>
+
+      <div class="section-title">Productos</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Talla</th>
+            <th>SKU</th>
+            <th class="text-right">Cant</th>
+            <th class="text-right">Precio unit</th>
+            <th class="text-right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(item => {
+            const variante = item.variantes || {}
+            const producto = variante.productos || {}
+            return `
+              <tr>
+                <td>${producto.nombre || '—'}</td>
+                <td>${variante.color || '—'}</td>
+                <td>${variante.talla || '—'}</td>
+                <td style="font-size:11px;color:#888">${variante.sku || '—'}</td>
+                <td class="text-right">${item.cantidad}</td>
+                <td class="text-right">$${item.precio_unitario}</td>
+                <td class="text-right font-weight:bold">$${item.subtotal}</td>
+              </tr>
+            `
+          }).join('')}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-box">
+          <div class="total-row">
+            <span>Total pares:</span>
+            <span>${totalPares}</span>
+          </div>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>$${parseFloat(total).toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      ${pedido.comentarios ? `
+        <div class="divider-light"></div>
+        <div class="section-title">Comentarios</div>
+        <p style="font-size:12px;color:#555">${pedido.comentarios}</p>
+      ` : ''}
+
+      <div class="leyenda">
+        * En herrajes y pedreria no hay devoluciones por su proceso artesanal.
+      </div>
+
+      <div class="footer">
+        <span>Zapatillas May — zapatillasmay.mx</span>
+        <span>RFC: SAPL620614JD7</span>
+        <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
+      </div>
+
+      <script>
+        window.onload = () => { window.print() }
+      </script>
+    </body>
+    </html>
+  `)
+  ventana.document.close()
 }
