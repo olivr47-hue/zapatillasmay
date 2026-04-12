@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from database import supabase_get
+from routers import productos
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -15,6 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(productos.router)
+
 @app.get("/")
 def inicio():
     return {
@@ -24,4 +28,8 @@ def inicio():
 
 @app.get("/salud")
 def salud():
-    return {"estado": "ok"}
+    try:
+        supabase_get("sucursales")
+        return {"estado": "ok", "base_de_datos": "conectada"}
+    except Exception as e:
+        return {"estado": "error", "detalle": str(e)}
