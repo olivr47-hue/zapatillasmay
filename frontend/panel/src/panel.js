@@ -60,6 +60,7 @@ const modulos = [
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
+  { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
 ]
 
 let moduloActivo = 'dashboard'
@@ -67,7 +68,6 @@ let varianteCount = 1
 
 export function renderPanel() {
   document.querySelector('#app').innerHTML = `
-   setTimeout(() => cargarDashboard(), 100)
     <div class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <h2>Zapatillas <span>May</span></h2>
@@ -88,10 +88,17 @@ export function renderPanel() {
         </div>
       </div>
       <div class="content" id="content">
-${renderDashboardHTML()}      
-</div>
+        ${renderDashboardHTML()}
+      </div>
     </div>
   `
+  setTimeout(() => {
+    if (document.getElementById('dashboard-contenido')) {
+      cargarDashboard()
+    }
+  }, 800)
+
+
   window.toggleSidebar = () => {
     document.getElementById('sidebar').classList.toggle('open')
   }
@@ -130,6 +137,7 @@ async function cargarModulo(id) {
     case 'pedidos': await cargarPedidos(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
+    case 'historial': await cargarHistorial(); break
   }
 }
 
@@ -1422,7 +1430,10 @@ async function cargarDashboard() {
     const diaMas = Object.entries(porDia).sort((a,b)=>b[1]-a[1])[0]
     const topEmp = Object.entries(porEmpleado).sort((a,b)=>b[1]-a[1])[0]
 
-    const cards = document.querySelectorAll('.stat-card')
+    const dashboard = document.getElementById('dashboard-contenido')
+      if (!dashboard) return
+
+    const cards = dashboard.querySelectorAll('.stat-card')    
     const vals = [
       { val: '$'+ventasHoy.toFixed(0), sub: hoyP.length+' pedidos hoy', color: 'var(--pink)' },
       { val: hoyP.length, sub: 'confirmados hoy' },
@@ -1493,4 +1504,132 @@ async function cargarDashboard() {
   } catch(e) {
     console.error('Error dashboard:', e)
   }
+}
+async function cargarHistorial() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/movimientos/')
+    const data = await res.json()
+
+    const tipos = {
+      'venta': { label: 'Venta', color: 'var(--green)', badge: 'badge-success' },
+      'entrada': { label: 'Entrada', color: 'var(--cyan)', badge: 'badge-info' },
+      'ajuste': { label: 'Ajuste', color: 'var(--amber)', badge: 'badge-warning' },
+      'traspaso_salida': { label: 'Traspaso salida', color: 'var(--red)', badge: 'badge-danger' },
+      'traspaso_entrada': { label: 'Traspaso entrada', color: 'var(--cyan)', badge: 'badge-info' },
+      'cambio_salida': { label: 'Cambio salida', color: '#7c3aed', badge: 'badge-info' },
+      'cambio_entrada': { label: 'Cambio entrada', color: '#7c3aed', badge: 'badge-info' },
+    }
+
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Historial de movimientos (${data.length})</h3>
+          <div style="display:flex;gap:8px">
+            <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
+              <option value="">Todos los tipos</option>
+              <option value="venta">Ventas</option>
+              <option value="entrada">Entradas</option>
+              <option value="ajuste">Ajustes</option>
+              <option value="traspaso_salida">Traspasos</option>
+              <option value="cambio_salida">Cambios</option>
+            </select>
+            <input class="form-input" id="hist-buscar" placeholder="Buscar..." style="max-width:200px" oninput="filtrarHistorial()">
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Producto</th>
+              <th>Color</th>
+              <th>Talla</th>
+              <th>Sucursal</th>
+              <th>Cantidad</th>
+              <th>Usuario</th>
+              <th>Motivo</th>           
+               /tr>
+          </thead>
+          <tbody id="hist-tbody">
+            ${data.length === 0
+              ? '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
+              : data.map(m => {
+                  const tipo = tipos[m.tipo] || { label: m.tipo, color: 'var(--text-muted)', badge: 'badge-warning' }
+                  const cantidad = m.cantidad || 0
+                  return `
+                    <tr>
+                      <td style="font-family:DM Mono,monospace;font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
+                      <td><span class="badge ${tipo.badge}">${tipo.label}</span></td>
+                      <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+                      <td>
+                        ${m.variantes && m.variantes.color_hex ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${m.variantes.color_hex};border:1px solid rgba(255,255,255,0.1);vertical-align:middle;margin-right:6px"></span>` : ''}
+                        ${m.variantes ? m.variantes.color || '—' : '—'}
+                      </td>
+                      <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+                      <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
+                      <td style="font-family:DM Mono,monospace;font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">
+                        ${cantidad > 0 ? '+' : ''}${cantidad}
+                      </td>
+                      <td style="font-size:0.82rem;color:var(--text-secondary)">${m.usuario || 'Admin'}</td>
+                      <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>                    
+                      </tr>
+                  `
+                }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `
+    window._historialData = data
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+  }
+}
+
+window.filtrarHistorial = () => {
+  const tipo = document.getElementById('hist-tipo').value
+  const buscar = document.getElementById('hist-buscar').value.toLowerCase()
+  const data = window._historialData || []
+  const tipos = {
+    'venta': { label: 'Venta', badge: 'badge-success' },
+    'entrada': { label: 'Entrada', badge: 'badge-info' },
+    'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
+    'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
+    'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
+    'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
+    'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+  }
+
+  const filtrados = data.filter(m => {
+    if (tipo && m.tipo !== tipo) return false
+    if (buscar) {
+      const nombre = (m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '').toLowerCase()
+      const motivo = (m.motivo || '').toLowerCase()
+      if (!nombre.includes(buscar) && !motivo.includes(buscar)) return false
+    }
+    return true
+  })
+
+  const tbody = document.getElementById('hist-tbody')
+  if (!tbody) return
+  tbody.innerHTML = filtrados.length === 0
+    ? '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
+    : filtrados.map(m => {
+        const tipo_info = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
+        const cantidad = m.cantidad || 0
+        return `
+          <tr>
+            <td style="font-family:DM Mono,monospace;font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
+            <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
+            <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+            <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
+            <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+            <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
+            <td style="font-family:DM Mono,monospace;font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">
+              ${cantidad > 0 ? '+' : ''}${cantidad}
+            </td>
+            <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
+          </tr>
+        `
+      }).join('')
 }
