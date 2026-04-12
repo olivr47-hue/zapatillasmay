@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from database import supabase_get, supabase_post
+from database import supabase_get, supabase_post, supabase_patch
 
 router = APIRouter(prefix="/inventario", tags=["Inventario"])
 
@@ -9,11 +9,11 @@ def listar_inventario():
 
 @router.get("/sucursal/{sucursal_id}")
 def inventario_por_sucursal(sucursal_id: str):
-    return supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}&select=*,variantes(*,productos(nombre,sku_interno,marca))")
+    return supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}&select=*,variantes(*,productos(nombre,sku_interno))")
 
 @router.get("/producto/{producto_id}")
 def inventario_por_producto(producto_id: str):
-    return supabase_get(f"inventario?select=*,variantes!inner(*,productos!inner(*))&variantes.producto_id=eq.{producto_id}")
+    return supabase_get(f"inventario?select=*,variantes!inner(*,productos!inner(*)),sucursales(nombre)&variantes.producto_id=eq.{producto_id}")
 
 @router.get("/alertas")
 def alertas_stock_bajo():
@@ -22,3 +22,12 @@ def alertas_stock_bajo():
 @router.post("/")
 def agregar_inventario(datos: dict):
     return supabase_post("inventario", datos)
+
+@router.patch("/actualizar")
+def actualizar_inventario(datos: dict):
+    variante_id = datos.get("variante_id")
+    sucursal_id = datos.get("sucursal_id")
+    return supabase_patch(
+        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+        {"cantidad": datos.get("cantidad"), "stock_minimo": datos.get("stock_minimo", 3)}
+    )
