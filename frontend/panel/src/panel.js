@@ -172,10 +172,8 @@ async function cargarProductos(categoriaFiltro) {
   try {
     const res = await fetch(API + '/productos/')
     const data = await res.json()
-
     const categorias = [...new Set(data.map(p => p.categoria).filter(Boolean))]
     const filtrados = categoriaFiltro ? data.filter(p => p.categoria === categoriaFiltro) : data
-
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn ${!categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="cargarProductosFiltro(null)">Todos (${data.length})</button>
@@ -197,24 +195,24 @@ async function cargarProductos(categoriaFiltro) {
               <th>SKU</th>
               <th>Categoria</th>
               <th>Menudeo</th>
-              <th>Mayoreo</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             ${filtrados.length === 0
-              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos en esta categoria</td></tr>'
+              ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
               : filtrados.map(p => `
                 <tr>
                   <td style="display:flex;align-items:center;gap:10px">
-                    ${p.imagen_principal ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">' : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc">?</div>'}
+                    ${p.imagen_principal
+                      ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">'
+                      : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
                     <strong>${p.nombre}</strong>
                   </td>
                   <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
                   <td>${p.categoria || '—'}</td>
                   <td>$${p.precio_menudeo}</td>
-                  <td>$${p.precio_mayoreo || '—'}</td>
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
@@ -249,7 +247,7 @@ async function cargarClientes() {
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes aun</td></tr>'
+              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes</td></tr>'
               : data.map(c => `
                 <tr>
                   <td><strong>${c.nombre}</strong></td>
@@ -284,7 +282,7 @@ async function cargarPedidos() {
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos aun</td></tr>'
+              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
               : data.map(p => `
                 <tr>
                   <td>${p.clientes ? p.clientes.nombre : '—'}</td>
@@ -348,19 +346,17 @@ async function cargarInventario() {
     const variantes = await resVariantes.json()
     const resInv = await fetch(API + '/inventario/')
     const inventario = await resInv.json()
-
     window._invData = { sucursales, productos, variantes, inventario }
-
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input class="form-input" id="inv-buscar" placeholder="Buscar por nombre o SKU..." style="max-width:280px" oninput="renderInventario()">
-        <select class="form-input" id="inv-categoria" style="max-width:160px" onchange="renderInventario()">
+        <input class="form-input" id="inv-buscar" placeholder="Buscar por nombre o SKU..." style="max-width:250px" oninput="renderInventario()">
+        <select class="form-input" id="inv-categoria" style="max-width:150px" onchange="renderInventario()">
           <option value="">Todas las categorias</option>
           ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
         </select>
-        <select class="form-input" id="inv-talla" style="max-width:120px" onchange="renderInventario()">
+        <select class="form-input" id="inv-talla" style="max-width:110px" onchange="renderInventario()">
           <option value="">Todas las tallas</option>
-          ${['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27'].map(t => `<option value="${t}">${t}</option>`).join('')}
+          ${TALLAS.map(t => `<option value="${t}">${t}</option>`).join('')}
         </select>
         <select class="form-input" id="inv-estado" style="max-width:140px" onchange="renderInventario()">
           <option value="">Todos los estados</option>
@@ -369,6 +365,9 @@ async function cargarInventario() {
           <option value="agotado">Agotado</option>
         </select>
         <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
+        <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">Alertas</button>
+        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">Ajuste</button>
+        <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
       </div>
       <div id="inv-contenido"></div>
     `
@@ -378,12 +377,440 @@ async function cargarInventario() {
   }
 }
 
-function generarSKU(categoria, nombre) {
-  const cat = CATEGORIAS.find(c => c.value === categoria)
-  const prefix = cat ? cat.prefix : 'MAY'
-  const palabras = nombre.trim().split(' ').slice(0, 2).map(p => p.substring(0, 3).toUpperCase()).join('')
-  const num = Math.floor(Math.random() * 900) + 100
-  return prefix + '-' + palabras + '-' + num
+window.renderInventario = () => {
+  const { sucursales, productos, variantes, inventario } = window._invData
+  const buscar = (document.getElementById('inv-buscar') ? document.getElementById('inv-buscar').value : '').toLowerCase()
+  const categoriaFiltro = document.getElementById('inv-categoria') ? document.getElementById('inv-categoria').value : ''
+  const tallaFiltro = document.getElementById('inv-talla') ? document.getElementById('inv-talla').value : ''
+  const estadoFiltro = document.getElementById('inv-estado') ? document.getElementById('inv-estado').value : ''
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const productosFiltrados = productos.filter(p => {
+    if (buscar && !p.nombre.toLowerCase().includes(buscar) && !(p.sku_interno || '').toLowerCase().includes(buscar)) return false
+    if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
+    return true
+  })
+  const html = sucursales.map(suc => {
+    const invSucursal = inventario.filter(i => i.sucursal_id === suc.id)
+    const productosHtml = productosFiltrados.map(prod => {
+      const variantesProd = variantes.filter(v => v.producto_id === prod.id)
+      if (variantesProd.length === 0) return ''
+      const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
+      const coloresHtml = colores.map(color => {
+        const variantesColor = variantesProd
+          .filter(v => v.color === color)
+          .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+        if (tallaFiltro && !variantesColor.find(v => v.talla === tallaFiltro)) return ''
+        const colorHex = variantesColor[0] ? variantesColor[0].color_hex : '#888'
+        const tallasHtml = variantesColor.map(v => {
+          const inv = invSucursal.find(i => i.variante_id === v.id)
+          const cantidad = inv ? inv.cantidad : null
+          const minimo = inv ? inv.stock_minimo : 3
+          if (tallaFiltro && v.talla !== tallaFiltro) return ''
+          if (estadoFiltro) {
+            if (estadoFiltro === 'agotado' && cantidad !== 0) return ''
+            if (estadoFiltro === 'bajo' && (cantidad === null || cantidad === 0 || cantidad > minimo)) return ''
+            if (estadoFiltro === 'disponible' && (cantidad === null || cantidad === 0 || cantidad <= minimo)) return ''
+          }
+          let bg, colorTexto
+          if (cantidad === null) { bg = '#f0f0f0'; colorTexto = '#aaa' }
+          else if (cantidad === 0) { bg = '#ffebee'; colorTexto = '#c62828' }
+          else if (cantidad <= minimo) { bg = '#fff8e1'; colorTexto = '#f57f17' }
+          else { bg = '#e8f5e9'; colorTexto = '#2e7d32' }
+          return `
+            <div onclick="editarStock('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo})"
+                 title="Click para editar"
+                 style="display:inline-flex;flex-direction:column;align-items:center;background:${bg};border-radius:8px;padding:6px 10px;cursor:pointer;min-width:52px;border:1px solid ${colorTexto}30"
+                 onmouseover="this.style.transform='scale(1.05)'"
+                 onmouseout="this.style.transform='scale(1)'">
+              <span style="font-size:0.7rem;color:#666;font-weight:500">${v.talla}</span>
+              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : '—'}</span>
+            </div>
+          `
+        }).join('')
+        if (!tallasHtml.trim()) return ''
+        return `
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;min-width:140px">
+              <div style="width:16px;height:16px;border-radius:50%;background:${colorHex};border:2px solid #ddd;flex-shrink:0"></div>
+              <span style="font-size:0.85rem;font-weight:500;color:#444">${color}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">${tallasHtml}</div>
+          </div>
+        `
+      }).join('')
+      if (!coloresHtml.trim()) return ''
+      return `
+        <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+            <div>
+              <span style="font-weight:600;font-size:1rem;color:#1a1a1a">${prod.nombre}</span>
+              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
+              <span style="margin-left:6px;font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
+            </div>
+          </div>
+          ${coloresHtml}
+        </div>
+      `
+    }).join('')
+    if (!productosHtml.trim()) return ''
+    return `
+      <div style="margin-bottom:2rem">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+          <div style="flex:1;height:2px;background:linear-gradient(90deg,#E91E8C,transparent)"></div>
+          <h3 style="font-size:1rem;font-weight:700;color:#E91E8C;white-space:nowrap;padding:0 12px">${suc.nombre.toUpperCase()}</h3>
+          <div style="flex:1;height:2px;background:linear-gradient(270deg,#E91E8C,transparent)"></div>
+        </div>
+        ${productosHtml}
+      </div>
+    `
+  }).join('')
+  const contenido = document.getElementById('inv-contenido')
+  if (contenido) contenido.innerHTML = html || '<div style="text-align:center;padding:3rem;color:#888"><p>No hay inventario registrado</p></div>'
+}
+
+window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
+  const nuevaCantidad = prompt('Nueva cantidad:', cantidad)
+  if (nuevaCantidad === null) return
+  const nuevoMinimo = prompt('Stock minimo de alerta:', minimo)
+  if (nuevoMinimo === null) return
+  try {
+    const res = await fetch(API + '/inventario/actualizar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(nuevaCantidad), stock_minimo: parseInt(nuevoMinimo) })
+    })
+    if (res.ok) {
+      const resInv = await fetch(API + '/inventario/')
+      window._invData.inventario = await resInv.json()
+      renderInventario()
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.mostrarFormInventario = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Agregar stock</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="inv-sucursal" required>
+            <option value="">Selecciona sucursal...</option>
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="inv-buscar-v" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'inv-v')">
+          <div id="inv-v-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="inv-v">
+          <div id="inv-v-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad *</label>
+          <input class="form-input" id="inv-cantidad" type="number" min="0" placeholder="0" required>
+        </div>
+        <div>
+          <label class="form-label">Stock minimo (alerta)</label>
+          <input class="form-input" id="inv-minimo" type="number" min="0" placeholder="3" value="3">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarInventario()">Guardar stock</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarInventario = async () => {
+  const sucursal_id = document.getElementById('inv-sucursal').value
+  const variante_id = document.getElementById('inv-v').value
+  const cantidad = document.getElementById('inv-cantidad').value
+  const stock_minimo = document.getElementById('inv-minimo').value || 3
+  if (!sucursal_id || !variante_id || cantidad === '') {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/inventario/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sucursal_id, variante_id, cantidad: parseInt(cantidad), stock_minimo: parseInt(stock_minimo) })
+    })
+    if (res.ok) {
+      alert('Stock guardado correctamente')
+      navegarA('inventario')
+    } else {
+      alert('Error al guardar stock')
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.mostrarAlertas = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando alertas...</p>'
+  try {
+    const res = await fetch(API + '/inventario/alertas')
+    const data = await res.json()
+    content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#f57f17">Productos con stock bajo o agotado (${data.length})</h3>
+      </div>
+      ${data.length === 0
+        ? '<div class="table-card" style="padding:3rem;text-align:center;color:#888"><p>Todo el inventario esta en buen nivel</p></div>'
+        : `<div class="table-card"><table>
+          <thead><tr><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Minimo</th><th>Estado</th><th>Accion</th></tr></thead>
+          <tbody>
+            ${data.map(i => {
+              const cantidad = i.cantidad || 0
+              const minimo = i.stock_minimo || 3
+              const agotado = cantidad === 0
+              return `
+                <tr style="background:${agotado ? '#fff5f5' : '#fffdf0'}">
+                  <td><strong>${i.variantes && i.variantes.productos ? i.variantes.productos.nombre : '—'}</strong></td>
+                  <td>${i.variantes ? i.variantes.color || '—' : '—'}</td>
+                  <td>${i.variantes ? i.variantes.talla || '—' : '—'}</td>
+                  <td>${i.sucursales ? i.sucursales.nombre || '—' : '—'}</td>
+                  <td><strong style="color:${agotado ? '#c62828' : '#f57f17'}">${cantidad}</strong></td>
+                  <td>${minimo}</td>
+                  <td><span class="badge ${agotado ? 'badge-danger' : 'badge-warning'}">${agotado ? 'Agotado' : 'Stock bajo'}</span></td>
+                  <td><button class="btn btn-primary" style="padding:4px 10px;font-size:0.75rem" onclick="editarStock('${i.variante_id}', '${i.sucursal_id}', ${cantidad}, ${minimo})">Reabastecer</button></td>
+                </tr>
+              `
+            }).join('')}
+          </tbody></table></div>`}
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando alertas</p>'
+  }
+}
+
+window.mostrarAjuste = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Ajuste de inventario</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Para corregir el inventario despues de un conteo fisico o para corregir errores.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="aj-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="aj-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'aj')">
+          <div id="aj-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="aj">
+          <div id="aj-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad correcta *</label>
+          <input class="form-input" id="aj-cantidad" type="number" min="0" placeholder="Cuantos pares hay realmente">
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="aj-motivo">
+            <option value="Conteo fisico">Conteo fisico</option>
+            <option value="Correccion de error">Correccion de error</option>
+            <option value="Merma">Merma o perdida</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarAjuste()">Guardar ajuste</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarAjuste = async () => {
+  const variante_id = document.getElementById('aj').value
+  const sucursal_id = document.getElementById('aj-sucursal').value
+  const cantidad = document.getElementById('aj-cantidad').value
+  const motivo = document.getElementById('aj-motivo').value
+  if (!variante_id || !sucursal_id || cantidad === '') {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/ajuste', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(cantidad), motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Ajuste guardado. Anterior: ' + data.cantidad_anterior + ' pares → Nuevo: ' + data.cantidad_nueva + ' pares')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.mostrarCambio = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:700px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Cambio de producto</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Cuando un cliente devuelve un producto y se lleva otro. El inventario se ajusta automaticamente.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+        <div style="background:#fff8e1;border-radius:8px;padding:1rem;border:1px solid #ffe082">
+          <p style="font-weight:600;color:#f57f17;margin-bottom:0.5rem">Producto que REGRESA</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:0.75rem">El cliente devuelve este par</p>
+          <input class="form-input" id="cam-buscar-origen" placeholder="Buscar..." oninput="buscarVariante(this.value, 'cam-origen')">
+          <div id="cam-origen-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="cam-origen">
+          <div id="cam-origen-seleccionado" style="display:none;margin-top:8px;padding:6px 10px;background:#fff8e1;border-radius:6px;font-size:0.8rem;color:#f57f17"></div>
+        </div>
+        <div style="background:#e8f5e9;border-radius:8px;padding:1rem;border:1px solid #a5d6a7">
+          <p style="font-weight:600;color:#2e7d32;margin-bottom:0.5rem">Producto que SE LLEVA</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:0.75rem">El cliente se lleva este par</p>
+          <input class="form-input" id="cam-buscar-destino" placeholder="Buscar..." oninput="buscarVariante(this.value, 'cam-destino')">
+          <div id="cam-destino-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="cam-destino">
+          <div id="cam-destino-seleccionado" style="display:none;margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.8rem;color:#2e7d32"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="cam-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="cam-motivo">
+            <option value="Talla incorrecta">Talla incorrecta</option>
+            <option value="Cambio de modelo">Cambio de modelo</option>
+            <option value="Cambio de color">Cambio de color</option>
+            <option value="Defecto">Defecto en el producto</option>
+            <option value="Preferencia del cliente">Preferencia del cliente</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCambio()">Registrar cambio</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarCambio = async () => {
+  const variante_origen_id = document.getElementById('cam-origen').value
+  const variante_destino_id = document.getElementById('cam-destino').value
+  const sucursal_id = document.getElementById('cam-sucursal').value
+  const motivo = document.getElementById('cam-motivo').value
+  if (!variante_origen_id || !variante_destino_id || !sucursal_id) {
+    alert('Por favor selecciona ambos productos y la sucursal')
+    return
+  }
+  if (variante_origen_id === variante_destino_id) {
+    alert('El producto que regresa y el que se lleva deben ser diferentes')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/cambio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_origen_id, variante_destino_id, sucursal_id, motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Cambio registrado. El inventario se actualizo automaticamente.')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.buscarVariante = (texto, prefijo) => {
+  const variantes = window._variantesCache || []
+  const resultadosDiv = document.getElementById(prefijo + '-resultados')
+  if (!resultadosDiv) return
+  if (!texto || texto.length < 2) {
+    resultadosDiv.style.display = 'none'
+    return
+  }
+  const terminos = texto.toLowerCase().split(' ').filter(t => t)
+  const filtradas = variantes.filter(v => {
+    const nombre = (v.productos ? v.productos.nombre || '' : '').toLowerCase()
+    const color = (v.color || '').toLowerCase()
+    const talla = (v.talla || '').toLowerCase()
+    const sku = (v.sku || '').toLowerCase()
+    const completo = nombre + ' ' + color + ' ' + talla + ' ' + sku
+    return terminos.every(t => completo.includes(t))
+  }).slice(0, 15)
+  if (filtradas.length === 0) {
+    resultadosDiv.innerHTML = '<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron resultados</div>'
+    resultadosDiv.style.display = 'block'
+    return
+  }
+  resultadosDiv.innerHTML = filtradas.map(v => `
+    <div onclick="seleccionarVariante('${v.id}', '${(v.productos ? v.productos.nombre || '' : '').replace(/'/g, '')} - ${v.color} - T${v.talla}', '${prefijo}')"
+         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
+         onmouseover="this.style.background='#f5f5f5'"
+         onmouseout="this.style.background='white'">
+      ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
+      <div>
+        <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
+        <span style="color:#888"> · ${v.color} · Talla ${v.talla}</span>
+        <span style="color:#ccc;font-size:0.75rem"> · ${v.sku || ''}</span>
+      </div>
+    </div>
+  `).join('')
+  resultadosDiv.style.display = 'block'
+}
+
+window.seleccionarVariante = (id, texto, prefijo) => {
+  const input = document.getElementById(prefijo)
+  if (input) input.value = id
+  const selDiv = document.getElementById(prefijo + '-seleccionado')
+  if (selDiv) { selDiv.textContent = '✓ ' + texto; selDiv.style.display = 'block' }
+  const resultadosDiv = document.getElementById(prefijo + '-resultados')
+  if (resultadosDiv) resultadosDiv.style.display = 'none'
 }
 
 function renderVariante(i, datos) {
@@ -392,11 +819,11 @@ function renderVariante(i, datos) {
     <div class="variante-item" id="variante-${i}" style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
         <p style="font-weight:500;color:#333;font-size:0.9rem">Color ${i + 1}</p>
-        ${i > 0 ? '<button type="button" onclick="this.closest(\'.variante-item\').remove()" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar</button>' : ''}
+        ${i > 0 ? '<button type="button" onclick="this.closest(\'.variante-item\').remove();actualizarTablaStock()" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar</button>' : ''}
       </div>
       <div style="margin-bottom:0.75rem">
         <label class="form-label">Paleta de colores</label>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;max-width:100%">
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
           ${COLORES_SUGERIDOS.map(c => `
             <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
                  title="${c.nombre}"
@@ -409,7 +836,7 @@ function renderVariante(i, datos) {
         <div style="display:flex;align-items:center;gap:8px">
           <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
                  style="width:40px;height:36px;border:1px solid #ddd;border-radius:6px;cursor:pointer;padding:2px">
-          <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color" value="${d.color || ''}" style="width:160px">
+          <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color" value="${d.color || ''}" style="width:160px" oninput="actualizarTablaStock()">
         </div>
         <div>
           <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
@@ -451,7 +878,7 @@ window.mostrarFormProducto = (datos) => {
         </div>
         <div>
           <label class="form-label">Proveedor (interno)</label>
-          <input class="form-input" id="f-proveedor" placeholder="Nombre del proveedor" value="${d.proveedor || ''}">
+          <input class="form-input" id="f-proveedor" placeholder="Nombre del proveedor" value="${d.proveedor || ''}" oninput="actualizarSKU()">
         </div>
       </div>
 
@@ -504,72 +931,70 @@ window.mostrarFormProducto = (datos) => {
         </div>
       </div>
 
-</div>
-
-<div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-  <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-    <div>
-      <label class="form-label">Costo (interno, no visible) *</label>
-      <input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${d.costo || ''}">
-    </div>
-    <div>
-      <label class="form-label">Precio menudeo (1 par) *</label>
-      <input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${d.precio_menudeo || ''}">
-    </div>
-  </div>
-  <div style="background:#f9f9f9;border-radius:8px;padding:1rem;border:1px solid #eee">
-    <p style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;color:#333">Precios mayoreo y corrida</p>
-    <p style="font-size:0.75rem;color:#888;margin-bottom:1rem">Deja en blanco para calcular automatico. Si pones un valor ese tiene prioridad sobre el automatico.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-      <div>
-        <label class="form-label">Mayoreo 3-5 pares variados</label>
-        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $30</p>
-        <input class="form-input" id="f-mayoreo3" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo3 || ''}">
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="form-label">Costo (interno, no visible) *</label>
+            <input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${d.costo || ''}">
+          </div>
+          <div>
+            <label class="form-label">Precio menudeo (1 par) *</label>
+            <input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${d.precio_menudeo || ''}">
+          </div>
+        </div>
+        <div style="background:#f9f9f9;border-radius:8px;padding:1rem;border:1px solid #eee">
+          <p style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;color:#333">Precios mayoreo y corrida</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:1rem">Deja en blanco para calcular automatico. Si pones un valor ese tiene prioridad.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div>
+              <label class="form-label">Mayoreo 3-5 pares variados</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $30</p>
+              <input class="form-input" id="f-mayoreo3" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo3 || ''}">
+            </div>
+            <div>
+              <label class="form-label">Mayoreo 6+ pares variados</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $70</p>
+              <input class="form-input" id="f-mayoreo6" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo6 || ''}">
+            </div>
+            <div>
+              <label class="form-label">Media corrida (6 mismo estilo)</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $110</p>
+              <input class="form-input" id="f-corrida" type="number" step="0.01" placeholder="Automatico" value="${d.precio_corrida || ''}">
+            </div>
+          </div>
+          <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-corrida-activa" ${d.corrida_activa ? 'checked' : ''}>
+              <span class="form-label" style="margin:0">Permite media corrida</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
+              <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional)</span>
+            </label>
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-descuento" onchange="toggleDescuento()" ${d.tiene_descuento ? 'checked' : ''}>
+              <span class="form-label" style="margin:0">Tiene descuento</span>
+            </label>
+            <div id="descuento-pct" style="display:${d.tiene_descuento ? 'flex' : 'none'};align-items:center;gap:6px">
+              <input class="form-input" id="f-pct" type="number" min="0" max="100" placeholder="%" style="width:70px" value="${d.porcentaje_descuento || ''}">
+              <span class="form-label" style="margin:0">%</span>
+            </div>
+            <div>
+              <label class="form-label">Precio antes (tachado)</label>
+              <input class="form-input" id="f-antes" type="number" step="0.01" placeholder="0.00" value="${d.precio_antes || ''}" style="width:130px">
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <label class="form-label">Mayoreo 6+ pares variados</label>
-        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $70</p>
-        <input class="form-input" id="f-mayoreo6" type="number" step="0.01" placeholder="Automatico" value="${d.precio_mayoreo6 || ''}">
-      </div>
-      <div>
-        <label class="form-label">Media corrida (6 mismo estilo)</label>
-        <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $110</p>
-        <input class="form-input" id="f-corrida" type="number" step="0.01" placeholder="Automatico" value="${d.precio_corrida || ''}">
-      </div>
-    </div>
-    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="f-corrida-activa" ${d.corrida_activa ? 'checked' : ''}>
-        <span class="form-label" style="margin:0">Permite media corrida</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="f-oferta" ${d.es_oferta ? 'checked' : ''}>
-        <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional)</span>
-      </label>
-    </div>
-    <div style="margin-top:1rem;display:flex
-  </div>
-</div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
         <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
         <div id="variantes-container">${renderVariante(0, null)}</div>
         <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
-        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem;margin-top:1rem">
-  <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Stock inicial</p>
-  <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Captura cuantos pares tienes disponibles al dar de alta el producto. Se asignaran a la sucursal seleccionada.</p>
-  <div style="margin-bottom:1rem">
-    <label class="form-label">Asignar a sucursal</label>
-    <select class="form-input" id="f-sucursal-stock" style="max-width:280px">
-      <option value="">Cargando sucursales...</option>
-    </select>
-  </div>
-  <div id="stock-inicial-container">
-    <p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>
-  </div>
-</div>
       </div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
@@ -581,6 +1006,20 @@ window.mostrarFormProducto = (datos) => {
               <span>${t}</span>
             </label>
           `).join('')}
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Stock inicial</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Captura cuantos pares tienes disponibles. Se asignaran a la sucursal seleccionada.</p>
+        <div style="margin-bottom:1rem">
+          <label class="form-label">Asignar a sucursal</label>
+          <select class="form-input" id="f-sucursal-stock" style="max-width:280px">
+            <option value="">Cargando sucursales...</option>
+          </select>
+        </div>
+        <div id="stock-inicial-container">
+          <p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>
         </div>
       </div>
 
@@ -605,54 +1044,45 @@ window.mostrarFormProducto = (datos) => {
   `
   window._productoEditandoId = null
   fetch(API + '/sucursales/').then(r => r.json()).then(sucursales => {
-  const sel = document.getElementById('f-sucursal-stock')
-  if (sel) sel.innerHTML = sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')
-})
+    const sel = document.getElementById('f-sucursal-stock')
+    if (sel) sel.innerHTML = sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')
+  })
 }
 
 window.actualizarSKU = async () => {
-  const nombre = document.getElementById('f-nombre').value
-  const categoria = document.getElementById('f-categoria').value
-  const proveedor = document.getElementById('f-proveedor').value
+  const nombre = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
+  const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
+  const proveedor = document.getElementById('f-proveedor') ? document.getElementById('f-proveedor').value : ''
   const skuInput = document.getElementById('f-sku')
-  if (!skuInput.value && nombre && categoria && proveedor) {
+  if (skuInput && !skuInput.value && nombre && categoria && proveedor) {
     try {
       const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
       const data = await res.json()
       skuInput.value = data.sku_base
-    } catch(e) {
-      console.error('Error generando SKU', e)
-    }
+    } catch(e) {}
   }
 }
 
 window.regenerarSKU = async () => {
-  const categoria = document.getElementById('f-categoria').value
-  const proveedor = document.getElementById('f-proveedor').value
+  const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
+  const proveedor = document.getElementById('f-proveedor') ? document.getElementById('f-proveedor').value : ''
   if (categoria && proveedor) {
     try {
       const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
       const data = await res.json()
-      document.getElementById('f-sku').value = data.sku_base
-    } catch(e) {
-      console.error('Error generando SKU', e)
-    }
+      const skuInput = document.getElementById('f-sku')
+      if (skuInput) skuInput.value = data.sku_base
+    } catch(e) {}
   } else {
     alert('Selecciona categoria y escribe el proveedor primero')
   }
 }
 
-window.regenerarSKU = () => {
-  const nombre = document.getElementById('f-nombre').value
-  const categoria = document.getElementById('f-categoria').value
-  if (nombre && categoria) {
-    document.getElementById('f-sku').value = generarSKU(categoria, nombre)
-  }
-}
-
 window.seleccionarColor = (idx, hex, nombre) => {
-  document.getElementById('v' + idx + '-hex').value = hex
-  document.getElementById('v' + idx + '-nombre').value = nombre
+  const hexInput = document.getElementById('v' + idx + '-hex')
+  const nombreInput = document.getElementById('v' + idx + '-nombre')
+  if (hexInput) hexInput.value = hex
+  if (nombreInput) nombreInput.value = nombre
   actualizarTablaStock()
 }
 
@@ -666,6 +1096,7 @@ window.agregarVariante = () => {
 
 window.previsualizarImagenes = (input, idx) => {
   const preview = document.getElementById('v' + idx + '-preview')
+  if (!preview) return
   preview.innerHTML = ''
   Array.from(input.files).forEach(file => {
     const reader = new FileReader()
@@ -681,7 +1112,8 @@ window.previsualizarImagenes = (input, idx) => {
 
 window.toggleDescuento = () => {
   const chk = document.getElementById('f-descuento')
-  document.getElementById('descuento-pct').style.display = chk.checked ? 'flex' : 'none'
+  const pct = document.getElementById('descuento-pct')
+  if (chk && pct) pct.style.display = chk.checked ? 'flex' : 'none'
 }
 
 window.toggleTalla = (input) => {
@@ -694,6 +1126,58 @@ window.toggleTalla = (input) => {
     label.style.background = '#f5f5f5'
   }
   actualizarTablaStock()
+}
+
+window.actualizarTablaStock = () => {
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const tallas = [...document.querySelectorAll('.talla-label input:checked')]
+    .map(i => i.value)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a) - TALLAS_ORDEN.indexOf(b))
+  const variantesEls = document.querySelectorAll('.variante-item')
+  const colores = []
+  variantesEls.forEach(v => {
+    const id = v.id.replace('variante-', '')
+    const nombre = document.getElementById('v' + id + '-nombre')
+    const hex = document.getElementById('v' + id + '-hex')
+    if (nombre && nombre.value) colores.push({ nombre: nombre.value, hex: hex ? hex.value : '#000', id })
+  })
+  const contenedor = document.getElementById('stock-inicial-container')
+  if (!contenedor) return
+  if (tallas.length === 0 || colores.length === 0) {
+    contenedor.innerHTML = '<p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>'
+    return
+  }
+  contenedor.innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="border-collapse:collapse;width:100%">
+        <thead>
+          <tr>
+            <th style="padding:8px 12px;text-align:left;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Color</th>
+            ${tallas.map(t => `<th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">${t}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${colores.map(c => `
+            <tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #f5f5f5">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
+                  <span style="font-size:0.85rem;font-weight:500">${c.nombre}</span>
+                </div>
+              </td>
+              ${tallas.map(t => `
+                <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
+                  <input type="number" min="0" placeholder="0"
+                         id="stock-ini-${c.id}-${t.replace('.','_')}"
+                         style="width:55px;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+                </td>
+              `).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
 }
 
 async function subirImagenesVariantes() {
@@ -714,9 +1198,7 @@ async function subirImagenesVariantes() {
           const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
           const data = await res.json()
           if (data.url) urls.push(data.url)
-        } catch(e) {
-          console.error('Error subiendo imagen', e)
-        }
+        } catch(e) {}
       }
     }
     resultado.push({ color: nombre.value, color_hex: hex ? hex.value : '#000000', imagenes: urls })
@@ -725,10 +1207,10 @@ async function subirImagenesVariantes() {
 }
 
 window.guardarProducto = async () => {
-  const nombre = document.getElementById('f-nombre').value
-  const costo = document.getElementById('f-costo').value
-  const precio_menudeo = document.getElementById('f-menudeo').value
-  const categoria = document.getElementById('f-categoria').value
+  const nombre = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
+  const costo = document.getElementById('f-costo') ? document.getElementById('f-costo').value : ''
+  const precio_menudeo = document.getElementById('f-menudeo') ? document.getElementById('f-menudeo').value : ''
+  const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
 
   if (!nombre || !costo || !precio_menudeo || !categoria) {
     alert('Por favor completa los campos obligatorios: Nombre, Categoria, Costo y Precio menudeo')
@@ -736,43 +1218,43 @@ window.guardarProducto = async () => {
   }
 
   const btn = document.getElementById('btn-guardar')
-  btn.textContent = 'Guardando...'
-  btn.disabled = true
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
 
   const tallas = [...document.querySelectorAll('.talla-label input:checked')].map(i => i.value)
   const variantesData = await subirImagenesVariantes()
-  const pesoKilos = document.getElementById('f-peso').value
+  const pesoKilos = document.getElementById('f-peso') ? document.getElementById('f-peso').value : ''
   const pesoGramos = pesoKilos ? Math.round(parseFloat(pesoKilos) * 1000) : null
 
   const producto = {
     nombre,
-    sku_interno: document.getElementById('f-sku').value || null,
-    marca: document.getElementById('f-marca').value || null,
-    proveedor: document.getElementById('f-proveedor').value || null,
+    sku_interno: document.getElementById('f-sku') ? document.getElementById('f-sku').value || null : null,
+    marca: document.getElementById('f-marca') ? document.getElementById('f-marca').value || null : null,
+    proveedor: document.getElementById('f-proveedor') ? document.getElementById('f-proveedor').value || null : null,
     categoria,
-    subcategoria: document.getElementById('f-subcategoria').value || null,
-    descripcion: document.getElementById('f-descripcion').value || null,
-    material: document.getElementById('f-material').value || null,
-    material_suela: document.getElementById('f-suela').value || null,
-    forro: document.getElementById('f-forro').value || null,
-    horma: document.getElementById('f-horma').value || null,
-    altura_tacon: document.getElementById('f-tacon').value ? parseFloat(document.getElementById('f-tacon').value) : null,
-    tipo_tacon: document.getElementById('f-tipotacon').value || null,
+    subcategoria: document.getElementById('f-subcategoria') ? document.getElementById('f-subcategoria').value || null : null,
+    descripcion: document.getElementById('f-descripcion') ? document.getElementById('f-descripcion').value || null : null,
+    material: document.getElementById('f-material') ? document.getElementById('f-material').value || null : null,
+    material_suela: document.getElementById('f-suela') ? document.getElementById('f-suela').value || null : null,
+    forro: document.getElementById('f-forro') ? document.getElementById('f-forro').value || null : null,
+    horma: document.getElementById('f-horma') ? document.getElementById('f-horma').value || null : null,
+    altura_tacon: document.getElementById('f-tacon') && document.getElementById('f-tacon').value ? parseFloat(document.getElementById('f-tacon').value) : null,
+    tipo_tacon: document.getElementById('f-tipotacon') ? document.getElementById('f-tipotacon').value || null : null,
     costo: parseFloat(costo),
     precio_menudeo: parseFloat(precio_menudeo),
-    precio_antes: document.getElementById('f-antes').value ? parseFloat(document.getElementById('f-antes').value) : null,
-    tiene_descuento: document.getElementById('f-descuento').checked,
-    porcentaje_descuento: document.getElementById('f-pct') ? parseInt(document.getElementById('f-pct').value) || 0 : 0,
+    precio_mayoreo3: document.getElementById('f-mayoreo3') && document.getElementById('f-mayoreo3').value ? parseFloat(document.getElementById('f-mayoreo3').value) : null,
+    precio_mayoreo6: document.getElementById('f-mayoreo6') && document.getElementById('f-mayoreo6').value ? parseFloat(document.getElementById('f-mayoreo6').value) : null,
+    precio_corrida: document.getElementById('f-corrida') && document.getElementById('f-corrida').value ? parseFloat(document.getElementById('f-corrida').value) : null,
+    precio_antes: document.getElementById('f-antes') && document.getElementById('f-antes').value ? parseFloat(document.getElementById('f-antes').value) : null,
+    tiene_descuento: document.getElementById('f-descuento') ? document.getElementById('f-descuento').checked : false,
+    porcentaje_descuento: document.getElementById('f-pct') && document.getElementById('f-pct').value ? parseInt(document.getElementById('f-pct').value) : 0,
+    corrida_activa: document.getElementById('f-corrida-activa') ? document.getElementById('f-corrida-activa').checked : false,
+    es_oferta: document.getElementById('f-oferta') ? document.getElementById('f-oferta').checked : false,
     tallas_disponibles: tallas,
     peso_gramos: pesoGramos,
-    slug: document.getElementById('f-slug').value ? document.getElementById('f-slug').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : null,
-    meta_titulo: document.getElementById('f-metatitulo').value || null,
-    meta_descripcion: document.getElementById('f-metadesc').value || null,
-    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,precio_mayoreo3: document.getElementById('f-mayoreo3').value ? parseFloat(document.getElementById('f-mayoreo3').value) : null,
-    precio_mayoreo6: document.getElementById('f-mayoreo6').value ? parseFloat(document.getElementById('f-mayoreo6').value) : null,
-    precio_corrida: document.getElementById('f-corrida').value ? parseFloat(document.getElementById('f-corrida').value) : null,
-    corrida_activa: document.getElementById('f-corrida-activa').checked,
-    es_oferta: document.getElementById('f-oferta').checked,
+    slug: document.getElementById('f-slug') && document.getElementById('f-slug').value ? document.getElementById('f-slug').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : null,
+    meta_titulo: document.getElementById('f-metatitulo') ? document.getElementById('f-metatitulo').value || null : null,
+    meta_descripcion: document.getElementById('f-metadesc') ? document.getElementById('f-metadesc').value || null : null,
+    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,
     activo: true,
     nuevo: !window._productoEditandoId
   }
@@ -780,7 +1262,6 @@ window.guardarProducto = async () => {
   try {
     const method = window._productoEditandoId ? 'PATCH' : 'POST'
     const url = window._productoEditandoId ? API + '/productos/' + window._productoEditandoId : API + '/productos/'
-    console.log('Enviando producto:', JSON.stringify(producto))
     const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -798,59 +1279,48 @@ window.guardarProducto = async () => {
             await fetch(API + '/variantes/', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                producto_id: pid,
-                color: v.color,
-                color_hex: v.color_hex,
-                talla: talla,
-                foto_url: v.imagenes[0] || null
-              })
+              body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null })
             })
           }
         }
       }
-     const sucursalStock = document.getElementById('f-sucursal-stock')?.value
-if (sucursalStock && pid) {
-  const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
-  for (const v of variantesData) {
-    for (const talla of tallasGuardar) {
-      const tallaId = talla.replace('.', '_')
-      const varIdx = variantesData.indexOf(v)
-      const inputStock = document.getElementById('stock-ini-' + varIdx + '-' + tallaId)
-      const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
-      if (cantidad > 0) {
+
+      const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
+      if (sucursalStock && pid && variantesData.length > 0) {
         const varRes = await fetch(API + '/variantes/producto/' + pid)
-        const vars = await varRes.json()
-        const varMatch = vars.find(vr => vr.color === v.color && vr.talla === talla)
-        if (varMatch) {
-          await fetch(API + '/inventario/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              variante_id: varMatch.id,
-              sucursal_id: sucursalStock,
-              cantidad,
-              stock_minimo: 3
-            })
-          })
+        const varsGuardadas = await varRes.json()
+        const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
+        for (const v of variantesData) {
+          for (const talla of tallasGuardar) {
+            const tallaId = talla.replace('.', '_')
+            const varIdx = variantesData.indexOf(v)
+            const inputStock = document.getElementById('stock-ini-' + varIdx + '-' + tallaId)
+            const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
+            if (cantidad > 0) {
+              const varMatch = varsGuardadas.find(vr => vr.color === v.color && vr.talla === talla)
+              if (varMatch) {
+                await fetch(API + '/inventario/', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 3 })
+                })
+              }
+            }
+          }
         }
       }
-    }
-  }
-}
-alert('Producto guardado correctamente')
-window._productoEditandoId = null
-navegarA('productos')
+
+      alert('Producto guardado correctamente')
+      window._productoEditandoId = null
+      navegarA('productos')
     } else {
       const err = await res.text()
       alert('Error al guardar: ' + err)
-      btn.textContent = 'Guardar producto'
-      btn.disabled = false
+      if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
     }
   } catch(e) {
     alert('Error conectando con el servidor')
-    btn.textContent = 'Guardar producto'
-    btn.disabled = false
+    if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
   }
 }
 
@@ -893,458 +1363,15 @@ window.cargarProductosFiltro = (categoria) => {
 
 window.toggleProducto = async (id, activo) => {
   const accion = activo ? 'desactivar' : 'activar'
-  const confirmMsg = activo ? 'Desactivar este producto?' : 'Activar este producto?'
-  if (!confirm(confirmMsg)) return
+  if (!confirm(activo ? 'Desactivar este producto?' : 'Activar este producto?')) return
   try {
     const res = await fetch(API + '/productos/' + id + '/' + accion, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' }
     })
-    if (res.ok) {
-      cargarProductos()
-    } else {
-      alert('Error al cambiar el estado del producto')
-    }
+    if (res.ok) cargarProductos()
+    else alert('Error al cambiar el estado')
   } catch(e) {
     alert('Error conectando con el servidor')
   }
-}
-window.filtrarInventario = async () => {
-  const sucursalId = document.getElementById('filtro-sucursal').value
-  const productoId = document.getElementById('filtro-producto').value
-  const tabla = document.getElementById('inventario-tabla')
-
-  tabla.innerHTML = '<p style="padding:2rem;color:#888;text-align:center">Cargando...</p>'
-
-  try {
-    let url = API + '/inventario/'
-    if (sucursalId) url = API + '/inventario/sucursal/' + sucursalId
-    else if (productoId) url = API + '/inventario/producto/' + productoId
-
-    const res = await fetch(url)
-    const data = await res.json()
-
-    if (data.length === 0) {
-      tabla.innerHTML = '<div style="padding:2rem;color:#888;text-align:center">No hay inventario registrado para este filtro</div>'
-      return
-    }
-
-    tabla.innerHTML = `
-      <div class="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Producto</th>
-              <th>Color</th>
-              <th>Talla</th>
-              <th>SKU</th>
-              <th>Sucursal</th>
-              <th>Cantidad</th>
-              <th>Stock minimo</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${data.map(i => {
-              const cantidad = i.cantidad || 0
-              const minimo = i.stock_minimo || 3
-              const estado = cantidad === 0 ? 'badge-danger' : cantidad <= minimo ? 'badge-warning' : 'badge-success'
-              const estadoTexto = cantidad === 0 ? 'Agotado' : cantidad <= minimo ? 'Stock bajo' : 'Disponible'
-              return `
-                <tr>
-                  <td><strong>${i.variantes?.productos?.nombre || '—'}</strong></td>
-                  <td>
-                    ${i.variantes?.color_hex ? '<span style="display:inline-block;width:14px;height:14px;background:' + i.variantes.color_hex + ';border-radius:50%;margin-right:6px;border:1px solid #ddd;vertical-align:middle"></span>' : ''}
-                    ${i.variantes?.color || '—'}
-                  </td>
-                  <td>${i.variantes?.talla || '—'}</td>
-                  <td><small style="color:#888">${i.variantes?.sku || '—'}</small></td>
-                  <td>${i.sucursales?.nombre || '—'}</td>
-                  <td><strong>${cantidad}</strong></td>
-                  <td>${minimo}</td>
-                  <td><span class="badge ${estado}">${estadoTexto}</span></td>
-                  <td>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem"
-                      onclick="editarStock('${i.variante_id}', '${i.sucursal_id}', ${cantidad}, ${minimo})">
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              `
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    `
-  } catch(e) {
-    tabla.innerHTML = '<p style="padding:2rem;color:red">Error cargando inventario</p>'
-  }
-}
-
-window.mostrarFormInventario = async () => {
-  const resSucursales = await fetch(API + '/sucursales/')
-  const sucursales = await resSucursales.json()
-  const resVariantes = await fetch(API + '/variantes/')
-  const variantes = await resVariantes.json()
-
-  const content = document.getElementById('content')
-  content.innerHTML = `
-    <div class="table-card" style="padding:2rem">
-      <h3 style="margin-bottom:1.5rem">Agregar stock</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div>
-          <label class="form-label">Sucursal *</label>
-          <select class="form-input" id="inv-sucursal" required>
-            <option value="">Selecciona sucursal...</option>
-            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Variante (producto + color + talla) *</label>
-          <select class="form-input" id="inv-variante" required>
-            <option value="">Selecciona variante...</option>
-            ${variantes.map(v => `<option value="${v.id}">${v.productos?.nombre || ''} - ${v.color} - Talla ${v.talla} (${v.sku || ''})</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Cantidad *</label>
-          <input class="form-input" id="inv-cantidad" type="number" min="0" placeholder="0" required>
-        </div>
-        <div>
-          <label class="form-label">Stock minimo (alerta)</label>
-          <input class="form-input" id="inv-minimo" type="number" min="0" placeholder="3" value="3">
-        </div>
-      </div>
-      <div style="display:flex;gap:1rem;justify-content:flex-end">
-        <button type="button" class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="guardarInventario()">Guardar stock</button>
-      </div>
-    </div>
-  `
-}
-
-window.guardarInventario = async () => {
-  const sucursal_id = document.getElementById('inv-sucursal').value
-  const variante_id = document.getElementById('inv-variante').value
-  const cantidad = document.getElementById('inv-cantidad').value
-  const stock_minimo = document.getElementById('inv-minimo').value || 3
-
-  if (!sucursal_id || !variante_id || cantidad === '') {
-    alert('Por favor completa todos los campos obligatorios')
-    return
-  }
-
-  try {
-    const res = await fetch(API + '/inventario/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sucursal_id,
-        variante_id,
-        cantidad: parseInt(cantidad),
-        stock_minimo: parseInt(stock_minimo)
-      })
-    })
-    if (res.ok) {
-      alert('Stock guardado correctamente')
-      navegarA('inventario')
-    } else {
-      const err = await res.text()
-      alert('Error: ' + err)
-    }
-  } catch(e) {
-    alert('Error conectando con el servidor')
-  }
-}
-
-window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
-  const nuevaCantidad = prompt('Nueva cantidad:', cantidad)
-  if (nuevaCantidad === null) return
-  const nuevoMinimo = prompt('Stock minimo:', minimo)
-  if (nuevoMinimo === null) return
-
-  try {
-    const res = await fetch(API + '/inventario/actualizar', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        variante_id,
-        sucursal_id,
-        cantidad: parseInt(nuevaCantidad),
-        stock_minimo: parseInt(nuevoMinimo)
-      })
-    })
-    if (res.ok) {
-      filtrarInventario()
-    } else {
-      alert('Error actualizando stock')
-    }
-  } catch(e) {
-    alert('Error conectando con el servidor')
-  }
-}
-window.renderInventario = () => {
-  const { sucursales, productos, variantes, inventario } = window._invData
-  const buscar = document.getElementById('inv-buscar').value.toLowerCase()
-  const categoriaFiltro = document.getElementById('inv-categoria').value
-  const tallaFiltro = document.getElementById('inv-talla').value
-  const estadoFiltro = document.getElementById('inv-estado').value
-
-  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
-
-  const productosFiltrados = productos.filter(p => {
-    if (buscar && !p.nombre.toLowerCase().includes(buscar) && !(p.sku_interno || '').toLowerCase().includes(buscar)) return false
-    if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
-    return true
-  })
-
-  const html = sucursales.map(suc => {
-    const invSucursal = inventario.filter(i => i.sucursal_id === suc.id)
-    if (invSucursal.length === 0) return ''
-
-    const productosHtml = productosFiltrados.map(prod => {
-      const variantesProd = variantes.filter(v => v.producto_id === prod.id)
-      if (variantesProd.length === 0) return ''
-
-      const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
-      
-      const coloresHtml = colores.map(color => {
-        const variantesColor = variantesProd
-          .filter(v => v.color === color)
-          .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-
-        if (tallaFiltro && !variantesColor.find(v => v.talla === tallaFiltro)) return ''
-
-        const colorHex = variantesColor[0]?.color_hex || '#888'
-        
-        const tallasHtml = variantesColor.map(v => {
-          const inv = invSucursal.find(i => i.variante_id === v.id)
-          const cantidad = inv ? inv.cantidad : null
-          const minimo = inv ? inv.stock_minimo : 3
-
-          if (tallaFiltro && v.talla !== tallaFiltro) return ''
-          if (estadoFiltro) {
-            if (estadoFiltro === 'agotado' && cantidad !== 0) return ''
-            if (estadoFiltro === 'bajo' && (cantidad === null || cantidad === 0 || cantidad > minimo)) return ''
-            if (estadoFiltro === 'disponible' && (cantidad === null || cantidad === 0 || cantidad <= minimo)) return ''
-          }
-
-          let bg, color2, title
-          if (cantidad === null) {
-            bg = '#f0f0f0'; color2 = '#aaa'; title = 'Sin registro'
-          } else if (cantidad === 0) {
-            bg = '#ffebee'; color2 = '#c62828'; title = 'Agotado'
-          } else if (cantidad <= minimo) {
-            bg = '#fff8e1'; color2 = '#f57f17'; title = 'Stock bajo'
-          } else {
-            bg = '#e8f5e9'; color2 = '#2e7d32'; title = 'Disponible'
-          }
-
-          return `
-            <div onclick="editarStock('${v.id}', '${suc.id}', ${cantidad || 0}, ${minimo})"
-                 title="${title} - Click para editar"
-                 style="display:inline-flex;flex-direction:column;align-items:center;background:${bg};border-radius:8px;padding:6px 10px;cursor:pointer;min-width:52px;border:1px solid ${color2}30;transition:transform 0.1s"
-                 onmouseover="this.style.transform='scale(1.05)'"
-                 onmouseout="this.style.transform='scale(1)'">
-              <span style="font-size:0.7rem;color:#666;font-weight:500">${v.talla}</span>
-              <span style="font-size:1rem;font-weight:700;color:${color2}">${cantidad !== null ? cantidad : '—'}</span>
-            </div>
-          `
-        }).join('')
-
-        if (!tallasHtml.trim()) return ''
-
-        return `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px;min-width:140px">
-              <div style="width:16px;height:16px;border-radius:50%;background:${colorHex};border:2px solid #ddd;flex-shrink:0"></div>
-              <span style="font-size:0.85rem;font-weight:500;color:#444">${color}</span>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">${tallasHtml}</div>
-          </div>
-        `
-      }).join('')
-
-      if (!coloresHtml.trim()) return ''
-
-      return `
-        <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-            <div>
-              <span style="font-weight:600;font-size:1rem;color:#1a1a1a">${prod.nombre}</span>
-              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
-              <span style="margin-left:6px;font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
-            </div>
-            <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem" onclick="mostrarFormInventarioProducto('${prod.id}', '${suc.id}')">+ Stock rapido</button>
-          </div>
-          ${coloresHtml}
-        </div>
-      `
-    }).join('')
-
-    if (!productosHtml.trim()) return ''
-
-    return `
-      <div style="margin-bottom:2rem">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
-          <div style="flex:1;height:2px;background:linear-gradient(90deg,#E91E8C,transparent)"></div>
-          <h3 style="font-size:1rem;font-weight:700;color:#E91E8C;white-space:nowrap;padding:0 12px">${suc.nombre.toUpperCase()}</h3>
-          <div style="flex:1;height:2px;background:linear-gradient(270deg,#E91E8C,transparent)"></div>
-        </div>
-        ${productosHtml}
-      </div>
-    `
-  }).join('')
-
-  document.getElementById('inv-contenido').innerHTML = html || `
-    <div style="text-align:center;padding:3rem;color:#888">
-      <p style="font-size:1.1rem">No hay inventario registrado</p>
-      <p style="margin-top:0.5rem">Agrega stock con el boton "+ Agregar stock"</p>
-    </div>
-  `
-}
-
-window.mostrarFormInventarioProducto = async (productoId, sucursalId) => {
-  const resVariantes = await fetch(API + '/variantes/producto/' + productoId)
-  const variantes = await resVariantes.json()
-  const resSucursales = await fetch(API + '/sucursales/')
-  const sucursales = await resSucursales.json()
-
-  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
-  const colores = [...new Set(variantes.map(v => v.color).filter(Boolean))]
-
-  const content = document.getElementById('content')
-  content.innerHTML = `
-    <div class="table-card" style="padding:2rem">
-      <h3 style="margin-bottom:1.5rem">Agregar stock rapido</h3>
-      <div style="margin-bottom:1.5rem">
-        <label class="form-label">Sucursal</label>
-        <select class="form-input" id="inv-suc-rapido" style="max-width:300px">
-          ${sucursales.map(s => `<option value="${s.id}" ${s.id === sucursalId ? 'selected' : ''}>${s.nombre}</option>`).join('')}
-        </select>
-      </div>
-      <div id="inv-rapido-tabla">
-        ${colores.map(color => {
-          const variantesColor = variantes
-            .filter(v => v.color === color)
-            .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-          const colorHex = variantesColor[0]?.color_hex || '#888'
-          return `
-            <div style="margin-bottom:1.5rem">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">
-                <div style="width:16px;height:16px;border-radius:50%;background:${colorHex};border:2px solid #ddd"></div>
-                <span style="font-weight:600;color:#333">${color}</span>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                ${variantesColor.map(v => `
-                  <div style="text-align:center">
-                    <div style="font-size:0.75rem;color:#888;margin-bottom:4px">${v.talla}</div>
-                    <input type="number" min="0" placeholder="0"
-                           id="stock-${v.id}"
-                           style="width:60px;text-align:center;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem">
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `
-        }).join('')}
-      </div>
-      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
-        <button type="button" class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
-        <button type="button" class="btn btn-primary" onclick="guardarStockRapido(${JSON.stringify(variantes.map(v => v.id))})">Guardar todo</button>
-      </div>
-    </div>
-  `
-}
-
-window.guardarStockRapido = async (varianteIds) => {
-  const sucursalId = document.getElementById('inv-suc-rapido').value
-  let guardados = 0
-  let errores = 0
-
-  for (const vid of varianteIds) {
-    const input = document.getElementById('stock-' + vid)
-    if (!input || input.value === '') continue
-    const cantidad = parseInt(input.value)
-
-    try {
-      const res = await fetch(API + '/inventario/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          variante_id: vid,
-          sucursal_id: sucursalId,
-          cantidad,
-          stock_minimo: 3
-        })
-      })
-      if (res.ok) guardados++
-      else errores++
-    } catch(e) {
-      errores++
-    }
-  }
-
-  if (errores > 0) {
-    alert(`Guardados: ${guardados}, Errores: ${errores}. Los errores pueden ser porque ya existe ese registro, usa "Editar" para actualizarlo.`)
-  } else {
-    alert(`${guardados} registros guardados correctamente`)
-  }
-  navegarA('inventario')
-}
-window.actualizarTablaStock = () => {
-  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
-  
-  const tallas = [...document.querySelectorAll('.talla-label input:checked')]
-    .map(i => i.value)
-    .sort((a, b) => TALLAS_ORDEN.indexOf(a) - TALLAS_ORDEN.indexOf(b))
-
-  const variantes = document.querySelectorAll('.variante-item')
-  const colores = []
-  variantes.forEach(v => {
-    const id = v.id.replace('variante-', '')
-    const nombre = document.getElementById('v' + id + '-nombre')?.value
-    const hex = document.getElementById('v' + id + '-hex')?.value
-    if (nombre) colores.push({ nombre, hex, id })
-  })
-
-  const contenedor = document.getElementById('stock-inicial-container')
-  if (!contenedor) return
-  if (tallas.length === 0 || colores.length === 0) {
-    contenedor.innerHTML = '<p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>'
-    return
-  }
-
-  contenedor.innerHTML = `
-    <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%">
-        <thead>
-          <tr>
-            <th style="padding:8px 12px;text-align:left;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Color</th>
-            ${tallas.map(t => `<th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">${t}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${colores.map(c => `
-            <tr>
-              <td style="padding:8px 12px;border-bottom:1px solid #f5f5f5">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
-                  <span style="font-size:0.85rem;font-weight:500">${c.nombre}</span>
-                </div>
-              </td>
-              ${tallas.map(t => `
-                <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
-                  <input type="number" min="0" placeholder="0"
-                         id="stock-ini-${c.id}-${t.replace('.','_')}"
-                         style="width:55px;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
-                </td>
-              `).join('')}
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `
 }
