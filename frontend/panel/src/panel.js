@@ -3216,9 +3216,9 @@ window.cobrarPOS = async () => {
     }
 
     const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
-    alert('Venta registrada correctamente\n\nTotal: $' + total.toFixed(2) + '\nPares: ' + totalPares + '\nForma de pago: ' + formaPago)
     window._posCarrito = []
-    renderCarritoPOS()
+      renderCarritoPOS()
+      imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
 
     const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
     window._posData.inventario = await resInv.json()
@@ -3227,4 +3227,133 @@ window.cobrarPOS = async () => {
   } catch(e) {
     alert('Error procesando la venta')
   }
+}
+window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
+  const res = await fetch(API + '/pedidos/' + pedidoId)
+  const data = await res.json()
+  if (!data || data.length === 0) return
+  const pedido = data[0]
+  const items = pedido.pedido_items || []
+  const cliente = pedido.clientes || {}
+  const fecha = new Date().toLocaleString('es-MX')
+
+  const ticket = window.open('', '_blank', 'width=400,height=600')
+  ticket.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Ticket</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          width: 280px;
+          padding: 10px;
+          color: #000;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .logo { font-size: 18px; font-weight: bold; margin-bottom: 2px; }
+        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .item-nombre { font-weight: bold; margin-bottom: 1px; }
+        .item-detalle { color: #444; font-size: 11px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
+        .footer { margin-top: 10px; font-size: 11px; }
+        @media print {
+          body { width: 280px; }
+          @page { margin: 0; size: 80mm auto; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <p class="logo">Zapatillas May</p>
+        <p style="font-size:10px">Leon, Guanajuato</p>
+        <p style="font-size:10px">Tel: 477 247 2285</p>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <span>Fecha:</span>
+        <span>${fecha}</span>
+      </div>
+      <div class="row">
+        <span>Cliente:</span>
+        <span>${cliente.nombre || 'General'}</span>
+      </div>
+      <div class="row">
+        <span>Pago:</span>
+        <span>${formaPago.toUpperCase()}</span>
+      </div>
+      <div class="divider"></div>
+      ${(() => {
+  const grupos = {}
+  items.forEach(item => {
+    const variante = item.variantes || {}
+    const producto = variante.productos || {}
+    const key = (producto.nombre || '—') + '|' + (variante.color || '')
+    if (!grupos[key]) {
+      grupos[key] = {
+        nombre: producto.nombre || '—',
+        color: variante.color || '',
+        cantidad: 0,
+        subtotal: 0
+      }
+    }
+    grupos[key].cantidad += item.cantidad
+    grupos[key].subtotal += parseFloat(item.subtotal) || (item.cantidad * item.precio_unitario)
+  })
+  return `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="border-bottom:1px solid #000">
+        <td style="width:30px;text-align:right;padding-right:6px;font-weight:bold">Cant</td>
+        <td style="padding-right:4px;font-weight:bold">Modelo</td>
+        <td style="padding-right:4px;font-weight:bold">Color</td>
+        <td style="text-align:right;font-weight:bold">Total</td>
+      </tr>
+      ${Object.values(grupos).map(g => `
+        <tr>
+          <td style="width:30px;text-align:right;padding-right:6px">${g.cantidad}</td>
+          <td style="padding-right:4px">${g.nombre}</td>
+          <td style="padding-right:4px;color:#444">${g.color}</td>
+          <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `
+})()}
+      <div class="divider"></div>
+      <div class="row">
+        <span>Total pares:</span>
+        <span>${totalPares}</span>
+      </div>
+      <div class="total-row">
+        <span>TOTAL:</span>
+        <span>$${total.toFixed(2)}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="center footer">
+        <p class="bold">¡Gracias por su compra!</p>
+        <p>En herrajes y pedreria no hay devoluciones</p>
+        <p>por su proceso artesanal.</p>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:10px;margin-top:4px">
+        <p>RFC: SAPL620614JD7</p>
+        <p>Cuautla 211 Col. Killian</p>
+        <p>Leon, Gto. CP 37260</p>
+        <p>Tel: 477 530 8983</p>
+        <p class="center" style="margin-top:4px">zapatillasmay.mx</p>
+      </div>
+      <script>
+        window.onload = () => {
+          window.print()
+        }
+      </script>
+    </body>
+    </html>
+  `)
+  ticket.document.close()
 }
