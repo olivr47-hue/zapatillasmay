@@ -1415,7 +1415,7 @@
 </footer>
 
 <script>
-  const API = 'http://zapatillasmay-production.up.railway.app'
+  const API = 'https://zapatillasmay-production.up.railway.app'
   let productos = []
   let variantes = []
   let inventario = []
@@ -1431,7 +1431,7 @@
   }
   async function cargarConfigSEO() {
   try {
-    const res = await fetch('http://localhost:3000/seo/config')
+    const res = await fetch('https://zapatillasmay-production.up.railway.app/seo/config')
     const data = await res.json()
     const config = {}
     data.forEach(item => config[item.clave] = item.valor || '')
