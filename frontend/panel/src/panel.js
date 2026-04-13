@@ -63,6 +63,7 @@ const modulos = [
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion' },
+  { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion' },
 ]
 
 let moduloActivo = 'dashboard'
@@ -135,6 +136,7 @@ async function cargarModulo(id) {
     case 'pos': await cargarPOS(); break
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
+    case 'seo': await cargarSEO(); break
   }
 }
 
@@ -3872,4 +3874,139 @@ window.toggleEmpleado = async (id, activo) => {
     if (res.ok) cargarEmpleados()
     else alert('Error al cambiar estado')
   } catch(e) { alert('Error conectando con el servidor') }
+}
+async function cargarSEO() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/seo/config')
+    const data = await res.json()
+    const config = {}
+    data.forEach(item => config[item.clave] = item.valor || '')
+
+    content.innerHTML = `
+      <div style="max-width:800px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">SEO General</h3>
+          <div style="display:grid;gap:1rem">
+            <div>
+              <label class="form-label">Meta titulo (home)</label>
+              <input class="form-input" id="seo-titulo" value="${config.meta_titulo_home}" placeholder="Zapatillas May | Calzado de Moda...">
+              <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Recomendado: 50-60 caracteres. Actual: <span id="seo-titulo-count">${config.meta_titulo_home.length}</span></p>
+            </div>
+            <div>
+              <label class="form-label">Meta descripcion (home)</label>
+              <textarea class="form-input" id="seo-desc" rows="3" placeholder="Descripcion para Google...">${config.meta_descripcion_home}</textarea>
+              <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Recomendado: 150-160 caracteres. Actual: <span id="seo-desc-count">${config.meta_descripcion_home.length}</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Analiticas y Pixels</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Google Analytics ID</label>
+              <input class="form-input" id="seo-ga" value="${config.google_analytics_id}" placeholder="G-XXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">Facebook Pixel ID</label>
+              <input class="form-input" id="seo-fb" value="${config.facebook_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">TikTok Pixel ID</label>
+              <input class="form-input" id="seo-tt" value="${config.tiktok_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">WhatsApp flotante</label>
+              <input class="form-input" id="seo-wa" value="${config.whatsapp_flotante}" placeholder="524771234567">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Instagram URL</label>
+              <input class="form-input" id="seo-ig" value="${config.instagram_url}" placeholder="https://instagram.com/zapatillasmay">
+            </div>
+            <div>
+              <label class="form-label">Facebook URL</label>
+              <input class="form-input" id="seo-fb-url" value="${config.facebook_url}" placeholder="https://facebook.com/zapatillasmay">
+            </div>
+            <div>
+              <label class="form-label">TikTok URL</label>
+              <input class="form-input" id="seo-tt-url" value="${config.tiktok_url}" placeholder="https://tiktok.com/@zapatillasmay">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Horarios</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Lunes a Viernes</label>
+              <input class="form-input" id="seo-hor1" value="${config.horario_semana}" placeholder="9:00 - 18:00">
+            </div>
+            <div>
+              <label class="form-label">Sabado</label>
+              <input class="form-input" id="seo-hor2" value="${config.horario_sabado}" placeholder="9:00 - 15:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1rem">Herramientas</h3>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <a href="http://localhost:3000/sitemap.xml" target="_blank" class="btn btn-secondary">Ver sitemap.xml</a>
+            <a href="http://localhost:3000/robots.txt" target="_blank" class="btn btn-secondary">Ver robots.txt</a>
+            <a href="https://search.google.com/search-console" target="_blank" class="btn btn-secondary">Google Search Console</a>
+            <a href="https://search.google.com/test/rich-results" target="_blank" class="btn btn-secondary">Probar Schema</a>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" onclick="guardarSEO()">Guardar configuracion</button>
+        </div>
+      </div>
+    `
+
+    document.getElementById('seo-titulo').addEventListener('input', function() {
+      document.getElementById('seo-titulo-count').textContent = this.value.length
+    })
+    document.getElementById('seo-desc').addEventListener('input', function() {
+      document.getElementById('seo-desc-count').textContent = this.value.length
+    })
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+  }
+}
+
+window.guardarSEO = async () => {
+  const campos = {
+    meta_titulo_home: document.getElementById('seo-titulo').value,
+    meta_descripcion_home: document.getElementById('seo-desc').value,
+    google_analytics_id: document.getElementById('seo-ga').value,
+    facebook_pixel_id: document.getElementById('seo-fb').value,
+    tiktok_pixel_id: document.getElementById('seo-tt').value,
+    whatsapp_flotante: document.getElementById('seo-wa').value,
+    instagram_url: document.getElementById('seo-ig').value,
+    facebook_url: document.getElementById('seo-fb-url').value,
+    tiktok_url: document.getElementById('seo-tt-url').value,
+    horario_semana: document.getElementById('seo-hor1').value,
+    horario_sabado: document.getElementById('seo-hor2').value,
+  }
+  try {
+    const res = await fetch(API + '/seo/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(campos)
+    })
+    if (res.ok) alert('Configuracion SEO guardada correctamente')
+    else alert('Error al guardar')
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
 }

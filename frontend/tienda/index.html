@@ -1092,6 +1092,82 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.4s ease both; }
   </style>
+  <!-- SEO META TAGS BASE -->
+<meta name="robots" content="index, follow">
+<meta name="language" content="es">
+<meta property="og:locale" content="es_MX">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Zapatillas May">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- ORGANIZATION SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Zapatillas May",
+  "url": "https://zapatillasmay.mx",
+  "logo": "https://zapatillasmay.mx/logo.png",
+  "description": "Calzado de moda para dama. Mayoreo y menudeo. Leon, Guanajuato.",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Cuautla 211 Col. Killian",
+    "addressLocality": "Leon",
+    "addressRegion": "Guanajuato",
+    "postalCode": "37260",
+    "addressCountry": "MX"
+  },
+  "telephone": "+524775308983",
+  "email": "contacto@zapatillasmay.mx",
+  "sameAs": [
+    "https://www.instagram.com/zapatillasmay",
+    "https://www.facebook.com/zapatillasmay",
+    "https://wa.me/524775308983"
+  ]
+}
+</script>
+
+<!-- LOCAL BUSINESS SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ShoeStore",
+  "name": "Zapatillas May",
+  "image": "https://zapatillasmay.mx/logo.png",
+  "url": "https://zapatillasmay.mx",
+  "telephone": "+524775308983",
+  "priceRange": "$$",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Cuautla 211 Col. Killian",
+    "addressLocality": "Leon",
+    "addressRegion": "Guanajuato",
+    "postalCode": "37260",
+    "addressCountry": "MX"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 21.1236,
+    "longitude": -101.6860
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday"],
+      "opens": "09:00",
+      "closes": "18:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Saturday",
+      "opens": "09:00",
+      "closes": "15:00"
+    }
+  ],
+  "currenciesAccepted": "MXN",
+  "paymentAccepted": "Cash, Credit Card, Debit Card"
+}
+</script>
 </head>
 <body>
 
@@ -1472,6 +1548,51 @@
 
     document.getElementById('modal-overlay').classList.add('active')
     document.body.style.overflow = 'hidden'
+    // Schema dinámico del producto
+  const schemaAnterior = document.getElementById('schema-producto')
+  if (schemaAnterior) schemaAnterior.remove()
+  const schema = document.createElement('script')
+  schema.type = 'application/ld+json'
+  schema.id = 'schema-producto'
+  schema.textContent = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": p.nombre,
+    "description": p.descripcion || `${p.nombre} - Calzado de moda para dama. ${p.categoria || ''} disponible en Zapatillas May Leon Guanajuato.`,
+    "sku": p.sku_interno || '',
+    "brand": {
+      "@type": "Brand",
+      "name": p.marca || "Zapatillas May"
+    },
+    "category": p.categoria || "Calzado",
+    "image": p.imagen_principal ? [p.imagen_principal] : [],
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "MXN",
+      "price": p.precio_menudeo,
+      "availability": "https://schema.org/InStock",
+      "seller": {
+        "@type": "Organization",
+        "name": "Zapatillas May"
+      },
+      "url": `https://zapatillasmay.mx/?producto=${p.id}`
+    }
+  })
+  document.head.appendChild(schema)
+
+  // Meta tags dinámicos
+  document.title = `${p.nombre} | Zapatillas May`
+  let metaDesc = document.querySelector('meta[name="description"]')
+  if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc) }
+  metaDesc.content = p.descripcion || `Compra ${p.nombre} en Zapatillas May. Calzado de moda para dama en Leon Guanajuato. Precio: $${p.precio_menudeo} MXN.`
+
+  let ogTitle = document.querySelector('meta[property="og:title"]')
+  if (!ogTitle) { ogTitle = document.createElement('meta'); ogTitle.setAttribute('property','og:title'); document.head.appendChild(ogTitle) }
+  ogTitle.content = `${p.nombre} | Zapatillas May`
+
+  let ogImage = document.querySelector('meta[property="og:image"]')
+  if (!ogImage) { ogImage = document.createElement('meta'); ogImage.setAttribute('property','og:image'); document.head.appendChild(ogImage) }
+  if (p.imagen_principal) ogImage.content = p.imagen_principal
   }
 
   function seleccionarColor(color) {
