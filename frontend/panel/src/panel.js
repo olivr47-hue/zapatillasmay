@@ -3914,6 +3914,14 @@ async function cargarSEO() {
               <input class="form-input" id="seo-fb" value="${config.facebook_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
             </div>
             <div>
+              <label class="form-label">Google Search Console (verification)</label>
+              <input class="form-input" id="seo-gsc" value="${config.google_search_console || ''}" placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">Google Tag Manager ID</label>
+              <input class="form-input" id="seo-gtm" value="${config.google_tag_manager || ''}" placeholder="GTM-XXXXXXX">
+            </div>
+            <div>
               <label class="form-label">TikTok Pixel ID</label>
               <input class="form-input" id="seo-tt" value="${config.tiktok_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
             </div>
@@ -3989,6 +3997,8 @@ window.guardarSEO = async () => {
     meta_titulo_home: document.getElementById('seo-titulo').value,
     meta_descripcion_home: document.getElementById('seo-desc').value,
     google_analytics_id: document.getElementById('seo-ga').value,
+    google_search_console: document.getElementById('seo-gsc').value,
+    google_tag_manager: document.getElementById('seo-gtm').value,
     facebook_pixel_id: document.getElementById('seo-fb').value,
     tiktok_pixel_id: document.getElementById('seo-tt').value,
     whatsapp_flotante: document.getElementById('seo-wa').value,
