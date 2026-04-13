@@ -62,6 +62,7 @@ const modulos = [
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
+  { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion' },
 ]
 
 let moduloActivo = 'dashboard'
@@ -133,6 +134,7 @@ async function cargarModulo(id) {
     case 'inventario': await cargarInventario(); break
     case 'pos': await cargarPOS(); break
     case 'historial': await cargarHistorial(); break
+    case 'empleados': await cargarEmpleados(); break
   }
 }
 
@@ -3775,4 +3777,99 @@ window.cerrarSesionPanel = () => {
   sessionStorage.removeItem('erp_empleado')
   window._empleadoActual = null
   location.reload()
+}
+async function cargarEmpleados() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/empleados/')
+    const data = await res.json()
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Empleados (${data.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormEmpleado('')">+ Nuevo empleado</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            ${data.map(e => `
+              <tr>
+                <td><strong>${e.nombre}</strong></td>
+                <td>${e.email}</td>
+                <td><span class="badge ${e.rol === 'admin' ? 'badge-info' : 'badge-success'}">${e.rol}</span></td>
+                <td><span class="badge ${e.activo ? 'badge-success' : 'badge-danger'}">${e.activo ? 'Activo' : 'Inactivo'}</span></td>
+                <td style="display:flex;gap:4px">
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormEmpleado('${e.id}')">Editar</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="toggleEmpleado('${e.id}',${e.activo})">${e.activo ? 'Desactivar' : 'Activar'}</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+  }
+}
+
+window.mostrarFormEmpleado = async (id) => {
+  const content = document.getElementById('content')
+  let d = {}
+  if (id) {
+    try {
+      const res = await fetch(API + '/empleados/')
+      const data = await res.json()
+      d = data.find(e => e.id === id) || {}
+    } catch(e) {}
+  }
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:500px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('empleados')">← Volver</button>
+        <h3>${id ? 'Editar empleado' : 'Nuevo empleado'}</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div><label class="form-label">Nombre *</label><input class="form-input" id="emp-nombre" placeholder="Nombre completo" value="${d.nombre||''}"></div>
+        <div><label class="form-label">Email *</label><input class="form-input" id="emp-email" type="email" placeholder="correo@ejemplo.com" value="${d.email||''}"></div>
+        <div><label class="form-label">${id ? 'Nueva contrasena (dejar vacio para no cambiar)' : 'Contrasena *'}</label><input class="form-input" id="emp-password" type="password" placeholder="••••••••"></div>
+        <div><label class="form-label">Rol</label>
+          <select class="form-input" id="emp-rol">
+            <option value="vendedor" ${d.rol==='vendedor'?'selected':''}>Vendedor</option>
+            <option value="admin" ${d.rol==='admin'?'selected':''}>Administrador</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('empleados')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEmpleado('${id||''}')">Guardar</button>
+      </div>
+    </div>`
+}
+
+window.guardarEmpleado = async (id) => {
+  const nombre = document.getElementById('emp-nombre').value
+  const email = document.getElementById('emp-email').value
+  const password = document.getElementById('emp-password').value
+  const rol = document.getElementById('emp-rol').value
+  if (!nombre || !email) { alert('Nombre y email son obligatorios'); return }
+  if (!id && !password) { alert('La contrasena es obligatoria para nuevos empleados'); return }
+  try {
+    const method = id ? 'PATCH' : 'POST'
+    const url = id ? API + '/empleados/' + id : API + '/empleados/'
+    const body = { nombre, email, rol }
+    if (password) body.password = password
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (res.ok) { alert('Empleado guardado correctamente'); navegarA('empleados') }
+    else { const err = await res.json(); alert('Error: ' + (err.error || 'No se pudo guardar')) }
+  } catch(e) { alert('Error conectando con el servidor') }
+}
+
+window.toggleEmpleado = async (id, activo) => {
+  if (!confirm(activo ? 'Desactivar este empleado?' : 'Activar este empleado?')) return
+  try {
+    const res = await fetch(API + '/empleados/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !activo }) })
+    if (res.ok) cargarEmpleados()
+    else alert('Error al cambiar estado')
+  } catch(e) { alert('Error conectando con el servidor') }
 }
