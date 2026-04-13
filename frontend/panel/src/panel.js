@@ -81,11 +81,12 @@ export function renderPanel() {
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:1rem">
-          <button class="hamburger" onclick="toggleSidebar()">Ôÿ░</button>
+          <button class="hamburger" onclick="toggleSidebar()">☰</button>
           <h1 id="topbar-title">Dashboard</h1>
         </div>
         <div class="topbar-actions">
-          <span style="font-size:0.8rem;color:#888">Leon, Gto.</span>
+        <span style="font-size:0.8rem;color:#888">${window._empleadoActual ? window._empleadoActual.nombre : 'Leon, Gto.'}</span>
+        <button onclick="cerrarSesionPanel()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#8892a4;cursor:pointer;font-family:DM Sans,sans-serif">Salir</button>
         </div>
       </div>
       <div class="content" id="content">
@@ -3768,4 +3769,10 @@ window.eliminarItemPedido = (idx) => {
   window._pedidoItems.splice(idx, 1)
   window.recalcularTotal()
   window.renderItemsPedido()
+}
+window.cerrarSesionPanel = () => {
+  if (!confirm('Cerrar sesion?')) return
+  sessionStorage.removeItem('erp_empleado')
+  window._empleadoActual = null
+  location.reload()
 }

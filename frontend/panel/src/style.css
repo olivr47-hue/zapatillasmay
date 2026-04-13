@@ -35,7 +35,7 @@
   --text-secondary: #424242;
   --text-muted: #757575;
 
-  --sidebar-w: 240px;
+  --sidebar-w: 248px;
   --sidebar-bg: #0f0f1a;
   --sidebar-text: #a0a0b0;
 
@@ -212,6 +212,7 @@ body::after {
 /* ─── MAIN ────────────────────────────────────── */
 .main {
   margin-left: var(--sidebar-w);
+  width: calc(100% - var(--sidebar-w));
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -222,17 +223,23 @@ body::after {
 
 /* ─── TOPBAR ──────────────────────────────────── */
 .topbar {
-  background: rgba(13,17,32,0.85);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
+  background: #1a1a2e;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   padding: 0 24px;
-  height: var(--topbar-h);
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+.topbar h1 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f0f4ff;
+  letter-spacing: -0.3px;
 }
 
 .topbar h1 {
@@ -650,4 +657,13 @@ select.form-input option {
 select.form-input option {
   background: white;
   color: #333;
+}
+.topbar h1 {
+  color: #f0f4ff !important;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.topbar-actions span {
+  color: #8892a4 !important;
 }
