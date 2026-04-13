@@ -1,0 +1,2 @@
+cd "C:\Users\User\Desktop\ERP Zapatillas May"
+copy backend\requirements.txt requirements.txt
