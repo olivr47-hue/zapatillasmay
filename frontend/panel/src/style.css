@@ -7,48 +7,48 @@
 }
 
 :root {
-  --pink: #f0147e;
-  --pink-glow: rgba(240,20,126,0.35);
-  --pink-soft: rgba(240,20,126,0.12);
-  --cyan: #00d4ff;
-  --cyan-glow: rgba(0,212,255,0.25);
-  --cyan-soft: rgba(0,212,255,0.08);
-  --purple: #7c3aed;
-  --green: #10d97e;
-  --green-soft: rgba(16,217,126,0.12);
-  --amber: #f59e0b;
-  --amber-soft: rgba(245,158,11,0.12);
-  --red: #ef4444;
-  --red-soft: rgba(239,68,68,0.12);
+  --pink: #E91E8C;
+  --pink-glow: rgba(233,30,140,0.35);
+  --pink-soft: rgba(233,30,140,0.1);
+  --pink-dark: #c2187a;
+  --cyan: #0097b2;
+  --cyan-glow: rgba(0,151,178,0.25);
+  --cyan-soft: rgba(0,151,178,0.08);
+  --green: #2e7d32;
+  --green-soft: rgba(46,125,50,0.1);
+  --amber: #f57f17;
+  --amber-soft: rgba(245,127,23,0.1);
+  --red: #c62828;
+  --red-soft: rgba(198,40,40,0.1);
 
-  --bg-base: #080b14;
-  --bg-surface: #0d1120;
-  --bg-card: rgba(255,255,255,0.035);
-  --bg-card-hover: rgba(255,255,255,0.055);
-  --bg-input: rgba(255,255,255,0.05);
+  --bg-base: #f4f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f9fafb;
+  --bg-input: #f5f5f5;
 
-  --border: rgba(255,255,255,0.07);
-  --border-strong: rgba(255,255,255,0.12);
-  --border-pink: rgba(240,20,126,0.3);
+  --border: #e0e0e0;
+  --border-strong: #bdbdbd;
+  --border-pink: rgba(233,30,140,0.3);
 
-  --text-primary: #f0f4ff;
-  --text-secondary: #8892a4;
-  --text-muted: #4a5568;
+  --text-primary: #1a1a2e;
+  --text-secondary: #424242;
+  --text-muted: #757575;
 
-  --sidebar-w: 248px;
-  --topbar-h: 60px;
+  --sidebar-w: 240px;
+  --sidebar-bg: #0f0f1a;
+  --sidebar-text: #a0a0b0;
+
   --radius-sm: 8px;
   --radius: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
 
-  --shadow-card: 0 1px 1px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
-  --shadow-pink: 0 0 20px rgba(240,20,126,0.25), 0 4px 12px rgba(240,20,126,0.15);
-  --shadow-cyan: 0 0 20px rgba(0,212,255,0.2);
-  --shadow-glow: 0 0 40px rgba(240,20,126,0.15);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+  --shadow-pink: 0 0 20px rgba(233,30,140,0.2);
+  --shadow-glow: 0 0 40px rgba(233,30,140,0.1);
 
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html { scroll-behavior: smooth; }

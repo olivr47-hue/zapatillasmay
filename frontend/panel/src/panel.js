@@ -216,8 +216,8 @@ async function cargarProductos(categoriaFiltro) {
                       : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
                     <strong>${p.nombre}</strong>
                   </td>
-                  <td><small style="color:#888">${p.sku_interno || 'ÔÇö'}</small></td>
-                  <td>${p.categoria || 'ÔÇö'}</td>
+                  <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
+                  <td>${p.categoria || '—'}</td>
                   <td>$${p.precio_menudeo}</td>
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
@@ -277,12 +277,12 @@ async function cargarClientes() {
                     ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
                   </td>
                   <td>
-                    ${c.telefono || 'ÔÇö'}
+                    ${c.telefono || '—'}
                     ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
                   </td>
                   <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
                   <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
-                  <td>${c.ciudad || 'ÔÇö'}</td>
+                  <td>${c.ciudad || '—'}</td>
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
@@ -320,8 +320,8 @@ async function cargarSucursales() {
               <tr>
                 <td><strong>${s.nombre}</strong></td>
                 <td>${s.tipo}</td>
-                <td>${s.direccion || 'ÔÇö'}</td>
-                <td>${s.telefono || 'ÔÇö'}</td>
+                <td>${s.direccion || '—'}</td>
+                <td>${s.telefono || '—'}</td>
                 <td><span class="badge badge-success">Activa</span></td>
              <td>
               <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormSucursal('${s.id}')">Editar</button>
@@ -368,12 +368,12 @@ async function cargarInventario() {
         </select>
         <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
         <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">Alertas</button>
-        <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">­ƒôï Inventario masivo</button>
+        <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Inventario masivo</button>
         <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
         <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">- Salida</button>
-        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">ÔÜÖ Ajuste</button>
+        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
         <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
-        <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">Ôçä Traspaso</button>
+        <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">⇄ Traspaso</button>
       </div>
       <div id="inv-contenido"></div>
     `
@@ -429,7 +429,7 @@ window.renderInventario = () => {
                  onmouseover="this.style.transform='scale(1.05)'"
                  onmouseout="this.style.transform='scale(1)'">
               <span style="font-size:0.7rem;color:#666;font-weight:500">${v.talla}</span>
-              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : 'ÔÇö'}</span>
+              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : '—'}</span>
             </div>
           `
         }).join('')
@@ -450,7 +450,7 @@ window.renderInventario = () => {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
             <div>
               <span style="font-weight:600;font-size:1rem;color:#1a1a1a">${prod.nombre}</span>
-              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || 'ÔÇö'}</span>
+              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
               <span style="margin-left:6px;font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
             </div>
           </div>
@@ -505,7 +505,7 @@ window.mostrarFormInventario = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>Agregar stock</h3>
       </div>
       <div style="display:grid;gap:1rem">
@@ -574,7 +574,7 @@ window.mostrarAlertas = async () => {
     const data = await res.json()
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3 style="color:#f57f17">Productos con stock bajo o agotado (${data.length})</h3>
       </div>
       ${data.length === 0
@@ -588,10 +588,10 @@ window.mostrarAlertas = async () => {
               const agotado = cantidad === 0
               return `
                 <tr style="background:${agotado ? '#fff5f5' : '#fffdf0'}">
-                  <td><strong>${i.variantes && i.variantes.productos ? i.variantes.productos.nombre : 'ÔÇö'}</strong></td>
-                  <td>${i.variantes ? i.variantes.color || 'ÔÇö' : 'ÔÇö'}</td>
-                  <td>${i.variantes ? i.variantes.talla || 'ÔÇö' : 'ÔÇö'}</td>
-                  <td>${i.sucursales ? i.sucursales.nombre || 'ÔÇö' : 'ÔÇö'}</td>
+                  <td><strong>${i.variantes && i.variantes.productos ? i.variantes.productos.nombre : '—'}</strong></td>
+                  <td>${i.variantes ? i.variantes.color || '—' : '—'}</td>
+                  <td>${i.variantes ? i.variantes.talla || '—' : '—'}</td>
+                  <td>${i.sucursales ? i.sucursales.nombre || '—' : '—'}</td>
                   <td><strong style="color:${agotado ? '#c62828' : '#f57f17'}">${cantidad}</strong></td>
                   <td>${minimo}</td>
                   <td><span class="badge ${agotado ? 'badge-danger' : 'badge-warning'}">${agotado ? 'Agotado' : 'Stock bajo'}</span></td>
@@ -616,7 +616,7 @@ window.mostrarAjuste = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>Ajuste de inventario</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Para corregir el inventario despues de un conteo fisico o para corregir errores.</p>
@@ -693,7 +693,7 @@ window.mostrarCambio = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:700px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>Cambio de producto</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Cuando un cliente devuelve un producto y se lleva otro. El inventario se ajusta automaticamente.</p>
@@ -810,7 +810,7 @@ window.buscarVariante = (texto, prefijo) => {
            onmouseout="this.style.background='white'">
         ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
         <div>
-          <strong>${v.productos ? v.productos.nombre || 'ÔÇö' : 'ÔÇö'}</strong>
+          <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
           <span style="color:#888"> ┬À ${v.color} ┬À Talla ${v.talla}</span>
           <span style="color:#ccc;font-size:0.75rem"> ┬À ${v.sku || ''}</span>
         </div>
@@ -1412,12 +1412,12 @@ window.filtrarClientes = () => {
           ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
         </td>
         <td>
-          ${c.telefono || 'ÔÇö'}
+          ${c.telefono || '—'}
           ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
         </td>
         <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
         <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
-        <td>${c.ciudad || 'ÔÇö'}</td>
+        <td>${c.ciudad || '—'}</td>
         <td style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
           <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
@@ -1440,7 +1440,7 @@ window.mostrarFormCliente = async (id) => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('clientes')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
         <h3>${id ? 'Editar cliente' : 'Nuevo cliente'}</h3>
 ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366;margin-left:auto">WhatsApp</a>' : ''}      </div>
 
@@ -1453,12 +1453,12 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
           <label class="form-label">Telefono (WhatsApp)</label>
         <div style="display:flex;gap:8px">
         <select class="form-input" id="cli-lada" style="max-width:120px">
-            <option value="52" ${(d.lada || '52') === '52' ? 'selected' : ''}>­ƒç▓­ƒç¢ +52</option>
-            <option value="1" ${d.lada === '1' ? 'selected' : ''}>­ƒç║­ƒç© +1</option>
-            <option value="1" ${d.lada === '1CA' ? 'selected' : ''}>­ƒç¿­ƒçª +1</option>
-            <option value="34" ${d.lada === '34' ? 'selected' : ''}>­ƒç¬­ƒç© +34</option>
-            <option value="57" ${d.lada === '57' ? 'selected' : ''}>­ƒç¿­ƒç┤ +57</option>
-            <option value="54" ${d.lada === '54' ? 'selected' : ''}>­ƒçª­ƒçÀ +54</option>
+            <option value="52" ${(d.lada || '52') === '52' ? 'selected' : ''}>­🇲🇽 +52</option>
+            <option value="1" ${d.lada === '1' ? 'selected' : ''}>­🇺🇸 +1</option>
+            <option value="1" ${d.lada === '1CA' ? 'selected' : ''}>­🇨🇦 +1</option>
+            <option value="34" ${d.lada === '34' ? 'selected' : ''}>🇪🇸 +34</option>
+            <option value="57" ${d.lada === '57' ? 'selected' : ''}>­🇨🇴 +57</option>
+            <option value="54" ${d.lada === '54' ? 'selected' : ''}>­🇦🇷 +54</option>
             </select>
             <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
         </div>
@@ -1588,7 +1588,7 @@ window.verCliente = async (id) => {
     content.innerHTML = `
       <div class="table-card" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="navegarA('clientes')">ÔåÉ Volver</button>
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
           <h3 style="flex:1">${c.nombre}</h3>
           <button class="btn btn-secondary" onclick="editarCliente('${c.id}')">Editar</button>
           ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
@@ -1601,15 +1601,15 @@ window.verCliente = async (id) => {
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Telefono</p>
-            <p style="font-weight:600">${c.telefono || 'ÔÇö'}</p>
+            <p style="font-weight:600">${c.telefono || '—'}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Email</p>
-            <p style="font-weight:600">${c.email || 'ÔÇö'}</p>
+            <p style="font-weight:600">${c.email || '—'}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Direccion</p>
-            <p style="font-weight:600">${c.direccion || 'ÔÇö'}</p>
+            <p style="font-weight:600">${c.direccion || '—'}</p>
             <p style="font-size:0.8rem;color:#888">${c.ciudad || ''} ${c.estado || ''} ${c.codigo_postal || ''}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
@@ -1619,7 +1619,7 @@ window.verCliente = async (id) => {
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente desde</p>
-            <p style="font-weight:600">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : 'ÔÇö'}</p>
+            <p style="font-weight:600">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : '—'}</p>
           </div>
         </div>
 
@@ -1653,7 +1653,7 @@ window.mostrarEntrada = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3 style="color:#2e7d32">+ Entrada de mercancia</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto cuando llega mercancia nueva. Se suma al inventario actual.</p>
@@ -1738,7 +1738,7 @@ window.mostrarSalida = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3 style="color:#c62828">- Salida de inventario</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto para registrar mermas, perdidas o errores. Se resta del inventario actual.</p>
@@ -1835,7 +1835,7 @@ window.mostrarInventarioMasivo = async () => {
 
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>Inventario masivo</h3>
       </div>
       <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee;margin-bottom:1rem">
@@ -1929,7 +1929,7 @@ window.renderTablasMasivo = () => {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
           <div>
             <span style="font-weight:600;font-size:1rem">${prod.nombre}</span>
-            <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || 'ÔÇö'}</span>
+            <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
           </div>
         </div>
         ${coloresHtml}
@@ -2005,7 +2005,7 @@ window.mostrarFormSucursal = async (id) => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('sucursales')">ÔåÉ Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">← Volver</button>
         <h3>${id ? 'Editar sucursal' : 'Nueva sucursal'}</h3>
       </div>
       <div style="display:grid;gap:1rem">
@@ -2074,8 +2074,8 @@ window.mostrarTraspaso = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
-        <h3 style="color:#283593">Ôçä Traspaso entre sucursales</h3>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#283593">⇄ Traspaso entre sucursales</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Mueve inventario de una sucursal a otra. Se resta de origen y se suma en destino.</p>
       <div style="display:grid;gap:1rem">
@@ -2196,11 +2196,11 @@ async function cargarPedidos() {
                 return `
                   <tr>
                     <td><strong>${p.clientes ? p.clientes.nombre : 'Sin cliente'}</strong></td>
-                    <td>${p.canal || 'ÔÇö'}</td>
+                    <td>${p.canal || '—'}</td>
                     <td><strong>$${p.total || '0'}</strong></td>
-                    <td>${p.forma_pago || 'ÔÇö'}</td>
+                    <td>${p.forma_pago || '—'}</td>
                     <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
-                    <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : 'ÔÇö'}</td>
+                    <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : '—'}</td>
                     <td>
                       <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
                     </td>
@@ -2254,7 +2254,7 @@ window.mostrarFormPedido = async () => {
     content.innerHTML = `
       <div class="table-card" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-          <button class="btn btn-secondary" onclick="navegarA('pedidos')">ÔåÉ Volver</button>
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
           <h3>Nuevo pedido</h3>
         </div>
 
@@ -2564,7 +2564,7 @@ window.verPedido = async (id) => {
     content.innerHTML = `
       <div class="table-card" style="padding:2rem">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="navegarA('pedidos')">ÔåÉ Volver</button>
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
           <h3 style="flex:1">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
           <span class="badge" style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:6px 12px">${p.status}</span>
           ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=Hola%20' + encodeURIComponent(cliente.nombre) + '%2C%20tu%20pedido%20est├í%20listo" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
@@ -2573,12 +2573,12 @@ window.verPedido = async (id) => {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
-            <p style="font-weight:600">${cliente.nombre || 'ÔÇö'}</p>
+            <p style="font-weight:600">${cliente.nombre || '—'}</p>
             <p style="font-size:0.8rem;color:#888">${cliente.telefono || ''}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
-            <p style="font-weight:600">${p.canal || 'ÔÇö'}</p>
+            <p style="font-weight:600">${p.canal || '—'}</p>
             <p style="font-size:0.8rem;color:#888">${p.forma_pago || ''}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
@@ -2596,7 +2596,7 @@ window.verPedido = async (id) => {
               <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
                 ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
                 <div style="flex:1">
-                  <p style="font-weight:600;font-size:0.85rem">${producto.nombre || 'ÔÇö'} - ${variante.color || ''} - T${variante.talla || ''}</p>
+                  <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
                   <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ├ù $${item.precio_unitario}</p>
                 </div>
                 <strong style="color:#E91E8C">$${item.subtotal}</strong>
@@ -3296,10 +3296,10 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   items.forEach(item => {
     const variante = item.variantes || {}
     const producto = variante.productos || {}
-    const key = (producto.nombre || 'ÔÇö') + '|' + (variante.color || '')
+    const key = (producto.nombre || '—') + '|' + (variante.color || '')
     if (!grupos[key]) {
       grupos[key] = {
-        nombre: producto.nombre || 'ÔÇö',
+        nombre: producto.nombre || '—',
         color: variante.color || '',
         cantidad: 0,
         subtotal: 0
@@ -3441,26 +3441,26 @@ window.generarPDFPedido = async (pedidoId) => {
           </div>
           <div class="campo">
             <div class="campo-label">Telefono</div>
-            <div class="campo-valor">${cliente.telefono || 'ÔÇö'}</div>
+            <div class="campo-valor">${cliente.telefono || '—'}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Email</div>
-            <div class="campo-valor">${cliente.email || 'ÔÇö'}</div>
+            <div class="campo-valor">${cliente.email || '—'}</div>
           </div>
         </div>
         <div>
           <div class="section-title">Informacion del pedido</div>
           <div class="campo">
             <div class="campo-label">Canal</div>
-            <div class="campo-valor">${pedido.canal || 'ÔÇö'}</div>
+            <div class="campo-valor">${pedido.canal || '—'}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Forma de pago</div>
-            <div class="campo-valor">${pedido.forma_pago || 'ÔÇö'}</div>
+            <div class="campo-valor">${pedido.forma_pago || '—'}</div>
           </div>
           <div class="campo">
             <div class="campo-label">Sucursal</div>
-            <div class="campo-valor">${pedido.sucursales ? pedido.sucursales.nombre : 'ÔÇö'}</div>
+            <div class="campo-valor">${pedido.sucursales ? pedido.sucursales.nombre : '—'}</div>
           </div>
         </div>
       </div>
@@ -3486,10 +3486,10 @@ window.generarPDFPedido = async (pedidoId) => {
             const producto = variante.productos || {}
             return `
               <tr>
-                <td>${producto.nombre || 'ÔÇö'}</td>
-                <td>${variante.color || 'ÔÇö'}</td>
-                <td>${variante.talla || 'ÔÇö'}</td>
-                <td style="font-size:11px;color:#888">${variante.sku || 'ÔÇö'}</td>
+                <td>${producto.nombre || '—'}</td>
+                <td>${variante.color || '—'}</td>
+                <td>${variante.talla || '—'}</td>
+                <td style="font-size:11px;color:#888">${variante.sku || '—'}</td>
                 <td class="text-right">${item.cantidad}</td>
                 <td class="text-right">$${item.precio_unitario}</td>
                 <td class="text-right font-weight:bold">$${item.subtotal}</td>
@@ -3523,7 +3523,7 @@ window.generarPDFPedido = async (pedidoId) => {
       </div>
 
       <div class="footer">
-        <span>Zapatillas May ÔÇö zapatillasmay.mx</span>
+        <span>Zapatillas May — zapatillasmay.mx</span>
         <span>RFC: SAPL620614JD7</span>
         <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
       </div>
