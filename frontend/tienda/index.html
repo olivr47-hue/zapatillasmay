@@ -1113,15 +1113,75 @@
       <div class="search-results" id="search-results"></div>
     </div>
     <div class="header-actions">
-      <button class="btn-icon" onclick="abrirCarrito()" title="Carrito">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        <span class="cart-badge" id="cart-count" style="display:none">0</span>
-      </button>
-      <a href="/panel" class="btn-icon" title="Administracion">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      </a>
+  <button class="btn-icon" onclick="abrirCarrito()" title="Carrito">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <span class="cart-badge" id="cart-count" style="display:none">0</span>
+  </button>
+  <button class="btn-icon" onclick="abrirLogin()" title="Mi cuenta" id="btn-cuenta">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  </button>
+  <a href="http://localhost:5173" class="btn-icon" title="Panel admin">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+  </a>
+</div>
+  <!-- MODAL AUTH -->
+<div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px)">
+  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-height:90vh;overflow-y:auto">    <button onclick="cerrarAuthBtn()" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666;display:flex;align-items:center;justify-content:center">
+  ✕</button>
+    
+    <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
+      <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
+      <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
+    </div>
+
+    <div id="form-login">
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <input type="email" id="login-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
+      </div>
+      <div style="margin-bottom:24px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contrasena</label>
+        <input type="password" id="login-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
+      </div>
+      <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
+      <p style="text-align:center;margin-top:16px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:none;font-weight:600">invitado</a></p>
+    </div>
+
+    <div id="form-registro" style="display:none">
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
+        <input type="text" id="reg-nombre" placeholder="Tu nombre" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <input type="email" id="reg-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contrasena</label>
+        <input type="password" id="reg-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
+      </div>
+      <div style="margin-bottom:24px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
+        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);background:white;font-size:0.875rem;outline:none">
+          <option value="cliente">menudeo y mayoreo variado</option>
+          <option value="zapateria">Zapateria (corrida completa)</option>
+        </select>
+      </div>
+      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Crear cuenta</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL MI CUENTA -->
+<div class="modal-overlay" id="cuenta-overlay" onclick="cerrarCuenta(event)" style="display:none;opacity:0">
+  <div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:40px;position:relative;margin-top:80px;max-height:80vh;overflow-y:auto">
+    <div style="padding:32px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+      <h2 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400">Mi cuenta</h2>
+      <button onclick="cerrarCuentaBtn()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#aaa">✕</button>
+    </div>
+    <div id="cuenta-contenido" style="padding:32px"></div>
+  </div>
+</div>
 </header>
 
 <!-- HERO -->
@@ -1660,7 +1720,170 @@
     const search = document.querySelector('.header-search')
     if (!search.contains(e.target)) document.getElementById('search-results').classList.remove('show')
   })
+let usuarioActual = null
 
+function abrirLogin() {
+  if (usuarioActual) { abrirCuenta(); return }
+  const overlay = document.getElementById('auth-overlay')
+  overlay.style.display = 'flex'
+  overlay.style.opacity = '0'
+  setTimeout(() => overlay.style.opacity = '1', 10)
+  document.body.style.overflow = 'hidden'
+}
+
+function cerrarAuth(event) {
+  if (event.target === document.getElementById('auth-overlay')) cerrarAuthBtn()
+}
+
+function cerrarAuthBtn() {
+  const overlay = document.getElementById('auth-overlay')
+  overlay.style.opacity = '0'
+  setTimeout(() => { overlay.style.display = 'none' }, 300)
+  document.body.style.overflow = ''
+}
+
+function mostrarTab(tab) {
+  document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none'
+  document.getElementById('form-registro').style.display = tab === 'registro' ? 'block' : 'none'
+  document.getElementById('tab-login').style.borderBottomColor = tab === 'login' ? 'var(--pink)' : 'transparent'
+  document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--pink)' : '#aaa'
+  document.getElementById('tab-registro').style.borderBottomColor = tab === 'registro' ? 'var(--pink)' : 'transparent'
+  document.getElementById('tab-registro').style.color = tab === 'registro' ? 'var(--pink)' : '#aaa'
+}
+
+async function hacerLogin() {
+  const email = document.getElementById('login-email').value
+  const password = document.getElementById('login-password').value
+  if (!email || !password) { mostrarToast('Por favor completa todos los campos'); return }
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      usuarioActual = data
+      localStorage.setItem('usuario', JSON.stringify(data))
+      cerrarAuthBtn()
+      actualizarBtnCuenta()
+      mostrarToast('Bienvenido, ' + data.nombre)
+    } else {
+      mostrarToast(data.error || 'Error al iniciar sesion')
+    }
+  } catch(e) {
+    mostrarToast('Error conectando con el servidor')
+  }
+}
+
+async function hacerRegistro() {
+  const nombre = document.getElementById('reg-nombre').value
+  const email = document.getElementById('reg-email').value
+  const password = document.getElementById('reg-password').value
+  const tipo = document.getElementById('reg-tipo').value
+  if (!nombre || !email || !password) { mostrarToast('Por favor completa todos los campos'); return }
+  try {
+    const res = await fetch(API + '/auth/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, email, password, tipo })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      usuarioActual = data
+      localStorage.setItem('usuario', JSON.stringify(data))
+      cerrarAuthBtn()
+      actualizarBtnCuenta()
+      mostrarToast('Cuenta creada. Bienvenido, ' + data.nombre)
+    } else {
+      mostrarToast(data.error || 'Error al crear cuenta')
+    }
+  } catch(e) {
+    mostrarToast('Error conectando con el servidor')
+  }
+}
+
+function actualizarBtnCuenta() {
+  const btn = document.getElementById('btn-cuenta')
+  if (!btn) return
+  if (usuarioActual) {
+    btn.style.color = 'var(--pink)'
+    btn.title = usuarioActual.nombre
+  } else {
+    btn.style.color = ''
+    btn.title = 'Mi cuenta'
+  }
+}
+
+function abrirCuenta() {
+  const overlay = document.getElementById('cuenta-overlay')
+  overlay.style.display = 'flex'
+  setTimeout(() => overlay.style.opacity = '1', 10)
+  document.body.style.overflow = 'hidden'
+  cargarCuenta()
+}
+
+function cerrarCuenta(event) {
+  if (event.target === document.getElementById('cuenta-overlay')) cerrarCuentaBtn()
+}
+
+function cerrarCuentaBtn() {
+  const overlay = document.getElementById('cuenta-overlay')
+  overlay.style.opacity = '0'
+  setTimeout(() => { overlay.style.display = 'none' }, 300)
+  document.body.style.overflow = ''
+}
+
+async function cargarCuenta() {
+  const contenido = document.getElementById('cuenta-contenido')
+  if (!usuarioActual) return
+  contenido.innerHTML = '<p style="color:#aaa">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/auth/pedidos/' + usuarioActual.cliente_id)
+    const pedidos = await res.json()
+    contenido.innerHTML = `
+      <div style="margin-bottom:24px">
+        <p style="font-size:0.72rem;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Cuenta</p>
+        <p style="font-weight:600;font-size:1rem">${usuarioActual.nombre}</p>
+        <p style="font-size:0.85rem;color:#888">${usuarioActual.email}</p>
+        <span style="display:inline-block;margin-top:6px;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${usuarioActual.tipo==='zapateria'?'#fff8e1':usuarioActual.tipo==='mayoreo'?'#e3f2fd':'#e8f5e9'};color:${usuarioActual.tipo==='zapateria'?'#f57f17':usuarioActual.tipo==='mayoreo'?'#1565c0':'#2e7d32'}">${usuarioActual.tipo}</span>
+      </div>
+      <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:600">Mis pedidos (${pedidos.length})</p>
+        <button onclick="cerrarSesion()" style="background:none;border:1px solid #eee;border-radius:6px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;cursor:pointer;color:#888">Cerrar sesion</button>
+      </div>
+      ${pedidos.length === 0
+        ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:24px">No tienes pedidos aun</p>'
+        : pedidos.map(p => `
+          <div style="border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:0.75rem;font-family:var(--font-mono);color:#888">#${p.id.substring(0,8).toUpperCase()}</span>
+              <span style="padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${p.status==='confirmado'||p.status==='pagado'?'#e8f5e9':'#fff8e1'};color:${p.status==='confirmado'||p.status==='pagado'?'#2e7d32':'#f57f17'}">${p.status}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:0.82rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')}</span>
+              <strong style="font-family:var(--font-mono)">$${p.total} MXN</strong>
+            </div>
+          </div>
+        `).join('')}
+    `
+  } catch(e) {
+    contenido.innerHTML = '<p style="color:#aaa">Error cargando la cuenta</p>'
+  }
+}
+
+function cerrarSesion() {
+  usuarioActual = null
+  localStorage.removeItem('usuario')
+  cerrarCuentaBtn()
+  actualizarBtnCuenta()
+  mostrarToast('Sesion cerrada')
+}
+
+const usuarioGuardado = localStorage.getItem('usuario')
+if (usuarioGuardado) {
+  try { usuarioActual = JSON.parse(usuarioGuardado); } catch(e) {}
+}
   inicializar()
 </script>
 </body>

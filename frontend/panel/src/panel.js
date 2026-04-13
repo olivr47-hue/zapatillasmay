@@ -55,6 +55,7 @@ const CATEGORIAS = [
 
 const modulos = [
   { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal' },
+  { id: 'pos', icon: '🛒', label: 'Punto de venta', section: 'Principal' },
   { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
   { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
@@ -80,7 +81,7 @@ export function renderPanel() {
     <div class="main">
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:1rem">
-          <button class="hamburger" onclick="toggleSidebar()">☰</button>
+          <button class="hamburger" onclick="toggleSidebar()">Ôÿ░</button>
           <h1 id="topbar-title">Dashboard</h1>
         </div>
         <div class="topbar-actions">
@@ -88,17 +89,10 @@ export function renderPanel() {
         </div>
       </div>
       <div class="content" id="content">
-        ${renderDashboardHTML()}
+        ${renderDashboard()}
       </div>
     </div>
   `
-  setTimeout(() => {
-    if (document.getElementById('dashboard-contenido')) {
-      cargarDashboard()
-    }
-  }, 800)
-
-
   window.toggleSidebar = () => {
     document.getElementById('sidebar').classList.toggle('open')
   }
@@ -128,17 +122,21 @@ function renderNav() {
 
 async function cargarModulo(id) {
   const content = document.getElementById('content')
-  content.innerHTML = '<div style="padding:3rem;text-align:center;color:var(--text-muted)">Cargando...</div>'
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   switch(id) {
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
-    case 'pos': await cargarPOS(); break
     case 'productos': await cargarProductos(); break
     case 'clientes': await cargarClientes(); break
     case 'pedidos': await cargarPedidos(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
-    case 'historial': await cargarHistorial(); break
+    case 'pos': await cargarPOS(); break
   }
+}
+
+function renderDashboard() {
+  setTimeout(() => cargarDashboard(), 800)
+  return renderDashboardHTML()
 }
 
 function renderDashboardHTML() {
@@ -218,8 +216,8 @@ async function cargarProductos(categoriaFiltro) {
                       : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
                     <strong>${p.nombre}</strong>
                   </td>
-                  <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
-                  <td>${p.categoria || '—'}</td>
+                  <td><small style="color:#888">${p.sku_interno || 'ÔÇö'}</small></td>
+                  <td>${p.categoria || 'ÔÇö'}</td>
                   <td>$${p.precio_menudeo}</td>
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
@@ -247,67 +245,61 @@ async function cargarClientes() {
       <div class="table-card">
         <div class="table-header">
           <h3>Clientes (${data.length})</h3>
-          <button class="btn btn-primary">+ Nuevo cliente</button>
+          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
         </div>
-        <table>
+        <div style="padding:0 1.5rem 1rem;display:flex;gap:8px;flex-wrap:wrap">
+          <input class="form-input" id="cli-buscar" placeholder="Buscar por nombre o telefono..." style="max-width:280px" oninput="filtrarClientes()">
+          <select class="form-input" id="cli-tipo" style="max-width:150px" onchange="filtrarClientes()">
+            <option value="">Todos los tipos</option>
+            <option value="menudeo">Menudeo</option>
+            <option value="mayoreo">Mayoreo</option>
+            <option value="zapateria">Zapateria</option>
+          </select>
+        </div>
+        <table id="cli-tabla">
           <thead>
-            <tr><th>Nombre</th><th>Telefono</th><th>Tipo</th><th>Email</th></tr>
+            <tr>
+              <th>Nombre</th>
+              <th>Telefono</th>
+              <th>Tipo</th>
+              <th>Credito</th>
+              <th>Ciudad</th>
+              <th>Acciones</th>
+            </tr>
           </thead>
-          <tbody>
+          <tbody id="cli-tbody">
             ${data.length === 0
-              ? '<tr><td colspan="4" style="text-align:center;color:#888;padding:2rem">No hay clientes</td></tr>'
+              ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay clientes registrados</td></tr>'
               : data.map(c => `
                 <tr>
-                  <td><strong>${c.nombre}</strong></td>
-                  <td>${c.telefono || '—'}</td>
-                  <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : 'badge-success'}">${c.tipo}</span></td>
-                  <td>${c.email || '—'}</td>
+                  <td>
+                    <strong>${c.nombre}</strong>
+                    ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+                  </td>
+                  <td>
+                    ${c.telefono || 'ÔÇö'}
+                    ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
+                  </td>
+                  <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
+                  <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
+                  <td>${c.ciudad || 'ÔÇö'}</td>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
+                    ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
+                  </td>
                 </tr>
               `).join('')}
           </tbody>
         </table>
       </div>
     `
+    window._clientesData = data
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
 }
 
-async function cargarPedidos() {
-  const content = document.getElementById('content')
-  try {
-    const res = await fetch(API + '/pedidos/')
-    const data = await res.json()
-    content.innerHTML = `
-      <div class="table-card">
-        <div class="table-header">
-          <h3>Pedidos (${data.length})</h3>
-          <button class="btn btn-primary">+ Nuevo pedido</button>
-        </div>
-        <table>
-          <thead>
-            <tr><th>Cliente</th><th>Total</th><th>Canal</th><th>Status</th><th>Fecha</th></tr>
-          </thead>
-          <tbody>
-            ${data.length === 0
-              ? '<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
-              : data.map(p => `
-                <tr>
-                  <td>${p.clientes ? p.clientes.nombre : '—'}</td>
-                  <td>$${p.total || '0'}</td>
-                  <td>${p.canal}</td>
-                  <td><span class="badge badge-warning">${p.status}</span></td>
-                  <td>${new Date(p.created_at).toLocaleDateString('es-MX')}</td>
-                </tr>
-              `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `
-  } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
-  }
-}
 
 async function cargarSucursales() {
   const content = document.getElementById('content')
@@ -322,16 +314,18 @@ async function cargarSucursales() {
         </div>
         <table>
           <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th></tr>
-          </thead>
+           <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr>          </thead>
           <tbody>
             ${data.map(s => `
               <tr>
                 <td><strong>${s.nombre}</strong></td>
                 <td>${s.tipo}</td>
-                <td>${s.direccion || '—'}</td>
-                <td>${s.telefono || '—'}</td>
+                <td>${s.direccion || 'ÔÇö'}</td>
+                <td>${s.telefono || 'ÔÇö'}</td>
                 <td><span class="badge badge-success">Activa</span></td>
+             <td>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormSucursal('${s.id}')">Editar</button>
+              </td>
               </tr>
             `).join('')}
           </tbody>
@@ -374,8 +368,12 @@ async function cargarInventario() {
         </select>
         <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
         <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">Alertas</button>
-        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">Ajuste</button>
+        <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">­ƒôï Inventario masivo</button>
+        <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
+        <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">- Salida</button>
+        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">ÔÜÖ Ajuste</button>
         <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
+        <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">Ôçä Traspaso</button>
       </div>
       <div id="inv-contenido"></div>
     `
@@ -431,7 +429,7 @@ window.renderInventario = () => {
                  onmouseover="this.style.transform='scale(1.05)'"
                  onmouseout="this.style.transform='scale(1)'">
               <span style="font-size:0.7rem;color:#666;font-weight:500">${v.talla}</span>
-              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : '—'}</span>
+              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : 'ÔÇö'}</span>
             </div>
           `
         }).join('')
@@ -452,7 +450,7 @@ window.renderInventario = () => {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
             <div>
               <span style="font-weight:600;font-size:1rem;color:#1a1a1a">${prod.nombre}</span>
-              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
+              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || 'ÔÇö'}</span>
               <span style="margin-left:6px;font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
             </div>
           </div>
@@ -507,7 +505,7 @@ window.mostrarFormInventario = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
         <h3>Agregar stock</h3>
       </div>
       <div style="display:grid;gap:1rem">
@@ -576,7 +574,7 @@ window.mostrarAlertas = async () => {
     const data = await res.json()
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
         <h3 style="color:#f57f17">Productos con stock bajo o agotado (${data.length})</h3>
       </div>
       ${data.length === 0
@@ -590,10 +588,10 @@ window.mostrarAlertas = async () => {
               const agotado = cantidad === 0
               return `
                 <tr style="background:${agotado ? '#fff5f5' : '#fffdf0'}">
-                  <td><strong>${i.variantes && i.variantes.productos ? i.variantes.productos.nombre : '—'}</strong></td>
-                  <td>${i.variantes ? i.variantes.color || '—' : '—'}</td>
-                  <td>${i.variantes ? i.variantes.talla || '—' : '—'}</td>
-                  <td>${i.sucursales ? i.sucursales.nombre || '—' : '—'}</td>
+                  <td><strong>${i.variantes && i.variantes.productos ? i.variantes.productos.nombre : 'ÔÇö'}</strong></td>
+                  <td>${i.variantes ? i.variantes.color || 'ÔÇö' : 'ÔÇö'}</td>
+                  <td>${i.variantes ? i.variantes.talla || 'ÔÇö' : 'ÔÇö'}</td>
+                  <td>${i.sucursales ? i.sucursales.nombre || 'ÔÇö' : 'ÔÇö'}</td>
                   <td><strong style="color:${agotado ? '#c62828' : '#f57f17'}">${cantidad}</strong></td>
                   <td>${minimo}</td>
                   <td><span class="badge ${agotado ? 'badge-danger' : 'badge-warning'}">${agotado ? 'Agotado' : 'Stock bajo'}</span></td>
@@ -618,7 +616,7 @@ window.mostrarAjuste = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:600px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
         <h3>Ajuste de inventario</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Para corregir el inventario despues de un conteo fisico o para corregir errores.</p>
@@ -675,7 +673,7 @@ window.guardarAjuste = async () => {
     })
     const data = await res.json()
     if (data.ok) {
-      alert('Ajuste guardado. Anterior: ' + data.cantidad_anterior + ' pares → Nuevo: ' + data.cantidad_nueva + ' pares')
+      alert('Ajuste guardado. Anterior: ' + data.cantidad_anterior + ' pares ÔåÆ Nuevo: ' + data.cantidad_nueva + ' pares')
       navegarA('inventario')
     } else {
       alert('Error: ' + JSON.stringify(data))
@@ -695,7 +693,7 @@ window.mostrarCambio = async () => {
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:700px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
-        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
         <h3>Cambio de producto</h3>
       </div>
       <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Cuando un cliente devuelve un producto y se lleva otro. El inventario se ajusta automaticamente.</p>
@@ -791,24 +789,35 @@ window.buscarVariante = (texto, prefijo) => {
     const completo = nombre + ' ' + color + ' ' + talla + ' ' + sku
     return terminos.every(t => completo.includes(t))
   }).slice(0, 15)
+
   if (filtradas.length === 0) {
     resultadosDiv.innerHTML = '<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron resultados</div>'
     resultadosDiv.style.display = 'block'
     return
   }
-  resultadosDiv.innerHTML = filtradas.map(v => `
-    <div onclick="seleccionarVariante('${v.id}', '${(v.productos ? v.productos.nombre || '' : '').replace(/'/g, '')} - ${v.color} - T${v.talla}', '${prefijo}')"
-         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
-         onmouseover="this.style.background='#f5f5f5'"
-         onmouseout="this.style.background='white'">
-      ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
-      <div>
-        <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
-        <span style="color:#888"> · ${v.color} · Talla ${v.talla}</span>
-        <span style="color:#ccc;font-size:0.75rem"> · ${v.sku || ''}</span>
+
+  const esPedido = prefijo === 'ped-prod'
+
+  resultadosDiv.innerHTML = filtradas.map(v => {
+    const nombreCompleto = (v.productos ? v.productos.nombre || '' : '') + ' - ' + v.color + ' - T' + v.talla
+    const accion = esPedido
+      ? `agregarItemPedido('${v.id}', '${nombreCompleto.replace(/'/g, '')}')`
+      : `seleccionarVariante('${v.id}', '${nombreCompleto.replace(/'/g, '')}', '${prefijo}')`
+    return `
+      <div onclick="${accion}; document.getElementById('${prefijo}-resultados').style.display='none'; document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}') && (document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}').value='')"
+           style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
+           onmouseover="this.style.background='#f5f5f5'"
+           onmouseout="this.style.background='white'">
+        ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
+        <div>
+          <strong>${v.productos ? v.productos.nombre || 'ÔÇö' : 'ÔÇö'}</strong>
+          <span style="color:#888"> ┬À ${v.color} ┬À Talla ${v.talla}</span>
+          <span style="color:#ccc;font-size:0.75rem"> ┬À ${v.sku || ''}</span>
+        </div>
       </div>
-    </div>
-  `).join('')
+    `
+  }).join('')
+
   resultadosDiv.style.display = 'block'
 }
 
@@ -816,7 +825,7 @@ window.seleccionarVariante = (id, texto, prefijo) => {
   const input = document.getElementById(prefijo)
   if (input) input.value = id
   const selDiv = document.getElementById(prefijo + '-seleccionado')
-  if (selDiv) { selDiv.textContent = '✓ ' + texto; selDiv.style.display = 'block' }
+  if (selDiv) { selDiv.textContent = 'Ô£ô ' + texto; selDiv.style.display = 'block' }
   const resultadosDiv = document.getElementById(prefijo + '-resultados')
   if (resultadosDiv) resultadosDiv.style.display = 'none'
 }
@@ -1383,253 +1392,2145 @@ window.toggleProducto = async (id, activo) => {
     alert('Error conectando con el servidor')
   }
 }
-async function cargarDashboard() {
-  try {
-    const resPedidos = await fetch(API + '/pedidos/')
-    const pedidos = await resPedidos.json()
-    const resClientes = await fetch(API + '/clientes/')
-    const clientes = await resClientes.json()
-    const resAlertas = await fetch(API + '/inventario/alertas')
-    const alertas = await resAlertas.json()
-
-    const hoy = new Date(); hoy.setHours(0,0,0,0)
-    const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
-    const hace30 = new Date(hoy); hace30.setDate(hace30.getDate()-30)
-
-    const conf = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
-    const hoyP = conf.filter(p => new Date(p.created_at) >= hoy)
-    const s7P = conf.filter(p => new Date(p.created_at) >= hace7)
-
-    const ventasHoy = hoyP.reduce((s,p) => s + parseFloat(p.total||0), 0)
-    const ventas7 = s7P.reduce((s,p) => s + parseFloat(p.total||0), 0)
-    const clientesNuevos = clientes.filter(c => c.created_at && new Date(c.created_at) >= hace30).length
-
-    const diasNombre = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
-    const porDia = {}; diasNombre.forEach(d => porDia[d] = 0)
-    conf.filter(p => new Date(p.created_at) >= hace30).forEach(p => {
-      const d = diasNombre[new Date(p.created_at).getDay()]
-      porDia[d] += parseFloat(p.total||0)
-    })
-
-    const porCanal = {}
-    conf.forEach(p => { porCanal[p.canal||'sucursal'] = (porCanal[p.canal||'sucursal']||0) + parseFloat(p.total||0) })
-
-    const porPago = {}
-    conf.forEach(p => { porPago[p.forma_pago||'efectivo'] = (porPago[p.forma_pago||'efectivo']||0) + 1 })
-
-    const porEmpleado = {}
-    conf.forEach(p => { porEmpleado[p.empleado||'Admin'] = (porEmpleado[p.empleado||'Admin']||0) + parseFloat(p.total||0) })
-
-    const porMes = {}
-    conf.forEach(p => { const m = new Date(p.created_at).toLocaleDateString('es-MX',{month:'short',year:'numeric'}); porMes[m] = (porMes[m]||0) + parseFloat(p.total||0) })
-
-    const porCliente = {}
-    conf.forEach(p => { if(p.clientes){ porCliente[p.clientes.nombre] = (porCliente[p.clientes.nombre]||0) + parseFloat(p.total||0) } })
-
-    const topClientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,5)
-    const diaMas = Object.entries(porDia).sort((a,b)=>b[1]-a[1])[0]
-    const topEmp = Object.entries(porEmpleado).sort((a,b)=>b[1]-a[1])[0]
-
-    const dashboard = document.getElementById('dashboard-contenido')
-      if (!dashboard) return
-
-    const cards = dashboard.querySelectorAll('.stat-card')    
-    const vals = [
-      { val: '$'+ventasHoy.toFixed(0), sub: hoyP.length+' pedidos hoy', color: 'var(--pink)' },
-      { val: hoyP.length, sub: 'confirmados hoy' },
-      { val: '$'+ventas7.toFixed(0), sub: s7P.length+' pedidos' },
-      { val: clientesNuevos, sub: 'ultimos 30 dias' },
-      { val: alertas.length, sub: 'por reabastecer', color: alertas.length > 0 ? 'var(--amber)' : 'var(--green)' },
-      { val: diaMas ? diaMas[0] : '—', sub: diaMas ? '$'+diaMas[1].toFixed(0)+' prom.' : '' },
-      { val: topEmp ? topEmp[0] : '—', sub: topEmp ? '$'+topEmp[1].toFixed(0) : '', small: true },
-      { val: clientes.length, sub: 'registrados' },
-    ]
-    cards.forEach((card, i) => {
-      if (!vals[i]) return
-      const valEl = card.querySelector('.stat-value')
-      const subEl = card.querySelector('.stat-sub')
-      if (valEl) { valEl.textContent = vals[i].val; valEl.style.color = vals[i].color || 'var(--text-primary)'; if(vals[i].small) valEl.style.fontSize = '1rem' }
-      if (subEl) subEl.textContent = vals[i].sub || ''
-    })
-
-    const topClientesEl = document.getElementById('dash-top-clientes')
-    if (topClientesEl) {
-      topClientesEl.innerHTML = topClientes.length === 0
-        ? '<p style="color:var(--text-muted);font-size:0.85rem">Sin datos aun</p>'
-        : topClientes.map(([nombre, total], i) => `
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <span style="width:22px;height:22px;background:var(--pink);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${i+1}</span>
-            <span style="flex:1;font-size:0.875rem">${nombre}</span>
-            <strong style="color:var(--pink);font-family:DM Mono,monospace">$${total.toFixed(0)}</strong>
-          </div>`).join('')
-    }
-
-    const ultimosEl = document.getElementById('dash-ultimos-pedidos')
-    if (ultimosEl) {
-      ultimosEl.innerHTML = pedidos.slice(0,5).map(p => `
-        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
-          <div>
-            <p style="font-size:0.85rem;font-weight:500">${p.clientes ? p.clientes.nombre : 'General'}</p>
-            <p style="font-size:0.72rem;color:var(--text-muted)">${p.canal} · ${new Date(p.created_at).toLocaleDateString('es-MX')}</p>
-          </div>
-          <div style="text-align:right">
-            <p style="font-weight:700;color:var(--pink);font-family:DM Mono,monospace">$${p.total||0}</p>
-            <span class="badge ${p.status==='confirmado'||p.status==='pagado'?'badge-success':'badge-warning'}">${p.status}</span>
-          </div>
-        </div>`).join('')
-    }
-
-    setTimeout(() => {
-      const chartOpts = {
-        responsive: true,
-        plugins: { legend: { labels: { color: '#8892a4', font: { size: 11 } } } },
-        scales: {
-          x: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#8892a4', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.04)' } }
-        }
-      }
-      const elDias = document.getElementById('chart-dias')
-      if (elDias && window.Chart) new Chart(elDias, { type: 'bar', data: { labels: diasNombre, datasets: [{ data: diasNombre.map(d => porDia[d]||0), backgroundColor: 'rgba(240,20,126,0.2)', borderColor: '#f0147e', borderWidth: 2, borderRadius: 6 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } })
-
-      const elCanales = document.getElementById('chart-canales')
-      if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, { type: 'doughnut', data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: ['rgba(240,20,126,0.7)','rgba(0,212,255,0.7)','rgba(124,58,237,0.7)','rgba(16,217,126,0.7)'], borderColor: ['#f0147e','#00d4ff','#7c3aed','#10d97e'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#8892a4', font: { size: 11 }, padding: 12 } } } } })
-
-      const elMeses = document.getElementById('chart-meses')
-      if (elMeses && window.Chart) { const md = Object.entries(porMes).slice(-6); new Chart(elMeses, { type: 'line', data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.08)', borderWidth: 2, pointBackgroundColor: '#00d4ff', pointRadius: 4, fill: true, tension: 0.4 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } }) }
-
-      const elPagos = document.getElementById('chart-pagos')
-      if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, { type: 'doughnut', data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: ['rgba(16,217,126,0.7)','rgba(245,158,11,0.7)','rgba(240,20,126,0.7)','rgba(124,58,237,0.7)'], borderColor: ['#10d97e','#f59e0b','#f0147e','#7c3aed'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#8892a4', font: { size: 11 }, padding: 12 } } } } })
-    }, 300)
-
-  } catch(e) {
-    console.error('Error dashboard:', e)
-  }
+window.filtrarClientes = () => {
+  const buscar = document.getElementById('cli-buscar').value.toLowerCase()
+  const tipo = document.getElementById('cli-tipo').value
+  const data = window._clientesData || []
+  const filtrados = data.filter(c => {
+    if (buscar && !c.nombre.toLowerCase().includes(buscar) && !(c.telefono || '').includes(buscar)) return false
+    if (tipo && c.tipo !== tipo) return false
+    return true
+  })
+  const tbody = document.getElementById('cli-tbody')
+  if (!tbody) return
+  tbody.innerHTML = filtrados.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No se encontraron clientes</td></tr>'
+    : filtrados.map(c => `
+      <tr>
+        <td>
+          <strong>${c.nombre}</strong>
+          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+        </td>
+        <td>
+          ${c.telefono || 'ÔÇö'}
+          ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
+        </td>
+        <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
+        <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
+        <td>${c.ciudad || 'ÔÇö'}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
+          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
+        </td>
+      </tr>
+    `).join('')
 }
-async function cargarHistorial() {
+
+window.mostrarFormCliente = async (id) => {
   const content = document.getElementById('content')
-  try {
-    const res = await fetch(API + '/movimientos/')
-    const data = await res.json()
+  let d = {}
+  if (id) {
+    try {
+      const res = await fetch(API + '/clientes/' + id)
+      const data = await res.json()
+      if (data && data.length > 0) d = data[0]
+    } catch(e) {}
+  }
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">ÔåÉ Volver</button>
+        <h3>${id ? 'Editar cliente' : 'Nuevo cliente'}</h3>
+${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366;margin-left:auto">WhatsApp</a>' : ''}      </div>
 
-    const tipos = {
-      'venta': { label: 'Venta', color: 'var(--green)', badge: 'badge-success' },
-      'entrada': { label: 'Entrada', color: 'var(--cyan)', badge: 'badge-info' },
-      'ajuste': { label: 'Ajuste', color: 'var(--amber)', badge: 'badge-warning' },
-      'traspaso_salida': { label: 'Traspaso salida', color: 'var(--red)', badge: 'badge-danger' },
-      'traspaso_entrada': { label: 'Traspaso entrada', color: 'var(--cyan)', badge: 'badge-info' },
-      'cambio_salida': { label: 'Cambio salida', color: '#7c3aed', badge: 'badge-info' },
-      'cambio_entrada': { label: 'Cambio entrada', color: '#7c3aed', badge: 'badge-info' },
-    }
-
-    content.innerHTML = `
-      <div class="table-card">
-        <div class="table-header">
-          <h3>Historial de movimientos (${data.length})</h3>
-          <div style="display:flex;gap:8px">
-            <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
-              <option value="">Todos los tipos</option>
-              <option value="venta">Ventas</option>
-              <option value="entrada">Entradas</option>
-              <option value="ajuste">Ajustes</option>
-              <option value="traspaso_salida">Traspasos</option>
-              <option value="cambio_salida">Cambios</option>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Nombre completo *</label>
+          <input class="form-input" id="cli-nombre" placeholder="Nombre del cliente" value="${d.nombre || ''}">
+        </div>
+        <div>
+          <label class="form-label">Telefono (WhatsApp)</label>
+        <div style="display:flex;gap:8px">
+        <select class="form-input" id="cli-lada" style="max-width:120px">
+            <option value="52" ${(d.lada || '52') === '52' ? 'selected' : ''}>­ƒç▓­ƒç¢ +52</option>
+            <option value="1" ${d.lada === '1' ? 'selected' : ''}>­ƒç║­ƒç© +1</option>
+            <option value="1" ${d.lada === '1CA' ? 'selected' : ''}>­ƒç¿­ƒçª +1</option>
+            <option value="34" ${d.lada === '34' ? 'selected' : ''}>­ƒç¬­ƒç© +34</option>
+            <option value="57" ${d.lada === '57' ? 'selected' : ''}>­ƒç¿­ƒç┤ +57</option>
+            <option value="54" ${d.lada === '54' ? 'selected' : ''}>­ƒçª­ƒçÀ +54</option>
             </select>
-            <input class="form-input" id="hist-buscar" placeholder="Buscar..." style="max-width:200px" oninput="filtrarHistorial()">
+            <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
+        </div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="cli-email" type="email" placeholder="correo@ejemplo.com" value="${d.email || ''}">
+        </div>
+        <div>
+          <label class="form-label">Tipo de cliente *</label>
+          <select class="form-input" id="cli-tipo">
+            <option value="menudeo" ${d.tipo === 'menudeo' ? 'selected' : ''}>Menudeo</option>
+            <option value="mayoreo" ${d.tipo === 'mayoreo' ? 'selected' : ''}>Mayoreo</option>
+            <option value="zapateria" ${d.tipo === 'zapateria' ? 'selected' : ''}>Zapateria</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Direccion de entrega</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="grid-column:1/-1">
+            <label class="form-label">Calle y numero</label>
+            <input class="form-input" id="cli-direccion" placeholder="Ej: Calle Juarez 123 Col. Centro" value="${d.direccion || ''}">
+          </div>
+          <div>
+            <label class="form-label">Ciudad</label>
+            <input class="form-input" id="cli-ciudad" placeholder="Ej: Leon" value="${d.ciudad || ''}">
+          </div>
+          <div>
+            <label class="form-label">Estado</label>
+            <input class="form-input" id="cli-estado" placeholder="Ej: Guanajuato" value="${d.estado || ''}">
+          </div>
+          <div>
+            <label class="form-label">Codigo postal</label>
+            <input class="form-input" id="cli-cp" placeholder="Ej: 37000" value="${d.codigo_postal || ''}">
           </div>
         </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Credito</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Limite de credito ($)</label>
+            <input class="form-input" id="cli-credito" type="number" step="0.01" placeholder="0.00" value="${d.limite_credito || '0'}">
+          </div>
+          <div>
+            <label class="form-label">Dias de credito</label>
+            <select class="form-input" id="cli-dias">
+              <option value="0" ${d.dias_credito === 0 ? 'selected' : ''}>Sin credito</option>
+              <option value="15" ${d.dias_credito === 15 ? 'selected' : ''}>15 dias</option>
+              <option value="30" ${d.dias_credito === 30 ? 'selected' : ''}>30 dias</option>
+              <option value="60" ${d.dias_credito === 60 ? 'selected' : ''}>60 dias</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Comentarios internos</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Solo visibles para el equipo, el cliente no los ve.</p>
+        <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${d.comentarios_internos || ''}</textarea>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-cli-guardar" onclick="guardarCliente('${id || ''}')">Guardar cliente</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarCliente = async (id) => {
+  const nombre = document.getElementById('cli-nombre').value
+  if (!nombre) {
+    alert('El nombre del cliente es obligatorio')
+    return
+  }
+  const btn = document.getElementById('btn-cli-guardar')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  const cliente = {
+    nombre,
+    telefono: document.getElementById('cli-telefono').value || null,
+    email: document.getElementById('cli-email').value || null,
+    tipo: document.getElementById('cli-tipo').value,
+    direccion: document.getElementById('cli-direccion').value || null,
+    lada: document.getElementById('cli-lada').value || '52',
+    ciudad: document.getElementById('cli-ciudad').value || null,
+    estado: document.getElementById('cli-estado').value || null,
+    codigo_postal: document.getElementById('cli-cp').value || null,
+    limite_credito: parseFloat(document.getElementById('cli-credito').value) || 0,
+    dias_credito: parseInt(document.getElementById('cli-dias').value) || 0,
+    comentarios_internos: document.getElementById('cli-comentarios').value || null,
+    activo: true
+  }
+
+  try {
+    const method = id ? 'PATCH' : 'POST'
+    const url = id ? API + '/clientes/' + id : API + '/clientes/'
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cliente)
+    })
+    if (res.ok) {
+      alert('Cliente guardado correctamente')
+      navegarA('clientes')
+    } else {
+      const err = await res.text()
+      alert('Error al guardar: ' + err)
+      if (btn) { btn.textContent = 'Guardar cliente'; btn.disabled = false }
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+    if (btn) { btn.textContent = 'Guardar cliente'; btn.disabled = false }
+  }
+}
+
+window.verCliente = async (id) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/clientes/' + id)
+    const data = await res.json()
+    if (!data || data.length === 0) { alert('Cliente no encontrado'); return }
+    const c = data[0]
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">ÔåÉ Volver</button>
+          <h3 style="flex:1">${c.nombre}</h3>
+          <button class="btn btn-secondary" onclick="editarCliente('${c.id}')">Editar</button>
+          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Tipo</p>
+            <span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Telefono</p>
+            <p style="font-weight:600">${c.telefono || 'ÔÇö'}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Email</p>
+            <p style="font-weight:600">${c.email || 'ÔÇö'}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Direccion</p>
+            <p style="font-weight:600">${c.direccion || 'ÔÇö'}</p>
+            <p style="font-size:0.8rem;color:#888">${c.ciudad || ''} ${c.estado || ''} ${c.codigo_postal || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Credito</p>
+            <p style="font-weight:600">${c.limite_credito > 0 ? '$' + c.limite_credito : 'Sin credito'}</p>
+            <p style="font-size:0.8rem;color:#888">${c.dias_credito > 0 ? c.dias_credito + ' dias' : ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente desde</p>
+            <p style="font-weight:600">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : 'ÔÇö'}</p>
+          </div>
+        </div>
+
+        ${c.comentarios_internos ? `
+          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1.5rem;border:1px solid #ffe082">
+            <p style="font-size:0.75rem;color:#f57f17;font-weight:600;margin-bottom:4px">Comentarios internos</p>
+            <p style="color:#555">${c.comentarios_internos}</p>
+          </div>
+        ` : ''}
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="alert('Modulo de pedidos proximamente')">+ Nuevo pedido</button>
+          <button class="btn btn-secondary" onclick="alert('Historial proximamente')">Ver historial</button>
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando cliente</p>'
+  }
+}
+window.editarCliente = (id) => {
+  mostrarFormCliente(id)
+}
+window.mostrarEntrada = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <h3 style="color:#2e7d32">+ Entrada de mercancia</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto cuando llega mercancia nueva. Se suma al inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="ent-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="ent-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'ent')">
+          <div id="ent-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="ent">
+          <div id="ent-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad que llego *</label>
+          <input class="form-input" id="ent-cantidad" type="number" min="1" placeholder="Cuantos pares llegaron">
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="ent-motivo" onchange="toggleSucursalDestino('ent', this.value)">
+                <option value="Compra a proveedor">Compra a proveedor</option>
+                <option value="Devolucion de cliente">Devolucion de cliente</option>
+                <option value="Otro">Otro</option>
+       </select>
+          <div id="ent-sucursal-destino-container" style="display:none;margin-top:1rem">
+         <label class="form-label">Sucursal de origen (de donde viene)</label>
+           <select class="form-input" id="ent-sucursal-destino">
+         ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+         </select>
+        </div>
+        </div>
+      </div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #a5d6a7">
+        <p style="font-size:0.85rem;color:#2e7d32">El sistema sumara esta cantidad al inventario actual del producto seleccionado.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="guardarEntrada()">Guardar entrada</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarEntrada = async () => {
+  const variante_id = document.getElementById('ent').value
+  const sucursal_id = document.getElementById('ent-sucursal').value
+  const cantidad = document.getElementById('ent-cantidad').value
+  const motivo = document.getElementById('ent-motivo').value
+  if (!variante_id || !sucursal_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/entrada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(cantidad), motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Entrada guardada. Anterior: ' + data.cantidad_anterior + ' pares ÔåÆ Nuevo: ' + data.cantidad_nueva + ' pares')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.mostrarSalida = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <h3 style="color:#c62828">- Salida de inventario</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto para registrar mermas, perdidas o errores. Se resta del inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="sal-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="sal-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'sal')">
+          <div id="sal-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="sal">
+          <div id="sal-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#ffebee;border-radius:6px;font-size:0.85rem;color:#c62828"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a restar *</label>
+          <input class="form-input" id="sal-cantidad" type="number" min="1" placeholder="Cuantos pares salen">
+        </div>
+        <div>
+          <label class="form-label">Motivo *</label>
+          <select class="form-input" id="sal-motivo" onchange="toggleSucursalDestino('sal', this.value)">
+            <option value="Merma">Merma o perdida</option>
+             <option value="Producto danado">Producto danado</option>
+          <option value="Robo">Robo</option>
+          <option value="Correccion de error">Correccion de error</option>
+          <option value="Otro">Otro</option>
+        </select>
+          <div id="sal-sucursal-destino-container" style="display:none;margin-top:1rem">
+          <label class="form-label">Sucursal destino (a donde va)</label>
+         <select class="form-input" id="sal-sucursal-destino">
+       ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        </div>
+      </div>
+      <div style="background:#ffebee;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #ffcdd2">
+        <p style="font-size:0.85rem;color:#c62828">El sistema restara esta cantidad del inventario actual. Esta accion queda registrada en el historial.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#c62828;border-color:#c62828" onclick="guardarSalida()">Guardar salida</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarSalida = async () => {
+  const variante_id = document.getElementById('sal').value
+  const sucursal_id = document.getElementById('sal-sucursal').value
+  const cantidad = document.getElementById('sal-cantidad').value
+  const motivo = document.getElementById('sal-motivo').value
+  if (!variante_id || !sucursal_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+  try {
+    const res = await fetch(API + '/movimientos/entrada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: -parseInt(cantidad), motivo })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Salida registrada. Anterior: ' + data.cantidad_anterior + ' pares ÔåÆ Nuevo: ' + data.cantidad_nueva + ' pares')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.mostrarInventarioMasivo = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+
+  try {
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const resProductos = await fetch(API + '/productos/')
+    const productos = await resProductos.json()
+    const resVariantes = await fetch(API + '/variantes/')
+    const variantes = await resVariantes.json()
+    const resInv = await fetch(API + '/inventario/')
+    const inventario = await resInv.json()
+
+    const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))]
+    const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+    window._invMasivo = { sucursales, productos, variantes, inventario }
+
+    content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <h3>Inventario masivo</h3>
+      </div>
+      <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end">
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="im-sucursal" onchange="renderTablasMasivo()">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Categoria</label>
+            <select class="form-input" id="im-categoria" onchange="renderTablasMasivo()">
+              <option value="">Todas las categorias</option>
+              ${categorias.map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="guardarInventarioMasivo()" style="white-space:nowrap">Guardar todo</button>
+        </div>
+        <p style="font-size:0.8rem;color:#888;margin-top:0.75rem">Los campos muestran el inventario actual. Modifica solo lo que cambio y guarda al final.</p>
+      </div>
+      <div id="im-tablas"></div>
+    `
+    renderTablasMasivo()
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando inventario</p>'
+  }
+}
+
+window.renderTablasMasivo = () => {
+  const { productos, variantes, inventario } = window._invMasivo
+  const sucursalId = document.getElementById('im-sucursal').value
+  const categoriaFiltro = document.getElementById('im-categoria').value
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  const productosFiltrados = productos.filter(p => {
+    if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
+    return true
+  })
+
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+
+  const html = productosFiltrados.map(prod => {
+    const variantesProd = variantes.filter(v => v.producto_id === prod.id)
+    if (variantesProd.length === 0) return ''
+
+    const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
+
+    const coloresHtml = colores.map(color => {
+      const variantesColor = variantesProd
+        .filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+      const colorHex = variantesColor[0] ? variantesColor[0].color_hex : '#888'
+
+      return `
+        <div style="margin-bottom:1rem">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="width:14px;height:14px;border-radius:50%;background:${colorHex};border:1px solid #ddd;flex-shrink:0"></div>
+            <span style="font-size:0.85rem;font-weight:500;color:#444">${color}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${variantesColor.map(v => {
+              const inv = invSucursal.find(i => i.variante_id === v.id)
+              const cantidad = inv ? inv.cantidad : 0
+              const minimo = inv ? inv.stock_minimo : 3
+              let borderColor = '#ddd'
+              if (cantidad === 0) borderColor = '#ffcdd2'
+              else if (cantidad <= minimo) borderColor = '#ffe082'
+              else borderColor = '#a5d6a7'
+              return `
+                <div style="text-align:center">
+                  <div style="font-size:0.72rem;color:#888;margin-bottom:4px;font-weight:500">${v.talla}</div>
+                  <input type="number" min="0"
+                         id="im-${v.id}"
+                         value="${cantidad}"
+                         data-variante="${v.id}"
+                         data-anterior="${cantidad}"
+                         style="width:58px;text-align:center;padding:6px 4px;border:2px solid ${borderColor};border-radius:8px;font-size:0.9rem;font-weight:600"
+                         oninput="this.style.borderColor='#E91E8C'">
+                </div>
+              `
+            }).join('')}
+          </div>
+        </div>
+      `
+    }).join('')
+
+    return `
+      <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <div>
+            <span style="font-weight:600;font-size:1rem">${prod.nombre}</span>
+            <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || 'ÔÇö'}</span>
+          </div>
+        </div>
+        ${coloresHtml}
+      </div>
+    `
+  }).join('')
+
+  const tablas = document.getElementById('im-tablas')
+  if (tablas) tablas.innerHTML = html || '<div style="padding:2rem;text-align:center;color:#888">No hay productos en esta categoria</div>'
+}
+
+window.guardarInventarioMasivo = async () => {
+  const sucursalId = document.getElementById('im-sucursal').value
+  const inputs = document.querySelectorAll('[data-variante]')
+  
+  let guardados = 0
+  let errores = 0
+  let sinCambios = 0
+
+  const btn = document.querySelector('[onclick="guardarInventarioMasivo()"]')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  for (const input of inputs) {
+    const varianteId = input.dataset.variante
+    const cantidadAnterior = parseInt(input.dataset.anterior) || 0
+    const cantidadNueva = parseInt(input.value) || 0
+
+    if (cantidadNueva === cantidadAnterior) { sinCambios++; continue }
+
+    try {
+      const res = await fetch(API + '/movimientos/ajuste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: varianteId,
+          sucursal_id: sucursalId,
+          cantidad: cantidadNueva,
+          motivo: 'Inventario masivo'
+        })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        guardados++
+        input.dataset.anterior = cantidadNueva
+        input.style.borderColor = '#a5d6a7'
+      } else {
+        errores++
+        input.style.borderColor = '#ffcdd2'
+      }
+    } catch(e) {
+      errores++
+    }
+  }
+
+  if (btn) { btn.textContent = 'Guardar todo'; btn.disabled = false }
+
+  if (errores > 0) {
+    alert(`Guardados: ${guardados}, Errores: ${errores}, Sin cambios: ${sinCambios}`)
+  } else {
+    alert(`Inventario actualizado. ${guardados} cambios guardados, ${sinCambios} sin cambios.`)
+  }
+}
+window.mostrarFormSucursal = async (id) => {
+  const content = document.getElementById('content')
+  let d = {}
+  if (id) {
+    try {
+      const res = await fetch(API + '/sucursales/')
+      const data = await res.json()
+      d = data.find(s => s.id === id) || {}
+    } catch(e) {}
+  }
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">ÔåÉ Volver</button>
+        <h3>${id ? 'Editar sucursal' : 'Nueva sucursal'}</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="suc-nombre" placeholder="Ej: Leon Matriz" value="${d.nombre || ''}">
+        </div>
+        <div>
+          <label class="form-label">Tipo</label>
+          <select class="form-input" id="suc-tipo">
+            <option value="fisica" ${d.tipo === 'fisica' ? 'selected' : ''}>Fisica</option>
+            <option value="online" ${d.tipo === 'online' ? 'selected' : ''}>Online</option>
+            <option value="bodega" ${d.tipo === 'bodega' ? 'selected' : ''}>Bodega</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Direccion</label>
+          <input class="form-input" id="suc-direccion" placeholder="Calle y numero" value="${d.direccion || ''}">
+        </div>
+        <div>
+          <label class="form-label">Telefono</label>
+          <input class="form-input" id="suc-telefono" placeholder="Ej: 4771234567" value="${d.telefono || ''}">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarSucursal('${id || ''}')">Guardar</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarSucursal = async (id) => {
+  const nombre = document.getElementById('suc-nombre').value
+  if (!nombre) { alert('El nombre es obligatorio'); return }
+  const sucursal = {
+    nombre,
+    tipo: document.getElementById('suc-tipo').value,
+    direccion: document.getElementById('suc-direccion').value || null,
+    telefono: document.getElementById('suc-telefono').value || null
+  }
+  try {
+    const method = id ? 'PATCH' : 'POST'
+    const url = id ? API + '/sucursales/' + id : API + '/sucursales/'
+    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sucursal) })
+    if (res.ok) { alert('Sucursal guardada'); navegarA('sucursales') }
+    else alert('Error al guardar')
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.toggleSucursalDestino = (prefijo, motivo) => {
+  const container = document.getElementById(prefijo + '-sucursal-destino-container')
+  if (container) {
+    container.style.display = motivo === 'Traspaso entre sucursales' ? 'block' : 'none'
+  }
+}
+window.mostrarTraspaso = async () => {
+  const resSucursales = await fetch(API + '/sucursales/')
+  const sucursales = await resSucursales.json()
+  const resVariantes = await fetch(API + '/variantes/')
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">ÔåÉ Volver</button>
+        <h3 style="color:#283593">Ôçä Traspaso entre sucursales</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Mueve inventario de una sucursal a otra. Se resta de origen y se suma en destino.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Buscar producto *</label>
+          <input class="form-input" id="tra-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'tra')">
+          <div id="tra-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="tra">
+          <div id="tra-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8eaf6;border-radius:6px;font-size:0.85rem;color:#283593"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="background:#ffebee;border-radius:8px;padding:1rem;border:1px solid #ffcdd2">
+            <label class="form-label" style="color:#c62828">Sucursal origen (sale de aqui)</label>
+            <select class="form-input" id="tra-origen">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div style="background:#e8f5e9;border-radius:8px;padding:1rem;border:1px solid #a5d6a7">
+            <label class="form-label" style="color:#2e7d32">Sucursal destino (llega aqui)</label>
+            <select class="form-input" id="tra-destino">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a traspasar *</label>
+          <input class="form-input" id="tra-cantidad" type="number" min="1" placeholder="Cuantos pares">
+        </div>
+      </div>
+      <div style="background:#e8eaf6;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #c5cae9">
+        <p style="font-size:0.85rem;color:#283593">El sistema verifica que haya suficiente inventario en origen antes de mover.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#283593;border-color:#283593" onclick="guardarTraspaso()">Confirmar traspaso</button>
+      </div>
+    </div>
+  `
+}
+
+window.guardarTraspaso = async () => {
+  const variante_id = document.getElementById('tra').value
+  const sucursal_origen_id = document.getElementById('tra-origen').value
+  const sucursal_destino_id = document.getElementById('tra-destino').value
+  const cantidad = document.getElementById('tra-cantidad').value
+
+  if (!variante_id || !sucursal_origen_id || !sucursal_destino_id || !cantidad) {
+    alert('Por favor completa todos los campos')
+    return
+  }
+
+  if (sucursal_origen_id === sucursal_destino_id) {
+    alert('La sucursal origen y destino no pueden ser la misma')
+    return
+  }
+
+  try {
+    const res = await fetch(API + '/movimientos/traspaso', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id,
+        sucursal_origen_id,
+        sucursal_destino_id,
+        cantidad: parseInt(cantidad)
+      })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Traspaso realizado correctamente. Se movieron ' + data.cantidad_movida + ' pares.')
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+async function cargarPedidos() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/pedidos/')
+    const data = await res.json()
+    content.innerHTML = `
+      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
+        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('online')">Online</button>
+        <button class="btn btn-secondary" style="background:#fff8e1;border-color:#f57f17;color:#f57f17" onclick="cargarPedidosFiltro('pendiente_pago')">Pendientes SPEI</button>
+        <button class="btn btn-secondary" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="cargarPedidosFiltro('credito')">Creditos</button>
+        <button class="btn btn-primary" style="margin-left:auto" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+      </div>
+      <div class="table-card">
         <table>
           <thead>
             <tr>
+              <th>Cliente</th>
+              <th>Canal</th>
+              <th>Total</th>
+              <th>Forma de pago</th>
+              <th>Status</th>
               <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Producto</th>
-              <th>Color</th>
-              <th>Talla</th>
-              <th>Sucursal</th>
-              <th>Cantidad</th>
-              <th>Usuario</th>
-              <th>Motivo</th>           
-               /tr>
+              <th>Acciones</th>
+            </tr>
           </thead>
-          <tbody id="hist-tbody">
+          <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
-              : data.map(m => {
-                  const tipo = tipos[m.tipo] || { label: m.tipo, color: 'var(--text-muted)', badge: 'badge-warning' }
-                  const cantidad = m.cantidad || 0
-                  return `
-                    <tr>
-                      <td style="font-family:DM Mono,monospace;font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
-                      <td><span class="badge ${tipo.badge}">${tipo.label}</span></td>
-                      <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
-                      <td>
-                        ${m.variantes && m.variantes.color_hex ? `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${m.variantes.color_hex};border:1px solid rgba(255,255,255,0.1);vertical-align:middle;margin-right:6px"></span>` : ''}
-                        ${m.variantes ? m.variantes.color || '—' : '—'}
-                      </td>
-                      <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
-                      <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
-                      <td style="font-family:DM Mono,monospace;font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">
-                        ${cantidad > 0 ? '+' : ''}${cantidad}
-                      </td>
-                      <td style="font-size:0.82rem;color:var(--text-secondary)">${m.usuario || 'Admin'}</td>
-                      <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>                    
-                      </tr>
-                  `
-                }).join('')}
+              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
+              : data.map(p => {
+                const statusColor = {
+                  'borrador': 'badge-warning',
+                  'pendiente_pago': 'badge-warning',
+                  'confirmado': 'badge-success',
+                  'cancelado': 'badge-danger',
+                  'pagado': 'badge-success'
+                }[p.status] || 'badge-warning'
+                return `
+                  <tr>
+                    <td><strong>${p.clientes ? p.clientes.nombre : 'Sin cliente'}</strong></td>
+                    <td>${p.canal || 'ÔÇö'}</td>
+                    <td><strong>$${p.total || '0'}</strong></td>
+                    <td>${p.forma_pago || 'ÔÇö'}</td>
+                    <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
+                    <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : 'ÔÇö'}</td>
+                    <td>
+                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+                    </td>
+                  </tr>
+                `
+              }).join('')}
           </tbody>
         </table>
       </div>
     `
-    window._historialData = data
+    window._pedidosData = data
   } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+    content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
 }
 
-window.filtrarHistorial = () => {
-  const tipo = document.getElementById('hist-tipo').value
-  const buscar = document.getElementById('hist-buscar').value.toLowerCase()
-  const data = window._historialData || []
-  const tipos = {
-    'venta': { label: 'Venta', badge: 'badge-success' },
-    'entrada': { label: 'Entrada', badge: 'badge-info' },
-    'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
-    'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
-    'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
-    'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
-    'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+window.cargarPedidosFiltro = async (filtro) => {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/pedidos/')
+    const data = await res.json()
+    let filtrados = data
+    if (filtro === 'pendiente_pago') {
+      filtrados = data.filter(p => p.status === 'pendiente_pago')
+    } else if (filtro === 'credito') {
+      filtrados = data.filter(p => p.forma_pago === 'credito')
+    } else if (filtro) {
+      filtrados = data.filter(p => p.canal === filtro)
+    }
+    await cargarPedidos()
+  } catch(e) {}
+}
+
+window.mostrarFormPedido = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+
+  try {
+    const resClientes = await fetch(API + '/clientes/')
+    const clientes = await resClientes.json()
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const resProductos = await fetch(API + '/productos/')
+    const productos = await resProductos.json()
+    const resVariantes = await fetch(API + '/variantes/')
+    const variantes = await resVariantes.json()
+    window._variantesCache = variantes
+    window._productosCache = productos
+    window._pedidoItems = []
+
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">ÔåÉ Volver</button>
+          <h3>Nuevo pedido</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div>
+            <label class="form-label">Cliente *</label>
+            <select class="form-input" id="ped-cliente" onchange="actualizarTipoCliente()">
+              <option value="">Selecciona cliente...</option>
+              ${clientes.map(c => `<option value="${c.id}" data-tipo="${c.tipo}" data-telefono="${c.telefono || ''}">${c.nombre} (${c.tipo})</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Canal *</label>
+            <select class="form-input" id="ped-canal">
+              <option value="sucursal">Sucursal</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="ped-sucursal">
+              ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Forma de pago *</label>
+            <select class="form-input" id="ped-pago" onchange="toggleComprobante()">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="spei">SPEI / Transferencia</option>
+              <option value="credito">Credito</option>
+              <option value="mercadopago">Mercado Pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="spei-info" style="display:none;background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+          <p style="font-size:0.85rem;color:#f57f17;font-weight:600;margin-bottom:4px">Pago por SPEI</p>
+          <p style="font-size:0.8rem;color:#888">El pedido quedara pendiente hasta que confirmes el comprobante manualmente. El inventario no se descuenta hasta confirmar.</p>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Agregar productos</p>
+          <div style="display:flex;gap:8px;margin-bottom:1rem">
+            <input class="form-input" id="ped-buscar-prod" placeholder="Buscar producto por nombre, color o talla..." style="flex:1" oninput="buscarVariante(this.value, 'ped-prod')">
+          </div>
+          <div id="ped-prod-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-bottom:1rem"></div>
+          <input type="hidden" id="ped-prod">
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos en el pedido</p>
+          <div id="ped-items-lista">
+            <p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
+            <div style="text-align:right">
+              <p style="font-size:0.85rem;color:#888">Total del pedido</p>
+              <p style="font-size:1.5rem;font-weight:700;color:#E91E8C" id="ped-total">$0.00</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <label class="form-label">Comentarios internos</label>
+          <textarea class="form-input" id="ped-comentarios" rows="2" placeholder="Notas internas del pedido..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">Cancelar</button>
+          <button class="btn btn-primary" id="btn-ped-guardar" onclick="guardarPedido()">Crear pedido</button>
+        </div>
+      </div>
+    `
+
+    document.getElementById('ped-prod-resultados').addEventListener('click', (e) => {
+      const item = e.target.closest('[data-variante-id]')
+      if (item) {
+        const vid = item.dataset.varianteId
+        const nombre = item.dataset.nombre
+        agregarItemPedido(vid, nombre)
+        document.getElementById('ped-prod-resultados').style.display = 'none'
+        document.getElementById('ped-buscar-prod').value = ''
+      }
+    })
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando formulario de pedido</p>'
+  }
+}
+
+window.toggleComprobante = () => {
+  const pago = document.getElementById('ped-pago').value
+  const speiInfo = document.getElementById('spei-info')
+  if (speiInfo) speiInfo.style.display = pago === 'spei' ? 'block' : 'none'
+}
+
+window.actualizarTipoCliente = () => {
+  const select = document.getElementById('ped-cliente')
+  const option = select.options[select.selectedIndex]
+  window.recalcularTotal()
+}
+
+window.agregarItemPedido = async (varianteId, nombre) => {
+  const variantes = window._variantesCache || []
+  const productos = window._productosCache || []
+  const variante = variantes.find(v => v.id === varianteId)
+  if (!variante) return
+
+  const sucursalId = document.getElementById('ped-sucursal') ? document.getElementById('ped-sucursal').value : ''
+
+  if (sucursalId) {
+    try {
+      const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+      const inventario = await resInv.json()
+      const invVariante = inventario.find(i => i.variante_id === varianteId)
+      const existente = window._pedidoItems.find(i => i.variante_id === varianteId)
+      console.log('Inventario:', inventario)
+      console.log('Buscando variante:', varianteId)
+      console.log('Encontrado:', invVariante)
+      const cantidadEnCarrito = existente ? existente.cantidad : 0
+      const cantidadDisponible = invVariante ? invVariante.cantidad : 0
+
+      if (cantidadDisponible <= cantidadEnCarrito) {
+        alert('No hay suficiente existencia de este producto. Disponible: ' + cantidadDisponible + ' pares')
+        return
+      }
+    } catch(e) {
+      console.error('Error verificando inventario', e)
+    }
   }
 
-  const filtrados = data.filter(m => {
-    if (tipo && m.tipo !== tipo) return false
-    if (buscar) {
-      const nombre = (m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '').toLowerCase()
-      const motivo = (m.motivo || '').toLowerCase()
-      if (!nombre.includes(buscar) && !motivo.includes(buscar)) return false
-    }
-    return true
+  const existente = window._pedidoItems.find(i => i.variante_id === varianteId)
+  if (existente) {
+    existente.cantidad++
+    window.recalcularTotal()
+    renderItemsPedido()
+    return
+  }
+
+  const producto = productos.find(p => p.id === variante.producto_id) || {}
+  const precioBase = parseFloat(producto.precio_menudeo) || 0
+
+  window._pedidoItems.push({
+    variante_id: varianteId,
+    nombre: (producto.nombre || '') + ' - ' + (variante.color || '') + ' - T' + (variante.talla || ''),
+    cantidad: 1,
+    precio_unitario: precioBase,
+    precio_menudeo: precioBase,
+    precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (precioBase - 30),
+    precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (precioBase - 70),
+    precio_corrida: parseFloat(producto.precio_corrida) || (precioBase - 110),
+    es_oferta: producto.es_oferta || false,
+    foto_url: variante.foto_url || producto.imagen_principal || null
   })
 
-  const tbody = document.getElementById('hist-tbody')
-  if (!tbody) return
-  tbody.innerHTML = filtrados.length === 0
-    ? '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
-    : filtrados.map(m => {
-        const tipo_info = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
-        const cantidad = m.cantidad || 0
-        return `
+  window.recalcularTotal()
+  renderItemsPedido()
+}
+
+window.renderItemsPedido = () => {
+  const lista = document.getElementById('ped-items-lista')
+  if (!lista) return
+
+  if (window._pedidoItems.length === 0) {
+    lista.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>'
+    window.recalcularTotal()
+    return
+  }
+
+  lista.innerHTML = window._pedidoItems.map((item, idx) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+      ${item.foto_url ? '<img src="' + item.foto_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+      <div style="flex:1">
+        <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${item.nombre}</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:4px">
+            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">ÔêÆ</button>
+            <span style="font-weight:600;min-width:24px;text-align:center">${item.cantidad}</span>
+            <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">+</button>
+          </div>
+          <span style="color:#888;font-size:0.8rem">├ù $${item.precio_unitario}</span>
+          <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
+        </div>
+      </div>
+      <button onclick="eliminarItemPedido(${idx})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">Ô£ò</button>
+    </div>
+  `).join('')
+
+  window.recalcularTotal()
+}
+
+window.cambiarCantidadItem = async (idx, delta) => {
+  if (delta > 0) {
+    const item = window._pedidoItems[idx]
+    const sucursalId = document.getElementById('ped-sucursal') ? document.getElementById('ped-sucursal').value : ''
+    if (sucursalId) {
+      try {
+        const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+        const inventario = await resInv.json()
+        const invVariante = inventario.find(i => i.variante_id === item.variante_id)
+        const cantidadDisponible = invVariante ? invVariante.cantidad : 0
+        if (item.cantidad >= cantidadDisponible) {
+          alert('No hay mas existencia disponible. Maximo: ' + cantidadDisponible + ' pares')
+          return
+        }
+      } catch(e) {}
+    }
+  }
+  window._pedidoItems[idx].cantidad = Math.max(1, window._pedidoItems[idx].cantidad + delta)
+  window.recalcularTotal()
+  renderItemsPedido()
+}
+
+window.guardarPedido = async () => {
+  const cliente_id = document.getElementById('ped-cliente').value
+  const canal = document.getElementById('ped-canal').value
+  const sucursal_id = document.getElementById('ped-sucursal').value
+  const forma_pago = document.getElementById('ped-pago').value
+  const comentarios = document.getElementById('ped-comentarios').value
+
+  if (!cliente_id) { alert('Selecciona un cliente'); return }
+  if (window._pedidoItems.length === 0) { alert('Agrega al menos un producto'); return }
+
+  const btn = document.getElementById('btn-ped-guardar')
+  if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
+
+  const total = window._pedidoItems.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const status = forma_pago === 'spei' ? 'pendiente_pago' : 'confirmado'
+
+  try {
+    const resPedido = await fetch(API + '/pedidos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id,
+        canal,
+        sucursal_id,
+        forma_pago,
+        comentarios: comentarios || null,
+        total,
+        subtotal: total,
+        status
+      })
+    })
+
+    if (!resPedido.ok) {
+      alert('Error creando pedido')
+      if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+      return
+    }
+
+    const pedidoData = await resPedido.json()
+    const pedidoId = pedidoData[0].id
+
+    for (const item of window._pedidoItems) {
+      await fetch(API + '/pedidos/' + pedidoId + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: item.variante_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.cantidad * item.precio_unitario
+        })
+      })
+    }
+
+    if (forma_pago !== 'spei' && forma_pago !== 'mercadopago') {
+      await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forma_pago })
+      })
+    }
+
+    alert('Pedido creado correctamente')
+    window._pedidoItems = []
+    verPedido(pedidoId)
+
+  } catch(e) {
+    alert('Error conectando con el servidor')
+    if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+  }
+}
+
+window.verPedido = async (id) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando pedido...</p>'
+  try {
+    const res = await fetch(API + '/pedidos/' + id)
+    const data = await res.json()
+    if (!data || data.length === 0) { alert('Pedido no encontrado'); return }
+    const p = data[0]
+    const items = p.pedido_items || []
+    const cliente = p.clientes || {}
+
+    const statusColor = {
+      'borrador': '#f57f17',
+      'pendiente_pago': '#f57f17',
+      'confirmado': '#2e7d32',
+      'pagado': '#2e7d32',
+      'cancelado': '#c62828'
+    }[p.status] || '#888'
+
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">ÔåÉ Volver</button>
+          <h3 style="flex:1">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
+          <span class="badge" style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:6px 12px">${p.status}</span>
+          ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=Hola%20' + encodeURIComponent(cliente.nombre) + '%2C%20tu%20pedido%20est├í%20listo" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
+            <p style="font-weight:600">${cliente.nombre || 'ÔÇö'}</p>
+            <p style="font-size:0.8rem;color:#888">${cliente.telefono || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
+            <p style="font-weight:600">${p.canal || 'ÔÇö'}</p>
+            <p style="font-size:0.8rem;color:#888">${p.forma_pago || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${p.total || '0'}</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1.5rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos</p>
+          ${items.map(item => {
+            const variante = item.variantes || {}
+            const producto = variante.productos || {}
+            return `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+                ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+                <div style="flex:1">
+                  <p style="font-weight:600;font-size:0.85rem">${producto.nombre || 'ÔÇö'} - ${variante.color || ''} - T${variante.talla || ''}</p>
+                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ├ù $${item.precio_unitario}</p>
+                </div>
+                <strong style="color:#E91E8C">$${item.subtotal}</strong>
+              </div>
+            `
+          }).join('')}
+        </div>
+
+        ${p.status === 'pendiente_pago' ? `
+          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+            <p style="font-weight:600;color:#f57f17;margin-bottom:0.5rem">Pendiente de pago SPEI</p>
+            <p style="font-size:0.85rem;color:#888;margin-bottom:1rem">Cuando recibas el comprobante confirma el pago para descontar el inventario.</p>
+            <button class="btn btn-primary" onclick="confirmarPagoSPEI('${p.id}')">Confirmar pago recibido</button>
+          </div>
+        ` : ''}
+
+        ${p.comentarios ? `
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Comentarios internos</p>
+            <p>${p.comentarios}</p>
+          </div>
+        ` : ''}
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? '<button class="btn btn-primary" onclick="confirmarPedidoAdmin(\'' + p.id + '\')">Confirmar pedido</button>' : ''}
+         <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando pedido</p>'
+  }
+}
+
+window.confirmarPagoSPEI = async (id) => {
+  if (!confirm('Confirmar que recibiste el pago por SPEI?')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: 'spei' })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Pago confirmado. Inventario actualizado.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.confirmarPedidoAdmin = async (id) => {
+  if (!confirm('Confirmar este pedido? El inventario se descontara.')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: 'efectivo' })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Pedido confirmado correctamente.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+window.recalcularTotal = () => {
+  const items = window._pedidoItems || []
+  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  items.forEach(item => {
+    if (item.es_oferta) {
+      item.precio_unitario = item.precio_menudeo
+    } else if (totalPares >= 6) {
+      item.precio_unitario = item.precio_mayoreo6 || (item.precio_menudeo - 70)
+    } else if (totalPares >= 3) {
+      item.precio_unitario = item.precio_mayoreo3 || (item.precio_menudeo - 30)
+    } else {
+      item.precio_unitario = item.precio_menudeo
+    }
+  })
+
+  const total = items.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const totalEl = document.getElementById('ped-total')
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
+}
+async function cargarPOS() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando punto de venta...</p>'
+
+  try {
+    const resProductos = await fetch(API + '/productos/')
+    const productos = await resProductos.json()
+    const resVariantes = await fetch(API + '/variantes/')
+    const variantes = await resVariantes.json()
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const resClientes = await fetch(API + '/clientes/')
+    const clientes = await resClientes.json()
+    const resInv = await fetch(API + '/inventario/')
+    const inventario = await resInv.json()
+
+    window._posData = { productos, variantes, sucursales, clientes, inventario }
+    window._posCarrito = []
+    window._posClienteId = null
+
+    content.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 380px;gap:1rem;height:calc(100vh - 80px)">
+        
+        <div style="overflow-y:auto;padding-right:0.5rem">
+          <div style="background:white;border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid #eee;position:sticky;top:0;z-index:10">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem">
+              <input class="form-input" id="pos-buscar" placeholder="Buscar por nombre, SKU o modelo..." style="flex:1;font-size:1rem" oninput="buscarPOS(this.value)">
+              <select class="form-input" id="pos-sucursal" style="max-width:200px" onchange="actualizarInventarioPOS()">
+                ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+              </select>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="pos-categorias">
+              <button class="btn btn-primary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('')">Todos</button>
+              ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `
+                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('${c}')">${c.charAt(0).toUpperCase() + c.slice(1)}</button>
+              `).join('')}
+            </div>
+          </div>
+          <div id="pos-productos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem">
+          </div>
+        </div>
+
+        <div style="background:white;border-radius:12px;border:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:1rem;border-bottom:1px solid #eee">
+            <p style="font-weight:700;font-size:1rem;margin-bottom:0.5rem">Carrito</p>
+            <select class="form-input" id="pos-cliente" style="font-size:0.85rem">
+              <option value="">Cliente general</option>
+              ${clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('')}
+            </select>
+          </div>
+          
+          <div id="pos-carrito-items" style="flex:1;overflow-y:auto;padding:0.75rem">
+            <p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>
+          </div>
+
+          <div style="padding:1rem;border-top:1px solid #eee">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+              <span style="font-size:0.85rem;color:#888">Total pares: <strong id="pos-total-pares">0</strong></span>
+              <span style="font-size:0.85rem;color:#888">Tipo: <strong id="pos-tipo-precio">Menudeo</strong></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <span style="font-weight:600;font-size:1rem">Total:</span>
+              <span style="font-weight:700;font-size:1.4rem;color:#E91E8C" id="pos-total">$0.00</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <select class="form-input" id="pos-pago" style="font-size:0.85rem;grid-column:1/-1">
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="spei">SPEI</option>
+                <option value="credito">Credito</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem;font-weight:600" onclick="cobrarPOS()">
+              Cobrar
+            </button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem" onclick="limpiarCarritoPOS()">
+              Limpiar carrito
+            </button>
+          </div>
+        </div>
+      </div>
+    `
+
+    renderProductosPOS(productos)
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando punto de venta</p>'
+  }
+}
+
+window.renderProductosPOS = (productos) => {
+  const { variantes, inventario } = window._posData
+  const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+
+  const grid = document.getElementById('pos-productos-grid')
+  if (!grid) return
+
+  grid.innerHTML = productos.map(p => {
+    const varsProd = variantes.filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+    const totalStock = varsProd.reduce((sum, v) => {
+      const inv = invSucursal.find(i => i.variante_id === v.id)
+      return sum + (inv ? inv.cantidad : 0)
+    }, 0)
+
+    return `
+      <div onclick="abrirProductoPOS('${p.id}')"
+           style="background:white;border-radius:12px;border:1px solid #eee;cursor:pointer;overflow:hidden;transition:all 0.2s;${totalStock === 0 ? 'opacity:0.5' : ''}"
+           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+           onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="position:relative">
+          ${p.imagen_principal
+            ? `<img src="${p.imagen_principal}" style="width:100%;height:160px;object-fit:cover">`
+            : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­ƒæá</div>`}
+          ${totalStock === 0 ? '<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>' : ''}
+          ${p.es_oferta ? '<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>' : ''}
+          ${p.nuevo ? '<div style="position:absolute;top:8px;left:8px;background:#2e7d32;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Nuevo</div>' : ''}
+        </div>
+        <div style="padding:0.75rem">
+          <p style="font-weight:600;font-size:0.85rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</p>
+          <p style="font-size:0.72rem;color:#888;margin-bottom:6px">${p.sku_interno || ''}</p>
+          <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+            ${colores.slice(0,5).map(c => {
+              const v = varsProd.find(v => v.color === c)
+              return `<div style="width:14px;height:14px;border-radius:50%;background:${v ? v.color_hex : '#888'};border:1px solid #ddd" title="${c}"></div>`
+            }).join('')}
+            ${colores.length > 5 ? `<span style="font-size:0.7rem;color:#888">+${colores.length-5}</span>` : ''}
+          </div>
+          <p style="font-weight:700;color:#E91E8C;font-size:0.9rem">$${p.precio_menudeo}</p>
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
+window.buscarPOS = (texto) => {
+  const { productos } = window._posData
+  if (!texto) {
+    renderProductosPOS(productos)
+    return
+  }
+  const terminos = texto.toLowerCase().split(' ').filter(t => t)
+  const filtrados = productos.filter(p => {
+    const nombre = p.nombre.toLowerCase()
+    const sku = (p.sku_interno || '').toLowerCase()
+    const cat = (p.categoria || '').toLowerCase()
+    const completo = nombre + ' ' + sku + ' ' + cat
+    return terminos.every(t => completo.includes(t))
+  })
+  renderProductosPOS(filtrados)
+}
+
+window.filtrarPOS = (categoria) => {
+  const { productos } = window._posData
+  const filtrados = categoria ? productos.filter(p => p.categoria === categoria) : productos
+  renderProductosPOS(filtrados)
+
+  document.querySelectorAll('#pos-categorias button').forEach(btn => {
+    btn.className = 'btn btn-secondary'
+    btn.style.cssText = 'padding:4px 12px;font-size:0.8rem'
+  })
+  event.target.className = 'btn btn-primary'
+  event.target.style.cssText = 'padding:4px 12px;font-size:0.8rem'
+}
+
+window.actualizarInventarioPOS = async () => {
+  const sucursalId = document.getElementById('pos-sucursal').value
+  try {
+    const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+    window._posData.inventario = await resInv.json()
+    const { productos } = window._posData
+    renderProductosPOS(productos)
+  } catch(e) {}
+}
+
+window.abrirProductoPOS = (productoId) => {
+  const { productos, variantes, inventario } = window._posData
+  const producto = productos.find(p => p.id === productoId)
+  if (!producto) return
+
+  const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+  const varsProd = variantes.filter(v => v.producto_id === productoId)
+  const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  const modal = document.createElement('div')
+  modal.id = 'pos-modal'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div style="border-radius:16px 0 0 16px;overflow:hidden">
+          <img id="pos-modal-img" src="${producto.imagen_principal || ''}" style="width:100%;height:300px;object-fit:cover;${!producto.imagen_principal ? 'display:none' : ''}">
+          ${!producto.imagen_principal ? '<div style="width:100%;height:300px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:4rem">­ƒæá</div>' : ''}
+        </div>
+        <div style="padding:1.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
+            <div>
+              <p style="font-weight:700;font-size:1.1rem">${producto.nombre}</p>
+              <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
+            </div>
+            <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">Ô£ò</button>
+          </div>
+
+          <p style="font-weight:700;font-size:1.3rem;color:#E91E8C;margin-bottom:1rem">$${producto.precio_menudeo}</p>
+
+          <div style="margin-bottom:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:6px;font-weight:600">COLOR</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${colores.map(color => {
+                const v = varsProd.find(v => v.color === color)
+                return `
+                  <div onclick="seleccionarColorPOS('${productoId}', '${color}')"
+                       id="pos-color-${color.replace(/\s/g,'_')}"
+                       style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px;border-radius:8px;border:2px solid transparent"
+                       onmouseover="this.style.background='#f5f5f5'"
+                       onmouseout="this.style.background='transparent'">
+                    <div style="width:24px;height:24px;border-radius:50%;background:${v ? v.color_hex : '#888'};border:2px solid #ddd"></div>
+                    <span style="font-size:0.65rem;color:#666;white-space:nowrap">${color}</span>
+                  </div>
+                `
+              }).join('')}
+            </div>
+          </div>
+
+          <div id="pos-tallas-container" style="margin-bottom:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:6px;font-weight:600">TALLA</p>
+            <p style="font-size:0.85rem;color:#888">Selecciona un color primero</p>
+          </div>
+
+          <div style="font-size:0.75rem;color:#888;margin-bottom:1rem">
+            <p>Mayoreo 3-5 pares: <strong>$${producto.precio_mayoreo3 || (producto.precio_menudeo - 30)}</strong></p>
+            <p>Mayoreo 6+ pares: <strong>$${producto.precio_mayoreo6 || (producto.precio_menudeo - 70)}</strong></p>
+            ${producto.corrida_activa ? `<p>Media corrida: <strong>$${producto.precio_corrida || (producto.precio_menudeo - 110)}</strong></p>` : ''}
+          </div>
+
+          <button id="pos-btn-agregar" onclick="agregarAlCarritoPOS('${productoId}')" class="btn btn-primary" style="width:100%;padding:10px;font-size:0.95rem" disabled>
+            Selecciona color y talla
+          </button>
+          ${producto.corrida_activa ? `
+            <button onclick="agregarCorridaPOS('${productoId}')" class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem">
+              + Agregar corrida completa
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+
+  window._posSeleccion = { productoId, color: null, talla: null }
+}
+
+window.seleccionarColorPOS = (productoId, color) => {
+  const { variantes, inventario } = window._posData
+  const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  document.querySelectorAll('[id^="pos-color-"]').forEach(el => {
+    el.style.borderColor = 'transparent'
+    el.style.background = 'transparent'
+  })
+  const colorEl = document.getElementById('pos-color-' + color.replace(/\s/g,'_'))
+  if (colorEl) { colorEl.style.borderColor = '#E91E8C'; colorEl.style.background = '#fce4f3' }
+
+  window._posSeleccion.color = color
+  window._posSeleccion.talla = null
+
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  const imgColor = varsColor[0] ? varsColor[0].foto_url : null
+  const modalImg = document.getElementById('pos-modal-img')
+  if (modalImg && imgColor) modalImg.src = imgColor
+
+  const container = document.getElementById('pos-tallas-container')
+  if (container) {
+    container.innerHTML = `
+      <p style="font-size:0.75rem;color:#888;margin-bottom:6px;font-weight:600">TALLA</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${varsColor.map(v => {
+          const inv = invSucursal.find(i => i.variante_id === v.id)
+          const cantidad = inv ? inv.cantidad : 0
+          const disponible = cantidad > 0
+          return `
+            <button onclick="${disponible ? `seleccionarTallaPOS('${v.id}', '${v.talla}')` : ''}"
+                    id="pos-talla-${v.talla.replace('.','_')}"
+                    style="padding:6px 12px;border-radius:8px;border:2px solid ${disponible ? '#ddd' : '#f5f5f5'};background:${disponible ? 'white' : '#f5f5f5'};cursor:${disponible ? 'pointer' : 'not-allowed'};font-size:0.85rem;color:${disponible ? '#333' : '#ccc'};font-weight:500;position:relative"
+                    title="${disponible ? cantidad + ' pares disponibles' : 'Agotado'}">
+              ${v.talla}
+              ${cantidad > 0 && cantidad <= 3 ? '<span style="position:absolute;top:-4px;right:-4px;background:#f57f17;color:white;border-radius:50%;width:14px;height:14px;font-size:0.55rem;display:flex;align-items:center;justify-content:center">' + cantidad + '</span>' : ''}
+            </button>
+          `
+        }).join('')}
+      </div>
+    `
+  }
+
+  const btn = document.getElementById('pos-btn-agregar')
+  if (btn) { btn.textContent = 'Selecciona una talla'; btn.disabled = true }
+}
+
+window.seleccionarTallaPOS = (varianteId, talla) => {
+  window._posSeleccion.talla = talla
+  window._posSeleccion.varianteId = varianteId
+
+  document.querySelectorAll('[id^="pos-talla-"]').forEach(el => {
+    el.style.borderColor = '#ddd'
+    el.style.background = 'white'
+    el.style.color = '#333'
+  })
+  const tallaEl = document.getElementById('pos-talla-' + talla.replace('.','_'))
+  if (tallaEl) {
+    tallaEl.style.borderColor = '#E91E8C'
+    tallaEl.style.background = '#fce4f3'
+    tallaEl.style.color = '#E91E8C'
+  }
+
+  const btn = document.getElementById('pos-btn-agregar')
+  if (btn) { btn.textContent = '+ Agregar al carrito'; btn.disabled = false }
+}
+
+window.agregarAlCarritoPOS = (productoId) => {
+  const { productos, variantes } = window._posData
+  const { varianteId, color, talla } = window._posSeleccion
+  if (!varianteId || !color || !talla) return
+
+  const producto = productos.find(p => p.id === productoId)
+  if (!producto) return
+
+  const existente = window._posCarrito.find(i => i.variante_id === varianteId)
+  if (existente) {
+    existente.cantidad++
+  } else {
+    window._posCarrito.push({
+      variante_id: varianteId,
+      producto_id: productoId,
+      nombre: producto.nombre,
+      color,
+      talla,
+      cantidad: 1,
+      precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
+      precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
+      precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
+      precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+      es_oferta: producto.es_oferta || false,
+      precio_unitario: parseFloat(producto.precio_menudeo) || 0
+    })
+  }
+
+  document.getElementById('pos-modal').remove()
+  renderCarritoPOS()
+}
+
+window.agregarCorridaPOS = (productoId) => {
+  const { productos, variantes, inventario } = window._posData
+  const { color } = window._posSeleccion
+  if (!color) { alert('Selecciona un color primero'); return }
+
+  const producto = productos.find(p => p.id === productoId)
+  const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  varsColor.forEach(v => {
+    const inv = invSucursal.find(i => i.variante_id === v.id)
+    if (inv && inv.cantidad > 0) {
+      const existente = window._posCarrito.find(i => i.variante_id === v.id)
+      if (existente) {
+        existente.cantidad++
+        existente.es_corrida = true
+      } else {
+        window._posCarrito.push({
+          variante_id: v.id,
+          producto_id: productoId,
+          nombre: producto.nombre,
+          color,
+          talla: v.talla,
+          cantidad: 1,
+          precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
+          precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
+          precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
+          precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+          es_oferta: producto.es_oferta || false,
+          es_corrida: true,
+          precio_unitario: parseFloat(producto.precio_menudeo) || 0
+        })
+      }
+    }
+  })
+
+  document.getElementById('pos-modal').remove()
+  renderCarritoPOS()
+}
+
+window.renderCarritoPOS = () => {
+  const items = window._posCarrito
+  const container = document.getElementById('pos-carrito-items')
+  if (!container) return
+
+  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+  
+  const corridaItems = items.filter(i => i.es_corrida)
+  const mismaCorrida = corridaItems.length >= 6 && new Set(corridaItems.map(i => i.producto_id + i.color)).size === 1
+
+  items.forEach(item => {
+    if (item.es_oferta) {
+      item.precio_unitario = item.precio_menudeo
+    } else if (mismaCorrida && item.es_corrida) {
+      item.precio_unitario = item.precio_corrida
+    } else if (totalPares >= 6) {
+      item.precio_unitario = item.precio_mayoreo6
+    } else if (totalPares >= 3) {
+      item.precio_unitario = item.precio_mayoreo3
+    } else {
+      item.precio_unitario = item.precio_menudeo
+    }
+  })
+
+  const total = items.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const tipoPrecio = mismaCorrida ? 'Corrida' : totalPares >= 6 ? 'Mayoreo 6+' : totalPares >= 3 ? 'Mayoreo 3+' : 'Menudeo'
+
+  if (items.length === 0) {
+    container.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>'
+  } else {
+    container.innerHTML = items.map((item, idx) => `
+      <div style="padding:8px;border-bottom:1px solid #f5f5f5">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px">
+          <div style="flex:1">
+            <p style="font-size:0.8rem;font-weight:600">${item.nombre}</p>
+            <p style="font-size:0.72rem;color:#888">${item.color} ┬À T${item.talla} ${item.es_corrida ? '┬À <span style="color:#6a1b9a">Corrida</span>' : ''}</p>
+          </div>
+          <button onclick="eliminarItemPOS(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:0 4px">Ô£ò</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="cambiarCantidadPOS(${idx}, -1)" style="background:#f5f5f5;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer">ÔêÆ</button>
+            <span style="font-size:0.85rem;font-weight:600;min-width:20px;text-align:center">${item.cantidad}</span>
+            <button onclick="cambiarCantidadPOS(${idx}, 1)" style="background:#f5f5f5;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer">+</button>
+          </div>
+          <div style="text-align:right">
+            <p style="font-size:0.72rem;color:#888">$${item.precio_unitario}/par</p>
+            <p style="font-size:0.85rem;font-weight:600;color:#E91E8C">$${(item.cantidad * item.precio_unitario).toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  const totalEl = document.getElementById('pos-total')
+  const paresEl = document.getElementById('pos-total-pares')
+  const tipoEl = document.getElementById('pos-tipo-precio')
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
+  if (paresEl) paresEl.textContent = totalPares
+  if (tipoEl) tipoEl.textContent = tipoPrecio
+}
+
+window.cambiarCantidadPOS = (idx, delta) => {
+  window._posCarrito[idx].cantidad = Math.max(1, window._posCarrito[idx].cantidad + delta)
+  renderCarritoPOS()
+}
+
+window.eliminarItemPOS = (idx) => {
+  window._posCarrito.splice(idx, 1)
+  renderCarritoPOS()
+}
+
+window.limpiarCarritoPOS = () => {
+  if (window._posCarrito.length > 0 && !confirm('Limpiar el carrito?')) return
+  window._posCarrito = []
+  renderCarritoPOS()
+}
+
+window.cobrarPOS = async () => {
+  if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
+
+  const clienteId = document.getElementById('pos-cliente').value || null
+  const sucursalId = document.getElementById('pos-sucursal').value
+  const formaPago = document.getElementById('pos-pago').value
+  const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+
+  try {
+    const resPedido = await fetch(API + '/pedidos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: clienteId,
+        canal: 'sucursal',
+        sucursal_id: sucursalId,
+        forma_pago: formaPago,
+        total,
+        subtotal: total,
+        status: formaPago === 'spei' ? 'pendiente_pago' : 'confirmado'
+      })
+    })
+
+    const pedidoData = await resPedido.json()
+    const pedidoId = pedidoData[0].id
+
+    for (const item of window._posCarrito) {
+      await fetch(API + '/pedidos/' + pedidoId + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: item.variante_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.cantidad * item.precio_unitario
+        })
+      })
+    }
+
+    if (formaPago !== 'spei') {
+      await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forma_pago: formaPago })
+      })
+    }
+
+    const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
+    window._posCarrito = []
+      renderCarritoPOS()
+      imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
+
+    const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+    window._posData.inventario = await resInv.json()
+    renderProductosPOS(window._posData.productos)
+
+  } catch(e) {
+    alert('Error procesando la venta')
+  }
+}
+window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
+  const res = await fetch(API + '/pedidos/' + pedidoId)
+  const data = await res.json()
+  if (!data || data.length === 0) return
+  const pedido = data[0]
+  const items = pedido.pedido_items || []
+  const cliente = pedido.clientes || {}
+  const fecha = new Date().toLocaleString('es-MX')
+
+  const ticket = window.open('', '_blank', 'width=400,height=600')
+  ticket.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Ticket</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          width: 280px;
+          padding: 10px;
+          color: #000;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .logo { font-size: 18px; font-weight: bold; margin-bottom: 2px; }
+        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .item-nombre { font-weight: bold; margin-bottom: 1px; }
+        .item-detalle { color: #444; font-size: 11px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
+        .footer { margin-top: 10px; font-size: 11px; }
+        @media print {
+          body { width: 280px; }
+          @page { margin: 0; size: 80mm auto; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <p class="logo">Zapatillas May</p>
+        <p style="font-size:10px">Leon, Guanajuato</p>
+        <p style="font-size:10px">Tel: 477 247 2285</p>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <span>Fecha:</span>
+        <span>${fecha}</span>
+      </div>
+      <div class="row">
+        <span>Cliente:</span>
+        <span>${cliente.nombre || 'General'}</span>
+      </div>
+      <div class="row">
+        <span>Pago:</span>
+        <span>${formaPago.toUpperCase()}</span>
+      </div>
+      <div class="divider"></div>
+      ${(() => {
+  const grupos = {}
+  items.forEach(item => {
+    const variante = item.variantes || {}
+    const producto = variante.productos || {}
+    const key = (producto.nombre || 'ÔÇö') + '|' + (variante.color || '')
+    if (!grupos[key]) {
+      grupos[key] = {
+        nombre: producto.nombre || 'ÔÇö',
+        color: variante.color || '',
+        cantidad: 0,
+        subtotal: 0
+      }
+    }
+    grupos[key].cantidad += item.cantidad
+    grupos[key].subtotal += parseFloat(item.subtotal) || (item.cantidad * item.precio_unitario)
+  })
+  return `
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="border-bottom:1px solid #000">
+        <td style="width:30px;text-align:right;padding-right:6px;font-weight:bold">Cant</td>
+        <td style="padding-right:4px;font-weight:bold">Modelo</td>
+        <td style="padding-right:4px;font-weight:bold">Color</td>
+        <td style="text-align:right;font-weight:bold">Total</td>
+      </tr>
+      ${Object.values(grupos).map(g => `
+        <tr>
+          <td style="width:30px;text-align:right;padding-right:6px">${g.cantidad}</td>
+          <td style="padding-right:4px">${g.nombre}</td>
+          <td style="padding-right:4px;color:#444">${g.color}</td>
+          <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `
+})()}
+      <div class="divider"></div>
+      <div class="row">
+        <span>Total pares:</span>
+        <span>${totalPares}</span>
+      </div>
+      <div class="total-row">
+        <span>TOTAL:</span>
+        <span>$${total.toFixed(2)}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="center footer">
+        <p class="bold">┬íGracias por su compra!</p>
+        <p>En herrajes y pedreria no hay devoluciones</p>
+        <p>por su proceso artesanal.</p>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:10px;margin-top:4px">
+        <p>RFC: SAPL620614JD7</p>
+        <p>Cuautla 211 Col. Killian</p>
+        <p>Leon, Gto. CP 37260</p>
+        <p>Tel: 477 530 8983</p>
+        <p class="center" style="margin-top:4px">zapatillasmay.mx</p>
+      </div>
+      <script>window.onload=()=>{window.print()}<\/script>
+    </body>
+    </html>
+  `)
+  ticket.document.close()
+}
+window.generarPDFPedido = async (pedidoId) => {
+  const res = await fetch(API + '/pedidos/' + pedidoId)
+  const data = await res.json()
+  if (!data || data.length === 0) return
+  const pedido = data[0]
+  const items = pedido.pedido_items || []
+  const cliente = pedido.clientes || {}
+  const fecha = new Date(pedido.created_at).toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+  const total = pedido.total || 0
+  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Pedido ${pedidoId.substring(0,8).toUpperCase()}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; font-size:13px; color:#333; padding:40px; }
+        .header { display:flex; justify-content:space-between; align-items:start; margin-bottom:30px; }
+        .logo { font-size:24px; font-weight:bold; color:#E91E8C; }
+        .logo span { color:#333; }
+        .empresa-datos { font-size:11px; color:#666; margin-top:4px; line-height:1.6; }
+        .pedido-info { text-align:right; }
+        .pedido-num { font-size:18px; font-weight:bold; color:#333; }
+        .pedido-fecha { font-size:12px; color:#888; margin-top:4px; }
+        .divider { border-top:2px solid #E91E8C; margin:20px 0; }
+        .divider-light { border-top:1px solid #eee; margin:15px 0; }
+        .section-title { font-weight:bold; font-size:12px; color:#888; text-transform:uppercase; margin-bottom:8px; }
+        .cliente-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+        .campo { margin-bottom:6px; }
+        .campo-label { font-size:11px; color:#888; }
+        .campo-valor { font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        thead tr { background:#f5f5f5; }
+        th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
+        td { padding:10px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; }
+        .text-right { text-align:right; }
+        .total-section { display:flex; justify-content:flex-end; }
+        .total-box { width:250px; }
+        .total-row { display:flex; justify-content:space-between; padding:6px 0; }
+        .total-final { display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid #E91E8C; font-size:16px; font-weight:bold; color:#E91E8C; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:100px; font-size:11px; font-weight:600; }
+        .badge-success { background:#e8f5e9; color:#2e7d32; }
+        .badge-warning { background:#fff8e1; color:#f57f17; }
+        .footer { margin-top:40px; padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+        .leyenda { margin-top:20px; font-size:11px; color:#888; font-style:italic; }
+        @media print {
+          body { padding:20px; }
+          @page { margin:15mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo">Zapatillas <span>May</span></div>
+          <div class="empresa-datos">
+            RFC: SAPL620614JD7<br>
+            Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
+            Tel: 477 530 8983 | zapatillasmay.mx
+          </div>
+        </div>
+        <div class="pedido-info">
+          <div class="pedido-num">Pedido #${pedidoId.substring(0,8).toUpperCase()}</div>
+          <div class="pedido-fecha">${fecha}</div>
+          <div style="margin-top:8px">
+            <span class="badge ${pedido.status === 'confirmado' || pedido.status === 'pagado' ? 'badge-success' : 'badge-warning'}">${pedido.status}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="cliente-grid">
+        <div>
+          <div class="section-title">Datos del cliente</div>
+          <div class="campo">
+            <div class="campo-label">Nombre</div>
+            <div class="campo-valor">${cliente.nombre || 'Cliente general'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Telefono</div>
+            <div class="campo-valor">${cliente.telefono || 'ÔÇö'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Email</div>
+            <div class="campo-valor">${cliente.email || 'ÔÇö'}</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Informacion del pedido</div>
+          <div class="campo">
+            <div class="campo-label">Canal</div>
+            <div class="campo-valor">${pedido.canal || 'ÔÇö'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Forma de pago</div>
+            <div class="campo-valor">${pedido.forma_pago || 'ÔÇö'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Sucursal</div>
+            <div class="campo-valor">${pedido.sucursales ? pedido.sucursales.nombre : 'ÔÇö'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-light"></div>
+
+      <div class="section-title">Productos</div>
+      <table>
+        <thead>
           <tr>
-            <td style="font-family:DM Mono,monospace;font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
-            <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
-            <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
-            <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
-            <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
-            <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
-            <td style="font-family:DM Mono,monospace;font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">
-              ${cantidad > 0 ? '+' : ''}${cantidad}
-            </td>
-            <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Talla</th>
+            <th>SKU</th>
+            <th class="text-right">Cant</th>
+            <th class="text-right">Precio unit</th>
+            <th class="text-right">Subtotal</th>
           </tr>
-        `
-      }).join('')
+        </thead>
+        <tbody>
+          ${items.map(item => {
+            const variante = item.variantes || {}
+            const producto = variante.productos || {}
+            return `
+              <tr>
+                <td>${producto.nombre || 'ÔÇö'}</td>
+                <td>${variante.color || 'ÔÇö'}</td>
+                <td>${variante.talla || 'ÔÇö'}</td>
+                <td style="font-size:11px;color:#888">${variante.sku || 'ÔÇö'}</td>
+                <td class="text-right">${item.cantidad}</td>
+                <td class="text-right">$${item.precio_unitario}</td>
+                <td class="text-right font-weight:bold">$${item.subtotal}</td>
+              </tr>
+            `
+          }).join('')}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-box">
+          <div class="total-row">
+            <span>Total pares:</span>
+            <span>${totalPares}</span>
+          </div>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>$${parseFloat(total).toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      ${pedido.comentarios ? `
+        <div class="divider-light"></div>
+        <div class="section-title">Comentarios</div>
+        <p style="font-size:12px;color:#555">${pedido.comentarios}</p>
+      ` : ''}
+
+      <div class="leyenda">
+        * En herrajes y pedreria no hay devoluciones por su proceso artesanal.
+      </div>
+
+      <div class="footer">
+        <span>Zapatillas May ÔÇö zapatillasmay.mx</span>
+        <span>RFC: SAPL620614JD7</span>
+        <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
+      </div>
+
+     <script>window.onload = () => { window.print() }<\/script>
+    </body>
+    </html>
+  `)
+  ventana.document.close()
 }
