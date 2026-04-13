@@ -647,3 +647,7 @@ select.form-input option {
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
 }
+select.form-input option {
+  background: white;
+  color: #333;
+}

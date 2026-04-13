@@ -812,8 +812,8 @@ window.buscarVariante = (texto, prefijo) => {
         ${v.color_hex ? '<div style="width:12px;height:12px;border-radius:50%;background:' + v.color_hex + ';border:1px solid #ddd;flex-shrink:0"></div>' : ''}
         <div>
           <strong>${v.productos ? v.productos.nombre || '—' : '—'}</strong>
-          <span style="color:#888"> ┬À ${v.color} ┬À Talla ${v.talla}</span>
-          <span style="color:#ccc;font-size:0.75rem"> ┬À ${v.sku || ''}</span>
+          <span style="color:#888"> · ${v.color} · Talla ${v.talla}</span>
+          <span style="color:#ccc;font-size:0.75rem"> · ${v.sku || ''}</span>
         </div>
       </div>
     `
@@ -2434,7 +2434,7 @@ window.renderItemsPedido = () => {
         <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${item.nombre}</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:4px">
-            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">ÔêÆ</button>
+            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">−</button>
             <span style="font-weight:600;min-width:24px;text-align:center">${item.cantidad}</span>
             <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">+</button>
           </div>
@@ -2442,7 +2442,7 @@ window.renderItemsPedido = () => {
           <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
         </div>
       </div>
-      <button onclick="eliminarItemPedido(${idx})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">Ô£ò</button>
+      <button onclick="eliminarItemPedido(${idx})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">✕</button>
     </div>
   `).join('')
 
@@ -2757,7 +2757,7 @@ async function cargarPOS() {
               <span style="font-weight:700;font-size:1.4rem;color:#E91E8C" id="pos-total">$0.00</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-              <select class="form-input" id="pos-pago" style="font-size:0.85rem;grid-column:1/-1">
+              <select class="form-input" id="pos-pago" style="background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
                 <option value="efectivo">Efectivo</option>
                 <option value="tarjeta">Tarjeta</option>
                 <option value="spei">SPEI</option>
@@ -2806,7 +2806,7 @@ window.renderProductosPOS = (productos) => {
         <div style="position:relative">
           ${p.imagen_principal
             ? `<img src="${p.imagen_principal}" style="width:100%;height:160px;object-fit:cover">`
-            : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­ƒæá</div>`}
+            : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­👠</div>`}
           ${totalStock === 0 ? '<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>' : ''}
           ${p.es_oferta ? '<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>' : ''}
           ${p.nuevo ? '<div style="position:absolute;top:8px;left:8px;background:#2e7d32;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Nuevo</div>' : ''}
@@ -2887,7 +2887,7 @@ window.abrirProductoPOS = (productoId) => {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
         <div style="border-radius:16px 0 0 16px;overflow:hidden">
           <img id="pos-modal-img" src="${producto.imagen_principal || ''}" style="width:100%;height:300px;object-fit:cover;${!producto.imagen_principal ? 'display:none' : ''}">
-          ${!producto.imagen_principal ? '<div style="width:100%;height:300px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:4rem">­ƒæá</div>' : ''}
+          ${!producto.imagen_principal ? '<div style="width:100%;height:300px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font-size:4rem">­👠</div>' : ''}
         </div>
         <div style="padding:1.5rem">
           <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
@@ -2895,7 +2895,7 @@ window.abrirProductoPOS = (productoId) => {
               <p style="font-weight:700;font-size:1.1rem">${producto.nombre}</p>
               <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
             </div>
-            <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">Ô£ò</button>
+            <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
           </div>
 
           <p style="font-weight:700;font-size:1.3rem;color:#E91E8C;margin-bottom:1rem">$${producto.precio_menudeo}</p>
@@ -3131,13 +3131,13 @@ window.renderCarritoPOS = () => {
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:4px">
           <div style="flex:1">
             <p style="font-size:0.8rem;font-weight:600">${item.nombre}</p>
-            <p style="font-size:0.72rem;color:#888">${item.color} ┬À T${item.talla} ${item.es_corrida ? '┬À <span style="color:#6a1b9a">Corrida</span>' : ''}</p>
+            <p style="font-size:0.72rem;color:#888">${item.color} · T${item.talla} ${item.es_corrida ? '· <span style="color:#6a1b9a">Corrida</span>' : ''}</p>
           </div>
-          <button onclick="eliminarItemPOS(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:0 4px">Ô£ò</button>
+          <button onclick="eliminarItemPOS(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:0 4px">✕</button>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="display:flex;align-items:center;gap:6px">
-            <button onclick="cambiarCantidadPOS(${idx}, -1)" style="background:#f5f5f5;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer">ÔêÆ</button>
+            <button onclick="cambiarCantidadPOS(${idx}, -1)" style="background:#f5f5f5;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer">−</button>
             <span style="font-size:0.85rem;font-weight:600;min-width:20px;text-align:center">${item.cantidad}</span>
             <button onclick="cambiarCantidadPOS(${idx}, 1)" style="background:#f5f5f5;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer">+</button>
           </div>
