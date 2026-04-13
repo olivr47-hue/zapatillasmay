@@ -131,6 +131,7 @@ async function cargarModulo(id) {
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
     case 'pos': await cargarPOS(); break
+    case 'historial': await cargarHistorial(); break
   }
 }
 
@@ -3533,4 +3534,231 @@ window.generarPDFPedido = async (pedidoId) => {
     </html>
   `)
   ventana.document.close()
+}
+async function cargarHistorial() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/movimientos/')
+    const data = await res.json()
+    const tipos = {
+      'venta': { label: 'Venta', badge: 'badge-success' },
+      'entrada': { label: 'Entrada', badge: 'badge-info' },
+      'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
+      'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
+      'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
+      'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
+      'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+    }
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Historial de movimientos (${data.length})</h3>
+          <div style="display:flex;gap:8px">
+            <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
+              <option value="">Todos los tipos</option>
+              <option value="venta">Ventas</option>
+              <option value="entrada">Entradas</option>
+              <option value="ajuste">Ajustes</option>
+              <option value="traspaso_salida">Traspasos</option>
+              <option value="cambio_salida">Cambios</option>
+            </select>
+            <input class="form-input" id="hist-buscar" placeholder="Buscar..." style="max-width:200px" oninput="filtrarHistorial()">
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="hist-tbody">
+            ${data.length === 0
+              ? '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
+              : data.map(m => {
+                  const tipo = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
+                  const cantidad = m.cantidad || 0
+                  return `<tr>
+                    <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
+                    <td><span class="badge ${tipo.badge}">${tipo.label}</span></td>
+                    <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+                    <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
+                    <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+                    <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
+                    <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
+                    <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
+                    <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
+                  </tr>`
+                }).join('')}
+          </tbody>
+        </table>
+      </div>`
+    window._historialData = data
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+  }
+}
+
+window.filtrarHistorial = () => {
+  const tipo = document.getElementById('hist-tipo').value
+  const buscar = document.getElementById('hist-buscar').value.toLowerCase()
+  const data = window._historialData || []
+  const tipos = {
+    'venta': { label: 'Venta', badge: 'badge-success' },
+    'entrada': { label: 'Entrada', badge: 'badge-info' },
+    'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
+    'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
+    'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
+    'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
+    'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+  }
+  const filtrados = data.filter(m => {
+    if (tipo && m.tipo !== tipo) return false
+    if (buscar) {
+      const nombre = (m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '').toLowerCase()
+      const motivo = (m.motivo || '').toLowerCase()
+      if (!nombre.includes(buscar) && !motivo.includes(buscar)) return false
+    }
+    return true
+  })
+  const tbody = document.getElementById('hist-tbody')
+  if (!tbody) return
+  tbody.innerHTML = filtrados.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
+    : filtrados.map(m => {
+        const tipo_info = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
+        const cantidad = m.cantidad || 0
+        return `<tr>
+          <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
+          <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
+          <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+          <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
+          <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+          <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
+          <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
+          <td style="font-size:0.82rem">${m.motivo || '—'}</td>
+        </tr>`
+      }).join('')
+}
+
+async function cargarDashboard() {
+  try {
+    const resPedidos = await fetch(API + '/pedidos/')
+    const pedidos = await resPedidos.json()
+    const resClientes = await fetch(API + '/clientes/')
+    const clientes = await resClientes.json()
+    const resAlertas = await fetch(API + '/inventario/alertas')
+    const alertas = await resAlertas.json()
+
+    const hoy = new Date(); hoy.setHours(0,0,0,0)
+    const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
+    const hace30 = new Date(hoy); hace30.setDate(hace30.getDate()-30)
+
+    const conf = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
+    const hoyP = conf.filter(p => new Date(p.created_at) >= hoy)
+    const s7P = conf.filter(p => new Date(p.created_at) >= hace7)
+
+    const ventasHoy = hoyP.reduce((s,p) => s + parseFloat(p.total||0), 0)
+    const ventas7 = s7P.reduce((s,p) => s + parseFloat(p.total||0), 0)
+    const clientesNuevos = clientes.filter(c => c.created_at && new Date(c.created_at) >= hace30).length
+
+    const diasNombre = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
+    const porDia = {}; diasNombre.forEach(d => porDia[d] = 0)
+    conf.filter(p => new Date(p.created_at) >= hace30).forEach(p => {
+      const d = diasNombre[new Date(p.created_at).getDay()]
+      porDia[d] += parseFloat(p.total||0)
+    })
+
+    const porCanal = {}
+    conf.forEach(p => { porCanal[p.canal||'sucursal'] = (porCanal[p.canal||'sucursal']||0) + parseFloat(p.total||0) })
+
+    const porPago = {}
+    conf.forEach(p => { porPago[p.forma_pago||'efectivo'] = (porPago[p.forma_pago||'efectivo']||0) + 1 })
+
+    const porEmpleado = {}
+    conf.forEach(p => { porEmpleado[p.empleado||'Admin'] = (porEmpleado[p.empleado||'Admin']||0) + parseFloat(p.total||0) })
+
+    const porMes = {}
+    conf.forEach(p => { const m = new Date(p.created_at).toLocaleDateString('es-MX',{month:'short',year:'numeric'}); porMes[m] = (porMes[m]||0) + parseFloat(p.total||0) })
+
+    const porCliente = {}
+    conf.forEach(p => { if(p.clientes){ porCliente[p.clientes.nombre] = (porCliente[p.clientes.nombre]||0) + parseFloat(p.total||0) } })
+
+    const topClientes = Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    const diaMas = Object.entries(porDia).sort((a,b)=>b[1]-a[1])[0]
+    const topEmp = Object.entries(porEmpleado).sort((a,b)=>b[1]-a[1])[0]
+
+    const dashboard = document.getElementById('dashboard-contenido')
+    if (!dashboard) return
+
+    const cards = dashboard.querySelectorAll('.stat-card')
+    const vals = [
+      { val: '$'+ventasHoy.toFixed(0), sub: hoyP.length+' pedidos hoy', color: 'var(--pink)' },
+      { val: hoyP.length, sub: 'confirmados hoy' },
+      { val: '$'+ventas7.toFixed(0), sub: s7P.length+' pedidos' },
+      { val: clientesNuevos, sub: 'ultimos 30 dias' },
+      { val: alertas.length, sub: 'por reabastecer', color: alertas.length > 0 ? 'var(--amber)' : 'var(--green)' },
+      { val: diaMas ? diaMas[0] : '—', sub: diaMas ? '$'+diaMas[1].toFixed(0)+' prom.' : '' },
+      { val: topEmp ? topEmp[0] : '—', sub: topEmp ? '$'+topEmp[1].toFixed(0) : '', small: true },
+      { val: clientes.length, sub: 'registrados' },
+    ]
+    cards.forEach((card, i) => {
+      if (!vals[i]) return
+      const valEl = card.querySelector('.stat-value')
+      const subEl = card.querySelector('.stat-sub')
+      if (valEl) { valEl.textContent = vals[i].val; valEl.style.color = vals[i].color || 'var(--text-primary)'; if(vals[i].small) valEl.style.fontSize = '1rem' }
+      if (subEl) subEl.textContent = vals[i].sub || ''
+    })
+
+    const topClientesEl = document.getElementById('dash-top-clientes')
+    if (topClientesEl) {
+      topClientesEl.innerHTML = topClientes.length === 0
+        ? '<p style="color:var(--text-muted);font-size:0.85rem">Sin datos aun</p>'
+        : topClientes.map(([nombre, total], i) => `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span style="width:22px;height:22px;background:var(--pink);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${i+1}</span>
+            <span style="flex:1;font-size:0.875rem">${nombre}</span>
+            <strong style="color:var(--pink)">$${total.toFixed(0)}</strong>
+          </div>`).join('')
+    }
+
+    const ultimosEl = document.getElementById('dash-ultimos-pedidos')
+    if (ultimosEl) {
+      ultimosEl.innerHTML = pedidos.slice(0,5).map(p => `
+        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+          <div>
+            <p style="font-size:0.85rem;font-weight:500">${p.clientes ? p.clientes.nombre : 'General'}</p>
+            <p style="font-size:0.72rem;color:var(--text-muted)">${p.canal} · ${new Date(p.created_at).toLocaleDateString('es-MX')}</p>
+          </div>
+          <div style="text-align:right">
+            <p style="font-weight:700;color:var(--pink)">$${p.total||0}</p>
+            <span class="badge ${p.status==='confirmado'||p.status==='pagado'?'badge-success':'badge-warning'}">${p.status}</span>
+          </div>
+        </div>`).join('')
+    }
+
+    setTimeout(() => {
+      const chartOpts = {
+        responsive: true,
+        plugins: { legend: { labels: { color: '#666', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        }
+      }
+      const elDias = document.getElementById('chart-dias')
+      if (elDias && window.Chart) new Chart(elDias, { type: 'bar', data: { labels: diasNombre, datasets: [{ data: diasNombre.map(d => porDia[d]||0), backgroundColor: 'rgba(233,30,140,0.2)', borderColor: '#E91E8C', borderWidth: 2, borderRadius: 6 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } })
+
+      const elCanales = document.getElementById('chart-canales')
+      if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, { type: 'doughnut', data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: ['rgba(233,30,140,0.7)','rgba(0,151,178,0.7)','rgba(124,58,237,0.7)','rgba(46,125,50,0.7)'], borderColor: ['#E91E8C','#0097b2','#7c3aed','#2e7d32'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 11 }, padding: 12 } } } } })
+
+      const elMeses = document.getElementById('chart-meses')
+      if (elMeses && window.Chart) { const md = Object.entries(porMes).slice(-6); new Chart(elMeses, { type: 'line', data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: '#0097b2', backgroundColor: 'rgba(0,151,178,0.08)', borderWidth: 2, pointBackgroundColor: '#0097b2', pointRadius: 4, fill: true, tension: 0.4 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } }) }
+
+      const elPagos = document.getElementById('chart-pagos')
+      if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, { type: 'doughnut', data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: ['rgba(46,125,50,0.7)','rgba(245,127,23,0.7)','rgba(233,30,140,0.7)','rgba(124,58,237,0.7)'], borderColor: ['#2e7d32','#f57f17','#E91E8C','#7c3aed'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 11 }, padding: 12 } } } } })
+    }, 300)
+
+  } catch(e) {
+    console.error('Error dashboard:', e)
+  }
 }
