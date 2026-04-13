@@ -2438,7 +2438,7 @@ window.renderItemsPedido = () => {
             <span style="font-weight:600;min-width:24px;text-align:center">${item.cantidad}</span>
             <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">+</button>
           </div>
-          <span style="color:#888;font-size:0.8rem">├ù $${item.precio_unitario}</span>
+          <span style="color:#888;font-size:0.8rem">×$${item.precio_unitario}</span>
           <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
         </div>
       </div>
@@ -2574,7 +2574,7 @@ window.verPedido = async (id) => {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
-            <p style="font-weight:600">${cliente.nombre || '—'}</p>
+            <p style="font-weight:600">${cliente.nombre || 'Mostrador'}</p>
             <p style="font-size:0.8rem;color:#888">${cliente.telefono || ''}</p>
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
@@ -2598,7 +2598,7 @@ window.verPedido = async (id) => {
                 ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
-                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ├ù $${item.precio_unitario}</p>
+                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ×$${item.precio_unitario}</p>
                 </div>
                 <strong style="color:#E91E8C">$${item.subtotal}</strong>
               </div>
@@ -2623,7 +2623,9 @@ window.verPedido = async (id) => {
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
           ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? '<button class="btn btn-primary" onclick="confirmarPedidoAdmin(\'' + p.id + '\')">Confirmar pedido</button>' : ''}
-         <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>        </div>
+          <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>
+          <button class="btn btn-secondary" onclick="imprimirTicketPOS('${p.id}',${p.total},${p.pedido_items ? p.pedido_items.reduce((s,i)=>s+i.cantidad,0) : 0},'${p.forma_pago||'efectivo'}')">Reimprimir ticket</button>
+               </div>
       </div>
     `
   } catch(e) {
@@ -3761,4 +3763,9 @@ async function cargarDashboard() {
   } catch(e) {
     console.error('Error dashboard:', e)
   }
+}
+window.eliminarItemPedido = (idx) => {
+  window._pedidoItems.splice(idx, 1)
+  window.recalcularTotal()
+  window.renderItemsPedido()
 }
