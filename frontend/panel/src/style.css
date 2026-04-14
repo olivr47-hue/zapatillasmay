@@ -667,3 +667,33 @@ select.form-input option {
 .topbar-actions span {
   color: #8892a4 !important;
 }
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 99;
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+/* ─── FIX SIDEBAR MÓVIL ──────────────────────── */
+@media (max-width: 900px) {
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 200;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    z-index: 150;
+  }
+
+  .topbar {
+    z-index: 100;
+  }
+}

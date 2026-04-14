@@ -71,6 +71,7 @@ let varianteCount = 1
 
 export function renderPanel() {
   document.querySelector('#app').innerHTML = `
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <h2>Zapatillas <span>May</span></h2>
@@ -87,8 +88,8 @@ export function renderPanel() {
           <h1 id="topbar-title">Dashboard</h1>
         </div>
         <div class="topbar-actions">
-        <span style="font-size:0.8rem;color:#888">${window._empleadoActual ? window._empleadoActual.nombre : 'Leon, Gto.'}</span>
-        <button onclick="cerrarSesionPanel()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#8892a4;cursor:pointer;font-family:DM Sans,sans-serif">Salir</button>
+          <span style="font-size:0.8rem;color:#888">${window._empleadoActual ? window._empleadoActual.nombre : 'Leon, Gto.'}</span>
+          <button onclick="cerrarSesionPanel()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#8892a4;cursor:pointer;font-family:DM Sans,sans-serif">Salir</button>
         </div>
       </div>
       <div class="content" id="content">
@@ -96,11 +97,25 @@ export function renderPanel() {
       </div>
     </div>
   `
-  window.toggleSidebar = () => {
-    document.getElementById('sidebar').classList.toggle('open')
-  }
+
+ window.toggleSidebar = () => {
+  const sidebar = document.getElementById('sidebar')
+  const overlay = document.getElementById('sidebar-overlay')
+  const isOpen = sidebar.classList.toggle('open')
+  overlay.classList.toggle('active', isOpen)
+  // Bloquear scroll del body cuando sidebar está abierto
+  document.body.style.overflow = isOpen ? 'hidden' : ''
+}
+
   window.navegarA = (id) => {
     moduloActivo = id
+    // Cerrar sidebar al navegar en móvil
+    const sidebar = document.getElementById('sidebar')
+    const overlay = document.getElementById('sidebar-overlay')
+    if (sidebar.classList.contains('open')) {
+      sidebar.classList.remove('open')
+      overlay.classList.remove('active')
+    }
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
     document.querySelector('[data-modulo="' + id + '"]').classList.add('active')
     document.getElementById('topbar-title').textContent = modulos.find(m => m.id === id).label
