@@ -56,7 +56,9 @@ def get_url():
 
 def get_headers():
     return HEADERS
-    def supabase_delete(tabla):
+
+
+def supabase_delete(tabla):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     req = urllib.request.Request(url, headers=HEADERS, method="DELETE")
     try:
