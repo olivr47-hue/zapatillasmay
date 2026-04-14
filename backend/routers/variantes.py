@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_post, supabase_patch, supabase_delete
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
 
@@ -38,7 +38,6 @@ def crear_variante(variante: dict):
     producto_id = variante.get("producto_id")
     color = variante.get("color", "")
     talla = variante.get("talla", "")
-    
     if producto_id:
         producto = supabase_get(f"productos?id=eq.{producto_id}&select=sku_interno")
         if producto and len(producto) > 0:
@@ -46,14 +45,12 @@ def crear_variante(variante: dict):
             cod_color = color_a_codigo(color)
             cod_talla = talla_a_codigo(talla)
             variante["sku"] = f"{sku_base}-{cod_color}-{cod_talla}"
-    
     return supabase_post("variantes", variante)
-    from database import supabase_get, supabase_post, supabase_patch
 
 @router.patch("/{variante_id}")
 def actualizar_variante(variante_id: str, variante: dict):
     return supabase_patch(f"variantes?id=eq.{variante_id}", variante)
-    from database import supabase_get, supabase_post, supabase_patch, supabase_delete
-    @router.delete("/{variante_id}")
+
+@router.delete("/{variante_id}")
 def eliminar_variante(variante_id: str):
     return supabase_delete(f"variantes?id=eq.{variante_id}")
