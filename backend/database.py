@@ -56,3 +56,12 @@ def get_url():
 
 def get_headers():
     return HEADERS
+    def supabase_delete(tabla):
+    url = f"{SUPABASE_URL}/rest/v1/{tabla}"
+    req = urllib.request.Request(url, headers=HEADERS, method="DELETE")
+    try:
+        with urllib.request.urlopen(req) as response:
+            return {"ok": True}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        raise Exception(f"HTTP {e.code}: {error_body}")

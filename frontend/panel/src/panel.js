@@ -1425,31 +1425,40 @@ window.guardarProducto = async () => {
 }
 
 window.editarProducto = async (id) => {
+  window._coloresExistentes = null
+  window._productoEditandoId = null
   try {
-    const res = await fetch(API + '/productos/' + id)
-    const data = await res.json()
-    if (data && data.length > 0) {
-      const resV = await fetch(API + '/variantes/producto/' + id)
-      const variantes = await resV.json()
+    const [resProd, resVars] = await Promise.all([
+      fetch(API + '/productos/' + id),
+      fetch(API + '/variantes/producto/' + id)
+    ])
+    const data = await resProd.json()
+    const variantes = await resVars.json()
 
-      // Guardar colores existentes CON sus fotos
-      const coloresUnicos = []
-      const vistos = new Set()
-      variantes.forEach(v => {
+    if (!data || data.length === 0) {
+      alert('Producto no encontrado')
+      return
+    }
+
+    // Solo colores de ESTE producto
+    const coloresUnicos = []
+    const vistos = new Set()
+    variantes
+      .filter(v => v.producto_id === id)  // filtro extra de seguridad
+      .forEach(v => {
         if (!vistos.has(v.color)) {
           vistos.add(v.color)
-          coloresUnicos.push({ 
-            color: v.color, 
-            color_hex: v.color_hex, 
-            foto_url: v.foto_url 
+          coloresUnicos.push({
+            color: v.color,
+            color_hex: v.color_hex,
+            foto_url: v.foto_url
           })
         }
       })
 
-      window._productoEditandoId = id
-      window._coloresExistentes = coloresUnicos
-      mostrarFormProducto(data[0])
-    }
+    window._productoEditandoId = id
+    window._coloresExistentes = coloresUnicos.length > 0 ? coloresUnicos : null
+    mostrarFormProducto(data[0])
   } catch(e) {
     alert('Error cargando el producto')
   }

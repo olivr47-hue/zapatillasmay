@@ -53,3 +53,7 @@ def crear_variante(variante: dict):
 @router.patch("/{variante_id}")
 def actualizar_variante(variante_id: str, variante: dict):
     return supabase_patch(f"variantes?id=eq.{variante_id}", variante)
+    from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+    @router.delete("/{variante_id}")
+def eliminar_variante(variante_id: str):
+    return supabase_delete(f"variantes?id=eq.{variante_id}")
