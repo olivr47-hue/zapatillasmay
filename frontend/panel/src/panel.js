@@ -883,7 +883,9 @@ function renderVariante(i, datos) {
           <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
           <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
           <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
-          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
+          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+  ${d.foto_url ? `<img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd">` : ''}
+</div>
         </div>
       </div>
     </div>
@@ -897,6 +899,10 @@ window.mostrarFormProducto = (datos) => {
   : 1
   const d = datos || {}
   const content = document.getElementById('content')
+  varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0
+  ? window._coloresExistentes.length
+  : 1
+if (!datos) window._coloresExistentes = null
   content.innerHTML = `
     <div class="table-card" style="padding:2rem">
       <h3 style="margin-bottom:1.5rem">${datos ? 'Editar producto' : 'Nuevo producto'}</h3>
@@ -1039,10 +1045,10 @@ window.mostrarFormProducto = (datos) => {
         <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
         ${d && d.foto_url ? `<img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd;margin-top:8px">` : ''}
         <div id="variantes-container">
-  ${window._coloresExistentes && window._coloresExistentes.length > 0
+       ${window._coloresExistentes && window._coloresExistentes.length > 0
     ? window._coloresExistentes.map((c, i) => renderVariante(i, c)).join('')
     : renderVariante(0, null)}
-        </div>
+      </div>
         <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
       </div>
 
@@ -1233,16 +1239,25 @@ window.actualizarTablaStock = () => {
 async function subirImagenesVariantes() {
   const variantes = document.querySelectorAll('.variante-item')
   const resultado = []
+  const coloresExistentes = window._coloresExistentes || []
+
   for (const v of variantes) {
     const id = v.id.replace('variante-', '')
     const hex = document.getElementById('v' + id + '-hex')
     const nombre = document.getElementById('v' + id + '-nombre')
     const inputImgs = document.getElementById('v' + id + '-imgs')
-    if (!nombre || !nombre.value) {
-  // Si no hay nombre pero hay fotos, subir igual con color "Sin nombre"
-  if (!inputImgs || inputImgs.files.length === 0) continue
-}
+
+    if (!nombre || !nombre.value) continue
+
     const urls = []
+
+    // Primero conservar fotos existentes de este color
+    const colorExistente = coloresExistentes.find(c => c.color === nombre.value)
+    if (colorExistente && colorExistente.foto_url) {
+      urls.push(colorExistente.foto_url)
+    }
+
+    // Subir fotos nuevas si hay
     if (inputImgs && inputImgs.files.length > 0) {
       for (const file of inputImgs.files) {
         const formData = new FormData()
@@ -1254,11 +1269,12 @@ async function subirImagenesVariantes() {
         } catch(e) {}
       }
     }
+
     resultado.push({ 
-  color: nombre && nombre.value ? nombre.value : 'Sin color', 
-  color_hex: hex ? hex.value : '#000000', 
-  imagenes: urls 
-})
+      color: nombre.value, 
+      color_hex: hex ? hex.value : '#000000', 
+      imagenes: urls 
+    })
   }
   return resultado
 }
@@ -1413,18 +1429,23 @@ window.editarProducto = async (id) => {
     const res = await fetch(API + '/productos/' + id)
     const data = await res.json()
     if (data && data.length > 0) {
-      // Cargar variantes existentes
       const resV = await fetch(API + '/variantes/producto/' + id)
       const variantes = await resV.json()
-      // Obtener colores únicos
+
+      // Guardar colores existentes CON sus fotos
       const coloresUnicos = []
       const vistos = new Set()
       variantes.forEach(v => {
         if (!vistos.has(v.color)) {
           vistos.add(v.color)
-          coloresUnicos.push({ color: v.color, color_hex: v.color_hex, foto_url: v.foto_url })
+          coloresUnicos.push({ 
+            color: v.color, 
+            color_hex: v.color_hex, 
+            foto_url: v.foto_url 
+          })
         }
       })
+
       window._productoEditandoId = id
       window._coloresExistentes = coloresUnicos
       mostrarFormProducto(data[0])
