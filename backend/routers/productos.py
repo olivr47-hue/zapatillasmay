@@ -38,6 +38,22 @@ def obtener_producto(id: str):
 
 @router.post("/")
 def crear_producto(producto: dict):
+    # Si tiene SKU, verificar que no exista
+    if producto.get("sku_interno"):
+        existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}")
+        if existente:
+            # Generar nuevo SKU
+            num = obtener_consecutivo("productos")
+            categoria = producto.get("categoria", "tacones")
+            proveedor = producto.get("proveedor", "M")
+            cat_prefijos = {
+                "tacones": "TAC", "sandalias": "SAN", "botas": "BOT",
+                "botines": "BTN", "flats": "FLT", "plataformas": "PLT",
+                "tenis": "TEN", "nina": "NIN", "accesorios": "ACC"
+            }
+            prefix = cat_prefijos.get(categoria, "MAY")
+            prov = proveedor[0].upper() if proveedor else "M"
+            producto["sku_interno"] = f"{prov}-{prefix}-{str(num).zfill(4)}"
     return supabase_post("productos", producto)
 
 @router.patch("/{id}")
