@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from database import supabase_get, supabase_post
+from database import supabase_get, supabase_post, supabase_patch
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
 
@@ -48,3 +48,8 @@ def crear_variante(variante: dict):
             variante["sku"] = f"{sku_base}-{cod_color}-{cod_talla}"
     
     return supabase_post("variantes", variante)
+    from database import supabase_get, supabase_post, supabase_patch
+
+@router.patch("/{variante_id}")
+def actualizar_variante(variante_id: str, variante: dict):
+    return supabase_patch(f"variantes?id=eq.{variante_id}", variante)

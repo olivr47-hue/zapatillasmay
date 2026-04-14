@@ -891,7 +891,10 @@ function renderVariante(i, datos) {
 }
 
 window.mostrarFormProducto = (datos) => {
-  varianteCount = 1
+  if (!datos) window._coloresExistentes = null
+  varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0 
+  ? window._coloresExistentes.length 
+  : 1
   const d = datos || {}
   const content = document.getElementById('content')
   content.innerHTML = `
@@ -1034,7 +1037,12 @@ window.mostrarFormProducto = (datos) => {
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
         <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
-        <div id="variantes-container">${renderVariante(0, null)}</div>
+        ${d && d.foto_url ? `<img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd;margin-top:8px">` : ''}
+        <div id="variantes-container">
+  ${window._coloresExistentes && window._coloresExistentes.length > 0
+    ? window._coloresExistentes.map((c, i) => renderVariante(i, c)).join('')
+    : renderVariante(0, null)}
+        </div>
         <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
       </div>
 
@@ -1079,11 +1087,12 @@ window.mostrarFormProducto = (datos) => {
 
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
         <button type="button" class="btn btn-secondary" onclick="navegarA('productos')">Cancelar</button>
+        <input type="hidden" id="f-producto-id" value="${d.id || ''}">
         <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">Guardar producto</button>
       </div>
     </div>
   `
-  window._productoEditandoId = null
+
   fetch(API + '/sucursales/').then(r => r.json()).then(sucursales => {
     const sel = document.getElementById('f-sucursal-stock')
     if (sel) sel.innerHTML = sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')
@@ -1229,7 +1238,10 @@ async function subirImagenesVariantes() {
     const hex = document.getElementById('v' + id + '-hex')
     const nombre = document.getElementById('v' + id + '-nombre')
     const inputImgs = document.getElementById('v' + id + '-imgs')
-    if (!nombre || !nombre.value) continue
+    if (!nombre || !nombre.value) {
+  // Si no hay nombre pero hay fotos, subir igual con color "Sin nombre"
+  if (!inputImgs || inputImgs.files.length === 0) continue
+}
     const urls = []
     if (inputImgs && inputImgs.files.length > 0) {
       for (const file of inputImgs.files) {
@@ -1242,12 +1254,19 @@ async function subirImagenesVariantes() {
         } catch(e) {}
       }
     }
-    resultado.push({ color: nombre.value, color_hex: hex ? hex.value : '#000000', imagenes: urls })
+    resultado.push({ 
+  color: nombre && nombre.value ? nombre.value : 'Sin color', 
+  color_hex: hex ? hex.value : '#000000', 
+  imagenes: urls 
+})
   }
   return resultado
 }
 
 window.guardarProducto = async () => {
+  // Leer ID del campo oculto
+  const idOculto = document.getElementById('f-producto-id') ? document.getElementById('f-producto-id').value : ''
+  if (idOculto) window._productoEditandoId = idOculto
   const nombre = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
   const costo = document.getElementById('f-costo') ? document.getElementById('f-costo').value : ''
   const precio_menudeo = document.getElementById('f-menudeo') ? document.getElementById('f-menudeo').value : ''
@@ -1301,6 +1320,7 @@ window.guardarProducto = async () => {
   }
 
   try {
+    console.log('Editando ID:', window._productoEditandoId)
     const method = window._productoEditandoId ? 'PATCH' : 'POST'
     const url = window._productoEditandoId ? API + '/productos/' + window._productoEditandoId : API + '/productos/'
     const res = await fetch(url, {
@@ -1314,17 +1334,40 @@ window.guardarProducto = async () => {
       const pid = window._productoEditandoId || (prod && prod.length > 0 ? prod[0].id : null)
 
       if (pid && variantesData.length > 0) {
-        const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
-        for (const v of variantesData) {
-          for (const talla of tallasGuardar) {
-            await fetch(API + '/variantes/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null })
-            })
-          }
-        }
+  const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
+  
+  // Si estamos editando, obtener variantes existentes
+  let varsExistentes = []
+  if (window._productoEditandoId) {
+    const resVars = await fetch(API + '/variantes/producto/' + pid)
+    varsExistentes = await resVars.json()
+  }
+
+  for (const v of variantesData) {
+    for (const talla of tallasGuardar) {
+      // Buscar si ya existe esta variante
+      const varExistente = varsExistentes.find(ve => ve.color === v.color && ve.talla === talla)
+      
+      if (varExistente) {
+        // Actualizar solo si hay nueva foto
+        const update = { color_hex: v.color_hex }
+        if (v.imagenes.length > 0) update.foto_url = v.imagenes[0]
+        await fetch(API + '/variantes/' + varExistente.id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(update)
+        })
+      } else {
+        // Crear nueva variante
+        await fetch(API + '/variantes/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null })
+        })
       }
+    }
+  }
+}
 
       const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
       if (sucursalStock && pid && variantesData.length > 0) {
@@ -1370,7 +1413,20 @@ window.editarProducto = async (id) => {
     const res = await fetch(API + '/productos/' + id)
     const data = await res.json()
     if (data && data.length > 0) {
+      // Cargar variantes existentes
+      const resV = await fetch(API + '/variantes/producto/' + id)
+      const variantes = await resV.json()
+      // Obtener colores únicos
+      const coloresUnicos = []
+      const vistos = new Set()
+      variantes.forEach(v => {
+        if (!vistos.has(v.color)) {
+          vistos.add(v.color)
+          coloresUnicos.push({ color: v.color, color_hex: v.color_hex, foto_url: v.foto_url })
+        }
+      })
       window._productoEditandoId = id
+      window._coloresExistentes = coloresUnicos
       mostrarFormProducto(data[0])
     }
   } catch(e) {
