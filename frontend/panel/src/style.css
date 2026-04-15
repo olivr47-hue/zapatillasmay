@@ -842,3 +842,60 @@ html, body {
     border-radius: 8px !important;
   }
 }
+/* ─── FIXES MÓVIL PRODUCTOS Y POS ───────────── */
+@media (max-width: 900px) {
+
+  /* Tallas disponibles con scroll horizontal */
+  .talla-label {
+    flex-shrink: 0;
+  }
+  
+  div[style*="flex-wrap:wrap"] {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal POS scroll sin que botones tapen tallas */
+  #pos-modal > div {
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 95vh !important;
+    overflow: hidden !important;
+  }
+
+  #pos-tallas-panel {
+    overflow-y: auto !important;
+    flex: 1 !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Botones de confirmar fijos abajo en modal POS */
+  #pos-modal > div > div:last-child {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: white !important;
+    padding: 12px 16px !important;
+    border-top: 1px solid #eee !important;
+    z-index: 10 !important;
+  }
+
+  /* Botón corrida más grande en móvil */
+  button[onclick*="mostrarCorridaModalPOS"] {
+    padding: 14px !important;
+    font-size: 1rem !important;
+    min-height: 50px !important;
+  }
+
+  /* Tabla stock inicial con scroll */
+  #stock-inicial-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Tallas en editor de producto scroll horizontal */
+  .talla-label {
+    white-space: nowrap;
+  }
+}

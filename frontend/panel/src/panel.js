@@ -1172,14 +1172,14 @@ if (!datos) window._coloresExistentes = null
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:1rem;color:#333">Tallas disponibles</p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${TALLAS.map(t => `
-            <label class="talla-label" style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:6px;cursor:pointer;border:2px solid ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#E91E8C' : 'transparent'};background:${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#fce4f3' : '#f5f5f5'}">
-              <input type="checkbox" value="${t}" style="display:none" onchange="toggleTalla(this)" ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? 'checked' : ''}>
-              <span>${t}</span>
-            </label>
-          `).join('')}
-        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px">
+  ${TALLAS.map(t => `
+    <label class="talla-label" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 8px;border-radius:6px;cursor:pointer;border:2px solid ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#E91E8C' : 'transparent'};background:${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? '#fce4f3' : '#f5f5f5'}">
+      <input type="checkbox" value="${t}" style="display:none" onchange="toggleTalla(this)" ${d.tallas_disponibles && d.tallas_disponibles.includes(t) ? 'checked' : ''}>
+      <span>${t}</span>
+    </label>
+  `).join('')}
+</div>
       </div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
@@ -1382,48 +1382,33 @@ window.actualizarTablaStock = () => {
     contenedor.innerHTML = '<p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>'
     return
   }
-  contenedor.innerHTML = `
-    <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%">
-        <thead>
-          <tr>
-            <th style="padding:8px 12px;text-align:left;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Color</th>
-             <th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Total</th>
-            ${tallas.map(t => `<th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">${t}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${colores.map(c => `
-  <tr>
-    <td style="padding:8px 12px;border-bottom:1px solid #f5f5f5">
-      <div style="display:flex;align-items:center;gap:8px">
+
+  contenedor.innerHTML = colores.map(c => `
+    <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">
         <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
-        <span style="font-size:0.85rem;font-weight:500">${c.nombre}</span>
+        <span style="font-size:0.9rem;font-weight:600">${c.nombre}</span>
+        <span style="margin-left:auto;font-size:0.82rem;color:#E91E8C;font-weight:700">Total: <span id="total-color-${c.id}">0</span> pares</span>
       </div>
-    </td>
-    <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
-      <span id="total-color-${c.id}" style="font-weight:700;color:#E91E8C;font-size:0.9rem">0</span>
-    </td>
-    ${tallas.map(t => `
-      <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
-        <div style="display:flex;align-items:center;gap:4px">
-          <button type="button" onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
-                  style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation">−</button>
-          <input type="number" min="0" placeholder="0"
-                 id="stock-ini-${c.id}-${t.replace('.','_')}"
-                 oninput="actualizarTotalColor('${c.id}')"
-                 style="width:50px;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700">
-          <button type="button" onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
-                  style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation">+</button>
-        </div>
-      </td>
-    `).join('')}
-  </tr>
-`).join('')}
-        </tbody>
-      </table>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+        ${tallas.map(t => `
+          <div style="display:flex;align-items:center;gap:6px;background:white;padding:6px 8px;border-radius:8px;border:1px solid #eee">
+            <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:32px">T${t}</span>
+            <button type="button"
+                    onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
+                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">−</button>
+            <input type="number" min="0" placeholder="0"
+                   id="stock-ini-${c.id}-${t.replace('.','_')}"
+                   oninput="actualizarTotalColor('${c.id}')"
+                   style="flex:1;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700;min-width:0">
+            <button type="button"
+                    onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
+                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">+</button>
+          </div>
+        `).join('')}
+      </div>
     </div>
-  `
+  `).join('')
 }
 window.actualizarTotalColor = (colorId) => {
   const inputs = document.querySelectorAll('[id^="stock-ini-' + colorId + '-"]')
@@ -1607,7 +1592,10 @@ if (v.imagenes.length > 0) {
     }
   }
 }
-
+console.log('Colores:', colores)
+console.log('Tallas:', tallas)
+console.log('Sucursal stock:', document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : 'no encontrado')
+console.log('PID editando:', window._productoEditandoId)
 const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
 if (sucursalStock && pid) {
   const varRes = await fetch(API + '/variantes/producto/' + pid)
@@ -1987,8 +1975,8 @@ window.verCliente = async (id) => {
         ` : ''}
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="alert('Modulo de pedidos proximamente')">+ Nuevo pedido</button>
-          <button class="btn btn-secondary" onclick="alert('Historial proximamente')">Ver historial</button>
+          <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
+          <button class="btn btn-secondary" onclick="verHistorialCliente('${c.id}')">Ver historial</button>
         </div>
       </div>
     `
@@ -1998,6 +1986,100 @@ window.verCliente = async (id) => {
 }
 window.editarCliente = (id) => {
   mostrarFormCliente(id)
+}
+window.nuevoPedidoCliente = async (clienteId, clienteNombre) => {
+  await cargarPOS()
+  // Pre-seleccionar cliente en el buscador
+  setTimeout(() => {
+    const buscar = document.getElementById('pos-cliente-buscar')
+    const hidden = document.getElementById('pos-cliente')
+    const sel = document.getElementById('pos-cliente-seleccionado')
+    if (buscar) buscar.value = ''
+    if (hidden) hidden.value = clienteId
+    if (sel) {
+      sel.textContent = '✔ ' + clienteNombre + ' — toca para cambiar'
+      sel.style.display = 'block'
+    }
+    // Actualizar titulo
+    const titulo = document.getElementById('topbar-title')
+    if (titulo) titulo.textContent = 'Punto de venta'
+  }, 300)
+}
+window.verHistorialCliente = async (clienteId) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
+  try {
+    const res = await fetch(API + '/pedidos/')
+    const todos = await res.json()
+    const pedidos = todos.filter(p => p.cliente_id === clienteId)
+    const cliente = pedidos.length > 0 && pedidos[0].clientes ? pedidos[0].clientes : {}
+
+    const totalGastado = pedidos
+      .filter(p => p.status === 'confirmado' || p.status === 'pagado')
+      .reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
+
+    content.innerHTML = `
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+          <h3 style="flex:1">Historial — ${cliente.nombre || 'Cliente'}</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total pedidos</p>
+            <p style="font-weight:700;font-size:1.2rem">${pedidos.length}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total gastado</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${totalGastado.toFixed(2)}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Ultimo pedido</p>
+            <p style="font-weight:700;font-size:0.9rem">${pedidos.length > 0 ? new Date(pedidos[0].created_at).toLocaleDateString('es-MX') : '—'}</p>
+          </div>
+        </div>
+
+        ${pedidos.length === 0
+          ? '<div style="text-align:center;padding:3rem;color:#888">Este cliente no tiene pedidos registrados</div>'
+          : `<table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Canal</th>
+                <th>Forma de pago</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${pedidos.map(p => {
+                const statusColor = {
+                  'confirmado': 'badge-success',
+                  'pagado': 'badge-success',
+                  'pendiente_pago': 'badge-warning',
+                  'cancelado': 'badge-danger',
+                  'borrador': 'badge-warning'
+                }[p.status] || 'badge-warning'
+                return `
+                  <tr>
+                    <td>${new Date(p.created_at).toLocaleDateString('es-MX')}</td>
+                    <td>${p.canal || '—'}</td>
+                    <td>${p.forma_pago || '—'}</td>
+                    <td><strong style="color:#E91E8C">$${p.total || '0'}</strong></td>
+                    <td><span class="badge ${statusColor}">${p.status}</span></td>
+                    <td><button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver pedido</button></td>
+                  </tr>
+                `
+              }).join('')}
+            </tbody>
+          </table>`}
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando historial</p>'
+  }
 }
 window.mostrarEntrada = async () => {
   const resSucursales = await fetch(API + '/sucursales/')
@@ -2977,14 +3059,50 @@ window.verPedido = async (id) => {
         ` : ''}
 
         <div style="display:flex;gap:1rem;flex-wrap:wrap">
-          ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? '<button class="btn btn-primary" onclick="confirmarPedidoAdmin(\'' + p.id + '\')">Confirmar pedido</button>' : ''}
-          <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>
-          <button class="btn btn-secondary" onclick="imprimirTicketPOS('${p.id}',${p.total},${p.pedido_items ? p.pedido_items.reduce((s,i)=>s+i.cantidad,0) : 0},'${p.forma_pago||'efectivo'}')">Reimprimir ticket</button>
-               </div>
-      </div>
+  ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? `<button class="btn btn-primary" onclick="confirmarPedidoAdmin('${p.id}')">Confirmar pedido</button>` : ''}
+  ${p.status === 'cancelado' ? `<button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="reconfirmarPedido('${p.id}')">✅ Reconfirmar pedido</button>` : ''}
+  ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="cancelarPedido('${p.id}')">❌ Cancelar pedido</button>` : ''}
+  <button class="btn btn-secondary" onclick="generarPDFPedido('${p.id}')">Generar PDF</button>
+  <button class="btn btn-secondary" onclick="imprimirTicketPOS('${p.id}',${p.total},${p.pedido_items ? p.pedido_items.reduce((s,i)=>s+i.cantidad,0) : 0},'${p.forma_pago||'efectivo'}')">Reimprimir ticket</button>
+</div>
     `
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando pedido</p>'
+  }
+}
+window.cancelarPedido = async (id) => {
+  if (!confirm('¿Cancelar este pedido? Si ya estaba confirmado se devolverá el stock automáticamente.')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/cancelar', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      alert(data.stock_devuelto ? 'Pedido cancelado. Stock devuelto al inventario.' : 'Pedido cancelado.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
+window.reconfirmarPedido = async (id) => {
+  if (!confirm('¿Reconfirmar este pedido? Se descontará el stock del inventario nuevamente.')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + id + '/reconfirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Pedido reconfirmado correctamente.')
+      verPedido(id)
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
   }
 }
 
@@ -3349,7 +3467,7 @@ window.abrirProductoPOS = (productoId) => {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column">
+    <div style="background:white;border-radius:16px;max-width:640px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
       
       <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px">
         ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : ''}
@@ -3385,14 +3503,14 @@ window.abrirProductoPOS = (productoId) => {
         </div>
       </div>
 
-      <div id="pos-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;min-height:80px">
+      <div id="pos-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;min-height:80px;overflow-y:auto;flex:1">
         <p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
       </div>
 
       <div id="pos-modal-resumen" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:none">
       </div>
 
-      <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px">
+      <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #eee">
   ${producto.corrida_activa ? `
     <button onclick="mostrarCorridaModalPOS('${productoId}')"
             class="btn btn-secondary"
@@ -3470,16 +3588,22 @@ window.mostrarCorridaModalPOS = (productoId) => {
       </div>
     `
   }).join('')}
-  <button onclick="confirmarModalPOS('${productoId}')"
-          class="btn btn-primary"
-          style="width:100%;padding:14px;font-size:1rem;margin-top:8px;background:#6a1b9a;border-color:#6a1b9a">
-    ✅ Agregar corrida al carrito
-  </button>
   `
 
-  // Ocultar el botón de confirmar normal para que no haya confusión
+  // Ocultar botón confirmar normal y poner botón de corrida abajo
   const btnConfirmar = document.getElementById('pos-btn-confirmar')
   if (btnConfirmar) btnConfirmar.style.display = 'none'
+
+  const btnDiv = document.querySelector('#pos-modal > div > div:last-child')
+  if (btnDiv) {
+    btnDiv.innerHTML = `
+      <button onclick="confirmarModalPOS('${productoId}')"
+              class="btn btn-primary"
+              style="width:100%;padding:16px;font-size:1.1rem;background:#6a1b9a;border-color:#6a1b9a;min-height:54px">
+        ✅ Agregar corrida al carrito
+      </button>
+    `
+  }
 }
 
 window.seleccionarColorModalPOS = (productoId, color) => {
@@ -4327,6 +4451,13 @@ window.limpiarCarritoPOS = () => {
 
 window.cobrarPOS = async () => {
   if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
+  // Evitar doble click
+  const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
+  if (btnCobrar) {
+    if (btnCobrar.disabled) return
+    btnCobrar.disabled = true
+    btnCobrar.textContent = 'Procesando...'
+  }
 
   const clienteId = document.getElementById('pos-cliente').value || null
   const sucursalId = document.getElementById('pos-sucursal').value
@@ -4383,6 +4514,8 @@ window.cobrarPOS = async () => {
 
   } catch(e) {
     alert('Error procesando la venta')
+    const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
+    if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
   }
 }
 window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
