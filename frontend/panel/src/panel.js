@@ -2599,6 +2599,10 @@ async function cargarPedidos() {
     const data = await res.json()
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <input class="form-input" id="ped-buscar" placeholder="🔍 Buscar por # pedido o cliente..." 
+         style="max-width:280px" oninput="filtrarPedidos()">
+  <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
         <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
@@ -2611,6 +2615,7 @@ async function cargarPedidos() {
         <table>
           <thead>
             <tr>
+              <th># Pedido</th>
               <th>Cliente</th>
               <th>Canal</th>
               <th>Total</th>
@@ -2633,6 +2638,7 @@ async function cargarPedidos() {
                 }[p.status] || 'badge-warning'
                 return `
                   <tr>
+                    <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
                     <td><strong>${p.clientes ? p.clientes.nombre : 'Sin cliente'}</strong></td>
                     <td>${p.canal || '—'}</td>
                     <td><strong>$${p.total || '0'}</strong></td>
@@ -2653,6 +2659,14 @@ async function cargarPedidos() {
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
+}
+window.filtrarPedidos = () => {
+  const buscar = document.getElementById('ped-buscar').value.toLowerCase()
+  const filas = document.querySelectorAll('#content tbody tr')
+  filas.forEach(fila => {
+    const texto = fila.textContent.toLowerCase()
+    fila.style.display = texto.includes(buscar) ? '' : 'none'
+  })
 }
 
 window.cargarPedidosFiltro = async (filtro) => {
@@ -4565,6 +4579,10 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         <p style="font-size:10px">Tel: 477 247 2285</p>
       </div>
       <div class="divider"></div>
+      <div class="row">
+      <span>Pedido:</span>
+        <span>#${pedidoId.substring(0,8).toUpperCase()}</span>
+      </div>
       <div class="row">
         <span>Fecha:</span>
         <span>${fecha}</span>
