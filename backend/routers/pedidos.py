@@ -80,7 +80,7 @@ def confirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
-                    supabase_post("movimientos_inventario", {
+                    supabase_post("movimientos", {
                         "tipo": "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
@@ -95,16 +95,13 @@ def confirmar_pedido(id: str, datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-        @router.post("/{id}/cancelar")
+@router.post("/{id}/cancelar")
 def cancelar_pedido(id: str):
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
-        
         status_actual = pedido[0].get("status")
-        
-        # Si estaba confirmado, devolver stock
         if status_actual in ["confirmado", "pagado"]:
             items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
             sucursal_id = pedido[0].get("sucursal_id")
@@ -119,14 +116,13 @@ def cancelar_pedido(id: str):
                             f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                             {"cantidad": nueva_cantidad}
                         )
-                        supabase_post("movimientos_inventario", {
+                        supabase_post("movimientos", {
                             "tipo": "ajuste",
                             "variante_id": variante_id,
                             "sucursal_id": sucursal_id,
                             "cantidad": cantidad,
                             "motivo": f"Cancelacion pedido {id}"
                         })
-
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
         return {"ok": True, "stock_devuelto": status_actual in ["confirmado", "pagado"]}
     except Exception as e:
@@ -138,13 +134,10 @@ def reconfirmar_pedido(id: str, datos: dict):
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
-        
         if pedido[0].get("status") != "cancelado":
             return JSONResponse(status_code=400, content={"error": "Solo se pueden reconfirmar pedidos cancelados"})
-
         items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
         sucursal_id = pedido[0].get("sucursal_id")
-        
         for item in items:
             variante_id = item.get("variante_id")
             cantidad = item.get("cantidad", 1)
@@ -156,14 +149,13 @@ def reconfirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
-                    supabase_post("movimientos_inventario", {
+                    supabase_post("movimientos", {
                         "tipo": "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
                         "cantidad": -cantidad,
                         "motivo": f"Reconfirmacion pedido {id}"
                     })
-
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
             "forma_pago": datos.get("forma_pago", pedido[0].get("forma_pago", "efectivo"))
