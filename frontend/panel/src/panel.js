@@ -856,11 +856,29 @@ window.seleccionarVariante = (id, texto, prefijo) => {
 
 function renderVariante(i, datos) {
   const d = datos || {}
+  
+  let fotosHTML = ''
+  if (d.imagenes && d.imagenes.length > 0) {
+    fotosHTML = d.imagenes.map((url, fIdx) => {
+      const esPortada = fIdx === 0
+      return '<div style="position:relative;cursor:pointer" data-es-portada="' + esPortada + '" data-file-idx="' + fIdx + '" data-url="' + url + '">' +
+  '<img src="' + url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ' + (esPortada ? '#E91E8C' : '#ddd') + '" onclick="seleccionarPortadaExistente(' + i + ', ' + fIdx + ')">' +
+  (esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' : '') +
+  '<button onclick="eliminarFotoExistente(' + i + ', this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>' +
+  '</div>'
+    }).join('')
+  } else if (d.foto_url) {
+    fotosHTML = '<div style="position:relative" data-es-portada="true">' +
+      '<img src="' + d.foto_url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #E91E8C">' +
+      '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' +
+      '</div>'
+  }
+
   return `
     <div class="variante-item" id="variante-${i}" style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
         <p style="font-weight:500;color:#333;font-size:0.9rem">Color ${i + 1}</p>
-        ${i > 0 ? '<button type="button" onclick="this.closest(\'.variante-item\').remove();actualizarTablaStock()" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar</button>' : ''}
+        ${i > 0 ? '<button type="button" onclick="eliminarColorVariante(' + i + ', this)" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar color</button>' : ''}
       </div>
       <div style="margin-bottom:0.75rem">
         <label class="form-label">Paleta de colores</label>
@@ -883,27 +901,81 @@ function renderVariante(i, datos) {
           <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
           <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
           <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
-          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-  ${d.imagenes && d.imagenes.length > 0 
-  ? d.imagenes.map((url, fIdx) => `
-    <div style="position:relative;cursor:pointer" data-es-portada="${fIdx === 0 ? 'true' : 'false'}" data-file-idx="${fIdx}">
-      <img src="${url}" 
-           style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ${fIdx === 0 ? '#E91E8C' : '#ddd'}"
-           onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
-      ${fIdx === 0 ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' : ''}
-    </div>
-  `).join('')
-  : d.foto_url ? `
-    <div style="position:relative" data-es-portada="true">
-      <img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #E91E8C">
-      <span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>
-    </div>
-  ` : ''}
-</div>
+          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHTML}</div>
         </div>
       </div>
     </div>
   `
+}
+window.eliminarColorVariante = async (idx, btn) => {
+  const nombreInput = document.getElementById('v' + idx + '-nombre')
+  const color = nombreInput ? nombreInput.value : null
+
+  if (color && window._productoEditandoId && window._coloresExistentes) {
+    if (!confirm('Eliminar el color ' + color + ' y todas sus variantes?')) return
+
+    // Eliminar variantes de este color en la base de datos
+    try {
+      const resVars = await fetch(API + '/variantes/producto/' + window._productoEditandoId)
+      const variantes = await resVars.json()
+      const varsColor = variantes.filter(v => v.color === color)
+      
+      for (const v of varsColor) {
+        await fetch(API + '/variantes/' + v.id, { method: 'DELETE' })
+      }
+
+      // Quitar de coloresExistentes
+      window._coloresExistentes = window._coloresExistentes.filter(c => c.color !== color)
+      
+      alert('Color eliminado correctamente')
+    } catch(e) {
+      alert('Error eliminando el color')
+      return
+    }
+  }
+
+  // Quitar del DOM
+  btn.closest('.variante-item').remove()
+  actualizarTablaStock()
+}
+window.eliminarFotoExistente = (idx, btn) => {
+  const div = btn.parentElement
+  const url = div.dataset.url
+  const preview = document.getElementById('v' + idx + '-preview')
+  
+  // Quitar del DOM
+  div.remove()
+
+  // Quitar del coloresExistentes
+  const nombreInput = document.getElementById('v' + idx + '-nombre')
+  if (nombreInput && window._coloresExistentes) {
+    const color = nombreInput.value
+    const colorExistente = window._coloresExistentes.find(c => c.color === color)
+    if (colorExistente) {
+      if (colorExistente.imagenes) {
+        colorExistente.imagenes = colorExistente.imagenes.filter(u => u !== url)
+      }
+      if (colorExistente.foto_url === url) {
+        colorExistente.foto_url = colorExistente.imagenes && colorExistente.imagenes.length > 0 
+          ? colorExistente.imagenes[0] 
+          : null
+      }
+    }
+  }
+
+  // Si era portada, hacer portada la siguiente
+  if (div.dataset.esPortada === 'true' && preview) {
+    const siguiente = preview.querySelector('div[data-url]')
+    if (siguiente) {
+      siguiente.dataset.esPortada = 'true'
+      siguiente.querySelector('img').style.border = '2px solid #E91E8C'
+      const badge = document.createElement('span')
+      badge.className = 'portada-badge'
+      badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
+      badge.textContent = 'PORTADA'
+      siguiente.appendChild(badge)
+    }
+  }
 }
 window.seleccionarPortadaExistente = (idx, fotoIdx) => {
   const preview = document.getElementById('v' + idx + '-preview')
@@ -1075,11 +1147,26 @@ if (!datos) window._coloresExistentes = null
         <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
         <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
         ${d && d.foto_url ? `<img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd;margin-top:8px">` : ''}
-        <div id="variantes-container">
-       ${window._coloresExistentes && window._coloresExistentes.length > 0
+        ${window._coloresExistentes && window._coloresExistentes.length > 1 ? `
+  <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7">
+    <p style="font-size:0.8rem;font-weight:600;color:#2e7d32;margin-bottom:8px">🖼️ Color portada (aparece primero en la tienda)</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${window._coloresExistentes.map((c, i) => `
+        <div onclick="seleccionarColorPortada(${i})" id="portada-color-${i}"
+             style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:2px solid ${i === 0 ? '#2e7d32' : '#ddd'};cursor:pointer;background:${i === 0 ? '#e8f5e9' : 'white'}">
+          <div style="width:16px;height:16px;border-radius:50%;background:${c.color_hex};border:1px solid #ddd;flex-shrink:0"></div>
+          <span style="font-size:0.82rem;font-weight:500">${c.color}</span>
+          ${i === 0 ? '<span style="font-size:0.68rem;color:#2e7d32;font-weight:700">✓ PORTADA</span>' : ''}
+        </div>
+      `).join('')}
+    </div>
+  </div>
+` : ''}
+<div id="variantes-container">
+  ${window._coloresExistentes && window._coloresExistentes.length > 0
     ? window._coloresExistentes.map((c, i) => renderVariante(i, c)).join('')
     : renderVariante(0, null)}
-      </div>
+</div>
         <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
       </div>
 
@@ -1096,8 +1183,8 @@ if (!datos) window._coloresExistentes = null
       </div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Stock inicial</p>
-        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Captura cuantos pares tienes disponibles. Se asignaran a la sucursal seleccionada.</p>
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">${d.id ? 'Agregar resurtido' : 'Stock inicial'}</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">${d.id ? 'Los pares que captures aquí se suman al inventario actual como entrada de mercancía.' : 'Captura cuantos pares tienes disponibles. Se asignarán a la sucursal seleccionada.'}</p>
         <div style="margin-bottom:1rem">
           <label class="form-label">Asignar a sucursal</label>
           <select class="form-input" id="f-sucursal-stock" style="max-width:280px">
@@ -1133,7 +1220,33 @@ if (!datos) window._coloresExistentes = null
   fetch(API + '/sucursales/').then(r => r.json()).then(sucursales => {
     const sel = document.getElementById('f-sucursal-stock')
     if (sel) sel.innerHTML = sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')
+      setTimeout(() => actualizarTablaStock(), 100)
   })
+}
+window.seleccionarColorPortada = (idx) => {
+  if (!window._coloresExistentes) return
+  // Mover el color seleccionado al inicio
+  const color = window._coloresExistentes.splice(idx, 1)[0]
+  window._coloresExistentes.unshift(color)
+
+  // Actualizar UI de botones portada
+  document.querySelectorAll('[id^="portada-color-"]').forEach((el, i) => {
+    const esPortada = i === 0
+    el.style.borderColor = esPortada ? '#2e7d32' : '#ddd'
+    el.style.background = esPortada ? '#e8f5e9' : 'white'
+    el.innerHTML = `
+      <div style="width:16px;height:16px;border-radius:50%;background:${window._coloresExistentes[i].color_hex};border:1px solid #ddd;flex-shrink:0"></div>
+      <span style="font-size:0.82rem;font-weight:500">${window._coloresExistentes[i].color}</span>
+      ${esPortada ? '<span style="font-size:0.68rem;color:#2e7d32;font-weight:700">✓ PORTADA</span>' : ''}
+    `
+    el.setAttribute('onclick', 'seleccionarColorPortada(' + i + ')')
+  })
+
+  // Re-renderizar variantes en nuevo orden
+  const container = document.getElementById('variantes-container')
+  if (container) {
+    container.innerHTML = window._coloresExistentes.map((c, i) => renderVariante(i, c)).join('')
+  }
 }
 
 window.actualizarSKU = async () => {
@@ -1275,31 +1388,49 @@ window.actualizarTablaStock = () => {
         <thead>
           <tr>
             <th style="padding:8px 12px;text-align:left;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Color</th>
+             <th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">Total</th>
             ${tallas.map(t => `<th style="padding:8px 12px;text-align:center;font-size:0.75rem;color:#888;border-bottom:1px solid #eee">${t}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${colores.map(c => `
-            <tr>
-              <td style="padding:8px 12px;border-bottom:1px solid #f5f5f5">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
-                  <span style="font-size:0.85rem;font-weight:500">${c.nombre}</span>
-                </div>
-              </td>
-              ${tallas.map(t => `
-                <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
-                  <input type="number" min="0" placeholder="0"
-                         id="stock-ini-${c.id}-${t.replace('.','_')}"
-                         style="width:55px;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
-                </td>
-              `).join('')}
-            </tr>
-          `).join('')}
+  <tr>
+    <td style="padding:8px 12px;border-bottom:1px solid #f5f5f5">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
+        <span style="font-size:0.85rem;font-weight:500">${c.nombre}</span>
+      </div>
+    </td>
+    <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
+      <span id="total-color-${c.id}" style="font-weight:700;color:#E91E8C;font-size:0.9rem">0</span>
+    </td>
+    ${tallas.map(t => `
+      <td style="padding:6px;border-bottom:1px solid #f5f5f5;text-align:center">
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
+                  style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation">−</button>
+          <input type="number" min="0" placeholder="0"
+                 id="stock-ini-${c.id}-${t.replace('.','_')}"
+                 oninput="actualizarTotalColor('${c.id}')"
+                 style="width:50px;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700">
+          <button type="button" onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
+                  style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation">+</button>
+        </div>
+      </td>
+    `).join('')}
+  </tr>
+`).join('')}
         </tbody>
       </table>
     </div>
   `
+}
+window.actualizarTotalColor = (colorId) => {
+  const inputs = document.querySelectorAll('[id^="stock-ini-' + colorId + '-"]')
+  let total = 0
+  inputs.forEach(input => total += parseInt(input.value) || 0)
+  const totalEl = document.getElementById('total-color-' + colorId)
+  if (totalEl) totalEl.textContent = total
 }
 
 async function subirImagenesVariantes() {
@@ -1380,6 +1511,13 @@ window.guardarProducto = async () => {
 
   const tallas = [...document.querySelectorAll('.talla-label input:checked')].map(i => i.value)
   const variantesData = await subirImagenesVariantes()
+const colores = []
+document.querySelectorAll('.variante-item').forEach(v => {
+  const id = v.id.replace('variante-', '')
+  const nombre = document.getElementById('v' + id + '-nombre')
+  const hex = document.getElementById('v' + id + '-hex')
+  if (nombre && nombre.value) colores.push({ id, nombre: nombre.value, hex: hex ? hex.value : '#000' })
+})
   const pesoKilos = document.getElementById('f-peso') ? document.getElementById('f-peso').value : ''
   const pesoGramos = pesoKilos ? Math.round(parseFloat(pesoKilos) * 1000) : null
 
@@ -1470,31 +1608,45 @@ if (v.imagenes.length > 0) {
   }
 }
 
-      const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
-      if (sucursalStock && pid && variantesData.length > 0) {
-        const varRes = await fetch(API + '/variantes/producto/' + pid)
-        const varsGuardadas = await varRes.json()
-        const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
-        for (const v of variantesData) {
-          for (const talla of tallasGuardar) {
-            const tallaId = talla.replace('.', '_')
-            const varIdx = variantesData.indexOf(v)
-            const inputStock = document.getElementById('stock-ini-' + varIdx + '-' + tallaId)
-            const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
-            if (cantidad > 0) {
-              const varMatch = varsGuardadas.find(vr => vr.color === v.color && vr.talla === talla)
-              if (varMatch) {
-                await fetch(API + '/inventario/', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 3 })
-                })
-              }
-            }
-          }
+const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
+if (sucursalStock && pid) {
+  const varRes = await fetch(API + '/variantes/producto/' + pid)
+  const varsGuardadas = await varRes.json()
+  const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
+
+  for (const c of colores) {
+    for (const t of tallasGuardar) {
+      const tallaId = t.replace('.', '_')
+      const inputStock = document.getElementById('stock-ini-' + c.id + '-' + tallaId)
+      const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
+      if (cantidad <= 0) continue
+
+      const varMatch = varsGuardadas.find(vr => vr.color === c.nombre && vr.talla === t)
+      if (varMatch) {
+        if (window._productoEditandoId) {
+          // Editar — sumar al stock existente como entrada
+          await fetch(API + '/movimientos/entrada', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              variante_id: varMatch.id,
+              sucursal_id: sucursalStock,
+              cantidad,
+              motivo: 'Resurtido desde edicion de producto'
+            })
+          })
+        } else {
+          // Nuevo producto — crear stock inicial
+          await fetch(API + '/inventario/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 3 })
+          })
         }
       }
-
+    }
+  }
+}
       alert('Producto guardado correctamente')
       window._productoEditandoId = null
       navegarA('productos')
@@ -1536,7 +1688,7 @@ window.editarProducto = async (id) => {
           coloresUnicos.push({
             color: v.color,
             color_hex: v.color_hex,
-            foto_url: v.foto_url
+            foto_url: v.foto_url,
             imagenes: v.imagenes || []
           })
         }
@@ -3200,7 +3352,7 @@ window.abrirProductoPOS = (productoId) => {
     <div style="background:white;border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column">
       
       <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px">
-        ${producto.imagen_principal ? `<img src="${producto.imagen_principal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : ''}
+        ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : ''}
         <div style="flex:1">
           <p style="font-weight:700;font-size:1rem">${producto.nombre}</p>
           <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
@@ -3336,12 +3488,10 @@ window.seleccionarColorModalPOS = (productoId, color) => {
   const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
-  // Guardar cantidades del color anterior antes de cambiar
   if (window._posSeleccion && window._posSeleccion.color) {
     guardarBufferColor(productoId, window._posSeleccion.color)
   }
 
-  // Marcar color activo
   document.querySelectorAll('[id^="pos-color-btn-"]').forEach(el => {
     el.style.borderColor = '#ddd'
     el.style.background = 'transparent'
@@ -3355,7 +3505,10 @@ window.seleccionarColorModalPOS = (productoId, color) => {
     .filter(v => v.producto_id === productoId && v.color === color)
     .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
 
-  // Recuperar cantidades guardadas del buffer
+  const fotoColor = varsColor[0] ? varsColor[0].foto_url : null
+  const modalImg = document.getElementById('pos-modal-img')
+  if (modalImg && fotoColor) modalImg.src = fotoColor
+
   const bufferColor = window._posBuffer[color] || {}
 
   const panel = document.getElementById('pos-tallas-panel')
