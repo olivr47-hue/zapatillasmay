@@ -87,8 +87,6 @@ def confirmar_pedido(id: str, datos: dict):
                         "cantidad": -cantidad,
                         "motivo": f"Venta pedido {id}"
                     })
-                    except Exception as mov_error:
-          print(f"Error registrando movimiento: {mov_error}")
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
             "forma_pago": datos.get("forma_pago", "efectivo")
