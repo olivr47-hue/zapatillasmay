@@ -4874,7 +4874,11 @@ async function cargarHistorial() {
                     <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
 <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
 <td>
-  ${m.tipo === 'venta' ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828" onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">Cancelar</button>` : ''}
+  ${m.tipo !== 'venta' && m.tipo !== 'ajuste' ? `
+  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828" 
+          onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
+    Cancelar
+  </button>` : ''}
 </td>
                   </tr>`
                 }).join('')}
