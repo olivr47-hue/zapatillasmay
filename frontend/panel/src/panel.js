@@ -884,7 +884,12 @@ function renderVariante(i, datos) {
           <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
           <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
           <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-  ${d.foto_url ? `<img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd">` : ''}
+  ${d.foto_url ? `
+    <div style="position:relative">
+      <img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #E91E8C">
+      <span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>
+    </div>
+  ` : ''}
 </div>
         </div>
       </div>
@@ -1153,16 +1158,51 @@ window.agregarVariante = () => {
 window.previsualizarImagenes = (input, idx) => {
   const preview = document.getElementById('v' + idx + '-preview')
   if (!preview) return
-  preview.innerHTML = ''
-  Array.from(input.files).forEach(file => {
+  
+  // Mantener fotos existentes
+  const existentes = preview.querySelectorAll('[data-existente]')
+  const nuevas = []
+
+  Array.from(input.files).forEach((file, fileIdx) => {
     const reader = new FileReader()
     reader.onload = (e) => {
-      const img = document.createElement('img')
-      img.src = e.target.result
-      img.style.cssText = 'width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd'
-      preview.appendChild(img)
+      const div = document.createElement('div')
+      div.style.cssText = 'position:relative;cursor:pointer'
+      div.dataset.fileIdx = fileIdx
+      div.innerHTML = `
+        <img src="${e.target.result}" 
+             style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #ddd"
+             onclick="seleccionarPortada(${idx}, this)">
+        <button onclick="this.parentElement.remove()" 
+                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+      `
+      preview.appendChild(div)
+      // Primera foto nueva es portada automáticamente si no hay portada
+      if (preview.querySelectorAll('.portada-badge').length === 0) {
+        seleccionarPortada(idx, div.querySelector('img'))
+      }
     }
     reader.readAsDataURL(file)
+  })
+}
+
+window.seleccionarPortada = (idx, imgEl) => {
+  const preview = document.getElementById('v' + idx + '-preview')
+  if (!preview) return
+  // Quitar badge de todas
+  preview.querySelectorAll('.portada-badge').forEach(b => b.remove())
+  preview.querySelectorAll('img').forEach(img => img.style.border = '2px solid #ddd')
+  // Marcar esta como portada
+  imgEl.style.border = '2px solid #E91E8C'
+  const badge = document.createElement('span')
+  badge.className = 'portada-badge'
+  badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
+  badge.textContent = 'PORTADA'
+  imgEl.parentElement.appendChild(badge)
+  // Guardar índice de portada
+  imgEl.parentElement.dataset.esPortada = 'true'
+  preview.querySelectorAll('[data-es-portada]').forEach(d => {
+    if (d !== imgEl.parentElement) delete d.dataset.esPortada
   })
 }
 
@@ -1246,20 +1286,31 @@ async function subirImagenesVariantes() {
     const hex = document.getElementById('v' + id + '-hex')
     const nombre = document.getElementById('v' + id + '-nombre')
     const inputImgs = document.getElementById('v' + id + '-imgs')
+    const preview = document.getElementById('v' + id + '-preview')
 
     if (!nombre || !nombre.value) continue
 
     const urls = []
 
-    // Primero conservar fotos existentes de este color
+    // Conservar fotos existentes
     const colorExistente = coloresExistentes.find(c => c.color === nombre.value)
     if (colorExistente && colorExistente.foto_url) {
       urls.push(colorExistente.foto_url)
     }
 
-    // Subir fotos nuevas si hay
+    // Subir fotos nuevas — portada primero
     if (inputImgs && inputImgs.files.length > 0) {
-      for (const file of inputImgs.files) {
+      const portadaDiv = preview ? preview.querySelector('[data-es-portada="true"]') : null
+      const portadaFileIdx = portadaDiv ? parseInt(portadaDiv.dataset.fileIdx) : 0
+      const files = Array.from(inputImgs.files)
+      
+      // Ordenar para que portada vaya primero
+      const ordenados = [
+        ...files.filter((_, i) => i === portadaFileIdx),
+        ...files.filter((_, i) => i !== portadaFileIdx)
+      ]
+
+      for (const file of ordenados) {
         const formData = new FormData()
         formData.append('archivo', file)
         try {
