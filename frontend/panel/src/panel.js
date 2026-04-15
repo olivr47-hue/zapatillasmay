@@ -4854,7 +4854,7 @@ async function cargarHistorial() {
         <table>
           <thead>
             <tr>
-              <th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th>
+              <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th><th>Acción</th></tr>
             </tr>
           </thead>
           <tbody id="hist-tbody">
@@ -4872,7 +4872,10 @@ async function cargarHistorial() {
                     <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
                     <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
                     <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
-                    <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
+<td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
+<td>
+  ${m.tipo === 'venta' ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828" onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">Cancelar</button>` : ''}
+</td>
                   </tr>`
                 }).join('')}
           </tbody>
@@ -4881,6 +4884,41 @@ async function cargarHistorial() {
     window._historialData = data
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
+  }
+}
+window.cancelarMovimiento = async (id, cantidad, varianteId, sucursalId, tipo) => {
+  if (!confirm('¿Cancelar este movimiento? Se revertirá el cambio en el inventario.')) return
+  try {
+    // Obtener inventario específico de esta variante y sucursal
+    const resInv = await fetch(API + '/inventario/?variante_id=eq.' + varianteId + '&sucursal_id=eq.' + sucursalId)
+    const inventario = await resInv.json()
+    const cantidadActual = inventario && inventario.length > 0 ? inventario[0].cantidad : 0
+
+    // Calcular nueva cantidad
+    const nuevaCantidad = tipo === 'venta'
+      ? cantidadActual + cantidad
+      : Math.max(0, cantidadActual - cantidad)
+
+    // Actualizar directamente sin crear movimiento nuevo
+    const res = await fetch(API + '/inventario/actualizar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id: varianteId,
+        sucursal_id: sucursalId,
+        cantidad: nuevaCantidad,
+        stock_minimo: inventario && inventario.length > 0 ? inventario[0].stock_minimo : 3
+      })
+    })
+
+    if (res.ok) {
+      alert('Movimiento cancelado. Inventario actualizado.')
+      cargarHistorial()
+    } else {
+      alert('Error al actualizar inventario')
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
   }
 }
 

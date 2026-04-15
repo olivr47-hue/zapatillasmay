@@ -80,13 +80,15 @@ def confirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
-                    supabase_post("movimientos", {
+                    supabase_post("movimientos_inventario", {
                         "tipo": "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
                         "cantidad": -cantidad,
                         "motivo": f"Venta pedido {id}"
                     })
+                    except Exception as mov_error:
+          print(f"Error registrando movimiento: {mov_error}")
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
             "forma_pago": datos.get("forma_pago", "efectivo")
@@ -116,7 +118,7 @@ def cancelar_pedido(id: str):
                             f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                             {"cantidad": nueva_cantidad}
                         )
-                        supabase_post("movimientos", {
+                        supabase_post("movimientos_inventario", {
                             "tipo": "ajuste",
                             "variante_id": variante_id,
                             "sucursal_id": sucursal_id,
@@ -149,7 +151,7 @@ def reconfirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
-                    supabase_post("movimientos", {
+                    supabase_post("movimientos,inventario", {
                         "tipo": "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
