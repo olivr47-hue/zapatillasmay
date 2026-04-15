@@ -884,10 +884,19 @@ function renderVariante(i, datos) {
           <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
           <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
           <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-  ${d.foto_url ? `
-    <div style="position:relative">
+  ${d.imagenes && d.imagenes.length > 0 
+  ? d.imagenes.map((url, fIdx) => `
+    <div style="position:relative;cursor:pointer" data-es-portada="${fIdx === 0 ? 'true' : 'false'}" data-file-idx="${fIdx}">
+      <img src="${url}" 
+           style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ${fIdx === 0 ? '#E91E8C' : '#ddd'}"
+           onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
+      ${fIdx === 0 ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' : ''}
+    </div>
+  `).join('')
+  : d.foto_url ? `
+    <div style="position:relative" data-es-portada="true">
       <img src="${d.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #E91E8C">
-      <span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>
+      <span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>
     </div>
   ` : ''}
 </div>
@@ -895,6 +904,23 @@ function renderVariante(i, datos) {
       </div>
     </div>
   `
+}
+window.seleccionarPortadaExistente = (idx, fotoIdx) => {
+  const preview = document.getElementById('v' + idx + '-preview')
+  if (!preview) return
+  preview.querySelectorAll('.portada-badge').forEach(b => b.remove())
+  preview.querySelectorAll('img').forEach(img => img.style.border = '2px solid #ddd')
+  preview.querySelectorAll('[data-es-portada]').forEach(d => d.dataset.esPortada = 'false')
+  const divs = preview.querySelectorAll('div[data-file-idx]')
+  if (divs[fotoIdx]) {
+    divs[fotoIdx].dataset.esPortada = 'true'
+    divs[fotoIdx].querySelector('img').style.border = '2px solid #E91E8C'
+    const badge = document.createElement('span')
+    badge.className = 'portada-badge'
+    badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
+    badge.textContent = 'PORTADA'
+    divs[fotoIdx].appendChild(badge)
+  }
 }
 
 window.mostrarFormProducto = (datos) => {
@@ -1294,9 +1320,14 @@ async function subirImagenesVariantes() {
 
     // Conservar fotos existentes
     const colorExistente = coloresExistentes.find(c => c.color === nombre.value)
-    if (colorExistente && colorExistente.foto_url) {
-      urls.push(colorExistente.foto_url)
-    }
+if (colorExistente) {
+  // Si tiene array de imagenes usar ese, si no usar foto_url
+  if (colorExistente.imagenes && colorExistente.imagenes.length > 0) {
+    urls.push(...colorExistente.imagenes)
+  } else if (colorExistente.foto_url) {
+    urls.push(colorExistente.foto_url)
+  }
+}
 
     // Subir fotos nuevas — portada primero
     if (inputImgs && inputImgs.files.length > 0) {
@@ -1418,7 +1449,10 @@ window.guardarProducto = async () => {
       if (varExistente) {
         // Actualizar solo si hay nueva foto
         const update = { color_hex: v.color_hex }
-        if (v.imagenes.length > 0) update.foto_url = v.imagenes[0]
+if (v.imagenes.length > 0) {
+  update.foto_url = v.imagenes[0]
+  update.imagenes = v.imagenes
+}
         await fetch(API + '/variantes/' + varExistente.id, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -1429,7 +1463,7 @@ window.guardarProducto = async () => {
         await fetch(API + '/variantes/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null })
+          body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
         })
       }
     }
@@ -1503,6 +1537,7 @@ window.editarProducto = async (id) => {
             color: v.color,
             color_hex: v.color_hex,
             foto_url: v.foto_url
+            imagenes: v.imagenes || []
           })
         }
       })
