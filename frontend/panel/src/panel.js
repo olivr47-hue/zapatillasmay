@@ -63,12 +63,12 @@ const modulos = [
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
-  { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion' },
+  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion' },
   { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
 ]
 
-let moduloActivo = 'dashboard'
+let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
 let varianteCount = 1
 
 export function renderPanel() {
@@ -100,18 +100,14 @@ export function renderPanel() {
     </div>
   `
 
- window.toggleSidebar = () => {
-  const sidebar = document.getElementById('sidebar')
-  const overlay = document.getElementById('sidebar-overlay')
-  const isOpen = sidebar.classList.toggle('open')
-  overlay.classList.toggle('active', isOpen)
-  // Bloquear scroll del body cuando sidebar está abierto
-  document.body.style.overflow = isOpen ? 'hidden' : ''
-}
-
-  window.navegarA = (id) => {
+ window.navegarA = (id) => {
+    const esAdmin = window._empleadoActual?.rol === 'admin'
+    const modulo = modulos.find(m => m.id === id)
+    if (modulo?.soloAdmin && !esAdmin) {
+      alert('No tienes permisos para acceder a este módulo')
+      return
+    }
     moduloActivo = id
-    // Cerrar sidebar al navegar en móvil
     const sidebar = document.getElementById('sidebar')
     const overlay = document.getElementById('sidebar-overlay')
     if (sidebar.classList.contains('open')) {
@@ -126,10 +122,11 @@ export function renderPanel() {
 }
 
 function renderNav() {
-  const secciones = [...new Set(modulos.map(m => m.section))]
+  const esAdmin = window._empleadoActual?.rol === 'admin'
+  const secciones = [...new Set(modulos.filter(m => esAdmin || !m.soloAdmin).map(m => m.section))]
   return secciones.map(sec => `
     <div class="nav-section">${sec}</div>
-    ${modulos.filter(m => m.section === sec).map(m => `
+    ${modulos.filter(m => m.section === sec && (esAdmin || !m.soloAdmin)).map(m => `
       <div class="nav-item ${m.id === moduloActivo ? 'active' : ''}"
            data-modulo="${m.id}"
            onclick="navegarA('${m.id}')">
@@ -137,8 +134,7 @@ function renderNav() {
         ${m.label}
       </div>
     `).join('')}
-  `).join('')
-}
+  `).join('')}
 
 async function cargarModulo(id) {
   const content = document.getElementById('content')
@@ -163,6 +159,7 @@ function renderDashboard() {
   setTimeout(() => cargarDashboard(), 800)
   return renderDashboardHTML()
 }
+
 
 function renderDashboardHTML() {
   return `
@@ -197,6 +194,7 @@ function renderDashboardHTML() {
     </div>
   `
 }
+
 async function cargarAnalisis() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando análisis...</p>'
@@ -342,36 +340,404 @@ async function cargarAnalisis() {
   }
 }
 
+
 window.filtrarRotacion = (semaforo) => {
   document.querySelectorAll('.rotacion-item').forEach(item => {
     item.style.display = semaforo === 'todos' || item.dataset.semaforo === semaforo ? '' : 'none'
   })
 }
+async function cargarCRM() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando CRM...</p>'
 
-async function cargarProductos(categoriaFiltro) {
+  try {
+    const [resCli, resPed, resSeg] = await Promise.all([
+      fetch(API + '/clientes/'),
+      fetch(API + '/pedidos/'),
+      fetch(API + '/crm/seguimientos/pendientes/todos')
+    ])
+    const clientes = await resCli.json()
+    const pedidos = await resPed.json()
+    const recordatorios = await resSeg.json()
+
+    const hoy = new Date()
+    const hace30 = new Date(hoy - 30 * 24 * 60 * 60 * 1000)
+    const hace60 = new Date(hoy - 60 * 24 * 60 * 60 * 1000)
+    const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
+
+    const clientesEnriquecidos = clientes.map(c => {
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
+      const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
+      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+
+      let segmento = 'nuevo'
+      if (pedidosCli.length === 0) segmento = 'nuevo'
+      else if (totalGastado >= 5000 && pedidos30 >= 1) segmento = 'vip'
+      else if (diasSinComprar > 90) segmento = 'inactivo'
+      else if (diasSinComprar > 30) segmento = 'riesgo'
+      else if (pedidos30 >= 2) segmento = 'frecuente'
+      else segmento = 'activo'
+
+      return { ...c, totalGastado, ultimoPedido, diasSinComprar, pedidos30, segmento, totalPedidos: pedidosCli.length }
+    })
+
+    const vip = clientesEnriquecidos.filter(c => c.segmento === 'vip')
+    const enRiesgo = clientesEnriquecidos.filter(c => c.segmento === 'riesgo').sort((a,b) => b.totalGastado - a.totalGastado)
+    const inactivos = clientesEnriquecidos.filter(c => c.segmento === 'inactivo').sort((a,b) => b.totalGastado - a.totalGastado)
+    const top10 = [...clientesEnriquecidos].sort((a,b) => b.totalGastado - a.totalGastado).slice(0,10)
+
+    const ventasHoy = pedidos.filter(p => {
+      const f = new Date(p.created_at)
+      return f.toDateString() === hoy.toDateString() && (p.status === 'confirmado' || p.status === 'pagado')
+    }).reduce((s,p) => s + parseFloat(p.total||0), 0)
+
+    const ventas30 = pedidos.filter(p => new Date(p.created_at) >= hace30 && (p.status === 'confirmado' || p.status === 'pagado'))
+      .reduce((s,p) => s + parseFloat(p.total||0), 0)
+
+    content.innerHTML = `
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🎯 CRM — Centro de relaciones</h2>
+          <p style="color:#888;font-size:0.85rem">Gestión completa de clientes y oportunidades</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="mostrarPipeline()">📊 Pipeline</button>
+          <button class="btn btn-secondary" onclick="mostrarCampanas()">📣 Campañas</button>
+          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${ventasHoy.toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas hoy</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${ventas30.toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarSegmento('vip')">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${vip.length}</p>
+          <p style="font-size:0.7rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⭐ Clientes VIP</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarSegmento('riesgo')">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${enRiesgo.length}</p>
+          <p style="font-size:0.7rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">🟡 En riesgo</p>
+        </div>
+        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center;cursor:pointer" onclick="mostrarSegmento('inactivo')">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">${inactivos.length}</p>
+          <p style="font-size:0.7rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🔴 Inactivos</p>
+        </div>
+        <div style="background:#e3f2fd;border-radius:12px;padding:1.25rem;border:1px solid #90caf9;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#1565c0">${recordatorios.length}</p>
+          <p style="font-size:0.7rem;color:#1565c0;text-transform:uppercase;letter-spacing:0.5px">📅 Recordatorios</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+
+        <!-- ALERTAS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">🟡 Clientes en riesgo</p>
+            <span style="font-size:0.75rem;color:#888">${enRiesgo.length} clientes</span>
+          </div>
+          ${enRiesgo.length === 0
+            ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin clientes en riesgo</div>'
+            : enRiesgo.slice(0,5).map(c => `
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+                   onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+                <div style="width:36px;height:36px;border-radius:50%;background:#fff8e1;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#f57f17;flex-shrink:0">
+                  ${c.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+                  <p style="font-size:0.72rem;color:#888">Hace ${c.diasSinComprar} días sin comprar · $${c.totalGastado.toFixed(0)} total</p>
+                </div>
+                ${c.telefono ? `<a href="https://wa.me/${c.lada||'52'}${c.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WA</a>` : ''}
+              </div>
+            `).join('')}
+        </div>
+
+        <!-- RECORDATORIOS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">📅 Recordatorios pendientes</p>
+            <span style="font-size:0.75rem;color:#888">${recordatorios.length} pendientes</span>
+          </div>
+          ${recordatorios.length === 0
+            ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin recordatorios pendientes 🎉</div>'
+            : recordatorios.slice(0,5).map(r => `
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${r.clientes?.nombre || 'Cliente'}</p>
+                  <p style="font-size:0.72rem;color:#888">${r.contenido.substring(0,50)}</p>
+                  <p style="font-size:0.68rem;color:#f57f17">${new Date(r.fecha_recordatorio).toLocaleDateString('es-MX')}</p>
+                </div>
+                <button onclick="completarRecordatorio('${r.id}')" style="background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;border-radius:6px;padding:4px 10px;font-size:0.72rem;cursor:pointer">✓ Listo</button>
+              </div>
+            `).join('')}
+        </div>
+      </div>
+
+      <!-- TOP CLIENTES -->
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">⭐ Top 10 clientes por volumen</p>
+        </div>
+        ${top10.map((c, idx) => `
+          <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+               onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <span style="font-size:0.85rem;font-weight:700;color:${idx < 3 ? '#f57f17' : '#aaa'};min-width:20px">${idx+1}</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+              ${c.nombre.charAt(0).toUpperCase()}
+            </div>
+            <div style="flex:1">
+              <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+              <p style="font-size:0.72rem;color:#888">${c.totalPedidos} pedidos · ${c.diasSinComprar !== null ? 'Hace ' + c.diasSinComprar + ' días' : 'Sin pedidos'}</p>
+            </div>
+            <div style="text-align:right">
+              <p style="font-weight:700;color:#E91E8C">$${c.totalGastado.toFixed(0)}</p>
+              <span style="font-size:0.65rem;padding:2px 6px;border-radius:100px;background:${c.segmento==='vip'?'#fff8e1':c.segmento==='inactivo'?'#ffebee':'#e8f5e9'};color:${c.segmento==='vip'?'#f57f17':c.segmento==='inactivo'?'#c62828':'#2e7d32'}">${c.segmento}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- SEGMENTO DETALLE (oculto por default) -->
+      <div id="crm-segmento-detalle" style="display:none"></div>
+    `
+
+    window._crmData = { clientes: clientesEnriquecidos, pedidos, recordatorios }
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando CRM: ' + e.message + '</p>'
+  }
+}
+
+window.mostrarSegmento = (seg) => {
+  const { clientes } = window._crmData
+  const filtrados = clientes.filter(c => c.segmento === seg).sort((a,b) => b.totalGastado - a.totalGastado)
+  const nombres = { vip: '⭐ Clientes VIP', riesgo: '🟡 En riesgo', inactivo: '🔴 Inactivos', frecuente: '🟢 Frecuentes' }
+  const div = document.getElementById('crm-segmento-detalle')
+  div.style.display = 'block'
+  div.innerHTML = `
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:700;font-size:0.9rem">${nombres[seg] || seg} (${filtrados.length})</p>
+        <button onclick="document.getElementById('crm-segmento-detalle').style.display='none'" style="background:none;border:none;cursor:pointer;color:#888;font-size:1.2rem">✕</button>
+      </div>
+      ${filtrados.map(c => `
+        <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+             onclick="verCliente('${c.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+            ${c.nombre.charAt(0).toUpperCase()}
+          </div>
+          <div style="flex:1">
+            <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+            <p style="font-size:0.72rem;color:#888">$${c.totalGastado.toFixed(0)} · ${c.totalPedidos} pedidos · ${c.diasSinComprar !== null ? 'Hace ' + c.diasSinComprar + ' días' : 'Sin pedidos'}</p>
+          </div>
+          ${c.telefono ? `<a href="https://wa.me/${c.lada||'52'}${c.telefono.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WhatsApp</a>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `
+  div.scrollIntoView({ behavior: 'smooth' })
+}
+
+window.completarRecordatorio = async (id) => {
+  try {
+    await fetch(API + '/crm/seguimientos/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completado: true })
+    })
+    cargarCRM()
+  } catch(e) {
+    alert('Error al completar recordatorio')
+  }
+}
+
+window.mostrarPipeline = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando pipeline...</p>'
+  try {
+    const res = await fetch(API + '/crm/oportunidades')
+    const oportunidades = await res.json()
+    const etapas = [
+      { id: 'contacto', label: '📞 Contacto', color: '#e3f2fd', colorText: '#1565c0' },
+      { id: 'interes', label: '👀 Interés', color: '#f3e5f5', colorText: '#6a1b9a' },
+      { id: 'cotizacion', label: '📋 Cotización', color: '#fff8e1', colorText: '#f57f17' },
+      { id: 'negociacion', label: '🤝 Negociación', color: '#fce4f3', colorText: '#E91E8C' },
+      { id: 'ganado', label: '✅ Ganado', color: '#e8f5e9', colorText: '#2e7d32' },
+      { id: 'perdido', label: '❌ Perdido', color: '#ffebee', colorText: '#c62828' }
+    ]
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="cargarCRM()">← Volver al CRM</button>
+        <h2 style="flex:1;font-size:1.1rem;font-weight:700">📊 Pipeline de oportunidades</h2>
+        <button class="btn btn-primary" onclick="nuevaOportunidad()">+ Nueva oportunidad</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+        ${etapas.map(etapa => {
+          const ops = oportunidades.filter(o => o.etapa === etapa.id)
+          const total = ops.reduce((s,o) => s + parseFloat(o.monto_estimado||0), 0)
+          return `
+            <div style="background:${etapa.color};border-radius:12px;padding:1rem;border:1px solid ${etapa.colorText}30">
+              <p style="font-weight:700;font-size:0.85rem;color:${etapa.colorText};margin-bottom:4px">${etapa.label}</p>
+              <p style="font-size:0.72rem;color:${etapa.colorText};margin-bottom:12px">${ops.length} ops · $${total.toFixed(0)}</p>
+              ${ops.map(o => `
+                <div style="background:white;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #eee;cursor:pointer"
+                     onclick="verOportunidad('${o.id}')">
+                  <p style="font-size:0.82rem;font-weight:600;margin-bottom:2px">${o.titulo}</p>
+                  <p style="font-size:0.72rem;color:#888">${o.clientes?.nombre || '—'}</p>
+                  <p style="font-size:0.82rem;font-weight:700;color:#E91E8C;margin-top:4px">$${parseFloat(o.monto_estimado||0).toFixed(0)}</p>
+                </div>
+              `).join('')}
+            </div>
+          `
+        }).join('')}
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando pipeline</p>'
+  }
+}
+
+window.nuevaOportunidad = () => {
+  const modal = document.createElement('div')
+  modal.id = 'modal-oportunidad'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:1.5rem">Nueva oportunidad</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Título</label>
+          <input class="form-input" id="op-titulo" placeholder="Ej: Pedido mayoreo sandalias">
+        </div>
+        <div>
+          <label class="form-label">Cliente</label>
+          <input class="form-input" id="op-cliente-buscar" placeholder="Buscar cliente..." oninput="buscarClienteOportunidad(this.value)">
+          <div id="op-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:150px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="op-cliente-id">
+        </div>
+        <div>
+          <label class="form-label">Monto estimado ($)</label>
+          <input class="form-input" id="op-monto" type="number" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Etapa</label>
+          <select class="form-input" id="op-etapa">
+            <option value="contacto">📞 Contacto</option>
+            <option value="interes">👀 Interés</option>
+            <option value="cotizacion">📋 Cotización</option>
+            <option value="negociacion">🤝 Negociación</option>
+            <option value="ganado">✅ Ganado</option>
+            <option value="perdido">❌ Perdido</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Fecha de cierre estimada</label>
+          <input class="form-input" id="op-fecha" type="date">
+        </div>
+        <div>
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="op-notas" rows="3" placeholder="Detalles de la oportunidad..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-oportunidad').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarOportunidad()">Guardar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.buscarClienteOportunidad = (texto) => {
+  const { clientes } = window._crmData || {}
+  if (!clientes) return
+  const res = document.getElementById('op-cliente-resultados')
+  if (!texto || texto.length < 2) { res.style.display = 'none'; return }
+  const filtrados = clientes.filter(c => c.nombre.toLowerCase().includes(texto.toLowerCase())).slice(0, 5)
+  if (!filtrados.length) { res.style.display = 'none'; return }
+  res.style.display = 'block'
+  res.innerHTML = filtrados.map(c => `
+    <div onclick="seleccionarClienteOportunidad('${c.id}', '${c.nombre}')"
+         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
+         onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+      ${c.nombre}
+    </div>
+  `).join('')
+}
+
+
+window.seleccionarClienteOportunidad = (id, nombre) => {
+  document.getElementById('op-cliente-id').value = id
+  document.getElementById('op-cliente-buscar').value = nombre
+  document.getElementById('op-cliente-resultados').style.display = 'none'
+}
+
+window.guardarOportunidad = async () => {
+  const titulo = document.getElementById('op-titulo').value
+  const clienteId = document.getElementById('op-cliente-id').value
+  const monto = document.getElementById('op-monto').value
+  const etapa = document.getElementById('op-etapa').value
+  const fecha = document.getElementById('op-fecha').value
+  const notas = document.getElementById('op-notas').value
+  if (!titulo) { alert('El título es requerido'); return }
+  try {
+    await fetch(API + '/crm/oportunidades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo, cliente_id: clienteId || null, monto_estimado: parseFloat(monto)||0, etapa, fecha_cierre_estimada: fecha || null, notas })
+    })
+    document.getElementById('modal-oportunidad').remove()
+    mostrarPipeline()
+  } catch(e) {
+    alert('Error guardando oportunidad')
+  }
+}
+
+async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
   const content = document.getElementById('content')
   try {
     const res = await fetch(API + '/productos/')
     const data = await res.json()
-    const categorias = [...new Set(data.map(p => p.categoria).filter(Boolean))]
-    const filtrados = categoriaFiltro ? data.filter(p => p.categoria === categoriaFiltro) : data
+    const activos = data.filter(p => p.activo)
+    const inactivos = data.filter(p => !p.activo)
+    const base = mostrarInactivos ? inactivos : activos
+console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inactivos:', inactivos.length)
+    const categorias = [...new Set(activos.map(p => p.categoria).filter(Boolean))]
+    const filtrados = categoriaFiltro ? base.filter(p => p.categoria === categoriaFiltro) : base
+
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn ${!categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="cargarProductosFiltro(null)">Todos (${data.length})</button>
+        <button class="btn ${!mostrarInactivos && !categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="window.cargarProductos(null, false)">
+          ✅ Activos (${activos.length})
+        </button>
         ${categorias.map(c => `
-          <button class="btn ${categoriaFiltro === c ? 'btn-primary' : 'btn-secondary'}" onclick="cargarProductosFiltro('${c}')">
-            ${c.charAt(0).toUpperCase() + c.slice(1)} (${data.filter(p => p.categoria === c).length})
+          <button class="btn ${!mostrarInactivos && categoriaFiltro === c ? 'btn-primary' : 'btn-secondary'}" onclick="window.cargarProductos('${c}', false)">
+            ${c.charAt(0).toUpperCase() + c.slice(1)} (${activos.filter(p => p.categoria === c).length})
           </button>
         `).join('')}
+        <button class="btn ${mostrarInactivos ? 'btn-primary' : 'btn-secondary'}" style="${mostrarInactivos ? '' : 'color:#c62828;border-color:#c62828'}" onclick="window.cargarProductos(null, true)">
+          ❌ Desactivados (${inactivos.length})
+        </button>
       </div>
       <div class="table-card">
         <div class="table-header">
-           <h3>${categoriaFiltro ? categoriaFiltro.charAt(0).toUpperCase() + categoriaFiltro.slice(1) : 'Todos los productos'} (${filtrados.length})</h3>
+          <h3>${mostrarInactivos ? 'Productos desactivados' : categoriaFiltro ? categoriaFiltro.charAt(0).toUpperCase() + categoriaFiltro.slice(1) : 'Productos activos'} (${filtrados.length})</h3>
           <div style="display:flex;gap:8px;align-items:center">
             <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:220px" oninput="filtrarProductos()">
             <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
-               </div>
-           </div>
+          </div>
+        </div>
         <table>
           <thead>
             <tr>
@@ -390,8 +756,8 @@ async function cargarProductos(categoriaFiltro) {
                 <tr>
                   <td style="display:flex;align-items:center;gap:10px">
                     ${p.imagen_principal
-                      ? '<img src="' + p.imagen_principal + '" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">'
-                      : '<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
+                      ? `<img src="${p.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
+                      : `<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>`}
                     <strong>${p.nombre}</strong>
                   </td>
                   <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
@@ -401,7 +767,7 @@ async function cargarProductos(categoriaFiltro) {
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#E91E8C' : 'green'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#c62828' : '#2e7d32'};border-color:${p.activo ? '#c62828' : '#2e7d32'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
                   </td>
                 </tr>
               `).join('')}
@@ -412,6 +778,249 @@ async function cargarProductos(categoriaFiltro) {
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
+}
+window.cargarProductos = cargarProductos
+window.mostrarCampanas = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando campañas...</p>'
+  
+  try {
+    const [resCli, resPed] = await Promise.all([
+      fetch(API + '/clientes/'),
+      fetch(API + '/pedidos/')
+    ])
+    const clientes = await resCli.json()
+    const pedidos = await resPed.json()
+
+    const hoy = new Date()
+    const hace30 = new Date(hoy - 30 * 24 * 60 * 60 * 1000)
+    const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
+
+    const clientesEnriquecidos = clientes.map(c => {
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
+      const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
+      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+      let segmento = 'nuevo'
+      if (pedidosCli.length === 0) segmento = 'nuevo'
+      else if (totalGastado >= 5000 && pedidos30 >= 1) segmento = 'vip'
+      else if (diasSinComprar > 90) segmento = 'inactivo'
+      else if (diasSinComprar > 30) segmento = 'riesgo'
+      else if (pedidos30 >= 2) segmento = 'frecuente'
+      else segmento = 'activo'
+      return { ...c, totalGastado, diasSinComprar, segmento }
+    }).filter(c => c.telefono)
+
+    window._campanaClientes = clientesEnriquecidos
+
+    const PLANTILLAS = [
+      {
+        id: 'catalogo',
+        nombre: '👠 Catálogo completo',
+        descripcion: 'Envía el catálogo completo de productos',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nTe compartimos nuestro catálogo completo de calzado para dama.\n\n✨ Encuentra tacones, sandalias, botas, botines y más.\n\n🛍️ Ver catálogo completo:\nhttps://zapatillasmay.mx/#catalogo\n\nCualquier pregunta con gusto te atendemos 😊`
+      },
+      {
+        id: 'nuevos',
+        nombre: '🆕 Nuevos modelos',
+        descripcion: 'Envía los últimos modelos agregados',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\n¡Llegaron modelos nuevos! 🎉\n\nDate una vuelta y ve los últimos estilos que tenemos para ti.\n\n✨ Ver nuevos modelos:\nhttps://zapatillasmay.mx/#nuevos\n\nHay tallas limitadas, ¡no te quedes sin el tuyo! 😊`
+      },
+      {
+        id: 'mayoreo',
+        nombre: '📦 Precios mayoreo',
+        descripcion: 'Envía información de precios mayoreo',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nTe recordamos nuestros precios de mayoreo:\n\n📦 3-5 pares variados: -$30 por par\n📦 6+ pares variados: -$70 por par\n📦 Corrida completa: -$110 por par\n\n🛍️ Ver catálogo:\nhttps://zapatillasmay.mx/#catalogo\n\n¿Te interesa hacer un pedido? Con gusto te atendemos 😊`
+      },
+      {
+        id: 'tacones',
+        nombre: '👡 Catálogo tacones',
+        descripcion: 'Envía solo la categoría de tacones',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nMira nuestra colección de tacones para dama.\n\n👡 Ver tacones:\nhttps://zapatillasmay.mx/#categoria/tacones\n\n¿Te gusta alguno? Con gusto te damos más información 😊`
+      },
+      {
+        id: 'sandalias',
+        nombre: '🩴 Catálogo sandalias',
+        descripcion: 'Envía solo la categoría de sandalias',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nMira nuestra colección de sandalias para dama.\n\n🩴 Ver sandalias:\nhttps://zapatillasmay.mx/#categoria/sandalias\n\n¿Te gusta alguna? Con gusto te damos más información 😊`
+      },
+      {
+        id: 'seguimiento',
+        nombre: '💬 Seguimiento cliente',
+        descripcion: 'Mensaje de seguimiento para clientes inactivos',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\n¿Cómo estás? Hace tiempo que no sabemos de ti.\n\nTenemos modelos nuevos que te pueden interesar 👠\n\n🛍️ Ver novedades:\nhttps://zapatillasmay.mx/#nuevos\n\n¿Te puedo mostrar algo en especial? 😊`
+      },
+      {
+        id: 'personalizado',
+        nombre: '✏️ Mensaje personalizado',
+        descripcion: 'Escribe tu propio mensaje',
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\n`
+      }
+    ]
+
+    const SEGMENTOS = [
+      { id: 'todos', label: 'Todos los clientes', count: clientesEnriquecidos.length },
+      { id: 'vip', label: '⭐ VIP', count: clientesEnriquecidos.filter(c=>c.segmento==='vip').length },
+      { id: 'frecuente', label: '🟢 Frecuentes', count: clientesEnriquecidos.filter(c=>c.segmento==='frecuente').length },
+      { id: 'riesgo', label: '🟡 En riesgo', count: clientesEnriquecidos.filter(c=>c.segmento==='riesgo').length },
+      { id: 'inactivo', label: '🔴 Inactivos', count: clientesEnriquecidos.filter(c=>c.segmento==='inactivo').length },
+      { id: 'mayoreo', label: '📦 Mayoreo', count: clientesEnriquecidos.filter(c=>c.tipo==='mayoreo').length },
+      { id: 'zapateria', label: '🏪 Corridas', count: clientesEnriquecidos.filter(c=>c.tipo==='zapateria').length },
+      { id: 'menudeo', label: '🛍️ Menudeo', count: clientesEnriquecidos.filter(c=>c.tipo==='menudeo').length },
+    ]
+
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('crm')">← Volver al CRM</button>
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:2px">📣 Campañas de WhatsApp</h2>
+          <p style="font-size:0.82rem;color:#888">Genera mensajes personalizados para enviar por WhatsApp</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+        <!-- CONFIGURACIÓN -->
+        <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">1️⃣ Selecciona el segmento</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${SEGMENTOS.map(s => `
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border-radius:8px;border:2px solid #eee;transition:all 0.15s"
+                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('seg-${s.id}').checked)this.style.borderColor='#eee'">
+                  <input type="radio" name="campana-segmento" id="seg-${s.id}" value="${s.id}" ${s.id==='todos'?'checked':''} 
+                         onchange="actualizarVistaCampana()" style="accent-color:#E91E8C">
+                  <span style="flex:1;font-size:0.85rem;font-weight:500">${s.label}</span>
+                  <span style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${s.count}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">2️⃣ Selecciona la plantilla</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${PLANTILLAS.map(p => `
+                <label style="cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;transition:all 0.15s"
+                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${p.id}').checked)this.style.borderColor='#eee'">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <input type="radio" name="campana-plantilla" id="plt-${p.id}" value="${p.id}" ${p.id==='catalogo'?'checked':''}
+                           onchange="actualizarVistaCampana()" style="accent-color:#E91E8C">
+                    <div>
+                      <p style="font-size:0.85rem;font-weight:600">${p.nombre}</p>
+                      <p style="font-size:0.72rem;color:#888">${p.descripcion}</p>
+                    </div>
+                  </div>
+                </label>
+              `).join('')}
+            </div>
+            <div id="mensaje-personalizado" style="display:none;margin-top:1rem">
+              <label class="form-label">Tu mensaje (usa {nombre} para personalizar)</label>
+              <textarea class="form-input" id="texto-personalizado" rows="5" placeholder="Hola {nombre}! ..."
+                        oninput="actualizarVistaCampana()">Hola {nombre}! 👋\n\n</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISTA PREVIA Y LISTA -->
+        <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Vista previa del mensaje</p>
+            <div id="mensaje-preview" style="background:#e8f5e9;border-radius:10px;padding:1rem;font-size:0.82rem;color:#333;white-space:pre-wrap;line-height:1.6;border:1px solid #a5d6a7;max-height:200px;overflow-y:auto"></div>
+          </div>
+
+          <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+              <p style="font-weight:700;font-size:0.9rem">4️⃣ Enviar a clientes</p>
+              <span id="campana-count" style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px"></span>
+            </div>
+            <div id="campana-lista" style="max-height:400px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+    `
+
+    window._plantillasCampana = PLANTILLAS
+    actualizarVistaCampana()
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando campañas</p>'
+  }
+}
+
+window.actualizarVistaCampana = () => {
+  const segmento = document.querySelector('input[name="campana-segmento"]:checked')?.value || 'todos'
+  const plantillaId = document.querySelector('input[name="campana-plantilla"]:checked')?.value || 'catalogo'
+  const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
+  const clientes = window._campanaClientes || []
+
+  // Mostrar/ocultar textarea personalizado
+  const divPersonalizado = document.getElementById('mensaje-personalizado')
+  if (divPersonalizado) divPersonalizado.style.display = plantillaId === 'personalizado' ? 'block' : 'none'
+
+  // Filtrar clientes por segmento
+  let filtrados = clientes
+  if (segmento !== 'todos') {
+    if (['menudeo','mayoreo','zapateria'].includes(segmento)) {
+      filtrados = clientes.filter(c => c.tipo === segmento)
+    } else {
+      filtrados = clientes.filter(c => c.segmento === segmento)
+    }
+  }
+
+  // Vista previa del mensaje
+  const preview = document.getElementById('mensaje-preview')
+  if (preview && plantilla) {
+    let msgPreview
+    if (plantillaId === 'personalizado') {
+      const texto = document.getElementById('texto-personalizado')?.value || ''
+      msgPreview = texto.replace('{nombre}', 'María')
+    } else {
+      msgPreview = plantilla.mensaje('María')
+    }
+    preview.textContent = msgPreview
+  }
+
+  // Contador
+  const count = document.getElementById('campana-count')
+  if (count) count.textContent = filtrados.length + ' clientes'
+
+  // Lista de clientes con botón de WhatsApp
+  const lista = document.getElementById('campana-lista')
+  if (!lista) return
+
+  if (!filtrados.length) {
+    lista.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">No hay clientes en este segmento con teléfono registrado</div>'
+    return
+  }
+
+  lista.innerHTML = filtrados.map(c => {
+    let mensaje
+    if (plantillaId === 'personalizado') {
+      const texto = document.getElementById('texto-personalizado')?.value || ''
+      mensaje = texto.replace('{nombre}', c.nombre.split(' ')[0])
+    } else {
+      mensaje = plantilla.mensaje(c.nombre.split(' ')[0])
+    }
+    const msgEncoded = encodeURIComponent(mensaje)
+    const tel = (c.lada || '52') + c.telefono.replace(/\D/g,'')
+    return `
+      <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+          ${c.nombre.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1">
+          <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${c.telefono}</p>
+        </div>
+        <a href="https://wa.me/${tel}?text=${msgEncoded}" target="_blank"
+           style="background:#25D366;color:white;padding:8px 16px;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+          💬 Enviar
+        </a>
+      </div>
+    `
+  }).join('')
 }
 
 async function cargarClientes() {
@@ -659,6 +1268,7 @@ window.renderInventario = () => {
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
   const productosFiltrados = productos.filter(p => {
+    if (!p.activo) return false
     if (buscar && !p.nombre.toLowerCase().includes(buscar) && !(p.sku_interno || '').toLowerCase().includes(buscar)) return false
     if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
     return true
@@ -2036,9 +2646,8 @@ window.duplicarProducto = async (id) => {
   }
 }
 
-window.cargarProductosFiltro = (categoria) => {
-  cargarProductos(categoria)
-}
+window.cargarProductosFiltro = (categoria) => cargarProductos(categoria, false)
+
 window.filtrarProductos = () => {
   const buscar = document.getElementById('prod-buscar').value.toLowerCase()
   const filas = document.querySelectorAll('#content tbody tr')
@@ -3728,7 +4337,7 @@ async function cargarPOS() {
       </div>
     `
 
-    renderProductosPOS(productos)
+    renderProductosPOS(productos.filter(p => p.activo))
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando punto de venta</p>'
@@ -3999,7 +4608,7 @@ window.renderProductosPOS = (productos) => {
   const grid = document.getElementById('pos-productos-grid')
   if (!grid) return
 
-  grid.innerHTML = productos.map(p => {
+  grid.innerHTML = productos.filter(p => p.activo).map(p => {
     const varsProd = variantes.filter(v => v.producto_id === p.id)
     const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
     const totalStock = varsProd.reduce((sum, v) => {

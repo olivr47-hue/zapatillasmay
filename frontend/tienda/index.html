@@ -1435,6 +1435,16 @@
     tacones: '👡', sandalias: '🩴', botas: '🥾', botines: '👢',
     flats: '🩰', plataformas: '👠', tenis: '👟', nina: '🎀', accesorios: '👜'
   }
+  // Manejar URLs directas
+window.addEventListener('load', () => {
+  const hash = window.location.hash
+  if (hash === '#catalogo') setTimeout(() => mostrarCatalogo(), 500)
+  else if (hash === '#nuevos') setTimeout(() => mostrarNuevos(), 500)
+  else if (hash.startsWith('#categoria/')) {
+    const cat = hash.replace('#categoria/', '')
+    setTimeout(() => filtrarCategoria(cat), 500)
+  }
+})
   async function cargarConfigSEO() {
   try {
     const res = await fetch('https://zapatillasmay-production.up.railway.app/seo/config')
@@ -1909,6 +1919,42 @@ cargarConfigSEO()
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   renderProductos(productos.filter(p => p.activo).slice(0, 12))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+function mostrarCatalogo() {
+  const pagina = document.getElementById('pagina-interna')
+  const hero = document.getElementById('hero')
+  const productosSection = document.getElementById('productos-section')
+  const cats = document.querySelector('.section')
+  const bannerMayoreo = document.querySelector('.banner-mayoreo')
+
+  pagina.style.display = 'none'
+  hero.style.display = 'none'
+  productosSection.style.display = ''
+  if (cats) cats.style.display = 'none'
+  if (bannerMayoreo) bannerMayoreo.style.display = 'none'
+
+  document.getElementById('productos-titulo').innerHTML = 'Todo el <em>catálogo</em>'
+  renderProductos(productos.filter(p => p.activo))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function mostrarNuevos() {
+  const pagina = document.getElementById('pagina-interna')
+  const hero = document.getElementById('hero')
+  const productosSection = document.getElementById('productos-section')
+  const cats = document.querySelector('.section')
+  const bannerMayoreo = document.querySelector('.banner-mayoreo')
+
+  pagina.style.display = 'none'
+  hero.style.display = 'none'
+  productosSection.style.display = ''
+  if (cats) cats.style.display = 'none'
+  if (bannerMayoreo) bannerMayoreo.style.display = 'none'
+
+  const nuevos = productos.filter(p => p.activo && p.nuevo)
+  document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
+  renderProductos(nuevos)
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
