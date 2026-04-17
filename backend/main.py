@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import supabase_get
-from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm
+from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas
 from routers import empleados
 from routers import seo
 
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(empleados.router)
 app.include_router(seo.router)
 app.include_router(crm.router)
+app.include_router(finanzas.router)
 
 @app.get("/")
 def inicio():
@@ -47,3 +48,4 @@ def salud():
         return {"estado": "ok", "base_de_datos": "conectada"}
     except Exception as e:
         return {"estado": "error", "detalle": str(e)}
+        # redeploy finanzas
