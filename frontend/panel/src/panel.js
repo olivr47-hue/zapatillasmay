@@ -54,18 +54,20 @@ const CATEGORIAS = [
 ]
 
 const modulos = [
-  { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal' },
+  { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal', soloAdmin: true },
   { id: 'pos', icon: '🛒', label: 'Punto de venta', section: 'Principal' },
   { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
   { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
-  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
-  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
-  { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion' },
   { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
+  { id: 'finanzas', icon: '💰', label: 'Finanzas', section: 'Finanzas', soloAdmin: true },
+  { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true },
+  { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
+  { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
+  { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -152,6 +154,8 @@ async function cargarModulo(id) {
     case 'seo': await cargarSEO(); break
     case 'analisis': await cargarAnalisis(); break
     case 'crm': await cargarCRM(); break;
+    case 'finanzas': await cargarFinanzas(); break;
+    case 'proveedores': await cargarProveedores(); break;
   }
 }
 
@@ -193,6 +197,386 @@ function renderDashboardHTML() {
       </div>
     </div>
   `
+}
+async function cargarFinanzas() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando finanzas...</p>'
+  try {
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const sucursalId = sucursales[0]?.id
+
+    const [resCaja, resReporte, resGastos] = await Promise.all([
+      fetch(API + '/finanzas/caja/hoy/' + sucursalId),
+      fetch(API + '/finanzas/reporte/' + sucursalId),
+      fetch(API + '/finanzas/gastos/' + sucursalId)
+    ])
+    const cajas = await resCaja.json()
+    const reporte = await resReporte.json()
+    const gastos = await resGastos.json()
+
+    const cajaActiva = cajas.find(c => c.status === 'abierta')
+    const gastosHoy = gastos.filter(g => g.created_at?.startsWith(new Date().toISOString().split('T')[0]))
+    const totalGastosHoy = gastosHoy.reduce((s, g) => s + parseFloat(g.monto || 0), 0)
+
+    content.innerHTML = `
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">💰 Finanzas</h2>
+          <p style="color:#888;font-size:0.85rem">Control de caja, gastos y reportes</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="fin-sucursal" style="max-width:200px" onchange="recargarFinanzas(this.value)">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+          ${!cajaActiva
+            ? `<button class="btn btn-primary" onclick="abrirCaja('${sucursalId}')">🔓 Abrir caja</button>`
+            : `<button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="cerrarCaja('${cajaActiva.id}')">🔒 Cerrar caja</button>`}
+        </div>
+      </div>
+
+      <!-- ESTADO DE CAJA -->
+      <div style="background:${cajaActiva ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.5rem;border:1px solid ${cajaActiva ? '#a5d6a7' : '#ffcdd2'};margin-bottom:1.5rem">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+          <span style="font-size:1.5rem">${cajaActiva ? '🟢' : '🔴'}</span>
+          <div>
+            <p style="font-weight:700;font-size:1rem;color:${cajaActiva ? '#2e7d32' : '#c62828'}">Caja ${cajaActiva ? 'ABIERTA' : 'CERRADA'}</p>
+            <p style="font-size:0.82rem;color:#888">${cajaActiva ? `Abierta a las ${new Date(cajaActiva.hora_apertura).toLocaleTimeString('es-MX')} · Fondo inicial: $${cajaActiva.monto_apertura}` : 'No hay caja abierta hoy'}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs 30 DÍAS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos 30 días</p>
+        </div>
+        <div style="background:${reporte.utilidad >= 0 ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${reporte.utilidad >= 0 ? '#a5d6a7' : '#ffcdd2'};text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:${reporte.utilidad >= 0 ? '#2e7d32' : '#c62828'}">$${(reporte.utilidad||0).toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#333">${reporte.num_pedidos||0}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pedidos 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#333">$${(reporte.ticket_promedio||0).toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
+        </div>
+        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">$${totalGastosHoy.toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos hoy</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+
+        <!-- GASTOS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">💸 Gastos del día</p>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.78rem" onclick="agregarGasto('${sucursalId}')">+ Agregar</button>
+          </div>
+          ${gastosHoy.length === 0
+            ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin gastos registrados hoy</div>'
+            : gastosHoy.map(g => `
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${g.concepto}</p>
+                  <p style="font-size:0.72rem;color:#888">${g.categoria} · ${new Date(g.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
+                </div>
+                <p style="font-weight:700;color:#c62828">-$${parseFloat(g.monto).toFixed(2)}</p>
+                <button onclick="eliminarGasto('${g.id}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.1rem">✕</button>
+              </div>
+            `).join('')}
+          <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;justify-content:space-between">
+            <span style="font-size:0.85rem;font-weight:600">Total gastos hoy</span>
+            <span style="font-weight:700;color:#c62828">-$${totalGastosHoy.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <!-- HISTORIAL CAJAS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+            <p style="font-weight:700;font-size:0.9rem">📋 Historial de cajas</p>
+          </div>
+          <div id="historial-cajas">
+            <div style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Cargando...</div>
+          </div>
+        </div>
+
+      </div>
+    `
+
+    // Cargar historial
+    const resHist = await fetch(API + '/finanzas/caja/historial/' + sucursalId)
+    const historial = await resHist.json()
+    document.getElementById('historial-cajas').innerHTML = historial.slice(0,10).map(c => `
+      <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <p style="font-size:0.85rem;font-weight:600">${new Date(c.fecha).toLocaleDateString('es-MX')}</p>
+          <p style="font-size:0.72rem;color:#888">Ventas: $${parseFloat(c.total_ventas||0).toFixed(0)} · Apertura: $${parseFloat(c.monto_apertura||0).toFixed(0)}</p>
+        </div>
+        <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${c.status==='cerrada'?'#e8f5e9':'#fff8e1'};color:${c.status==='cerrada'?'#2e7d32':'#f57f17'}">${c.status}</span>
+        ${c.diferencia !== null ? `<span style="font-size:0.78rem;font-weight:700;color:${c.diferencia >= 0 ? '#2e7d32' : '#c62828'}">${c.diferencia >= 0 ? '+' : ''}$${parseFloat(c.diferencia).toFixed(0)}</span>` : ''}
+      </div>
+    `).join('') || '<div style="padding:2rem;text-align:center;color:#888">Sin historial</div>'
+
+    window._finanzasSucursalId = sucursalId
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando finanzas: ' + e.message + '</p>'
+  }
+}
+
+window.recargarFinanzas = (sucursalId) => {
+  window._finanzasSucursalId = sucursalId
+  cargarFinanzas()
+}
+
+window.abrirCaja = async (sucursalId) => {
+  const monto = prompt('¿Cuánto efectivo hay en caja para empezar? (fondo de caja)')
+  if (monto === null) return
+  try {
+    const res = await fetch(API + '/finanzas/caja/abrir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal_id: sucursalId,
+        monto_apertura: parseFloat(monto) || 0,
+        empleado: window._empleadoActual?.nombre || 'Admin'
+      })
+    })
+    const data = await res.json()
+    if (data.error) { alert('Error: ' + data.error); return }
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error abriendo caja')
+  }
+}
+
+window.cerrarCaja = async (cajaId) => {
+  const monto = prompt('¿Cuánto efectivo hay físicamente en caja al cerrar?')
+  if (monto === null) return
+  const notas = prompt('Notas del cierre (opcional):') || ''
+  try {
+    const res = await fetch(API + '/finanzas/caja/' + cajaId + '/cerrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto_cierre: parseFloat(monto) || 0, notas })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert(`Caja cerrada.\nTotal ventas: $${data.total_ventas?.toFixed(2)}\nDiferencia: $${data.diferencia?.toFixed(2)}`)
+      cargarFinanzas()
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error cerrando caja')
+  }
+}
+
+window.agregarGasto = (sucursalId) => {
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%">
+      <h3 style="margin-bottom:1.5rem">💸 Agregar gasto</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Concepto *</label>
+          <input class="form-input" id="gasto-concepto" placeholder="Ej: Transporte, Papelería, Limpieza...">
+        </div>
+        <div>
+          <label class="form-label">Monto *</label>
+          <input class="form-input" id="gasto-monto" type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Categoría</label>
+          <select class="form-input" id="gasto-categoria">
+            <option value="general">General</option>
+            <option value="transporte">Transporte</option>
+            <option value="papeleria">Papelería</option>
+            <option value="limpieza">Limpieza</option>
+            <option value="servicios">Servicios</option>
+            <option value="comida">Comida</option>
+            <option value="renta">Renta</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarGasto('${sucursalId}', this)">Guardar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarGasto = async (sucursalId, btn) => {
+  const concepto = document.getElementById('gasto-concepto').value
+  const monto = document.getElementById('gasto-monto').value
+  const categoria = document.getElementById('gasto-categoria').value
+  if (!concepto || !monto) { alert('Completa concepto y monto'); return }
+  try {
+    await fetch(API + '/finanzas/gastos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal_id: sucursalId,
+        concepto,
+        monto: parseFloat(monto),
+        categoria,
+        empleado: window._empleadoActual?.nombre || 'Admin'
+      })
+    })
+    btn.closest('div[style*="position:fixed"]').remove()
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error guardando gasto')
+  }
+}
+
+window.eliminarGasto = async (id) => {
+  if (!confirm('¿Eliminar este gasto?')) return
+  try {
+    await fetch(API + '/finanzas/gastos/' + id, { method: 'DELETE' })
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error eliminando gasto')
+  }
+}
+
+async function cargarProveedores() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/finanzas/proveedores')
+    const data = await res.json()
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Proveedores (${data.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormProveedor()">+ Nuevo proveedor</button>
+        </div>
+        ${data.length === 0
+          ? '<div style="padding:3rem;text-align:center;color:#888">No hay proveedores registrados</div>'
+          : `<table>
+            <thead>
+              <tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+              ${data.map(p => `
+                <tr>
+                  <td><strong>${p.nombre}</strong></td>
+                  <td>${p.contacto || '—'}</td>
+                  <td>${p.telefono || '—'}</td>
+                  <td>${p.ciudad || '—'}</td>
+                  <td>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProveedor('${p.id}')">Editar</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`}
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando proveedores</p>'
+  }
+}
+
+window.mostrarFormProveedor = (datos) => {
+  const d = datos || {}
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:1.5rem">${d.id ? 'Editar' : 'Nuevo'} proveedor</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div style="grid-column:1/-1">
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="prov-nombre" value="${d.nombre || ''}" placeholder="Nombre del proveedor">
+        </div>
+        <div>
+          <label class="form-label">Contacto</label>
+          <input class="form-input" id="prov-contacto" value="${d.contacto || ''}" placeholder="Nombre del contacto">
+        </div>
+        <div>
+          <label class="form-label">Teléfono</label>
+          <input class="form-input" id="prov-telefono" value="${d.telefono || ''}" placeholder="477 123 4567">
+        </div>
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="prov-email" value="${d.email || ''}" placeholder="correo@proveedor.com">
+        </div>
+        <div>
+          <label class="form-label">Ciudad</label>
+          <input class="form-input" id="prov-ciudad" value="${d.ciudad || ''}" placeholder="Leon">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="form-label">Dirección</label>
+          <input class="form-input" id="prov-direccion" value="${d.direccion || ''}" placeholder="Calle y número">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="prov-notas" rows="2" placeholder="Condiciones de pago, tiempo de entrega...">${d.notas || ''}</textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarProveedor('${d.id || ''}')">Guardar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarProveedor = async (id) => {
+  const datos = {
+    nombre: document.getElementById('prov-nombre').value,
+    contacto: document.getElementById('prov-contacto').value,
+    telefono: document.getElementById('prov-telefono').value,
+    email: document.getElementById('prov-email').value,
+    ciudad: document.getElementById('prov-ciudad').value,
+    direccion: document.getElementById('prov-direccion').value,
+    notas: document.getElementById('prov-notas').value
+  }
+  if (!datos.nombre) { alert('El nombre es requerido'); return }
+  try {
+    if (id) {
+      await fetch(API + '/finanzas/proveedores/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+      })
+    } else {
+      await fetch(API + '/finanzas/proveedores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos)
+      })
+    }
+    document.querySelector('div[style*="position:fixed"]').remove()
+    cargarProveedores()
+  } catch(e) {
+    alert('Error guardando proveedor')
+  }
+}
+
+window.editarProveedor = async (id) => {
+  const res = await fetch(API + '/finanzas/proveedores')
+  const proveedores = await res.json()
+  const proveedor = proveedores.find(p => p.id === id)
+  if (proveedor) mostrarFormProveedor(proveedor)
 }
 
 async function cargarAnalisis() {
