@@ -65,6 +65,7 @@ const modulos = [
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion' },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion' },
+  { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
 ]
 
 let moduloActivo = 'dashboard'
@@ -153,7 +154,8 @@ async function cargarModulo(id) {
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
     case 'seo': await cargarSEO(); break
-    case 'analisis': await cargarAnalisis(); break;
+    case 'analisis': await cargarAnalisis(); break
+    case 'crm': await cargarCRM(); break;
   }
 }
 
