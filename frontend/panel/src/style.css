@@ -899,3 +899,48 @@ html, body {
     white-space: nowrap;
   }
 }
+#pos-drawer {
+  display: block;
+  transform: translateY(100%);
+  visibility: hidden;
+}
+
+#pos-drawer.open {
+  transform: translateY(0);
+  visibility: visible;
+}
+
+#pos-drawer-overlay {
+  display: none;
+}
+
+#pos-drawer-overlay.active {
+  display: block;
+}
+
+@media (max-width: 900px) {
+  #pos-layout {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+
+  #pos-carrito-desktop {
+    display: none !important;
+  }
+
+  #pos-btn-flotante {
+    display: flex !important;
+  }
+
+  #pos-productos-grid {
+    padding-bottom: 80px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  #pos-buscar {
+    font-size: 1rem !important;
+    padding: 10px 14px !important;
+    min-height: 46px !important;
+  }
+}

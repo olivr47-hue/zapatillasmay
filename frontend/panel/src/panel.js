@@ -62,6 +62,7 @@ const modulos = [
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
+  { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion' },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion' },
 ]
@@ -152,6 +153,7 @@ async function cargarModulo(id) {
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
     case 'seo': await cargarSEO(); break
+    case 'analisis': await cargarAnalisis(); break;
   }
 }
 
@@ -192,6 +194,156 @@ function renderDashboardHTML() {
       </div>
     </div>
   `
+}
+async function cargarAnalisis() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando análisis...</p>'
+
+  try {
+    const [resProductos, resVariantes, resMovimientos, resInventario] = await Promise.all([
+      fetch(API + '/productos/'),
+      fetch(API + '/variantes/'),
+      fetch(API + '/movimientos/'),
+      fetch(API + '/inventario/')
+    ])
+    const productos = await resProductos.json()
+    const variantes = await resVariantes.json()
+    const movimientos = await resMovimientos.json()
+    const inventario = await resInventario.json()
+
+    // Calcular rotacion por producto
+    const hoy = new Date()
+    const hace30 = new Date(hoy - 30 * 24 * 60 * 60 * 1000)
+    const hace60 = new Date(hoy - 60 * 24 * 60 * 60 * 1000)
+    const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
+
+    const ventasPorProducto = {}
+
+    movimientos.filter(m => m.tipo === 'venta').forEach(m => {
+      const variante = variantes.find(v => v.id === m.variante_id)
+      if (!variante) return
+      const productoId = variante.producto_id
+      if (!ventasPorProducto[productoId]) {
+        ventasPorProducto[productoId] = { d30: 0, d60: 0, d90: 0 }
+      }
+      const fecha = new Date(m.created_at)
+      const cantidad = Math.abs(m.cantidad)
+      if (fecha >= hace30) ventasPorProducto[productoId].d30 += cantidad
+      if (fecha >= hace60) ventasPorProducto[productoId].d60 += cantidad
+      if (fecha >= hace90) ventasPorProducto[productoId].d90 += cantidad
+    })
+
+    const productosConRotacion = productos.map(p => {
+      const ventas = ventasPorProducto[p.id] || { d30: 0, d60: 0, d90: 0 }
+      const stockTotal = inventario
+        .filter(i => variantes.find(v => v.id === i.variante_id && v.producto_id === p.id))
+        .reduce((s, i) => s + i.cantidad, 0)
+      const ventasSemana = ventas.d30 / 4
+      const diasInventario = ventasSemana > 0 ? Math.round(stockTotal / ventasSemana * 7) : null
+
+      let semaforo = 'gris'
+      let recomendacion = 'Sin ventas recientes'
+      if (ventas.d30 >= 6) { semaforo = 'verde'; recomendacion = 'Rota bien — considerar resurtido' }
+      else if (ventas.d30 >= 2) { semaforo = 'amarillo'; recomendacion = 'Rotacion moderada' }
+      else if (ventas.d90 === 0 && stockTotal > 0) { semaforo = 'rojo'; recomendacion = 'Sin movimiento en 90 dias — revisar' }
+      else if (ventas.d30 > 0) { semaforo = 'amarillo'; recomendacion = 'Rotacion lenta' }
+
+      return { ...p, ventas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion }
+    }).sort((a, b) => b.ventas.d30 - a.ventas.d30)
+
+    const coloresSemaforo = {
+      verde: { bg: '#e8f5e9', color: '#2e7d32', texto: '🟢 Rota bien' },
+      amarillo: { bg: '#fff8e1', color: '#f57f17', texto: '🟡 Rotacion lenta' },
+      rojo: { bg: '#ffebee', color: '#c62828', texto: '🔴 Sin movimiento' },
+      gris: { bg: '#f5f5f5', color: '#888', texto: '⚪ Sin datos' }
+    }
+
+    content.innerHTML = `
+      <div style="margin-bottom:1.5rem">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📊 Analisis de rotacion</h2>
+        <p style="color:#888;font-size:0.85rem">Velocidad de venta y recomendaciones de resurtido por modelo</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:2rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Vendidos 30 días</p>
+          <p style="font-size:1.8rem;font-weight:700;color:#E91E8C">${productosConRotacion.reduce((s,p) => s+p.ventas.d30, 0)}</p>
+          <p style="font-size:0.75rem;color:#aaa">pares</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Vendidos 90 días</p>
+          <p style="font-size:1.8rem;font-weight:700;color:#E91E8C">${productosConRotacion.reduce((s,p) => s+p.ventas.d90, 0)}</p>
+          <p style="font-size:0.75rem;color:#aaa">pares</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Rotan bien</p>
+          <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${productosConRotacion.filter(p=>p.semaforo==='verde').length}</p>
+          <p style="font-size:0.75rem;color:#aaa">modelos</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Sin movimiento</p>
+          <p style="font-size:1.8rem;font-weight:700;color:#c62828">${productosConRotacion.filter(p=>p.semaforo==='rojo').length}</p>
+          <p style="font-size:0.75rem;color:#aaa">modelos</p>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:0.95rem;font-weight:700">Rotacion por modelo</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+  <button class="btn btn-primary" style="padding:4px 10px;font-size:0.75rem" onclick="filtrarRotacion('todos')">Todos</button>
+  <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="filtrarRotacion('verde')">🟢 Rotan bien</button>
+  <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarRotacion('rojo')">🔴 Sin movimiento</button>
+</div>
+        </div>
+        <div id="rotacion-lista">
+          ${productosConRotacion.map(p => {
+            const s = coloresSemaforo[p.semaforo]
+            return `
+              <div class="rotacion-item" data-semaforo="${p.semaforo}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:8px;background:#f5f5f5;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">👠</div>`}
+                <div style="flex:1;min-width:140px">
+                  <p style="font-weight:600;font-size:0.9rem;margin-bottom:2px">${p.nombre}</p>
+                  <p style="font-size:0.75rem;color:#888">${p.sku_interno || ''} · Stock: ${p.stockTotal} pares</p>
+                  <span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${s.bg};color:${s.color}">${s.texto}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;min-width:200px">
+                  <div>
+                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d30}</p>
+                    <p style="font-size:0.65rem;color:#aaa">30 días</p>
+                  </div>
+                  <div>
+                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d60}</p>
+                    <p style="font-size:0.65rem;color:#aaa">60 días</p>
+                  </div>
+                  <div>
+                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d90}</p>
+                    <p style="font-size:0.65rem;color:#aaa">90 días</p>
+                  </div>
+                </div>
+                <div style="text-align:right;min-width:120px">
+                  <p style="font-size:0.82rem;font-weight:600;color:#333">${p.ventasSemana.toFixed(1)} pares/sem</p>
+                  <p style="font-size:0.75rem;color:${p.diasInventario ? (p.diasInventario < 14 ? '#c62828' : p.diasInventario < 30 ? '#f57f17' : '#2e7d32') : '#aaa'}">${p.diasInventario ? `~${p.diasInventario} días stock` : 'Sin ventas'}</p>
+                  <p style="font-size:0.72rem;color:#888;margin-top:2px">${p.recomendacion}</p>
+                </div>
+              </div>
+            `
+          }).join('')}
+        </div>
+      </div>
+    `
+
+    window._rotacionData = productosConRotacion
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando análisis</p>'
+  }
+}
+
+window.filtrarRotacion = (semaforo) => {
+  document.querySelectorAll('.rotacion-item').forEach(item => {
+    item.style.display = semaforo === 'todos' || item.dataset.semaforo === semaforo ? '' : 'none'
+  })
 }
 
 async function cargarProductos(categoriaFiltro) {
@@ -263,65 +415,150 @@ async function cargarProductos(categoriaFiltro) {
 async function cargarClientes() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(API + '/clientes/')
-    const data = await res.json()
+    const [resCli, resPed] = await Promise.all([
+      fetch(API + '/clientes/'),
+      fetch(API + '/pedidos/')
+    ])
+    const clientes = await resCli.json()
+    const pedidos = await resPed.json()
+
+    // Enriquecer clientes con datos de pedidos
+    const hoy = new Date()
+    const hace30 = new Date(hoy - 30 * 24 * 60 * 60 * 1000)
+    const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
+
+    const clientesEnriquecidos = clientes.map(c => {
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
+      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+      const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
+
+      // Segmentacion automatica
+      let segmento = 'nuevo'
+      let segmentoLabel = '⚪ Nuevo'
+      let segmentoBg = '#f5f5f5'
+      let segmentoColor = '#888'
+
+      if (pedidosCli.length === 0) {
+        segmento = 'nuevo'; segmentoLabel = '⚪ Sin compras'; segmentoBg = '#f5f5f5'; segmentoColor = '#888'
+      } else if (totalGastado >= 5000 && pedidos30 >= 1) {
+        segmento = 'vip'; segmentoLabel = '⭐ VIP'; segmentoBg = '#fff8e1'; segmentoColor = '#f57f17'
+      } else if (diasSinComprar > 90) {
+        segmento = 'inactivo'; segmentoLabel = '🔴 Inactivo'; segmentoBg = '#ffebee'; segmentoColor = '#c62828'
+      } else if (diasSinComprar > 30) {
+        segmento = 'riesgo'; segmentoLabel = '🟡 En riesgo'; segmentoBg = '#fff8e1'; segmentoColor = '#f57f17'
+      } else if (pedidos30 >= 2) {
+        segmento = 'frecuente'; segmentoLabel = '🟢 Frecuente'; segmentoBg = '#e8f5e9'; segmentoColor = '#2e7d32'
+      } else {
+        segmento = 'activo'; segmentoLabel = '🔵 Activo'; segmentoBg = '#e3f2fd'; segmentoColor = '#1565c0'
+      }
+
+      return { ...c, totalGastado, ultimoPedido, pedidos30, diasSinComprar, segmento, segmentoLabel, segmentoBg, segmentoColor, totalPedidos: pedidosCli.length }
+    }).sort((a, b) => b.totalGastado - a.totalGastado)
+
+    // Estadísticas
+    const totalVIP = clientesEnriquecidos.filter(c => c.segmento === 'vip').length
+    const totalInactivos = clientesEnriquecidos.filter(c => c.segmento === 'inactivo').length
+    const totalEnRiesgo = clientesEnriquecidos.filter(c => c.segmento === 'riesgo').length
+    const totalActivos = clientesEnriquecidos.filter(c => c.segmento === 'frecuente' || c.segmento === 'activo').length
+
+    window._clientesData = clientesEnriquecidos
+
     content.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('todos')">
+          <p style="font-size:1.8rem;font-weight:700;color:#333">${clientes.length}</p>
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('vip')">
+          <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${totalVIP}</p>
+          <p style="font-size:0.72rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⭐ VIP</p>
+        </div>
+        <div style="background:#e8f5e9;border-radius:12px;padding:1rem;border:1px solid #a5d6a7;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('activos')">
+          <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${totalActivos}</p>
+          <p style="font-size:0.72rem;color:#2e7d32;text-transform:uppercase;letter-spacing:0.5px">🟢 Activos</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('riesgo')">
+          <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${totalEnRiesgo}</p>
+          <p style="font-size:0.72rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">🟡 En riesgo</p>
+        </div>
+        <div style="background:#ffebee;border-radius:12px;padding:1rem;border:1px solid #ffcdd2;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('inactivo')">
+          <p style="font-size:1.8rem;font-weight:700;color:#c62828">${totalInactivos}</p>
+          <p style="font-size:0.72rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🔴 Inactivos</p>
+        </div>
+      </div>
+
       <div class="table-card">
         <div class="table-header">
-          <h3>Clientes (${data.length})</h3>
+          <h3>Clientes (${clientes.length})</h3>
           <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
         </div>
         <div style="padding:0 1.5rem 1rem;display:flex;gap:8px;flex-wrap:wrap">
-          <input class="form-input" id="cli-buscar" placeholder="Buscar por nombre o telefono..." style="max-width:280px" oninput="filtrarClientes()">
-          <select class="form-input" id="cli-tipo" style="max-width:150px" onchange="filtrarClientes()">
+          <input class="form-input" id="cli-buscar" placeholder="🔍 Buscar por nombre o telefono..." style="flex:1;min-width:200px" oninput="filtrarClientes()">
+          <select class="form-input" id="cli-tipo" style="min-width:140px" onchange="filtrarClientes()">
             <option value="">Todos los tipos</option>
             <option value="menudeo">Menudeo</option>
-            <option value="mayoreo">Mayoreo</option>
-            <option value="zapateria">Zapateria</option>
+            <option value="mayoreo">Mayoreo variado</option>
+            <option value="zapateria">Corridas</option>
           </select>
         </div>
-        <table id="cli-tabla">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Telefono</th>
-              <th>Tipo</th>
-              <th>Credito</th>
-              <th>Ciudad</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="cli-tbody">
-            ${data.length === 0
-              ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay clientes registrados</td></tr>'
-              : data.map(c => `
-                <tr>
-                  <td>
-                    <strong>${c.nombre}</strong>
-                    ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
-                  </td>
-                  <td>
-                    ${c.telefono || '—'}
-                    ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
-                  </td>
-                  <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
-                  <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
-                  <td>${c.ciudad || '—'}</td>
-                  <td style="display:flex;gap:4px;flex-wrap:wrap">
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
-                    ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
-                  </td>
-                </tr>
-              `).join('')}
-          </tbody>
-        </table>
+        <div id="cli-lista">
+          ${clientesEnriquecidos.map(c => `
+            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}"
+                 style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
+                 onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
+                 onclick="verCliente('${c.id}')">
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0">
+                ${c.nombre.charAt(0).toUpperCase()}
+              </div>
+              <div style="flex:1;min-width:140px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                  <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
+                  <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${c.segmentoBg};color:${c.segmentoColor}">${c.segmentoLabel}</span>
+                  <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#f5f5f5;color:#888">${c.tipo === 'mayoreo' ? 'Mayoreo' : c.tipo === 'zapateria' ? 'Corridas' : 'Menudeo'}</span>
+                </div>
+                <p style="font-size:0.78rem;color:#888">${c.telefono || 'Sin teléfono'}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
+                ${c.comentarios_internos ? `<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${c.comentarios_internos.substring(0,50)}${c.comentarios_internos.length > 50 ? '...' : ''}</p>` : ''}
+              </div>
+              <div style="text-align:right;min-width:100px">
+                <p style="font-weight:700;color:#E91E8C;font-size:0.95rem">$${c.totalGastado.toFixed(0)}</p>
+                <p style="font-size:0.72rem;color:#888">${c.totalPedidos} pedidos</p>
+                ${c.diasSinComprar !== null ? `<p style="font-size:0.68rem;color:${c.diasSinComprar > 60 ? '#c62828' : '#aaa'}">${c.diasSinComprar === 0 ? 'Hoy' : 'Hace ' + c.diasSinComprar + ' días'}</p>` : ''}
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
+                ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WhatsApp</a>` : ''}
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     `
-    window._clientesData = data
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
+}
+
+window.filtrarClientes = () => {
+  const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase()
+  const tipo = document.getElementById('cli-tipo')?.value || ''
+  document.querySelectorAll('.cli-item').forEach(el => {
+    const nombre = el.dataset.nombre || ''
+    const tel = el.dataset.tel || ''
+    const tipoEl = el.dataset.tipo || ''
+    const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
+    const matchTipo = !tipo || tipoEl === tipo
+    el.style.display = matchBuscar && matchTipo ? '' : 'none'
+  })
+}
+
+window.filtrarClientesSeg = (seg) => {
+  document.querySelectorAll('.cli-item').forEach(el => {
+    if (seg === 'todos') { el.style.display = ''; return }
+    if (seg === 'activos') { el.style.display = (el.dataset.segmento === 'activo' || el.dataset.segmento === 'frecuente') ? '' : 'none'; return }
+    el.style.display = el.dataset.segmento === seg ? '' : 'none'
+  })
 }
 
 
@@ -374,33 +611,37 @@ async function cargarInventario() {
     const inventario = await resInv.json()
     window._invData = { sucursales, productos, variantes, inventario }
     content.innerHTML = `
-      <div style="margin-bottom:1.5rem;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input class="form-input" id="inv-buscar" placeholder="Buscar por nombre o SKU..." style="max-width:250px" oninput="renderInventario()">
-        <select class="form-input" id="inv-categoria" style="max-width:150px" onchange="renderInventario()">
-          <option value="">Todas las categorias</option>
-          ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
-        </select>
-        <select class="form-input" id="inv-talla" style="max-width:110px" onchange="renderInventario()">
-          <option value="">Todas las tallas</option>
-          ${TALLAS.map(t => `<option value="${t}">${t}</option>`).join('')}
-        </select>
-        <select class="form-input" id="inv-estado" style="max-width:140px" onchange="renderInventario()">
-          <option value="">Todos los estados</option>
-          <option value="disponible">Disponible</option>
-          <option value="bajo">Stock bajo</option>
-          <option value="agotado">Agotado</option>
-        </select>
-        <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
-        <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">Alertas</button>
-        <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Inventario masivo</button>
-        <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
-        <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">- Salida</button>
-        <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
-        <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">Cambio</button>
-        <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">⇄ Traspaso</button>
-      </div>
-      <div id="inv-contenido"></div>
-    `
+  <div style="margin-bottom:1.5rem">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <input class="form-input" id="inv-buscar" placeholder="🔍 Buscar por nombre o SKU..." style="flex:1;min-width:200px" oninput="renderInventario()">
+      <select class="form-input" id="inv-categoria" style="min-width:140px" onchange="renderInventario()">
+        <option value="">Todas las categorias</option>
+        ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `<option value="${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</option>`).join('')}
+      </select>
+      <select class="form-input" id="inv-talla" style="min-width:100px" onchange="renderInventario()">
+        <option value="">Todas las tallas</option>
+        ${TALLAS.map(t => `<option value="${t}">${t}</option>`).join('')}
+      </select>
+      <select class="form-input" id="inv-estado" style="min-width:130px" onchange="renderInventario()">
+        <option value="">Todos los estados</option>
+        <option value="disponible">Disponible</option>
+        <option value="bajo">Stock bajo</option>
+        <option value="agotado">Agotado</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
+      <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">⚠ Alertas</button>
+      <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Masivo</button>
+      <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
+      <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">− Salida</button>
+      <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
+      <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">↔ Cambio</button>
+      <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">⇄ Traspaso</button>
+    </div>
+  </div>
+  <div id="inv-contenido"></div>
+`
     renderInventario()
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
@@ -414,23 +655,29 @@ window.renderInventario = () => {
   const tallaFiltro = document.getElementById('inv-talla') ? document.getElementById('inv-talla').value : ''
   const estadoFiltro = document.getElementById('inv-estado') ? document.getElementById('inv-estado').value : ''
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
   const productosFiltrados = productos.filter(p => {
     if (buscar && !p.nombre.toLowerCase().includes(buscar) && !(p.sku_interno || '').toLowerCase().includes(buscar)) return false
     if (categoriaFiltro && p.categoria !== categoriaFiltro) return false
     return true
   })
+
   const html = sucursales.map(suc => {
     const invSucursal = inventario.filter(i => i.sucursal_id === suc.id)
     const productosHtml = productosFiltrados.map(prod => {
       const variantesProd = variantes.filter(v => v.producto_id === prod.id)
       if (variantesProd.length === 0) return ''
       const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
+
       const coloresHtml = colores.map(color => {
         const variantesColor = variantesProd
           .filter(v => v.color === color)
           .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
         if (tallaFiltro && !variantesColor.find(v => v.talla === tallaFiltro)) return ''
+
         const colorHex = variantesColor[0] ? variantesColor[0].color_hex : '#888'
+        const fotoColor = variantesColor[0] ? variantesColor[0].foto_url : null
+
         const tallasHtml = variantesColor.map(v => {
           const inv = invSucursal.find(i => i.variante_id === v.id)
           const cantidad = inv ? inv.cantidad : null
@@ -446,42 +693,64 @@ window.renderInventario = () => {
           else if (cantidad === 0) { bg = '#ffebee'; colorTexto = '#c62828' }
           else if (cantidad <= minimo) { bg = '#fff8e1'; colorTexto = '#f57f17' }
           else { bg = '#e8f5e9'; colorTexto = '#2e7d32' }
+
           return `
-            <div onclick="editarStock('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo})"
-                 title="Click para editar"
-                 style="display:inline-flex;flex-direction:column;align-items:center;background:${bg};border-radius:8px;padding:6px 10px;cursor:pointer;min-width:52px;border:1px solid ${colorTexto}30"
-                 onmouseover="this.style.transform='scale(1.05)'"
-                 onmouseout="this.style.transform='scale(1)'">
-              <span style="font-size:0.7rem;color:#666;font-weight:500">${v.talla}</span>
-              <span style="font-size:1rem;font-weight:700;color:${colorTexto}">${cantidad !== null ? cantidad : '—'}</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border-radius:10px;padding:8px 12px;border:1px solid ${colorTexto}30">
+              <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:44px">T${v.talla}</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button onclick="cambiarStockInventario('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo}, -1)"
+                        style="background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+                <span id="stock-${v.id}-${suc.id}" style="font-size:1.1rem;font-weight:700;color:${colorTexto};min-width:32px;text-align:center">${cantidad !== null ? cantidad : '—'}</span>
+                <button onclick="cambiarStockInventario('${v.id}', '${suc.id}', ${cantidad !== null ? cantidad : 0}, ${minimo}, 1)"
+                        style="background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+              </div>
             </div>
           `
         }).join('')
+
         if (!tallasHtml.trim()) return ''
+
         return `
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px;min-width:140px">
-              <div style="width:16px;height:16px;border-radius:50%;background:${colorHex};border:2px solid #ddd;flex-shrink:0"></div>
-              <span style="font-size:0.85rem;font-weight:500;color:#444">${color}</span>
+          <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              ${fotoColor
+                ? `<img src="${fotoColor}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`
+                : `<div style="width:52px;height:52px;background:${colorHex};border-radius:8px;border:1px solid #eee;flex-shrink:0;opacity:0.7"></div>`}
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:14px;height:14px;border-radius:50%;background:${colorHex};border:2px solid #ddd;flex-shrink:0"></div>
+                <span style="font-size:0.9rem;font-weight:600;color:#333">${color}</span>
+              </div>
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">${tallasHtml}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+              ${tallasHtml}
+            </div>
           </div>
         `
       }).join('')
+
       if (!coloresHtml.trim()) return ''
+
+      const imgPrincipal = prod.imagen_principal
+
       return `
         <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+            ${imgPrincipal
+              ? `<img src="${imgPrincipal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`
+              : `<div style="width:56px;height:56px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">👠</div>`}
             <div>
-              <span style="font-weight:600;font-size:1rem;color:#1a1a1a">${prod.nombre}</span>
-              <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${prod.sku_interno || '—'}</span>
-              <span style="margin-left:6px;font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
+              <p style="font-weight:700;font-size:1rem;color:#1a1a1a;margin-bottom:2px">${prod.nombre}</p>
+              <div>
+                <span style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px;margin-right:4px">${prod.sku_interno || '—'}</span>
+                <span style="font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${prod.categoria || ''}</span>
+              </div>
             </div>
           </div>
           ${coloresHtml}
         </div>
       `
     }).join('')
+
     if (!productosHtml.trim()) return ''
     return `
       <div style="margin-bottom:2rem">
@@ -494,8 +763,50 @@ window.renderInventario = () => {
       </div>
     `
   }).join('')
+
   const contenido = document.getElementById('inv-contenido')
   if (contenido) contenido.innerHTML = html || '<div style="text-align:center;padding:3rem;color:#888"><p>No hay inventario registrado</p></div>'
+}
+window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, minimo, delta) => {
+  const nuevaCantidad = Math.max(0, cantidadActual + delta)
+  try {
+    const res = await fetch(API + '/inventario/actualizar', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id: varianteId,
+        sucursal_id: sucursalId,
+        cantidad: nuevaCantidad,
+        stock_minimo: minimo
+      })
+    })
+    if (res.ok) {
+      // Actualizar el display sin re-renderizar todo
+      const el = document.getElementById('stock-' + varianteId + '-' + sucursalId)
+      if (el) {
+        el.textContent = nuevaCantidad
+        // Actualizar color
+        let colorTexto
+        if (nuevaCantidad === 0) colorTexto = '#c62828'
+        else if (nuevaCantidad <= minimo) colorTexto = '#f57f17'
+        else colorTexto = '#2e7d32'
+        el.style.color = colorTexto
+      }
+      // Actualizar datos en memoria
+      const invItem = window._invData.inventario.find(i => i.variante_id === varianteId && i.sucursal_id === sucursalId)
+      if (invItem) invItem.cantidad = nuevaCantidad
+      // Actualizar los botones con nueva cantidad
+      const btns = document.querySelectorAll(`button[onclick*="${varianteId}"][onclick*="${sucursalId}"]`)
+      btns.forEach(btn => {
+        btn.setAttribute('onclick', btn.getAttribute('onclick').replace(
+          /cambiarStockInventario\('[^']+', '[^']+', \d+,/,
+          `cambiarStockInventario('${varianteId}', '${sucursalId}', ${nuevaCantidad},`
+        ))
+      })
+    }
+  } catch(e) {
+    alert('Error actualizando stock')
+  }
 }
 
 window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
@@ -861,47 +1172,60 @@ function renderVariante(i, datos) {
   if (d.imagenes && d.imagenes.length > 0) {
     fotosHTML = d.imagenes.map((url, fIdx) => {
       const esPortada = fIdx === 0
-      return '<div style="position:relative;cursor:pointer" data-es-portada="' + esPortada + '" data-file-idx="' + fIdx + '" data-url="' + url + '">' +
-  '<img src="' + url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ' + (esPortada ? '#E91E8C' : '#ddd') + '" onclick="seleccionarPortadaExistente(' + i + ', ' + fIdx + ')">' +
-  (esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' : '') +
-  '<button onclick="eliminarFotoExistente(' + i + ', this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>' +
-  '</div>'
+      return `<div style="position:relative;cursor:pointer">
+        <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}" onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
+        ${esPortada ? '<span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>' : ''}
+        <button onclick="eliminarFotoExistente(${i}, this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>`
     }).join('')
   } else if (d.foto_url) {
-    fotosHTML = '<div style="position:relative" data-es-portada="true">' +
-      '<img src="' + d.foto_url + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #E91E8C">' +
-      '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px">PORTADA</span>' +
-      '</div>'
+    fotosHTML = `<div style="position:relative">
+      <img src="${d.foto_url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid #E91E8C">
+      <span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>
+    </div>`
   }
 
   return `
-    <div class="variante-item" id="variante-${i}" style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-        <p style="font-weight:500;color:#333;font-size:0.9rem">Color ${i + 1}</p>
-        ${i > 0 ? '<button type="button" onclick="eliminarColorVariante(' + i + ', this)" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:0.85rem">Eliminar color</button>' : ''}
+    <div class="variante-item" id="variante-${i}" style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,0.05)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="font-weight:700;color:#333;font-size:0.95rem">Color ${i + 1}</p>
+        ${i > 0 ? `<button type="button" onclick="eliminarColorVariante(${i}, this)" style="background:#ffebee;border:1px solid #ffcdd2;color:#c62828;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600">Eliminar</button>` : ''}
       </div>
-      <div style="margin-bottom:0.75rem">
-        <label class="form-label">Paleta de colores</label>
-        <div style="display:flex;flex-wrap:wrap;gap:5px">
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label" style="margin-bottom:8px">Paleta de colores</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
           ${COLORES_SUGERIDOS.map(c => `
             <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
                  title="${c.nombre}"
-                 style="width:24px;height:24px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0">
+                 style="width:26px;height:26px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
+                 onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
             </div>
           `).join('')}
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:1rem;align-items:end">
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
-                 style="width:40px;height:36px;border:1px solid #ddd;border-radius:6px;cursor:pointer;padding:2px">
-          <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color" value="${d.color || ''}" style="width:160px" oninput="actualizarTablaStock()">
-        </div>
-        <div>
+
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+        <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
+               style="width:44px;height:44px;border:2px solid #eee;border-radius:8px;cursor:pointer;padding:2px;flex-shrink:0">
+        <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color (ej: Negro, Nude, Carey...)" 
+               value="${d.color || ''}" style="flex:1;min-width:140px" oninput="actualizarTablaStock()">
+      </div>
+
+      <div style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px dashed #ddd">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div>
+            <p style="font-size:0.82rem;font-weight:600;color:#555;margin-bottom:2px">Fotos de este color</p>
+            <p style="font-size:0.72rem;color:#aaa">La primera foto será la portada</p>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()" 
+                  style="font-size:0.82rem;padding:6px 14px">
+            📷 Subir fotos
+          </button>
           <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()">+ Subir fotos</button>
-          <p style="font-size:0.72rem;color:#888;margin-top:4px">Puedes seleccionar varias fotos a la vez</p>
-          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${fotosHTML}</div>
+        </div>
+        <div id="v${i}-preview" style="display:flex;gap:10px;flex-wrap:wrap">
+          ${fotosHTML || `<div style="width:72px;height:72px;background:#f0f0f0;border-radius:10px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#ccc">📷</div>`}
         </div>
       </div>
     </div>
@@ -1628,7 +1952,7 @@ if (sucursalStock && pid) {
           await fetch(API + '/inventario/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 3 })
+            body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 1 })
           })
         }
       }
@@ -1753,7 +2077,7 @@ window.filtrarClientes = () => {
       <tr>
         <td>
           <strong>${c.nombre}</strong>
-          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">­ƒôØ ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">`<span style="...">📝</span>` ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
         </td>
         <td>
           ${c.telefono || '—'}
@@ -1813,8 +2137,8 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
           <label class="form-label">Tipo de cliente *</label>
           <select class="form-input" id="cli-tipo">
             <option value="menudeo" ${d.tipo === 'menudeo' ? 'selected' : ''}>Menudeo</option>
-            <option value="mayoreo" ${d.tipo === 'mayoreo' ? 'selected' : ''}>Mayoreo</option>
-            <option value="zapateria" ${d.tipo === 'zapateria' ? 'selected' : ''}>Zapateria</option>
+            <option value="mayoreo" ${d.tipo === 'mayoreo' ? 'selected' : ''}>Mayoreo variado</option>
+            <option value="zapateria" ${d.tipo === 'zapateria' ? 'selected' : ''}>Corridas</option>
           </select>
         </div>
       </div>
@@ -1925,63 +2249,148 @@ window.verCliente = async (id) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
-    const res = await fetch(API + '/clientes/' + id)
-    const data = await res.json()
+    const [resCli, resPed] = await Promise.all([
+      fetch(API + '/clientes/' + id),
+      fetch(API + '/pedidos/')
+    ])
+    const data = await resCli.json()
+    const todosPedidos = await resPed.json()
     if (!data || data.length === 0) { alert('Cliente no encontrado'); return }
     const c = data[0]
+    const pedidos = todosPedidos.filter(p => p.cliente_id === id)
+    const pedidosConfirmados = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
+    const totalGastado = pedidosConfirmados.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const ticketPromedio = pedidosConfirmados.length > 0 ? totalGastado / pedidosConfirmados.length : 0
+    const ultimoPedido = pedidos.length > 0 ? new Date(pedidos[0].created_at) : null
+    const diasSinComprar = ultimoPedido ? Math.floor((new Date() - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
+
+    // Meses de actividad
+    const ventasPorMes = {}
+    pedidosConfirmados.forEach(p => {
+      const mes = new Date(p.created_at).toLocaleDateString('es-MX', { month: 'short', year: '2-digit' })
+      ventasPorMes[mes] = (ventasPorMes[mes] || 0) + parseFloat(p.total || 0)
+    })
+
     content.innerHTML = `
-      <div class="table-card" style="padding:2rem">
+      <div style="max-width:900px;margin:0 auto">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
-          <h3 style="flex:1">${c.nombre}</h3>
-          <button class="btn btn-secondary" onclick="editarCliente('${c.id}')">Editar</button>
-          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Tipo</p>
-            <span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span>
+          <div style="flex:1">
+            <h2 style="font-size:1.3rem;font-weight:700">${c.nombre}</h2>
+            <p style="font-size:0.82rem;color:#888">${c.tipo === 'mayoreo' ? 'Mayoreo variado' : c.tipo === 'zapateria' ? 'Corridas' : 'Menudeo'} · Cliente desde ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : '—'}</p>
           </div>
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Telefono</p>
-            <p style="font-weight:600">${c.telefono || '—'}</p>
-          </div>
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Email</p>
-            <p style="font-weight:600">${c.email || '—'}</p>
-          </div>
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Direccion</p>
-            <p style="font-weight:600">${c.direccion || '—'}</p>
-            <p style="font-size:0.8rem;color:#888">${c.ciudad || ''} ${c.estado || ''} ${c.codigo_postal || ''}</p>
-          </div>
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Credito</p>
-            <p style="font-weight:600">${c.limite_credito > 0 ? '$' + c.limite_credito : 'Sin credito'}</p>
-            <p style="font-size:0.8rem;color:#888">${c.dias_credito > 0 ? c.dias_credito + ' dias' : ''}</p>
-          </div>
-          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
-            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente desde</p>
-            <p style="font-weight:600">${c.created_at ? new Date(c.created_at).toLocaleDateString('es-MX') : '—'}</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>` : ''}
+            <button class="btn btn-secondary" onclick="mostrarFormCliente('${c.id}')">✏️ Editar</button>
+            <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
           </div>
         </div>
 
-        ${c.comentarios_internos ? `
-          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1.5rem;border:1px solid #ffe082">
-            <p style="font-size:0.75rem;color:#f57f17;font-weight:600;margin-bottom:4px">Comentarios internos</p>
-            <p style="color:#555">${c.comentarios_internos}</p>
+        <!-- ESTADÍSTICAS -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${totalGastado.toFixed(0)}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total gastado</p>
           </div>
-        ` : ''}
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#333">${pedidosConfirmados.length}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pedidos</p>
+          </div>
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#333">$${ticketPromedio.toFixed(0)}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
+          </div>
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:${diasSinComprar > 60 ? '#c62828' : diasSinComprar > 30 ? '#f57f17' : '#2e7d32'}">${diasSinComprar !== null ? diasSinComprar : '—'}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Días sin comprar</p>
+          </div>
+        </div>
 
-        <div style="display:flex;gap:1rem;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
-          <button class="btn btn-secondary" onclick="verHistorialCliente('${c.id}')">Ver historial</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <!-- INFO -->
+          <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee">
+            <p style="font-weight:700;font-size:0.85rem;margin-bottom:1rem;color:#333">Información de contacto</p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Teléfono</span>
+                <span style="font-size:0.85rem;font-weight:600">${c.telefono || '—'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Email</span>
+                <span style="font-size:0.85rem;font-weight:600">${c.email || '—'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Ciudad</span>
+                <span style="font-size:0.85rem;font-weight:600">${c.ciudad || '—'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Dirección</span>
+                <span style="font-size:0.85rem;font-weight:600;text-align:right;max-width:180px">${c.direccion || '—'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Crédito</span>
+                <span style="font-size:0.85rem;font-weight:600">${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' días' : 'Sin crédito'}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NOTAS -->
+          <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee">
+            <p style="font-weight:700;font-size:0.85rem;margin-bottom:1rem;color:#333">Notas internas</p>
+            <textarea id="cli-notas-${c.id}" rows="5" placeholder="Escribe notas sobre este cliente..."
+                      style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none;outline:none"
+                      onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#eee'">${c.comentarios_internos || ''}</textarea>
+            <button onclick="guardarNotasCliente('${c.id}')" class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:0.82rem">
+              💾 Guardar notas
+            </button>
+          </div>
+        </div>
+
+        <!-- HISTORIAL DE PEDIDOS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">Historial de pedidos</p>
+            <span style="font-size:0.78rem;color:#888">${pedidos.length} pedidos</span>
+          </div>
+          ${pedidos.length === 0
+            ? '<div style="text-align:center;padding:2rem;color:#888">Sin pedidos registrados</div>'
+            : pedidos.map(p => {
+              const statusColor = { 'confirmado': '#2e7d32', 'pagado': '#2e7d32', 'pendiente_pago': '#f57f17', 'cancelado': '#c62828', 'borrador': '#f57f17' }[p.status] || '#888'
+              const statusBg = { 'confirmado': '#e8f5e9', 'pagado': '#e8f5e9', 'pendiente_pago': '#fff8e1', 'cancelado': '#ffebee', 'borrador': '#fff8e1' }[p.status] || '#f5f5f5'
+              return `
+                <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer" onclick="verPedido('${p.id}')"
+                     onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+                  <div style="flex:1">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                      <span style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</span>
+                      <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${statusBg};color:${statusColor}">${p.status}</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')} · ${p.canal || '—'} · ${p.forma_pago || '—'}</p>
+                  </div>
+                  <p style="font-weight:700;color:#E91E8C;font-size:1rem">$${p.total || '0'}</p>
+                </div>
+              `
+            }).join('')}
         </div>
       </div>
     `
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando cliente</p>'
+  }
+}
+
+window.guardarNotasCliente = async (id) => {
+  const notas = document.getElementById('cli-notas-' + id)?.value || ''
+  try {
+    await fetch(API + '/clientes/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comentarios_internos: notas })
+    })
+    const btn = document.querySelector(`button[onclick="guardarNotasCliente('${id}')"]`)
+    if (btn) { btn.textContent = '✅ Guardado'; setTimeout(() => btn.textContent = '💾 Guardar notas', 2000) }
+  } catch(e) {
+    alert('Error guardando notas')
   }
 }
 window.editarCliente = (id) => {
@@ -2599,11 +3008,9 @@ async function cargarPedidos() {
     const data = await res.json()
     content.innerHTML = `
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-  <input class="form-input" id="ped-buscar" placeholder="🔍 Buscar por # pedido o cliente..." 
-         style="max-width:280px" oninput="filtrarPedidos()">
-  <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
-        <button class="btn ${true ? 'btn-primary' : 'btn-secondary'}" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
+        <input class="form-input" id="ped-buscar" placeholder="🔍 Buscar por # pedido o cliente..." 
+               style="max-width:280px" oninput="filtrarPedidos()">
+        <button class="btn btn-primary" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('online')">Online</button>
@@ -2627,7 +3034,7 @@ async function cargarPedidos() {
           </thead>
           <tbody>
             ${data.length === 0
-              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
+              ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
               : data.map(p => {
                 const statusColor = {
                   'borrador': 'badge-warning',
@@ -3200,16 +3607,16 @@ async function cargarPOS() {
     window._posClienteId = null
 
     content.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 380px;gap:1rem;height:calc(100vh - 80px)">
-        
+      <div id="pos-layout" style="display:grid;grid-template-columns:1fr 380px;gap:1rem;height:calc(100vh - 80px)">
+
         <div style="overflow-y:auto;padding-right:0.5rem">
           <div style="background:white;border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid #eee;position:sticky;top:0;z-index:10">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:0.75rem">
-              <input class="form-input" id="pos-buscar" placeholder="Buscar por nombre, SKU o modelo..." style="flex:1;font-size:1rem" oninput="buscarPOS(this.value)">
-              <select class="form-input" id="pos-sucursal" style="max-width:200px" onchange="actualizarInventarioPOS()">
-                ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
-              </select>
-            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:0.75rem">
+  <input class="form-input" id="pos-buscar" placeholder="🔍 Buscar por nombre o SKU..." style="width:100%;font-size:1rem;min-height:44px;padding:10px 14px" oninput="buscarPOS(this.value)">
+  <select class="form-input" id="pos-sucursal" style="width:100%" onchange="actualizarInventarioPOS()">
+    ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+  </select>
+</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap" id="pos-categorias">
               <button class="btn btn-primary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('')">Todos</button>
               ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `
@@ -3217,23 +3624,21 @@ async function cargarPOS() {
               `).join('')}
             </div>
           </div>
-          <div id="pos-productos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem">
+          <div id="pos-productos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;padding-bottom:80px">
           </div>
         </div>
 
-        <div style="background:white;border-radius:12px;border:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
+        <div id="pos-carrito-desktop" style="background:white;border-radius:12px;border:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
           <div style="padding:1rem;border-bottom:1px solid #eee">
             <p style="font-weight:700;font-size:1rem;margin-bottom:0.5rem">Carrito</p>
-           <input class="form-input" id="pos-cliente-buscar" placeholder="🔍 Buscar cliente..." style="font-size:0.85rem" oninput="buscarClientePOS(this.value)">
-          <div id="pos-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px;z-index:50;position:relative"></div>
-          <input type="hidden" id="pos-cliente">
-         <div id="pos-cliente-seleccionado" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.8rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOS()">Sin cliente seleccionado — toca para cambiar</div>
+            <input class="form-input" id="pos-cliente-buscar" placeholder="🔍 Buscar cliente..." style="font-size:0.85rem" oninput="buscarClientePOS(this.value)">
+            <div id="pos-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px;z-index:50;position:relative"></div>
+            <input type="hidden" id="pos-cliente">
+            <div id="pos-cliente-seleccionado" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.8rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOS()">Sin cliente seleccionado — toca para cambiar</div>
           </div>
-          
           <div id="pos-carrito-items" style="flex:1;overflow-y:auto;padding:0.75rem">
             <p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>
           </div>
-
           <div style="padding:1rem;border-top:1px solid #eee">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
               <span style="font-size:0.85rem;color:#888">Total pares: <strong id="pos-total-pares">0</strong></span>
@@ -3243,32 +3648,80 @@ async function cargarPOS() {
               <span style="font-weight:600;font-size:1rem">Total:</span>
               <span style="font-weight:700;font-size:1.4rem;color:#E91E8C" id="pos-total">$0.00</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-              <select class="form-input" id="pos-pago" style="background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="spei">SPEI</option>
-                <option value="credito">Credito</option>
-              </select>
-            </div>
+            <select class="form-input" id="pos-pago" style="width:100%;background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="spei">SPEI</option>
+              <option value="credito">Credito</option>
+            </select>
             <div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #ffe082">
-                   <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:6px">Descuento general</p>
-                           <div style="display:flex;align-items:center;gap:8px">
-                               <span style="font-size:0.85rem;color:#f57f17;font-weight:600">$</span>
-                       <input type="number" min="0" value="0" id="pos-descuento"
-           style="width:80px;text-align:center;padding:6px;border:2px solid #f57f17;border-radius:8px;font-size:1rem;font-weight:700;color:#f57f17"
-           oninput="aplicarDescuentoPOS(this.value)">
-                          <span style="font-size:0.85rem;color:#f57f17;font-weight:600">de descuento por par</span>
-                     </div>
-                          <p id="pos-descuento-info" style="font-size:0.75rem;color:#888;margin-top:4px"></p>
-                      </div>
-                 <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem;font-weight:600" onclick="cobrarPOS()">
-               Cobrar
-             </button>
-            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem" onclick="limpiarCarritoPOS()">
-              Limpiar carrito
-            </button>
+              <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:6px">Descuento general</p>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.85rem;color:#f57f17;font-weight:600">$</span>
+                <input type="number" min="0" value="0" id="pos-descuento"
+                  style="width:80px;text-align:center;padding:6px;border:2px solid #f57f17;border-radius:8px;font-size:1rem;font-weight:700;color:#f57f17"
+                  oninput="aplicarDescuentoPOS(this.value)">
+                <span style="font-size:0.85rem;color:#f57f17;font-weight:600">de descuento por par</span>
+              </div>
+              <p id="pos-descuento-info" style="font-size:0.75rem;color:#888;margin-top:4px"></p>
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem;font-weight:600" onclick="cobrarPOS()">Cobrar</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem" onclick="limpiarCarritoPOS()">Limpiar carrito</button>
           </div>
+        </div>
+
+      </div>
+
+      <!-- BOTÓN FLOTANTE MÓVIL -->
+      <div id="pos-btn-flotante" onclick="abrirDrawerPOS()" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:#E91E8C;color:white;padding:14px 20px;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 -4px 20px rgba(0,0,0,0.2)">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;opacity:0.8;letter-spacing:1px">CARRITO</p>
+          <p id="pos-flotante-pares" style="font-size:0.85rem;font-weight:700">0 pares</p>
+        </div>
+        <p id="pos-flotante-total" style="font-size:1.3rem;font-weight:800">$0.00</p>
+        <div style="background:white;color:#E91E8C;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700">Ver carrito →</div>
+      </div>
+
+      <!-- DRAWER MÓVIL -->
+      <div id="pos-drawer-overlay" onclick="cerrarDrawerPOS()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199"></div>
+      <div id="pos-drawer" style="position:fixed;bottom:0;left:0;right:0;z-index:200;background:white;border-radius:20px 20px 0 0;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform 0.3s ease">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:10">
+          <p style="font-weight:700;font-size:1.1rem">🛒 Carrito</p>
+          <button onclick="cerrarDrawerPOS()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid #eee">
+          <input class="form-input" id="pos-cliente-buscar-m" placeholder="🔍 Buscar cliente..." style="width:100%;font-size:0.9rem" oninput="buscarClientePOSM(this.value)">
+          <div id="pos-cliente-resultados-m" style="border:1px solid #ddd;border-radius:6px;max-height:150px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <div id="pos-cliente-sel-m" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.82rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOSM()"></div>
+        </div>
+        <div id="pos-drawer-items" style="padding:0.75rem 1rem"></div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #eee">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:#888;font-size:0.85rem">Pares: <strong id="pos-drawer-pares">0</strong></span>
+            <span style="color:#888;font-size:0.85rem">Tipo: <strong id="pos-drawer-tipo">Menudeo</strong></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-weight:600;font-size:1rem">Total:</span>
+            <span style="font-weight:800;font-size:1.5rem;color:#E91E8C" id="pos-drawer-total">$0.00</span>
+          </div>
+          <div style="background:#fff8e1;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #ffe082">
+            <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:8px">Descuento por par</p>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:#f57f17;font-weight:700">$</span>
+              <input type="number" min="0" value="0" id="pos-descuento-m"
+                style="width:80px;text-align:center;padding:8px;border:2px solid #f57f17;border-radius:8px;font-size:1rem;font-weight:700;color:#f57f17"
+                oninput="aplicarDescuentoPOS(this.value)">
+              <span style="color:#f57f17;font-size:0.85rem">de descuento por par</span>
+            </div>
+          </div>
+          <select class="form-input" id="pos-pago-m" style="width:100%;margin-bottom:12px;font-size:0.95rem">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="spei">SPEI</option>
+            <option value="credito">Credito</option>
+          </select>
+          <button onclick="cobrarPOSM()" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700;margin-bottom:8px">💳 Cobrar</button>
+          <button onclick="limpiarCarritoPOS();cerrarDrawerPOS()" class="btn btn-secondary" style="width:100%;font-size:0.9rem">🗑 Limpiar carrito</button>
         </div>
       </div>
     `
@@ -3279,6 +3732,158 @@ async function cargarPOS() {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando punto de venta</p>'
   }
 }
+window.abrirDrawerPOS = () => {
+  renderDrawerPOS()
+  const drawer = document.getElementById('pos-drawer')
+  const overlay = document.getElementById('pos-drawer-overlay')
+  if (drawer) drawer.classList.add('open')
+  if (overlay) overlay.classList.add('active')
+  document.body.style.overflow = 'hidden'
+}
+
+window.cerrarDrawerPOS = () => {
+  const drawer = document.getElementById('pos-drawer')
+  const overlay = document.getElementById('pos-drawer-overlay')
+  if (drawer) drawer.classList.remove('open')
+  if (overlay) overlay.classList.remove('active')
+  document.body.style.overflow = ''
+}
+window.renderDrawerPOS = () => {
+  const items = window._posCarrito
+  const container = document.getElementById('pos-drawer-items')
+  if (!container) return
+
+  const totalPares = items.reduce((s,i) => s+i.cantidad, 0)
+  const total = items.reduce((s,i) => s+i.cantidad*i.precio_unitario, 0)
+  const tipo = items.some(i=>i.es_corrida)?'Corrida':totalPares>=6?'Mayoreo 6+':totalPares>=3?'Mayoreo 3+':'Menudeo'
+
+  const dp = document.getElementById('pos-drawer-pares')
+  const dt = document.getElementById('pos-drawer-total')
+  const dti = document.getElementById('pos-drawer-tipo')
+  if (dp) dp.textContent = totalPares
+  if (dt) dt.textContent = '$' + total.toFixed(2)
+  if (dti) dti.textContent = tipo
+
+  if (!items.length) {
+    console.log('normales:', itemsNormales.length, 'corridas:', itemsCorrida.length)
+    container.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">El carrito esta vacio</p>'
+    return
+  }
+
+  const itemsNormales = items.filter(i => !i.es_corrida)
+  const itemsCorrida = items.filter(i => i.es_corrida)
+
+  const corridasAgrupadas = {}
+  itemsCorrida.forEach(i => {
+    const key = i.producto_id + '|' + i.color
+    if (!corridasAgrupadas[key]) {
+      corridasAgrupadas[key] = { nombre: i.nombre, color: i.color, producto_id: i.producto_id, tallas: [], subtotal: 0, imagen: i.imagen || null }
+    }
+    corridasAgrupadas[key].tallas.push({ talla: i.talla, cantidad: i.cantidad })
+    corridasAgrupadas[key].subtotal += i.cantidad * i.precio_unitario
+  })
+
+  container.innerHTML = `
+    ${itemsNormales.map(item => {
+      
+      const realIdx = items.indexOf(item)
+      return `
+        <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
+  <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
+    ${item.imagen ? `<img src="${item.imagen}" object-fit:contain;border-radius:8px;flex-shrink:0;background:#f5f5f5>` : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
+    <div style="flex:1">
+      <p style="font-size:0.9rem;font-weight:600">${item.nombre}</p>
+      <p style="font-size:0.78rem;color:#888">${item.color} · T${item.talla}</p>
+    </div>
+    <button onclick="eliminarItemPOS(${realIdx});renderDrawerPOS()" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem">✕</button>
+  </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="cambiarCantidadPOS(${realIdx},-1);renderDrawerPOS()" style="background:#f5f5f5;border:none;border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+              <span style="font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
+              <button onclick="cambiarCantidadPOS(${realIdx},1);renderDrawerPOS()" style="background:#f5f5f5;border:none;border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:0.72rem;color:#888">$</span>
+              <input type="number" value="${item.precio_unitario}"
+                     onchange="editarPrecioPOS(${realIdx}, this.value);renderDrawerPOS()"
+                     style="width:64px;text-align:center;border:1px solid #E91E8C;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#E91E8C">
+              <span style="font-size:0.72rem;color:#888">/par</span>
+            </div>
+          </div>
+          <p style="text-align:right;font-size:0.95rem;font-weight:700;color:#E91E8C;margin-top:4px">$${(item.cantidad*item.precio_unitario).toFixed(2)}</p>
+        </div>
+      `
+    }).join('')}
+
+    ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
+      <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          ${corrida.imagen ? `<img src="${corrida.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>'}
+          <div style="flex:1">
+            <p style="font-size:0.9rem;font-weight:700">${corrida.nombre}</p>
+            <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${corrida.color}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+              ${corrida.tallas.map(t => `<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${t.talla} ×${t.cantidad}</span>`).join('')}
+            </div>
+          </div>
+          <button onclick="eliminarCorridaPOS('${key}');renderDrawerPOS()" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem">✕</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:0.85rem;color:#888">${corrida.tallas.reduce((s,t)=>s+t.cantidad,0)} pares</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:0.72rem;color:#888">$</span>
+            <input type="number" value="${(corrida.subtotal/corrida.tallas.reduce((s,t)=>s+t.cantidad,0)).toFixed(2)}"
+                   onchange="editarPrecioCorridaPOS('${key}', this.value);renderDrawerPOS()"
+                   style="width:64px;text-align:center;border:1px solid #6a1b9a;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#6a1b9a">
+            <span style="font-size:0.72rem;color:#888">/par</span>
+          </div>
+          <span style="font-weight:700;color:#6a1b9a">$${corrida.subtotal.toFixed(2)}</span>
+        </div>
+      </div>
+    `).join('')}
+  `
+}
+
+window.cobrarPOSM = async () => {
+  const pm = document.getElementById('pos-pago-m')
+  const pp = document.getElementById('pos-pago')
+  if (pm && pp) pp.value = pm.value
+  cerrarDrawerPOS()
+  await cobrarPOS()
+}
+
+window.buscarClientePOSM = (texto) => {
+  const { clientes } = window._posData
+  const res = document.getElementById('pos-cliente-resultados-m')
+  if (!texto || texto.length < 2) { res.style.display='none'; return }
+  const filtrados = clientes.filter(c => c.nombre.toLowerCase().includes(texto.toLowerCase())).slice(0,5)
+  if (!filtrados.length) { res.style.display='none'; return }
+  res.style.display = 'block'
+  res.innerHTML = filtrados.map(c => `
+    <div onclick="seleccionarClientePOSM('${c.id}','${c.nombre}')"
+         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
+         onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+      <strong>${c.nombre}</strong>${c.telefono?' · '+c.telefono:''}
+    </div>
+  `).join('')
+}
+
+window.seleccionarClientePOSM = (id, nombre) => {
+  document.getElementById('pos-cliente').value = id
+  document.getElementById('pos-cliente-buscar-m').value = ''
+  document.getElementById('pos-cliente-resultados-m').style.display = 'none'
+  const sel = document.getElementById('pos-cliente-sel-m')
+  sel.textContent = '✔ ' + nombre + ' — toca para cambiar'
+  sel.style.display = 'block'
+}
+
+window.limpiarClientePOSM = () => {
+  document.getElementById('pos-cliente').value = ''
+  document.getElementById('pos-cliente-sel-m').style.display = 'none'
+  document.getElementById('pos-cliente-buscar-m').value = ''
+}
+
 window.aplicarDescuentoPOS = (monto) => {
   const descuento = parseFloat(monto) || 0
 
@@ -3323,6 +3928,14 @@ window.aplicarDescuentoPOS = (monto) => {
   setTimeout(() => {
     const descEl = document.getElementById('pos-descuento')
     if (descEl) descEl.value = descuento
+    // Actualizar también el input del drawer móvil
+    const descElM = document.getElementById('pos-descuento-m')
+    if (descElM) descElM.value = descuento
+    // Actualizar total del drawer
+    const total2 = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+    const dtEl = document.getElementById('pos-drawer-total')
+    if (dtEl) dtEl.textContent = '$' + total2.toFixed(2)
+    if (document.getElementById('pos-drawer')?.classList.contains('open')) renderDrawerPOS()
   }, 50)
 }
 window.buscarClientePOS = (texto) => {
@@ -3399,7 +4012,7 @@ window.renderProductosPOS = (productos) => {
            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
         <div style="position:relative">
           ${p.imagen_principal
-            ? `<img src="${p.imagen_principal}" style="width:100%;height:160px;object-fit:cover">`
+            ? `<img src="${p.imagen_principal}" style="width:100%;height:160px;object-fit:contain;background:#f5f5f5">`
             : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­👠</div>`}
           ${totalStock === 0 ? '<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>' : ''}
           ${p.es_oferta ? '<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>' : ''}
@@ -3463,6 +4076,9 @@ window.actualizarInventarioPOS = async () => {
 }
 
 window.abrirProductoPOS = (productoId) => {
+  // Cerrar cualquier modal anterior
+const modalAnterior = document.getElementById('pos-modal')
+if (modalAnterior) modalAnterior.remove()
   const { productos, variantes, inventario } = window._posData
   const producto = productos.find(p => p.id === productoId)
   if (!producto) return
@@ -3481,7 +4097,7 @@ window.abrirProductoPOS = (productoId) => {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;max-width:640px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="background:white;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
       
       <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px">
         ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : ''}
@@ -3517,7 +4133,7 @@ window.abrirProductoPOS = (productoId) => {
         </div>
       </div>
 
-      <div id="pos-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;min-height:80px;overflow-y:auto;flex:1">
+      <div id="pos-tallas-panel" style="padding:1rem;border-bottom:1px solid #eee;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch">
         <p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
       </div>
 
@@ -3545,6 +4161,8 @@ window.abrirProductoPOS = (productoId) => {
   document.body.appendChild(modal)
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
   window._posSeleccion = { productoId, color: null }
+  window._posBuffer = {}
+  
 }
 window.mostrarCorridaModalPOS = (productoId) => {
   const { variantes, inventario } = window._posData
@@ -3552,72 +4170,195 @@ window.mostrarCorridaModalPOS = (productoId) => {
   const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
   const colores = [...new Set(variantes.filter(v => v.producto_id === productoId).map(v => v.color).filter(Boolean))]
-
-  // Ocultar botón de corrida para que no se pueda volver a presionar
-  const btnCorrida = document.querySelector(`button[onclick="mostrarCorridaModalPOS('${productoId}')"]`)
+const btnCorrida = document.querySelector(`button[onclick="mostrarCorridaModalPOS('${productoId}')"]`)
   if (btnCorrida) btnCorrida.style.display = 'none'
-
-  // Resetear selección de color para que confirmar sepa que es corrida
-  window._posSeleccion.color = null
+  // Limpiar overlay si existe
+document.querySelectorAll('#pos-modal').forEach(m => {
+  if (m !== document.getElementById('pos-modal')) m.remove()
+})
+window._posSeleccion.color = null
+  window._corridaCantidades = {} // buffer de cantidades por variante
 
   const panel = document.getElementById('pos-tallas-panel')
   if (!panel) return
 
-  panel.innerHTML = `
-  <p style="font-size:0.75rem;color:#6a1b9a;font-weight:700;margin-bottom:10px">📦 CORRIDA — edita cantidades por color y talla</p>
-  ${colores.map(color => {
+  // Renderizar selector de colores + tallas del color activo
+  const renderCorridaColor = (colorActivo) => {
     const varsColor = variantes
-      .filter(v => v.producto_id === productoId && v.color === color)
+      .filter(v => v.producto_id === productoId && v.color === colorActivo)
       .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-    return `
-      <div style="margin-bottom:1.25rem">
-        <p style="font-size:0.85rem;font-weight:700;color:#333;margin-bottom:8px">${color}</p>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          ${varsColor.map(v => {
-            const inv = invSucursal.find(i => i.variante_id === v.id)
-            const stock = inv ? inv.cantidad : 0
-            return `
-              <div style="display:flex;align-items:center;gap:10px;opacity:${stock === 0 ? '0.4' : '1'}">
-                <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#333">${v.talla}</span>
-                <span style="font-size:0.72rem;color:#aaa;min-width:50px">Stock: ${stock}</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <button ${stock === 0 ? 'disabled' : ''}
-                          onclick="const i=document.getElementById('qty-modal-${v.id}');i.value=Math.max(0,(parseInt(i.value)||0)-1)"
-                          style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
-                  <input type="number" min="0" max="${stock}"
-                         value="0"
-                         id="qty-modal-${v.id}"
-                         ${stock === 0 ? 'disabled' : ''}
-                         style="width:56px;height:40px;text-align:center;padding:4px;border:2px solid #6a1b9a;border-radius:8px;font-size:1rem;font-weight:700"
-                         oninput="this.value=Math.min(${stock},Math.max(0,parseInt(this.value)||0))">
-                  <button ${stock === 0 ? 'disabled' : ''}
-                          onclick="const i=document.getElementById('qty-modal-${v.id}');i.value=Math.min(${stock},(parseInt(i.value)||0)+1)"
-                          style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
-                </div>
-                ${stock === 0 ? '<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>' : ''}
+
+    const tallasConStock = varsColor.filter(v => {
+      const inv = invSucursal.find(i => i.variante_id === v.id)
+      return inv && inv.cantidad > 0
+    })
+
+    panel.innerHTML = `
+      <p style="font-size:0.75rem;color:#6a1b9a;font-weight:700;margin-bottom:12px">📦 CORRIDA — selecciona color y ajusta cantidades</p>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        ${colores.map(c => {
+          const vColor = variantes.find(v => v.producto_id === productoId && v.color === c)
+          const hex = vColor ? vColor.color_hex : '#888'
+          const foto = vColor ? vColor.foto_url : null
+          const totalColor = Object.entries(window._corridaCantidades)
+            .filter(([vid]) => variantes.find(v => v.id === vid && v.color === c))
+            .reduce((s, [, qty]) => s + qty, 0)
+          return `
+            <div onclick="window._corridaColorActivo='${c}';renderCorridaColor('${c}')"
+                 style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px;border-radius:10px;border:2px solid ${c === colorActivo ? '#6a1b9a' : '#eee'};background:${c === colorActivo ? '#f3e5f5' : 'white'};min-width:64px;position:relative">
+              ${foto
+                ? `<img src="${foto}" style="width:44px;height:44px;object-fit:cover;border-radius:6px">`
+                : `<div style="width:44px;height:44px;border-radius:6px;background:${hex}"></div>`}
+              <span style="font-size:0.65rem;font-weight:600;color:#333;text-align:center">${c}</span>
+              ${totalColor > 0 ? `<span style="position:absolute;top:-6px;right:-6px;background:#6a1b9a;color:white;font-size:0.6rem;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center">${totalColor}</span>` : ''}
+            </div>
+          `
+        }).join('')}
+      </div>
+
+           <div style="display:flex;flex-direction:column;gap:8px">
+        ${varsColor.map(v => {
+          const inv = invSucursal.find(i => i.variante_id === v.id)
+          const stock = inv ? inv.cantidad : 0
+          const cantidad = window._corridaCantidades[v.id] || 0
+          return `
+            <div style="display:flex;align-items:center;gap:10px;opacity:${stock === 0 ? '0.4' : '1'}">
+              <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#333">${v.talla}</span>
+              <span style="font-size:0.72rem;color:#aaa;min-width:50px">Stock: ${stock}</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button ${stock === 0 ? 'disabled' : ''}
+                        onclick="const i=document.getElementById('qty-corrida-${v.id}');const val=Math.max(0,(parseInt(i.value)||0)-1);i.value=val;window._corridaCantidades['${v.id}']=val;renderCorridaColor('${colorActivo}')"
+                        style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
+                <input type="number" min="0" max="${stock}"
+                       value="${cantidad}"
+                       id="qty-corrida-${v.id}"
+                       ${stock === 0 ? 'disabled' : ''}
+                       style="width:56px;height:40px;text-align:center;padding:4px;border:2px solid ${cantidad > 0 ? '#6a1b9a' : '#ddd'};border-radius:8px;font-size:1rem;font-weight:700"
+                       oninput="window._corridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._corridaCantidades['${v.id}']">
+                <button ${stock === 0 ? 'disabled' : ''}
+                        onclick="const i=document.getElementById('qty-corrida-${v.id}');const val=Math.min(${stock},(parseInt(i.value)||0)+1);i.value=val;window._corridaCantidades['${v.id}']=val;renderCorridaColor('${colorActivo}')"
+                        style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
               </div>
-            `
-          }).join('')}
-        </div>
+              ${stock === 0 ? '<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>' : ''}
+            </div>
+          `
+        }).join('')}
       </div>
     `
-  }).join('')}
-  `
+  }
+  
+  
 
-  // Ocultar botón confirmar normal y poner botón de corrida abajo
-  const btnConfirmar = document.getElementById('pos-btn-confirmar')
-  if (btnConfirmar) btnConfirmar.style.display = 'none'
+  window.renderCorridaColor = renderCorridaColor
+  window._corridaColorActivo = colores[0]
+  renderCorridaColor(colores[0])
 
-  const btnDiv = document.querySelector('#pos-modal > div > div:last-child')
+const btnDiv = document.querySelector('#pos-modal > div > div:last-child')
   if (btnDiv) {
     btnDiv.innerHTML = `
-      <button onclick="confirmarModalPOS('${productoId}')"
+      <button id="pos-btn-sugerir"
+              onclick="sugerirCorrida('${productoId}', window._corridaColorActivo)"
+              style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;cursor:pointer;background:#f3e5f5;color:#6a1b9a;border:2px solid #6a1b9a;border-radius:8px;margin-bottom:8px;min-height:48px">
+        ✨ Sugerir corrida
+      </button>
+      <button onclick="confirmarCorridaNueva('${productoId}')"
               class="btn btn-primary"
               style="width:100%;padding:16px;font-size:1.1rem;background:#6a1b9a;border-color:#6a1b9a;min-height:54px">
         ✅ Agregar corrida al carrito
       </button>
     `
   }
+  }
+
+window.sugerirCorrida = (productoId, color) => {
+  const { variantes, inventario } = window._posData
+  const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
+  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  const conStock = varsColor.filter(v => {
+    const inv = invSucursal.find(i => i.variante_id === v.id)
+    return inv && inv.cantidad > 0
+  })
+
+  // Detectar si tiene medios o solo enteros
+  const tieneMedias = conStock.some(v => v.talla.includes('.'))
+
+  // Limpiar cantidades actuales de este color
+  varsColor.forEach(v => { window._corridaCantidades[v.id] = 0 })
+
+  if (tieneMedias) {
+    // Corrida normal: 1 por talla
+    conStock.slice(0, 6).forEach(v => {
+      window._corridaCantidades[v.id] = 1
+    })
+  } else {
+    // Solo enteros: distribuir 6 pares duplicando tallas centrales
+    const tallas = conStock.slice(0, 5)
+    if (tallas.length >= 4) {
+      tallas.forEach((v, i) => {
+        window._corridaCantidades[v.id] = (i === 1 || i === 2) ? 2 : 1
+      })
+    } else {
+      // Pocas tallas, distribuir uniformemente
+      conStock.slice(0, 6).forEach(v => {
+        window._corridaCantidades[v.id] = Math.ceil(6 / conStock.length)
+      })
+    }
+  }
+
+  window.renderCorridaColor(color)
+}
+
+window.confirmarCorridaNueva = (productoId) => {
+  const { variantes } = window._posData
+  const p = window._posData.productos.find(p => p.id === productoId)
+  if (!p) return
+
+  let agregados = 0
+  Object.entries(window._corridaCantidades).forEach(([varianteId, cantidad]) => {
+    if (cantidad <= 0) return
+    const v = variantes.find(v => v.id === varianteId)
+    if (!v) return
+    const existente = window._posCarrito.find(i => i.variante_id === varianteId && i.es_corrida)
+    if (existente) {
+      existente.cantidad += cantidad
+      existente.es_corrida = true
+    } else {
+      window._posCarrito.push({
+        variante_id: varianteId,
+        producto_id: productoId,
+        nombre: p.nombre,
+        color: v.color,
+        talla: v.talla,
+        cantidad,
+        precio_menudeo: parseFloat(p.precio_menudeo) || 0,
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
+        precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
+        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110),
+        es_corrida: true,
+        imagen: window._posData.variantes.find(va => va.id === varianteId)?.foto_url || p.imagen_principal || null,
+        precio_unitario: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110)
+      })
+    }
+    agregados++
+  })
+
+  if (agregados === 0) {
+    alert('Agrega al menos una talla')
+    return
+  }
+
+  // Cerrar modal
+  const modal = document.getElementById('pos-modal')
+  if (modal) modal.remove()
+  window._corridaCantidades = {}
+  renderCarritoPOS()
 }
 
 window.seleccionarColorModalPOS = (productoId, color) => {
@@ -3812,7 +4553,7 @@ window.confirmarModalPOS = (productoId) => {
     Object.entries(cantidades).forEach(([varId, cantidad]) => {
       if (cantidad <= 0) return
       const v = variantes.find(v => v.id === varId)
-      const existente = window._posCarrito.find(i => i.variante_id === varId)
+      const existente = window._posCarrito.find(i => i.variante_id === varId && !i.es_corrida)
       if (existente) {
         existente.cantidad += cantidad
       } else {
@@ -3828,7 +4569,8 @@ window.confirmarModalPOS = (productoId) => {
           precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
           precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
           es_oferta: producto.es_oferta || false,
-          es_corrida: window._posSeleccion && !window._posSeleccion.color,
+          es_corrida: false,
+          imagen: (window._posBuffer[v ? v.color : color] && window._posData.variantes.find(va => va.id === varId)?.foto_url) || producto.imagen_principal || null,
           precio_unitario: parseFloat(producto.precio_menudeo) || 0
         })
       }
@@ -3949,6 +4691,7 @@ window.agregarTallasPOS = (productoId, color) => {
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
         precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+        imagen: p.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         precio_unitario: parseFloat(producto.precio_menudeo) || 0
       })
@@ -4051,6 +4794,7 @@ window.agregarAlCarritoPOS = (productoId) => {
       precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
       precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+      imagen: p.imagen_principal || null,
       es_oferta: producto.es_oferta || false,
       precio_unitario: parseFloat(producto.precio_menudeo) || 0
     })
@@ -4143,6 +4887,7 @@ window.confirmarCorridaPOS = (productoId, color) => {
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
         precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+        imagen: p.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         es_corrida: true,
         precio_unitario: parseFloat(producto.precio_menudeo) || 0
@@ -4195,7 +4940,9 @@ window.renderCarritoPOS = () => {
         color: i.color,
         producto_id: i.producto_id,
         tallas: [],
-        subtotal: 0
+        subtotal: 0,
+        imagen: i.imagen || null
+        
       }
     }
     corridasAgrupadas[key].tallas.push({ talla: i.talla, cantidad: i.cantidad, variante_id: i.variante_id })
@@ -4205,10 +4952,12 @@ window.renderCarritoPOS = () => {
   if (items.length === 0) {
     container.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>'
   } else {
+    console.log('Primer item imagen:', items[0]?.imagen)
     container.innerHTML = `
       ${itemsNormales.map((item) => `
   <div style="padding:10px;border-bottom:1px solid #f5f5f5">
-    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+    <div style="display:flex;gap:10px;margin-bottom:8px">
+      ${item.imagen ? `<img src="${item.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
       <div style="flex:1">
         <p style="font-size:0.9rem;font-weight:600">${item.nombre}</p>
         <p style="font-size:0.78rem;color:#888">${item.color} · T${item.talla}</p>
@@ -4217,9 +4966,9 @@ window.renderCarritoPOS = () => {
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div style="display:flex;align-items:center;gap:8px">
-        <button onclick="cambiarCantidadPOS(${items.indexOf(item)}, -1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px !important;height:44px !important;min-width:44px;min-height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">−</button>
+        <button onclick="cambiarCantidadPOS(${items.indexOf(item)}, -1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px;height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">−</button>
         <span style="font-size:1rem;font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
-        <button onclick="cambiarCantidadPOS(${items.indexOf(item)}, 1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px !important;height:44px !important;min-width:44px;min-height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">+</button>
+        <button onclick="cambiarCantidadPOS(${items.indexOf(item)}, 1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px;height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">+</button>
       </div>
       <div style="text-align:right">
         <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
@@ -4235,21 +4984,23 @@ window.renderCarritoPOS = () => {
   </div>
 `).join('')}
 
-      ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
+      
+  ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
   <div style="padding:10px;border-bottom:1px solid #f5f5f5;background:#fdf4ff" data-corrida-key="${key}">
-    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px">
+    <div style="display:flex;gap:10px;align-items:start;margin-bottom:6px">
+      ${corrida.imagen ? `<img src="${corrida.imagen}" style="width:48px;height:48px;object-fit:contain;background:#f5f5f5;border-radius:8px;flex-shrink:0">` : `<div style="width:48px;height:48px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
       <div style="flex:1">
-        <p style="font-size:0.9rem;font-weight:700">${corrida.nombre}</p>
-        <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${corrida.color}</p>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
-          ${corrida.tallas.map(t => `
-            <span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">
-              T${t.talla} ×${t.cantidad}
-            </span>
-          `).join('')}
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <p style="font-size:0.9rem;font-weight:700">${corrida.nombre}</p>
+            <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${corrida.color}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+              ${corrida.tallas.map(t => `<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${t.talla} ×${t.cantidad}</span>`).join('')}
+            </div>
+          </div>
+          <button onclick="eliminarCorridaPOS('${key}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
         </div>
       </div>
-      <button onclick="eliminarCorridaPOS('${key}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:8px">
       <button onclick="editarCorridaEnCarrito('${key}')"
@@ -4279,6 +5030,12 @@ window.renderCarritoPOS = () => {
   if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
   if (paresEl) paresEl.textContent = totalPares
   if (tipoEl) tipoEl.textContent = tipoPrecio
+  const fp = document.getElementById('pos-flotante-pares')
+  const ft = document.getElementById('pos-flotante-total')
+  if (fp) fp.textContent = totalPares + ' pares'
+  if (ft) ft.textContent = '$' + total.toFixed(2)
+  if (document.getElementById('pos-drawer')?.style.transform === 'translateY(0px)') renderDrawerPOS()
+  
 }
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
   if (!window._posCarrito[idx]) return
@@ -4407,6 +5164,7 @@ window.guardarEdicionCorridaPOS = (producto_id, color) => {
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
       precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
       es_oferta: producto.es_oferta || false,
+      imagen: p.imagen_principal || null,
       es_corrida: true,
       precio_manual: precioManual !== null,
       precio_unitario: precioCorrida
