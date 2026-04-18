@@ -102,6 +102,14 @@ export function renderPanel() {
     </div>
   `
 
+  window.toggleSidebar = () => {
+    const sidebar = document.getElementById('sidebar')
+    const overlay = document.getElementById('sidebar-overlay')
+    const isOpen = sidebar.classList.toggle('open')
+    overlay.classList.toggle('active', isOpen)
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+  }
+
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)

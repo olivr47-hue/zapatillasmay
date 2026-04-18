@@ -181,3 +181,106 @@ def reporte_financiero(sucursal_id: str):
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+        # ─── ESTADO DE RESULTADOS ─────────────────────────
+@router.get("/estado-resultados/{sucursal_id}")
+def estado_resultados(sucursal_id: str):
+    try:
+        from datetime import datetime, timedelta
+        hoy = date.today()
+        
+        # Ultimos 6 meses
+        meses = []
+        for i in range(5, -1, -1):
+            primer_dia = (hoy.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+            if primer_dia.month == 12:
+                ultimo_dia = primer_dia.replace(year=primer_dia.year+1, month=1, day=1) - timedelta(days=1)
+            else:
+                ultimo_dia = primer_dia.replace(month=primer_dia.month+1, day=1) - timedelta(days=1)
+            meses.append((primer_dia, ultimo_dia))
+
+        resultado = []
+        for primer_dia, ultimo_dia in meses:
+            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
+            gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
+            
+            ventas = sum(float(p['total'] or 0) for p in pedidos)
+            gasto = sum(float(g['monto'] or 0) for g in gastos)
+            utilidad = ventas - gasto
+            
+            resultado.append({
+                "mes": primer_dia.strftime("%b %Y"),
+                "ventas": ventas,
+                "gastos": gasto,
+                "utilidad": utilidad,
+                "num_pedidos": len(pedidos)
+            })
+        
+        return resultado
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── FLUJO DE EFECTIVO ────────────────────────────
+@router.get("/flujo/{sucursal_id}")
+def flujo_efectivo(sucursal_id: str):
+    try:
+        from datetime import timedelta
+        hoy = date.today()
+        hace7 = (hoy - timedelta(days=7)).isoformat()
+        hace30 = (hoy - timedelta(days=30)).isoformat()
+
+        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hace7}T00:00:00")
+        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hace30}T00:00:00")
+        gastos_semana = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}T00:00:00")
+        gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
+
+        # Por forma de pago hoy
+        hoy_str = hoy.isoformat()
+        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hoy_str}T00:00:00")
+
+        return {
+            "hoy": {
+                "efectivo": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'efectivo'),
+                "tarjeta": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'tarjeta'),
+                "spei": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'spei'),
+                "credito": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'credito'),
+                "total": sum(float(p['total'] or 0) for p in pedidos_hoy)
+            },
+            "semana": {
+                "ingresos": sum(float(p['total'] or 0) for p in pedidos_semana),
+                "gastos": sum(float(g['monto'] or 0) for g in gastos_semana),
+                "neto": sum(float(p['total'] or 0) for p in pedidos_semana) - sum(float(g['monto'] or 0) for g in gastos_semana)
+            },
+            "mes": {
+                "ingresos": sum(float(p['total'] or 0) for p in pedidos_mes),
+                "gastos": sum(float(g['monto'] or 0) for g in gastos_mes),
+                "neto": sum(float(p['total'] or 0) for p in pedidos_mes) - sum(float(g['monto'] or 0) for g in gastos_mes)
+            }
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── CUENTAS POR COBRAR ───────────────────────────
+@router.get("/cuentas-por-cobrar")
+def cuentas_por_cobrar():
+    try:
+        pedidos = supabase_get("pedidos?forma_pago=eq.credito&status=eq.confirmado&select=*,clientes(nombre,telefono)")
+        return pedidos
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── GASTOS POR CATEGORIA ─────────────────────────
+@router.get("/gastos-categorias/{sucursal_id}")
+def gastos_por_categoria(sucursal_id: str):
+    try:
+        from datetime import timedelta
+        hace30 = (date.today() - timedelta(days=30)).isoformat()
+        gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
+        
+        categorias = {}
+        for g in gastos:
+            cat = g.get('categoria', 'general')
+            categorias[cat] = categorias.get(cat, 0) + float(g['monto'] or 0)
+        
+        return [{"categoria": k, "total": v} for k, v in sorted(categorias.items(), key=lambda x: -x[1])]
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
