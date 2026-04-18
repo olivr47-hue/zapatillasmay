@@ -104,6 +104,7 @@ INSTRUCCIONES:
 @router.post("/autoresponder")
 async def autoresponder_webhook(datos: dict):
     try:
+        print(f"DATOS RECIBIDOS: {json.dumps(datos)}")
         # AutoResponder manda el mensaje dentro de query.message
         query = datos.get("query", {})
         mensaje = query.get("message", "")
