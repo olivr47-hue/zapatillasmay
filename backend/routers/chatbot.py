@@ -7,12 +7,13 @@ import os
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")def get_api_key():
+    return os.environ.get("ANTHROPIC_API_KEY", "")
 
 def llamar_claude(mensajes, sistema):
     url = "https://api.anthropic.com/v1/messages"
     headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
+        "x-api-key": get_api_key(),
         "anthropic-version": "2023-06-01",
         "content-type": "application/json"
     }
