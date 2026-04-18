@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import supabase_get
-from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas
+from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
 
@@ -33,6 +33,7 @@ app.include_router(empleados.router)
 app.include_router(seo.router)
 app.include_router(crm.router)
 app.include_router(finanzas.router)
+app.include_router(chatbot.router)
 
 @app.get("/")
 def inicio():

@@ -68,6 +68,7 @@ const modulos = [
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
+  { id: 'ordenes', icon: '🛒', label: 'Órdenes de compra', section: 'Finanzas', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -164,12 +165,337 @@ async function cargarModulo(id) {
     case 'crm': await cargarCRM(); break;
     case 'finanzas': await cargarFinanzas(); break;
     case 'proveedores': await cargarProveedores(); break;
+    case 'ordenes': await cargarOrdenes(); break;
   }
 }
 
 function renderDashboard() {
   setTimeout(() => cargarDashboard(), 800)
   return renderDashboardHTML()
+}
+async function cargarOrdenes() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando sugerencias...</p>'
+  try {
+    const resSucursales = await fetch(API + '/sucursales/')
+    const sucursales = await resSucursales.json()
+    const sucursalId = sucursales[0]?.id
+
+    const [resSugerencias, resProveedores] = await Promise.all([
+      fetch(API + '/finanzas/sugerencias-recompra/' + sucursalId),
+      fetch(API + '/finanzas/proveedores')
+    ])
+    const sugerencias = await resSugerencias.json()
+    const proveedores = await resProveedores.json()
+
+    window._ordenesData = { sugerencias, proveedores, sucursalId }
+    window._ordenSeleccion = {}
+
+    const urgentes = sugerencias.filter(s => s.urgente)
+    const normales = sugerencias.filter(s => !s.urgente)
+    const totalCosto = sugerencias.reduce((s, p) => s + p.cantidad_sugerida * p.costo_unitario, 0)
+
+    content.innerHTML = `
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🛒 Órdenes de compra</h2>
+          <p style="color:#888;font-size:0.85rem">Sugerencias de recompra basadas en rotación e inventario</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="ord-sucursal" style="max-width:200px" onchange="recargarOrdenes(this.value)">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">${urgentes.length}</p>
+          <p style="font-size:0.68rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🚨 Urgentes</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${normales.length}</p>
+          <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⚠️ Por resurtir</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#333">${sugerencias.reduce((s,p)=>s+p.cantidad_sugerida,0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pares sugeridos</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${totalCosto.toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo estimado</p>
+        </div>
+      </div>
+
+      ${sugerencias.length === 0
+        ? `<div style="background:white;border-radius:12px;padding:3rem;text-align:center;border:1px solid #eee">
+            <p style="font-size:2rem;margin-bottom:1rem">✅</p>
+            <p style="font-weight:700;font-size:1rem;margin-bottom:4px">Todo el inventario está bien</p>
+            <p style="color:#888;font-size:0.85rem">No hay productos que necesiten resurtido</p>
+          </div>`
+        : `
+          <!-- SELECCIONAR TODOS -->
+          <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="sel-todos" onchange="seleccionarTodos(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C">
+                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${sugerencias.length})</p>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="font-size:0.78rem" onclick="filtrarOrdenes('todos')">Todos</button>
+                <button class="btn btn-secondary" style="font-size:0.78rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarOrdenes('urgente')">🚨 Urgentes</button>
+              </div>
+            </div>
+
+            ${sugerencias.map(p => `
+              <div class="orden-item" data-urgente="${p.urgente}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                <input type="checkbox" class="orden-check" data-id="${p.producto_id}" onchange="actualizarSeleccion('${p.producto_id}', this.checked)"
+                       style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C;flex-shrink:0">
+                ${p.imagen ? `<img src="${p.imagen}" style="width:52px;height:52px;object-fit:contain;background:#f5f5f5;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
+                <div style="flex:1;min-width:140px">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                    <p style="font-weight:700;font-size:0.9rem">${p.nombre}</p>
+                    ${p.urgente ? '<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:700">🚨 URGENTE</span>' : '<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:700">⚠️ BAJO</span>'}
+                  </div>
+                  <p style="font-size:0.75rem;color:#888">${p.sku || ''} · Stock: ${p.stock_total} pares · Mín: ${p.stock_minimo}</p>
+                  <p style="font-size:0.72rem;color:#888">${p.velocidad_semanal} pares/sem · ${p.dias_inventario ? p.dias_inventario + ' días de stock' : 'Sin ventas recientes'}</p>
+                  ${p.proveedor ? `<p style="font-size:0.72rem;color:#6a1b9a;margin-top:2px">🏭 ${p.proveedor.nombre}</p>` : '<p style="font-size:0.72rem;color:#aaa;margin-top:2px">Sin proveedor asignado</p>'}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Sugerido</p>
+                    <input type="number" min="1" value="${p.cantidad_sugerida}"
+                           id="qty-orden-${p.producto_id}"
+                           style="width:60px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700"
+                           oninput="actualizarCostoOrden()">
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Costo/par</p>
+                    <p style="font-weight:700;color:#333;font-size:0.9rem">$${p.costo_unitario.toFixed(0)}</p>
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Subtotal</p>
+                    <p id="sub-${p.producto_id}" style="font-weight:700;color:#E91E8C;font-size:0.9rem">$${(p.cantidad_sugerida * p.costo_unitario).toFixed(0)}</p>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+
+            <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <span id="ord-seleccionados" style="font-size:0.85rem;color:#888">0 productos seleccionados</span>
+              <div style="display:flex;align-items:center;gap:16px">
+                <div>
+                  <span style="font-size:0.85rem;color:#888">Total estimado: </span>
+                  <span id="ord-total" style="font-weight:700;color:#E91E8C;font-size:1.1rem">$0</span>
+                </div>
+                <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden de compra</button>
+              </div>
+            </div>
+          </div>
+        `}
+    `
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window.seleccionarTodos = (checked) => {
+  document.querySelectorAll('.orden-check').forEach(cb => {
+    cb.checked = checked
+    const id = cb.dataset.id
+    window._ordenSeleccion[id] = checked
+  })
+  actualizarCostoOrden()
+}
+
+window.actualizarSeleccion = (id, checked) => {
+  window._ordenSeleccion[id] = checked
+  actualizarCostoOrden()
+}
+
+window.actualizarCostoOrden = () => {
+  const { sugerencias } = window._ordenesData
+  let total = 0
+  let count = 0
+  sugerencias.forEach(p => {
+    if (window._ordenSeleccion[p.producto_id]) {
+      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+      const sub = qty * p.costo_unitario
+      total += sub
+      count++
+      const subEl = document.getElementById('sub-' + p.producto_id)
+      if (subEl) subEl.textContent = '$' + sub.toFixed(0)
+    }
+  })
+  const totalEl = document.getElementById('ord-total')
+  const countEl = document.getElementById('ord-seleccionados')
+  if (totalEl) totalEl.textContent = '$' + total.toFixed(0)
+  if (countEl) countEl.textContent = count + ' productos seleccionados'
+}
+
+window.filtrarOrdenes = (tipo) => {
+  document.querySelectorAll('.orden-item').forEach(el => {
+    el.style.display = tipo === 'todos' || (tipo === 'urgente' && el.dataset.urgente === 'true') ? '' : 'none'
+  })
+}
+
+window.recargarOrdenes = async (sucursalId) => {
+  const resSugerencias = await fetch(API + '/finanzas/sugerencias-recompra/' + sucursalId)
+  window._ordenesData.sugerencias = await resSugerencias.json()
+  window._ordenesData.sucursalId = sucursalId
+  cargarOrdenes()
+}
+
+window.generarOrden = () => {
+  const { sugerencias, proveedores, sucursalId } = window._ordenesData
+  const seleccionados = sugerencias.filter(p => window._ordenSeleccion[p.producto_id])
+
+  if (seleccionados.length === 0) {
+    alert('Selecciona al menos un producto para generar la orden')
+    return
+  }
+
+  // Agrupar por proveedor
+  const porProveedor = {}
+  seleccionados.forEach(p => {
+    const provId = p.proveedor_id || 'sin-proveedor'
+    const provNombre = p.proveedor?.nombre || 'Sin proveedor'
+    if (!porProveedor[provId]) porProveedor[provId] = { nombre: provNombre, productos: [] }
+    const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+    porProveedor[provId].productos.push({ ...p, cantidad_final: qty })
+  })
+
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h3 style="font-size:1.1rem;font-weight:700">📋 Orden de compra</h3>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Sucursal destino</label>
+        <select class="form-input" id="orden-sucursal">
+          <option value="${sucursalId}">Sucursal actual</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Fecha de entrega estimada</label>
+        <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Notas</label>
+        <textarea class="form-input" id="orden-notas" rows="2" placeholder="Condiciones de entrega, forma de pago..."></textarea>
+      </div>
+
+      ${Object.entries(porProveedor).map(([provId, prov]) => `
+        <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem;color:#333">🏭 ${prov.nombre}</p>
+          <table style="width:100%;font-size:0.82rem">
+            <thead>
+              <tr style="color:#888">
+                <th style="text-align:left;padding:4px 0">Producto</th>
+                <th style="text-align:center;padding:4px">Pares</th>
+                <th style="text-align:right;padding:4px">Costo/par</th>
+                <th style="text-align:right;padding:4px">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${prov.productos.map(p => `
+                <tr style="border-top:1px solid #eee">
+                  <td style="padding:6px 0">
+                    <p style="font-weight:600">${p.nombre}</p>
+                    <p style="color:#888;font-size:0.72rem">${p.sku || ''}</p>
+                  </td>
+                  <td style="text-align:center;font-weight:700">${p.cantidad_final}</td>
+                  <td style="text-align:right">$${p.costo_unitario.toFixed(0)}</td>
+                  <td style="text-align:right;font-weight:700;color:#E91E8C">$${(p.cantidad_final * p.costo_unitario).toFixed(0)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" style="text-align:right;font-weight:700;padding-top:8px">Total ${prov.nombre}:</td>
+                <td style="text-align:right;font-weight:700;color:#E91E8C;padding-top:8px">$${prov.productos.reduce((s,p)=>s+p.cantidad_final*p.costo_unitario,0).toFixed(0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `).join('')}
+
+      <div style="background:#e8f5e9;border-radius:8px;padding:1rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <span style="font-weight:700">Total general</span>
+        <span style="font-weight:700;font-size:1.2rem;color:#2e7d32">$${seleccionados.reduce((s,p)=>{
+          const qty = parseInt(document.getElementById('qty-orden-'+p.producto_id)?.value||p.cantidad_sugerida)
+          return s + qty * p.costo_unitario
+        },0).toFixed(0)}</span>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-secondary" onclick="imprimirOrden()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">🖨️ Imprimir</button>
+        <button class="btn btn-primary" onclick="guardarOrdenCompra(${JSON.stringify(Object.entries(porProveedor)).replace(/"/g,'&quot;')})">💾 Guardar orden</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarOrdenCompra = async (proveedoresStr) => {
+  const fecha = document.getElementById('orden-fecha')?.value
+  const notas = document.getElementById('orden-notas')?.value || ''
+  const sucursalId = window._ordenesData.sucursalId
+
+  try {
+    const porProveedor = typeof proveedoresStr === 'string' ? JSON.parse(proveedoresStr) : proveedoresStr
+    for (const [provId, prov] of porProveedor) {
+      const total = prov.productos.reduce((s, p) => s + p.cantidad_final * p.costo_unitario, 0)
+      const res = await fetch(API + '/finanzas/ordenes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proveedor_id: provId === 'sin-proveedor' ? null : provId,
+          sucursal_id: sucursalId,
+          status: 'borrador',
+          total,
+          notas,
+          fecha_entrega_estimada: fecha || null
+        })
+      })
+      const orden = await res.json()
+      const ordenId = orden[0]?.id
+      if (!ordenId) continue
+
+      for (const p of prov.productos) {
+        await fetch(API + '/finanzas/ordenes/' + ordenId + '/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variante_id: null,
+            cantidad: p.cantidad_final,
+            costo_unitario: p.costo_unitario,
+            subtotal: p.cantidad_final * p.costo_unitario
+          })
+        })
+      }
+    }
+    document.querySelector('div[style*="position:fixed"]').remove()
+    alert('Orden de compra guardada exitosamente')
+    cargarOrdenes()
+  } catch(e) {
+    alert('Error guardando orden: ' + e.message)
+  }
+}
+
+window.imprimirOrden = () => {
+  window.print()
 }
 
 
