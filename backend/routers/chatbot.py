@@ -7,7 +7,7 @@ import os
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")def get_api_key():
+def get_api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "")
 
 def llamar_claude(mensajes, sistema):
