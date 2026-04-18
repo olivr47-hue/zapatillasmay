@@ -284,3 +284,66 @@ def gastos_por_categoria(sucursal_id: str):
         return [{"categoria": k, "total": v} for k, v in sorted(categorias.items(), key=lambda x: -x[1])]
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+        # ─── SUGERENCIAS DE RECOMPRA ──────────────────────
+@router.get("/sugerencias-recompra/{sucursal_id}")
+def sugerencias_recompra(sucursal_id: str):
+    try:
+        from datetime import timedelta
+        hace30 = (date.today() - timedelta(days=30)).isoformat()
+        hace90 = (date.today() - timedelta(days=90)).isoformat()
+
+        productos = supabase_get("productos?activo=eq.true&select=*,proveedores(nombre,telefono,email)")
+        variantes = supabase_get("variantes?select=*")
+        inventario = supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}")
+        movimientos = supabase_get(f"movimientos?tipo=eq.venta&created_at=gte.{hace90}T00:00:00")
+
+        sugerencias = []
+        for p in productos:
+            vars_prod = [v for v in variantes if v['producto_id'] == p['id']]
+            var_ids = [v['id'] for v in vars_prod]
+            
+            stock_total = sum(
+                i['cantidad'] for i in inventario 
+                if i['variante_id'] in var_ids
+            )
+            
+            ventas_30 = sum(
+                abs(m['cantidad']) for m in movimientos 
+                if m['variante_id'] in var_ids and m['created_at'][:10] >= hace30
+            )
+            ventas_90 = sum(
+                abs(m['cantidad']) for m in movimientos 
+                if m['variante_id'] in var_ids
+            )
+            
+            velocidad_semanal = ventas_30 / 4 if ventas_30 > 0 else ventas_90 / 12
+            dias_inventario = round(stock_total / velocidad_semanal * 7) if velocidad_semanal > 0 else None
+            stock_minimo = p.get('stock_minimo', 1)
+            
+            cantidad_sugerida = 0
+            if velocidad_semanal > 0:
+                cantidad_sugerida = max(0, round(velocidad_semanal * 4) - stock_total)
+            
+            if stock_total <= stock_minimo or (dias_inventario and dias_inventario <= 14):
+                sugerencias.append({
+                    "producto_id": p['id'],
+                    "nombre": p['nombre'],
+                    "sku": p.get('sku_interno', ''),
+                    "imagen": p.get('imagen_principal'),
+                    "stock_total": stock_total,
+                    "stock_minimo": stock_minimo,
+                    "ventas_30": ventas_30,
+                    "ventas_90": ventas_90,
+                    "velocidad_semanal": round(velocidad_semanal, 1),
+                    "dias_inventario": dias_inventario,
+                    "cantidad_sugerida": max(6, cantidad_sugerida),
+                    "costo_unitario": float(p.get('costo') or 0),
+                    "proveedor": p.get('proveedores'),
+                    "proveedor_id": p.get('proveedor_id'),
+                    "urgente": stock_total == 0 or (dias_inventario and dias_inventario <= 7)
+                })
+
+        sugerencias.sort(key=lambda x: (not x['urgente'], x['dias_inventario'] or 999))
+        return sugerencias
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

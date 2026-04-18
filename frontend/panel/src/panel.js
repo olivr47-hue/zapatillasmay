@@ -214,24 +214,35 @@ async function cargarFinanzas() {
     const sucursales = await resSucursales.json()
     const sucursalId = sucursales[0]?.id
 
-    const [resCaja, resReporte, resGastos] = await Promise.all([
+    const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias] = await Promise.all([
       fetch(API + '/finanzas/caja/hoy/' + sucursalId),
       fetch(API + '/finanzas/reporte/' + sucursalId),
-      fetch(API + '/finanzas/gastos/' + sucursalId)
+      fetch(API + '/finanzas/gastos/' + sucursalId),
+      fetch(API + '/finanzas/estado-resultados/' + sucursalId),
+      fetch(API + '/finanzas/flujo/' + sucursalId),
+      fetch(API + '/finanzas/cuentas-por-cobrar'),
+      fetch(API + '/finanzas/gastos-categorias/' + sucursalId)
     ])
+
     const cajas = await resCaja.json()
     const reporte = await resReporte.json()
     const gastos = await resGastos.json()
+    const estadoResultados = await resEstado.json()
+    const flujo = await resFlujo.json()
+    const cxc = await resCxC.json()
+    const categorias = await resCategorias.json()
 
     const cajaActiva = cajas.find(c => c.status === 'abierta')
-    const gastosHoy = gastos.filter(g => g.created_at?.startsWith(new Date().toISOString().split('T')[0]))
+    const hoy = new Date().toISOString().split('T')[0]
+    const gastosHoy = gastos.filter(g => g.created_at?.startsWith(hoy))
     const totalGastosHoy = gastosHoy.reduce((s, g) => s + parseFloat(g.monto || 0), 0)
+    const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.total || 0), 0)
 
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
           <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">💰 Finanzas</h2>
-          <p style="color:#888;font-size:0.85rem">Control de caja, gastos y reportes</p>
+          <p style="color:#888;font-size:0.85rem">Control de caja, gastos y reportes financieros</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <select class="form-input" id="fin-sucursal" style="max-width:200px" onchange="recargarFinanzas(this.value)">
@@ -243,55 +254,106 @@ async function cargarFinanzas() {
         </div>
       </div>
 
-      <!-- ESTADO DE CAJA -->
-      <div style="background:${cajaActiva ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.5rem;border:1px solid ${cajaActiva ? '#a5d6a7' : '#ffcdd2'};margin-bottom:1.5rem">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
-          <span style="font-size:1.5rem">${cajaActiva ? '🟢' : '🔴'}</span>
-          <div>
-            <p style="font-weight:700;font-size:1rem;color:${cajaActiva ? '#2e7d32' : '#c62828'}">Caja ${cajaActiva ? 'ABIERTA' : 'CERRADA'}</p>
-            <p style="font-size:0.82rem;color:#888">${cajaActiva ? `Abierta a las ${new Date(cajaActiva.hora_apertura).toLocaleTimeString('es-MX')} · Fondo inicial: $${cajaActiva.monto_apertura}` : 'No hay caja abierta hoy'}</p>
+      <!-- ESTADO CAJA -->
+      <div style="background:${cajaActiva ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${cajaActiva ? '#a5d6a7' : '#ffcdd2'};margin-bottom:1.5rem;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:2rem">${cajaActiva ? '🟢' : '🔴'}</span>
+        <div style="flex:1">
+          <p style="font-weight:700;font-size:1rem;color:${cajaActiva ? '#2e7d32' : '#c62828'}">Caja ${cajaActiva ? 'ABIERTA' : 'CERRADA'}</p>
+          <p style="font-size:0.82rem;color:#888">${cajaActiva ? `Abierta a las ${new Date(cajaActiva.hora_apertura).toLocaleTimeString('es-MX')} · Fondo: $${cajaActiva.monto_apertura}` : 'No hay caja abierta hoy'}</p>
+        </div>
+        ${cajaActiva ? `
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#2e7d32">$${(flujo.hoy?.efectivo||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Efectivo</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#1565c0">$${(flujo.hoy?.tarjeta||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Tarjeta</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#6a1b9a">$${(flujo.hoy?.spei||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">SPEI</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#E91E8C">$${(flujo.hoy?.total||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Total hoy</p>
+            </div>
           </div>
+        ` : ''}
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos 30 días</p>
+        </div>
+        <div style="background:${(reporte.utilidad||0) >= 0 ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${(reporte.utilidad||0) >= 0 ? '#a5d6a7' : '#ffcdd2'};text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:${(reporte.utilidad||0) >= 0 ? '#2e7d32' : '#c62828'}">$${(reporte.utilidad||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#333">$${(flujo.semana?.ingresos||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ingresos 7 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#333">$${(reporte.ticket_promedio||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarCxC()">
+          <p style="font-size:1.5rem;font-weight:700;color:#f57f17">$${totalCxC.toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">Cuentas x cobrar</p>
         </div>
       </div>
 
-      <!-- KPIs 30 DÍAS -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toFixed(0)}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toFixed(0)}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos 30 días</p>
-        </div>
-        <div style="background:${reporte.utilidad >= 0 ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${reporte.utilidad >= 0 ? '#a5d6a7' : '#ffcdd2'};text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:${reporte.utilidad >= 0 ? '#2e7d32' : '#c62828'}">$${(reporte.utilidad||0).toFixed(0)}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad 30 días</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#333">${reporte.num_pedidos||0}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pedidos 30 días</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#333">$${(reporte.ticket_promedio||0).toFixed(0)}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
-        </div>
-        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#c62828">$${totalGastosHoy.toFixed(0)}</p>
-          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos hoy</p>
-        </div>
+      <!-- TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('gastos')">💸 Gastos</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('estado')">📊 Estado de resultados</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('flujo')">💧 Flujo de efectivo</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('caja')">📋 Historial caja</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxc')">📑 Cuentas x cobrar</button>
       </div>
 
+      <div id="fin-tab-contenido"></div>
+    `
+
+    window._finanzasData = { sucursalId, gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial: [] }
+    window._finanzasSucursalId = sucursalId
+
+    // Cargar historial
+    const resHist = await fetch(API + '/finanzas/caja/historial/' + sucursalId)
+    const historial = await resHist.json()
+    window._finanzasData.historial = historial
+
+    mostrarTabFinanzas('gastos')
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando finanzas: ' + e.message + '</p>'
+  }
+}
+
+window.mostrarTabFinanzas = (tab) => {
+  const { gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial, sucursalId } = window._finanzasData
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+
+  if (tab === 'gastos') {
+    const totalCategorias = categorias.reduce((s, c) => s + c.total, 0)
+    container.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-
-        <!-- GASTOS -->
         <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
           <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
             <p style="font-weight:700;font-size:0.9rem">💸 Gastos del día</p>
             <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.78rem" onclick="agregarGasto('${sucursalId}')">+ Agregar</button>
           </div>
           ${gastosHoy.length === 0
-            ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin gastos registrados hoy</div>'
+            ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin gastos hoy</div>'
             : gastosHoy.map(g => `
               <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
                 <div style="flex:1">
@@ -307,44 +369,203 @@ async function cargarFinanzas() {
             <span style="font-weight:700;color:#c62828">-$${totalGastosHoy.toFixed(2)}</span>
           </div>
         </div>
-
-        <!-- HISTORIAL CAJAS -->
         <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
           <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
-            <p style="font-weight:700;font-size:0.9rem">📋 Historial de cajas</p>
+            <p style="font-weight:700;font-size:0.9rem">📊 Gastos por categoría (30 días)</p>
           </div>
-          <div id="historial-cajas">
-            <div style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Cargando...</div>
+          <div style="padding:1rem">
+            ${categorias.length === 0
+              ? '<p style="color:#888;text-align:center;padding:1rem">Sin gastos registrados</p>'
+              : categorias.map(c => `
+                <div style="margin-bottom:12px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                    <span style="font-size:0.82rem;font-weight:600;text-transform:capitalize">${c.categoria}</span>
+                    <span style="font-size:0.82rem;color:#c62828;font-weight:700">$${c.total.toFixed(0)}</span>
+                  </div>
+                  <div style="background:#f5f5f5;border-radius:100px;height:8px;overflow:hidden">
+                    <div style="background:#E91E8C;height:100%;width:${totalCategorias > 0 ? (c.total/totalCategorias*100).toFixed(0) : 0}%;border-radius:100px;transition:width 0.5s"></div>
+                  </div>
+                </div>
+              `).join('')}
           </div>
         </div>
-
       </div>
     `
-
-    // Cargar historial
-    const resHist = await fetch(API + '/finanzas/caja/historial/' + sucursalId)
-    const historial = await resHist.json()
-    document.getElementById('historial-cajas').innerHTML = historial.slice(0,10).map(c => `
-      <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
-        <div style="flex:1">
-          <p style="font-size:0.85rem;font-weight:600">${new Date(c.fecha).toLocaleDateString('es-MX')}</p>
-          <p style="font-size:0.72rem;color:#888">Ventas: $${parseFloat(c.total_ventas||0).toFixed(0)} · Apertura: $${parseFloat(c.monto_apertura||0).toFixed(0)}</p>
+  } else if (tab === 'estado') {
+    container.innerHTML = `
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📊 Estado de resultados — últimos 6 meses</p>
         </div>
-        <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${c.status==='cerrada'?'#e8f5e9':'#fff8e1'};color:${c.status==='cerrada'?'#2e7d32':'#f57f17'}">${c.status}</span>
-        ${c.diferencia !== null ? `<span style="font-size:0.78rem;font-weight:700;color:${c.diferencia >= 0 ? '#2e7d32' : '#c62828'}">${c.diferencia >= 0 ? '+' : ''}$${parseFloat(c.diferencia).toFixed(0)}</span>` : ''}
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Ventas</th>
+                <th>Gastos</th>
+                <th>Utilidad</th>
+                <th>Pedidos</th>
+                <th>Margen</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${estadoResultados.map(m => `
+                <tr>
+                  <td><strong>${m.mes}</strong></td>
+                  <td style="color:#E91E8C;font-weight:600">$${m.ventas.toFixed(0)}</td>
+                  <td style="color:#c62828">$${m.gastos.toFixed(0)}</td>
+                  <td style="color:${m.utilidad >= 0 ? '#2e7d32' : '#c62828'};font-weight:700">$${m.utilidad.toFixed(0)}</td>
+                  <td>${m.num_pedidos}</td>
+                  <td>
+                    <span style="padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600;background:${m.ventas > 0 && m.utilidad/m.ventas >= 0.2 ? '#e8f5e9' : m.utilidad >= 0 ? '#fff8e1' : '#ffebee'};color:${m.ventas > 0 && m.utilidad/m.ventas >= 0.2 ? '#2e7d32' : m.utilidad >= 0 ? '#f57f17' : '#c62828'}">
+                      ${m.ventas > 0 ? (m.utilidad/m.ventas*100).toFixed(1) : 0}%
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;gap:2rem;flex-wrap:wrap">
+          <div>
+            <p style="font-size:0.72rem;color:#888">Total ventas 6 meses</p>
+            <p style="font-weight:700;color:#E91E8C">$${estadoResultados.reduce((s,m)=>s+m.ventas,0).toFixed(0)}</p>
+          </div>
+          <div>
+            <p style="font-size:0.72rem;color:#888">Total gastos 6 meses</p>
+            <p style="font-weight:700;color:#c62828">$${estadoResultados.reduce((s,m)=>s+m.gastos,0).toFixed(0)}</p>
+          </div>
+          <div>
+            <p style="font-size:0.72rem;color:#888">Utilidad total</p>
+            <p style="font-weight:700;color:#2e7d32">$${estadoResultados.reduce((s,m)=>s+m.utilidad,0).toFixed(0)}</p>
+          </div>
+        </div>
       </div>
-    `).join('') || '<div style="padding:2rem;text-align:center;color:#888">Sin historial</div>'
-
-    window._finanzasSucursalId = sucursalId
-
-  } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando finanzas: ' + e.message + '</p>'
+    `
+  } else if (tab === 'flujo') {
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">🌅 Hoy</p>
+          ${[
+            { label: 'Efectivo', val: flujo.hoy?.efectivo||0, color: '#2e7d32' },
+            { label: 'Tarjeta', val: flujo.hoy?.tarjeta||0, color: '#1565c0' },
+            { label: 'SPEI', val: flujo.hoy?.spei||0, color: '#6a1b9a' },
+            { label: 'Crédito', val: flujo.hoy?.credito||0, color: '#f57f17' },
+          ].map(r => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+              <span style="font-size:0.82rem;color:#888">${r.label}</span>
+              <span style="font-weight:700;color:${r.color}">$${r.val.toFixed(0)}</span>
+            </div>
+          `).join('')}
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Total</span>
+            <span style="font-weight:700;color:#E91E8C;font-size:1.1rem">$${(flujo.hoy?.total||0).toFixed(0)}</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📅 Últimos 7 días</p>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Ingresos</span>
+            <span style="font-weight:700;color:#2e7d32">$${(flujo.semana?.ingresos||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Gastos</span>
+            <span style="font-weight:700;color:#c62828">-$${(flujo.semana?.gastos||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Neto</span>
+            <span style="font-weight:700;color:${(flujo.semana?.neto||0) >= 0 ? '#2e7d32' : '#c62828'};font-size:1.1rem">$${(flujo.semana?.neto||0).toFixed(0)}</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📆 Últimos 30 días</p>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Ingresos</span>
+            <span style="font-weight:700;color:#2e7d32">$${(flujo.mes?.ingresos||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Gastos</span>
+            <span style="font-weight:700;color:#c62828">-$${(flujo.mes?.gastos||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Neto</span>
+            <span style="font-weight:700;color:${(flujo.mes?.neto||0) >= 0 ? '#2e7d32' : '#c62828'};font-size:1.1rem">$${(flujo.mes?.neto||0).toFixed(0)}</span>
+          </div>
+        </div>
+      </div>
+    `
+  } else if (tab === 'caja') {
+    container.innerHTML = `
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📋 Historial de cajas</p>
+        </div>
+        ${historial.length === 0
+          ? '<div style="padding:2rem;text-align:center;color:#888">Sin historial</div>'
+          : historial.map(c => `
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="flex:1">
+                <p style="font-size:0.85rem;font-weight:600">${new Date(c.fecha).toLocaleDateString('es-MX', {weekday:'short',day:'numeric',month:'short'})}</p>
+                <p style="font-size:0.72rem;color:#888">Apertura: $${parseFloat(c.monto_apertura||0).toFixed(0)} · Cierre: $${parseFloat(c.monto_cierre||0).toFixed(0)}</p>
+              </div>
+              <div style="text-align:center">
+                <p style="font-size:0.9rem;font-weight:700;color:#E91E8C">$${parseFloat(c.total_ventas||0).toFixed(0)}</p>
+                <p style="font-size:0.65rem;color:#888">Ventas</p>
+              </div>
+              <div style="text-align:center">
+                <p style="font-size:0.9rem;font-weight:700;color:${parseFloat(c.diferencia||0) >= 0 ? '#2e7d32' : '#c62828'}">${parseFloat(c.diferencia||0) >= 0 ? '+' : ''}$${parseFloat(c.diferencia||0).toFixed(0)}</p>
+                <p style="font-size:0.65rem;color:#888">Diferencia</p>
+              </div>
+              <span style="padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${c.status==='cerrada'?'#e8f5e9':'#fff8e1'};color:${c.status==='cerrada'?'#2e7d32':'#f57f17'}">${c.status}</span>
+            </div>
+          `).join('')}
+      </div>
+    `
+  } else if (tab === 'cxc') {
+    mostrarCxC()
   }
 }
 
-window.recargarFinanzas = (sucursalId) => {
-  window._finanzasSucursalId = sucursalId
-  cargarFinanzas()
+window.mostrarCxC = () => {
+  const { cxc } = window._finanzasData
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+  const hoy = new Date()
+  container.innerHTML = `
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:700;font-size:0.9rem">📑 Cuentas por cobrar</p>
+        <span style="font-size:0.78rem;color:#888">${cxc.length} pendientes · $${cxc.reduce((s,p)=>s+parseFloat(p.total||0),0).toFixed(0)} total</span>
+      </div>
+      ${cxc.length === 0
+        ? '<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por cobrar</div>'
+        : cxc.map(p => {
+          const diasVencido = Math.floor((hoy - new Date(p.created_at)) / (1000*60*60*24))
+          return `
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="flex:1">
+                <p style="font-size:0.85rem;font-weight:600">${p.clientes?.nombre || 'Sin cliente'}</p>
+                <p style="font-size:0.72rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')} · Pedido #${p.id.substring(0,8).toUpperCase()}</p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:700;color:#f57f17;font-size:1rem">$${parseFloat(p.total||0).toFixed(0)}</p>
+                <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${diasVencido > 30 ? '#ffebee' : '#fff8e1'};color:${diasVencido > 30 ? '#c62828' : '#f57f17'}">
+                  ${diasVencido} días
+                </span>
+              </div>
+              ${p.clientes?.telefono ? `
+                <a href="https://wa.me/52${p.clientes.telefono.replace(/\D/g,'')}" target="_blank"
+                   style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;text-decoration:none">
+                  💬 Cobrar
+                </a>
+              ` : ''}
+            </div>
+          `
+        }).join('')}
+    </div>
+  `
 }
 
 window.abrirCaja = async (sucursalId) => {
