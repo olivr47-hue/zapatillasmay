@@ -163,4 +163,5 @@ REGLAS IMPORTANTES:
         return {"replies": [{"message": respuesta}]}
         
     except Exception as e:
-        return {"replies": [{"message": "Hola! En este momento no puedo procesar tu mensaje. Por favor escríbenos directamente. 😊"}]}
+    print(f"ERROR CHATBOT: {str(e)}")
+    return {"replies": [{"message": f"Error: {str(e)}"}]}
