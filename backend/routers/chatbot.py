@@ -386,3 +386,17 @@ async def marcar_leido(telefono: str):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/chats/{telefono}/etiqueta")
+async def cambiar_etiqueta(telefono: str, datos: dict):
+    try:
+        from database import supabase_post, supabase_patch
+        etiqueta = datos.get("etiqueta", "sin_etiqueta")
+        existente = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existente:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"etiqueta": etiqueta})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "etiqueta": etiqueta})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
