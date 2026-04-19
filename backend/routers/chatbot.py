@@ -167,7 +167,7 @@ REGLAS IMPORTANTES:
         print(f"ERROR CHATBOT: {str(e)}")
         return {"replies": [{"message": f"Error: {str(e)}"}]}
 
-     @router.get("/whatsapp")
+@router.get("/whatsapp")
 async def verificar_webhook(request: Request):
     from fastapi import Request
     params = dict(request.query_params)
