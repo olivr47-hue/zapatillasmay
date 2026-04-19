@@ -33,6 +33,45 @@ def llamar_claude(mensajes, sistema):
         error = e.read().decode()
         raise Exception(f"Claude API error: {error}")
 
+        def llamar_claude_con_imagen(img_b64, sistema):
+    url = "https://api.anthropic.com/v1/messages"
+    headers = {
+        "x-api-key": get_api_key(),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json"
+    }
+    body = json.dumps({
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 1024,
+        "system": sistema,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": img_b64
+                    }
+                },
+                {
+                    "type": "text",
+                    "text": "El cliente mando esta foto. Describe que tipo de calzado es y si tenemos algo similar en nuestro catalogo. Si no reconoces el estilo preguntale que tipo de calzado busca."
+                }
+            ]
+        }]
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read())
+            return data["content"][0]["text"]
+    except urllib.error.HTTPError as e:
+        error = e.read().decode()
+        raise Exception(f"Claude API error: {error}")
+
 @router.post("/mensaje")
 async def procesar_mensaje(datos: dict):
     try:
@@ -201,7 +240,58 @@ async def recibir_mensaje_whatsapp(datos: dict):
         elif tipo == "audio":
             mensaje = "[Audio recibido — por favor escribe tu mensaje]"
         elif tipo == "image":
-            mensaje = "[Imagen recibida] El cliente mandó una foto"
+    try:
+        image_id = mensaje_data.get("image", {}).get("id", "")
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        
+        # Obtener URL de la imagen
+        img_url_req = urllib.request.Request(
+            f"https://graph.facebook.com/v18.0/{image_id}",
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(img_url_req) as r:
+            img_data = json.loads(r.read())
+        img_url = img_data.get("url", "")
+        
+        # Descargar la imagen
+        img_req = urllib.request.Request(
+            img_url,
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(img_req) as r:
+            img_bytes = r.read()
+        
+        import base64
+        img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+        
+        # Llamar a Claude con la imagen
+        productos = supabase_get("productos?activo=eq.true&select=nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles")
+        catalogo = construir_catalogo(productos)
+        sistema = construir_sistema(catalogo)
+        
+        respuesta = llamar_claude_con_imagen(img_b64, sistema)
+        
+        wa_token2 = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if wa_token2 and phone_id:
+            url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+            headers = {
+                "Authorization": f"Bearer {wa_token2}",
+                "Content-Type": "application/json"
+            }
+            body = json.dumps({
+                "messaging_product": "whatsapp",
+                "to": from_number,
+                "type": "text",
+                "text": {"body": respuesta}
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+            urllib.request.urlopen(req)
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"ERROR IMAGEN: {str(e)}")
+        mensaje = "El cliente mando una foto pero no pude verla, preguntale que modelo le interesa"
+
         else:
             mensaje = f"[Mensaje tipo {tipo}]"
         
@@ -272,4 +362,5 @@ REGLAS:
         
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
-        return {"status": "ok"}   
+        return {"status": "ok"} 
+          

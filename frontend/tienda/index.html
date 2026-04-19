@@ -1412,6 +1412,7 @@
         <a href="https://instagram.com/zapatillasmay" target="_blank">Instagram</a>
          <a href="https://facebook.com/zapatillasmay" target="_blank">Facebook</a>
          <a href="https://tiktok.com/@zapatillasmay" target="_blank">TikTok</a>
+         <a href="#privacidad" onclick="mostrarPagina('privacidad')">Política de privacidad</a>
       </div>
     </div>
     <div class="footer-bottom">
@@ -1441,6 +1442,7 @@ window.addEventListener('load', () => {
   const hash = window.location.hash
   if (hash === '#catalogo') setTimeout(() => mostrarCatalogo(), 500)
   else if (hash === '#nuevos') setTimeout(() => mostrarNuevos(), 500)
+  else if (hash === '#privacidad') setTimeout(() => mostrarPagina('privacidad'), 500)
   else if (hash.startsWith('#categoria/')) {
     const cat = hash.replace('#categoria/', '')
     setTimeout(() => filtrarCategoria(cat), 500)
@@ -2292,6 +2294,51 @@ const PAGINAS = {
             </div>
           `).join('')}
         </div>
+      </div>
+    </div>
+  `,
+  'privacidad': `
+    <div style="background:var(--black);padding:80px 40px;text-align:center">
+      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Transparencia y confianza</p>
+      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Privac<em style="font-style:italic;color:var(--pink)">idad</em></h1>
+    </div>
+    <div style="max-width:800px;margin:0 auto;padding:80px 40px">
+      <p style="color:var(--gray-600);margin-bottom:2rem">Última actualización: ${new Date().toLocaleDateString('es-MX')}</p>
+      
+      <div style="display:flex;flex-direction:column;gap:32px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">1. Información que recopilamos</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Recopilamos nombre, correo electrónico, número de teléfono y dirección de envío cuando realizas un pedido o nos contactas.</p>
+        </div>
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">2. Uso de la información</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Usamos tu información para procesar pedidos, responder consultas y mejorar nuestros servicios. No vendemos ni compartimos tu información con terceros.</p>
+        </div>
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">3. WhatsApp y comunicaciones</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Al contactarnos por WhatsApp aceptas recibir respuestas de nuestro asistente virtual. Tus mensajes son procesados para brindarte mejor atención. No compartimos tu número con terceros.</p>
+        </div>
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">4. Cookies</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Nuestro sitio usa cookies para mejorar tu experiencia. Puedes desactivarlas en la configuración de tu navegador.</p>
+        </div>
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">5. Seguridad</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Implementamos medidas de seguridad para proteger tu información personal contra acceso no autorizado.</p>
+        </div>
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">6. Tus derechos</h2>
+          <p style="color:var(--gray-600);line-height:1.8">Tienes derecho a acceder, corregir o eliminar tu información. Contáctanos en:</p>
+          <ul style="color:var(--gray-600);line-height:2;margin-left:1.5rem;margin-top:8px">
+            <li>WhatsApp: +52 477 804 7982</li>
+            <li>Dirección: León, Guanajuato, México</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="margin-top:60px;background:var(--black);border-radius:16px;padding:32px;text-align:center">
+        <p style="color:rgba(255,255,255,0.5);margin-bottom:16px">¿Tienes dudas sobre tu privacidad?</p>
+        <a href="https://wa.me/524772472285" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
       </div>
     </div>
   `,
