@@ -134,6 +134,7 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto"):
         from database import supabase_post
         supabase_post("conversaciones_whatsapp", {
             "telefono": telefono,
+            "nombre_contacto": nombre,
             "mensaje": mensaje,
             "respuesta": respuesta,
             "tipo": tipo
@@ -206,6 +207,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
         mensaje_data = messages[0]
         tipo = mensaje_data.get("type", "text")
         from_number = mensaje_data.get("from", "")
+# Obtener nombre del contacto
+contacts = value.get("contacts", [])
+nombre_contacto = contacts[0].get("profile", {}).get("name", "") if contacts else ""
 
         if tipo == "image":
             try:
@@ -230,7 +234,7 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 sistema = construir_sistema(catalogo)
                 respuesta = llamar_claude_con_imagen(img_b64, sistema)
                 enviar_whatsapp(from_number, respuesta)
-                guardar_conversacion(from_number, "[Imagen]", respuesta, "imagen")
+                guardar_conversacion(from_number, "[Imagen]", respuesta, "imagen", nombre_contacto)
                 return {"status": "ok"}
             except Exception as e:
                 print(f"ERROR IMAGEN: {str(e)}")
@@ -255,16 +259,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
             sistema
         )
         enviar_whatsapp(from_number, respuesta)
-        guardar_conversacion(from_number, mensaje, respuesta, "texto")
+        guardar_conversacion(from_number, mensaje, respuesta, "texto", nombre_contacto)
         return {"status": "ok"}
 
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
         return {"status": "ok"}
-
-@router.get("/conversaciones")
-async def listar_conversaciones():
-    try:
-        return supabase_get("conversaciones_whatsapp?order=created_at.desc&limit=100")
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        
