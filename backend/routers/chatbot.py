@@ -261,3 +261,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
         return {"status": "ok"}
+
+@router.get("/conversaciones")
+async def listar_conversaciones():
+    try:
+        return supabase_get("conversaciones_whatsapp?order=created_at.desc&limit=100")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
