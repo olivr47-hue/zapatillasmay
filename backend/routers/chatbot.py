@@ -261,3 +261,107 @@ async def recibir_mensaje_whatsapp(datos: dict):
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
         return {"status": "ok"}
+        @router.get("/chats")
+async def listar_chats():
+    try:
+        conversaciones = supabase_get("conversaciones_whatsapp?order=created_at.desc")
+        chats = {}
+        for m in conversaciones:
+            tel = m['telefono']
+            if tel not in chats:
+                chats[tel] = {
+                    "telefono": tel,
+                    "nombre": m.get('nombre_contacto') or tel,
+                    "mensajes": [],
+                    "ultimo_mensaje": m['created_at'],
+                    "no_leidos": 0,
+                    "en_control": False,
+                    "agente": None
+                }
+            chats[tel]['mensajes'].append(m)
+            if not m.get('leido'):
+                chats[tel]['no_leidos'] += 1
+        control = supabase_get("chats_control?en_control=eq.true")
+        for c in control:
+            if c['telefono'] in chats:
+                chats[c['telefono']]['en_control'] = True
+                chats[c['telefono']]['agente'] = c.get('agente')
+        return list(chats.values())
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/chats/{telefono}/control")
+async def tomar_control(telefono: str, datos: dict):
+    try:
+        from database import supabase_post, supabase_patch
+        en_control = datos.get("en_control", True)
+        agente = datos.get("agente", "Admin")
+        existente = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existente:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"en_control": en_control, "agente": agente})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "en_control": en_control, "agente": agente})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/chats/{telefono}/mensaje")
+async def enviar_mensaje_manual(telefono: str, datos: dict):
+    try:
+        from database import supabase_post
+        mensaje = datos.get("mensaje", "")
+        agente = datos.get("agente", "Admin")
+        if not mensaje:
+            return JSONResponse(status_code=400, content={"error": "Mensaje vacio"})
+        enviar_whatsapp(telefono, mensaje)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: {mensaje}",
+            "respuesta": None,
+            "tipo": "manual",
+            "leido": True
+        })
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/chats/{telefono}/imagen")
+async def enviar_imagen_manual(telefono: str, datos: dict):
+    try:
+        from database import supabase_post
+        imagen_url = datos.get("imagen_url", "")
+        caption = datos.get("caption", "")
+        agente = datos.get("agente", "Admin")
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if not wa_token or not phone_id:
+            return JSONResponse(status_code=500, content={"error": "Token no configurado"})
+        url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+        headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+        body = json.dumps({
+            "messaging_product": "whatsapp",
+            "to": telefono,
+            "type": "image",
+            "image": {"link": imagen_url, "caption": caption}
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        urllib.request.urlopen(req)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Imagen] {caption}",
+            "respuesta": None,
+            "tipo": "imagen_saliente",
+            "leido": True
+        })
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/chats/{telefono}/leido")
+async def marcar_leido(telefono: str):
+    try:
+        from database import supabase_patch
+        supabase_patch(f"conversaciones_whatsapp?telefono=eq.{telefono}&leido=eq.false", {"leido": True})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
