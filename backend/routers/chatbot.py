@@ -461,3 +461,69 @@ async def eliminar_respuesta(id: str):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/notas/{telefono}")
+async def obtener_notas(telefono: str):
+    try:
+        return supabase_get(f"notas_contacto?telefono=eq.{telefono}&order=created_at.desc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/notas/{telefono}")
+async def crear_nota(telefono: str, datos: dict):
+    try:
+        from database import supabase_post
+        return supabase_post("notas_contacto", {
+            "telefono": telefono,
+            "nota": datos.get("nota"),
+            "agente": datos.get("agente", "Admin")
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/notas/{id}")
+async def eliminar_nota(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"notas_contacto?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/tareas/{telefono}")
+async def obtener_tareas(telefono: str):
+    try:
+        return supabase_get(f"tareas_contacto?telefono=eq.{telefono}&order=created_at.asc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/tareas/{telefono}")
+async def crear_tarea(telefono: str, datos: dict):
+    try:
+        from database import supabase_post
+        return supabase_post("tareas_contacto", {
+            "telefono": telefono,
+            "titulo": datos.get("titulo"),
+            "fecha_vence": datos.get("fecha_vence"),
+            "agente": datos.get("agente", "Admin")
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/tareas/{id}")
+async def actualizar_tarea(id: str, datos: dict):
+    try:
+        from database import supabase_patch
+        supabase_patch(f"tareas_contacto?id=eq.{id}", datos)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/tareas/{id}")
+async def eliminar_tarea(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"tareas_contacto?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
