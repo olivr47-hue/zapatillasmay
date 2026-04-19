@@ -289,13 +289,16 @@ async def listar_chats():
                     "en_control": False,
                     "agente": None
                 }
-                for tel, chat in chats.items():
-    for m in chat['mensajes']:
-        if m.get('nombre_contacto') and m['nombre_contacto'] != tel:
-            chat['nombre'] = m['nombre_contacto']
-            break
-    if not chat['nombre']:
-        chat['nombre'] = tel
+            chats[tel]['mensajes'].append(m)
+            if not m.get('leido'):
+                chats[tel]['no_leidos'] += 1
+        for tel, chat in chats.items():
+            nombre = tel
+            for m in chat['mensajes']:
+                if m.get('nombre_contacto') and m['nombre_contacto'] != tel:
+                    nombre = m['nombre_contacto']
+                    break
+            chat['nombre'] = nombre
             chats[tel]['mensajes'].append(m)
             if not m.get('leido'):
                 chats[tel]['no_leidos'] += 1
