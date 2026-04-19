@@ -540,3 +540,95 @@ async def tareas_hoy():
         return tareas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/envio-masivo")
+async def envio_masivo(datos: dict):
+    try:
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if not wa_token or not phone_id:
+            return JSONResponse(status_code=500, content={"error": "Token no configurado"})
+
+        plantilla = datos.get("plantilla", "nuevos_modelos")
+        contactos = datos.get("contactos", [])
+        imagen_url = datos.get("imagen_url", "")
+
+        enviados = 0
+        fallidos = 0
+        errores = []
+
+        for contacto in contactos:
+            try:
+                telefono = contacto.get("telefono", "")
+                nombre = contacto.get("nombre", "Cliente")
+                if not telefono:
+                    continue
+
+                # Limpiar teléfono
+                tel = telefono.replace("+", "").replace(" ", "").replace("-", "")
+                if not tel.startswith("52"):
+                    tel = "52" + tel
+
+                body_msg = {
+                    "messaging_product": "whatsapp",
+                    "to": tel,
+                    "type": "template",
+                    "template": {
+                        "name": plantilla,
+                        "language": {"code": "es_MX"},
+                        "components": [
+                            {
+                                "type": "body",
+                                "parameters": [
+                                    {"type": "text", "text": nombre}
+                                ]
+                            }
+                        ]
+                    }
+                }
+
+                if imagen_url:
+                    body_msg["template"]["components"].insert(0, {
+                        "type": "header",
+                        "parameters": [
+                            {"type": "image", "image": {"link": imagen_url}}
+                        ]
+                    })
+
+                url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+                headers = {
+                    "Authorization": f"Bearer {wa_token}",
+                    "Content-Type": "application/json"
+                }
+                body = json.dumps(body_msg).encode("utf-8")
+                req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+                urllib.request.urlopen(req)
+                enviados += 1
+
+            except Exception as e:
+                fallidos += 1
+                errores.append(f"{telefono}: {str(e)}")
+
+        return {
+            "ok": True,
+            "enviados": enviados,
+            "fallidos": fallidos,
+            "errores": errores
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/plantillas")
+async def listar_plantillas():
+    try:
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+        if not waba_id:
+            return [{"name": "nuevos_modelos", "status": "APPROVED"}]
+        url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates?status=APPROVED"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+        return data.get("data", [])
+    except Exception as e:
+        return [{"name": "nuevos_modelos", "status": "APPROVED"}]
