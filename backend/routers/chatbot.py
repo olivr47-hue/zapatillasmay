@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get
 import urllib.request
@@ -166,3 +166,110 @@ REGLAS IMPORTANTES:
     except Exception as e:
         print(f"ERROR CHATBOT: {str(e)}")
         return {"replies": [{"message": f"Error: {str(e)}"}]}
+
+     @router.get("/whatsapp")
+async def verificar_webhook(request: Request):
+    from fastapi import Request
+    params = dict(request.query_params)
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+    
+    if mode == "subscribe" and token == "zapatillasmay2024":
+        return int(challenge)
+    return JSONResponse(status_code=403, content={"error": "Token inválido"})
+
+@router.post("/whatsapp")
+async def recibir_mensaje_whatsapp(datos: dict):
+    try:
+        print(f"WHATSAPP DATOS: {json.dumps(datos)}")
+        
+        entry = datos.get("entry", [{}])[0]
+        changes = entry.get("changes", [{}])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages", [])
+        
+        if not messages:
+            return {"status": "ok"}
+        
+        mensaje_data = messages[0]
+        tipo = mensaje_data.get("type", "text")
+        from_number = mensaje_data.get("from", "")
+        
+        if tipo == "text":
+            mensaje = mensaje_data.get("text", {}).get("body", "")
+        elif tipo == "audio":
+            mensaje = "[Audio recibido — por favor escribe tu mensaje]"
+        elif tipo == "image":
+            mensaje = "[Imagen recibida] El cliente mandó una foto"
+        else:
+            mensaje = f"[Mensaje tipo {tipo}]"
+        
+        if not mensaje:
+            return {"status": "ok"}
+            
+        productos = supabase_get("productos?activo=eq.true&select=nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles")
+        
+        catalogo = ""
+        for p in productos[:30]:
+            catalogo += f"- {p['nombre']}: menudeo ${p['precio_menudeo']}"
+            if p.get('precio_mayoreo3'):
+                catalogo += f", mayoreo 3-5 pares ${p['precio_mayoreo3']}"
+            if p.get('precio_mayoreo6'):
+                catalogo += f", mayoreo 6+ ${p['precio_mayoreo6']}"
+            if p.get('precio_corrida') and p.get('corrida_activa'):
+                catalogo += f", corrida ${p['precio_corrida']}"
+            if p.get('nuevo'):
+                catalogo += " ⭐NUEVO"
+            catalogo += "\n"
+
+        sistema = f"""Eres el asistente virtual de Zapatillas May, tienda de calzado para dama en León, Guanajuato, México.
+Eres amable, profesional y usas emojis ocasionalmente. Respondes POR WHATSAPP — respuestas cortas y directas.
+
+CATÁLOGO:
+{catalogo if catalogo else "Catálogo en actualización"}
+
+PRECIOS:
+- Menudeo: precio normal por par
+- Mayoreo 3-5 pares variados: precio mayoreo
+- Mayoreo 6+ pares variados: mejor precio
+- Corrida completa mismo modelo: precio especial
+
+VER CATÁLOGO: https://zapatillasmay.mx
+NUEVOS MODELOS: https://zapatillasmay.mx/#nuevos
+
+REGLAS:
+- Máximo 150 palabras por respuesta
+- Si piden precio da el precio exacto
+- Si quieren pedir solicita: modelo, talla, color, nombre y dirección
+- Nunca inventes información"""
+
+        respuesta = llamar_claude(
+            [{"role": "user", "content": mensaje}],
+            sistema
+        )
+        
+        # Enviar respuesta por WhatsApp API
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        
+        if wa_token and phone_id:
+            url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+            headers = {
+                "Authorization": f"Bearer {wa_token}",
+                "Content-Type": "application/json"
+            }
+            body = json.dumps({
+                "messaging_product": "whatsapp",
+                "to": from_number,
+                "type": "text",
+                "text": {"body": respuesta}
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+            urllib.request.urlopen(req)
+        
+        return {"status": "ok"}
+        
+    except Exception as e:
+        print(f"ERROR WHATSAPP: {str(e)}")
+        return {"status": "ok"}   
