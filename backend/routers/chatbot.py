@@ -257,7 +257,6 @@ async def recibir_mensaje_whatsapp(datos: dict):
         enviar_whatsapp(from_number, respuesta)
         guardar_conversacion(from_number, mensaje, respuesta, "texto")
         return {"status": "ok"}
-
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
         return {"status": "ok"}
