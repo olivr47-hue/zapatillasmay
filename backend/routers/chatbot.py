@@ -401,3 +401,63 @@ async def cambiar_etiqueta(telefono: str, datos: dict):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/config")
+async def obtener_config():
+    try:
+        config = supabase_get("whatsapp_config")
+        resultado = {c['clave']: c['valor'] for c in config}
+        return resultado
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/config")
+async def guardar_config(datos: dict):
+    try:
+        from database import supabase_patch, supabase_post
+        for clave, valor in datos.items():
+            existente = supabase_get(f"whatsapp_config?clave=eq.{clave}")
+            if existente:
+                supabase_patch(f"whatsapp_config?clave=eq.{clave}", {"valor": str(valor)})
+            else:
+                supabase_post("whatsapp_config", {"clave": clave, "valor": str(valor)})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/respuestas-rapidas")
+async def obtener_respuestas():
+    try:
+        return supabase_get("respuestas_rapidas?order=orden.asc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/respuestas-rapidas")
+async def crear_respuesta(datos: dict):
+    try:
+        from database import supabase_post
+        return supabase_post("respuestas_rapidas", {
+            "titulo": datos.get("titulo"),
+            "mensaje": datos.get("mensaje"),
+            "orden": datos.get("orden", 0)
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/respuestas-rapidas/{id}")
+async def actualizar_respuesta(id: str, datos: dict):
+    try:
+        from database import supabase_patch
+        supabase_patch(f"respuestas_rapidas?id=eq.{id}", datos)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/respuestas-rapidas/{id}")
+async def eliminar_respuesta(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"respuestas_rapidas?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
