@@ -303,11 +303,11 @@ async def listar_chats():
             if not m.get('leido'):
                 chats[tel]['no_leidos'] += 1
         control = supabase_get("chats_control")
-for c in control:
-    if c['telefono'] in chats:
-        chats[c['telefono']]['en_control'] = c.get('en_control', False)
-        chats[c['telefono']]['agente'] = c.get('agente')
-        chats[c['telefono']]['etiqueta'] = c.get('etiqueta', 'sin_etiqueta')
+        for c in control:
+            if c['telefono'] in chats:
+                chats[c['telefono']]['en_control'] = c.get('en_control', False)
+                chats[c['telefono']]['agente'] = c.get('agente')
+                chats[c['telefono']]['etiqueta'] = c.get('etiqueta', 'sin_etiqueta')
         return list(chats.values())
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
