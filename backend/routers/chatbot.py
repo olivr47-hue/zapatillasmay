@@ -527,3 +527,16 @@ async def eliminar_tarea(id: str):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/tareas-hoy")
+async def tareas_hoy():
+    try:
+        from datetime import date
+        hoy = date.today().isoformat()
+        tareas = supabase_get(f"tareas_contacto?fecha_vence=lte.{hoy}&completada=eq.false&order=fecha_vence.asc")
+        for t in tareas:
+            clientes = supabase_get(f"clientes?telefono=eq.{t['telefono']}&select=nombre")
+            t['nombre_contacto'] = clientes[0]['nombre'] if clientes else None
+        return tareas
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
