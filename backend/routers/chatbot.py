@@ -30,7 +30,7 @@ def construir_catalogo(productos):
 
 def construir_sistema(catalogo):
     return f"""Eres el asistente virtual de Zapatillas May, tienda de calzado para dama en Leon, Guanajuato, Mexico.
-Eres amable, profesional y usas emojis ocasionalmente. Respondes POR WHATSAPP — respuestas cortas y directas.
+Eres amable, profesional y usas emojis ocasionalmente. Respondes POR WHATSAPP - respuestas cortas y directas.
 
 CATALOGO:
 {catalogo if catalogo else "Catalogo en actualizacion"}
@@ -129,11 +129,12 @@ def enviar_whatsapp(from_number, respuesta):
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     urllib.request.urlopen(req)
 
-def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto"):
+def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre=""):
     try:
         from database import supabase_post
         supabase_post("conversaciones_whatsapp", {
             "telefono": telefono,
+            "nombre_contacto": nombre,
             "mensaje": mensaje,
             "respuesta": respuesta,
             "tipo": tipo
@@ -162,13 +163,10 @@ async def autoresponder_webhook(datos: dict):
         query = datos.get("query", {})
         mensaje = query.get("message", "")
         sender = query.get("sender", "Cliente")
-
         if not mensaje:
             return {"replies": [{"message": "Hola! En que te puedo ayudar? 👠"}]}
-
         if mensaje in ["Foto", "Image", "foto", "photo", "imagen"]:
-            return {"replies": [{"message": "Vi que mandaste una foto! 📸\n\nPor favor dime que modelo te interesa o visita:\n👠 https://zapatillasmay.mx"}]}
-
+            return {"replies": [{"message": "Vi que mandaste una foto! Dime que modelo te interesa o visita: https://zapatillasmay.mx"}]}
         productos = supabase_get("productos?activo=eq.true&select=nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles")
         catalogo = construir_catalogo(productos)
         sistema = construir_sistema(catalogo)
@@ -199,13 +197,13 @@ async def recibir_mensaje_whatsapp(datos: dict):
         changes = entry.get("changes", [{}])[0]
         value = changes.get("value", {})
         messages = value.get("messages", [])
-
         if not messages:
             return {"status": "ok"}
-
         mensaje_data = messages[0]
         tipo = mensaje_data.get("type", "text")
         from_number = mensaje_data.get("from", "")
+        contacts = value.get("contacts", [])
+        nombre_contacto = contacts[0].get("profile", {}).get("name", "") if contacts else ""
 
         if tipo == "image":
             try:
@@ -230,11 +228,11 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 sistema = construir_sistema(catalogo)
                 respuesta = llamar_claude_con_imagen(img_b64, sistema)
                 enviar_whatsapp(from_number, respuesta)
-                guardar_conversacion(from_number, "[Imagen]", respuesta, "imagen")
+                guardar_conversacion(from_number, "[Imagen]", respuesta, "imagen", nombre_contacto)
                 return {"status": "ok"}
             except Exception as e:
                 print(f"ERROR IMAGEN: {str(e)}")
-                enviar_whatsapp(from_number, "Vi que mandaste una foto pero no pude verla. Por favor dime que modelo te interesa o visita https://zapatillasmay.mx 👠")
+                enviar_whatsapp(from_number, "Vi que mandaste una foto pero no pude verla. Por favor dime que modelo te interesa o visita https://zapatillasmay.mx")
                 return {"status": "ok"}
 
         if tipo == "text":
@@ -247,6 +245,11 @@ async def recibir_mensaje_whatsapp(datos: dict):
         if not mensaje:
             return {"status": "ok"}
 
+        control = supabase_get(f"chats_control?telefono=eq.{from_number}&en_control=eq.true")
+        if control:
+            guardar_conversacion(from_number, mensaje, None, "texto", nombre_contacto)
+            return {"status": "ok"}
+
         productos = supabase_get("productos?activo=eq.true&select=nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles")
         catalogo = construir_catalogo(productos)
         sistema = construir_sistema(catalogo)
@@ -255,12 +258,21 @@ async def recibir_mensaje_whatsapp(datos: dict):
             sistema
         )
         enviar_whatsapp(from_number, respuesta)
-        guardar_conversacion(from_number, mensaje, respuesta, "texto")
+        guardar_conversacion(from_number, mensaje, respuesta, "texto", nombre_contacto)
         return {"status": "ok"}
+
     except Exception as e:
         print(f"ERROR WHATSAPP: {str(e)}")
         return {"status": "ok"}
-        @router.get("/chats")
+
+@router.get("/conversaciones")
+async def listar_conversaciones():
+    try:
+        return supabase_get("conversaciones_whatsapp?order=created_at.desc&limit=100")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/chats")
 async def listar_chats():
     try:
         conversaciones = supabase_get("conversaciones_whatsapp?order=created_at.desc")
