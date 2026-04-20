@@ -589,7 +589,7 @@ async def envio_masivo(datos: dict):
                     "type": "template",
                     "template": {
                         "name": plantilla,
-                        "language": {"code": "es"},
+                        "language": {"code": "en_US"},
                         "components": components
                     }
                 }
