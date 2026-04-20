@@ -2015,6 +2015,7 @@ function cerrarAuthBtn() {
 function mostrarTab(tab) {
   document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none'
   document.getElementById('form-registro').style.display = tab === 'registro' ? 'block' : 'none'
+  document.getElementById('form-recuperacion').style.display = 'none'
   document.getElementById('tab-login').style.borderBottomColor = tab === 'login' ? 'var(--pink)' : 'transparent'
   document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--pink)' : '#aaa'
   document.getElementById('tab-registro').style.borderBottomColor = tab === 'registro' ? 'var(--pink)' : 'transparent'
@@ -2131,7 +2132,7 @@ async function solicitarRecuperacion() {
     })
     const data = await res.json()
     if (res.ok) {
-      msg.textContent = '✅ ' + (data.mensaje || 'Tu nueva contraseña temporal es: ' + data.password_temporal)
+      msg.textContent = '✅ ' + (data.mensaje || 'Revisa tu email, te enviamos tu contraseña temporal.')
       msg.style.color = 'green'
       msg.style.display = 'block'
       btn.textContent = 'Listo'
