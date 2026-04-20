@@ -115,7 +115,7 @@ def enviar_whatsapp(from_number, respuesta):
     phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
     if not wa_token or not phone_id:
         return
-    url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+    url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
     headers = {
         "Authorization": f"Bearer {wa_token}",
         "Content-Type": "application/json"
@@ -210,7 +210,7 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 image_id = mensaje_data.get("image", {}).get("id", "")
                 wa_token = os.environ.get("WHATSAPP_TOKEN", "")
                 img_url_req = urllib.request.Request(
-                    f"https://graph.facebook.com/v18.0/{image_id}",
+                    f"https://graph.facebook.com/v21.0/{image_id}",
                     headers={"Authorization": f"Bearer {wa_token}"}
                 )
                 with urllib.request.urlopen(img_url_req) as r:
@@ -358,7 +358,7 @@ async def enviar_imagen_manual(telefono: str, datos: dict):
         phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
         if not wa_token or not phone_id:
             return JSONResponse(status_code=500, content={"error": "Token no configurado"})
-        url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+        url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
         headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
         body = json.dumps({
             "messaging_product": "whatsapp",
@@ -580,7 +580,7 @@ async def envio_masivo(datos: dict):
                             {
                                 "type": "body",
                                 "parameters": [
-                                    {"type": "text", "parameter_name": "customer_name", "text": nombre}
+                                    {"type": "text", "text": nombre}
                                 ]
                             }
                         ]
@@ -597,7 +597,7 @@ async def envio_masivo(datos: dict):
                 # Si no hay variables en el body, quitar parameters vacios
                 # (algunas plantillas no tienen variables)
 
-                url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
+                url = f"https://graph.facebook.com/v21.0/{phone_id}/messages"
                 headers = {
                     "Authorization": f"Bearer {wa_token}",
                     "Content-Type": "application/json"
@@ -627,7 +627,7 @@ async def listar_plantillas():
         waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
         if not waba_id:
             return [{"name": "catalogo_completo", "status": "APPROVED"}, {"name": "nuevos_modelos", "status": "APPROVED"}]
-        url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates?status=APPROVED"
+        url = f"https://graph.facebook.com/v21.0/{waba_id}/message_templates?status=APPROVED"
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
         with urllib.request.urlopen(req) as r:
             data = json.loads(r.read())
