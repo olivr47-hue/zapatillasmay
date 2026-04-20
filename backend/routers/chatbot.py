@@ -549,7 +549,7 @@ async def envio_masivo(datos: dict):
         if not wa_token or not phone_id:
             return JSONResponse(status_code=500, content={"error": "Token no configurado"})
 
-        plantilla = datos.get("plantilla", "nuevos_modelos")
+        plantilla = datos.get("plantilla", "catalogo_completo")
         contactos = datos.get("contactos", [])
         imagen_url = datos.get("imagen_url", "")
 
@@ -626,11 +626,11 @@ async def listar_plantillas():
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
         waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
         if not waba_id:
-            return [{"name": "nuevos_modelos", "status": "APPROVED"}]
+            return [{"name": "catalogo_completo", "status": "APPROVED"}, {"name": "nuevos_modelos", "status": "APPROVED"}]
         url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates?status=APPROVED"
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
         with urllib.request.urlopen(req) as r:
             data = json.loads(r.read())
         return data.get("data", [])
     except Exception as e:
-        return [{"name": "nuevos_modelos", "status": "APPROVED"}]
+        return [{"name": "catalogo_completo", "status": "APPROVED"}, {"name": "nuevos_modelos", "status": "APPROVED"}]
