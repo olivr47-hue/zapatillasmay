@@ -1948,6 +1948,11 @@ cargarConfigSEO()
   }
 
   function filtrarCategoria(categoria) {
+    if (!productos || !productos.length) {
+      mostrarToast('Cargando catalogo...')
+      inicializar().then(() => filtrarCategoria(categoria))
+      return
+    }
     const filtrados = productos.filter(p => p.categoria === categoria && p.activo)
     document.getElementById('productos-titulo').innerHTML = categoria.charAt(0).toUpperCase()+categoria.slice(1)+' <em>disponibles</em>'
     renderProductos(filtrados)
@@ -2226,8 +2231,15 @@ async function cargarCuenta() {
       : null
     const pedidos = resPedidos && resPedidos.ok ? await resPedidos.json() : []
 
+    // Cargar datos del cliente para direccion y facturacion
+    const resCliente = usuarioActual.cliente_id
+      ? await fetch(API + '/clientes/' + usuarioActual.cliente_id)
+      : null
+    const clienteData = resCliente && resCliente.ok ? await resCliente.json() : []
+    const cliente = clienteData[0] || {}
+
     contenido.innerHTML = `
-      <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
             <p style="font-weight:700;font-size:1.1rem;margin-bottom:2px">${usuarioActual.nombre}</p>
@@ -2238,10 +2250,49 @@ async function cargarCuenta() {
         </div>
       </div>
 
-      <div style="margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
+        <p style="font-weight:600;margin-bottom:14px">Dirección de envío</p>
+        <div style="display:grid;gap:10px">
+          <input id="env-calle" placeholder="Calle y número" value="${cliente.calle||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <input id="env-colonia" placeholder="Colonia" value="${cliente.colonia||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+            <input id="env-cp" placeholder="Código postal" value="${cliente.codigo_postal||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <input id="env-ciudad" placeholder="Ciudad" value="${cliente.ciudad||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+            <input id="env-estado" placeholder="Estado" value="${cliente.estado||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+          </div>
+          <input id="env-telefono" placeholder="Teléfono de contacto" value="${cliente.telefono||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+        </div>
+        <button onclick="guardarDireccion()" style="margin-top:12px;background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Guardar dirección</button>
+        <p id="dir-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
+      </div>
+
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
+        <p style="font-weight:600;margin-bottom:6px">Datos de facturación</p>
+        <p style="font-size:0.78rem;color:#aaa;margin-bottom:14px">Solo si necesitas factura por tus compras</p>
+        <div style="display:grid;gap:10px">
+          <input id="fac-rfc" placeholder="RFC" value="${cliente.rfc||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box;text-transform:uppercase">
+          <input id="fac-razon" placeholder="Razón social" value="${cliente.razon_social||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+          <input id="fac-cp" placeholder="Código postal fiscal" value="${cliente.cp_fiscal||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+          <select id="fac-regimen" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;background:white;box-sizing:border-box">
+            <option value="">Régimen fiscal</option>
+            <option value="601" ${cliente.regimen_fiscal==='601'?'selected':''}>601 - General de Ley Personas Morales</option>
+            <option value="612" ${cliente.regimen_fiscal==='612'?'selected':''}>612 - Personas Físicas con Actividades Empresariales</option>
+            <option value="616" ${cliente.regimen_fiscal==='616'?'selected':''}>616 - Sin obligaciones fiscales</option>
+            <option value="621" ${cliente.regimen_fiscal==='621'?'selected':''}>621 - Incorporación Fiscal</option>
+            <option value="626" ${cliente.regimen_fiscal==='626'?'selected':''}>626 - Resico</option>
+          </select>
+          <input id="fac-email" placeholder="Email para recibir factura" value="${cliente.email_facturacion||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
+        </div>
+        <button onclick="guardarFacturacion()" style="margin-top:12px;background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Guardar datos fiscales</button>
+        <p id="fac-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
+      </div>
+
+      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
         <p style="font-weight:600;margin-bottom:14px">Cambiar contraseña</p>
-        <input type="password" id="pass-actual" placeholder="Contraseña actual" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px">
-        <input type="password" id="pass-nueva" placeholder="Nueva contraseña (min. 6 caracteres)" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px">
+        <input type="password" id="pass-actual" placeholder="Contraseña actual" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px;box-sizing:border-box">
+        <input type="password" id="pass-nueva" placeholder="Nueva contraseña (min. 6 caracteres)" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px;box-sizing:border-box">
         <button onclick="cambiarPassword()" style="background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Actualizar contraseña</button>
         <p id="pass-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
       </div>
@@ -2268,6 +2319,68 @@ async function cargarCuenta() {
     contenido.innerHTML = '<p style="color:#e53e3e;text-align:center;padding:24px">Error cargando la cuenta. Intenta de nuevo.</p>'
   }
 }
+
+async function guardarDireccion() {
+  const msg = document.getElementById('dir-msg')
+  const datos = {
+    calle: document.getElementById('env-calle').value,
+    colonia: document.getElementById('env-colonia').value,
+    codigo_postal: document.getElementById('env-cp').value,
+    ciudad: document.getElementById('env-ciudad').value,
+    estado: document.getElementById('env-estado').value,
+    telefono: document.getElementById('env-telefono').value
+  }
+  try {
+    const res = await fetch(API + '/clientes/' + usuarioActual.cliente_id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    })
+    if (res.ok) {
+      msg.textContent = '✅ Dirección guardada correctamente'
+      msg.style.color = 'green'
+    } else {
+      msg.textContent = '❌ No se pudo guardar'
+      msg.style.color = '#e53e3e'
+    }
+    msg.style.display = 'block'
+  } catch(e) {
+    msg.textContent = 'Error conectando con el servidor'
+    msg.style.color = '#e53e3e'
+    msg.style.display = 'block'
+  }
+}
+
+async function guardarFacturacion() {
+  const msg = document.getElementById('fac-msg')
+  const datos = {
+    rfc: document.getElementById('fac-rfc').value.toUpperCase(),
+    razon_social: document.getElementById('fac-razon').value,
+    cp_fiscal: document.getElementById('fac-cp').value,
+    regimen_fiscal: document.getElementById('fac-regimen').value,
+    email_facturacion: document.getElementById('fac-email').value
+  }
+  try {
+    const res = await fetch(API + '/clientes/' + usuarioActual.cliente_id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    })
+    if (res.ok) {
+      msg.textContent = '✅ Datos fiscales guardados correctamente'
+      msg.style.color = 'green'
+    } else {
+      msg.textContent = '❌ No se pudo guardar'
+      msg.style.color = '#e53e3e'
+    }
+    msg.style.display = 'block'
+  } catch(e) {
+    msg.textContent = 'Error conectando con el servidor'
+    msg.style.color = '#e53e3e'
+    msg.style.display = 'block'
+  }
+}
+
 
 async function cambiarPassword() {
   const actual = document.getElementById('pass-actual').value
