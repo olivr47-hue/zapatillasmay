@@ -1793,7 +1793,7 @@ cargarConfigSEO()
             ` : ''}
           </div>
           ${fotos.length > 1 ? `
-            <div style="display:flex;gap:6px;padding:8px 4px;overflow-x:auto;justify-content:center">
+            <div style="display:flex;gap:6px;padding:8px 4px;justify-content:center;flex-wrap:wrap">
               ${fotos.map((f, i) => `
                 <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)" 
                   style="width:52px;height:52px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===fotoIdx?'#E91E8C':'#eee'};transition:border 0.2s">
@@ -1863,7 +1863,10 @@ cargarConfigSEO()
         precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110),
         es_oferta: p.es_oferta || false,
-        imagen: p.imagen_principal || null,
+        imagen: (() => {
+          const varImg = variantes.find(v2 => v2.id === varianteSeleccionada)
+          return varImg?.foto_url || (varImg?.imagenes && varImg.imagenes[0]) || p.imagen_principal || null
+        })(),
         precio_unitario: parseFloat(p.precio_menudeo) || 0
       })
     }
