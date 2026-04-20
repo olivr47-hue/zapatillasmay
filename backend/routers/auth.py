@@ -120,7 +120,7 @@ def recuperar_password(datos: dict):
 
         # Enviar email con Resend
         resend.Emails.send({
-            "from": "Zapatillas May <onboarding@resend.dev>",
+            "from": "Zapatillas May <no-reply@zapatillasmay.mx>",
             "to": email,
             "subject": "Tu contraseña temporal — Zapatillas May",
             "html": f"""
