@@ -7452,6 +7452,7 @@ async function cargarEmpleados() {
                 <td style="display:flex;gap:4px">
                   <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormEmpleado('${e.id}')">Editar</button>
                   <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="toggleEmpleado('${e.id}',${e.activo})">${e.activo ? 'Desactivar' : 'Activar'}</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#E91E8C;border-color:#E91E8C" onclick="resetearPassword('${e.id}','${e.nombre}')">🔑 Reset</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -7522,6 +7523,27 @@ window.toggleEmpleado = async (id, activo) => {
     else alert('Error al cambiar estado')
   } catch(e) { alert('Error conectando con el servidor') }
 }
+window.resetearPassword = async (id, nombre) => {
+  const nueva = prompt('Nueva contrasena para ' + nombre + ':')
+  if (!nueva) return
+  if (nueva.length < 4) { alert('La contrasena debe tener al menos 4 caracteres'); return }
+  try {
+    const res = await fetch(API + '/empleados/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: nueva })
+    })
+    if (res.ok) {
+      alert('Contrasena actualizada correctamente')
+    } else {
+      const err = await res.json()
+      alert('Error: ' + (err.error || 'No se pudo actualizar'))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
 async function cargarSEO() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
