@@ -604,8 +604,16 @@ async def envio_masivo(datos: dict):
                 }
                 body = json.dumps(body_msg).encode("utf-8")
                 req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-                urllib.request.urlopen(req)
-                enviados += 1
+                try:
+                    with urllib.request.urlopen(req) as resp:
+                        enviados += 1
+                except urllib.error.HTTPError as http_e:
+                    error_body = http_e.read().decode()
+                    fallidos += 1
+                    errores.append(f"{telefono}: HTTP {http_e.code} - {error_body}")
+                except Exception as inner_e:
+                    fallidos += 1
+                    errores.append(f"{telefono}: {str(inner_e)}")
 
             except Exception as e:
                 fallidos += 1
