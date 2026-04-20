@@ -580,9 +580,14 @@ async def envio_masivo(datos: dict):
                 plantillas_con_nombre = ["catalogo_completo", "nuevos_modelos"]
                 tiene_nombre = plantilla in plantillas_con_nombre
                 if tiene_nombre:
+                    nombre_limpio = (nombre or "Cliente").strip() or "Cliente"
                     components.append({
                         "type": "body",
-                        "parameters": [{"type": "text", "text": nombre}]
+                        "parameters": [{
+                            "type": "text",
+                            "parameter_name": "customer_name",
+                            "text": nombre_limpio
+                        }]
                     })
 
                 # Idioma por plantilla
