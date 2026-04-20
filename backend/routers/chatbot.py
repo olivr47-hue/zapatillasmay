@@ -580,7 +580,7 @@ async def envio_masivo(datos: dict):
                             {
                                 "type": "body",
                                 "parameters": [
-                                    {"type": "text", "text": nombre}
+                                    {"type": "text", "parameter_name": "customer_name", "text": nombre}
                                 ]
                             }
                         ]
@@ -594,6 +594,8 @@ async def envio_masivo(datos: dict):
                             {"type": "image", "image": {"link": imagen_url}}
                         ]
                     })
+                # Si no hay variables en el body, quitar parameters vacios
+                # (algunas plantillas no tienen variables)
 
                 url = f"https://graph.facebook.com/v18.0/{phone_id}/messages"
                 headers = {
