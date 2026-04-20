@@ -27,7 +27,7 @@ def talla_a_codigo(talla):
 
 @router.get("/")
 def listar_variantes():
-    return supabase_get("variantes?select=*,productos(nombre)")
+    return supabase_get("variantes?select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):
