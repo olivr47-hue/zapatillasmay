@@ -27,6 +27,7 @@ def registro(datos: dict):
         if existente:
             return JSONResponse(status_code=400, content={"error": "El email ya esta registrado"})
         password_hash = hash_password(password)
+        telefono = datos.get("telefono", "")
         usuario = supabase_post("usuarios", {
             "nombre": nombre,
             "email": email,
@@ -35,12 +36,27 @@ def registro(datos: dict):
             "activo": True
         })
         u = usuario[0]
-        cliente = supabase_post("clientes", {
-            "nombre": nombre,
-            "email": email,
-            "tipo": "zapateria" if tipo == "zapateria" else "menudeo",
-            "activo": True
-        })
+        # Buscar si ya existe cliente con ese email o telefono para no duplicar
+        cliente_existente = supabase_get(f"clientes?email=eq.{email}")
+        if not cliente_existente and telefono:
+            cliente_existente = supabase_get(f"clientes?telefono=eq.{telefono}")
+        
+        if cliente_existente:
+            # Vincular usuario con cliente existente
+            cliente = cliente_existente
+            supabase_patch(f"clientes?id=eq.{cliente_existente[0]['id']}", {
+                "email": email,
+                "origen": "tienda"
+            })
+        else:
+            cliente = supabase_post("clientes", {
+                "nombre": nombre,
+                "email": email,
+                "telefono": telefono,
+                "tipo": "zapateria" if tipo == "zapateria" else "menudeo",
+                "activo": True,
+                "origen": "tienda"
+            })
         cliente_id = cliente[0]["id"] if cliente else None
         return {
             "id": u["id"],
@@ -120,7 +136,7 @@ def recuperar_password(datos: dict):
 
         # Enviar email con Resend
         resend.Emails.send({
-            "from": "Zapatillas May <no-reply@zapatillasmay.mx>",
+            "from": "Zapatillas May <onboarding@resend.dev>",
             "to": email,
             "subject": "Tu contraseña temporal — Zapatillas May",
             "html": f"""
