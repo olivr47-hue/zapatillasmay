@@ -1961,20 +1961,27 @@ cargarConfigSEO()
   }
 
   function recalcularCarrito() {
-    const totalPares = carrito.reduce((s,i) => s+i.cantidad, 0)
-    const corridaItems = carrito.filter(i => i.es_corrida)
-    const mismaCorrida = corridaItems.length >= 6 && new Set(corridaItems.map(i => i.producto_id+i.color)).size === 1
+    // Contar pares: corrida cuenta como 6 pares por unidad
+    const totalPares = carrito.reduce((s,i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0)
+    const tieneCorrida = carrito.some(i => i.es_corrida)
 
     carrito.forEach(item => {
-      if (item.es_oferta) item.precio_unitario = item.precio_menudeo
-      else if (mismaCorrida && item.es_corrida) item.precio_unitario = item.precio_corrida
-      else if (totalPares >= 6) item.precio_unitario = item.precio_mayoreo6
-      else if (totalPares >= 3) item.precio_unitario = item.precio_mayoreo3
-      else item.precio_unitario = item.precio_menudeo
+      if (item.es_corrida) {
+        // Corrida siempre usa precio_corrida sin importar nada mas
+        item.precio_unitario = item.precio_corrida
+      } else if (item.es_oferta) {
+        item.precio_unitario = item.precio_menudeo
+      } else if (totalPares >= 6) {
+        item.precio_unitario = item.precio_mayoreo6
+      } else if (totalPares >= 3) {
+        item.precio_unitario = item.precio_mayoreo3
+      } else {
+        item.precio_unitario = item.precio_menudeo
+      }
     })
 
     const total = carrito.reduce((s,i) => s+(i.cantidad*i.precio_unitario), 0)
-    const tipoPrecio = mismaCorrida?'Corrida':totalPares>=6?'Mayoreo 6+':totalPares>=3?'Mayoreo 3+':'Menudeo'
+    const tipoPrecio = tieneCorrida ? 'Corrida' : totalPares>=6 ? 'Mayoreo 6+' : totalPares>=3 ? 'Mayoreo 3+' : 'Menudeo'
 
     const badge = document.getElementById('cart-count')
     badge.textContent = totalPares
