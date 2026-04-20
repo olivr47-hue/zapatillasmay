@@ -569,33 +569,30 @@ async def envio_masivo(datos: dict):
                 if not tel.startswith("52"):
                     tel = "52" + tel
 
+                # Construir componentes dinamicamente
+                components = []
+                if imagen_url:
+                    components.append({
+                        "type": "header",
+                        "parameters": [{"type": "image", "image": {"link": imagen_url}}]
+                    })
+                tiene_nombre = datos.get("tiene_nombre", False)
+                if tiene_nombre:
+                    components.append({
+                        "type": "body",
+                        "parameters": [{"type": "text", "text": nombre}]
+                    })
+
                 body_msg = {
                     "messaging_product": "whatsapp",
                     "to": tel,
                     "type": "template",
                     "template": {
                         "name": plantilla,
-                        "language": {"code": "es_MX"},
-                        "components": [
-                            {
-                                "type": "body",
-                                "parameters": [
-                                    {"type": "text", "text": nombre}
-                                ]
-                            }
-                        ]
+                        "language": {"code": "es"},
+                        "components": components
                     }
                 }
-
-                if imagen_url:
-                    body_msg["template"]["components"].insert(0, {
-                        "type": "header",
-                        "parameters": [
-                            {"type": "image", "image": {"link": imagen_url}}
-                        ]
-                    })
-                # Si no hay variables en el body, quitar parameters vacios
-                # (algunas plantillas no tienen variables)
 
                 url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
                 headers = {
