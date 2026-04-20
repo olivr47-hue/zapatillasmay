@@ -1080,7 +1080,8 @@
 
     /* RESPONSIVE */
     @media (min-width: 769px) {
-      .btn-hamburger { display: none; }
+      .btn-hamburger { display: none !important; }
+      #mobile-menu { display: none !important; }
     }
     @media (max-width: 768px) {
       .header-inner { padding: 0 20px; }
@@ -1098,6 +1099,22 @@
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.4s ease both; }
+
+    #mobile-menu { display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; }
+    #mobile-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.6); }
+    #mobile-menu-panel {
+      position:absolute; top:0; right:0; bottom:0; width:75%; max-width:270px;
+      background:#ffffff !important;
+      border-left: 3px solid #E91E8C !important;
+      z-index:10000;
+      transform:translateX(100%);
+      transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      box-shadow:-8px 0 40px rgba(0,0,0,0.5) !important;
+    }
+    #mobile-menu-panel a { color:#1a1a1a !important; }
+    #mobile-menu-panel .menu-cat { background:#f5f5f5 !important; color:#1a1a1a !important; }
+    #mobile-menu-panel .menu-oferta { background:#fce4f3 !important; color:#E91E8C !important; }
+    #mobile-menu-panel .menu-info { background:#f5f5f5 !important; color:#555 !important; }
   </style>
   <!-- SEO META TAGS BASE -->
 <meta name="robots" content="index, follow">
@@ -1210,114 +1227,48 @@
 </div>
 
 <!-- MENU MOVIL -->
-<div id="mobile-menu" style="display:none;position:fixed;top:64px;left:0;right:0;bottom:0;background:rgba(250,250,250,0.98);backdrop-filter:blur(20px);z-index:99;overflow-y:auto;padding:24px 24px 40px">
-  <div style="margin-bottom:24px">
-    <p style="font-size:0.65rem;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:12px">Categorías</p>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <a href="#" onclick="filtrarCategoria('tacones');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none;display:flex;align-items:center;gap:12px;transition:background 0.15s" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">👠 Tacones</a>
-      <a href="#" onclick="filtrarCategoria('sandalias');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">🩴 Sandalias</a>
-      <a href="#" onclick="filtrarCategoria('botas');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">🥾 Botas</a>
-      <a href="#" onclick="filtrarCategoria('botines');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">👢 Botines</a>
-      <a href="#" onclick="filtrarCategoria('nina');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">🎀 Niña</a>
-      <a href="#" onclick="mostrarOfertas();cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#E91E8C;text-decoration:none;display:flex;align-items:center;gap:12px" onmouseover="this.style.background='#fff0f7'" onmouseout="this.style.background='none'">🏷️ Ofertas</a>
-    </div>
-  </div>
-  <div style="height:1px;background:#f0f0f0;margin-bottom:24px"></div>
-  <div style="margin-bottom:24px">
-    <p style="font-size:0.65rem;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:0.2em;margin-bottom:12px">Información</p>
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <a href="#" onclick="mostrarPagina('mayoreo');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">Precios mayoreo</a>
-      <a href="#" onclick="mostrarPagina('envios');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">Envíos</a>
-      <a href="#" onclick="mostrarPagina('como-comprar');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">Cómo comprar</a>
-      <a href="#" onclick="mostrarPagina('contacto');cerrarMenu()" style="padding:12px 16px;border-radius:10px;font-size:0.95rem;font-weight:500;color:#1a1a1a;text-decoration:none" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='none'">Contacto</a>
-    </div>
-  </div>
-  <div style="height:1px;background:#f0f0f0;margin-bottom:24px"></div>
-  <div style="display:flex;flex-direction:column;gap:10px">
-    <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;background:#25D366;color:white;text-decoration:none;font-weight:600;font-size:0.9rem">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
-      Escríbenos por WhatsApp
-    </a>
-    <a href="https://www.instagram.com/zapatillas_may" target="_blank" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;background:#f0f0f0;color:#1a1a1a;text-decoration:none;font-weight:500;font-size:0.9rem">
-      📷 Instagram @zapatillasmay
-    </a>
-  </div>
-</div>
-  <!-- MODAL AUTH -->
-<div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px)">
-  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-height:90vh;overflow-y:auto">    <button onclick="cerrarAuthBtn()" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666;display:flex;align-items:center;justify-content:center">
-  ✕</button>
-    
-    <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
-      <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
-      <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
+<div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none">
+  <div id="mobile-menu-overlay" onclick="cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
+    <div id="mobile-menu-panel" style="position:absolute;top:0;right:0;bottom:0;width:75%;max-width:260px;background:#111111;z-index:201;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);box-shadow:-8px 0 32px rgba(0,0,0,0.9)">
+
+    <div style="padding:16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:0.95rem;font-weight:700;color:#1a1a1a">Zapatillas <span style="color:#E91E8C">May</span></span>
+      <button onclick="cerrarMenu()" style="background:#f5f5f5;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:0.85rem;color:#555">✕</button>
     </div>
 
-    <div id="form-login">
-      <div style="margin-bottom:16px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
-        <input type="email" id="login-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <div style="margin-bottom:24px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contrasena</label>
-        <input type="password" id="login-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
-      <p style="text-align:center;margin-top:12px;font-size:0.82rem">
-        <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:none;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
-      </p>
-      <p style="text-align:center;margin-top:8px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:none;font-weight:600">invitado</a></p>
+    <div style="padding:12px 8px 4px">
+      <p style="font-size:0.6rem;font-weight:600;color:#E91E8C;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 4px 8px">Categorías</p>
+      <a href="#" onclick="filtrarCategoria('tacones');cerrarMenu()" class="menu-cat" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:500;text-decoration:none;margin-bottom:3px">👠 Tacones</a>
+      <a href="#" onclick="filtrarCategoria('sandalias');cerrarMenu()" class="menu-cat" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:500;text-decoration:none;margin-bottom:3px">🩴 Sandalias</a>
+      <a href="#" onclick="filtrarCategoria('botas');cerrarMenu()" class="menu-cat" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:500;text-decoration:none;margin-bottom:3px">🥾 Botas</a>
+      <a href="#" onclick="filtrarCategoria('botines');cerrarMenu()" class="menu-cat" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:500;text-decoration:none;margin-bottom:3px">👢 Botines</a>
+      <a href="#" onclick="filtrarCategoria('nina');cerrarMenu()" class="menu-cat" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:500;text-decoration:none;margin-bottom:3px">🎀 Niña</a>
+      <a href="#" onclick="mostrarOfertas();cerrarMenu()" class="menu-oferta" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;margin-bottom:3px">🏷️ Ofertas</a>
     </div>
 
-    <div id="form-recuperacion" style="display:none">
-      <button onclick="mostrarTab('login')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:0.8rem;margin-bottom:16px;padding:0">← Volver al login</button>
-      <h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:8px">Recuperar contraseña</h3>
-      <p style="font-size:0.82rem;color:#888;margin-bottom:20px">Ingresa tu email y te diremos una nueva contraseña temporal que podrás cambiar después.</p>
-      <div style="margin-bottom:16px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email de tu cuenta</label>
-        <input type="email" id="rec-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <button onclick="solicitarRecuperacion()" id="btn-recuperar" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Recuperar contraseña</button>
-      <p id="rec-msg" style="text-align:center;margin-top:12px;font-size:0.82rem;display:none"></p>
+    <div style="height:1px;background:#eee;margin:8px 12px"></div>
+
+    <div style="padding:4px 8px">
+      <p style="font-size:0.6rem;font-weight:600;color:#E91E8C;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 4px 8px">Info</p>
+      <a href="#" onclick="mostrarPagina('mayoreo');cerrarMenu()" class="menu-info" style="display:block;padding:8px 10px;border-radius:8px;font-size:0.82rem;text-decoration:none;margin-bottom:3px">Precios mayoreo</a>
+      <a href="#" onclick="mostrarPagina('envios');cerrarMenu()" class="menu-info" style="display:block;padding:8px 10px;border-radius:8px;font-size:0.82rem;text-decoration:none;margin-bottom:3px">Envíos</a>
+      <a href="#" onclick="mostrarPagina('contacto');cerrarMenu()" class="menu-info" style="display:block;padding:8px 10px;border-radius:8px;font-size:0.82rem;text-decoration:none;margin-bottom:3px">Contacto</a>
     </div>
 
-    <div id="form-registro" style="display:none">
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
-        <input type="text" id="reg-nombre" placeholder="Tu nombre" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
-        <input type="email" id="reg-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contrasena</label>
-        <input type="password" id="reg-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <div style="margin-bottom:14px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Telefono (opcional)</label>
-        <input type="tel" id="reg-telefono" placeholder="477 123 4567" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none">
-      </div>
-      <div style="margin-bottom:24px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
-        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);background:white;font-size:0.875rem;outline:none">
-          <option value="cliente">menudeo y mayoreo variado</option>
-          <option value="zapateria">Zapateria (corrida completa)</option>
-        </select>
-      </div>
-      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Crear cuenta</button>
-    </div>
-  </div>
-</div>
+    <div style="height:1px;background:#eee;margin:8px 12px"></div>
 
-<!-- MODAL MI CUENTA -->
-<div id="cuenta-overlay" onclick="cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.6);z-index:500;align-items:center;justify-content:center;padding:20px">
-  <div style="background:white;border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;position:relative" onclick="event.stopPropagation()">
-    <div style="padding:32px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-      <h2 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400">Mi cuenta</h2>
-      <button onclick="cerrarCuentaBtn()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:#aaa">✕</button>
+    <div style="padding:8px">
+      <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border-radius:10px;background:#25D366;color:white;text-decoration:none;font-weight:600;font-size:0.82rem;margin-bottom:6px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
+        WhatsApp
+      </a>
+      <div style="display:flex;gap:6px">
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" style="flex:1;text-align:center;padding:7px 4px;border-radius:8px;background:#f5f5f5;color:#555;text-decoration:none;font-size:0.72rem">IG</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" style="flex:1;text-align:center;padding:7px 4px;border-radius:8px;background:#f5f5f5;color:#555;text-decoration:none;font-size:0.72rem">FB</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" style="flex:1;text-align:center;padding:7px 4px;border-radius:8px;background:#f5f5f5;color:#555;text-decoration:none;font-size:0.72rem">TT</a>
+      </div>
     </div>
-    <div id="cuenta-contenido" style="padding:32px"></div>
+
   </div>
 </div>
 </header>
@@ -1325,7 +1276,7 @@
 <!-- HERO -->
 <section class="hero" id="hero">
   <div class="hero-content fade-in">
-    <p class="hero-eyebrow">Nueva coleccion 2025</p>
+    <p class="hero-eyebrow">Nueva coleccion 2026</p>
     <h1 class="hero-title">El estilo<br>que <em>te define</em></h1>
     <p class="hero-subtitle">Calzado de moda para dama · Leon, Guanajuato</p>
     <div class="hero-cta">
@@ -1435,6 +1386,70 @@
   </div>
 </div>
 
+
+<!-- AUTH MODAL -->
+<div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
+    <button onclick="cerrarAuthBtn()" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
+    <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
+      <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
+      <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
+    </div>
+    <div id="form-login">
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <input type="email" id="login-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
+        <input type="password" id="login-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
+      <p style="text-align:center;margin-top:12px;font-size:0.82rem">
+        <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:none;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
+      </p>
+      <p style="text-align:center;margin-top:8px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:none;font-weight:600">invitado</a></p>
+    </div>
+    <div id="form-registro" style="display:none">
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
+        <input type="text" id="reg-nombre" placeholder="Tu nombre" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <input type="email" id="reg-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
+        <input type="password" id="reg-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Telefono (opcional)</label>
+        <input type="tel" id="reg-telefono" placeholder="477 123 4567" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
+        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
+          <option value="menudeo">Menudeo y mayoreo variado</option>
+          <option value="zapateria">Zapateria (corrida completa)</option>
+        </select>
+      </div>
+      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Crear cuenta</button>
+    </div>
+    <div id="form-recuperacion" style="display:none">
+      <button onclick="mostrarTab('login')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:0.8rem;margin-bottom:16px;padding:0">← Volver al login</button>
+      <h3 style="font-size:1.1rem;margin-bottom:8px">Recuperar contraseña</h3>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:20px">Te enviamos una contraseña temporal a tu email.</p>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email de tu cuenta</label>
+        <input type="email" id="rec-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+      </div>
+      <button onclick="solicitarRecuperacion()" id="btn-recuperar" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Recuperar contraseña</button>
+      <p id="rec-msg" style="text-align:center;margin-top:12px;font-size:0.82rem;display:none"></p>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <div id="pagina-interna" style="display:none;margin-top:64px;min-height:calc(100vh - 64px);padding-bottom:60px">
@@ -1475,7 +1490,7 @@
       </div>
     </div>
     <div class="footer-bottom">
-      <span>© 2025 Zapatillas May. Todos los derechos reservados.</span>
+      <span>© 2026 Zapatillas May. Todos los derechos reservados.</span>
       <span>Zapatillasmay.mx · Leon, Gto.</span>
     </div>
   </div>
@@ -1635,10 +1650,7 @@ cargarConfigSEO()
           </div>
           <p class="product-name">${p.nombre}</p>
           <p class="product-sku">${p.sku_interno || ''}</p>
-          <div class="product-prices">
-            <span class="price-main">$${p.precio_menudeo} MXN</span>
-            ${!p.es_oferta ? `<span class="price-mayoreo">Mayoreo x3: <span>$${precioMayoreo3}</span></span>` : ''}
-          </div>
+
         </div>
       `
     }).join('')
@@ -1753,9 +1765,54 @@ cargarConfigSEO()
     const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
     varsProd.sort((a,b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
 
-    const imgColor = varsProd[0]?.foto_url
-    if (imgColor) {
-      document.getElementById('modal-img-wrap').innerHTML = `<img src="${imgColor}" alt="${color}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">`
+    // Recopilar todas las fotos de esta variante de color
+    const fotos = []
+    const v0 = varsProd[0]
+    if (v0) {
+      if (v0.foto_url) fotos.push(v0.foto_url)
+      if (v0.imagenes && Array.isArray(v0.imagenes)) fotos.push(...v0.imagenes.filter(f => f && f !== v0.foto_url))
+    }
+    // Tambien imagen principal si no hay fotos
+    if (!fotos.length && productoSeleccionado.imagen_principal) fotos.push(productoSeleccionado.imagen_principal)
+    
+    const imgWrap2 = document.getElementById('modal-img-wrap')
+    if (fotos.length > 1) {
+      let fotoIdx = 0
+      const renderFotos = () => {
+        imgWrap2.innerHTML = `
+          <div style="position:relative;width:100%;height:100%">
+            <img src="${fotos[fotoIdx]}" alt="${color}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">
+            ${fotos.length > 1 ? `
+              <button onclick="event.stopPropagation();cambiarFoto(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">‹</button>
+              <button onclick="event.stopPropagation();cambiarFoto(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">›</button>
+            ` : ''}
+          </div>
+          ${fotos.length > 1 ? `
+            <div style="display:flex;gap:6px;padding:8px 4px;overflow-x:auto;justify-content:center">
+              ${fotos.map((f, i) => `
+                <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)" 
+                  style="width:52px;height:52px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===fotoIdx?'#E91E8C':'#eee'};transition:border 0.2s">
+                  <img src="${f}" style="width:100%;height:100%;object-fit:cover">
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        `
+      }
+      window._fotosActuales = fotos
+      window._fotoIdx = fotoIdx
+      window.cambiarFoto = (dir) => {
+        if (dir === 0) {
+          fotoIdx = window._fotoIdx
+        } else {
+          window._fotoIdx = (window._fotoIdx + dir + window._fotosActuales.length) % window._fotosActuales.length
+          fotoIdx = window._fotoIdx
+        }
+        renderFotos()
+      }
+      renderFotos()
+    } else if (fotos.length === 1) {
+      imgWrap2.innerHTML = `<img src="${fotos[0]}" alt="${color}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">`
     }
 
     document.getElementById('modal-tallas').innerHTML = varsProd.map(v => {
@@ -1814,28 +1871,88 @@ cargarConfigSEO()
 
   function agregarCorridaAlCarrito() {
     if (!colorSeleccionado) { mostrarToast('Selecciona un color primero'); return }
-    const varsProd = variantes.filter(v => v.producto_id === productoSeleccionado.id && v.color === colorSeleccionado)
     const p = productoSeleccionado
-    varsProd.forEach(v => {
-      const inv = inventario.find(i => i.variante_id === v.id)
-      if (inv && inv.cantidad > 0) {
-        const existente = carrito.find(i => i.variante_id === v.id)
-        if (existente) { existente.cantidad++; existente.es_corrida = true }
-        else {
-          carrito.push({
-            variante_id: v.id, producto_id: p.id, nombre: p.nombre,
-            color: colorSeleccionado, talla: v.talla, cantidad: 1,
-            precio_menudeo: parseFloat(p.precio_menudeo)||0,
-            precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo)-30),
-            precio_mayoreo6: parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70),
-            precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-110),
-            es_oferta: p.es_oferta||false, es_corrida: true,
-            imagen: p.imagen_principal||null,
-            precio_unitario: parseFloat(p.precio_menudeo)||0
-          })
-        }
+    const varsProd = variantes.filter(v => v.producto_id === p.id && v.color === colorSeleccionado)
+    
+    // Obtener tallas disponibles en inventario
+    const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27']
+    const tallasDisp = varsProd
+      .filter(v => { const inv = inventario.find(i => i.variante_id === v.id); return inv && inv.cantidad > 0 })
+      .map(v => v.talla)
+      .sort((a,b) => TALLAS_ORDEN.indexOf(a) - TALLAS_ORDEN.indexOf(b))
+
+    // Verificar si tiene medios (tallas .5)
+    const tieneMedias = tallasDisp.some(t => t.includes('.5'))
+
+    // Validar condiciones de corrida
+    let corridaValida = false
+    let tallasCorrida = []
+
+    if (tieneMedias) {
+      // Con medios: del 23 al 26 (23,23.5,24,24.5,25,25.5,26) = 7 tallas
+      // o del 23.5 al 26 (23.5,24,24.5,25,25.5,26) = 6 tallas
+      // o del 23 al 25.5 (23,23.5,24,24.5,25,25.5) = 6 tallas
+      const corrida23al26 = ['23','23.5','24','24.5','25','25.5','26']
+      const corrida235al26 = ['23.5','24','24.5','25','25.5','26']
+      const corrida23al255 = ['23','23.5','24','24.5','25','25.5']
+      
+      if (corrida23al26.every(t => tallasDisp.includes(t))) {
+        corridaValida = true; tallasCorrida = corrida23al26
+      } else if (corrida235al26.every(t => tallasDisp.includes(t))) {
+        corridaValida = true; tallasCorrida = corrida235al26
+      } else if (corrida23al255.every(t => tallasDisp.includes(t))) {
+        corridaValida = true; tallasCorrida = corrida23al255
       }
-    })
+    } else {
+      // Sin medios: 23,24,24,25,25,26 = 6 tallas (dos 24 y dos 25)
+      // Verificar que tenga al menos dos unidades de 24 y 25
+      const check = (t) => {
+        const v = varsProd.find(v2 => v2.talla === t)
+        if (!v) return 0
+        const inv = inventario.find(i => i.variante_id === v.id)
+        return inv ? inv.cantidad : 0
+      }
+      if (tallasDisp.includes('23') && check('24') >= 2 && check('25') >= 2 && tallasDisp.includes('26')) {
+        corridaValida = true; tallasCorrida = ['23','24','24','25','25','26']
+      }
+    }
+
+    if (!corridaValida) {
+      mostrarToast('No hay corrida completa disponible en este color')
+      return
+    }
+
+    // Obtener imagen del color seleccionado
+    const varColor = varsProd[0]
+    const imgColor = varColor?.foto_url || varColor?.imagenes?.[0] || p.imagen_principal || null
+
+    // Agrupar corrida como UN solo item en el carrito
+    const idCorrida = p.id + '-' + colorSeleccionado + '-corrida'
+    const existente = carrito.find(i => i.id_corrida === idCorrida)
+    
+    if (existente) {
+      mostrarToast('Esta corrida ya está en el carrito')
+    } else {
+      carrito.push({
+        id_corrida: idCorrida,
+        variante_id: varColor?.id,
+        producto_id: p.id,
+        nombre: p.nombre,
+        color: colorSeleccionado,
+        talla: 'Corrida completa',
+        tallas_corrida: tallasCorrida,
+        cantidad: 1,
+        precio_menudeo: parseFloat(p.precio_menudeo)||0,
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo)-30),
+        precio_mayoreo6: parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70),
+        precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-110),
+        es_oferta: p.es_oferta||false,
+        es_corrida: true,
+        imagen: imgColor,
+        precio_unitario: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-110)
+      })
+    }
+    
     cerrarModalBtn()
     recalcularCarrito()
     renderCarrito()
@@ -1878,18 +1995,27 @@ cargarConfigSEO()
         ${item.imagen ? `<img class="cart-item-img" src="${item.imagen}" alt="${item.nombre}">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
         <div class="cart-item-info">
           <p class="cart-item-name">${item.nombre}</p>
-          <p class="cart-item-detail">${item.color} · Talla ${item.talla}${item.es_corrida?' · Corrida':''}</p>
+          ${item.es_corrida
+            ? `<p class="cart-item-detail">${item.color} · Corrida completa</p>`
+            : `<p class="cart-item-detail">${item.color} · Talla ${item.talla}</p>`
+          }
           <div class="cart-item-controls">
             <div class="qty-controls">
               <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},-1)">−</button>
               <span class="qty-num">${item.cantidad}</span>
               <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},1)">+</button>
             </div>
-            <span class="item-price">$${(item.cantidad*item.precio_unitario).toFixed(2)}</span>
+            <span class="item-price" style="${item.es_corrida?'color:#E91E8C;font-weight:600':''}">$${(item.cantidad*item.precio_unitario).toFixed(2)}</span>
           </div>
         </div>
       </div>
     `).join('')
+  }
+
+  function eliminarDelCarrito(idx) {
+    carrito.splice(idx, 1)
+    recalcularCarrito()
+    renderCarrito()
   }
 
   function cambiarCantidadCarrito(idx, delta) {
@@ -2042,23 +2168,41 @@ function mostrarNuevos() {
 
 function toggleMenu() {
   const menu = document.getElementById('mobile-menu')
+  const panel = document.getElementById('mobile-menu-panel')
+  const overlay = document.getElementById('mobile-menu-overlay')
   const iconMenu = document.getElementById('icon-menu')
   const iconClose = document.getElementById('icon-close')
-  const isOpen = menu.style.display !== 'none'
-  menu.style.display = isOpen ? 'none' : 'block'
-  iconMenu.style.display = isOpen ? 'block' : 'none'
-  iconClose.style.display = isOpen ? 'none' : 'block'
-  document.body.style.overflow = isOpen ? '' : 'hidden'
+  if (menu.dataset.open === '1') {
+    cerrarMenu()
+    return
+  }
+  menu.style.display = 'block'
+  menu.style.pointerEvents = 'auto'
+  setTimeout(() => {
+    if (panel) panel.style.transform = 'translateX(0)'
+    if (overlay) overlay.style.opacity = '1'
+  }, 10)
+  menu.dataset.open = '1'
+  if (iconMenu) iconMenu.style.display = 'none'
+  if (iconClose) iconClose.style.display = 'block'
 }
 
 function cerrarMenu() {
   const menu = document.getElementById('mobile-menu')
+  const panel = document.getElementById('mobile-menu-panel')
+  const overlay = document.getElementById('mobile-menu-overlay')
   const iconMenu = document.getElementById('icon-menu')
   const iconClose = document.getElementById('icon-close')
-  menu.style.display = 'none'
-  iconMenu.style.display = 'block'
-  iconClose.style.display = 'none'
-  document.body.style.overflow = ''
+  if (!menu) return
+  if (panel) panel.style.transform = 'translateX(100%)'
+  if (overlay) overlay.style.opacity = '0'
+  menu.dataset.open = '0'
+  if (iconMenu) iconMenu.style.display = 'block'
+  if (iconClose) iconClose.style.display = 'none'
+  setTimeout(() => {
+    menu.style.display = 'none'
+    menu.style.pointerEvents = 'none'
+  }, 300)
 }
 let usuarioActual = null
 
@@ -2436,12 +2580,12 @@ if (usuarioGuardado) {
 <script>
 const PAGINAS = {
   'nosotros': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Nuestra historia</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;margin-bottom:20px">Zapatillas <em style="font-style:italic;color:var(--pink)">May</em></h1>
       <p style="color:rgba(255,255,255,0.5);max-width:600px;margin:0 auto;line-height:1.8">Calzado de moda para dama desde Leon, Guanajuato.</p>
     </div>
-    <div style="max-width:900px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;margin-bottom:80px">
         <div>
           <h2 style="font-family:var(--font-display);font-size:2.5rem;font-weight:400;margin-bottom:20px;line-height:1.2">Nacimos en el <em style="font-style:italic;color:var(--pink)">corazon</em> del calzado mexicano</h2>
@@ -2470,11 +2614,11 @@ const PAGINAS = {
     </div>
   `,
   'contacto': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Estamos aqui para ti</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Cont<em style="font-style:italic;color:var(--pink)">acto</em></h1>
     </div>
-    <div style="max-width:900px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px">
         <div>
           <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:400;margin-bottom:32px">Habla con <em style="font-style:italic;color:var(--pink)">nosotros</em></h2>
@@ -2522,11 +2666,11 @@ const PAGINAS = {
     </div>
   `,
   'como-comprar': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Facil y rapido</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Como <em style="font-style:italic;color:var(--pink)">comprar</em></h1>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <div style="display:flex;flex-direction:column;gap:32px">
         ${[
           ['1', 'Explora el catalogo', 'Navega por categorias o busca el modelo que buscas. Puedes filtrar por tacones, sandalias, botas, botines y mas.'],
@@ -2535,7 +2679,7 @@ const PAGINAS = {
           ['4', 'Finaliza tu pedido', 'Contactanos por WhatsApp para confirmar tu pedido y coordinar el pago y envio.']
         ].map(([num, titulo, desc]) => `
           <div style="display:flex;gap:24px;align-items:start">
-            <div style="width:48px;height:48px;background:var(--pink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;color:white;font-size:1.1rem;flex-shrink:0">${num}</div>
+            <div style="width:48px;height:48px;background:var(--pink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;color:white;font-size:1.1rem">${num}</div>
             <div>
               <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:8px">${titulo}</h3>
               <p style="color:var(--gray-600);line-height:1.7">${desc}</p>
@@ -2551,13 +2695,13 @@ const PAGINAS = {
     </div>
   `,
   'mayoreo': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Para zapaterias y revendedoras</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Precios de <em style="font-style:italic;color:var(--pink)">mayoreo</em></h1>
     </div>
-    <div style="max-width:900px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <p style="font-size:1.1rem;color:var(--gray-600);text-align:center;margin-bottom:60px;line-height:1.7">El descuento se aplica <strong>automaticamente</strong> segun la cantidad de pares en tu carrito. Sin registro especial, sin codigos.</p>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;margin-bottom:60px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:40px">
         ${[
           ['1 par', 'Precio menudeo', 'El precio base del producto', 'var(--gray-100)', 'var(--black)'],
           ['3 - 5 pares', '-$30 por par', 'Pares variados de cualquier modelo y color', '#fff8e1', '#f57f17'],
@@ -2576,7 +2720,7 @@ const PAGINAS = {
         <p style="color:rgba(255,255,255,0.5);margin-bottom:24px">Sandalia con precio menudeo de $400 MXN:</p>
         <div style="display:flex;flex-direction:column;gap:12px">
           ${[['1 par','$400 c/u','$400 total'],['3 pares','$370 c/u','$1,110 total'],['6 pares','$330 c/u','$1,980 total'],['Corrida completa','$290 c/u','precio especial']].map(([c,p,t]) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.05);border-radius:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.08);border-radius:8px">
               <span style="color:rgba(255,255,255,0.6);font-size:0.85rem">${c}</span>
               <span style="color:white;font-family:var(--font-mono);font-weight:600">${p}</span>
               <span style="color:var(--pink);font-family:var(--font-mono);font-weight:700">${t}</span>
@@ -2587,11 +2731,11 @@ const PAGINAS = {
     </div>
   `,
   'privacidad': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Transparencia y confianza</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Privac<em style="font-style:italic;color:var(--pink)">idad</em></h1>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <p style="color:var(--gray-600);margin-bottom:2rem">Última actualización: ${new Date().toLocaleDateString('es-MX')}</p>
       
       <div style="display:flex;flex-direction:column;gap:32px">
@@ -2632,11 +2776,11 @@ const PAGINAS = {
     </div>
   `,
   'envios': `
-    <div style="background:var(--black);padding:80px 40px;text-align:center">
+    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Llegamos a todo Mexico</p>
       <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Env<em style="font-style:italic;color:var(--pink)">ios</em></h1>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:80px 40px">
+    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:60px">
         <div style="background:var(--gray-100);border-radius:16px;padding:32px">
           <p style="font-size:2rem;margin-bottom:12px">📦</p>
