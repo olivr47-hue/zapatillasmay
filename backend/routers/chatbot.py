@@ -576,12 +576,22 @@ async def envio_masivo(datos: dict):
                         "type": "header",
                         "parameters": [{"type": "image", "image": {"link": imagen_url}}]
                     })
-                tiene_nombre = datos.get("tiene_nombre", False)
+                # Plantillas con variable de nombre
+                plantillas_con_nombre = ["catalogo_completo", "nuevos_modelos"]
+                tiene_nombre = plantilla in plantillas_con_nombre
                 if tiene_nombre:
                     components.append({
                         "type": "body",
                         "parameters": [{"type": "text", "text": nombre}]
                     })
+
+                # Idioma por plantilla
+                idiomas = {
+                    "catalogo_completo": "en",
+                    "nuevos_modelos": "es_MX",
+                    "hello_world": "en_US"
+                }
+                idioma = idiomas.get(plantilla, "es_MX")
 
                 body_msg = {
                     "messaging_product": "whatsapp",
@@ -589,7 +599,7 @@ async def envio_masivo(datos: dict):
                     "type": "template",
                     "template": {
                         "name": plantilla,
-                        "language": {"code": "en_US"},
+                        "language": {"code": idioma},
                         "components": components
                     }
                 }
