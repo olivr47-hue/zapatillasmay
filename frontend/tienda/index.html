@@ -1980,7 +1980,11 @@ cargarConfigSEO()
       }
     })
 
-    const total = carrito.reduce((s,i) => s+(i.cantidad*i.precio_unitario), 0)
+    // Corrida: precio_unitario es por par, cada corrida son 6 pares
+    const total = carrito.reduce((s,i) => {
+      const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
+      return s + (pares * i.precio_unitario)
+    }, 0)
     const tipoPrecio = tieneCorrida ? 'Corrida' : totalPares>=6 ? 'Mayoreo 6+' : totalPares>=3 ? 'Mayoreo 3+' : 'Menudeo'
 
     const badge = document.getElementById('cart-count')
@@ -2012,7 +2016,7 @@ cargarConfigSEO()
               <span class="qty-num">${item.cantidad}</span>
               <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},1)">+</button>
             </div>
-            <span class="item-price" style="${item.es_corrida?'color:#E91E8C;font-weight:600':''}">$${(item.cantidad*item.precio_unitario).toFixed(2)}</span>
+            <span class="item-price" style="${item.es_corrida?'color:#E91E8C;font-weight:600':''}">$${(item.es_corrida ? item.cantidad*6*item.precio_unitario : item.cantidad*item.precio_unitario).toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -2026,7 +2030,33 @@ cargarConfigSEO()
   }
 
   function cambiarCantidadCarrito(idx, delta) {
+    const item = carrito[idx]
+    if (delta > 0 && item.es_corrida) {
+      // Para corridas, verificar que haya stock suficiente para otra corrida completa
+      const varsProd = variantes.filter(v => v.producto_id === item.producto_id && v.color === item.color)
+      const paresNeeded = (item.cantidad + 1) * 6
+      // Verificar que cada talla tenga suficiente stock
+      const stockOk = varsProd.every(v => {
+        const inv = inventario.find(i => i.variante_id === v.id)
+        const stock = inv ? inv.cantidad : 0
+        // Para sin medios hay dos de cada talla media
+        return stock >= 1
+      })
+      if (!stockOk) {
+        mostrarToast('No hay stock suficiente para otra corrida')
+        return
+      }
+    } else if (delta > 0 && !item.es_corrida) {
+      // Para pares sueltos verificar stock
+      const inv = inventario.find(i => i.variante_id === item.variante_id)
+      const stock = inv ? inv.cantidad : 0
+      if (item.cantidad + 1 > stock) {
+        mostrarToast('No hay más stock disponible')
+        return
+      }
+    }
     carrito[idx].cantidad = Math.max(1, carrito[idx].cantidad + delta)
+    if (carrito[idx].cantidad === 0) carrito.splice(idx, 1)
     recalcularCarrito()
     renderCarrito()
   }
