@@ -176,7 +176,9 @@ export function renderPanel() {
             const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
             return `
               <div style="display:flex;flex-direction:column;gap:4px">
-                ${m.mensaje ? `<div style="display:flex;flex-direction:column;align-items:${esSaliente ? 'flex-end' : 'flex-start'}"><div style="max-width:70%;background:${esSaliente ? '#cfe9ff' : '#f5f5f5'};border-radius:${esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.mensaje.replace(/\[.+?\]:\s*/, '')}</p><p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
+                ${m.mensaje ? `<div style="display:flex;flex-direction:column;align-items:${esSaliente ? 'flex-end' : 'flex-start'}"><div style="max-width:70%;background:${esSaliente ? '#cfe9ff' : '#f5f5f5'};border-radius:${esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">$${m.tipo === 'imagen_saliente'
+  ? `<img src="${m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').trim()}" style="max-width:200px;border-radius:8px;display:block">`
+  : `<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.mensaje.replace(/\[.+?\]:\s*/, '')}</p>`}}</p><p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
                 ${m.respuesta ? `<div style="display:flex;flex-direction:column;align-items:flex-end"><div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.62rem;color:#2e7d32;margin-bottom:2px">🤖 Bot</p><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
               </div>`
           }).join('')
@@ -8283,17 +8285,17 @@ window.mostrarCatalogoWA = (telefono) => {
       <input class="form-input" placeholder="Buscar producto..." style="margin:1rem;font-size:0.85rem" oninput="filtrarProductosWA(this.value)">
       <div id="productos-wa-lista" style="overflow-y:auto;padding:0 1rem 1rem">
         ${productos.filter(p => p.activo).map(p => `
-          <div onclick="enviarProductoWA('${telefono}', '${p.imagen_principal||''}', '👠 *'+p.nombre+'*\n\n💰 *Precios:*\n• Menudeo (1-2 pares): $'+p.precio_menudeo+(p.precio_mayoreo3?'\n• Mayoreo 3-5 pares: $'+p.precio_mayoreo3:'')+(p.precio_mayoreo6?'\n• Mayoreo 6+ pares: $'+p.precio_mayoreo6:'')+(p.corrida_activa&&p.precio_corrida?'\n• Corrida completa: $'+p.precio_corrida:'')+'\n\n🛍️ Ver y comprar: https://zapatillasmay.mx')"
-               style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s"
-               onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
-            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f5f5f5;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
-            <div style="flex:1">
-              <p style="font-weight:600;font-size:0.88rem">${p.nombre}</p>
-              <p style="font-size:0.75rem;color:#888">$${p.precio_menudeo} menudeo · $${p.precio_mayoreo3||'-'} mayoreo</p>
-            </div>
-            <span style="font-size:0.75rem;color:#25D366;font-weight:600">Enviar →</span>
-          </div>
-        `).join('')}
+  <div onclick="enviarProductoWA('${telefono}', '${(p.imagen_principal||"").replace(/'/g,"")}', window._buildCaption('${p.id}'))"
+       style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s"
+       onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+    ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f5f5f5;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
+    <div style="flex:1">
+      <p style="font-weight:600;font-size:0.88rem">${p.nombre}</p>
+      <p style="font-size:0.75rem;color:#888">$${p.precio_menudeo} menudeo · $${p.precio_mayoreo3 || (p.precio_menudeo-30)} mayoreo</p>
+    </div>
+    <span style="font-size:0.75rem;color:#25D366;font-weight:600">Enviar →</span>
+  </div>
+`).join('')}
       </div>
     </div>
   `
@@ -8307,10 +8309,22 @@ window.filtrarProductosWA = (texto) => {
     el.style.display = !texto || el.textContent.toLowerCase().includes(texto.toLowerCase()) ? '' : 'none'
   })
 }
+window._buildCaption = (id) => {
+  const p = (window._productosWA || []).find(x => x.id === id)
+  if (!p) return ''
+  return '👠 *' + p.nombre + '*\n\n💰 *Precios:*\n• Menudeo (1-2 pares): $' + p.precio_menudeo +
+    '\n• Mayoreo 3-5 pares: $' + (p.precio_mayoreo3 || (p.precio_menudeo - 30)) +
+    '\n• Mayoreo 6+ pares: $' + (p.precio_mayoreo6 || (p.precio_menudeo - 70)) +
+    '\n• Corrida completa: $' + (p.precio_corrida || (p.precio_menudeo - 110)) +
+    '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx'
+}
 
 
 window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
-  document.querySelector('div[style*="position:fixed"]')?.remove()
+  console.log('imagenUrl:', imagenUrl, 'caption:', caption)
+  const modalWA = document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]')
+if (modalWA) modalWA.remove()
+  console.log('enviando a:', telefono, imagenUrl)
   const agente = window._empleadoActual?.nombre || 'Admin'
   try {
     if (imagenUrl) {
@@ -8327,8 +8341,11 @@ window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
         body: JSON.stringify({ mensaje: caption, agente })
       })
     }
-    await window.cargarConversaciones()
-    setTimeout(() => abrirChat(telefono), 300)
+    const resChats = await fetch(API + '/chatbot/chats')
+const chats = await resChats.json()
+window._chatsData = {}
+chats.forEach(c => window._chatsData[c.telefono] = c)
+abrirChat(telefono)
   } catch(e) {
     alert('Error enviando producto')
   }
