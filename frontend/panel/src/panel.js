@@ -7549,6 +7549,118 @@ window.resetearPassword = async (id, nombre) => {
 }
 
 
+async function cargarEnviosMasivos() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+  try {
+    const [resPlantillas, resClientes, resChats] = await Promise.all([
+      fetch(API + '/chatbot/plantillas').then(r => r.json()),
+      fetch(API + '/clientes/').then(r => r.json()),
+      fetch(API + '/chatbot/chats').then(r => r.json())
+    ])
+
+    // Construir lista de contactos sin duplicados por teléfono
+    const contactosMap = {}
+    resClientes.forEach(c => {
+      if (c.telefono) contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' }
+    })
+    resChats.forEach(c => {
+      if (!contactosMap[c.telefono]) {
+        contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp', etiqueta: c.etiqueta }
+      }
+    })
+    const todosContactos = Object.values(contactosMap)
+
+    content.innerHTML = `
+      <div style="max-width:900px">
+        <div style="margin-bottom:1.5rem">
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos</h2>
+          <p style="color:#888;font-size:0.85rem">${todosContactos.length} contactos disponibles (clientes + WhatsApp sin duplicados)</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+          <!-- CONFIGURACION -->
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1.5rem">⚙️ Configurar campaña</h3>
+
+            <div style="margin-bottom:1rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Plantilla</label>
+              <select id="envio-plantilla" class="form-input">
+                ${resPlantillas.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+              </select>
+            </div>
+
+            <div style="margin-bottom:1rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Imagen del producto</label>
+              <select id="envio-producto-sel" class="form-input" onchange="seleccionarImagenProductoEnvio()" style="margin-bottom:8px">
+                <option value="">Seleccionar producto...</option>
+              </select>
+              <div id="envio-producto-preview" style="display:none;margin-bottom:8px;padding:8px;background:#f9f9f9;border-radius:8px;align-items:center;gap:8px">
+                <img id="envio-producto-img" src="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee">
+                <span id="envio-producto-nombre" style="font-size:0.82rem;font-weight:600;color:#333"></span>
+              </div>
+              <input type="text" id="envio-imagen" class="form-input" placeholder="O pega URL manualmente..." oninput="limpiarSelProductoEnvio()">
+            </div>
+
+            <div style="margin-bottom:1.5rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Filtrar audiencia</label>
+              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
+                <option value="todos">Todos (${todosContactos.length})</option>
+                <option value="clientes">Solo clientes registrados (${resClientes.filter(c=>c.telefono).length})</option>
+                <option value="whatsapp">Solo contactos WhatsApp (${resChats.length})</option>
+                <option value="solo_pregunta">WhatsApp — Solo pregunta</option>
+                <option value="posible_comprador">WhatsApp — Posible comprador</option>
+                <option value="comprador">WhatsApp — Comprador</option>
+                <option value="seguimiento">WhatsApp — Seguimiento</option>
+                <option value="frecuente">WhatsApp — Frecuente</option>
+              </select>
+            </div>
+
+            <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.85rem"></div>
+
+            <button onclick="iniciarEnvioMasivo()" id="btn-enviar-masivo"
+                    style="width:100%;background:#e91e8c;color:white;border:none;border-radius:8px;padding:12px;font-weight:700;font-size:0.9rem;cursor:pointer">
+              📣 Enviar campaña
+            </button>
+          </div>
+
+          <!-- LISTA CONTACTOS -->
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <h3 style="font-size:0.95rem;font-weight:700;margin:0">👥 Audiencia seleccionada</h3>
+              <span id="envio-count" style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem;font-weight:700">${todosContactos.length}</span>
+            </div>
+            <div id="envio-lista" style="max-height:450px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+              ${todosContactos.map(c => `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:${c.fuente==='cliente' ? '#e91e8c' : '#25D366'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
+                    ${(c.nombre||'?').charAt(0).toUpperCase()}
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
+                    <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono} · ${c.fuente === 'cliente' ? '🛍️ Cliente' : '💬 WhatsApp'}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `
+
+    window._envioContactos = todosContactos
+    window._envioChats = resChats
+    window._envioClientes = resClientes
+    cargarProductosEnvio()
+
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+window.cargarEnviosMasivos = cargarEnviosMasivos
+
 window.cargarConversaciones = async function() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
@@ -8218,9 +8330,6 @@ window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
 }
 
 
-window.cargarEnviosMasivos = cargarEnviosMasivos
-
-
 window.filtrarAudienciaEnvio = () => {
   const filtro = document.getElementById('envio-filtro').value
   const clientes = window._envioClientes || []
@@ -8313,14 +8422,12 @@ window.seleccionarImagenProductoEnvio = () => {
     if (preview) preview.style.display = 'none'
   }
 }
-
 window.limpiarSelProductoEnvio = () => {
   const sel = document.getElementById('envio-producto-sel')
   const preview = document.getElementById('envio-producto-preview')
   if (sel) sel.value = ''
   if (preview) preview.style.display = 'none'
 }
-
 window.cargarProductosEnvio = async () => {
   try {
     const res = await fetch(API + '/productos/')
