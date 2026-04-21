@@ -7692,7 +7692,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     </button>
   </div>
   <div id="wa-tab-content">
-      <div id="wa-container" style="display:grid;grid-template-columns:300px 1fr;width:100%;height:100%;min-height:0;;background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div id="wa-container" style="display:grid;grid-template-columns:300px 1fr;width:100%;height:calc(100vh - 160px);min-height:0;background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
 
         <div id="wa-sidebar" style="border-right:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
           <div style="padding:1rem;border-bottom:1px solid #eee;background:#f9f9f9;flex-shrink:0">
@@ -7928,8 +7928,11 @@ window.filtrarChats = (texto) => {
 }
 window.renderMensaje = (m, esManual, nombreContacto) => {
   if (m.tipo === 'imagen_saliente') {
-    const url = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
-    return '<img src="' + url + '" style="max-width:200px;border-radius:8px;display:block">'
+    const partes = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')
+    const url = partes[0].trim()
+    const caption = partes.slice(1).join('\n').trim()
+    return '<img src="' + url + '" style="max-width:200px;border-radius:8px;display:block">' + 
+      (caption ? '<p style="font-size:0.82rem;color:#333;white-space:pre-wrap;margin-top:6px">' + caption + '</p>' : '')
   }
   return '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
 }
