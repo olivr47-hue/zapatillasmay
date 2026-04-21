@@ -7692,7 +7692,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     </button>
   </div>
   <div id="wa-tab-content">
-      <div id="wa-container" style="display:grid;grid-template-columns:300px 1fr;width:100%;height:calc(100vh - 100px);background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div id="wa-container" style="display:grid;grid-template-columns:300px 1fr;width:100%;height:100%;min-height:0;;background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
 
         <div id="wa-sidebar" style="border-right:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
           <div style="padding:1rem;border-bottom:1px solid #eee;background:#f9f9f9;flex-shrink:0">
@@ -7946,8 +7946,11 @@ window.abrirChat = async (telefono) => {
   }
 
   const area = document.getElementById('chat-area')
-  area.style.display = 'flex'
-  area.style.flexDirection = 'column'
+   const area = document.getElementById('chat-area')
+area.style.display = 'flex'
+area.style.flexDirection = 'column'
+area.style.flex = '1'
+area.style.minHeight = '0'
 
   area.innerHTML = `
     <div style="padding:12px 16px;background:white;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px;flex-shrink:0">
@@ -7988,8 +7991,7 @@ window.abrirChat = async (telefono) => {
         <div style="display:flex;flex-direction:column;align-items:${esManual ? 'flex-end' : 'flex-start'}">
           <p style="font-size:0.65rem;color:#aaa;margin-bottom:2px;padding:0 4px">${esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)}</p>
           <div style="max-width:70%;background:${esManual ? '#cfe9ff' : '#f5f5f5'};border-radius:${esManual ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">
-            ${m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'}
-            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
+${m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'}            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
           </div>
         </div>
       ` : ''}
