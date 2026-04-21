@@ -8343,7 +8343,7 @@ if (modalWA) modalWA.remove()
 const chats = await resChats.json()
 window._chatsData = {}
 chats.forEach(c => window._chatsData[c.telefono] = c)
-abrirChat(telefono)
+setTimeout(() => abrirChat(telefono), 800)
   } catch(e) {
     alert('Error enviando producto')
   }
