@@ -176,7 +176,7 @@ export function renderPanel() {
             const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
             return `
               <div style="display:flex;flex-direction:column;gap:4px">
-                ${m.mensaje ? `<div style="display:flex;flex-direction:column;align-items:${esSaliente ? 'flex-end' : 'flex-start'}"><div style="max-width:70%;background:${esSaliente ? '#cfe9ff' : '#f5f5f5'};border-radius:${esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">${m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
+                ${m.mensaje ? `<div style="display:flex;flex-direction:column;align-items:${esSaliente ? 'flex-end' : 'flex-start'}"><div style="max-width:70%;background:${esSaliente ? '#cfe9ff' : '#f5f5f5'};border-radius:${esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">${window.renderMensaje(m, esManual)}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
                 ${m.respuesta ? `<div style="display:flex;flex-direction:column;align-items:flex-end"><div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.62rem;color:#2e7d32;margin-bottom:2px">🤖 Bot</p><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
               </div>`
           }).join('')
@@ -7926,6 +7926,13 @@ window.filtrarChats = (texto) => {
     el.style.display = !texto || nombre.includes(texto.toLowerCase()) || tel.includes(texto) ? '' : 'none'
   })
 }
+window.renderMensaje = (m, esManual, nombreContacto) => {
+  if (m.tipo === 'imagen_saliente') {
+    const url = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
+    return '<img src="' + url + '" style="max-width:200px;border-radius:8px;display:block">'
+  }
+  return '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
+}
 
 
 window.abrirChat = async (telefono) => {
@@ -7991,7 +7998,8 @@ area.style.minHeight = '0'
         <div style="display:flex;flex-direction:column;align-items:${esManual ? 'flex-end' : 'flex-start'}">
           <p style="font-size:0.65rem;color:#aaa;margin-bottom:2px;padding:0 4px">${esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)}</p>
           <div style="max-width:70%;background:${esManual ? '#cfe9ff' : '#f5f5f5'};border-radius:${esManual ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">
-${m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'}            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
+` + (m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>') + `
+            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
           </div>
         </div>
       ` : ''}
@@ -8341,11 +8349,12 @@ if (modalWA) modalWA.remove()
         body: JSON.stringify({ mensaje: caption, agente })
       })
     }
-    const resChats = await fetch(API + '/chatbot/chats')
+    await new Promise(r => setTimeout(r, 1500))
+const resChats = await fetch(API + '/chatbot/chats')
 const chats = await resChats.json()
 window._chatsData = {}
 chats.forEach(c => window._chatsData[c.telefono] = c)
-setTimeout(() => abrirChat(telefono), 800)
+abrirChat(telefono)
   } catch(e) {
     alert('Error enviando producto')
   }
