@@ -8063,7 +8063,7 @@ area.style.minHeight = '0'
   setTimeout(() => {
     const ma = document.getElementById('mensajes-area')
     if (ma) ma.scrollTop = ma.scrollHeight
-  }, 100)
+  }, 800)
 
   fetch(API + '/chatbot/chats/' + telefono + '/leido', { method: 'PATCH' })
   window._chatActivo = telefono
