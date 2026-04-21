@@ -7952,7 +7952,6 @@ window.abrirChat = async (telefono) => {
     if (container) container.style.gridTemplateColumns = '1fr'
   }
 
-  const area = document.getElementById('chat-area')
    const area = document.getElementById('chat-area')
 area.style.display = 'flex'
 area.style.flexDirection = 'column'
