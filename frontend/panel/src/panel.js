@@ -113,6 +113,82 @@ export function renderPanel() {
     document.body.style.overflow = isOpen ? 'hidden' : ''
   }
 
+  // Interval global para notificaciones de WhatsApp
+  if (window._conversacionesInterval) clearInterval(window._conversacionesInterval)
+  window._conversacionesInterval = setInterval(async () => {
+    try {
+      const res = await fetch(API + '/chatbot/chats')
+      const chats = await res.json()
+      if (!window._chatsData) window._chatsData = {}
+      const noLeidosAntes = chats.reduce((s,c) => s + (window._chatsData?.[c.telefono]?.no_leidos||0), 0)
+      const noLeidosDespues = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
+      chats.forEach(c => { if (window._chatsData) window._chatsData[c.telefono] = c })
+
+      if (noLeidosDespues > noLeidosAntes) {
+  document.title = `(${noLeidosDespues}) Zapatillas May`
+  
+  // Badge en nav
+  const navConv = document.querySelector('[data-modulo="conversaciones"]')
+  if (navConv) {
+    let badge = navConv.querySelector('.nav-badge')
+    if (!badge) {
+      badge = document.createElement('span')
+      badge.className = 'nav-badge'
+      badge.style.cssText = 'background:#e91e8c;color:white;border-radius:100px;padding:1px 6px;font-size:0.65rem;font-weight:700;margin-left:auto'
+      navConv.appendChild(badge)
+    }
+    badge.textContent = noLeidosDespues
+  }
+
+  // Sonido
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 523
+    gain.gain.setValueAtTime(0.5, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.2)
+    const osc2 = ctx.createOscillator()
+    const gain2 = ctx.createGain()
+    osc2.connect(gain2)
+    gain2.connect(ctx.destination)
+    osc2.frequency.value = 783
+    gain2.gain.setValueAtTime(0.5, ctx.currentTime + 0.2)
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+    osc2.start(ctx.currentTime + 0.2)
+    osc2.stop(ctx.currentTime + 0.5)
+  } catch(e) {}
+
+} else {
+  document.title = 'Zapatillas May'
+  const navConv = document.querySelector('[data-modulo="conversaciones"]')
+  if (navConv) navConv.querySelector('.nav-badge')?.remove()
+}
+
+      // Actualizar mensajes si hay chat abierto
+      if (window._chatActivo && window._chatsData[window._chatActivo]) {
+        const chat = window._chatsData[window._chatActivo]
+        const mensajesArea = document.getElementById('mensajes-area')
+        if (mensajesArea) {
+          const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 50
+          mensajesArea.innerHTML = [...chat.mensajes].reverse().map(m => {
+            const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
+            return `
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${m.mensaje ? `<div style="display:flex;flex-direction:column;align-items:${esSaliente ? 'flex-end' : 'flex-start'}"><div style="max-width:70%;background:${esSaliente ? '#cfe9ff' : '#f5f5f5'};border-radius:${esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.mensaje.replace(/\[.+?\]:\s*/, '')}</p><p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
+                ${m.respuesta ? `<div style="display:flex;flex-direction:column;align-items:flex-end"><div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.62rem;color:#2e7d32;margin-bottom:2px">🤖 Bot</p><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
+              </div>`
+          }).join('')
+          if (estaAbajo) mensajesArea.scrollTop = mensajesArea.scrollHeight
+        }
+      }
+    } catch(e) {}
+  }, 5000)
+
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
@@ -174,7 +250,16 @@ async function cargarModulo(id) {
 }
 
 function renderDashboard() {
-  setTimeout(() => cargarDashboard(), 800)
+  // Sync nav active state after render
+  setTimeout(() => {
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
+    const navEl = document.querySelector('[data-modulo="' + moduloActivo + '"]')
+    if (navEl) navEl.classList.add('active')
+    const titleEl = document.getElementById('topbar-title')
+    const mod = modulos.find(m => m.id === moduloActivo)
+    if (titleEl && mod) titleEl.textContent = mod.label
+    cargarDashboard()
+  }, 100)
   return renderDashboardHTML()
 }
 async function cargarOrdenes() {
@@ -7416,6 +7501,37 @@ async function cargarDashboard() {
       if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, { type: 'doughnut', data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: ['rgba(46,125,50,0.7)','rgba(245,127,23,0.7)','rgba(233,30,140,0.7)','rgba(124,58,237,0.7)'], borderColor: ['#2e7d32','#f57f17','#E91E8C','#7c3aed'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 11 }, padding: 12 } } } } })
     }, 300)
 
+    // Tareas pendientes hoy
+    try {
+    const resTareas = await fetch(API + '/chatbot/tareas-hoy')
+    const tareas = await resTareas.json()
+    
+    const tareasDiv = document.createElement('div')
+    tareasDiv.style.cssText = 'background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-top:1.5rem'
+    tareasDiv.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h3 style="font-size:1rem;font-weight:700;margin:0">✅ Tareas pendientes hoy</h3>
+        <span style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${tareas.filter(t=>!t.completada).length} pendientes</span>
+      </div>
+      ${tareas.length === 0
+        ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:1rem">Sin tareas pendientes</p>'
+        : tareas.map(t => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5">
+            <input type="checkbox" ${t.completada ? 'checked' : ''}
+                   onchange="completarTareaDashboard('${t.id}', this.checked)"
+                   style="width:16px;height:16px;cursor:pointer;accent-color:#25D366">
+            <div style="flex:1">
+              <p style="font-size:0.85rem;font-weight:600;margin:0;${t.completada ? 'text-decoration:line-through;color:#aaa' : ''}">${t.titulo}</p>
+              <p style="font-size:0.72rem;color:#888;margin:0">${t.nombre_contacto || t.telefono} · ${t.agente || 'Sin asignar'}</p>
+            </div>
+            <button onclick="navegarA('conversaciones');setTimeout(()=>abrirChat('${t.telefono}'),800)"
+                    style="background:#e3f2fd;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#1565c0;cursor:pointer">Ver chat</button>
+          </div>
+        `).join('')}
+    `
+    document.getElementById('dashboard-contenido').appendChild(tareasDiv)
+    } catch(e) { console.error('tareas:', e) }
+
   } catch(e) {
     console.error('Error dashboard:', e)
   }
@@ -7548,118 +7664,6 @@ window.resetearPassword = async (id, nombre) => {
   }
 }
 
-
-async function cargarEnviosMasivos() {
-  const content = document.getElementById('content')
-  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
-  try {
-    const [resPlantillas, resClientes, resChats] = await Promise.all([
-      fetch(API + '/chatbot/plantillas').then(r => r.json()),
-      fetch(API + '/clientes/').then(r => r.json()),
-      fetch(API + '/chatbot/chats').then(r => r.json())
-    ])
-
-    // Construir lista de contactos sin duplicados por teléfono
-    const contactosMap = {}
-    resClientes.forEach(c => {
-      if (c.telefono) contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' }
-    })
-    resChats.forEach(c => {
-      if (!contactosMap[c.telefono]) {
-        contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp', etiqueta: c.etiqueta }
-      }
-    })
-    const todosContactos = Object.values(contactosMap)
-
-    content.innerHTML = `
-      <div style="max-width:900px">
-        <div style="margin-bottom:1.5rem">
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos</h2>
-          <p style="color:#888;font-size:0.85rem">${todosContactos.length} contactos disponibles (clientes + WhatsApp sin duplicados)</p>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-
-          <!-- CONFIGURACION -->
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1.5rem">⚙️ Configurar campaña</h3>
-
-            <div style="margin-bottom:1rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Plantilla</label>
-              <select id="envio-plantilla" class="form-input">
-                ${resPlantillas.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
-              </select>
-            </div>
-
-            <div style="margin-bottom:1rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Imagen del producto</label>
-              <select id="envio-producto-sel" class="form-input" onchange="seleccionarImagenProductoEnvio()" style="margin-bottom:8px">
-                <option value="">Seleccionar producto...</option>
-              </select>
-              <div id="envio-producto-preview" style="display:none;margin-bottom:8px;padding:8px;background:#f9f9f9;border-radius:8px;align-items:center;gap:8px">
-                <img id="envio-producto-img" src="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee">
-                <span id="envio-producto-nombre" style="font-size:0.82rem;font-weight:600;color:#333"></span>
-              </div>
-              <input type="text" id="envio-imagen" class="form-input" placeholder="O pega URL manualmente..." oninput="limpiarSelProductoEnvio()">
-            </div>
-
-            <div style="margin-bottom:1.5rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Filtrar audiencia</label>
-              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
-                <option value="todos">Todos (${todosContactos.length})</option>
-                <option value="clientes">Solo clientes registrados (${resClientes.filter(c=>c.telefono).length})</option>
-                <option value="whatsapp">Solo contactos WhatsApp (${resChats.length})</option>
-                <option value="solo_pregunta">WhatsApp — Solo pregunta</option>
-                <option value="posible_comprador">WhatsApp — Posible comprador</option>
-                <option value="comprador">WhatsApp — Comprador</option>
-                <option value="seguimiento">WhatsApp — Seguimiento</option>
-                <option value="frecuente">WhatsApp — Frecuente</option>
-              </select>
-            </div>
-
-            <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:0.85rem"></div>
-
-            <button onclick="iniciarEnvioMasivo()" id="btn-enviar-masivo"
-                    style="width:100%;background:#e91e8c;color:white;border:none;border-radius:8px;padding:12px;font-weight:700;font-size:0.9rem;cursor:pointer">
-              📣 Enviar campaña
-            </button>
-          </div>
-
-          <!-- LISTA CONTACTOS -->
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-              <h3 style="font-size:0.95rem;font-weight:700;margin:0">👥 Audiencia seleccionada</h3>
-              <span id="envio-count" style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem;font-weight:700">${todosContactos.length}</span>
-            </div>
-            <div id="envio-lista" style="max-height:450px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
-              ${todosContactos.map(c => `
-                <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
-                  <div style="width:32px;height:32px;border-radius:50%;background:${c.fuente==='cliente' ? '#e91e8c' : '#25D366'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
-                    ${(c.nombre||'?').charAt(0).toUpperCase()}
-                  </div>
-                  <div style="flex:1;min-width:0">
-                    <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
-                    <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono} · ${c.fuente === 'cliente' ? '🛍️ Cliente' : '💬 WhatsApp'}</p>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-        </div>
-      </div>
-    `
-
-    window._envioContactos = todosContactos
-    window._envioChats = resChats
-    window._envioClientes = resClientes
-    cargarProductosEnvio()
-
-  } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
-  }
-}
-window.cargarEnviosMasivos = cargarEnviosMasivos
 
 window.cargarConversaciones = async function() {
   const content = document.getElementById('content')
@@ -7993,7 +7997,7 @@ window.abrirChat = async (telefono) => {
         <div style="display:flex;flex-direction:column;align-items:flex-end">
           <p style="font-size:0.65rem;color:#aaa;margin-bottom:2px;padding:0 4px">🤖 Bot</p>
           <div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">
-            <p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta}</p>
+            <p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}
             <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
           </div>
         </div>
@@ -8330,6 +8334,9 @@ window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
 }
 
 
+window.cargarEnviosMasivos = cargarEnviosMasivos
+
+
 window.filtrarAudienciaEnvio = () => {
   const filtro = document.getElementById('envio-filtro').value
   const clientes = window._envioClientes || []
@@ -8422,12 +8429,14 @@ window.seleccionarImagenProductoEnvio = () => {
     if (preview) preview.style.display = 'none'
   }
 }
+
 window.limpiarSelProductoEnvio = () => {
   const sel = document.getElementById('envio-producto-sel')
   const preview = document.getElementById('envio-producto-preview')
   if (sel) sel.value = ''
   if (preview) preview.style.display = 'none'
 }
+
 window.cargarProductosEnvio = async () => {
   try {
     const res = await fetch(API + '/productos/')
@@ -8438,6 +8447,16 @@ window.cargarProductosEnvio = async () => {
     sel.innerHTML = '<option value="">Seleccionar producto...</option>' +
       activos.map(p => `<option value="${p.imagen_principal}" data-nombre="${p.nombre}">${p.nombre}</option>`).join('')
   } catch(e) { console.error('Error:', e) }
+}
+
+window.completarTareaDashboard = async (id, checked) => {
+  try {
+    await fetch(API + '/chatbot/tareas/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completada: checked })
+    })
+  } catch(e) { console.error(e) }
 }
 
 async function cargarSEO() {
