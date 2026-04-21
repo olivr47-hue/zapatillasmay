@@ -577,7 +577,7 @@ async def envio_masivo(datos: dict):
                         "parameters": [{"type": "image", "image": {"link": imagen_url}}]
                     })
                 # Plantillas con variable de nombre
-                plantillas_con_nombre = ["catalogo_completo", "nuevos_modelos"]
+                plantillas_con_nombre = ["catalogo_completo"]
                 tiene_nombre = plantilla in plantillas_con_nombre
                 if tiene_nombre:
                     nombre_limpio = (nombre or "Cliente").strip() or "Cliente"
