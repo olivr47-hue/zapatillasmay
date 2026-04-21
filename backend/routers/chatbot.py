@@ -432,7 +432,7 @@ async def enviar_imagen_manual(telefono: str, datos: dict):
         enviar_whatsapp_imagen(telefono, imagen_url, caption)
         supabase_post("conversaciones_whatsapp", {
             "telefono": telefono,
-            "mensaje": f"[{agente}]: [Imagen] {imagen_url}",
+            "mensaje": f"[{agente}]: [Imagen] {imagen_url}\n{caption}",
             "respuesta": None,
             "tipo": "imagen_saliente",
             "leido": True
