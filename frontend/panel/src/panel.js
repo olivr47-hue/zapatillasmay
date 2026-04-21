@@ -77,6 +77,7 @@ let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
 let varianteCount = 1
 
 export function renderPanel() {
+  moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
   document.querySelector('#app').innerHTML = `
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar">
@@ -92,7 +93,7 @@ export function renderPanel() {
       <div class="topbar">
         <div style="display:flex;align-items:center;gap:1rem">
           <button class="hamburger" onclick="toggleSidebar()">☰</button>
-          <h1 id="topbar-title">Dashboard</h1>
+          <h1 id="topbar-title">${modulos.find(m => m.id === moduloActivo)?.label || 'Dashboard'}</h1>
         </div>
         <div class="topbar-actions">
           <span style="font-size:0.8rem;color:#888">${window._empleadoActual ? window._empleadoActual.nombre : 'Leon, Gto.'}</span>
@@ -120,8 +121,9 @@ export function renderPanel() {
       const res = await fetch(API + '/chatbot/chats')
       const chats = await res.json()
       if (!window._chatsData) window._chatsData = {}
-      const noLeidosAntes = chats.reduce((s,c) => s + (window._chatsData?.[c.telefono]?.no_leidos||0), 0)
+      const noLeidosAntes = window._totalNoLeidos || 0
       const noLeidosDespues = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
+      window._totalNoLeidos = noLeidosDespues
       chats.forEach(c => { if (window._chatsData) window._chatsData[c.telefono] = c })
 
       if (noLeidosDespues > noLeidosAntes) {
@@ -162,11 +164,6 @@ export function renderPanel() {
     osc2.start(ctx.currentTime + 0.2)
     osc2.stop(ctx.currentTime + 0.5)
   } catch(e) {}
-
-} else {
-  document.title = 'Zapatillas May'
-  const navConv = document.querySelector('[data-modulo="conversaciones"]')
-  if (navConv) navConv.querySelector('.nav-badge')?.remove()
 }
 
       // Actualizar mensajes si hay chat abierto
@@ -7666,12 +7663,15 @@ window.resetearPassword = async (id, nombre) => {
 
 
 window.cargarConversaciones = async function() {
+  document.title = 'Zapatillas May'
+const navConv = document.querySelector('[data-modulo="conversaciones"]')
+if (navConv) navConv.querySelector('.nav-badge')?.remove()
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
     const res = await fetch(API + '/chatbot/chats')
     const chats = await res.json()
-    const resProductos = await fetch(API + '/productos/')
+    const resProductos = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo')
     const productos = await resProductos.json()
 
     window._chatsData = {}
@@ -8283,7 +8283,7 @@ window.mostrarCatalogoWA = (telefono) => {
       <input class="form-input" placeholder="Buscar producto..." style="margin:1rem;font-size:0.85rem" oninput="filtrarProductosWA(this.value)">
       <div id="productos-wa-lista" style="overflow-y:auto;padding:0 1rem 1rem">
         ${productos.filter(p => p.activo).map(p => `
-          <div onclick="enviarProductoWA('${telefono}', '${p.imagen_principal||''}', '${p.nombre} - $${p.precio_menudeo} MXN | Mayoreo 3+: $${p.precio_mayoreo3||''} | Ver mas: https://zapatillasmay.mx')"
+          <div onclick="enviarProductoWA('${telefono}', '${p.imagen_principal||''}', '👠 *'+p.nombre+'*\n\n💰 *Precios:*\n• Menudeo (1-2 pares): $'+p.precio_menudeo+(p.precio_mayoreo3?'\n• Mayoreo 3-5 pares: $'+p.precio_mayoreo3:'')+(p.precio_mayoreo6?'\n• Mayoreo 6+ pares: $'+p.precio_mayoreo6:'')+(p.corrida_activa&&p.precio_corrida?'\n• Corrida completa: $'+p.precio_corrida:'')+'\n\n🛍️ Ver y comprar: https://zapatillasmay.mx')"
                style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s"
                onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
             ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f5f5f5;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
@@ -8314,10 +8314,11 @@ window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
   const agente = window._empleadoActual?.nombre || 'Admin'
   try {
     if (imagenUrl) {
+      const captionReal = caption.replace(/\\n/g, '\n')
       await fetch(API + '/chatbot/chats/' + telefono + '/imagen', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagen_url: imagenUrl, caption, agente })
+        body: JSON.stringify({ imagen_url: imagenUrl, caption: captionReal, agente })
       })
     } else {
       await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
@@ -8334,7 +8335,96 @@ window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
 }
 
 
-window.cargarEnviosMasivos = cargarEnviosMasivos
+window.cargarEnviosMasivos = async function() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+  try {
+    const [resPlantillas, resClientes, resChats] = await Promise.all([
+      fetch(API + '/chatbot/plantillas').then(r => r.json()),
+      fetch(API + '/clientes/').then(r => r.json()),
+      fetch(API + '/chatbot/chats').then(r => r.json())
+    ])
+    const contactosMap = {}
+    resClientes.forEach(c => {
+      if (c.telefono) contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' }
+    })
+    resChats.forEach(c => {
+      if (!contactosMap[c.telefono]) {
+        contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp', etiqueta: c.etiqueta }
+      }
+    })
+    const todosContactos = Object.values(contactosMap)
+    window._envioContactos = todosContactos
+    window._envioChats = resChats
+    window._envioClientes = resClientes
+
+    content.innerHTML = `
+      <div style="max-width:900px">
+        <div style="margin-bottom:1.5rem">
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos</h2>
+          <p style="color:#888;font-size:0.85rem">${todosContactos.length} contactos disponibles</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1.5rem">⚙️ Configurar campaña</h3>
+            <div style="margin-bottom:1rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Plantilla</label>
+              <select id="envio-plantilla" class="form-input">
+                ${resPlantillas.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
+              </select>
+            </div>
+            <div style="margin-bottom:1rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Audiencia</label>
+              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
+                <option value="todos">Todos los contactos</option>
+                <option value="clientes">Solo clientes</option>
+                <option value="whatsapp">Solo WhatsApp</option>
+                <option value="comprador">🟢 Compradores</option>
+                <option value="posible_comprador">🟡 Posibles</option>
+                <option value="seguimiento">🔴 Seguimiento</option>
+              </select>
+            </div>
+            <div style="margin-bottom:1rem">
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Imagen del producto</label>
+              <select id="envio-producto-sel" class="form-input" onchange="seleccionarImagenProductoEnvio()" style="margin-bottom:8px">
+                <option value="">Seleccionar producto...</option>
+              </select>
+              <div id="envio-producto-preview" style="display:none;margin-bottom:8px;padding:8px;background:#f9f9f9;border-radius:8px;align-items:center;gap:8px">
+                <img id="envio-producto-img" src="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee">
+                <span id="envio-producto-nombre" style="font-size:0.82rem;font-weight:600;color:#333"></span>
+              </div>
+              <input type="text" id="envio-imagen" class="form-input" placeholder="O pega URL manualmente..." oninput="limpiarSelProductoEnvio()">
+            </div>
+            <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7"></div>
+            <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%">📣 Enviar campaña</button>
+          </div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <h3 style="font-size:0.95rem;font-weight:700">👥 Contactos</h3>
+              <span id="envio-count" style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${todosContactos.length}</span>
+            </div>
+            <div id="envio-lista" style="max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+              ${todosContactos.map(c => `
+                <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:${c.fuente==='cliente'?'#e91e8c':'#25D366'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
+                    ${(c.nombre||'?').charAt(0).toUpperCase()}
+                  </div>
+                  <div style="flex:1;min-width:0">
+                    <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
+                    <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}</p>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+    cargarProductosEnvio()
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
 
 
 window.filtrarAudienciaEnvio = () => {

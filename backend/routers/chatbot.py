@@ -158,6 +158,7 @@ def enviar_whatsapp_texto(to, texto):
         print(f"Error texto WA: {e}")
 
 def enviar_whatsapp_imagen(to, url_img, caption=""):
+    print(f"ENVIANDO IMAGEN: {url_img}")
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
     if not wa_token or not phone_id:
