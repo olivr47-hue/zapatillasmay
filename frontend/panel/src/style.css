@@ -947,7 +947,7 @@ html, body {
 #content {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px);
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  flex: 1;
 }
