@@ -1627,6 +1627,15 @@ window.addEventListener('load', () => {
     hero.style.backgroundAttachment = 'fixed'
   }
 }
+if (config.favicon_url) {
+  let favicon = document.querySelector('link[rel="icon"]')
+  if (!favicon) {
+    favicon = document.createElement('link')
+    favicon.rel = 'icon'
+    document.head.appendChild(favicon)
+  }
+  favicon.href = config.favicon_url
+}
 
   } catch(e) {
     console.log('Config SEO no disponible')
