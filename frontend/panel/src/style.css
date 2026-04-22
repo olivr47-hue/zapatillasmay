@@ -949,5 +949,5 @@ html, body {
   flex-direction: column;
   height: calc(100vh - 60px);
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
