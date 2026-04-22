@@ -8678,14 +8678,17 @@ async function cargarSEO() {
         </div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
-          <h3 style="margin-bottom:1rem">Herramientas</h3>
-          <div style="display:flex;gap:1rem;flex-wrap:wrap">
-            <a href="http://localhost:3000/sitemap.xml" target="_blank" class="btn btn-secondary">Ver sitemap.xml</a>
-            <a href="http://localhost:3000/robots.txt" target="_blank" class="btn btn-secondary">Ver robots.txt</a>
-            <a href="https://search.google.com/search-console" target="_blank" class="btn btn-secondary">Google Search Console</a>
-            <a href="https://search.google.com/test/rich-results" target="_blank" class="btn btn-secondary">Probar Schema</a>
-          </div>
-        </div>
+  <h3 style="margin-bottom:1rem">Herramientas y Feeds</h3>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary">🗺️ Sitemap.xml</a>
+    <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary">🤖 Robots.txt</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary">📘 Feed Meta</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/google.xml" target="_blank" class="btn btn-secondary">🛍️ Feed Google</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/tiktok.json" target="_blank" class="btn btn-secondary">🎵 Feed TikTok</a>
+    <a href="https://search.google.com/search-console" target="_blank" class="btn btn-secondary">Google Search Console</a>
+    <a href="https://search.google.com/test/rich-results" target="_blank" class="btn btn-secondary">Probar Schema</a>
+  </div>
+</div>
 
         <div style="display:flex;justify-content:flex-end">
           <button class="btn btn-primary" onclick="guardarSEO()">Guardar configuracion</button>
