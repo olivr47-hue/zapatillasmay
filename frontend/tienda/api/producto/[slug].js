@@ -24,6 +24,7 @@ export default async function handler(req, res) {
   <meta property="og:url" content="https://zapatillasmay.mx/producto/${slug}">
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Zapatillas May">
+  <meta property="fb:app_id" content="1476063547636095">
   <meta property="product:price:amount" content="${p.precio_menudeo}">
   <meta property="product:price:currency" content="MXN">
   <meta name="twitter:card" content="summary_large_image">
