@@ -50,3 +50,7 @@ def salud():
     except Exception as e:
         return {"estado": "error", "detalle": str(e)}
         # redeploy finanzas
+        
+@app.get("/health")
+def health():
+    return {"ok": True}        
