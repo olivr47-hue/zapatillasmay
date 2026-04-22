@@ -40,7 +40,7 @@
     /* HEADER */
     header {
       position: fixed;
-      top: 0; left: 0; right: 0;
+      top: 36; left: 0; right: 0;
       z-index: 100;
       background: rgba(250,250,250,0.92);
       backdrop-filter: blur(20px);
@@ -159,7 +159,7 @@
 
     /* HERO */
     .hero {
-      margin-top: 64px;
+      margin-top: 100px;
       height: calc(100vh - 64px);
       min-height: 600px;
       background: var(--black);
@@ -306,17 +306,16 @@
     .cats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 16px;
+      gap: 12px;
     }
 
     .cat-card {
-      background: var(--black);
-      border-radius: 8px;
-      padding: 28px 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: var(--transition);
-      border: 1px solid transparent;
+  background: var(--black);
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  aspect-ratio: 3/4;
+  position: relative;
     }
 
     .cat-card:hover {
@@ -342,7 +341,7 @@
     /* PRODUCTOS */
     .products-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 32px;
     }
 
@@ -1202,6 +1201,9 @@
 <body>
 
 <!-- HEADER -->
+ <div id="promo-banner" style="background:#E91E8C;color:white;text-align:center;padding:8px 16px;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101">
+  🚚 Envíos a todo México · Nuevos modelos cada semana · Mayoreo sin mínimo de registro
+</div>
 <header>
   <div class="header-inner">
     <a class="logo" href="#" onclick="mostrarInicio()">Zapatillas <span>May</span></a>
@@ -1617,16 +1619,30 @@ cargarConfigSEO()
   }
 
   function renderCategorias() {
-    const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))]
-    const grid = document.getElementById('cats-grid')
-    if (!cats.length) { grid.innerHTML = '<p style="color:#aaa">No hay categorias</p>'; return }
-    grid.innerHTML = cats.map(c => `
-      <div class="cat-card" onclick="filtrarCategoria('${c}')">
-        <span class="cat-icon">${ICONOS_CATS[c] || '👠'}</span>
+  const cats = [...new Set(productos.map(p => p.categoria).filter(Boolean))]
+  const grid = document.getElementById('cats-grid')
+  if (!cats.length) { grid.innerHTML = '<p style="color:#aaa">No hay categorias</p>'; return }
+  const IMG_CATS = {
+    tacones: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&q=80',
+    sandalias: 'https://images.unsplash.com/photo-1562273138-f46be4ebdf33?w=400&q=80',
+    botas: 'https://images.unsplash.com/photo-1608256246200-a931be1f3b7d?w=400&q=80',
+    botines: 'https://images.unsplash.com/photo-1605812860427-4024433a70fd?w=400&q=80',
+    flats: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&q=80',
+    plataformas: 'https://images.unsplash.com/photo-1515347619252-60a4bf4fff4f?w=400&q=80',
+    nina: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=400&q=80',
+    accesorios: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
+  }
+  grid.innerHTML = cats.map(c => `
+    <div class="cat-card" onclick="filtrarCategoria('${c}')">
+      <img src="${IMG_CATS[c] || ''}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
+      <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.1) 60%)"></div>
+      <div style="position:absolute;bottom:16px;left:16px;right:16px">
+        <span style="font-size:1.4rem;display:block;margin-bottom:4px">${ICONOS_CATS[c] || '👠'}</span>
         <div class="cat-name">${c.charAt(0).toUpperCase() + c.slice(1)}</div>
       </div>
-    `).join('')
-  }
+    </div>
+  `).join('')
+}
 
   function renderProductos(lista) {
     const grid = document.getElementById('products-grid')
