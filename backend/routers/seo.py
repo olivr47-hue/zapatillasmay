@@ -49,3 +49,84 @@ def save_config(datos: dict):
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
+    
+@router.get("/feed/meta.xml")
+def feed_meta():
+    try:
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        xml += '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n<channel>\n'
+        xml += '<title>Zapatillas May</title>\n'
+        xml += '<link>https://zapatillasmay.mx</link>\n'
+        xml += '<description>Calzado de moda para dama. Leon, Guanajuato.</description>\n'
+        for p in productos:
+            sku = p.get('sku_interno') or p.get('id')
+            url = f"https://zapatillasmay.mx/producto/{sku}"
+            xml += '<item>\n'
+            xml += f'  <g:id>{sku}</g:id>\n'
+            xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
+            xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
+            xml += f'  <g:link>{url}</g:link>\n'
+            xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
+            xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+            xml += f'  <g:availability>in stock</g:availability>\n'
+            xml += f'  <g:condition>new</g:condition>\n'
+            xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+            xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+            xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+            xml += '</item>\n'
+        xml += '</channel>\n</rss>'
+        return Response(content=xml, media_type="application/xml")
+    except Exception as e:
+        return Response(content=str(e), status_code=500)
+
+@router.get("/feed/google.xml")
+def feed_google():
+    try:
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
+        for p in productos:
+            sku = p.get('sku_interno') or p.get('id')
+            url = f"https://zapatillasmay.mx/producto/{sku}"
+            xml += '<entry>\n'
+            xml += f'  <g:id>{sku}</g:id>\n'
+            xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
+            xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
+            xml += f'  <g:link>{url}</g:link>\n'
+            xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
+            xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+            xml += f'  <g:availability>in stock</g:availability>\n'
+            xml += f'  <g:condition>new</g:condition>\n'
+            xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+            xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+            xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+            xml += '</entry>\n'
+        xml += '</feed>'
+        return Response(content=xml, media_type="application/xml")
+    except Exception as e:
+        return Response(content=str(e), status_code=500)
+
+@router.get("/feed/tiktok.json")
+def feed_tiktok():
+    try:
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        items = []
+        for p in productos:
+            sku = p.get('sku_interno') or p.get('id')
+            items.append({
+                "sku_id": sku,
+                "title": p.get("nombre",""),
+                "description": p.get("descripcion","") or p.get("nombre",""),
+                "availability": "in stock",
+                "condition": "new",
+                "price": f"{p.get('precio_menudeo',0)} MXN",
+                "link": f"https://zapatillasmay.mx/producto/{sku}",
+                "image_link": p.get("imagen_principal",""),
+                "brand": "Zapatillas May",
+                "google_product_category": "187"
+            })
+        return {"items": items}
+    except Exception as e:
+        return {"error": str(e)}
+    
