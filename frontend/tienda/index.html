@@ -1540,12 +1540,19 @@
 window.addEventListener('load', () => {
   const path = window.location.pathname
   const hash = window.location.hash
+  const params = new URLSearchParams(window.location.search)
+  const pSlug = params.get('p')
 
-  if (path.startsWith('/producto/')) {
+  if (pSlug) {
+    setTimeout(() => {
+      const prod = productos.find(p => p.sku_interno === pSlug || p.id === pSlug || p.slug === pSlug)
+      if (prod) abrirProducto(prod.id)
+    }, 800)
+  } else if (path.startsWith('/producto/')) {
     const sku = path.replace('/producto/', '')
     setTimeout(() => {
-      const p = productos.find(prod => prod.sku_interno === sku || prod.id === sku || prod.slug === sku)
-      if (p) abrirProducto(p.id)
+      const prod = productos.find(p => p.sku_interno === sku || p.id === sku || p.slug === sku)
+      if (prod) abrirProducto(prod.id)
     }, 800)
   } else if (hash === '#catalogo') {
     setTimeout(() => mostrarCatalogo(), 500)

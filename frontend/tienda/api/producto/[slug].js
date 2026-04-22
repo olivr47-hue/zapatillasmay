@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   <meta name="twitter:image" content="${p.imagen_principal}">
 </head>
 <body>
-  <script>window.location.href = '/?producto=${slug}'</script>
+  <script>window.location.href = '/producto/${slug}#open'</script>
 </body>
 </html>`
 
