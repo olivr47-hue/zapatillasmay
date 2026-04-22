@@ -1716,9 +1716,24 @@ cargarConfigSEO()
   }
 
   function abrirProducto(productoId) {
-    window.history.pushState({}, '', '/producto/' + (p.sku_interno || p.id))
     const p = productos.find(prod => prod.id === productoId)
     if (!p) return
+    window.history.pushState({}, '', '/producto/' + (p.sku_interno || p.id))
+    if (window.fbq) fbq('track', 'ViewContent', {
+  content_ids: [p.sku_interno || p.id],
+  content_type: 'product',
+  content_name: p.nombre,
+  content_category: p.categoria || '',
+  value: p.precio_menudeo,
+  currency: 'MXN'
+})
+if (window.ttq) ttq.track('ViewContent', {
+  content_id: p.sku_interno || p.id,
+  content_type: 'product',
+  content_name: p.nombre,
+  price: p.precio_menudeo,
+  currency: 'MXN'
+})
     productoSeleccionado = p
     colorSeleccionado = null
     tallaSeleccionada = null
@@ -1887,6 +1902,12 @@ cargarConfigSEO()
   }
 
   function seleccionarTalla(varianteId, talla) {
+    if (window.fbq) fbq('track', 'CustomizeProduct', {
+  content_ids: [productoSeleccionado.sku_interno || productoSeleccionado.id],
+  content_type: 'product',
+  color: colorSeleccionado,
+  talla: talla
+})
     tallaSeleccionada = talla
     varianteSeleccionada = varianteId
 
@@ -1925,6 +1946,20 @@ cargarConfigSEO()
         precio_unitario: parseFloat(p.precio_menudeo) || 0
       })
     }
+    if (window.fbq) fbq('track', 'AddToCart', {
+  content_ids: [p.sku_interno || p.id],
+  content_type: 'product',
+  content_name: p.nombre,
+  value: p.precio_menudeo,
+  currency: 'MXN'
+})
+if (window.ttq) ttq.track('AddToCart', {
+  content_id: p.sku_interno || p.id,
+  content_type: 'product',
+  content_name: p.nombre,
+  price: p.precio_menudeo,
+  currency: 'MXN'
+})
     cerrarModalBtn()
     recalcularCarrito()
     renderCarrito()
