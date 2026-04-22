@@ -8633,6 +8633,17 @@ async function cargarSEO() {
             </div>
           </div>
         </div>
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+  <h3 style="margin-bottom:1.5rem">Imagen Hero (portada)</h3>
+  <div style="display:grid;gap:1rem">
+    <div>
+      <label class="form-label">URL de imagen de fondo</label>
+      <input class="form-input" id="seo-hero-img" value="${config.hero_imagen || ''}" placeholder="https://res.cloudinary.com/...">
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Pega la URL de Cloudinary de la imagen que quieres como fondo de la portada</p>
+    </div>
+    ${config.hero_imagen ? `<img src="${config.hero_imagen}" style="max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #eee">` : ''}
+  </div>
+</div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
@@ -8696,6 +8707,7 @@ async function cargarSEO() {
 
 window.guardarSEO = async () => {
   const campos = {
+    hero_imagen: document.getElementById('seo-hero-img').value,
     meta_titulo_home: document.getElementById('seo-titulo').value,
     meta_descripcion_home: document.getElementById('seo-desc').value,
     google_analytics_id: document.getElementById('seo-ga').value,
