@@ -8641,7 +8641,7 @@ async function cargarSEO() {
       <input class="form-input" id="seo-hero-img" value="${config.hero_imagen || ''}" placeholder="https://res.cloudinary.com/...">
       <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Pega la URL de Cloudinary de la imagen que quieres como fondo de la portada</p>
     </div>
-    ${config.hero_imagen ? `<img src="${config.hero_imagen}" style="max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #eee">` : ''}
+    ${config.hero_imagen ? '<img src="' + config.hero_imagen + '" style="max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #eee">' : ''}
   </div>
 </div>
 
