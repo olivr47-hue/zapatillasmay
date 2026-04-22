@@ -1538,11 +1538,22 @@
   }
   // Manejar URLs directas
 window.addEventListener('load', () => {
+  const path = window.location.pathname
   const hash = window.location.hash
-  if (hash === '#catalogo') setTimeout(() => mostrarCatalogo(), 500)
-  else if (hash === '#nuevos') setTimeout(() => mostrarNuevos(), 500)
-  else if (hash === '#privacidad') setTimeout(() => mostrarPagina('privacidad'), 500)
-  else if (hash.startsWith('#categoria/')) {
+
+  if (path.startsWith('/producto/')) {
+    const sku = path.replace('/producto/', '')
+    setTimeout(() => {
+      const p = productos.find(prod => prod.sku_interno === sku || prod.id === sku || prod.slug === sku)
+      if (p) abrirProducto(p.id)
+    }, 800)
+  } else if (hash === '#catalogo') {
+    setTimeout(() => mostrarCatalogo(), 500)
+  } else if (hash === '#nuevos') {
+    setTimeout(() => mostrarNuevos(), 500)
+  } else if (hash === '#privacidad') {
+    setTimeout(() => mostrarPagina('privacidad'), 500)
+  } else if (hash.startsWith('#categoria/')) {
     const cat = hash.replace('#categoria/', '')
     setTimeout(() => filtrarCategoria(cat), 500)
   }
@@ -1705,6 +1716,7 @@ cargarConfigSEO()
   }
 
   function abrirProducto(productoId) {
+    window.history.pushState({}, '', '/producto/' + (p.sku_interno || p.id))
     const p = productos.find(prod => prod.id === productoId)
     if (!p) return
     productoSeleccionado = p
@@ -2153,6 +2165,7 @@ cargarConfigSEO()
   }
 
   function cerrarModalBtn() {
+    window.history.pushState({}, '', '/')
     document.getElementById('modal-overlay').classList.remove('active')
     document.body.style.overflow = ''
   }
