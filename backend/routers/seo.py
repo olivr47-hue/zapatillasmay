@@ -15,7 +15,7 @@ def sitemap():
         for p in productos:
             slug = p.get('slug') or p.get('sku_interno','')
             if slug:
-                urls.append(f'https://zapatillasmay.mx/?producto={slug}')
+                urls.append(f'https://zapatillasmay.mx/?producto/{slug}')
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         for url in urls:
