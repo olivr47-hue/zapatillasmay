@@ -788,9 +788,9 @@ html, body {
 }
 
 .content {
-  overflow-y: auto !important;
-  height: auto !important;
+  overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 /* ─── BUSCADOR PRODUCTOS MÓVIL ───────────────── */
 @media (max-width: 900px) {
