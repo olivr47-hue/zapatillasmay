@@ -345,7 +345,7 @@ body::after {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 16px;
   transition: var(--transition);
 }
