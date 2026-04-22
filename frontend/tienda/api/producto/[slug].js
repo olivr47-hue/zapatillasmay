@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:type" content="image/jpeg">
-  <meta property="og:url" content="https://zapatillasmay.mx/producto/${slug}">
+  <meta property="og:url" content="https://www.zapatillasmay.mx/producto/${slug}">
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Zapatillas May">
   <meta property="fb:app_id" content="1476063547636095">
