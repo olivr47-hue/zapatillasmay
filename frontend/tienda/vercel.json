@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/producto/:slug", "destination": "https://zapatillasmay-production.up.railway.app/producto/:slug" },
+    { "source": "/producto/:slug", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
