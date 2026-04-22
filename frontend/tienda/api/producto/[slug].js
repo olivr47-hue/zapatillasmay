@@ -18,6 +18,7 @@ export default async function handler(req, res) {
   <meta property="og:title" content="${p.nombre} | Zapatillas May">
   <meta property="og:description" content="${p.descripcion || 'Calzado de moda para dama en León, Guanajuato'}">
   <meta property="og:image" content="${p.imagen_principal}">
+  <meta property="og:image:alt" content="${p.nombre} | Zapatillas May">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:type" content="image/jpeg">
