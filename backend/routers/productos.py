@@ -58,6 +58,10 @@ def crear_producto(producto: dict):
 
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict):
+    if producto.get("sku_interno"):
+        existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
+        if existente:
+            return {"error": f"El SKU {producto['sku_interno']} ya existe en otro producto"}
     return supabase_patch(f"productos?id=eq.{id}", producto)
 
 @router.patch("/{id}/desactivar")

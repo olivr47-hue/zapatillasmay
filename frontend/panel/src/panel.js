@@ -125,7 +125,7 @@ export function renderPanel() {
       const noLeidosDespues = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
       window._totalNoLeidos = noLeidosDespues
       chats.forEach(c => { if (window._chatsData) window._chatsData[c.telefono] = c })
-
+      fetch(API + '/health').catch(() => {})
       if (noLeidosDespues > noLeidosAntes) {
   document.title = `(${noLeidosDespues}) Zapatillas May`
   
@@ -3596,6 +3596,12 @@ if (sucursalStock && pid) {
     }
   }
 }
+      const data = await res.json()
+      if (data.error) {
+        alert('Error: ' + data.error)
+        if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
+        return
+      }
       alert('Producto guardado correctamente')
       window._productoEditandoId = null
       navegarA('productos')
