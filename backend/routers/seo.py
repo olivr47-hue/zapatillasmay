@@ -75,13 +75,20 @@ def feed_meta():
             vars_prod = variantes_por_producto.get(p['id'], [])
             
             if vars_prod:
+                colores_vistos = set()
                 for v in vars_prod:
-                    var_id = f"{sku}-{v['color'].replace(' ','_').replace('/','_')}"
-                    imagen = v.get('foto_url') or p.get('imagen_principal','')
+                    color = v.get('color', '')
+                    if color in colores_vistos:
+                        continue
+                    colores_vistos.add(color)
+                    var_id = f"{sku}-{color.replace(' ','_').replace('/','_')}"
+                    imagen = v.get('foto_url') or p.get('imagen_principal', '')
+                    nombre = p.get("nombre", "").title()
+                    color_title = color.title()
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
                     xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
-                    xml += f'  <g:title>{p.get("nombre","")} - {v.get("color","")}</g:title>\n'
+                    xml += f'  <g:title>{nombre} - {color_title}</g:title>\n'
                     xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
                     xml += f'  <g:link>{url}</g:link>\n'
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
@@ -92,12 +99,12 @@ def feed_meta():
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                     xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                     xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
-                    xml += f'  <g:color>{v.get("color","")}</g:color>\n'
+                    xml += f'  <g:color>{color}</g:color>\n'
                     xml += '</item>\n'
             else:
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
-                xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
+                xml += f'  <g:title>{p.get("nombre","").title()}</g:title>\n'
                 xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
