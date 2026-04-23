@@ -4,3 +4,14 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
+{
+  "functions": {
+    "api/producto/[slug].js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    { "source": "/producto/:slug", "destination": "/api/producto/[slug]" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
