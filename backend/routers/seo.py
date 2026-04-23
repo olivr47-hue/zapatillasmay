@@ -54,28 +54,62 @@ def save_config(datos: dict):
 def feed_meta():
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        variantes = supabase_get("variantes?select=id,producto_id,color,color_hex,foto_url")
+        
+        variantes_por_producto = {}
+        for v in variantes:
+            pid = v['producto_id']
+            if pid not in variantes_por_producto:
+                variantes_por_producto[pid] = []
+            variantes_por_producto[pid].append(v)
+        
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n<channel>\n'
         xml += '<title>Zapatillas May</title>\n'
         xml += '<link>https://zapatillasmay.mx</link>\n'
         xml += '<description>Calzado de moda para dama. Leon, Guanajuato.</description>\n'
+        
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
             url = f"https://zapatillasmay.mx/producto/{sku}"
-            xml += '<item>\n'
-            xml += f'  <g:id>{sku}</g:id>\n'
-            xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
-            xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
-            xml += f'  <g:link>{url}</g:link>\n'
-            xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
-            xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
-            xml += f'  <g:availability>in stock</g:availability>\n'
-            xml += f'  <g:quantity>10</g:quantity>\n'
-            xml += f'  <g:condition>new</g:condition>\n'
-            xml += f'  <g:brand>Zapatillas May</g:brand>\n'
-            xml += f'  <g:google_product_category>187</g:google_product_category>\n'
-            xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
-            xml += '</item>\n'
+            vars_prod = variantes_por_producto.get(p['id'], [])
+            
+            if vars_prod:
+                for v in vars_prod:
+                    var_id = f"{sku}-{v['color'].replace(' ','_').replace('/','_')}"
+                    imagen = v.get('foto_url') or p.get('imagen_principal','')
+                    xml += '<item>\n'
+                    xml += f'  <g:id>{var_id}</g:id>\n'
+                    xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
+                    xml += f'  <g:title>{p.get("nombre","")} - {v.get("color","")}</g:title>\n'
+                    xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
+                    xml += f'  <g:link>{url}</g:link>\n'
+                    xml += f'  <g:image_link>{imagen}</g:image_link>\n'
+                    xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+                    xml += f'  <g:availability>in stock</g:availability>\n'
+                    xml += f'  <g:quantity>10</g:quantity>\n'
+                    xml += f'  <g:condition>new</g:condition>\n'
+                    xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                    xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+                    xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+                    xml += f'  <g:color>{v.get("color","")}</g:color>\n'
+                    xml += '</item>\n'
+            else:
+                xml += '<item>\n'
+                xml += f'  <g:id>{sku}</g:id>\n'
+                xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
+                xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
+                xml += f'  <g:link>{url}</g:link>\n'
+                xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
+                xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+                xml += f'  <g:availability>in stock</g:availability>\n'
+                xml += f'  <g:quantity>10</g:quantity>\n'
+                xml += f'  <g:condition>new</g:condition>\n'
+                xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+                xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+                xml += '</item>\n'
+        
         xml += '</channel>\n</rss>'
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
