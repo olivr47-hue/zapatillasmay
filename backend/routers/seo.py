@@ -7,13 +7,13 @@ router = APIRouter(tags=["SEO"])
 @router.get("/sitemap.xml")
 def sitemap():
     try:
-        productos = supabase_get("productos?activo=eq.true&select=slug,sku_interno,updated_at")
+        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at")
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
         urls = ['https://zapatillasmay.mx/']
         for cat in categorias:
             urls.append(f'https://zapatillasmay.mx/?categoria={cat}')
         for p in productos:
-            slug = p.get('sku_interno') or p.get('slug','')
+            slug = p.get('sku_interno') or p.get('id','')
             if slug:
                 urls.append(f'https://zapatillasmay.mx/producto/{slug}')
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
