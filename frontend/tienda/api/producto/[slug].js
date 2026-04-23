@@ -11,6 +11,27 @@ export default async function handler(req, res) {
 
   const html = `<!DOCTYPE html>
 <html>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "${p.nombre}",
+  "description": "${p.descripcion || p.nombre}",
+  "image": "${p.imagen_principal}",
+  "sku": "${sku}",
+  "brand": {
+    "@type": "Brand",
+    "name": "Zapatillas May"
+  },
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "MXN",
+    "price": "${p.precio_menudeo}",
+    "availability": "https://schema.org/InStock",
+    "url": "https://zapatillasmay.mx/producto/${sku}"
+  }
+}
+</script>
 <head>
   <meta charset="UTF-8">
   <title>${p.nombre} | Zapatillas May</title>
