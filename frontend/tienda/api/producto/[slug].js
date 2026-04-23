@@ -14,23 +14,24 @@ export default async function handler(req, res) {
     const descripcion = (p.descripcion || p.nombre || 'Calzado de moda para dama').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\n/g, ' ')
     const imagen = p.imagen_principal || ''
     const precio = p.precio_menudeo || 0
-
+    const nombreClean = (p.nombre || '').replace(/[\u0000-\u001F]/g, '')
+    const descripcionClean = (p.descripcion || p.nombre || '').replace(/[\u0000-\u001F]/g, '').substring(0, 200)
     const schema = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": p.nombre,
-      "description": p.descripcion || p.nombre,
-      "image": imagen,
-      "sku": slug,
-      "brand": { "@type": "Brand", "name": "Zapatillas May" },
-      "offers": {
-        "@type": "Offer",
-        "priceCurrency": "MXN",
-        "price": precio,
-        "availability": "https://schema.org/InStock",
-        "url": `https://zapatillasmay.mx/producto/${slug}`
-      }
-    })
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": nombreClean,
+  "description": descripcionClean,
+  "image": imagen,
+  "sku": slug,
+  "brand": { "@type": "Brand", "name": "Zapatillas May" },
+  "offers": {
+    "@type": "Offer",
+    "priceCurrency": "MXN",
+    "price": precio,
+    "availability": "https://schema.org/InStock",
+    "url": `https://zapatillasmay.mx/producto/${slug}`
+  }
+})
 
     const html = `<!DOCTYPE html>
 <html>
