@@ -13,7 +13,7 @@ def sitemap():
         for cat in categorias:
             urls.append(f'https://zapatillasmay.mx/?categoria={cat}')
         for p in productos:
-            slug = p.get('slug') or p.get('sku_interno','')
+            slug = p.get('sku_interno') or p.get('slug','')
             if slug:
                 urls.append(f'https://zapatillasmay.mx/producto/{slug}')
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
