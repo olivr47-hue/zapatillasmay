@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Allow: /producto/
+Disallow: /api/
+Sitemap: https://zapatillasmay.mx/sitemap.xml
