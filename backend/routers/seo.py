@@ -70,6 +70,7 @@ def feed_meta():
             xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
             xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
             xml += f'  <g:availability>in stock</g:availability>\n'
+            xml += f'  <g:quantity>10</g:quantity>\n'
             xml += f'  <g:condition>new</g:condition>\n'
             xml += f'  <g:brand>Zapatillas May</g:brand>\n'
             xml += f'  <g:google_product_category>187</g:google_product_category>\n'
