@@ -2333,25 +2333,71 @@ function mostrarNuevos() {
 
   async function irACheckout() {
     if (!carrito.length) { mostrarToast('Tu carrito esta vacio'); return }
-    
-    // Si no hay usuario, pedir login
-    if (!usuarioActual) {
-      mostrarToast('Inicia sesion para continuar')
-      setTimeout(() => abrirLogin(), 800)
+
+    const totalFinal = carrito.reduce((s, i) => {
+      const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
+      return s + (pares * i.precio_unitario)
+    }, 0)
+
+    // Mostrar modal de datos del cliente
+    const overlay = document.createElement('div')
+    overlay.id = 'checkout-overlay'
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)'
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;max-height:90vh;overflow-y:auto">
+        <h3 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;margin-bottom:4px">Datos de envío</h3>
+        <p style="font-size:0.82rem;color:#aaa;margin-bottom:24px">Total a pagar: <strong style="color:var(--pink)">$${totalFinal.toFixed(2)} MXN</strong></p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <input id="co-nombre" placeholder="Nombre completo *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          <input id="co-email" type="email" placeholder="Email *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          <input id="co-telefono" type="tel" placeholder="Teléfono *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          <input id="co-calle" placeholder="Calle y número *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <input id="co-colonia" placeholder="Colonia *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+            <input id="co-cp" placeholder="Código postal *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <input id="co-ciudad" placeholder="Ciudad *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+            <input id="co-estado" placeholder="Estado *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+          </div>
+          <textarea id="co-notas" placeholder="Notas adicionales (opcional)" rows="2" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:none;box-sizing:border-box"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:13px;background:transparent;border:1.5px solid #e8e8e8;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancelar</button>
+          <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Pagar con MercadoPago</button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(overlay)
+
+    // Si hay usuario logueado, prellenar datos
+    if (usuarioActual) {
+      document.getElementById('co-nombre').value = usuarioActual.nombre || ''
+      document.getElementById('co-email').value = usuarioActual.email || ''
+    }
+  }
+
+  async function procesarCheckout() {
+    const nombre = document.getElementById('co-nombre').value.trim()
+    const email = document.getElementById('co-email').value.trim()
+    const telefono = document.getElementById('co-telefono').value.trim()
+    const calle = document.getElementById('co-calle').value.trim()
+    const colonia = document.getElementById('co-colonia').value.trim()
+    const cp = document.getElementById('co-cp').value.trim()
+    const ciudad = document.getElementById('co-ciudad').value.trim()
+    const estado = document.getElementById('co-estado').value.trim()
+    const notas = document.getElementById('co-notas').value.trim()
+
+    if (!nombre || !email || !telefono || !calle || !colonia || !cp || !ciudad || !estado) {
+      mostrarToast('Por favor completa todos los campos requeridos')
       return
     }
 
-    try {
-      // Crear pedido primero
-      const itemsPedido = carrito.map(item => ({
-        variante_id: item.variante_id,
-        cantidad: item.es_corrida ? item.cantidad * 6 : item.cantidad,
-        precio_unitario: item.precio_unitario,
-        nombre: item.nombre,
-        color: item.color,
-        talla: item.talla
-      }))
+    const btn = document.getElementById('btn-procesar-checkout')
+    btn.textContent = 'Procesando...'
+    btn.disabled = true
 
+    try {
       const totalFinal = carrito.reduce((s, i) => {
         const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
         return s + (pares * i.precio_unitario)
@@ -2361,16 +2407,27 @@ function mostrarNuevos() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cliente_id: usuarioActual.cliente_id,
-          items: itemsPedido,
+          cliente_id: usuarioActual?.cliente_id || null,
+          items: carrito.map(item => ({
+            variante_id: item.variante_id,
+            cantidad: item.es_corrida ? item.cantidad * 6 : item.cantidad,
+            precio_unitario: item.precio_unitario,
+            nombre: item.nombre,
+            color: item.color,
+            talla: item.talla
+          })),
           total: totalFinal,
-          status: 'borrador'
+          status: 'borrador',
+          nombre_cliente: nombre,
+          email_cliente: email,
+          telefono_cliente: telefono,
+          direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`,
+          notas: notas
         })
       })
       const pedido = await resPedido.json()
       if (!pedido.id) throw new Error('Error creando pedido')
 
-      // Crear preferencia de MercadoPago
       const resPago = await fetch(API + '/pagos/crear-preferencia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2381,29 +2438,21 @@ function mostrarNuevos() {
             cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
             precio: i.precio_unitario
           })),
-          cliente: {
-            nombre: usuarioActual.nombre,
-            email: usuarioActual.email
-          },
+          cliente: { nombre, email },
           total: totalFinal
         })
       })
       const pago = await resPago.json()
       if (!pago.init_point) throw new Error('Error creando pago')
 
-      // Redirigir a MercadoPago
       window.location.href = pago.init_point
 
     } catch(e) {
       mostrarToast('Error al procesar el pago. Intenta de nuevo.')
-      console.error(e)
+      btn.textContent = 'Pagar con MercadoPago'
+      btn.disabled = false
     }
   }
-
-  document.addEventListener('click', (e) => {
-    const search = document.querySelector('.header-search')
-    if (search && !search.contains(e.target)) document.getElementById('search-results').classList.remove('show')
-  })
 
 function toggleMenu() {
   const menu = document.getElementById('mobile-menu')
