@@ -2331,10 +2331,73 @@ function mostrarNuevos() {
     document.getElementById('productos-section').scrollIntoView({behavior:'smooth', block:'start'})
   }
 
-  function irACheckout() {
+  async function irACheckout() {
     if (!carrito.length) { mostrarToast('Tu carrito esta vacio'); return }
-    mostrarToast('Checkout proximamente — por ahora contactanos por WhatsApp')
-    setTimeout(() => window.open('https://wa.me/5214792244560?text=Hola, quiero hacer un pedido', '_blank'), 1000)
+    
+    // Si no hay usuario, pedir login
+    if (!usuarioActual) {
+      mostrarToast('Inicia sesion para continuar')
+      setTimeout(() => abrirLogin(), 800)
+      return
+    }
+
+    try {
+      // Crear pedido primero
+      const itemsPedido = carrito.map(item => ({
+        variante_id: item.variante_id,
+        cantidad: item.es_corrida ? item.cantidad * 6 : item.cantidad,
+        precio_unitario: item.precio_unitario,
+        nombre: item.nombre,
+        color: item.color,
+        talla: item.talla
+      }))
+
+      const totalFinal = carrito.reduce((s, i) => {
+        const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
+        return s + (pares * i.precio_unitario)
+      }, 0)
+
+      const resPedido = await fetch(API + '/pedidos/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cliente_id: usuarioActual.cliente_id,
+          items: itemsPedido,
+          total: totalFinal,
+          status: 'borrador'
+        })
+      })
+      const pedido = await resPedido.json()
+      if (!pedido.id) throw new Error('Error creando pedido')
+
+      // Crear preferencia de MercadoPago
+      const resPago = await fetch(API + '/pagos/crear-preferencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pedido_id: pedido.id,
+          items: carrito.map(i => ({
+            nombre: i.nombre + ' - ' + i.color + ' T:' + i.talla,
+            cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
+            precio: i.precio_unitario
+          })),
+          cliente: {
+            nombre: usuarioActual.nombre,
+            email: usuarioActual.email
+          },
+          total: totalFinal
+        })
+      })
+      const pago = await resPago.json()
+      if (!pago.init_point) throw new Error('Error creando pago')
+
+      // Redirigir a MercadoPago
+      window.location.href = pago.init_point
+
+    } catch(e) {
+      mostrarToast('Error al procesar el pago. Intenta de nuevo.')
+      console.error(e)
+    }
   }
 
   document.addEventListener('click', (e) => {
