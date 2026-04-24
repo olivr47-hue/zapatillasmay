@@ -35,7 +35,15 @@ def obtener_pedido(id: str):
 @router.post("/")
 def crear_pedido(pedido: dict):
     try:
-        return supabase_post("pedidos", pedido)
+        items = pedido.pop("items", [])
+        resultado = supabase_post("pedidos", pedido)
+        if resultado and len(resultado) > 0:
+            pedido_id = resultado[0]["id"]
+            for item in items:
+                item["pedido_id"] = pedido_id
+                supabase_post("pedido_items", item)
+            return resultado[0]
+        return JSONResponse(status_code=500, content={"error": "Error creando pedido"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -149,7 +157,7 @@ def reconfirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
-                    supabase_post("movimientos,inventario", {
+                    supabase_post("movimientos_inventario", {
                         "tipo": "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
