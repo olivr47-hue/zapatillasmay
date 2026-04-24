@@ -54,8 +54,15 @@ def save_config(datos: dict):
 def feed_meta():
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
-        variantes = supabase_get("variantes?select=id,producto_id,color,color_hex,foto_url")
+        variantes = supabase_get("variantes?select=id,producto_id,color,color_hex,foto_url,talla")
+        inventario = supabase_get("inventario?select=variante_id,cantidad")
         
+        # Inventario por variante
+        inv_por_variante = {}
+        for i in inventario:
+            inv_por_variante[i['variante_id']] = i.get('cantidad', 0)
+        
+        # Variantes por producto
         variantes_por_producto = {}
         for v in variantes:
             pid = v['producto_id']
@@ -75,31 +82,44 @@ def feed_meta():
             vars_prod = variantes_por_producto.get(p['id'], [])
             
             if vars_prod:
-                colores_vistos = set()
+                # Agrupar por color
+                colores = {}
                 for v in vars_prod:
                     color = v.get('color', '')
-                    if color in colores_vistos:
-                        continue
-                    colores_vistos.add(color)
+                    if color not in colores:
+                        colores[color] = {'variantes': [], 'foto': v.get('foto_url') or p.get('imagen_principal', '')}
+                    colores[color]['variantes'].append(v)
+                
+                for color, data in colores.items():
+                    # Calcular cantidad total del color sumando todas las tallas
+                    cantidad_total = sum(inv_por_variante.get(v['id'], 0) for v in data['variantes'])
+                    if cantidad_total <= 0:
+                        continue  # No incluir variantes sin stock
+                    
+                    # Tallas disponibles para este color
+                    tallas = [v.get('talla', '') for v in data['variantes'] if inv_por_variante.get(v['id'], 0) > 0 and v.get('talla')]
+                    
                     var_id = f"{sku}-{color.replace(' ','_').replace('/','_')}"
-                    imagen = v.get('foto_url') or p.get('imagen_principal', '')
                     nombre = p.get("nombre", "").title()
                     color_title = color.title()
+                    
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
                     xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
                     xml += f'  <g:title>{nombre} - {color_title}</g:title>\n'
                     xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
                     xml += f'  <g:link>{url}</g:link>\n'
-                    xml += f'  <g:image_link>{imagen}</g:image_link>\n'
+                    xml += f'  <g:image_link>{data["foto"]}</g:image_link>\n'
                     xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
                     xml += f'  <g:availability>in stock</g:availability>\n'
-                    xml += f'  <g:quantity>10</g:quantity>\n'
+                    xml += f'  <g:quantity>{cantidad_total}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                     xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                     xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                     xml += f'  <g:color>{color}</g:color>\n'
+                    if tallas:
+                        xml += f'  <g:size>{", ".join(tallas)}</g:size>\n'
                     xml += '</item>\n'
             else:
                 xml += '<item>\n'
@@ -121,7 +141,7 @@ def feed_meta():
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
-
+    
 @router.get("/feed/google.xml")
 def feed_google():
     try:
