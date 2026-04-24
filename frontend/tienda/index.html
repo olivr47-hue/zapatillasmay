@@ -1582,17 +1582,22 @@ window.addEventListener('load', () => {
     const products = params.get('products')
     if (products) {
       setTimeout(() => {
+        console.log('products raw:', products)
         const entries = products.split(',')
         entries.forEach(entry => {
           const decoded = decodeURIComponent(entry)
+          console.log('decoded:', decoded)
           const [variantId] = decoded.split(':')
-          // Extraer SKU base (ej: C-TAC-0004-ROJO_CHAROL_ → C-TAC-0004)
+          console.log('variantId:', variantId)
           const skuMatch = variantId.match(/^([A-Z]-[A-Z]+-\d+)/)
+          console.log('skuMatch:', skuMatch)
           const sku = skuMatch ? skuMatch[1] : variantId
+          console.log('sku:', sku)
           const prod = productos.find(p => p.sku_interno === sku || p.id === sku)
+          console.log('prod:', prod)
           if (prod) abrirProducto(prod.id)
         })
-      }, 2000)
+      }, 800)
     }
   }
 })
