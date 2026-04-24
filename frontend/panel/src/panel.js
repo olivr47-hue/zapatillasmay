@@ -4688,12 +4688,15 @@ async function cargarPedidos() {
                 return `
                   <tr>
                     <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
-                    <td><strong>${p.clientes ? p.clientes.nombre : 'Sin cliente'}</strong></td>
+                    <td><strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong><br>
+                    ${p.email_cliente ? `<span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
+                    ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
+                    </td>
                     <td>${p.canal || '—'}</td>
                     <td><strong>$${p.total || '0'}</strong></td>
-                    <td>${p.forma_pago || '—'}</td>
+                    <td>${p.mp_payment_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
                     <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
-                    <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('es-MX') : '—'}</td>
+                    <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
                     <td>
                       <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
                     </td>
