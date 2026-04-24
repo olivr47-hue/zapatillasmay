@@ -1579,25 +1579,30 @@ window.addEventListener('load', () => {
     const cat = hash.replace('#categoria/', '')
     setTimeout(() => filtrarCategoria(cat), 500)
   } else if (path === '/checkout') {
-    const products = params.get('products')
+    const products = decodeURIComponent(params.get('products') || '')
     if (products) {
       setTimeout(() => {
-        console.log('products raw:', products)
         const entries = products.split(',')
-        entries.forEach(entry => {
-          const decoded = decodeURIComponent(entry)
-          console.log('decoded:', decoded)
-          const [variantId] = decoded.split(':')
-          console.log('variantId:', variantId)
-          const skuMatch = variantId.match(/^([A-Z]-[A-Z]+-\d+)/)
-          console.log('skuMatch:', skuMatch)
-          const sku = skuMatch ? skuMatch[1] : variantId
-          console.log('sku:', sku)
+        const ultimo = entries[entries.length - 1]
+        entries.forEach((entry, idx) => {
+          const [variantId, qty] = entry.split(':')
+          const skuMatch = variantId.trim().match(/^([A-Z]-[A-Z]+-\d+)/)
+          const sku = skuMatch ? skuMatch[1] : variantId.trim()
+          const colorRaw = variantId.trim().replace(sku + '-', '').replace(/_/g, ' ').trim()
           const prod = productos.find(p => p.sku_interno === sku || p.id === sku)
-          console.log('prod:', prod)
-          if (prod) abrirProducto(prod.id)
+          if (prod) {
+            if (idx === entries.length - 1) {
+              // Abrir modal del último producto
+              abrirProducto(prod.id)
+              // Preseleccionar color después de que abra el modal
+              setTimeout(() => {
+                const colorEl = document.getElementById('color-opt-' + colorRaw.replace(/\s/g,'_'))
+                if (colorEl) colorEl.click()
+              }, 500)
+            }
+          }
         })
-      }, 800)
+      }, 2000)
     }
   }
 })
