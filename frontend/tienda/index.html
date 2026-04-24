@@ -1538,6 +1538,8 @@
   }
   // Manejar URLs directas
 window.addEventListener('load', () => {
+  console.log('PATH:', window.location.pathname)
+  console.log('PARAMS:', window.location.search)
   const path = window.location.pathname
   const hash = window.location.hash
   const params = new URLSearchParams(window.location.search)
@@ -1576,6 +1578,22 @@ window.addEventListener('load', () => {
   } else if (hash.startsWith('#categoria/')) {
     const cat = hash.replace('#categoria/', '')
     setTimeout(() => filtrarCategoria(cat), 500)
+  } else if (path === '/checkout') {
+    const products = params.get('products')
+    if (products) {
+      setTimeout(() => {
+        const entries = products.split(',')
+        entries.forEach(entry => {
+          const decoded = decodeURIComponent(entry)
+          const [variantId] = decoded.split(':')
+          // Extraer SKU base (ej: C-TAC-0004-ROJO_CHAROL_ → C-TAC-0004)
+          const skuMatch = variantId.match(/^([A-Z]-[A-Z]+-\d+)/)
+          const sku = skuMatch ? skuMatch[1] : variantId
+          const prod = productos.find(p => p.sku_interno === sku || p.id === sku)
+          if (prod) abrirProducto(prod.id)
+        })
+      }, 2000)
+    }
   }
 })
 
@@ -2516,7 +2534,9 @@ function mostrarNuevos() {
         currency: 'MXN'
 })
 
-      window.location.href = pago.init_point
+      setTimeout(() => {
+  window.location.href = pago.init_point
+}, 500)
 
     } catch(e) {
       mostrarToast('Error al procesar el pago. Intenta de nuevo.')

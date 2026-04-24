@@ -4694,7 +4694,7 @@ async function cargarPedidos() {
                     </td>
                     <td>${p.canal || '—'}</td>
                     <td><strong>$${p.total || '0'}</strong></td>
-                    <td>${p.mp_payment_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
+                    <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
                     <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
                     <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
                     <td>
