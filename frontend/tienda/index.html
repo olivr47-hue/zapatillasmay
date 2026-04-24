@@ -1582,25 +1582,36 @@ window.addEventListener('load', () => {
     const products = decodeURIComponent(params.get('products') || '')
     if (products) {
       setTimeout(() => {
+        // Ocultar hero y mostrar solo productos
+        const hero = document.getElementById('hero')
+        const cats = document.querySelector('.section')
+        const bannerMayoreo = document.querySelector('.banner-mayoreo')
+        if (hero) hero.style.display = 'none'
+        if (cats) cats.style.display = 'none'
+        if (bannerMayoreo) bannerMayoreo.style.display = 'none'
+
+        document.getElementById('productos-titulo').innerHTML = 'Completa tu <em>selección</em>'
+
         const entries = products.split(',')
-        const ultimo = entries[entries.length - 1]
-        entries.forEach((entry, idx) => {
-          const [variantId, qty] = entry.split(':')
+        const prods = []
+        entries.forEach(entry => {
+          const [variantId] = entry.split(':')
           const skuMatch = variantId.trim().match(/^([A-Z]-[A-Z]+-\d+)/)
           const sku = skuMatch ? skuMatch[1] : variantId.trim()
-          const colorRaw = variantId.trim().replace(sku + '-', '').replace(/_/g, ' ').trim()
           const prod = productos.find(p => p.sku_interno === sku || p.id === sku)
-          if (prod) {
-            if (idx === entries.length - 1) {
-              // Abrir modal del último producto
-              abrirProducto(prod.id)
-              // Preseleccionar color después de que abra el modal
-              setTimeout(() => {
-                const colorEl = document.getElementById('color-opt-' + colorRaw.replace(/\s/g,'_'))
-                if (colorEl) colorEl.click()
-              }, 500)
-            }
-          }
+          if (prod && !prods.find(p => p.id === prod.id)) prods.push(prod)
+        })
+
+        renderProductos(prods)
+        document.getElementById('productos-section').scrollIntoView({behavior:'smooth'})
+
+        // Preseleccionar colores al abrir cada modal
+        entries.forEach(entry => {
+          const [variantId] = entry.split(':')
+          const skuMatch = variantId.trim().match(/^([A-Z]-[A-Z]+-\d+)/)
+          const sku = skuMatch ? skuMatch[1] : variantId.trim()
+          const colorRaw = variantId.trim().replace((skuMatch ? skuMatch[1] : '') + '-', '').replace(/_/g, ' ').trim()
+          window['_colorPreselect_' + sku] = colorRaw
         })
       }, 2000)
     }
@@ -1777,6 +1788,14 @@ cargarConfigSEO()
     const p = productos.find(prod => prod.id === productoId)
     if (!p) return
     window.history.pushState({}, '', '/producto/' + (p.sku_interno || p.id))
+    // Preseleccionar color si viene de Meta checkout
+const colorPre = window['_colorPreselect_' + (p.sku_interno || p.id)]
+if (colorPre) {
+  setTimeout(() => {
+    const colorEl = document.getElementById('color-opt-' + colorPre.replace(/\s/g,'_'))
+    if (colorEl) colorEl.click()
+  }, 300)
+}
     if (window.fbq) fbq('track', 'ViewContent', {
   content_ids: [p.sku_interno || p.id],
   content_type: 'product',
