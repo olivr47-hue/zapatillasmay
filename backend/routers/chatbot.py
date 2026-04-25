@@ -683,3 +683,12 @@ async def autoresponder_webhook(datos: dict):
         return {"replies": [{"message": respuesta}]}
     except Exception as e:
         return {"replies": [{"message": f"Error: {str(e)}"}]}
+    
+@router.get("/chatbot/catalogo-info")
+async def catalogo_info():
+    import httpx
+    headers = {"Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}"}
+    waba_id = os.getenv('WHATSAPP_WABA_ID')
+    async with httpx.AsyncClient() as client:
+        res = await client.get(f"https://graph.facebook.com/v19.0/{waba_id}/product_catalogs", headers=headers)
+        return res.json()
