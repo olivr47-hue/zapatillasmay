@@ -97,9 +97,10 @@ def feed_meta():
                     xml += f'  <g:id>{var_id}</g:id>\n'
                     xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
                     xml += f'  <g:title>{nombre} - {color_title}</g:title>\n'
-                    xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
+                    desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                    xml += f'  <g:description>{desc}</g:description>\n'
                     color_encoded = color.replace(' ', '_').replace('/', '_')
-                    xml += f'  <g:link>{url}?color={color_encoded}&talla={talla}</g:link>\n'
+                    xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
                     xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
                     xml += f'  <g:availability>in stock</g:availability>\n'
