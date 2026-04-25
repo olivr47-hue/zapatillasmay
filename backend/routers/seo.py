@@ -85,8 +85,7 @@ def feed_meta():
                     talla = v.get('talla', '')
                     cantidad = inv_por_variante.get(v['id'], 0)
                     
-                    if cantidad <= 0:
-                        continue
+                    availability = 'in stock' if cantidad > 0 else 'out of stock'
                     
                     imagen = v.get('foto_url') or p.get('imagen_principal', '')
                     nombre = p.get("nombre", "").title()
@@ -106,8 +105,8 @@ def feed_meta():
                     xml += f'  <g:price>{precio} MXN</g:price>\n'
                     xml += f'  <g:sale_price/>\n'
                     xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
-                    xml += f'  <g:availability>in stock</g:availability>\n'
-                    xml += f'  <g:quantity>{cantidad}</g:quantity>\n'
+                    xml += f'  <g:availability>{availability}</g:availability>\n'
+                    xml += f'  <g:quantity>{max(0, cantidad)}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                     xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
@@ -129,8 +128,8 @@ def feed_meta():
                 xml += f'  <g:price>{precio} MXN</g:price>\n'
                 xml += f'  <g:sale_price/>\n'
                 xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
-                xml += f'  <g:availability>in stock</g:availability>\n'
-                xml += f'  <g:quantity>10</g:quantity>\n'
+                xml += f'  <g:availability>{availability}</g:availability>\n'
+                xml += f'  <g:quantity>{max(0, cantidad)}</g:quantity>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                 xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
