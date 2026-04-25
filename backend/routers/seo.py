@@ -121,9 +121,9 @@ def feed_meta():
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
                 xml += f'  <g:title>{p.get("nombre","").title()}</g:title>\n'
-                xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
-                color_encoded = color.replace(' ', '_').replace('/', '_')
-                xml += f'  <g:link>{url}?color={color_encoded}&talla={talla}</g:link>\n'
+                desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                xml += f'  <g:description>{desc2}</g:description>\n'
+                xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
                 precio = p.get("precio_menudeo", 0)
                 xml += f'  <g:price>{precio} MXN</g:price>\n'
