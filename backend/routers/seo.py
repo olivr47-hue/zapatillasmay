@@ -102,11 +102,15 @@ def feed_meta():
                     color_encoded = color.replace(' ', '_').replace('/', '_')
                     xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
-                    xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+                    precio = p.get("precio_menudeo", 0)
+                    xml += f'  <g:price>{precio} MXN</g:price>\n'
+                    xml += f'  <g:sale_price/>\n'
+                    xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
                     xml += f'  <g:availability>in stock</g:availability>\n'
                     xml += f'  <g:quantity>{cantidad}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                    xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
                     xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                     xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                     xml += f'  <g:color>{color}</g:color>\n'
@@ -121,11 +125,15 @@ def feed_meta():
                 color_encoded = color.replace(' ', '_').replace('/', '_')
                 xml += f'  <g:link>{url}?color={color_encoded}&talla={talla}</g:link>\n'
                 xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
-                xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+                precio = p.get("precio_menudeo", 0)
+                xml += f'  <g:price>{precio} MXN</g:price>\n'
+                xml += f'  <g:sale_price/>\n'
+                xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
                 xml += f'  <g:availability>in stock</g:availability>\n'
                 xml += f'  <g:quantity>10</g:quantity>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
                 xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                 xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                 xml += '</item>\n'
