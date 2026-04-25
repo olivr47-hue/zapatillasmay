@@ -3596,9 +3596,8 @@ if (sucursalStock && pid) {
     }
   }
 }
-      const data = await res.json()
-      if (data.error) {
-        alert('Error: ' + data.error)
+      if (prod && prod.error) {
+        alert('Error: ' + prod.error)
         if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
         return
       }
