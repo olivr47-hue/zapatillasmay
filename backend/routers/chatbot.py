@@ -684,7 +684,7 @@ async def autoresponder_webhook(datos: dict):
     except Exception as e:
         return {"replies": [{"message": f"Error: {str(e)}"}]}
     
-@router.get("/chatbot/catalogo-info")
+@router.get("/catalogo-info")
 async def catalogo_info():
     import httpx
     headers = {"Authorization": f"Bearer {os.getenv('WHATSAPP_TOKEN')}"}
