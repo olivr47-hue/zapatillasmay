@@ -1565,9 +1565,27 @@ window.addEventListener('load', () => {
     }, 800)
   } else if (path.startsWith('/producto/')) {
     const sku = path.replace('/producto/', '')
+    const colorParam = params.get('color')
+    const tallaParam = params.get('talla')
     setTimeout(() => {
       const prod = productos.find(p => p.sku_interno === sku || p.id === sku || p.slug === sku)
-      if (prod) abrirProducto(prod.id)
+      if (prod) {
+        abrirProducto(prod.id)
+        if (colorParam) {
+          setTimeout(() => {
+            const colorEl = document.getElementById('color-opt-' + colorParam)
+            if (colorEl) {
+              colorEl.click()
+              if (tallaParam) {
+                setTimeout(() => {
+                  const tallaEl = document.getElementById('talla-opt-' + tallaParam.replace('.','_'))
+                  if (tallaEl && !tallaEl.classList.contains('agotada')) tallaEl.click()
+                }, 400)
+              }
+            }
+          }, 300)
+        }
+      }
     }, 800)
   } else if (hash === '#catalogo') {
     setTimeout(() => mostrarCatalogo(), 500)
