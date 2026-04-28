@@ -2887,6 +2887,8 @@ window.eliminarColorVariante = async (idx, btn) => {
 
       // Quitar de coloresExistentes
       window._coloresExistentes = window._coloresExistentes.filter(c => c.color !== color)
+      if (!window._coloresEliminados) window._coloresEliminados = []
+     window._coloresEliminados.push(color)
       
       alert('Color eliminado correctamente')
     } catch(e) {
@@ -3457,7 +3459,7 @@ window.guardarProducto = async () => {
 
   const tallas = [...document.querySelectorAll('.talla-label input:checked')].map(i => i.value)
   const variantesData = await subirImagenesVariantes()
-const colores = []
+  const colores = []
 document.querySelectorAll('.variante-item').forEach(v => {
   const id = v.id.replace('variante-', '')
   const nombre = document.getElementById('v' + id + '-nombre')
@@ -3523,6 +3525,9 @@ document.querySelectorAll('.variante-item').forEach(v => {
   if (window._productoEditandoId) {
     const resVars = await fetch(API + '/variantes/producto/' + pid)
     varsExistentes = await resVars.json()
+    if (window._coloresEliminados && window._coloresEliminados.length > 0) {
+  varsExistentes = varsExistentes.filter(v => !window._coloresEliminados.includes(v.color))
+}
   }
 
   for (const v of variantesData) {
@@ -3609,6 +3614,7 @@ if (sucursalStock && pid) {
       alert('Error al guardar: ' + err)
       if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
     }
+    window._coloresEliminados = []
   } catch(e) {
     alert('Error conectando con el servidor')
     if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
@@ -3616,6 +3622,7 @@ if (sucursalStock && pid) {
 }
 
 window.editarProducto = async (id) => {
+  window._coloresEliminados = []
   window._coloresExistentes = null
   window._productoEditandoId = null
   try {
