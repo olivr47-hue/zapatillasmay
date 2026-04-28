@@ -57,10 +57,10 @@ def get_url():
 def get_headers():
     return HEADERS
 
-
 def supabase_delete(tabla):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
-    req = urllib.request.Request(url, headers=HEADERS, method="DELETE")
+    headers = {**HEADERS, "Prefer": "return=minimal"}
+    req = urllib.request.Request(url, headers=headers, method="DELETE")
     try:
         with urllib.request.urlopen(req) as response:
             return {"ok": True}

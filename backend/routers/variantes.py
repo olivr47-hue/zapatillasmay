@@ -53,4 +53,7 @@ def actualizar_variante(variante_id: str, variante: dict):
 
 @router.delete("/{variante_id}")
 def eliminar_variante(variante_id: str):
-    return supabase_delete(f"variantes?id=eq.{variante_id}")
+    try:
+        return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
+    except Exception as e:
+        return {"error": str(e)}
