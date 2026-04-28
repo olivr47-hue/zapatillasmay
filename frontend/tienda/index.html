@@ -1726,7 +1726,7 @@ cargarConfigSEO()
     try {
       const [resP, resV, resI] = await Promise.all([
         fetch(API + '/productos/'),
-        fetch(API + '/variantes/'),
+        fetch(API + '/variantes/?activa=eq.true'),
         fetch(API + '/inventario/')
       ])
       productos = await resP.json()
