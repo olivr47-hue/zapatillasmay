@@ -2882,7 +2882,10 @@ window.eliminarColorVariante = async (idx, btn) => {
       const varsColor = variantes.filter(v => v.color === color)
       
       for (const v of varsColor) {
-        await fetch(API + '/variantes/' + v.id, { method: 'DELETE' })
+        await fetch(API + '/variantes/' + v.id + '/eliminar', {
+          method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
       }
 
       // Quitar de coloresExistentes
