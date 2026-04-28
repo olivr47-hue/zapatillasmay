@@ -31,7 +31,7 @@ def listar_variantes():
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):
-    return supabase_get(f"variantes?producto_id=eq.{producto_id}")
+    return supabase_get(f"variantes?producto_id=eq.{producto_id}&activa=eq.true")
 
 @router.post("/")
 def crear_variante(variante: dict):
@@ -61,6 +61,6 @@ def eliminar_variante(variante_id: str):
 @router.post("/{variante_id}/eliminar")
 def eliminar_variante_post(variante_id: str):
     try:
-        return supabase_delete(f"variantes?id=eq.{variante_id}")
+        return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
     except Exception as e:
         return {"error": str(e)}
