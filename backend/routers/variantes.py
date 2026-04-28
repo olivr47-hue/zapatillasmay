@@ -57,3 +57,10 @@ def eliminar_variante(variante_id: str):
         return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
     except Exception as e:
         return {"error": str(e)}
+    
+@router.post("/{variante_id}/eliminar")
+def eliminar_variante_post(variante_id: str):
+    try:
+        return supabase_delete(f"variantes?id=eq.{variante_id}")
+    except Exception as e:
+        return {"error": str(e)}
