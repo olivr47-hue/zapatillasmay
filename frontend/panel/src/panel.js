@@ -3533,31 +3533,29 @@ document.querySelectorAll('.variante-item').forEach(v => {
 }
   }
 
-  for (const v of variantesData) {
-    for (const talla of tallasGuardar) {
-      // Buscar si ya existe esta variante
-      const varExistente = varsExistentes.find(ve => ve.color === v.color && ve.talla === talla)
-      
-      if (varExistente) {
-  const update = { color_hex: v.color_hex }
-  update.foto_url = v.imagenes.length > 0 ? v.imagenes[0] : null
-  update.imagenes = v.imagenes
-  
-        await fetch(API + '/variantes/' + varExistente.id, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(update)
-        })
-      } else {
-        // Crear nueva variante
-        await fetch(API + '/variantes/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
-        })
-      }
+  const promesas = []
+for (const v of variantesData) {
+  for (const talla of tallasGuardar) {
+    const varExistente = varsExistentes.find(ve => ve.color === v.color && ve.talla === talla)
+    if (varExistente) {
+      const update = { color_hex: v.color_hex }
+      update.foto_url = v.imagenes.length > 0 ? v.imagenes[0] : null
+      update.imagenes = v.imagenes
+      promesas.push(fetch(API + '/variantes/' + varExistente.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(update)
+      }))
+    } else {
+      promesas.push(fetch(API + '/variantes/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
+      }))
     }
   }
+}
+await Promise.all(promesas)
 }
 console.log('Colores:', colores)
 console.log('Tallas:', tallas)
