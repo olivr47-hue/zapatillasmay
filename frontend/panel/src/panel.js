@@ -3400,10 +3400,23 @@ async function subirImagenesVariantes() {
 
     const urls = []
 
-    // Conservar fotos existentes desde _coloresExistentes actualizado
+    // Conservar fotos existentes — intersección entre _coloresExistentes y DOM
 const colorExistente = window._coloresExistentes ? 
   window._coloresExistentes.find(c => c.color === nombre.value) : null
-if (colorExistente) {
+
+if (colorExistente && preview) {
+  // Obtener URLs que siguen en el DOM
+  const urlsEnDOM = new Set()
+  preview.querySelectorAll('div[data-url]').forEach(div => {
+    if (div.dataset.url) urlsEnDOM.add(div.dataset.url)
+  })
+  
+  // Solo incluir fotos que están tanto en _coloresExistentes como en el DOM
+  const imagenesExistentes = colorExistente.imagenes || (colorExistente.foto_url ? [colorExistente.foto_url] : [])
+  imagenesExistentes.forEach(url => {
+    if (urlsEnDOM.has(url) && !urls.includes(url)) urls.push(url)
+  })
+} else if (colorExistente) {
   if (colorExistente.imagenes && colorExistente.imagenes.length > 0) {
     urls.push(...colorExistente.imagenes)
   } else if (colorExistente.foto_url) {
