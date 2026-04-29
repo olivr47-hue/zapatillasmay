@@ -3547,12 +3547,14 @@ for (const v of variantesData) {
         body: JSON.stringify(update)
       }))
     } else {
-      promesas.push(fetch(API + '/variantes/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
-      }))
-    }
+  promesas.push(
+    fetch(API + '/variantes/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
+    }).catch(e => console.log('Variante ya existe:', v.color, talla))
+  )
+}
   }
 }
 await Promise.all(promesas)
