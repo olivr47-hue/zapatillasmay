@@ -2809,14 +2809,14 @@ function renderVariante(i, datos) {
   if (d.imagenes && d.imagenes.length > 0) {
     fotosHTML = d.imagenes.map((url, fIdx) => {
       const esPortada = fIdx === 0
-      return `<div style="position:relative;cursor:pointer">
-        <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}" onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
+      return `<div style="position:relative;cursor:pointer" data-url="${url}" data-es-portada="${esPortada}" data-file-idx="${fIdx}">
+  <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}" onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
         ${esPortada ? '<span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>' : ''}
         <button onclick="eliminarFotoExistente(${i}, this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
       </div>`
     }).join('')
   } else if (d.foto_url) {
-    fotosHTML = `<div style="position:relative">
+    fotosHTML = `<div style="position:relative" data-url="${d.foto_url}" data-es-portada="true" data-file-idx="0">
       <img src="${d.foto_url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid #E91E8C">
       <span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>
     </div>`
@@ -3400,28 +3400,12 @@ async function subirImagenesVariantes() {
 
     const urls = []
 
-    // Conservar fotos existentes — intersección entre _coloresExistentes y DOM
-const colorExistente = window._coloresExistentes ? 
-  window._coloresExistentes.find(c => c.color === nombre.value) : null
-
-if (colorExistente && preview) {
-  // Obtener URLs que siguen en el DOM
-  const urlsEnDOM = new Set()
+    // Conservar fotos existentes desde el DOM
+if (preview) {
   preview.querySelectorAll('div[data-url]').forEach(div => {
-    if (div.dataset.url) urlsEnDOM.add(div.dataset.url)
+    const url = div.dataset.url
+    if (url && !urls.includes(url)) urls.push(url)
   })
-  
-  // Solo incluir fotos que están tanto en _coloresExistentes como en el DOM
-  const imagenesExistentes = colorExistente.imagenes || (colorExistente.foto_url ? [colorExistente.foto_url] : [])
-  imagenesExistentes.forEach(url => {
-    if (urlsEnDOM.has(url) && !urls.includes(url)) urls.push(url)
-  })
-} else if (colorExistente) {
-  if (colorExistente.imagenes && colorExistente.imagenes.length > 0) {
-    urls.push(...colorExistente.imagenes)
-  } else if (colorExistente.foto_url) {
-    urls.push(colorExistente.foto_url)
-  }
 }
 
     // Subir fotos nuevas — portada primero
