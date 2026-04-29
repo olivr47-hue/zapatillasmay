@@ -3400,13 +3400,15 @@ async function subirImagenesVariantes() {
 
     const urls = []
 
-    // Conservar fotos existentes
-    // Conservar fotos existentes desde el DOM
-if (preview) {
-  preview.querySelectorAll('div[data-url]').forEach(div => {
-    const url = div.dataset.url
-    if (url && !urls.includes(url)) urls.push(url)
-  })
+    // Conservar fotos existentes desde _coloresExistentes actualizado
+const colorExistente = window._coloresExistentes ? 
+  window._coloresExistentes.find(c => c.color === nombre.value) : null
+if (colorExistente) {
+  if (colorExistente.imagenes && colorExistente.imagenes.length > 0) {
+    urls.push(...colorExistente.imagenes)
+  } else if (colorExistente.foto_url) {
+    urls.push(colorExistente.foto_url)
+  }
 }
 
     // Subir fotos nuevas — portada primero
