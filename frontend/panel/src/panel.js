@@ -3401,14 +3401,12 @@ async function subirImagenesVariantes() {
     const urls = []
 
     // Conservar fotos existentes
-    const colorExistente = coloresExistentes.find(c => c.color === nombre.value)
-if (colorExistente) {
-  // Si tiene array de imagenes usar ese, si no usar foto_url
-  if (colorExistente.imagenes && colorExistente.imagenes.length > 0) {
-    urls.push(...colorExistente.imagenes)
-  } else if (colorExistente.foto_url) {
-    urls.push(colorExistente.foto_url)
-  }
+    // Conservar fotos existentes desde el DOM
+if (preview) {
+  preview.querySelectorAll('div[data-url]').forEach(div => {
+    const url = div.dataset.url
+    if (url && !urls.includes(url)) urls.push(url)
+  })
 }
 
     // Subir fotos nuevas — portada primero
