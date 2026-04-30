@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+from fastapi.responses import Response
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
 
@@ -57,10 +58,21 @@ def eliminar_variante(variante_id: str):
         return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
     except Exception as e:
         return {"error": str(e)}
-    
+
 @router.post("/{variante_id}/eliminar")
 def eliminar_variante_post(variante_id: str):
     try:
         return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
     except Exception as e:
         return {"error": str(e)}
+
+@router.options("/")
+def options_variantes():
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
