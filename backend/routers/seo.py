@@ -115,7 +115,9 @@ def feed_meta():
                     xml += f'  <g:color>{color}</g:color>\n'
                     xml += f'  <g:size>{talla}</g:size>\n'
                     xml += f'  <g:size_system>MX</g:size_system>\n'
+                    xml += f'  <g:size_type>regular</g:size_type>\n'
                     xml += '</item>\n'
+                    
             else:
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
