@@ -49,59 +49,78 @@ def save_config(datos: dict):
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
-    
+
 @router.get("/feed/meta.xml")
 def feed_meta():
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
-        variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla")
+        variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
-        
+
         inv_por_variante = {}
         for i in inventario:
             inv_por_variante[i['variante_id']] = i.get('cantidad', 0)
-        
+
         variantes_por_producto = {}
         for v in variantes:
             pid = v['producto_id']
             if pid not in variantes_por_producto:
                 variantes_por_producto[pid] = []
             variantes_por_producto[pid].append(v)
-        
+
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">\n<channel>\n'
         xml += '<title>Zapatillas May</title>\n'
         xml += '<link>https://zapatillasmay.mx</link>\n'
         xml += '<description>Calzado de moda para dama. Leon, Guanajuato.</description>\n'
-        
+
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
             url = f"https://zapatillasmay.mx/producto/{sku}"
             vars_prod = variantes_por_producto.get(p['id'], [])
-            
+
             if vars_prod:
+                # Agrupar por color para no repetir imágenes
+                colores_vistos = {}
+                for v in vars_prod:
+                    color = v.get('color', '')
+                    if color not in colores_vistos:
+                        colores_vistos[color] = v
+
                 for v in vars_prod:
                     color = v.get('color', '')
                     talla = v.get('talla', '')
                     cantidad = inv_por_variante.get(v['id'], 0)
-                    
                     availability = 'in stock' if cantidad > 0 else 'out of stock'
-                    
-                    imagen = v.get('foto_url') or p.get('imagen_principal', '')
+
+                    # Imagen principal del color
+                    v_color = colores_vistos.get(color, v)
+                    imagen = v_color.get('foto_url') or p.get('imagen_principal', '')
+
+                    # Imágenes adicionales
+                    imagenes_extra = v_color.get('imagenes') or []
+                    if isinstance(imagenes_extra, list):
+                        imagenes_extra = [img for img in imagenes_extra if img and img != imagen]
+                    else:
+                        imagenes_extra = []
+
                     nombre = p.get("nombre", "").title()
                     color_title = color.title()
                     var_id = f"{sku}-{color.replace(' ','_').replace('/','_')}-{talla}"
-                    
+                    desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                    color_encoded = color.replace(' ', '_').replace('/', '_')
+                    talla_feed = talla if talla != 'Unica' else 'One Size'
+                    precio = p.get("precio_menudeo", 0)
+
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
                     xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
                     xml += f'  <g:title>{nombre} - {color_title}</g:title>\n'
-                    desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
                     xml += f'  <g:description>{desc}</g:description>\n'
-                    color_encoded = color.replace(' ', '_').replace('/', '_')
                     xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
-                    precio = p.get("precio_menudeo", 0)
+                    for img_extra in imagenes_extra[:9]:
+                        xml += f'  <g:additional_image_link>{img_extra}</g:additional_image_link>\n'
                     xml += f'  <g:price>{precio} MXN</g:price>\n'
                     xml += f'  <g:sale_price/>\n'
                     xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
@@ -113,39 +132,39 @@ def feed_meta():
                     xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                     xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                     xml += f'  <g:color>{color}</g:color>\n'
-                    talla_feed = talla if talla != 'Unica' else 'One Size'
                     xml += f'  <g:size>{talla_feed}</g:size>\n'
                     xml += f'  <g:size_system>MX</g:size_system>\n'
                     xml += f'  <g:size_type>regular</g:size_type>\n'
                     xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += '</item>\n'
-                    
+
             else:
+                imagen_p = p.get('imagen_principal', '')
+                desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                precio = p.get("precio_menudeo", 0)
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
                 xml += f'  <g:title>{p.get("nombre","").title()}</g:title>\n'
-                desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
                 xml += f'  <g:description>{desc2}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
-                xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
-                precio = p.get("precio_menudeo", 0)
+                xml += f'  <g:image_link>{imagen_p}</g:image_link>\n'
                 xml += f'  <g:price>{precio} MXN</g:price>\n'
                 xml += f'  <g:sale_price/>\n'
                 xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
-                xml += f'  <g:availability>{availability}</g:availability>\n'
-                xml += f'  <g:quantity>{max(0, cantidad)}</g:quantity>\n'
+                xml += f'  <g:availability>out of stock</g:availability>\n'
+                xml += f'  <g:quantity>0</g:quantity>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                 xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
                 xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                 xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                 xml += '</item>\n'
-        
+
         xml += '</channel>\n</rss>'
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
-    
+
 @router.get("/feed/google.xml")
 def feed_google():
     try:
@@ -195,4 +214,3 @@ def feed_tiktok():
         return {"items": items}
     except Exception as e:
         return {"error": str(e)}
-    
