@@ -1512,6 +1512,7 @@
          <a href="https://www.facebook.com/MAYZapatillas/" target="_blank">Facebook</a>
          <a href="https://tiktok.com/@zapatillasmay" target="_blank">TikTok</a>
          <a href="#privacidad" onclick="mostrarPagina('privacidad')">Política de privacidad</a>
+         <a href="#" onclick="mostrarPagina('tabla-tallas')">Tabla de tallas</a>
       </div>
     </div>
     <div class="footer-bottom">
@@ -1587,6 +1588,8 @@ window.addEventListener('load', () => {
         }
       }
     }, 800)
+    } else if (path === '/tabla-tallas') {
+  setTimeout(() => mostrarPagina('tabla-tallas'), 300)
   } else if (hash === '#catalogo') {
     setTimeout(() => mostrarCatalogo(), 500)
   } else if (hash === '#nuevos') {
@@ -3234,7 +3237,59 @@ const PAGINAS = {
         <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
       </div>
     </div>
-  `
+  `,
+  'tabla-tallas': `
+  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
+    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Encuentra tu talla perfecta</p>
+    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Tabla de <em style="font-style:italic;color:var(--pink)">tallas</em></h1>
+  </div>
+  <div style="max-width:700px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
+    <p style="color:var(--gray-600);text-align:center;margin-bottom:40px;line-height:1.8">Nuestro calzado usa tallas mexicanas (MX). Usa esta guía para encontrar tu talla correcta.</p>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+        <thead>
+          <tr style="background:var(--black);color:white">
+            <th style="padding:14px 20px;text-align:center;font-weight:600">MX</th>
+            <th style="padding:14px 20px;text-align:center;font-weight:600">CM</th>
+            <th style="padding:14px 20px;text-align:center;font-weight:600">US</th>
+            <th style="padding:14px 20px;text-align:center;font-weight:600">EU</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${[
+            ['22','22.0','5','35'],
+            ['22.5','22.5','5.5','35.5'],
+            ['23','23.0','6','36'],
+            ['23.5','23.5','6.5','36.5'],
+            ['24','24.0','7','37'],
+            ['24.5','24.5','7.5','37.5'],
+            ['25','25.0','8','38'],
+            ['25.5','25.5','8.5','38.5'],
+            ['26','26.0','9','39'],
+            ['26.5','26.5','9.5','39.5'],
+            ['27','27.0','10','40'],
+          ].map(([mx,cm,us,eu], i) => `
+            <tr style="background:${i%2===0?'var(--gray-100)':'white'};border-bottom:1px solid var(--gray-200)">
+              <td style="padding:12px 20px;text-align:center;font-weight:700;color:var(--pink);font-family:var(--font-mono)">${mx}</td>
+              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${cm}</td>
+              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${us}</td>
+              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${eu}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:40px;background:var(--pink-light);border-left:4px solid var(--pink);border-radius:8px;padding:20px">
+      <p style="font-weight:600;margin-bottom:8px">💡 ¿Cómo medir tu pie?</p>
+      <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Párate sobre una hoja de papel y marca el punto más largo de tu pie. Mide esa distancia en centímetros y busca tu talla en la tabla.</p>
+    </div>
+    <div style="margin-top:32px;text-align:center">
+      <p style="color:var(--gray-600);font-size:0.85rem;margin-bottom:16px">¿Tienes dudas con tu talla?</p>
+      <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Pregúntanos por WhatsApp</a>
+    </div>
+  </div>
+`
+  
 }
 
 function mostrarPagina(id) {
