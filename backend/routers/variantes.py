@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
 
@@ -46,7 +46,17 @@ def crear_variante(variante: dict):
             cod_color = color_a_codigo(color)
             cod_talla = talla_a_codigo(talla)
             variante["sku"] = f"{sku_base}-{cod_color}-{cod_talla}"
-    return supabase_post("variantes", variante)
+    try:
+        return supabase_post("variantes", variante)
+    except Exception as e:
+        if "23505" in str(e):
+            sku = variante.get("sku", "")
+            existente = supabase_get(f"variantes?sku=eq.{sku}&select=id")
+            if existente and len(existente) > 0:
+                variante_id = existente[0]["id"]
+                update = {k: v for k, v in variante.items() if k in ["foto_url", "imagenes", "color_hex"]}
+                return supabase_patch(f"variantes?id=eq.{variante_id}", update)
+        raise e
 
 @router.patch("/{variante_id}")
 def actualizar_variante(variante_id: str, variante: dict):
