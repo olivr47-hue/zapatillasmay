@@ -3,6 +3,10 @@ from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_patch, supabase_post
 import mercadopago
 import os
+import hashlib
+import time
+import urllib.request
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,6 +14,69 @@ load_dotenv()
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
 sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
+
+META_PIXEL_ID = os.getenv("META_PIXEL_ID")
+META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
+
+def hash_data(value):
+    if not value:
+        return None
+    return hashlib.sha256(value.strip().lower().encode()).hexdigest()
+
+def enviar_evento_meta(event_name, pedido, payment):
+    try:
+        total = float(pedido.get("total", 0))
+        email = pedido.get("email_cliente", "")
+        telefono = pedido.get("telefono_cliente", "")
+        nombre = pedido.get("nombre_cliente", "")
+        pedido_id = pedido.get("id", "")
+        items = pedido.get("pedido_items", [])
+
+        nombre_parts = nombre.strip().split(" ", 1)
+        fn = nombre_parts[0] if nombre_parts else ""
+        ln = nombre_parts[1] if len(nombre_parts) > 1 else ""
+
+        contents = []
+        for item in items:
+            contents.append({
+                "id": item.get("variante_id", ""),
+                "quantity": item.get("cantidad", 1),
+                "item_price": float(item.get("precio_unitario", 0))
+            })
+
+        payload = {
+            "data": [
+                {
+                    "event_name": event_name,
+                    "event_time": int(time.time()),
+                    "event_id": f"{pedido_id}-{event_name}",
+                    "action_source": "website",
+                    "user_data": {
+                        "em": [hash_data(email)] if email else [],
+                        "ph": [hash_data(telefono)] if telefono else [],
+                        "fn": [hash_data(fn)] if fn else [],
+                        "ln": [hash_data(ln)] if ln else [],
+                    },
+                    "custom_data": {
+                        "currency": "MXN",
+                        "value": total,
+                        "contents": contents,
+                        "content_type": "product",
+                        "order_id": pedido_id,
+                        "num_items": sum(i.get("cantidad", 1) for i in items)
+                    }
+                }
+            ]
+        }
+
+        url = f"https://graph.facebook.com/v18.0/{META_PIXEL_ID}/events?access_token={META_ACCESS_TOKEN}"
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req) as res:
+            print("Meta evento enviado:", event_name, res.read())
+
+    except Exception as e:
+        print("Error enviando evento a Meta:", str(e))
 
 @router.post("/crear-preferencia")
 def crear_preferencia(datos: dict):
@@ -101,6 +168,9 @@ async def webhook_mercadopago(request: Request):
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id)}
                             )
+                            # Enviar evento Purchase a Meta server-side
+                            enviar_evento_meta("Purchase", pedido[0], payment)
+
                     elif status in ["rejected", "cancelled"]:
                         supabase_patch(
                             f"pedidos?id=eq.{pedido_id}",
