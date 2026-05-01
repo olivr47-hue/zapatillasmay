@@ -54,7 +54,7 @@ def save_config(datos: dict):
 def feed_meta():
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
-        variantes = supabase_get("variantes?select=id,producto_id,color,color_hex,foto_url,talla")
+        variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
         
         inv_por_variante = {}
