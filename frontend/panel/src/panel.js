@@ -3533,7 +3533,10 @@ document.querySelectorAll('.variante-item').forEach(v => {
   const promesas = []
 for (const v of variantesData) {
   for (const talla of tallasGuardar) {
-    const varExistente = varsExistentes.find(ve => ve.color === v.color && ve.talla === talla)
+    const varExistente = varsExistentes.find(ve => 
+  ve.color.trim().toLowerCase() === v.color.trim().toLowerCase() && 
+  ve.talla === talla
+)
     if (varExistente) {
       const update = { color_hex: v.color_hex }
       update.foto_url = v.imagenes.length > 0 ? v.imagenes[0] : null
