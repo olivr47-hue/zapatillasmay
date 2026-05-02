@@ -16,19 +16,19 @@
 }
 
     :root {
-  --black: #1E1415;
-  --white: #FAF8F6;
-  --pink: #B87C82;
-  --pink-light: rgba(184,124,130,0.08);
-  --pink-glow: rgba(184,124,130,0.3);
-  --cream: #F2EBE5;
-  --cream-dark: #EBE3DC;
-  --mauve: #9A8080;
-  --gray-100: #F0E8E3;
-  --gray-200: #EBE3DC;
-  --gray-400: #C4A89A;
-  --gray-600: #7A6A6A;
-  --gray-800: #3D2B2B;
+  --black: #2A1A0E;
+  --white: #FBF7F3;
+  --pink: #C8967A;
+  --pink-light: rgba(200,150,122,0.09);
+  --pink-glow: rgba(200,150,122,0.28);
+  --cream: #F5ECE2;
+  --cream-dark: #EDE0D2;
+  --mauve: #A07860;
+  --gray-100: #F5ECE2;
+  --gray-200: #EDE0D2;
+  --gray-400: #C8A88C;
+  --gray-600: #8B6A54;
+  --gray-800: #3D2A1C;
   --font-display: 'Cormorant Garamond', serif;
   --font-body: 'DM Sans', sans-serif;
   --font-mono: 'DM Mono', monospace;
@@ -182,8 +182,8 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.12) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 80%, rgba(184,124,130,0.06) 0%, transparent 50%);
+  background: radial-gradient(ellipse at 30% 50%, rgba(200,150,122,0.10) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(200,150,122,0.05) 0%, transparent 50%);
 }
 
     .hero-content {
@@ -1167,8 +1167,8 @@
   inset: 0;
   z-index: 1;
   background: linear-gradient(90deg, rgba(250,248,246,0.50) 0%, transparent 55%),
-              radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.12) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 80%, rgba(184,124,130,0.06) 0%, transparent 50%);
+              radial-gradient(ellipse at 30% 50%, rgba(200,150,122,0.10) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(200,150,122,0.05) 0%, transparent 50%);
   pointer-events: none;
 }
 
@@ -1243,7 +1243,7 @@
     width: 82% !important;
     max-width: 300px !important;
     background:#ffffff !important;
-    border-left: 3px solid #E91E8C !important;
+    border-left: 3px solid #C8967A !important;
     z-index: 10001 !important;
     transform:translateX(100%);
     transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
@@ -1255,7 +1255,7 @@
   }
     #mobile-menu-panel a { color:#1a1a1a !important; }
     #mobile-menu-panel .menu-cat { background:#f8f8f8 !important; color:#1a1a1a !important; }
-    #mobile-menu-panel .menu-oferta { background:#fce4f3 !important; color:#E91E8C !important; }
+    #mobile-menu-panel .menu-oferta { background:#F5ECE2 !important; color:#C8967A !important; }
     #mobile-menu-panel .menu-info { background:#f8f8f8 !important; color:#444 !important; }
 
     /* === ANIMACIONES === */
@@ -1372,10 +1372,56 @@
       .color-selector { grid-template-columns: repeat(3, 1fr); }
       .cats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
       .section-title { font-size: 1.8rem; }
+
+  /* ── MICROINTERACCIONES ── */
+  @keyframes cartBounce {
+    0%{transform:scale(1);} 30%{transform:scale(1.55);} 50%{transform:scale(0.88);}
+    70%{transform:scale(1.22);} 100%{transform:scale(1);}
+  }
+  .cart-badge.bounce { animation: cartBounce 0.45s cubic-bezier(0.36,0.07,0.19,0.97); }
+
+  @keyframes iconWiggle {
+    0%,100%{transform:rotate(0deg);} 20%{transform:rotate(-12deg);}
+    40%{transform:rotate(10deg);} 60%{transform:rotate(-6deg);} 80%{transform:rotate(4deg);}
+  }
+  #btn-cuenta:hover svg { animation: iconWiggle 0.5s ease; }
+
+  @keyframes addPulse {
+    0%{box-shadow:0 0 0 0 rgba(200,150,122,0.55);}
+    70%{box-shadow:0 0 0 10px rgba(200,150,122,0);}
+    100%{box-shadow:0 0 0 0 rgba(200,150,122,0);}
+  }
+  .btn-agregar:active { animation: addPulse 0.5s ease; }
+
+  @keyframes headerGlow {
+    from{box-shadow:none;}
+    to{box-shadow:0 2px 20px rgba(200,150,122,0.12);}
+  }
+  header.scrolled { animation: headerGlow 0.4s ease forwards; }
+
     }
   </style>
   <!-- SEO META TAGS BASE -->
-<meta name="robots" content="index, follow">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="author" content="Zapatillas May">
+<meta name="geo.region" content="MX-GUA">
+<meta name="geo.placename" content="León, Guanajuato">
+<meta name="theme-color" content="#FBF7F3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="canonical" href="https://zapatillasmay.mx/">
+<meta property="og:url" content="https://zapatillasmay.mx/">
+<meta property="og:title" content="Zapatillas May — Calzado de Moda para Dama | León, Guanajuato">
+<meta property="og:description" content="Calzado de moda para dama. Tacones, sandalias, botas y botines. Mayoreo y menudeo sin mínimo. Hecho en León, Guanajuato.">
+<meta property="og:image" content="https://zapatillasmay.mx/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:title" content="Zapatillas May — Calzado de Moda para Dama">
+<meta name="twitter:description" content="Calzado de moda para dama. Mayoreo y menudeo. León, Guanajuato.">
+<meta name="twitter:image" content="https://zapatillasmay.mx/og-image.jpg">
+<link rel="preconnect" href="https://zapatillasmay-production.up.railway.app">
+<link rel="preconnect" href="https://res.cloudinary.com">
+<link rel="dns-prefetch" href="https://connect.facebook.net">
+<link rel="dns-prefetch" href="https://analytics.tiktok.com">
 <meta name="language" content="es">
 <meta property="og:locale" content="es_MX">
 <meta property="og:type" content="website">
@@ -1505,26 +1551,26 @@
 
     <!-- Header del menú -->
     <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#ffffff;position:sticky;top:0;z-index:1">
-      <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;color:#0a0a0a">Zapatillas <span style="color:#E91E8C">May</span></span>
+      <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;color:#0a0a0a">Zapatillas <span style="color:#C8967A">May</span></span>
       <button onclick="cerrarMenu()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#333;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
     </div>
 
     <!-- Categorías -->
     <div style="padding:16px 12px 8px">
-      <p style="font-size:0.65rem;font-weight:700;color:#E91E8C;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
+      <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
       <a href="#" onclick="filtrarCategoria('tacones');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8;transition:background 0.15s">👠 Tacones</a>
       <a href="#" onclick="filtrarCategoria('sandalias');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🩴 Sandalias</a>
       <a href="#" onclick="filtrarCategoria('botas');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥾 Botas</a>
       <a href="#" onclick="filtrarCategoria('botines');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👢 Botines</a>
       <a href="#" onclick="filtrarCategoria('nina');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🎀 Niña</a>
-      <a href="#" onclick="mostrarOfertas();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#E91E8C;margin-bottom:4px;background:#fce4f3">🏷️ Ofertas</a>
+      <a href="#" onclick="mostrarOfertas();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">🏷️ Ofertas</a>
     </div>
 
     <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
 
     <!-- Info -->
     <div style="padding:8px 12px">
-      <p style="font-size:0.65rem;font-weight:700;color:#E91E8C;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Info</p>
+      <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Info</p>
       <a href="#" onclick="mostrarPagina('mayoreo');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">💰 Precios mayoreo</a>
       <a href="#" onclick="mostrarPagina('envios');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🚚 Envíos</a>
       <a href="#" onclick="mostrarPagina('contacto');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📞 Contacto</a>
@@ -2494,7 +2540,7 @@ if (window.ttq) ttq.track('AddToCart', {
               </div>
               <button onclick="eliminarDelCarrito(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:4px;line-height:1" title="Eliminar">🗑</button>
             </div>
-            <span class="item-price" style="${item.es_corrida?'color:#E91E8C;font-weight:600':''}">$${(item.es_corrida ? item.cantidad*6*item.precio_unitario : item.cantidad*item.precio_unitario).toFixed(2)}</span>
+            <span class="item-price" style="${item.es_corrida?'color:#C8967A;font-weight:600':''}">$${(item.es_corrida ? item.cantidad*6*item.precio_unitario : item.cantidad*item.precio_unitario).toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -2629,6 +2675,11 @@ if (window.ttq) ttq.track('AddToCart', {
       </div>
     `).join('')
     results.classList.add('show')
+    clearTimeout(window._st);
+    window._st = setTimeout(function() {
+      if (window.fbq) fbq('track', 'Search', {search_string: texto, content_category: 'calzado'});
+      if (window.ttq) ttq.track('Search', {query: texto});
+    }, 800);
   }
 
   function filtrarCategoria(categoria) {
@@ -3827,6 +3878,74 @@ window.addEventListener('scroll', () => {
   if (_cg) _gridObserver.observe(_cg, { childList: true });
   initScrollAnimations();
 
+</script>
+<script>
+(function(){
+  /* PARTÍCULAS HERO */
+  var hero=document.getElementById('hero-section');
+  if(hero){
+    var cv=document.createElement('canvas');
+    cv.style.cssText='position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0.5;';
+    hero.appendChild(cv);
+    var cx=cv.getContext('2d'),W,H,pts;
+    function rsz(){W=cv.width=hero.offsetWidth;H=cv.height=hero.offsetHeight;}
+    function mkp(){return{x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+0.4,vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,a:Math.random()*.4+.18};}
+    function drw(){
+      cx.clearRect(0,0,W,H);
+      pts.forEach(function(p){
+        cx.beginPath();cx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        cx.fillStyle='rgba(200,150,122,'+p.a+')';cx.fill();
+        p.x+=p.vx;p.y+=p.vy;
+        if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;
+      });
+      requestAnimationFrame(drw);
+    }
+    rsz();pts=Array.from({length:50},mkp);drw();
+    window.addEventListener('resize',rsz,{passive:true});
+  }
+
+  /* TILT 3D */
+  var _lm=0;
+  document.addEventListener('mousemove',function(e){
+    var n=Date.now();if(n-_lm<30)return;_lm=n;
+    document.querySelectorAll('.product-card').forEach(function(card){
+      var r=card.getBoundingClientRect();
+      var dx=(e.clientX-r.left-r.width/2)/r.width;
+      var dy=(e.clientY-r.top-r.height/2)/r.height;
+      if(Math.sqrt(dx*dx+dy*dy)<.85){
+        card.style.transform='perspective(900px) rotateY('+dx*9+'deg) rotateX('+(-dy*7)+'deg) translateY(-4px)';
+      }else{card.style.transform='';}
+    });
+  },{passive:true});
+
+  /* HEADER SCROLL */
+  window.addEventListener('scroll',function(){
+    var h=document.querySelector('header');
+    if(h)h.classList.toggle('scrolled',window.scrollY>20);
+  },{passive:true});
+
+  /* CART BOUNCE */
+  var bd=document.getElementById('cart-count');
+  if(bd)new MutationObserver(function(){
+    bd.classList.remove('bounce');void bd.offsetWidth;bd.classList.add('bounce');
+    setTimeout(function(){bd.classList.remove('bounce');},500);
+  }).observe(bd,{childList:true,characterData:true,subtree:true});
+
+  /* SCROLL IN-VIEW */
+  var _io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in-view');_io.unobserve(e.target);}});
+  },{threshold:.12});
+  function initSA(){
+    document.querySelectorAll('.product-card,.cat-card,.section-title').forEach(function(el){
+      if(!el.classList.contains('in-view'))_io.observe(el);
+    });
+  }
+  var _pg=document.getElementById('products-grid');
+  var _cg=document.getElementById('cats-grid');
+  if(_pg)new MutationObserver(initSA).observe(_pg,{childList:true});
+  if(_cg)new MutationObserver(initSA).observe(_cg,{childList:true});
+  initSA();
+})();
 </script>
 <!-- WHATSAPP FLOTANTE -->
 <a id="whatsapp-flotante" href="https://wa.me/5214792244560" target="_blank"
