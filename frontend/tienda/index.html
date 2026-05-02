@@ -16,53 +16,56 @@
 }
 
     :root {
-      --black: #0a0a0a;
-      --white: #fafafa;
-      --pink: #E91E8C;
-      --pink-light: rgba(233,30,140,0.08);
-      --pink-glow: rgba(233,30,140,0.3);
-      --gray-100: #f5f5f5;
-      --gray-200: #e8e8e8;
-      --gray-400: #aaaaaa;
-      --gray-600: #666666;
-      --gray-800: #333333;
-      --font-display: 'Cormorant Garamond', serif;
-      --font-body: 'DM Sans', sans-serif;
-      --font-mono: 'DM Mono', monospace;
-      --radius: 4px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
+  --black: #1E1415;
+  --white: #FAF8F6;
+  --pink: #B87C82;
+  --pink-light: rgba(184,124,130,0.08);
+  --pink-glow: rgba(184,124,130,0.3);
+  --cream: #F2EBE5;
+  --cream-dark: #EBE3DC;
+  --mauve: #9A8080;
+  --gray-100: #F0E8E3;
+  --gray-200: #EBE3DC;
+  --gray-400: #C4A89A;
+  --gray-600: #7A6A6A;
+  --gray-800: #3D2B2B;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+  --radius: 2px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
     body {
-      font-family: var(--font-body);
-      background: var(--white);
-      color: var(--black);
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-    }
+  font-family: var(--font-body);
+  background: var(--white);
+  color: var(--black);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
 
     /* HEADER */
     header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      background: rgba(250,250,250,0.92);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--gray-200);
-      transition: var(--transition);
-    }
+  position: fixed;
+  top: 36px;
+  left: 0; right: 0;
+  z-index: 100;
+  background: rgba(250,248,246,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--cream-dark);
+  transition: var(--transition);
+}
 
-    .header-inner {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 40px;
-      padding-top: 36px;
-      height: 100px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 24px;
-    }
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
 
     .logo {
       font-family: var(--font-display);
@@ -164,10 +167,10 @@
 
     /* HERO */
     .hero {
-  margin-top: 100px;
-  height: calc(100vh - 100px);
-  min-height: calc(100vh - 100px);
-  background: var(--black);
+  margin-top: calc(36px + 72px);
+  height: calc(100vh - 108px);
+  min-height: calc(100vh - 108px);
+  background: var(--cream);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,12 +179,12 @@
 }
 
     .hero::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 30% 50%, rgba(233,30,140,0.15) 0%, transparent 60%),
-                  radial-gradient(ellipse at 70% 80%, rgba(233,30,140,0.08) 0%, transparent 50%);
-    }
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(184,124,130,0.06) 0%, transparent 50%);
+}
 
     .hero-content {
       text-align: center;
@@ -229,53 +232,53 @@
     }
 
     .btn-primary {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 32px;
-      background: var(--pink);
-      color: white;
-      font-family: var(--font-body);
-      font-size: 0.82rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      text-decoration: none;
-      transition: var(--transition);
-    }
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition);
+}
 
-    .btn-primary:hover {
-      background: #c4116a;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px var(--pink-glow);
-    }
+.btn-primary:hover {
+  background: var(--pink);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--pink-glow);
+}
 
     .btn-outline {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 13px 32px;
-      background: transparent;
-      color: white;
-      font-family: var(--font-body);
-      font-size: 0.82rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: var(--radius);
-      cursor: pointer;
-      text-decoration: none;
-      transition: var(--transition);
-    }
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 32px;
+  background: transparent;
+  color: var(--black);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border: 1px solid var(--black);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition);
+}
 
-    .btn-outline:hover {
-      border-color: var(--pink);
-      color: var(--pink);
-    }
+.btn-outline:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
 
     /* CATEGORIAS */
     .section { max-width: 1400px; margin: 0 auto; padding: 80px 40px; }
@@ -514,10 +517,21 @@
     .banner-mayoreo h2 em { font-style: italic; color: var(--pink); }
 
     .banner-mayoreo p {
-      color: rgba(255,255,255,0.5);
-      line-height: 1.7;
-      margin-bottom: 32px;
-    }
+  color: rgba(255,255,255,0.5);
+  line-height: 1.7;
+  margin-bottom: 0;
+}
+.banner-mayoreo .btn-primary {
+  background: var(--pink) !important;
+  color: white !important;
+  border: none !important;
+}
+
+.banner-mayoreo .btn-outline {
+  background: transparent !important;
+  color: white !important;
+  border: 1px solid rgba(245,240,232,0.4) !important;
+}
 
     .mayoreo-prices {
       display: grid;
@@ -585,18 +599,21 @@
 
     .modal-img {
       border-radius: 12px 0 0 12px;
-      overflow: visible;
+      overflow: hidden;
       background: var(--gray-100);
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      min-height: 100%;
     }
 
     .modal-img img {
       width: 100%;
-      height: auto;max-height:320px;
+      height: 100%;
+      max-height: none;
       object-fit: contain;
-      background: #f5f5f5;
-  
+      background: transparent;
     }
 
     .modal-img-placeholder {
@@ -681,9 +698,9 @@
     }
 
     .color-selector {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
       margin-bottom: 20px;
     }
 
@@ -691,15 +708,16 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 6px;
       cursor: pointer;
-      padding: 4px;
-      border-radius: 6px;
+      padding: 6px 4px;
+      border-radius: 8px;
       border: 2px solid transparent;
-      transition: border-color 0.15s;
+      transition: all 0.2s ease;
     }
 
-    .color-opt.active { border-color: var(--pink); }
+    .color-opt:hover { border-color: var(--gray-200); transform: translateY(-1px); }
+    .color-opt.active { border-color: var(--pink); background: var(--pink-light); }
 
     .color-opt .dot {
       width: 24px; height: 24px;
@@ -1085,46 +1103,276 @@
     .empty p { margin-top: 12px; font-size: 0.875rem; }
 
     /* RESPONSIVE */
-    @media (min-width: 769px) {
-      .btn-hamburger { display: none !important; }
-      #mobile-menu { display: none !important; }
-    }
-    @media (max-width: 768px) {
-      .header-inner { padding: 0 20px; }
-      .nav-cats { display: none; }
-      .header-search { display: none; }
-      .section { padding: 60px 20px; }
-      .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-      .modal { grid-template-columns: 1fr; max-height: 95vh; }
-      .modal-img { border-radius: 12px 12px 0 0; height: 220px; min-height: unset; max-height: 220px; overflow: hidden; }
-      .modal-img img { height: 220px !important; max-height: 220px !important; object-fit: cover; }
-      .modal-info { padding: 16px 20px; overflow-y: auto; max-height: calc(95vh - 220px); }
-      .modal-overlay { align-items: flex-end; padding: 0; }
-      #modal-producto { border-radius: 16px 16px 0 0; max-height: 95vh; width: 100%; }
-      .cart-drawer { width: 100%; }
-      .banner-mayoreo-inner { grid-template-columns: 1fr; gap: 40px; }
-      .footer-top { grid-template-columns: 1fr 1fr; }
-      .banner-mayoreo { padding: 60px 20px; }
-    }
+@media (min-width: 769px) {
+  .btn-hamburger { display: none !important; }
+  #mobile-menu { display: none !important; }
+}
 
+.hero-bg {
+  position: absolute;
+  top: -20%;
+  left: 0;
+  width: 100%;
+  height: 140%;
+  background-size: cover;
+  background-position: center center;
+  will-change: transform;
+  z-index: 0;
+  filter: contrast(1.08) brightness(0.97) saturate(1.05);
+  opacity: 0;
+  transform: scale(1.08) translateY(40px);
+  transition: transform 1.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 1.2s ease;
+}
+
+.hero.loaded .hero-bg {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.hero-content > * {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.hero.loaded .hero-eyebrow {
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.3s;
+}
+
+.hero.loaded .hero-title {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 0.6s;
+}
+
+.hero.loaded .hero-subtitle {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 0.9s;
+}
+
+.hero.loaded .hero-cta {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 1.2s;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+  
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(250,248,246,0.50) 0%, transparent 55%),
+              radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(184,124,130,0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .hero-bg {
+    background-position: 60% top;
+    background-size: cover;
+    background-repeat: no-repeat;
+    top: 0;
+    height: 100%;
+  }
+  .hero-cta {
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100%;
+  }
+  .hero-cta .btn-primary,
+  .hero-cta .btn-outline {
+    width: 80% !important;
+    justify-content: center !important;
+  }
+  .hero-title {
+    text-shadow: 0 2px 30px rgba(245,240,232,0.4), 0 0 60px rgba(245,240,232,0.2);
+  }
+  .hero-title em {
+    text-shadow: 0 2px 20px rgba(184,124,130,0.5), 0 0 40px rgba(184,124,130,0.3);
+  }
+  .hero-subtitle {
+    text-shadow: 0 1px 10px rgba(30,20,21,0.3);
+  }
+  header { top: 36px; }
+  .header-inner { padding: 0 20px; height: 56px; }
+  .logo img { height: 120px !important; max-width: 240px; object-fit: contain; padding: 8px 0; }
+  .hero { margin-top: calc(36px + 56px); }
+  .nav-cats { display: none; }
+  .header-search { display: none; }
+  .section { padding: 60px 20px; }
+  .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .modal { grid-template-columns: 1fr; max-height: 95vh; }
+  .modal-img { border-radius: 12px 12px 0 0; aspect-ratio: 4 / 3; height: auto; max-height: 45vh; min-height: unset; padding: 16px; }
+  .modal-img img { object-fit: contain !important; height: 100% !important; max-height: 100% !important; width: auto !important; max-width: 100%; }
+  .modal-info { padding: 16px 20px; overflow-y: auto; max-height: calc(95vh - 220px); }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  #modal-producto { border-radius: 16px 16px 0 0; max-height: 95vh; width: 100%; }
+  .cart-drawer { width: 100%; }
+  .banner-mayoreo-inner { grid-template-columns: 1fr; gap: 40px; }
+  .footer-top { grid-template-columns: 1fr 1fr; }
+  .banner-mayoreo { padding: 60px 20px; }
+}
+    .logo { display: flex; align-items: center; }
+    .logo img { height: 72px; max-width: 220px; object-fit: contain; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.4s ease both; }
 
-    #mobile-menu { display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; }
+    #mobile-menu { display:none; 
+    position:fixed !important; 
+    top:0 !important; 
+    left:0 !important; 
+    right:0 !important; 
+    bottom:0 !important;
+    height:100vh !important;
+    z-index: 10000 !important; 
+    pointer-events:none; 
+  }
     #mobile-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.6); }
     #mobile-menu-panel {
-      position:absolute; top:0; right:0; bottom:0; width:75%; max-width:270px;
-      background:#ffffff !important;
-      border-left: 3px solid #E91E8C !important;
-      z-index:10000;
-      transform:translateX(100%);
-      transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
-      box-shadow:-8px 0 40px rgba(0,0,0,0.5) !important;
-    }
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: 82% !important;
+    max-width: 300px !important;
+    background:#ffffff !important;
+    border-left: 3px solid #E91E8C !important;
+    z-index: 10001 !important;
+    transform:translateX(100%);
+    transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    box-shadow:-8px 0 40px rgba(0,0,0,0.3) !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
     #mobile-menu-panel a { color:#1a1a1a !important; }
-    #mobile-menu-panel .menu-cat { background:#f5f5f5 !important; color:#1a1a1a !important; }
+    #mobile-menu-panel .menu-cat { background:#f8f8f8 !important; color:#1a1a1a !important; }
     #mobile-menu-panel .menu-oferta { background:#fce4f3 !important; color:#E91E8C !important; }
-    #mobile-menu-panel .menu-info { background:#f5f5f5 !important; color:#555 !important; }
+    #mobile-menu-panel .menu-info { background:#f8f8f8 !important; color:#444 !important; }
+
+    /* === ANIMACIONES === */
+
+    /* Entrada del modal */
+    @keyframes modalFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    @keyframes modalSlideUp {
+      from { opacity: 0; transform: translateY(24px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .modal-overlay.active {
+      animation: modalFadeIn 0.25s ease-out;
+    }
+    .modal-overlay.active .modal {
+      animation: modalSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @media (max-width: 768px) {
+      @keyframes modalSlideFromBottom {
+        from { transform: translateY(100%); }
+        to   { transform: translateY(0); }
+      }
+      #modal-producto {
+        animation: modalSlideFromBottom 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+    }
+
+    /* Hover en tarjetas */
+    .product-card {
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.4s ease;
+    }
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(30, 20, 21, 0.08);
+    }
+    .cat-card {
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                  box-shadow 0.4s ease;
+    }
+    .cat-card img {
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .cat-card:hover img { transform: scale(1.05); }
+
+    /* Shimmer en botón primario */
+    .btn-primary {
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+      transform: translateX(-100%);
+      transition: transform 0.7s ease;
+    }
+    .btn-primary:hover::after { transform: translateX(100%); }
+
+    /* Aparición en scroll */
+    .product-card, .cat-card, .section-title {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .product-card.in-view, .cat-card.in-view, .section-title.in-view {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .products-grid .product-card:nth-child(1).in-view { transition-delay: 0.05s; }
+    .products-grid .product-card:nth-child(2).in-view { transition-delay: 0.10s; }
+    .products-grid .product-card:nth-child(3).in-view { transition-delay: 0.15s; }
+    .products-grid .product-card:nth-child(4).in-view { transition-delay: 0.20s; }
+
+    /* === BREAKPOINTS INTERMEDIOS === */
+
+    /* Contenedor con max-width y padding fluido */
+    .section {
+      max-width: 1440px;
+      padding: 80px clamp(20px, 4vw, 48px);
+    }
+
+    /* Desktop grande (1440px+): evitar que el contenido quede flotando */
+    @media (min-width: 1440px) {
+      .header-inner { max-width: 1440px; }
+      .products-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* Tablet grande (1024–1200px) */
+    @media (max-width: 1200px) {
+      .products-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    }
+
+    /* Tablet (769–1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .header-inner { padding: 0 24px; }
+      .section { padding: 60px clamp(20px, 3vw, 32px); }
+      .products-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+      .cats-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .modal { max-width: 720px; }
+    }
+
+    /* Móvil mediano (481–768px): ya cubierto por el bloque @media (max-width: 768px) */
+    @media (max-width: 768px) {
+      .products-grid { gap: 16px; }
+    }
+
+    /* Móvil pequeño (≤480px) */
+    @media (max-width: 480px) {
+      .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .color-selector { grid-template-columns: repeat(3, 1fr); }
+      .cats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+      .section-title { font-size: 1.8rem; }
+    }
   </style>
   <!-- SEO META TAGS BASE -->
 <meta name="robots" content="index, follow">
@@ -1206,7 +1454,7 @@
 <body>
 
 <!-- HEADER -->
- <div id="promo-banner" style="background:#E91E8C;color:white;text-align:center;padding:8px 0;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101;overflow:hidden;height:36px;display:flex;align-items:center">
+ <div id="promo-banner" style="background:#1E1415;color:white;text-align:center;padding:8px 0;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101;overflow:hidden;height:36px;display:flex;align-items:center">
   <div style="display:flex;gap:0;animation:bannerSlide 20s linear infinite;white-space:nowrap">
     <span style="padding:0 40px">🚚 Envíos a todo México</span>
     <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
@@ -1220,7 +1468,9 @@
 </div>
 <header>
   <div class="header-inner">
-    <a class="logo" href="#" onclick="mostrarInicio()">Zapatillas <span>May</span></a>
+    <a class="logo" href="#" onclick="mostrarInicio()">
+  <img src="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" style="height:250px;object-fit:contain">
+</a>
     <ul class="nav-cats">
       <li><a href="#" onclick="filtrarCategoria('tacones')">Tacones</a></li>
       <li><a href="#" onclick="filtrarCategoria('sandalias')">Sandalias</a></li>
@@ -1251,7 +1501,7 @@
 <!-- MENU MOVIL -->
 <div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none">
   <div id="mobile-menu-overlay" onclick="cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
-  <div id="mobile-menu-panel" style="position:absolute;top:0;right:0;bottom:0;width:80%;max-width:280px;background:#ffffff;z-index:201;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);box-shadow:-8px 0 40px rgba(0,0,0,0.25);display:flex;flex-direction:column;overflow-y:auto">
+  <div id="mobile-menu-panel" style="position:fixed;top:0;right:0;bottom:0;width:82%;max-width:300px;background:#ffffff;z-index:10001;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);box-shadow:-8px 0 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
     <!-- Header del menú -->
     <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#ffffff;position:sticky;top:0;z-index:1">
@@ -1279,12 +1529,13 @@
       <a href="#" onclick="mostrarPagina('envios');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🚚 Envíos</a>
       <a href="#" onclick="mostrarPagina('contacto');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📞 Contacto</a>
       <a href="#" onclick="mostrarPagina('tabla-tallas');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📏 Tabla de tallas</a>
+      <a href="#" onclick="mostrarPagina('nosotros');cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🏪 Nosotros</a>
     </div>
 
     <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
 
     <!-- Redes y WhatsApp -->
-    <div style="padding:12px 12px 24px">
+    <div style="padding:12px 12px 200px">
       <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;background:#25D366;color:white;text-decoration:none;font-weight:600;font-size:0.88rem;margin-bottom:10px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
         WhatsApp
@@ -1302,9 +1553,10 @@
 
 <!-- HERO -->
 <section class="hero" id="hero-section">
+  <div class="hero-bg" id="hero-bg"></div>
   <div class="hero-content fade-in">
     <p class="hero-eyebrow">Nueva coleccion 2026</p>
-    <h1 class="hero-title">El estilo<br>que <em>te define</em></h1>
+    <h1 class="hero-title">El estilo<br>que <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">te define</em></h1>
     <p class="hero-subtitle">Calzado de moda para dama · Leon, Guanajuato</p>
     <div class="hero-cta">
       <button class="btn-primary" onclick="scrollToProductos()">Ver coleccion</button>
@@ -1340,24 +1592,27 @@
     <div>
       <h2>Precios de<br><em>mayoreo</em><br>sin complicaciones</h2>
       <p>Comprando mas pares obtienes mejor precio automaticamente. Sin registro especial, sin codigos, el sistema lo calcula solo.</p>
-      <button class="btn-primary" onclick="scrollToProductos()">Ver catalogo</button>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-primary" onclick="mostrarPagina('mayoreo')">Más sobre mayoreo</button>
+        <button class="btn-outline" onclick="navegarInicio()">Ver catálogo</button>
+      </div>
     </div>
-    <div class="mayoreo-prices">
-      <div class="mayoreo-price-card">
-        <div class="qty">1 par</div>
-        <div class="desc">Precio menudeo</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(245,240,232,0.06);border-left:2px solid rgba(245,240,232,0.2);border-radius:0 8px 8px 0">
+        <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">1 par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:rgba(245,240,232,0.8)">Precio menudeo</span>
       </div>
-      <div class="mayoreo-price-card">
-        <div class="qty">3-5 pares</div>
-        <div class="desc">-$30 por par</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:2px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
+        <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">3 — 5 pares</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$30 por par</span>
       </div>
-      <div class="mayoreo-price-card">
-        <div class="qty">6+ pares</div>
-        <div class="desc">-$70 por par</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:2px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
+        <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">6+ pares</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$70 por par</span>
       </div>
-      <div class="mayoreo-price-card" style="grid-column:1/-1">
-        <div class="qty">Corrida completa (mismo estilo y color)</div>
-        <div class="desc">-$110 por par</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.22);border-left:2px solid var(--pink);border-radius:0 8px 8px 0">
+        <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">Corrida completa</span>
+        <span style="font-size:0.95rem;font-weight:600;color:var(--pink)">-$110 por par</span>
       </div>
     </div>
   </div>
@@ -1464,7 +1719,7 @@
           <option value="zapateria">Zapateria (corrida completa)</option>
         </select>
       </div>
-      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Crear cuenta</button>
+      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:background 0.2s">Crear cuenta</button>
     </div>
     <div id="form-recuperacion" style="display:none">
       <button onclick="mostrarTab('login')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:0.8rem;margin-bottom:16px;padding:0">← Volver al login</button>
@@ -1544,6 +1799,7 @@
   }
   // Manejar URLs directas
 window.addEventListener('load', () => {
+  document.getElementById('hero-section').classList.add('loaded')
   console.log('PATH:', window.location.pathname)
   console.log('PARAMS:', window.location.search)
   const path = window.location.pathname
@@ -1705,14 +1961,25 @@ window.addEventListener('load', () => {
       if (waBtn) waBtn.href = `https://wa.me/${config.whatsapp_flotante}`
     }
     if (config.hero_imagen) {
-  const hero = document.getElementById('hero')
-  if (hero) {
-    hero.style.backgroundImage = `url('${config.hero_imagen}')`
-    hero.style.backgroundSize = 'cover'
-    hero.style.backgroundPosition = 'center'
-    hero.style.backgroundAttachment = 'fixed'
+  const bg = document.getElementById('hero-bg')
+  if (bg) {
+    bg.style.backgroundImage = `url('${config.hero_imagen}')`
   }
 }
+const heroBg = document.getElementById('hero-bg')
+const isMobile = window.innerWidth < 768
+
+window.addEventListener('scroll', () => {
+  if (!heroBg) return
+  const scrollY = window.scrollY
+  const intensity = isMobile ? 0.2 : 0.35
+  const floatY = Math.sin(scrollY * 0.01) * (isMobile ? 4 : 8)
+  const rotate = Math.sin(scrollY * 0.005) * (isMobile ? 0.5 : 1.5)
+  const scale = 1 + (Math.sin(scrollY * 0.008) * (isMobile ? 0.01 : 0.015))
+  const translateY = scrollY * intensity
+
+  heroBg.style.transform = `translateY(${translateY + floatY}px) scale(${scale}) rotate(${rotate}deg)`
+})
 if (config.favicon_url) {
   let favicon = document.querySelector('link[rel="icon"]')
   if (!favicon) {
@@ -2390,7 +2657,7 @@ if (window.ttq) ttq.track('AddToCart', {
 
   function mostrarInicio() {
   const pagina = document.getElementById('pagina-interna')
-  const hero = document.getElementById('hero')
+  const hero = document.getElementById('hero-section')
   const productosSection = document.getElementById('productos-section')
   const cats = document.querySelector('.section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
@@ -2460,7 +2727,10 @@ function mostrarNuevos() {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)'
     overlay.innerHTML = `
       <div style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;max-height:90vh;overflow-y:auto">
-        <h3 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;margin-bottom:4px">Datos de envío</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+         <h3 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400">Datos de envío</h3>
+           <button onclick="document.getElementById('checkout-overlay').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1.1rem;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+        </div>
         <p style="font-size:0.82rem;color:#aaa;margin-bottom:24px">Total a pagar: <strong style="color:var(--pink)">$${totalFinal.toFixed(2)} MXN</strong></p>
         <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.82rem;color:#666;text-align:center">
         ¿Ya tienes cuenta? 
@@ -2484,19 +2754,19 @@ function mostrarNuevos() {
           </div>
           <textarea id="co-notas" placeholder="Notas adicionales (opcional)" rows="2" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:none;box-sizing:border-box"></textarea>
         </div>
-        <div style="display:flex;gap:10px;margin-top:20px">
-          <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:13px;background:transparent;border:1.5px solid #e8e8e8;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancelar</button>
-          <div style="border:1px solid #f0f0f0;border-radius:8px;padding:12px;margin-bottom:12px">
-          <p style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Métodos de pago aceptados</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <span style="background:#f5f5f5;border-radius:6px;padding:4px 10px;font-size:0.75rem;font-weight:500">💳 Tarjeta crédito/débito</span>
-          <span style="background:#f5f5f5;border-radius:6px;padding:4px 10px;font-size:0.75rem;font-weight:500">🏦 Transferencia SPEI</span>
-          <span style="background:#f5f5f5;border-radius:6px;padding:4px 10px;font-size:0.75rem;font-weight:500">🏪 OXXO</span>
-          <span style="background:#f5f5f5;border-radius:6px;padding:4px 10px;font-size:0.75rem;font-weight:500">💰 Saldo MercadoPago</span>
+        <div style="margin-top:16px;border:1px solid #f0f0f0;border-radius:8px;padding:12px">
+       <p style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Métodos de pago aceptados</p>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">💳 Tarjeta crédito/débito</span>
+    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">🏦 Transferencia SPEI</span>
+    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">🏪 OXXO</span>
+    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">💰 Saldo MercadoPago</span>
        </div>
-   </div>
-          <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Pagar</button>
-        </div>
+       </div>
+       <div style="display:flex;gap:10px;margin-top:16px">
+        <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:13px;background:transparent;border:1.5px solid #e8e8e8;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancelar</button>
+        <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Pagar</button>
+       </div>
       </div>
     `
     document.body.appendChild(overlay)
@@ -2606,19 +2876,29 @@ function toggleMenu() {
   const overlay = document.getElementById('mobile-menu-overlay')
   const iconMenu = document.getElementById('icon-menu')
   const iconClose = document.getElementById('icon-close')
+  const banner = document.getElementById('promo-banner')
+  if (banner) banner.style.zIndex = '1'
+  
   if (menu.dataset.open === '1') {
     cerrarMenu()
     return
   }
+  
   menu.style.display = 'block'
   menu.style.pointerEvents = 'auto'
+  
+  // Forzar reflow antes de animar
+  panel.getBoundingClientRect()
+  
   setTimeout(() => {
-    if (panel) panel.style.transform = 'translateX(0)'
+    panel.style.transform = 'translateX(0)'
     if (overlay) overlay.style.opacity = '1'
   }, 10)
+  
   menu.dataset.open = '1'
   if (iconMenu) iconMenu.style.display = 'none'
   if (iconClose) iconClose.style.display = 'block'
+  document.body.style.overflow = 'hidden'
 }
 
 function cerrarMenu() {
@@ -2627,12 +2907,17 @@ function cerrarMenu() {
   const overlay = document.getElementById('mobile-menu-overlay')
   const iconMenu = document.getElementById('icon-menu')
   const iconClose = document.getElementById('icon-close')
+  const banner = document.getElementById('promo-banner')
+  if (banner) banner.style.zIndex = '101'
+  
   if (!menu) return
-  if (panel) panel.style.transform = 'translateX(100%)'
+  panel.style.transform = 'translateX(100%)'
   if (overlay) overlay.style.opacity = '0'
   menu.dataset.open = '0'
   if (iconMenu) iconMenu.style.display = 'block'
   if (iconClose) iconClose.style.display = 'none'
+  document.body.style.overflow = ''
+  
   setTimeout(() => {
     menu.style.display = 'none'
     menu.style.pointerEvents = 'none'
@@ -2663,6 +2948,20 @@ function cerrarAuthBtn() {
 function mostrarTab(tab) {
   document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none'
   document.getElementById('form-registro').style.display = tab === 'registro' ? 'block' : 'none'
+  document.getElementById('form-recuperacion').style.display = 'none'
+  
+  // Reset mensaje y botón de recuperación
+  const msg = document.getElementById('rec-msg')
+  const btn = document.getElementById('btn-recuperar')
+  if (msg) { msg.style.display = 'none'; msg.textContent = '' }
+  if (btn) { 
+    btn.textContent = 'Recuperar contraseña'
+    btn.disabled = false
+    btn.onclick = solicitarRecuperacion
+  }
+  const recEmail = document.getElementById('rec-email')
+  if (recEmail) recEmail.value = ''
+
   document.getElementById('tab-login').style.borderBottomColor = tab === 'login' ? 'var(--pink)' : 'transparent'
   document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--pink)' : '#aaa'
   document.getElementById('tab-registro').style.borderBottomColor = tab === 'registro' ? 'var(--pink)' : 'transparent'
@@ -2779,10 +3078,18 @@ async function solicitarRecuperacion() {
     })
     const data = await res.json()
     if (res.ok) {
-      msg.textContent = '✅ ' + (data.mensaje || 'Revisa tu email, te enviamos tu contraseña temporal.')
-      msg.style.color = 'green'
-      msg.style.display = 'block'
-      btn.textContent = 'Listo'
+     msg.textContent = '✅ ' + (data.mensaje || 'Revisa tu email, te enviamos tu contraseña temporal.')
+     msg.style.color = 'green'
+     msg.style.display = 'block'
+     btn.textContent = 'Listo, ir al login'
+     btn.disabled = false
+     btn.onclick = () => {
+    mostrarTab('login')
+    document.getElementById('rec-email').value = ''
+    msg.style.display = 'none'
+    btn.textContent = 'Recuperar contraseña'
+    btn.onclick = solicitarRecuperacion
+  }
     } else {
       msg.textContent = '❌ ' + (data.error || 'No se encontró una cuenta con ese email')
       msg.style.color = '#e53e3e'
@@ -2896,6 +3203,16 @@ async function cargarCuenta() {
   } catch(e) {
     contenido.innerHTML = '<p style="color:#e53e3e;text-align:center;padding:24px">Error cargando la cuenta. Intenta de nuevo.</p>'
   }
+}
+function navegarInicio() {
+  mostrarInicio()
+  setTimeout(() => {
+    const el = document.getElementById('productos-section')
+    if (el) {
+      el.style.display = 'block'
+      window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' })
+    }
+  }, 500)
 }
 
 async function guardarDireccion() {
@@ -3014,91 +3331,170 @@ if (usuarioGuardado) {
 <script>
 const PAGINAS = {
   'nosotros': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Nuestra historia</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;margin-bottom:20px">Zapatillas <em style="font-style:italic;color:var(--pink)">May</em></h1>
-      <p style="color:rgba(255,255,255,0.5);max-width:600px;margin:0 auto;line-height:1.8">Calzado de moda para dama desde Leon, Guanajuato.</p>
+  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
+    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Nuestra historia</p>
+    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;margin-bottom:20px">Zapatillas <em style="font-style:italic;color:var(--pink)">May</em></h1>
+    <p style="color:rgba(255,255,255,0.5);max-width:600px;margin:0 auto;line-height:1.8">Calzado de moda para dama desde Leon, Guanajuato.</p>
+  </div>
+  <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px);overflow-x:hidden">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px;align-items:center;margin-bottom:60px">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:clamp(1.8rem,4vw,2.5rem);font-weight:400;margin-bottom:20px;line-height:1.2">Nacimos en el <em style="font-style:italic;color:var(--pink)">corazon</em> del calzado mexicano</h2>
+        <p style="color:var(--gray-600);line-height:1.8;margin-bottom:16px">Leon, Guanajuato es la capital mundial del calzado, y nosotros somos parte de esa tradicion. Zapatillas May nacio con la mision de llevar moda accesible y de calidad directamente a nuestras clientas.</p>
+        <p style="color:var(--gray-600);line-height:1.8;margin-bottom:16px">Trabajamos directamente con fabricantes locales para ofrecerte los mejores precios tanto en menudeo como en mayoreo, sin intermediarios.</p>
+        <p style="color:var(--gray-600);line-height:1.8">Cada temporada renovamos nuestro catalogo con los modelos mas trendy — tacones, sandalias, botas y botines — siempre con materiales de calidad y precios justos.</p>
+      </div>
+      <div style="background:var(--gray-100);border-radius:12px;padding:40px;text-align:center">
+        <div style="margin-bottom:16px;display:flex;justify-content:center">
+      <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="80" height="80" rx="20" fill="#E91E8C" fill-opacity="0.1"/>
+    <path d="M15 55 C15 55 20 45 35 43 C45 42 52 45 58 42 C63 39 65 32 63 28" stroke="#E91E8C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M63 28 C63 28 64 22 60 20" stroke="#E91E8C" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <path d="M15 55 L62 55" stroke="#E91E8C" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M15 55 L15 58 Q38 60 62 58 L62 55" fill="#E91E8C" fill-opacity="0.15"/>
+     </svg>
     </div>
-    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;margin-bottom:80px">
+        <p style="font-family:var(--font-display);font-size:1.5rem;color:var(--black);margin-bottom:8px">Calzado de moda<br>para dama</p>
+        <p style="font-size:0.85rem;color:var(--gray-600)">Leon, Guanajuato · Mexico</p>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:60px">
+      <div style="background:var(--black);border-radius:12px;padding:28px;text-align:center">
+        <div style="font-size:1.8rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">100%</div>
+        <p style="color:rgba(255,255,255,0.6);font-size:0.82rem">Calzado mexicano de calidad</p>
+      </div>
+      <div style="background:var(--black);border-radius:12px;padding:28px;text-align:center">
+        <div style="font-size:1.8rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">Leon</div>
+        <p style="color:rgba(255,255,255,0.6);font-size:0.82rem">Capital mundial del calzado</p>
+      </div>
+      <div style="background:var(--black);border-radius:12px;padding:28px;text-align:center">
+        <div style="font-size:1.8rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">+50</div>
+        <p style="color:rgba(255,255,255,0.6);font-size:0.82rem">Modelos nuevos cada temporada</p>
+      </div>
+      <div style="background:var(--black);border-radius:12px;padding:28px;text-align:center">
+        <div style="font-size:1.8rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">MX</div>
+        <p style="color:rgba(255,255,255,0.6);font-size:0.82rem">Envios a todo Mexico</p>
+      </div>
+    </div>
+
+    <div style="background:var(--gray-100);border-radius:16px;padding:clamp(24px,5vw,48px);margin-bottom:40px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;margin-bottom:24px">Nuestros <em style="font-style:italic;color:var(--pink)">valores</em></h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
         <div>
-          <h2 style="font-family:var(--font-display);font-size:2.5rem;font-weight:400;margin-bottom:20px;line-height:1.2">Nacimos en el <em style="font-style:italic;color:var(--pink)">corazon</em> del calzado mexicano</h2>
-          <p style="color:var(--gray-600);line-height:1.8;margin-bottom:16px">Leon, Guanajuato es la capital mundial del calzado, y nosotros somos parte de esa tradicion. Zapatillas May nacio con la mision de llevar moda accesible y de calidad directamente a nuestras clientas.</p>
-          <p style="color:var(--gray-600);line-height:1.8">Trabajamos directamente con fabricantes locales para ofrecerte los mejores precios tanto en menudeo como en mayoreo, sin intermediarios.</p>
+          <p style="font-weight:700;margin-bottom:6px">👠 Moda accesible</p>
+          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Precios justos sin sacrificar estilo. Mayoreo y menudeo para todos los bolsillos.</p>
         </div>
-        <div style="background:var(--gray-100);border-radius:12px;padding:40px;text-align:center">
-          <div style="font-size:4rem;margin-bottom:16px">👠</div>
-          <p style="font-family:var(--font-display);font-size:1.5rem;color:var(--black)">Calzado de moda<br>para dama</p>
+        <div>
+          <p style="font-weight:700;margin-bottom:6px">🏭 Hecho en Mexico</p>
+          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Apoyamos a los fabricantes leoneses. Todo nuestro calzado es producido localmente.</p>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
-        <div style="background:var(--black);border-radius:12px;padding:32px;text-align:center">
-          <div style="font-size:2rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">100%</div>
-          <p style="color:rgba(255,255,255,0.6);font-size:0.85rem">Calzado mexicano de calidad</p>
+        <div>
+          <p style="font-weight:700;margin-bottom:6px">✨ Calidad garantizada</p>
+          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Seleccionamos cuidadosamente cada modelo antes de ofrecerlo a nuestras clientas.</p>
         </div>
-        <div style="background:var(--black);border-radius:12px;padding:32px;text-align:center">
-          <div style="font-size:2rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">Leon</div>
-          <p style="color:rgba(255,255,255,0.6);font-size:0.85rem">Capital mundial del calzado</p>
-        </div>
-        <div style="background:var(--black);border-radius:12px;padding:32px;text-align:center">
-          <div style="font-size:2rem;font-family:var(--font-mono);color:var(--pink);margin-bottom:8px">May</div>
-          <p style="color:rgba(255,255,255,0.6);font-size:0.85rem">Moda accesible para todas</p>
+        <div>
+          <p style="font-weight:700;margin-bottom:6px">🚚 Envio rapido</p>
+          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Enviamos a todo Mexico por Fedex, DHL o Estafeta. Entrega en 3-5 dias habiles.</p>
         </div>
       </div>
     </div>
-  `,
+
+    <div style="text-align:center">
+      <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
+    </div>
+  </div>
+`,
   'contacto': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Estamos aqui para ti</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Cont<em style="font-style:italic;color:var(--pink)">acto</em></h1>
-    </div>
-    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px">
-        <div>
-          <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:400;margin-bottom:32px">Habla con <em style="font-style:italic;color:var(--pink)">nosotros</em></h2>
-          <div style="display:flex;flex-direction:column;gap:24px">
-            <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:16px;padding:20px;background:#25D366;border-radius:12px;text-decoration:none;transition:transform 0.2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
-              <span style="font-size:2rem">💬</span>
-              <div>
-                <p style="font-weight:700;color:white;margin-bottom:2px">WhatsApp</p>
-                <p style="font-size:0.82rem;color:rgba(255,255,255,0.8)">477 247 2285 — Respuesta rapida</p>
-              </div>
-            </a>
-            <div style="padding:20px;background:var(--gray-100);border-radius:12px">
-              <p style="font-weight:600;margin-bottom:4px">📍 Ubicacion</p>
-              <p style="font-size:0.85rem;color:var(--gray-600)">Cuautla 211 Col. Killian<br>Leon, Guanajuato CP 37260</p>
-            </div>
-            <div style="padding:20px;background:var(--gray-100);border-radius:12px">
-              <p style="font-weight:600;margin-bottom:4px">🕐 Horarios</p>
-              <p style="font-size:0.85rem;color:var(--gray-600)">Lunes a Viernes: 9:00 - 18:00<br>Sabado: 9:00 - 15:00</p>
-            </div>
-            <div style="padding:20px;background:var(--gray-100);border-radius:12px">
-              <p style="font-weight:600;margin-bottom:4px">📞 Telefono</p>
-              <p style="font-size:0.85rem;color:var(--gray-600)">477 530 8983</p>
-            </div>
-          </div>
+  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%, rgba(233,30,140,0.12) 0%, transparent 60%);pointer-events:none"></div>
+    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px;position:relative">Estamos aqui para ti</p>
+    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;position:relative">Cont<em style="font-style:italic;color:var(--pink)">acto</em></h1>
+  </div>
+
+  <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px);overflow-x:hidden">
+
+    <!-- Contacto directo -->
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:40px">
+      <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:16px;padding:20px;background:#25D366;border-radius:14px;text-decoration:none;transition:transform 0.2s">
+        <div style="background:rgba(255,255,255,0.2);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
         </div>
         <div>
-          <h2 style="font-family:var(--font-display);font-size:2rem;font-weight:400;margin-bottom:32px">Enviar <em style="font-style:italic;color:var(--pink)">mensaje</em></h2>
-          <div style="display:flex;flex-direction:column;gap:16px">
-            <div>
-              <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre</label>
-              <input type="text" id="contacto-nombre" placeholder="Tu nombre" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:var(--font-body);font-size:0.875rem;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--gray-200)'">
-            </div>
-            <div>
-              <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Telefono / WhatsApp</label>
-              <input type="tel" id="contacto-tel" placeholder="477 123 4567" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:var(--font-body);font-size:0.875rem;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--gray-200)'">
-            </div>
-            <div>
-              <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Mensaje</label>
-              <textarea id="contacto-msg" placeholder="¿En que te podemos ayudar?" rows="4" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:vertical;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--pink)'" onblur="this.style.borderColor='var(--gray-200)'"></textarea>
-            </div>
-            <button onclick="enviarContacto()" style="width:100%;padding:14px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='#c4116a'" onmouseout="this.style.background='var(--pink)'">Enviar por WhatsApp</button>
-          </div>
+          <p style="font-weight:700;color:white;font-size:1rem;margin-bottom:2px">WhatsApp</p>
+          <p style="font-size:0.82rem;color:rgba(255,255,255,0.85)">479 2244560 · Respuesta rápida</p>
+        </div>
+        <span style="margin-left:auto;color:white;font-size:1.2rem">→</span>
+      </a>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
+          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📍 Ubicación</p>
+          <p style="font-size:0.82rem;color:var(--gray-600);line-height:1.6">Cuautla 211 Col. Killian<br>León, Guanajuato<br>CP 37260</p>
+        </div>
+        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
+          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">🕐 Horarios</p>
+          <p style="font-size:0.82rem;color:var(--gray-600);line-height:1.6">Lun–Vie: 9:00–18:00<br>Sábado: 9:00–15:00<br>Domingo: cerrado</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
+          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📞 Teléfono</p>
+          <p style="font-size:0.82rem;color:var(--gray-600)">477 530 8983</p>
+        </div>
+        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
+          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📧 Email</p>
+          <p style="font-size:0.82rem;color:var(--gray-600)">zapateriasmay@gmail.com</p>
         </div>
       </div>
     </div>
-  `,
+
+    <!-- Mapa -->
+    <div style="border-radius:16px;overflow:hidden;margin-bottom:40px;height:280px">
+  <iframe
+    src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBz3N1W64bMHpKPSNw-ZpiU6itvdln33G4&q=ZAPATILLAS+MAY&center=21.1227007,-101.6626636&zoom=17"
+    width="100%"
+    height="280"
+    style="border:0;display:block"
+    allowfullscreen=""
+    loading="lazy"
+    referrerpolicy="no-referrer-when-downgrade">
+  </iframe>
+</div>
+
+    <!-- Formulario -->
+    <div style="background:var(--gray-100);border-radius:20px;padding:clamp(24px,5vw,40px);margin-bottom:40px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;margin-bottom:24px">Enviar <em style="font-style:italic;color:var(--pink)">mensaje</em></h2>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre</label>
+          <input type="text" id="contacto-nombre" placeholder="Tu nombre" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Teléfono / WhatsApp</label>
+          <input type="tel" id="contacto-tel" placeholder="477 123 4567" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Mensaje</label>
+          <textarea id="contacto-msg" placeholder="¿En qué te podemos ayudar?" rows="4" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:none;background:white;box-sizing:border-box"></textarea>
+        </div>
+        <button onclick="enviarContacto()" style="width:100%;padding:14px;background:var(--pink);color:white;border:none;border-radius:10px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Enviar por WhatsApp</button>
+      </div>
+    </div>
+
+    <!-- Redes sociales -->
+    <div style="text-align:center">
+      <p style="font-size:0.82rem;color:var(--gray-600);margin-bottom:16px">Síguenos en redes sociales</p>
+      <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">📸 Instagram</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">👍 Facebook</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">🎵 TikTok</a>
+      </div>
+    </div>
+
+  </div>
+`,
   'como-comprar': `
     <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Facil y rapido</p>
@@ -3129,41 +3525,110 @@ const PAGINAS = {
     </div>
   `,
   'mayoreo': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Para zapaterias y revendedoras</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Precios de <em style="font-style:italic;color:var(--pink)">mayoreo</em></h1>
+  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.1) 0%, transparent 60%);pointer-events:none"></div>
+    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px;position:relative">Para zapaterias y revendedoras</p>
+    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;position:relative">Precios de <em style="font-style:italic;color:var(--pink)">mayoreo</em></h1>
+    <p style="color:rgba(245,240,232,0.5);margin-top:16px;max-width:500px;margin-left:auto;margin-right:auto;position:relative">Sin registro especial, sin códigos. El descuento se aplica automáticamente según la cantidad de pares.</p>
+  </div>
+
+  <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px);overflow-x:hidden">
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:48px">
+      <div style="background:var(--gray-100);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-200)">
+        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gray-600);margin-bottom:10px">1 par</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">Precio base</p>
+        <p style="font-size:0.8rem;color:var(--gray-600)">Precio menudeo del producto</p>
+      </div>
+      <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
+        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">3 — 5 pares</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$30 por par</p>
+        <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
+      </div>
+      <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
+        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">6+ pares</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$70 por par</p>
+        <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
+      </div>
+      <div style="background:var(--gray-100);border-radius:8px;padding:28px;text-align:center;border:2px solid var(--pink)">
+        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--pink);margin-bottom:10px">Corrida completa</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--pink);margin-bottom:6px">-$110 por par</p>
+        <p style="font-size:0.8rem;color:var(--gray-600)">Mismo modelo y color, todas las tallas</p>
+      </div>
     </div>
-    <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <p style="font-size:1.1rem;color:var(--gray-600);text-align:center;margin-bottom:60px;line-height:1.7">El descuento se aplica <strong>automaticamente</strong> segun la cantidad de pares en tu carrito. Sin registro especial, sin codigos.</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:40px">
+
+    <div style="background:var(--black);border-radius:12px;padding:clamp(24px,5vw,48px);margin-bottom:48px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;color:var(--white);margin-bottom:8px">Ejemplo <em style="font-style:italic;color:var(--pink)">práctico</em></h2>
+      <p style="color:rgba(245,240,232,0.4);font-size:0.85rem;margin-bottom:24px">Sandalia con precio menudeo de $400 MXN</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
         ${[
-          ['1 par', 'Precio menudeo', 'El precio base del producto', 'var(--gray-100)', 'var(--black)'],
-          ['3 - 5 pares', '-$30 por par', 'Pares variados de cualquier modelo y color', '#fff8e1', '#f57f17'],
-          ['6+ pares', '-$70 por par', 'Pares variados de cualquier modelo y color', '#e8f5e9', '#2e7d32'],
-          ['Corrida completa', '-$110 por par', 'Mismo modelo y color en todas las tallas', '#fce4f3', 'var(--pink)'],
-        ].map(([cant, desc, detalle, bg, color]) => `
-          <div style="background:${bg};border-radius:16px;padding:32px">
-            <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:${color};margin-bottom:8px">${cant}</p>
-            <p style="font-family:var(--font-mono);font-size:1.8rem;font-weight:700;color:${color};margin-bottom:8px">${desc}</p>
-            <p style="font-size:0.82rem;color:var(--gray-600)">${detalle}</p>
+          ['1 par','$400 c/u','$400 total','rgba(245,240,232,0.05)','rgba(245,240,232,0.7)'],
+          ['3 pares','$370 c/u','$1,110 total','rgba(184,124,130,0.12)','#C4A89A'],
+          ['6 pares','$330 c/u','$1,980 total','rgba(184,124,130,0.2)','#B87C82'],
+          ['Corrida (6 tallas)','$290 c/u','$1,740 total','rgba(184,124,130,0.3)','#FAF8F6'],
+        ].map(([c,p,t,bg,col]) => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:${bg};border-radius:8px;gap:8px">
+            <span style="color:rgba(245,240,232,0.6);font-size:0.85rem;flex:1">${c}</span>
+            <span style="color:var(--white);font-family:var(--font-mono);font-size:0.9rem;font-weight:600;flex:1;text-align:center">${p}</span>
+            <span style="color:${col};font-family:var(--font-mono);font-weight:700;flex:1;text-align:right">${t}</span>
           </div>
         `).join('')}
       </div>
-      <div style="background:var(--black);border-radius:16px;padding:40px">
-        <h3 style="font-family:var(--font-display);font-size:1.8rem;color:white;margin-bottom:20px">Ejemplo <em style="font-style:italic;color:var(--pink)">practico</em></h3>
-        <p style="color:rgba(255,255,255,0.5);margin-bottom:24px">Sandalia con precio menudeo de $400 MXN:</p>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          ${[['1 par','$400 c/u','$400 total'],['3 pares','$370 c/u','$1,110 total'],['6 pares','$330 c/u','$1,980 total'],['Corrida completa','$290 c/u','precio especial']].map(([c,p,t]) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:rgba(255,255,255,0.08);border-radius:8px">
-              <span style="color:rgba(255,255,255,0.6);font-size:0.85rem">${c}</span>
-              <span style="color:white;font-family:var(--font-mono);font-weight:600">${p}</span>
-              <span style="color:var(--pink);font-family:var(--font-mono);font-weight:700">${t}</span>
-            </div>
-          `).join('')}
-        </div>
+    </div>
+
+    <div style="margin-bottom:48px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;margin-bottom:24px;text-align:center">¿Qué <em style="font-style:italic;color:var(--pink)">incluye</em> tu pedido?</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+        ${[
+          ['📦','Empaque cuidadoso','Cada par va en su caja individual protegida para que llegue en perfectas condiciones.'],
+          ['🧾','Factura disponible','Emitimos factura para tus compras de mayoreo. Los precios de mayoreo no incluyen IVA.'],
+          ['🚚','Envío a todo México','Trabajamos con Fedex, DHL y Estafeta. Entrega en 3 a 5 días hábiles.'],
+          ['💬','Atención personalizada','Te asesoramos por WhatsApp para elegir los modelos que mejor se vendan en tu zona.'],
+          ['🔄','Variedad de modelos','Puedes mezclar modelos y colores en un mismo pedido para alcanzar el precio de mayoreo.'],
+          ['📸','Fotos profesionales','Te compartimos material fotográfico de los productos para que puedas venderlos fácilmente.'],
+        ].map(([ico,tit,desc]) => `
+          <div style="background:var(--gray-100);border-radius:8px;padding:24px;border:1px solid var(--gray-200)">
+            <div style="font-size:1.8rem;margin-bottom:10px">${ico}</div>
+            <p style="font-weight:700;margin-bottom:6px;font-size:0.95rem;color:var(--black)">${tit}</p>
+            <p style="font-size:0.82rem;color:var(--gray-600);line-height:1.7">${desc}</p>
+          </div>
+        `).join('')}
       </div>
     </div>
-  `,
+
+    <div style="margin-bottom:48px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;margin-bottom:24px;text-align:center">Preguntas <em style="font-style:italic;color:var(--pink)">frecuentes</em></h2>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${[
+          ['¿Hay mínimo de compra?','No hay mínimo de registro ni de compra. Puedes comprar desde 1 par al precio de menudeo y el descuento de mayoreo se aplica automáticamente según la cantidad.'],
+          ['¿Puedo mezclar modelos y colores?','Sí. El precio de mayoreo se calcula por el total de pares en tu pedido, sin importar si son modelos o colores diferentes.'],
+          ['¿Qué es una corrida completa?','Es el mismo modelo y color en todas las tallas disponibles (generalmente del 23 al 26). Tiene el mejor precio por par.'],
+          ['¿Cómo se hace el pago?','Aceptamos transferencia SPEI, tarjeta de crédito/débito, OXXO y Mercado Pago. También efectivo si recoges en tienda en León.'],
+          ['¿Hacen envíos fuera de México?','Por el momento solo enviamos dentro de la República Mexicana.'],
+          ['¿Puedo ver los productos antes de comprar?','Sí, puedes visitar nuestra tienda en León, Guanajuato. También te mandamos fotos y videos por WhatsApp.'],
+        ].map(([q,a]) => `
+          <div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
+            <div style="padding:16px 20px;font-weight:600;font-size:0.9rem;background:var(--white);cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--black)" onclick="const ans=this.nextElementSibling;const arr=this.querySelector('span');ans.style.display=ans.style.display==='none'?'block':'none';arr.textContent=ans.style.display==='none'?'＋':'－'">
+              ${q}
+              <span style="color:var(--pink);font-size:1.2rem;font-weight:400;flex-shrink:0;margin-left:8px">＋</span>
+            </div>
+            <div style="display:none;padding:0 20px 16px;font-size:0.85rem;color:var(--gray-600);line-height:1.7;background:var(--white)">${a}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div style="background:var(--black);border-radius:12px;padding:clamp(32px,5vw,48px);text-align:center">
+      <p style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2.2rem);color:var(--white);margin-bottom:12px">¿Lista para <em style="font-style:italic;color:var(--pink)">empezar?</em></p>
+      <p style="color:rgba(245,240,232,0.5);margin-bottom:28px;font-size:0.9rem;max-width:400px;margin-left:auto;margin-right:auto">Contáctanos por WhatsApp y te asesoramos para armar tu pedido perfecto.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 WhatsApp</a>
+        <button onclick="navegarInicio()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:var(--pink);color:var(--white);border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer">👠 Ver catálogo</button>
+      </div>
+    </div>
+
+  </div>
+`,
   'privacidad': `
     <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
       <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Transparencia y confianza</p>
@@ -3329,7 +3794,7 @@ function enviarContacto() {
   window.open('https://wa.me/5214792244560?text=' + texto, '_blank')
 }
 window.addEventListener('scroll', () => {
-  const hero = document.getElementById('hero')
+  const hero = document.getElementById('hero-section')
   if (hero) {
     const scrolled = window.scrollY
     hero.style.backgroundPositionY = scrolled * 0.5 + 'px'
@@ -3337,17 +3802,41 @@ window.addEventListener('scroll', () => {
     if (content) content.style.transform = `translateY(${scrolled * 0.3}px)`
   }
 })
+
+  // === SCROLL ANIMATION (IntersectionObserver) ===
+  const _io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in-view');
+        _io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  function initScrollAnimations() {
+    document.querySelectorAll('.product-card, .cat-card, .section-title').forEach(el => {
+      if (!el.classList.contains('in-view')) _io.observe(el);
+    });
+  }
+
+  // Observar cuando se rendericen productos y categorías dinámicamente
+  const _gridObserver = new MutationObserver(() => initScrollAnimations());
+  const _pg = document.getElementById('products-grid');
+  const _cg = document.getElementById('cats-grid');
+  if (_pg) _gridObserver.observe(_pg, { childList: true });
+  if (_cg) _gridObserver.observe(_cg, { childList: true });
+  initScrollAnimations();
+
 </script>
 <!-- WHATSAPP FLOTANTE -->
 <a id="whatsapp-flotante" href="https://wa.me/5214792244560" target="_blank"
-   style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:white;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,0.4);text-decoration:none;transition:transform 0.2s"
-   onmouseover="this.style.transform='scale(1.1)'"
-   onmouseout="this.style.transform='scale(1)'">
+   style="position:fixed;bottom:16px;right:16px;z-index:999;background:#25D366;color:white;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.15),0 0 0 1px rgba(37,211,102,0.2);text-decoration:none;transition:transform 0.2s,box-shadow 0.2s"
+   onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 4px 18px rgba(0,0,0,0.18),0 0 0 2px rgba(37,211,102,0.3)'"
+   onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 2px 10px rgba(0,0,0,0.15),0 0 0 1px rgba(37,211,102,0.2)'">
   <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/>
   </svg>
 </a>
-</script>
 </body>
 </html>
