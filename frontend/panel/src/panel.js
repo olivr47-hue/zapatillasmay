@@ -3209,7 +3209,7 @@ if (!datos) window._coloresExistentes = null
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
           <div>
             <label class="form-label">Peso en kilos (para envio)</label>
-            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="\${d.peso_gramos ? (d.peso_gramos / 1000).toFixed(2) : ''}">
+            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="${d.peso_gramos ? (d.peso_gramos / 1000).toFixed(2) : ''}">
           </div>
           <div>
             <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -3239,7 +3239,7 @@ if (!datos) window._coloresExistentes = null
       </div>
 
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
-        <input type="hidden" id="f-producto-id" value="\${d.id || ''}">
+        <input type="hidden" id="f-producto-id" value="${d.id || ''}">
         <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">💾 Guardar producto</button>
       </div>
     </div>
