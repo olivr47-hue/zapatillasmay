@@ -2788,6 +2788,7 @@ if (window.ttq) ttq.track('AddToCart', {
     document.getElementById('productos-titulo').innerHTML = categoria.charAt(0).toUpperCase()+categoria.slice(1)+' <em>disponibles</em>'
     renderProductos(filtrados)
     scrollToProductos()
+    history.replaceState({}, '', '/#categoria/' + categoria)
   }
 
   function mostrarTodos() {
@@ -2818,6 +2819,7 @@ if (window.ttq) ttq.track('AddToCart', {
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   renderProductos(productos.filter(p => p.activo).slice(0, 12))
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.replaceState({}, '', '/')
 }
 function mostrarCatalogo() {
   const pagina = document.getElementById('pagina-interna')
@@ -2835,6 +2837,7 @@ function mostrarCatalogo() {
   document.getElementById('productos-titulo').innerHTML = 'Todo el <em>catálogo</em>'
   renderProductos(productos.filter(p => p.activo))
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.replaceState({}, '', '/#catalogo')
 }
 
 function mostrarNuevos() {
@@ -2854,6 +2857,7 @@ function mostrarNuevos() {
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   renderProductos(nuevos)
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.replaceState({}, '', '/#nuevos')
 }
 
   function scrollToProductos() {
@@ -3946,6 +3950,7 @@ function mostrarPagina(id) {
   setTimeout(function(){ animarPaginaInterna(contenido); }, 30)
   pagina.style.display = 'block'
   window.scrollTo({ top: 0, behavior: 'smooth' })
+  history.replaceState({}, '', '/#' + id)
 }
 
 function enviarContacto() {

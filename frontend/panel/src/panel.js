@@ -77,7 +77,9 @@ let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
 let varianteCount = 1
 
 export function renderPanel() {
-  moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
+  const _savedModulo = (() => { try { return localStorage.getItem('zm_panel_modulo') } catch(e) { return null } })()
+  const _defaultModulo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
+  moduloActivo = _savedModulo || _defaultModulo
   document.querySelector('#app').innerHTML = `
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar" id="sidebar">
@@ -194,6 +196,7 @@ export function renderPanel() {
       return
     }
     moduloActivo = id
+    try { localStorage.setItem('zm_panel_modulo', id) } catch(e) {}
     const sidebar = document.getElementById('sidebar')
     const overlay = document.getElementById('sidebar-overlay')
     if (sidebar.classList.contains('open')) {
@@ -3940,38 +3943,24 @@ window.toggleProducto = async (id, activo) => {
   }
 }
 window.filtrarClientes = () => {
-  const buscar = document.getElementById('cli-buscar').value.toLowerCase()
-  const tipo = document.getElementById('cli-tipo').value
-  const data = window._clientesData || []
-  const filtrados = data.filter(c => {
-    if (buscar && !c.nombre.toLowerCase().includes(buscar) && !(c.telefono || '').includes(buscar)) return false
-    if (tipo && c.tipo !== tipo) return false
-    return true
+  const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase().trim()
+  const tipo = document.getElementById('cli-tipo')?.value || ''
+  // Works with .cli-item card view (data attributes)
+  const items = document.querySelectorAll('.cli-item')
+  let visible = 0
+  items.forEach(el => {
+    const nombre = (el.dataset.nombre || '').toLowerCase()
+    const tel = el.dataset.tel || ''
+    const tipoEl = el.dataset.tipo || ''
+    const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
+    const matchTipo = !tipo || tipoEl === tipo
+    const show = matchBuscar && matchTipo
+    el.style.display = show ? '' : 'none'
+    if (show) visible++
   })
-  const tbody = document.getElementById('cli-tbody')
-  if (!tbody) return
-  tbody.innerHTML = filtrados.length === 0
-    ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No se encontraron clientes</td></tr>'
-    : filtrados.map(c => `
-      <tr>
-        <td>
-          <strong>${c.nombre}</strong>
-          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">📝 ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
-        </td>
-        <td>
-          ${c.telefono || '—'}
-          ${c.telefono ? '<br><a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" style="font-size:0.72rem;color:#25D366;text-decoration:none">WhatsApp</a>' : ''}
-        </td>
-        <td><span class="badge ${c.tipo === 'mayoreo' ? 'badge-info' : c.tipo === 'zapateria' ? 'badge-warning' : 'badge-success'}">${c.tipo || 'menudeo'}</span></td>
-        <td>${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' dias' : 'Sin credito'}</td>
-        <td>${c.ciudad || '—'}</td>
-        <td style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verCliente('${c.id}')">Ver</button>
-          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
-          ${c.telefono ? '<a href="https://wa.me/' + (c.lada || '52') + c.telefono.replace(/\D/g,'') + '" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WA</a>' : ''}
-        </td>
-      </tr>
-    `).join('')
+  // Update count label if present
+  const countEl = document.getElementById('cli-count')
+  if (countEl) countEl.textContent = visible
 }
 
 window.mostrarFormCliente = async (id) => {
