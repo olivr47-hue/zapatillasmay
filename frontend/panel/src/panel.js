@@ -1544,7 +1544,8 @@ async function cargarCRM() {
 }
 
 window.mostrarSegmento = (seg) => {
-  const { clientes } = window._crmData
+  const { clientes } = window._crmData || {}
+  if (!clientes) return
   const filtrados = clientes.filter(c => c.segmento === seg).sort((a,b) => b.totalGastado - a.totalGastado)
   const nombres = { vip: '⭐ Clientes VIP', riesgo: '🟡 En riesgo', inactivo: '🔴 Inactivos', frecuente: '🟢 Frecuentes' }
   const div = document.getElementById('crm-segmento-detalle')
@@ -2804,7 +2805,8 @@ window.seleccionarVariante = (id, texto, prefijo) => {
 
 function renderVariante(i, datos) {
   const d = datos || {}
-  
+  const esNuevo = !datos  // new color starts expanded, existing starts collapsed
+
   let fotosHTML = ''
   if (d.imagenes && d.imagenes.length > 0) {
     fotosHTML = d.imagenes.map((url, fIdx) => {
@@ -2822,47 +2824,75 @@ function renderVariante(i, datos) {
     </div>`
   }
 
+  const thumbSrc = (d.imagenes && d.imagenes[0]) || d.foto_url || ''
+  const thumbHTML = thumbSrc
+    ? `<img src="${thumbSrc}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
+    : `<div style="width:36px;height:36px;background:#f0f0f0;border-radius:6px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#ccc;flex-shrink:0">📷</div>`
+
   return `
-    <div class="variante-item" id="variante-${i}" style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,0.05)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <p style="font-weight:700;color:#333;font-size:0.95rem">Color ${i + 1}</p>
-        ${i > 0 ? `<button type="button" onclick="eliminarColorVariante(${i}, this)" style="background:#ffebee;border:1px solid #ffcdd2;color:#c62828;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;font-weight:600">Eliminar</button>` : ''}
+    <div class="variante-item" id="variante-${i}" style="margin-bottom:0.625rem;border-radius:12px;border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow:hidden">
+
+      <!-- ── Compact header: always visible ── -->
+      <div onclick="toggleVariante(${i})"
+           style="display:flex;align-items:center;gap:10px;padding:0.75rem 1rem;background:white;cursor:pointer;user-select:none">
+        <div id="v${i}-swatch-header"
+             style="width:26px;height:26px;border-radius:50%;background:${d.color_hex || '#cccccc'};border:2px solid #ddd;flex-shrink:0"></div>
+        <span id="v${i}-header-label"
+              style="font-weight:600;color:#333;font-size:0.9rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${d.color || 'Color ' + (i + 1)}
+        </span>
+        <div id="v${i}-header-thumb" style="flex-shrink:0">${thumbHTML}</div>
+        ${i === 0 ? '<span style="font-size:0.65rem;background:#E91E8C;color:white;padding:2px 8px;border-radius:100px;font-weight:700;flex-shrink:0">PORTADA</span>' : ''}
+        <span id="v${i}-chevron"
+              style="color:#bbb;font-size:0.8rem;flex-shrink:0;transition:transform 0.2s;transform:${esNuevo ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
+        ${i > 0 ? `<button type="button" onclick="event.stopPropagation();eliminarColorVariante(${i},this)"
+                style="background:#ffebee;border:1px solid #ffcdd2;color:#c62828;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;font-weight:600;flex-shrink:0;line-height:1">✕</button>` : ''}
       </div>
 
-      <div style="margin-bottom:1rem">
-        <label class="form-label" style="margin-bottom:8px">Paleta de colores</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${COLORES_SUGERIDOS.map(c => `
-            <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
-                 title="${c.nombre}"
-                 style="width:26px;height:26px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
-                 onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
-            </div>
-          `).join('')}
-        </div>
-      </div>
+      <!-- ── Expandable body ── -->
+      <div id="v${i}-body" style="display:${esNuevo ? 'block' : 'none'};padding:1rem;background:#fafafa;border-top:1px solid #f0f0f0">
 
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-        <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
-               style="width:44px;height:44px;border:2px solid #eee;border-radius:8px;cursor:pointer;padding:2px;flex-shrink:0">
-        <input class="form-input" id="v${i}-nombre" placeholder="Nombre del color (ej: Negro, Nude, Carey...)" 
-               value="${d.color || ''}" style="flex:1;min-width:140px" oninput="actualizarTablaStock()">
-      </div>
-
-      <div style="background:#f9fafb;border-radius:10px;padding:1rem;border:1px dashed #ddd">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div>
-            <p style="font-size:0.82rem;font-weight:600;color:#555;margin-bottom:2px">Fotos de este color</p>
-            <p style="font-size:0.72rem;color:#aaa">La primera foto será la portada</p>
+        <!-- Palette -->
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.76rem;font-weight:600;color:#888;display:block;margin-bottom:5px">Paleta rápida</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            ${COLORES_SUGERIDOS.map(c => `
+              <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
+                   title="${c.nombre}"
+                   style="width:24px;height:24px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
+                   onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+              </div>
+            `).join('')}
           </div>
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('v${i}-imgs').click()" 
-                  style="font-size:0.82rem;padding:6px 14px">
-            📷 Subir fotos
-          </button>
-          <input type="file" id="v${i}-imgs" multiple accept="image/*" onchange="previsualizarImagenes(this, ${i})" style="display:none">
         </div>
-        <div id="v${i}-preview" style="display:flex;gap:10px;flex-wrap:wrap">
-          ${fotosHTML || `<div style="width:72px;height:72px;background:#f0f0f0;border-radius:10px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#ccc">📷</div>`}
+
+        <!-- Color picker + name -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap">
+          <input type="color" id="v${i}-hex" value="${d.color_hex || '#000000'}"
+                 style="width:40px;height:40px;border:2px solid #eee;border-radius:8px;cursor:pointer;padding:2px;flex-shrink:0"
+                 oninput="var s=document.getElementById('v${i}-swatch-header');if(s)s.style.background=this.value">
+          <input class="form-input" id="v${i}-nombre"
+                 placeholder="Nombre del color (ej: Negro, Nude, Carey...)"
+                 value="${d.color || ''}" style="flex:1;min-width:130px"
+                 oninput="actualizarTablaStock();var lbl=document.getElementById('v${i}-header-label');if(lbl)lbl.textContent=this.value||'Color ${i+1}'">
+        </div>
+
+        <!-- Photo uploader -->
+        <div style="background:white;border-radius:10px;padding:0.875rem;border:1px dashed #ddd">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div>
+              <p style="font-size:0.8rem;font-weight:600;color:#555;margin-bottom:1px">Fotos de este color</p>
+              <p style="font-size:0.7rem;color:#aaa">La 1ª foto será portada · tócala para cambiarla</p>
+            </div>
+            <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('v${i}-imgs').click()"
+                    style="font-size:0.8rem;padding:5px 12px">📷 Subir fotos</button>
+            <input type="file" id="v${i}-imgs" multiple accept="image/*"
+                   onchange="previsualizarImagenes(this,${i})" style="display:none">
+          </div>
+          <div id="v${i}-preview" style="display:flex;gap:8px;flex-wrap:wrap">
+            ${fotosHTML || `<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>`}
+          </div>
         </div>
       </div>
     </div>
@@ -2973,8 +3003,11 @@ window.mostrarFormProducto = (datos) => {
   : 1
 if (!datos) window._coloresExistentes = null
   content.innerHTML = `
-    <div class="table-card" style="padding:2rem">
-      <h3 style="margin-bottom:1.5rem">${datos ? 'Editar producto' : 'Nuevo producto'}</h3>
+    <div class="table-card" style="padding:2rem;overflow:visible">
+      <div style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;margin:-2rem -2rem 1.5rem -2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <button type="button" class="btn btn-secondary" onclick="navegarA('productos')" style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.85rem">← Volver</button>
+        <button type="button" class="btn btn-primary" onclick="guardarProducto()" style="padding:6px 18px;font-size:0.85rem">💾 Guardar</button>
+      </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div>
@@ -3163,22 +3196,51 @@ if (!datos) window._coloresExistentes = null
       </div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-        <p style="font-weight:600;margin-bottom:1rem;color:#333">Logistica y SEO</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+          <div>
+            <p style="font-weight:600;color:#333;margin-bottom:2px">Logistica y SEO</p>
+            <p style="font-size:0.75rem;color:#aaa">Los campos de SEO se llenan automaticamente, pero puedes editarlos.</p>
+          </div>
+          <button type="button" id="btn-generar-seo" onclick="generarSEO()"
+                  style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f3e5f5;border:1px solid #ce93d8;color:#6a1b9a;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:all 0.2s">
+            ✨ Generar SEO
+          </button>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
           <div>
             <label class="form-label">Peso en kilos (para envio)</label>
-            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="${d.peso_gramos ? (d.peso_gramos / 1000).toFixed(2) : ''}">
+            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="\${d.peso_gramos ? (d.peso_gramos / 1000).toFixed(2) : ''}">
           </div>
-          <div><label class="form-label">Slug URL (para SEO)</label><input class="form-input" id="f-slug" placeholder="Ej: sandalia-tacon-valentina" value="${d.slug || ''}"></div>
-          <div><label class="form-label">Meta titulo (SEO)</label><input class="form-input" id="f-metatitulo" placeholder="Ej: Sandalia de tacon Valentina | Zapatillas May" value="${d.meta_titulo || ''}"></div>
-          <div><label class="form-label">Meta descripcion (SEO)</label><input class="form-input" id="f-metadesc" placeholder="Descripcion para Google (max 160 caracteres)" value="${d.meta_descripcion || ''}"></div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Slug URL <span style="color:#888;font-size:0.72rem">(para SEO)</span></span>
+              <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
+            </label>
+            <input class="form-input" id="f-slug" placeholder="se genera del nombre del producto" value="${d.slug || ''}">
+          </div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Meta titulo <span style="color:#888;font-size:0.72rem">(SEO)</span></span>
+              <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
+            </label>
+            <input class="form-input" id="f-metatitulo" placeholder="se genera del nombre del producto" value="${d.meta_titulo || ''}">
+          </div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Meta descripcion <span style="color:#888;font-size:0.72rem">(Google)</span></span>
+              <span id="metadesc-counter" style="font-size:0.72rem;color:${d.meta_descripcion && d.meta_descripcion.length > 140 ? '#e65100' : '#888'}">${d.meta_descripcion ? d.meta_descripcion.length + '/160' : '0/160'}</span>
+            </label>
+            <textarea class="form-input" id="f-metadesc" rows="3"
+                      placeholder="Usa ✨ Generar SEO para crear una descripcion optimizada para Google (max 160 caracteres)"
+                      style="resize:vertical"
+                      oninput="var c=document.getElementById('metadesc-counter');if(c){c.textContent=this.value.length+'/160';c.style.color=this.value.length>160?'#c62828':this.value.length>140?'#e65100':'#888'}">${d.meta_descripcion || ''}</textarea>
+          </div>
         </div>
       </div>
 
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
-        <button type="button" class="btn btn-secondary" onclick="navegarA('productos')">Cancelar</button>
-        <input type="hidden" id="f-producto-id" value="${d.id || ''}">
-        <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">Guardar producto</button>
+        <input type="hidden" id="f-producto-id" value="\${d.id || ''}">
+        <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">💾 Guardar producto</button>
       </div>
     </div>
   `
@@ -3215,6 +3277,13 @@ window.seleccionarColorPortada = (idx) => {
   }
 }
 
+const _slugify = (text) =>
+  text.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim().replace(/\s+/g, '-').replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
 window.actualizarSKU = async () => {
   const nombre = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
   const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
@@ -3226,6 +3295,13 @@ window.actualizarSKU = async () => {
       const data = await res.json()
       skuInput.value = data.sku_base
     } catch(e) {}
+  }
+  // Auto-fill SEO fields if still empty
+  if (nombre) {
+    const slugInput = document.getElementById('f-slug')
+    if (slugInput && !slugInput.value) slugInput.value = _slugify(nombre)
+    const metaTitulo = document.getElementById('f-metatitulo')
+    if (metaTitulo && !metaTitulo.value) metaTitulo.value = nombre.trim() + ' | Zapatillas May'
   }
 }
 
@@ -3244,20 +3320,174 @@ window.regenerarSKU = async () => {
   }
 }
 
+// Fallback template-based SEO (usado si la IA no responde)
+function _generarSEOTemplate(nombre, descripcion, categoria, material, tacon, tipoTacon, precio) {
+  const slugInput = document.getElementById('f-slug')
+  const metaTituloInput = document.getElementById('f-metatitulo')
+  const metaDescInput = document.getElementById('f-metadesc')
+
+  if (slugInput && !slugInput.value) slugInput.value = _slugify(nombre)
+  if (metaTituloInput && !metaTituloInput.value) metaTituloInput.value = nombre + ' | Zapatillas May'
+
+  const partes = ['Compra ' + nombre + ' en Zapatillas May.']
+  if (descripcion) {
+    const frase = descripcion.split(/[.!?\n]/)[0].trim()
+    if (frase.length > 10) partes.push(frase.slice(0, 65) + (frase.length > 65 ? '...' : ''))
+  } else if (categoria) {
+    const catMap = { sandalia:'Sandalia elegante para dama', bota:'Bota de moda para dama', tenis:'Tenis casual para dama', mocasin:'Mocasín cómodo para dama', zapatilla:'Zapatilla de moda para dama', plataforma:'Plataforma cómoda para dama' }
+    partes.push((catMap[categoria] || categoria) + '.')
+  }
+  if (material) partes.push('Material ' + material + '.')
+  if (tacon && tipoTacon) partes.push('Tacón ' + tipoTacon + ' ' + tacon + ' cm.')
+  else if (tacon) partes.push('Tacón ' + tacon + ' cm.')
+  if (precio) partes.push('Desde $' + parseInt(precio).toLocaleString('es-MX') + ' MXN.')
+  partes.push('Envío a todo México.')
+
+  let desc = partes.join(' ')
+  if (desc.length > 160) desc = desc.slice(0, 157) + '...'
+  if (metaDescInput) _aplicarMetaDesc(desc)
+}
+
+function _aplicarMetaDesc(desc) {
+  const metaDescInput = document.getElementById('f-metadesc')
+  if (metaDescInput) {
+    metaDescInput.value = desc
+    const counter = document.getElementById('metadesc-counter')
+    if (counter) {
+      counter.textContent = desc.length + '/160'
+      counter.style.color = desc.length > 160 ? '#c62828' : desc.length > 140 ? '#e65100' : '#4caf50'
+    }
+  }
+}
+
+window.generarSEO = async () => {
+  const nombre     = (document.getElementById('f-nombre')?.value || '').trim()
+  const descripcion = (document.getElementById('f-descripcion')?.value || '').trim()
+  const categoria  = (document.getElementById('f-categoria')?.value || '').trim()
+  const material   = (document.getElementById('f-material')?.value || '').trim()
+  const tacon      = (document.getElementById('f-tacon')?.value || '').trim()
+  const tipoTacon  = (document.getElementById('f-tipotacon')?.value || '').trim()
+  const precio     = (document.getElementById('f-menudeo')?.value || '').trim()
+  const horma      = (document.getElementById('f-horma')?.value || '').trim()
+
+  if (!nombre && !descripcion) {
+    alert('Escribe el nombre o la descripción del producto primero')
+    return
+  }
+
+  const btn = document.getElementById('btn-generar-seo')
+  if (btn) {
+    btn.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite">⏳</span> Analizando...'
+    btn.disabled = true
+    btn.style.opacity = '0.7'
+  }
+
+  try {
+    const res = await fetch(API + '/productos/generar-seo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, descripcion, categoria, material, tacon, tipo_tacon: tipoTacon, precio, horma })
+    })
+    const data = await res.json()
+
+    if (data.error) throw new Error(data.error)
+
+    // Aplicar resultados de la IA
+    const slugInput = document.getElementById('f-slug')
+    const metaTituloInput = document.getElementById('f-metatitulo')
+
+    if (slugInput && data.slug) slugInput.value = data.slug
+    if (metaTituloInput && data.meta_titulo) metaTituloInput.value = data.meta_titulo
+    if (data.meta_descripcion) _aplicarMetaDesc(data.meta_descripcion)
+
+    // Si la IA sugirió un nombre de producto más descriptivo, mostrarlo sutilmente
+    if (data.nombre_producto && nombre !== data.nombre_producto) {
+      const nombreInput = document.getElementById('f-nombre')
+      if (nombreInput) {
+        // Mostrar sugerencia de nombre sin reemplazar automáticamente
+        let sug = document.getElementById('seo-nombre-sugerido')
+        if (!sug) {
+          sug = document.createElement('div')
+          sug.id = 'seo-nombre-sugerido'
+          sug.style.cssText = 'margin-top:6px;padding:8px 12px;background:#f3e5f5;border-radius:8px;border:1px solid #ce93d8;font-size:0.78rem;color:#6a1b9a;display:flex;align-items:center;justify-content:space-between;gap:8px'
+          nombreInput.parentElement.appendChild(sug)
+        }
+        sug.dataset.sugerido = data.nombre_producto
+        sug.innerHTML = '<span>✨ Nombre sugerido para la tienda: <strong>' + data.nombre_producto + '</strong></span>' +
+          '<button onclick="var p=this.closest(\'#seo-nombre-sugerido\');document.getElementById(\'f-nombre\').value=p.dataset.sugerido;p.remove()" style="background:#6a1b9a;color:white;border:none;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:0.75rem;white-space:nowrap">Usar este</button>'
+      }
+    }
+
+    if (btn) {
+      btn.innerHTML = '✅ SEO generado con IA'
+      btn.style.background = '#e8f5e9'
+      btn.style.color = '#2e7d32'
+      btn.style.borderColor = '#a5d6a7'
+      btn.style.opacity = '1'
+      btn.disabled = false
+      setTimeout(() => { btn.innerHTML = '✨ Generar SEO'; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = '' }, 3000)
+    }
+
+  } catch(e) {
+    // Fallback a plantilla
+    _generarSEOTemplate(nombre, descripcion, categoria, material, tacon, tipoTacon, precio)
+    if (btn) {
+      btn.innerHTML = '✅ SEO generado'
+      btn.style.background = '#fff8e1'
+      btn.style.color = '#f57f17'
+      btn.style.borderColor = '#ffe082'
+      btn.style.opacity = '1'
+      btn.disabled = false
+      setTimeout(() => { btn.innerHTML = '✨ Generar SEO'; btn.style.background = ''; btn.style.color = ''; btn.style.borderColor = '' }, 3000)
+    }
+  }
+}
+
 window.seleccionarColor = (idx, hex, nombre) => {
   const hexInput = document.getElementById('v' + idx + '-hex')
   const nombreInput = document.getElementById('v' + idx + '-nombre')
-  if (hexInput) hexInput.value = hex
-  if (nombreInput) nombreInput.value = nombre
+  if (hexInput) {
+    hexInput.value = hex
+    const swatch = document.getElementById('v' + idx + '-swatch-header')
+    if (swatch) swatch.style.background = hex
+  }
+  if (nombreInput) {
+    nombreInput.value = nombre
+    const lbl = document.getElementById('v' + idx + '-header-label')
+    if (lbl) lbl.textContent = nombre
+  }
   actualizarTablaStock()
 }
 
+window.toggleVariante = (i) => {
+  const body = document.getElementById('v' + i + '-body')
+  const chevron = document.getElementById('v' + i + '-chevron')
+  if (!body) return
+  const isOpen = body.style.display !== 'none'
+  body.style.display = isOpen ? 'none' : 'block'
+  if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)'
+}
+
 window.agregarVariante = () => {
+  // Collapse all currently open color cards
+  document.querySelectorAll('.variante-item').forEach(item => {
+    const m = item.id && item.id.match(/^variante-(\d+)$/)
+    if (m) {
+      const idx = m[1]
+      const body = document.getElementById('v' + idx + '-body')
+      const chevron = document.getElementById('v' + idx + '-chevron')
+      if (body) body.style.display = 'none'
+      if (chevron) chevron.style.transform = 'rotate(0deg)'
+    }
+  })
   const i = varianteCount++
   const container = document.getElementById('variantes-container')
   const div = document.createElement('div')
   div.innerHTML = renderVariante(i, null)
   container.appendChild(div.firstElementChild)
+  // Scroll to the new card
+  const newCard = document.getElementById('variante-' + i)
+  if (newCard) setTimeout(() => newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60)
 }
 
 window.previsualizarImagenes = (input, idx) => {
@@ -3726,7 +3956,7 @@ window.filtrarClientes = () => {
       <tr>
         <td>
           <strong>${c.nombre}</strong>
-          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">`<span style="...">📝</span>` ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
+          ${c.comentarios_internos ? '<br><small style="color:#E91E8C;font-size:0.72rem">📝 ' + c.comentarios_internos.substring(0, 40) + '...</small>' : ''}
         </td>
         <td>
           ${c.telefono || '—'}
@@ -5078,7 +5308,7 @@ window.verPedido = async (id) => {
           <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
           <h3 style="flex:1">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
           <span class="badge" style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:6px 12px">${p.status}</span>
-          ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=Hola%20' + encodeURIComponent(cliente.nombre) + '%2C%20tu%20pedido%20est├í%20listo" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+          ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=' + encodeURIComponent('Hola ' + (cliente.nombre || '') + ', tu pedido está listo') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
@@ -5108,9 +5338,9 @@ window.verPedido = async (id) => {
                 ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
-                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ×$${item.precio_unitario}</p>
+                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ×$${item.precio_unitario || 0}</p>
                 </div>
-                <strong style="color:#E91E8C">$${item.subtotal}</strong>
+                <strong style="color:#E91E8C">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
               </div>
             `
           }).join('')}
@@ -5417,7 +5647,6 @@ window.renderDrawerPOS = () => {
   if (dti) dti.textContent = tipo
 
   if (!items.length) {
-    console.log('normales:', itemsNormales.length, 'corridas:', itemsCorrida.length)
     container.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">El carrito esta vacio</p>'
     return
   }
@@ -6343,7 +6572,7 @@ window.agregarTallasPOS = (productoId, color) => {
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
         precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
-        imagen: p.imagen_principal || null,
+        imagen: producto.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         precio_unitario: parseFloat(producto.precio_menudeo) || 0
       })
@@ -6446,7 +6675,7 @@ window.agregarAlCarritoPOS = (productoId) => {
       precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
       precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
-      imagen: p.imagen_principal || null,
+      imagen: producto.imagen_principal || null,
       es_oferta: producto.es_oferta || false,
       precio_unitario: parseFloat(producto.precio_menudeo) || 0
     })
@@ -6539,7 +6768,7 @@ window.confirmarCorridaPOS = (productoId, color) => {
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
         precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
-        imagen: p.imagen_principal || null,
+        imagen: producto.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         es_corrida: true,
         precio_unitario: parseFloat(producto.precio_menudeo) || 0
@@ -6604,7 +6833,6 @@ window.renderCarritoPOS = () => {
   if (items.length === 0) {
     container.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>'
   } else {
-    console.log('Primer item imagen:', items[0]?.imagen)
     container.innerHTML = `
       ${itemsNormales.map((item) => `
   <div style="padding:10px;border-bottom:1px solid #f5f5f5">
@@ -6686,7 +6914,7 @@ window.renderCarritoPOS = () => {
   const ft = document.getElementById('pos-flotante-total')
   if (fp) fp.textContent = totalPares + ' pares'
   if (ft) ft.textContent = '$' + total.toFixed(2)
-  if (document.getElementById('pos-drawer')?.style.transform === 'translateY(0px)') renderDrawerPOS()
+  if (document.getElementById('pos-drawer')?.classList.contains('open')) renderDrawerPOS()
   
 }
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
@@ -6816,7 +7044,7 @@ window.guardarEdicionCorridaPOS = (producto_id, color) => {
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
       precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
       es_oferta: producto.es_oferta || false,
-      imagen: p.imagen_principal || null,
+      imagen: producto.imagen_principal || null,
       es_corrida: true,
       precio_manual: precioManual !== null,
       precio_unitario: precioCorrida
@@ -7281,9 +7509,7 @@ async function cargarHistorial() {
         </div>
         <table>
           <thead>
-            <tr>
-              <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th><th>Acción</th></tr>
-            </tr>
+            <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th><th>Acción</th></tr>
           </thead>
           <tbody id="hist-tbody">
             ${data.length === 0
@@ -7697,73 +7923,60 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
     content.innerHTML = `
-    <div style="margin-bottom:1rem;display:flex;gap:8px">
-    <button id="tab-chats" onclick="mostrarTabWA('chats')" 
-            style="padding:8px 20px;border-radius:8px;border:none;background:#e91e8c;color:white;font-weight:600;cursor:pointer;font-size:0.85rem">
-      💬 Conversaciones
-    </button>
-    <button id="tab-config" onclick="mostrarTabWA('config')"
-            style="padding:8px 20px;border-radius:8px;border:1px solid #ddd;background:white;color:#555;font-weight:600;cursor:pointer;font-size:0.85rem">
-      ⚙️ Configuración
-    </button>
+  <div style="display:flex;gap:8px;margin-bottom:1rem">
+    <button id="tab-chats" onclick="mostrarTabWA('chats')" class="wa-tab-btn activo">💬 Conversaciones</button>
+    <button id="tab-config" onclick="mostrarTabWA('config')" class="wa-tab-btn">⚙️ Configuración</button>
   </div>
   <div id="wa-tab-content">
-      <div id="wa-container" style="display:grid;grid-template-columns:300px 1fr;width:100%;height:calc(100vh - 160px);min-height:0;background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
-
-        <div id="wa-sidebar" style="border-right:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
-          <div style="padding:1rem;border-bottom:1px solid #eee;background:#f9f9f9;flex-shrink:0">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-              <p style="font-weight:700;font-size:0.95rem">💬 WhatsApp</p>
-              <span style="background:#25D366;color:white;padding:2px 8px;border-radius:100px;font-size:0.72rem">${totalNoLeidos} nuevos</span>
-            </div>
-            <input class="form-input" placeholder="🔍 Buscar contacto..." style="font-size:0.85rem;margin-bottom:6px" oninput="filtrarChats(this.value)">
-<div style="display:flex;gap:4px;flex-wrap:wrap">
-  <button onclick="filtrarEtiqueta('')" class="btn-etiqueta activa" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:#333;color:white;cursor:pointer">Todos</button>
-  <button onclick="filtrarEtiqueta('solo_pregunta')" class="btn-etiqueta" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:white;cursor:pointer">🔵 Pregunta</button>
-  <button onclick="filtrarEtiqueta('posible_comprador')" class="btn-etiqueta" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:white;cursor:pointer">🟡 Posible</button>
-  <button onclick="filtrarEtiqueta('comprador')" class="btn-etiqueta" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:white;cursor:pointer">🟢 Comprador</button>
-  <button onclick="filtrarEtiqueta('seguimiento')" class="btn-etiqueta" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:white;cursor:pointer">🔴 Seguim.</button>
-  <button onclick="filtrarEtiqueta('frecuente')" class="btn-etiqueta" style="padding:3px 8px;border-radius:100px;font-size:0.7rem;border:1px solid #ddd;background:white;cursor:pointer">⭐ Frecuente</button>
-</div>
+    <div id="wa-container">
+      <div id="wa-sidebar">
+        <div class="wa-sidebar-header">
+          <div class="wa-sidebar-title">
+            <span>💬 WhatsApp</span>
+            <span class="wa-new-badge">${totalNoLeidos} nuevo${totalNoLeidos !== 1 ? 's' : ''}</span>
           </div>
-          <div id="chats-lista" style="flex:1;overflow-y:auto">
-            ${chats.length === 0
-              ? '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin conversaciones</div>'
-              : chats.sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
-                    <div class="chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}"
-                     onclick="abrirChat('${c.telefono}')"
-                     style="padding:12px 16px;border-bottom:1px solid #f5f5f5;cursor:pointer;display:flex;align-items:center;gap:12px"
-                     onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
-                  <div style="position:relative;flex-shrink:0">
-                    <div style="width:44px;height:44px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem">
-                      ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
-                    </div>
-                    ${c.en_control ? '<div style="position:absolute;bottom:0;right:0;width:12px;height:12px;background:#f57f17;border-radius:50%;border:2px solid white"></div>' : ''}
-                  </div>
-                  <div style="flex:1;min-width:0">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
-                      <p style="font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre || c.telefono}</p>
-                      <span style="font-size:0.65rem;color:#aaa;flex-shrink:0;margin-left:4px">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX', {day:'numeric',month:'short'})}</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center">
-                      <p style="font-size:0.75rem;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1">${c.mensajes[0]?.mensaje?.substring(0,35)||''}...</p>
-                      ${c.no_leidos > 0 ? `<span style="background:#25D366;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;margin-left:4px">${c.no_leidos}</span>` : ''}
-                    </div>
-                  </div>
+          <input class="wa-search-input" placeholder="🔍 Buscar contacto..." oninput="filtrarChats(this.value)">
+          <div class="wa-filters">
+            <button onclick="filtrarEtiqueta('')" class="wa-pill activa">Todos</button>
+            <button onclick="filtrarEtiqueta('solo_pregunta')" class="wa-pill">🔵 Pregunta</button>
+            <button onclick="filtrarEtiqueta('posible_comprador')" class="wa-pill">🟡 Posible</button>
+            <button onclick="filtrarEtiqueta('comprador')" class="wa-pill">🟢 Comprador</button>
+            <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill">🔴 Seguim.</button>
+            <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill">⭐ Frecuente</button>
+          </div>
+        </div>
+        <div class="wa-chat-list">
+          ${chats.length === 0
+            ? '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
+            : chats.sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}"
+                   onclick="abrirChat('${c.telefono}')">
+                <div class="wa-avatar">
+                  ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
+                  ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
                 </div>
-              `).join('')}
-          </div>
+                <div class="wa-chat-info">
+                  <div class="wa-chat-name">${c.nombre || c.telefono}</div>
+                  <div class="wa-chat-preview">${(c.mensajes[0]?.mensaje||'').substring(0,40)}…</div>
+                </div>
+                <div class="wa-chat-meta">
+                  <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
+                  ${c.no_leidos > 0 ? `<span class="wa-unread">${c.no_leidos}</span>` : ''}
+                </div>
+              </div>
+            `).join('')}
         </div>
-
-        <div id="chat-area" style="display:flex;flex-direction:column;background:#f0f2f5;overflow:hidden">
-          <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;flex-direction:column;gap:12px">
-            <p style="font-size:3rem">💬</p>
-            <p style="font-weight:600">Selecciona una conversación</p>
-            <p style="font-size:0.85rem">para ver los mensajes</p>
-          </div>
-        </div>
-
       </div>
+
+      <div id="chat-area">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);flex-direction:column;gap:14px">
+          <p style="font-size:3rem;line-height:1">💬</p>
+          <p style="font-weight:700;color:var(--text-2);font-size:1rem">Selecciona una conversación</p>
+          <p style="font-size:0.83rem">para ver los mensajes</p>
+        </div>
+      </div>
+    </div>
+  </div>
     `
   
   } catch(e) {
@@ -7773,12 +7986,10 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
 
 
 window.mostrarTabWA = async (tab) => {
-  document.getElementById('tab-chats').style.background = tab === 'chats' ? '#e91e8c' : 'white'
-  document.getElementById('tab-chats').style.color = tab === 'chats' ? 'white' : '#555'
-  document.getElementById('tab-chats').style.border = tab === 'chats' ? 'none' : '1px solid #ddd'
-  document.getElementById('tab-config').style.background = tab === 'config' ? '#e91e8c' : 'white'
-  document.getElementById('tab-config').style.color = tab === 'config' ? 'white' : '#555'
-  document.getElementById('tab-config').style.border = tab === 'config' ? 'none' : '1px solid #ddd'
+  const btnChats = document.getElementById('tab-chats')
+  const btnConfig = document.getElementById('tab-config')
+  if (btnChats) btnChats.classList.toggle('activo', tab === 'chats')
+  if (btnConfig) btnConfig.classList.toggle('activo', tab === 'config')
 
   if (tab === 'chats') {
     await window.cargarConversaciones()
@@ -7788,15 +7999,9 @@ window.mostrarTabWA = async (tab) => {
 }
 
 window.filtrarEtiqueta = (etiqueta) => {
-  document.querySelectorAll('.btn-etiqueta').forEach(b => {
-    b.style.background = 'white'
-    b.style.color = '#333'
-  })
-  const activo = event.target
-  activo.style.background = '#333'
-  activo.style.color = 'white'
-
-  document.querySelectorAll('.chat-item').forEach(el => {
+  document.querySelectorAll('.wa-pill').forEach(b => b.classList.remove('activa'))
+  event.target.classList.add('activa')
+  document.querySelectorAll('.wa-chat-item').forEach(el => {
     const etiq = el.dataset.etiqueta || ''
     el.style.display = !etiqueta || etiq === etiqueta ? '' : 'none'
   })
@@ -7936,7 +8141,7 @@ window.eliminarRespuesta = (id) => {
 
 
 window.filtrarChats = (texto) => {
-  document.querySelectorAll('.chat-item').forEach(el => {
+  document.querySelectorAll('.wa-chat-item').forEach(el => {
     const nombre = el.dataset.nombre || ''
     const tel = el.dataset.tel || ''
     el.style.display = !texto || nombre.includes(texto.toLowerCase()) || tel.includes(texto) ? '' : 'none'
@@ -7958,9 +8163,9 @@ window.abrirChat = async (telefono) => {
   const chat = window._chatsData[telefono]
   if (!chat) return
 
-  document.querySelectorAll('.chat-item').forEach(el => el.style.background = 'white')
+  document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const item = document.querySelector(`[data-tel="${telefono}"]`)
-  if (item) item.style.background = '#e8f5e9'
+  if (item) item.classList.add('activo')
 
   const esMobil = window.innerWidth <= 900
 
@@ -7978,100 +8183,101 @@ area.style.flex = '1'
 area.style.minHeight = '0'
 
   area.innerHTML = `
-    <div style="padding:12px 16px;background:white;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px;flex-shrink:0">
-      ${esMobil ? `<button onclick="volverChats()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;padding:4px;color:#333">←</button>` : ''}
-      <div style="width:40px;height:40px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0">
-        ${(chat.nombre||chat.telefono).charAt(0).toUpperCase()}
+    <!-- Header compacto -->
+    <div class="wa-chat-header">
+      ${esMobil ? `<button onclick="volverChats()" class="wa-circ-btn">←</button>` : ''}
+      <div class="wa-avatar-sm">${(chat.nombre||chat.telefono).charAt(0).toUpperCase()}</div>
+      <div class="wa-header-info">
+        <div class="wa-header-name">${chat.nombre || chat.telefono}</div>
+        <div class="wa-header-sub">${chat.telefono} · ${chat.mensajes.length} msg</div>
       </div>
-      <div style="flex:1;min-width:0">
-        <p style="font-weight:700;font-size:0.95rem">${chat.nombre || chat.telefono}</p>
-        <p style="font-size:0.72rem;color:#888">${chat.telefono} · ${chat.mensajes.length} mensajes</p>
+      <div class="wa-header-actions">
+        ${chat.en_control
+          ? `<button onclick="toggleControl('${telefono}', false)" class="wa-circ-btn wa-circ-on" title="Activar bot">🤖</button>`
+          : `<button onclick="toggleControl('${telefono}', true)" class="wa-circ-btn wa-circ-off" title="Tomar control">👤</button>`}
+        <button onclick="mostrarCatalogoWA('${telefono}')" class="wa-circ-btn wa-circ-prod" title="Catálogo">👠</button>
+        <button onclick="mostrarRespuestasRapidas('${telefono}')" class="wa-circ-btn wa-circ-quick" title="Resp. rápidas">⚡</button>
+        <button onclick="window.cargarConversaciones()" class="wa-circ-btn wa-circ-reload" title="Recargar">↺</button>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-  ${chat.en_control
-    ? `<button onclick="toggleControl('${telefono}', false)" style="background:#fff8e1;border:1px solid #f57f17;color:#f57f17;padding:6px 10px;border-radius:8px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap">🤖 Bot</button>`
-    : `<button onclick="toggleControl('${telefono}', true)" style="background:#e8f5e9;border:1px solid #2e7d32;color:#2e7d32;padding:6px 10px;border-radius:8px;font-size:0.75rem;cursor:pointer;font-weight:600;white-space:nowrap">👤 Control</button>`}
-  <button onclick="mostrarCatalogoWA('${telefono}')" style="background:#e3f2fd;border:1px solid #1565c0;color:#1565c0;padding:6px 10px;border-radius:8px;font-size:0.75rem;cursor:pointer;white-space:nowrap">👠 Prod.</button>
-  <button onclick="window.cargarConversaciones()" style="background:none;border:1px solid #eee;padding:6px 8px;border-radius:8px;font-size:0.85rem;cursor:pointer">🔄</button>
-  <button onclick="mostrarRespuestasRapidas('${telefono}')" style="background:#fff8e1;border:1px solid #f9a825;color:#f9a825;padding:5px 10px;border-radius:8px;font-size:0.75rem;cursor:pointer">⚡</button>
-</div>
-<select onchange="cambiarEtiqueta('${telefono}', this.value)" 
-        style="border:1px solid #ddd;border-radius:8px;padding:5px 8px;font-size:0.75rem;cursor:pointer;background:white">
-  <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>⚪ Sin etiqueta</option>
-  <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>🔵 Solo pregunta</option>
-  <option value="posible_comprador" ${chat.etiqueta==='posible_comprador' ? 'selected' : ''}>🟡 Posible comprador</option>
-  <option value="comprador" ${chat.etiqueta==='comprador' ? 'selected' : ''}>🟢 Comprador</option>
-  <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>🔴 Seguimiento</option>
-  <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>⭐ Frecuente</option>
-</select>
     </div>
 
-    <div id="mensajes-area" style="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:8px;min-height:0">
+    <!-- Sub-header: estado + etiqueta -->
+    <div class="wa-subheader">
+      <span class="wa-bot-badge ${chat.en_control ? 'manual' : 'auto'}">
+        ${chat.en_control ? '👤 Manual' : '🤖 Bot activo'}
+      </span>
+      <select onchange="cambiarEtiqueta('${telefono}', this.value)" class="wa-label-select-sm">
+        <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>⚪ Sin etiqueta</option>
+        <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>🔵 Solo pregunta</option>
+        <option value="posible_comprador" ${chat.etiqueta==='posible_comprador' ? 'selected' : ''}>🟡 Posible comprador</option>
+        <option value="comprador" ${chat.etiqueta==='comprador' ? 'selected' : ''}>🟢 Comprador</option>
+        <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>🔴 Seguimiento</option>
+        <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>⭐ Frecuente</option>
+      </select>
+    </div>
+
+    <!-- Mensajes -->
+    <div id="mensajes-area">
       ${[...chat.mensajes].reverse().map(m => {
   const esManual = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
-  const esBot = m.respuesta && !esManual
+  const senderName = esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
+  const msgBody = m.tipo === 'imagen_saliente'
+    ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">'
+    : '<p>' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
+  const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
   return `
-    <div style="display:flex;flex-direction:column;gap:4px">
-      ${m.mensaje ? `
-        <div style="display:flex;flex-direction:column;align-items:${esManual ? 'flex-end' : 'flex-start'}">
-          <p style="font-size:0.65rem;color:#aaa;margin-bottom:2px;padding:0 4px">${esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)}</p>
-          <div style="max-width:70%;background:${esManual ? '#cfe9ff' : '#f5f5f5'};border-radius:${esManual ? '12px 12px 0 12px' : '12px 12px 12px 0'};padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">
-` + (m.tipo === 'imagen_saliente' ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">' : '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>') + `
-            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
-          </div>
+    ${m.mensaje ? `
+      <div class="wa-msg-row ${esManual ? 'saliente' : 'entrante'}">
+        <span class="wa-msg-sender">${esManual ? '👤 ' + senderName : senderName}</span>
+        <div class="wa-bubble ${esManual ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}</div></div>
+      </div>` : ''}
+    ${m.respuesta ? `
+      <div class="wa-msg-row saliente">
+        <span class="wa-msg-sender">🤖 Bot</span>
+        <div class="wa-bubble bot">
+          <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>
+          ${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}
+          <div class="wa-bubble-time">${ts}</div>
         </div>
-      ` : ''}
-      ${m.respuesta ? `
-        <div style="display:flex;flex-direction:column;align-items:flex-end">
-          <p style="font-size:0.65rem;color:#aaa;margin-bottom:2px;padding:0 4px">🤖 Bot</p>
-          <div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">
-            <p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}
-            <p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
-          </div>
-        </div>
-      ` : ''}
-    </div>
+      </div>` : ''}
   `
 }).join('')}
     </div>
 
-    <div style="padding:12px 16px;background:white;border-top:1px solid #eee;flex-shrink:0">
-      <div style="background:${chat.en_control ? '#fff8e1' : '#e8f5e9'};padding:6px 12px;border-radius:8px;margin-bottom:8px;font-size:0.75rem;color:${chat.en_control ? '#f57f17' : '#2e7d32'}">
-        ${chat.en_control ? '👤 Control manual — bot desactivado' : '🤖 Bot activo'}
-      </div>
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <textarea id="msg-input-${telefono}" placeholder="Escribe un mensaje..." rows="2"
-                  style="flex:1;border:1px solid #eee;border-radius:12px;padding:10px 14px;font-family:DM Sans,sans-serif;font-size:0.88rem;resize:none;outline:none;max-height:100px"
-                  onfocus="this.style.borderColor='#25D366'" onblur="this.style.borderColor='#eee'"
+    <!-- Input -->
+    <div class="wa-input-bar">
+      <div class="wa-input-row">
+        <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="2"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${telefono}')}"></textarea>
-        <button onclick="enviarMensajeWA('${telefono}')"
-                style="background:#25D366;color:white;border:none;border-radius:50%;width:44px;height:44px;cursor:pointer;font-size:1.2rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          ➤
-        </button>
+        <button onclick="enviarMensajeWA('${telefono}')" class="wa-send-btn">➤</button>
       </div>
-      <div id="notas-tareas-panel" style="background:var(--color-background-primary, white);border-top:1px solid #eee;padding:12px 16px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        
+    </div>
+
+    <!-- Toggle notas/tareas -->
+    <button class="wa-nt-toggle" onclick="toggleNotasTareas()">
+      <span>📋 Notas y tareas</span>
+      <span id="wa-nt-arrow" style="font-size:0.7rem">${esMobil ? '▲' : '▼'}</span>
+    </button>
+    <div id="notas-tareas-panel" class="${esMobil ? 'nt-collapsed' : ''}">
+      <div class="wa-nt-grid">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <p style="font-size:0.82rem;font-weight:700;margin:0">📝 Notas</p>
-            <button onclick="agregarNota('${telefono}')" style="background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer">+ Agregar</button>
+          <div class="wa-nt-header">
+            <p class="wa-nt-title">📝 Notas</p>
+            <button onclick="agregarNota('${telefono}')" class="wa-nt-add">+ Agregar</button>
           </div>
-          <div id="notas-lista-${telefono}" style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto">
-            <p style="font-size:0.78rem;color:#aaa;text-align:center;padding:8px">Cargando...</p>
+          <div id="notas-lista-${telefono}" class="wa-nt-list">
+            <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
           </div>
         </div>
-
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <p style="font-size:0.82rem;font-weight:700;margin:0">✅ Tareas</p>
-            <button onclick="agregarTarea('${telefono}')" style="background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:3px 8px;font-size:0.72rem;cursor:pointer">+ Agregar</button>
+          <div class="wa-nt-header">
+            <p class="wa-nt-title">✅ Tareas</p>
+            <button onclick="agregarTarea('${telefono}')" class="wa-nt-add">+ Agregar</button>
           </div>
-          <div id="tareas-lista-${telefono}" style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto">
-            <p style="font-size:0.78rem;color:#aaa;text-align:center;padding:8px">Cargando...</p>
+          <div id="tareas-lista-${telefono}" class="wa-nt-list">
+            <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
           </div>
         </div>
-
       </div>
     </div>
   `
@@ -8087,16 +8293,27 @@ area.style.minHeight = '0'
 }
 
 
+
+window.toggleNotasTareas = () => {
+  const panel = document.getElementById('notas-tareas-panel')
+  const arrow = document.getElementById('wa-nt-arrow')
+  if (!panel) return
+  const collapsed = panel.classList.toggle('nt-collapsed')
+  if (arrow) arrow.textContent = collapsed ? '▲' : '▼'
+}
+
 window.volverChats = () => {
   const sidebar = document.getElementById('wa-sidebar')
   const container = document.getElementById('wa-container')
-  if (sidebar) sidebar.style.display = 'flex'
-  if (container) container.style.gridTemplateColumns = '300px 1fr'
+  if (sidebar) sidebar.style.display = ''
+  if (container) container.style.gridTemplateColumns = ''
+  document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const chatArea = document.getElementById('chat-area')
   if (chatArea) chatArea.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;flex-direction:column;gap:12px">
-      <p style="font-size:3rem">💬</p>
-      <p style="font-weight:600">Selecciona una conversación</p>
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);flex-direction:column;gap:14px">
+      <p style="font-size:3rem;line-height:1">💬</p>
+      <p style="font-weight:700;color:var(--text-2);font-size:1rem">Selecciona una conversación</p>
+      <p style="font-size:0.83rem">para ver los mensajes</p>
     </div>
   `
 }
@@ -8139,13 +8356,13 @@ window.cargarNotasTareas = async (telefono) => {
   const notasEl = document.getElementById('notas-lista-' + telefono)
   if (notasEl) {
     notasEl.innerHTML = notas.length === 0
-      ? '<p style="font-size:0.75rem;color:#aaa;text-align:center;padding:8px">Sin notas</p>'
+      ? '<p style="font-size:0.73rem;color:var(--text-3);text-align:center;padding:8px">Sin notas</p>'
       : notas.map(n => `
-        <div style="background:#fffde7;border-left:3px solid #f9a825;border-radius:0 6px 6px 0;padding:6px 8px">
-          <p style="font-size:0.78rem;color:#333;margin:0 0 2px">${n.nota}</p>
+        <div class="wa-nota">
+          <p>${n.nota}</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <p style="font-size:0.65rem;color:#aaa;margin:0">${n.agente} · ${new Date(n.created_at).toLocaleDateString('es-MX')}</p>
-            <button onclick="eliminarNota('${n.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.75rem;padding:0">🗑️</button>
+            <small>${n.agente} · ${new Date(n.created_at).toLocaleDateString('es-MX')}</small>
+            <button onclick="eliminarNota('${n.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
           </div>
         </div>
       `).join('')
@@ -8154,20 +8371,20 @@ window.cargarNotasTareas = async (telefono) => {
   const tareasEl = document.getElementById('tareas-lista-' + telefono)
   if (tareasEl) {
     tareasEl.innerHTML = tareas.length === 0
-      ? '<p style="font-size:0.75rem;color:#aaa;text-align:center;padding:8px">Sin tareas</p>'
+      ? '<p style="font-size:0.73rem;color:var(--text-3);text-align:center;padding:8px">Sin tareas</p>'
       : tareas.map(t => {
           const venceHoy = t.fecha_vence === hoy
           const vencida = t.fecha_vence && t.fecha_vence < hoy && !t.completada
           return `
-            <div style="display:flex;align-items:center;gap:8px;background:#f9f9f9;border-radius:6px;padding:6px 8px;${t.completada ? 'opacity:0.6' : ''}">
-              <input type="checkbox" ${t.completada ? 'checked' : ''} 
+            <div class="wa-tarea" style="${t.completada ? 'opacity:0.55' : ''}">
+              <input type="checkbox" ${t.completada ? 'checked' : ''}
                      onchange="completarTarea('${t.id}', this.checked, '${telefono}')"
-                     style="width:14px;height:14px;cursor:pointer;accent-color:#25D366">
+                     style="width:14px;height:14px;cursor:pointer;accent-color:#25D366;flex-shrink:0">
               <div style="flex:1;min-width:0">
-                <p style="font-size:0.78rem;font-weight:600;margin:0;${t.completada ? 'text-decoration:line-through;color:#aaa' : 'color:#333'}">${t.titulo}</p>
-                ${t.fecha_vence ? `<p style="font-size:0.65rem;margin:0;color:${vencida ? '#c62828' : venceHoy ? '#f57f17' : '#aaa'}">${vencida ? '⚠️ Vencida' : venceHoy ? '🔔 Vence hoy' : t.fecha_vence}</p>` : ''}
+                <p class="wa-tarea-title ${t.completada ? 'done' : ''}">${t.titulo}</p>
+                ${t.fecha_vence ? `<p class="wa-tarea-due" style="color:${vencida ? '#c62828' : venceHoy ? '#f57f17' : 'var(--text-3)'}">${vencida ? '⚠️ Vencida' : venceHoy ? '🔔 Vence hoy' : t.fecha_vence}</p>` : ''}
               </div>
-              <button onclick="eliminarTarea('${t.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.75rem;padding:0">🗑️</button>
+              <button onclick="eliminarTarea('${t.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
             </div>
           `
         }).join('')
@@ -8581,6 +8798,80 @@ window.cargarProductosEnvio = async () => {
     sel.innerHTML = '<option value="">Seleccionar producto...</option>' +
       activos.map(p => `<option value="${p.imagen_principal}" data-nombre="${p.nombre}">${p.nombre}</option>`).join('')
   } catch(e) { console.error('Error:', e) }
+}
+
+window.validarCantidadTalla = (varianteId, maxStock) => {
+  const input = document.getElementById('qty-' + varianteId)
+  if (!input) return
+  let val = parseInt(input.value) || 0
+  if (val < 0) val = 0
+  if (val > maxStock) val = maxStock
+  input.value = val
+  input.style.borderColor = val > 0 ? '#E91E8C' : '#ddd'
+}
+
+window.recargarFinanzas = async (sucursalId) => {
+  await cargarFinanzas()
+}
+
+window.verOportunidad = async (id) => {
+  const data = window._crmData
+  if (!data) return
+  try {
+    const res = await fetch(API + '/crm/oportunidades/' + id)
+    const ops = await res.json()
+    const o = Array.isArray(ops) ? ops[0] : ops
+    if (!o) return
+    const etapas = {
+      contacto: '📞 Contacto', interes: '👀 Interés', cotizacion: '📋 Cotización',
+      negociacion: '🤝 Negociación', ganado: '✅ Ganado', perdido: '❌ Perdido'
+    }
+    const modal = document.createElement('div')
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+    modal.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:2rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1.5rem">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px">${o.titulo}</h3>
+            <p style="font-size:0.82rem;color:#888">${o.clientes?.nombre || 'Sin cliente'}</p>
+          </div>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Monto estimado</p>
+            <p style="font-weight:700;font-size:1.1rem;color:#E91E8C">$${parseFloat(o.monto_estimado||0).toFixed(0)}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Etapa</p>
+            <p style="font-weight:600;font-size:0.88rem">${etapas[o.etapa] || o.etapa}</p>
+          </div>
+        </div>
+        ${o.fecha_cierre ? `<p style="font-size:0.82rem;color:#888;margin-bottom:1rem">📅 Cierre estimado: ${new Date(o.fecha_cierre).toLocaleDateString('es-MX')}</p>` : ''}
+        ${o.notas ? `<div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem"><p style="font-size:0.78rem;color:#888;margin-bottom:4px">Notas</p><p style="font-size:0.85rem">${o.notas}</p></div>` : ''}
+        <div style="display:flex;gap:1rem;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cerrar</button>
+          <select class="form-input" style="flex:1" onchange="actualizarEtapaOportunidad('${o.id}', this.value)">
+            ${Object.entries(etapas).map(([v,l]) => `<option value="${v}" ${o.etapa===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `
+    document.body.appendChild(modal)
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  } catch(e) { console.error('Error verOportunidad', e) }
+}
+
+window.actualizarEtapaOportunidad = async (id, etapa) => {
+  try {
+    await fetch(API + '/crm/oportunidades/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ etapa })
+    })
+    document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]')?.remove()
+    mostrarPipeline()
+  } catch(e) { alert('Error actualizando etapa') }
 }
 
 window.completarTareaDashboard = async (id, checked) => {

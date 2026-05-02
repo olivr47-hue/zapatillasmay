@@ -1,8 +1,89 @@
 from fastapi import APIRouter
 from fastapi.responses import Response
 from database import supabase_get, supabase_post, supabase_patch
+import urllib.request
+import json
+import os
+import re
 
 router = APIRouter(tags=["SEO"])
+
+def _get_api_key():
+    return os.environ.get("ANTHROPIC_API_KEY", "")
+
+@router.post("/productos/generar-seo")
+def generar_seo(datos: dict):
+    """Genera slug, meta título y meta descripción SEO usando IA a partir de los datos del producto."""
+    api_key = _get_api_key()
+
+    nombre     = (datos.get("nombre") or "").strip()
+    descripcion = (datos.get("descripcion") or "").strip()
+    categoria  = (datos.get("categoria") or "").strip()
+    material   = (datos.get("material") or "").strip()
+    tacon      = (datos.get("tacon") or "").strip()
+    tipo_tacon = (datos.get("tipo_tacon") or "").strip()
+    precio     = (datos.get("precio") or "").strip()
+    horma      = (datos.get("horma") or "").strip()
+
+    if not nombre and not descripcion:
+        return {"error": "sin_datos"}
+
+    # ── Si no hay API key, fallback a plantilla ──
+    if not api_key:
+        return {"error": "no_api_key"}
+
+    prompt = f"""Eres un experto en SEO para e-commerce de calzado femenino mexicano.
+
+Dado los datos de un producto de Zapatillas May (tienda en León, Guanajuato), genera campos SEO optimizados.
+
+DATOS DEL PRODUCTO:
+- Nombre/código interno: {nombre}
+- Descripción: {descripcion if descripcion else "(sin descripción)"}
+- Categoría: {categoria if categoria else "(sin categoría)"}
+- Material: {material if material else "(sin especificar)"}
+- Tacón: {tipo_tacon + " " + tacon + " cm" if tacon else "(sin especificar)"}
+- Horma: {horma if horma else "(sin especificar)"}
+- Precio menudeo: {"$" + precio + " MXN" if precio else "(sin especificar)"}
+
+INSTRUCCIONES:
+- El nombre interno puede ser un código o abreviatura — infiere el nombre real del producto a partir de la descripción.
+- El slug debe ser descriptivo y con palabras clave de búsqueda real (ej: "sandalia-tacon-aguja-nude-plataforma").
+- El meta título debe tener máximo 60 caracteres, incluir la palabra clave principal y terminar en "| Zapatillas May".
+- La meta descripción debe tener entre 140 y 155 caracteres, incluir precio si está disponible, una llamada a acción, y enfocarse en lo que busca la compradora (comodidad, ocasión, estilo).
+- nombre_producto es el nombre bonito y legible para mostrar en la tienda (no el código interno).
+
+Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
+{{"slug":"...","meta_titulo":"...","meta_descripcion":"...","nombre_producto":"..."}}"""
+
+    try:
+        body = json.dumps({
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 400,
+            "messages": [{"role": "user", "content": prompt}]
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=body,
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req, timeout=20) as response:
+            result = json.loads(response.read().decode("utf-8"))
+
+        text = result["content"][0]["text"].strip()
+        # Strip markdown fences if model wraps in ```json
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.MULTILINE).strip()
+        seo = json.loads(text)
+        return seo
+
+    except Exception as e:
+        return {"error": str(e)}
 
 @router.get("/sitemap.xml")
 def sitemap():

@@ -1372,6 +1372,7 @@
       .color-selector { grid-template-columns: repeat(3, 1fr); }
       .cats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
       .section-title { font-size: 1.8rem; }
+    }
 
   /* ── MICROINTERACCIONES ── */
   @keyframes cartBounce {
@@ -1400,9 +1401,9 @@
   header.scrolled { animation: headerGlow 0.4s ease forwards; }
 
 
-  /* ── ANIMACIONES PÁGINAS INTERNAS ── */
+  /* ── ANIMACIONES PÁGINAS INTERNAS (CSS puro) ── */
   @keyframes pageFadeUp {
-    from { opacity:0; transform:translateY(32px); }
+    from { opacity:0; transform:translateY(28px); }
     to   { opacity:1; transform:translateY(0); }
   }
   @keyframes pageFloat {
@@ -1411,67 +1412,90 @@
   }
   @keyframes pagePop {
     0%   { opacity:0; transform:scale(0.82); }
-    60%  { transform:scale(1.04); }
+    60%  { transform:scale(1.06); }
     100% { opacity:1; transform:scale(1); }
   }
-  /* Hero de página interna */
-  .page-anim-hero > * {
-    animation: pageFadeUp 0.7s cubic-bezier(0.16,1,0.3,1) both;
+
+  /* Bloque hero — primer div de cada página interna */
+  #pagina-contenido > div:first-child {
+    animation: pageFadeUp 0.65s cubic-bezier(0.16,1,0.3,1) both;
   }
-  .page-anim-hero > *:nth-child(1) { animation-delay:0.05s; }
-  .page-anim-hero > *:nth-child(2) { animation-delay:0.18s; }
-  .page-anim-hero > *:nth-child(3) { animation-delay:0.30s; }
-  .page-anim-hero > *:nth-child(4) { animation-delay:0.40s; }
-  /* Cards scroll-in */
-  .page-anim-card {
-    opacity:0;
-    transform:translateY(28px);
-    transition:opacity 0.55s cubic-bezier(0.16,1,0.3,1),
-               transform 0.55s cubic-bezier(0.16,1,0.3,1);
+  #pagina-contenido > div:first-child > * {
+    animation: pageFadeUp 0.6s cubic-bezier(0.16,1,0.3,1) both;
   }
-  .page-anim-card.visible {
-    opacity:1 !important;
-    transform:translateY(0) !important;
+  #pagina-contenido > div:first-child > *:nth-child(1) { animation-delay:0.05s; }
+  #pagina-contenido > div:first-child > *:nth-child(2) { animation-delay:0.18s; }
+  #pagina-contenido > div:first-child > *:nth-child(3) { animation-delay:0.30s; }
+  #pagina-contenido > div:first-child > *:nth-child(4) { animation-delay:0.40s; }
+
+  /* Segundo bloque (contenido principal) */
+  #pagina-contenido > div:nth-child(2) {
+    animation: pageFadeUp 0.65s 0.1s cubic-bezier(0.16,1,0.3,1) both;
   }
-  /* Stat counters pop-in */
-  .page-anim-stat {
-    animation: pagePop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+
+  /* Cards dentro del contenido — grids de tarjetas con stagger */
+  #pagina-contenido div[style*="grid-template-columns"] > div {
+    animation: pageFadeUp 0.55s cubic-bezier(0.16,1,0.3,1) both;
   }
-  /* Botones internos hover */
-  .page-btn-anim {
-    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease !important;
-    will-change: transform;
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(1) { animation-delay:0.08s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(2) { animation-delay:0.17s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(3) { animation-delay:0.26s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(4) { animation-delay:0.35s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(5) { animation-delay:0.44s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(6) { animation-delay:0.53s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(7) { animation-delay:0.62s; }
+  #pagina-contenido div[style*="grid-template-columns"] > div:nth-child(8) { animation-delay:0.71s; }
+
+  /* Números/stats grandes — pop */
+  #pagina-contenido [style*="font-mono"],
+  #pagina-contenido [style*="font-size:1.4rem"],
+  #pagina-contenido [style*="font-size: 1.4rem"] {
+    animation: pagePop 0.5s 0.2s cubic-bezier(0.34,1.56,0.64,1) both;
   }
-  .page-btn-anim:hover {
-    transform: translateY(-3px) scale(1.025) !important;
-    box-shadow: 0 10px 28px rgba(200,150,122,0.28) !important;
-    filter: brightness(1.04);
-  }
-  .page-btn-anim:active {
-    transform: translateY(0) scale(0.97) !important;
-  }
-  /* Emoji float */
+
+  /* Emojis sueltos — float continuo */
   .page-emoji-float {
     display: inline-block;
     animation: pageFloat 2.8s ease-in-out infinite;
   }
-  /* Input/textarea glow on focus */
-  .page-input-anim {
+
+  /* Botones internos — hover lift */
+  #pagina-contenido a[style*="background"],
+  #pagina-contenido button[style*="background"] {
+    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease !important;
+    will-change: transform;
+  }
+  #pagina-contenido a[style*="background"]:hover,
+  #pagina-contenido button[style*="background"]:hover {
+    transform: translateY(-3px) scale(1.025) !important;
+    box-shadow: 0 10px 28px rgba(200,150,122,0.28) !important;
+    filter: brightness(1.05);
+  }
+  #pagina-contenido a[style*="background"]:active,
+  #pagina-contenido button[style*="background"]:active {
+    transform: translateY(0) scale(0.97) !important;
+  }
+
+  /* Inputs — glow rosado al focus */
+  #pagina-contenido input,
+  #pagina-contenido textarea,
+  #pagina-contenido select {
     transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
   }
-  .page-input-anim:focus {
+  #pagina-contenido input:focus,
+  #pagina-contenido textarea:focus {
     box-shadow: 0 0 0 3px rgba(200,150,122,0.22) !important;
     border-color: var(--pink) !important;
     outline: none !important;
   }
-  /* Sección de separadores / íconos SVG internos */
-  .page-icon-anim svg {
+
+  /* SVG wrappers — scale+rotate al hover */
+  #pagina-contenido div > svg {
     transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
   }
-  .page-icon-anim:hover svg {
-    transform: scale(1.18) rotate(-6deg);
+  #pagina-contenido div:hover > svg {
+    transform: scale(1.15) rotate(-5deg);
   }
-    }
   </style>
   <!-- SEO META TAGS BASE -->
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -3887,63 +3911,17 @@ const PAGINAS = {
 
 
 // ── ANIMACIONES PÁGINAS INTERNAS ──────────────
+// CSS puro maneja fade/stagger — JS solo agrega emoji-float
 function animarPaginaInterna(contenido) {
-  // 1. Hero: animar primer bloque (cabecera con bg negro)
-  var primero = contenido.querySelector(':scope > div:first-child');
-  if (primero) primero.classList.add('page-anim-hero');
-
-  // 2. Cards: hijos directos de contenedores grid
-  var cards = contenido.querySelectorAll(
-    '[style*="grid-template-columns"] > div, ' +
-    '[style*="display:grid"] > div, ' +
-    '[style*="display: grid"] > div'
-  );
-  if (cards.length) {
-    var io = new IntersectionObserver(function(entries) {
-      entries.forEach(function(e) {
-        if (e.isIntersecting) {
-          e.target.classList.add('visible');
-          io.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0.08 });
-    cards.forEach(function(card, i) {
-      card.classList.add('page-anim-card');
-      card.style.transitionDelay = (i * 0.07) + 's';
-      io.observe(card);
-    });
-  }
-
-  // 3. Stat numbers (mayoreo / nosotros): números grandes en negrita
-  contenido.querySelectorAll('[style*="font-size:2"], [style*="font-size: 2"], [style*="font-mono"]').forEach(function(el, i) {
-    el.classList.add('page-anim-stat');
-    el.style.animationDelay = (0.1 + i * 0.08) + 's';
-  });
-
-  // 4. Botones y links con fondo de color
-  contenido.querySelectorAll('a[style*="background"], button[style*="background"]').forEach(function(btn) {
-    btn.classList.add('page-btn-anim');
-  });
-
-  // 5. Emojis sueltos — párrafos con solo emoji
   contenido.querySelectorAll('p').forEach(function(p) {
     var txt = p.textContent.trim();
-    if (txt.length <= 4 && /\p{Emoji}/u.test(txt)) {
-      p.classList.add('page-emoji-float');
-      p.style.animationDelay = (Math.random() * 1.2).toFixed(2) + 's';
+    if (txt.length > 0 && txt.length <= 4) {
+      var code = txt.codePointAt(0);
+      if (code > 0x2000) {
+        p.classList.add('page-emoji-float');
+        p.style.animationDelay = (Math.random() * 1.2).toFixed(2) + 's';
+      }
     }
-  });
-
-  // 6. Wrappers de ícono SVG (div con solo SVG adentro)
-  contenido.querySelectorAll('div').forEach(function(d) {
-    if (d.children.length === 1 && d.children[0].tagName === 'svg') {
-      d.classList.add('page-icon-anim');
-    }
-  });
-
-  // 7. Inputs y textareas
-  contenido.querySelectorAll('input, textarea, select').forEach(function(el) {
-    el.classList.add('page-input-anim');
   });
 }
 function mostrarPagina(id) {
@@ -3988,31 +3966,7 @@ window.addEventListener('scroll', () => {
   }
 })
 
-  // === SCROLL ANIMATION (IntersectionObserver) ===
-  const _io = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.classList.add('in-view');
-        _io.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0.12 });
-
-  function initScrollAnimations() {
-    document.querySelectorAll('.product-card, .cat-card, .section-title').forEach(el => {
-      if (!el.classList.contains('in-view')) _io.observe(el);
-    });
-  }
-
-  // Observar cuando se rendericen productos y categorías dinámicamente
-  const _gridObserver = new MutationObserver(() => initScrollAnimations());
-  const _pg = document.getElementById('products-grid');
-  const _cg = document.getElementById('cats-grid');
-  if (_pg) _gridObserver.observe(_pg, { childList: true });
-  if (_cg) _gridObserver.observe(_cg, { childList: true });
-  initScrollAnimations();
-
-</script>
+  </script>
 <script>
 (function(){
   /* PARTÍCULAS HERO */
