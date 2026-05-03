@@ -212,6 +212,7 @@ def feed_meta():
                         xml += f'  <g:additional_image_link>{img_extra}</g:additional_image_link>\n'
                     xml += f'  <g:price>{precio} MXN</g:price>\n'
                     xml += f'  <g:availability>{availability}</g:availability>\n'
+                    xml += f'  <g:quantity>{max(int(cantidad or 0), 0)}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                     xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
@@ -221,7 +222,6 @@ def feed_meta():
                     xml += f'  <g:size>{talla_feed}</g:size>\n'
                     xml += f'  <g:size_system>MX</g:size_system>\n'
                     xml += f'  <g:size_type>regular</g:size_type>\n'
-                    xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += '</item>\n'
 
             else:
