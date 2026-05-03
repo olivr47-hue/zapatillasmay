@@ -727,13 +727,40 @@ async def envio_productos(datos: dict):
             if k:
                 sku_a_prod[k] = p
 
-        # Agrupar SKUs por categoría para armar secciones
+        # Obtener variantes para construir los product_retailer_id correctos
+        # (el catálogo de Meta usa el ID de variante, no el sku_interno)
+        variantes_db = supabase_get("variantes?activa=eq.true&select=producto_id,color,talla")
+        # Mapear producto_id -> primera variante disponible
+        prod_id_a_variante = {}
+        for v in variantes_db:
+            pid = v.get("producto_id")
+            if pid and pid not in prod_id_a_variante:
+                prod_id_a_variante[pid] = v
+
+        def construir_variant_id(sku, variante):
+            """Construye el product_retailer_id igual que el feed meta.xml"""
+            color = (variante.get("color") or "").strip()
+            talla = str(variante.get("talla") or "").strip()
+            color_norm = color.replace(" ", "_").replace("/", "_").replace("-", "_").strip("_")
+            if talla:
+                return f"{sku}-{color_norm}-{talla}"
+            else:
+                return f"{sku}-{color_norm}"
+
+        # Agrupar SKUs por categoría usando variant IDs como product_retailer_id
         secciones_dict = {}  # categoria -> [retailer_ids]
         for sku in skus:
             prod = sku_a_prod.get(sku)
             cat = (prod.get("categoria") or "Modelos") if prod else "Modelos"
             cat = cat.strip().title() or "Modelos"
-            secciones_dict.setdefault(cat, []).append(sku)
+            # Buscar la variante del producto para construir el ID correcto
+            prod_id = prod.get("id") if prod else None
+            variante = prod_id_a_variante.get(prod_id) if prod_id else None
+            if variante:
+                retailer_id = construir_variant_id(sku, variante)
+            else:
+                retailer_id = sku  # fallback al sku si no tiene variantes
+            secciones_dict.setdefault(cat, []).append(retailer_id)
 
         # Construir secciones (máx 10 secciones, títulos máx 24 chars)
         sections = []
