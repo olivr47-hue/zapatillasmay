@@ -514,17 +514,33 @@ window.generarOrden = () => {
               </tr>
             </thead>
             <tbody>
-              ${prov.productos.map(p => `
+              ${prov.productos.map(p => {
+                const varSinStock = (p.variantes || []).filter(v => v.sin_stock)
+                const varConStock = (p.variantes || []).filter(v => !v.sin_stock)
+                const desglose = varSinStock.length > 0
+                  ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">
+                      ${varSinStock.map(v => {
+                        const label = [v.talla, v.color].filter(Boolean).join(' / ')
+                        return `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:1px 6px;border-radius:100px;font-size:0.68rem;font-weight:600">${label} ×1</span>`
+                      }).join('')}
+                      ${varConStock.map(v => {
+                        const label = [v.talla, v.color].filter(Boolean).join(' / ')
+                        return `<span style="background:#f5f5f5;color:#666;border:1px solid #e0e0e0;padding:1px 6px;border-radius:100px;font-size:0.68rem">${label} (${v.stock})</span>`
+                      }).join('')}
+                    </div>`
+                  : ''
+                return `
                 <tr style="border-top:1px solid #eee">
                   <td style="padding:6px 0">
                     <p style="font-weight:600">${p.nombre}</p>
                     <p style="color:#888;font-size:0.72rem">${p.sku || ''}</p>
+                    ${desglose}
                   </td>
                   <td style="text-align:center;font-weight:700">${p.cantidad_final}</td>
                   <td style="text-align:right">$${p.costo_unitario.toFixed(0)}</td>
                   <td style="text-align:right;font-weight:700;color:#E91E8C">$${(p.cantidad_final * p.costo_unitario).toFixed(0)}</td>
-                </tr>
-              `).join('')}
+                </tr>`
+              }).join('')}
             </tbody>
             <tfoot>
               <tr>

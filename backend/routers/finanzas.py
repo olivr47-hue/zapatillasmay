@@ -320,11 +320,7 @@ def sugerencias_recompra(sucursal_id: str):
             dias_inventario = round(stock_total / velocidad_semanal * 7) if velocidad_semanal > 0 else None
             stock_minimo = p.get('stock_minimo') or 1  # default 1 par: aparece cuando llega a 1 o 0
 
-            cantidad_sugerida = 0
-            if velocidad_semanal > 0:
-                cantidad_sugerida = max(0, round(velocidad_semanal * 4) - stock_total)
-
-            # Detalle de stock por variante
+            # Detalle de stock por variante (antes de calcular cantidad_sugerida)
             variantes_detalle = []
             for v in vars_prod:
                 stock_v = sum(i['cantidad'] for i in inventario if i['variante_id'] == v['id'])
@@ -345,7 +341,15 @@ def sugerencias_recompra(sucursal_id: str):
                     return (1, v['talla'] or '')
             variantes_detalle.sort(key=sort_talla)
 
-            tiene_variante_sin_stock = any(v['sin_stock'] for v in variantes_detalle)
+            variantes_sin_stock = [v for v in variantes_detalle if v['sin_stock']]
+            tiene_variante_sin_stock = len(variantes_sin_stock) > 0
+
+            # cantidad_sugerida: al menos 1 par por cada variante sin stock,
+            # y si hay velocidad, lo que dicte la rotación (lo que sea mayor)
+            cantidad_sugerida = len(variantes_sin_stock)  # mínimo 1 par x variante faltante
+            if velocidad_semanal > 0:
+                por_rotacion = max(0, round(velocidad_semanal * 4) - stock_total)
+                cantidad_sugerida = max(cantidad_sugerida, por_rotacion)
 
             # Mostrar si: stock total bajo mínimo, alguna variante en 0, o días críticos
             if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 14):
