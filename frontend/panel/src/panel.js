@@ -6,6 +6,11 @@ const COLORES_SUGERIDOS = [
   { nombre: 'Negro', hex: '#000000' },
   { nombre: 'Blanco', hex: '#FFFFFF' },
   { nombre: 'Hueso', hex: '#F5F0E8' },
+  { nombre: 'Nude claro', hex: '#F5DCC8' },
+  { nombre: 'Nude', hex: '#E8C4A0' },
+  { nombre: 'Nude oscuro', hex: '#C49A7A' },
+  { nombre: 'Nude rosa', hex: '#F2C4B0' },
+  { nombre: 'Palo de rosa', hex: '#D4A096' },
   { nombre: 'Beige', hex: '#E8D5B0' },
   { nombre: 'Camel', hex: '#C19A6B' },
   { nombre: 'Miel', hex: '#B8860B' },
@@ -258,9 +263,9 @@ function renderDashboard() {
     const titleEl = document.getElementById('topbar-title')
     const mod = modulos.find(m => m.id === moduloActivo)
     if (titleEl && mod) titleEl.textContent = mod.label
-    cargarDashboard()
+    cargarModulo(moduloActivo)
   }, 100)
-  return renderDashboardHTML()
+  return '<div style="padding:2rem;color:#888;text-align:center">Cargando...</div>'
 }
 async function cargarOrdenes() {
   const content = document.getElementById('content')
@@ -1854,7 +1859,7 @@ window.mostrarCampanas = async () => {
         id: 'nuevos',
         nombre: '🆕 Nuevos modelos',
         descripcion: 'Envía los últimos modelos agregados',
-        mensaje: (nombre) => `Hola ${nombre}! 👋\n\n¡Llegaron modelos nuevos! 🎉\n\nDate una vuelta y ve los últimos estilos que tenemos para ti.\n\n✨ Ver nuevos modelos:\nhttps://zapatillasmay.mx/#nuevos\n\nHay tallas limitadas, ¡no te quedes sin el tuyo! 😊`
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\n¡Mira este nuevo modelo que acaba de llegar! 👠✨\n\n¿Te gusta? Con gusto te damos más información y tallas disponibles 😊`
       },
       {
         id: 'mayoreo',
@@ -1927,8 +1932,37 @@ window.mostrarCampanas = async () => {
             </div>
           </div>
 
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">2️⃣ Foto <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional)</span></p>
+
+            <div id="campana-foto-manual">
+              <p style="font-size:0.75rem;color:#999;margin-bottom:0.875rem">Selecciona un producto para adjuntar su foto</p>
+              <div style="display:flex;gap:8px;margin-bottom:0.75rem">
+                <select id="campana-producto-sel" class="form-input" style="flex:1;font-size:0.82rem"
+                  onchange="seleccionarProductoCampana(this.value)">
+                  <option value="">— Sin foto —</option>
+                </select>
+                <button type="button" onclick="cargarProductosCampana()" title="Recargar productos"
+                  style="padding:6px 10px;border:1px solid #eee;border-radius:8px;background:white;cursor:pointer;font-size:0.85rem">↺</button>
+              </div>
+              <div id="campana-foto-preview" style="display:none;border-radius:10px;overflow:hidden;border:1px solid #eee;max-height:140px;position:relative">
+                <img id="campana-foto-img" src="" style="width:100%;height:140px;object-fit:cover">
+                <button onclick="quitarFotoCampana()"
+                  style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center">✕</button>
+              </div>
+            </div>
+
+            <div id="campana-fotos-nuevos" style="display:none">
+              <p style="font-size:0.75rem;color:#999;margin-bottom:0.75rem">Fotos portada de modelos recientes — selecciona las que quieres enviar</p>
+              <div id="campana-fotos-nuevos-grid" style="display:flex;flex-wrap:wrap;gap:8px">
+                <p style="font-size:0.8rem;color:#aaa">Cargando fotos...</p>
+              </div>
+              <p id="campana-fotos-count" style="font-size:0.75rem;color:#E91E8C;margin-top:8px;font-weight:600"></p>
+            </div>
+          </div>
+
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">2️⃣ Selecciona la plantilla</p>
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Selecciona la plantilla</p>
             <div style="display:flex;flex-direction:column;gap:8px">
               ${PLANTILLAS.map(p => `
                 <label style="cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;transition:all 0.15s"
@@ -1955,14 +1989,34 @@ window.mostrarCampanas = async () => {
         <!-- VISTA PREVIA Y LISTA -->
         <div>
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Vista previa del mensaje</p>
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">4️⃣ Vista previa del mensaje</p>
             <div id="mensaje-preview" style="background:#e8f5e9;border-radius:10px;padding:1rem;font-size:0.82rem;color:#333;white-space:pre-wrap;line-height:1.6;border:1px solid #a5d6a7;max-height:200px;overflow-y:auto"></div>
           </div>
 
           <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
-            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-              <p style="font-weight:700;font-size:0.9rem">4️⃣ Enviar a clientes</p>
-              <span id="campana-count" style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px"></span>
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <p style="font-weight:700;font-size:0.9rem">5️⃣ Enviar a clientes</p>
+                <span id="campana-count" style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:0.78rem;color:#666;cursor:pointer;display:flex;align-items:center;gap:5px">
+                  <input type="checkbox" id="campana-sel-todos" onchange="toggleSeleccionarTodosCampana(this.checked)" style="accent-color:#E91E8C">
+                  Todos
+                </label>
+                <button id="btn-campana-seleccionados" onclick="iniciarCampanaSeleccionados()"
+                  style="background:#555;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;display:none;gap:4px;align-items:center">
+                  💬 Manual (<span id="campana-sel-count">0</span>)
+                </button>
+                <button id="btn-campana-auto" onclick="enviarCampanaAutomatica()"
+                  style="background:#E91E8C;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:none;gap:4px;align-items:center">
+                  🤖 Enviar solos (<span id="campana-sel-count-auto">0</span>)
+                </button>
+              </div>
+            </div>
+            <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f0f0f0">
+              <input type="text" id="campana-buscador" placeholder="🔍 Buscar cliente..." oninput="filtrarClientesCampana(this.value)"
+                style="width:100%;padding:7px 12px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
             </div>
             <div id="campana-lista" style="max-height:400px;overflow-y:auto"></div>
           </div>
@@ -1971,7 +2025,9 @@ window.mostrarCampanas = async () => {
     `
 
     window._plantillasCampana = PLANTILLAS
+    window._campanaImagenUrl = ''
     actualizarVistaCampana()
+    cargarProductosCampana()
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando campañas</p>'
@@ -1997,6 +2053,15 @@ window.actualizarVistaCampana = () => {
       filtrados = clientes.filter(c => c.segmento === segmento)
     }
   }
+
+  // Si es nuevos modelos, cargar fotos automáticamente
+  if (plantillaId === 'nuevos') {
+    cargarFotosNuevosModelos()
+  }
+  const divFotoManual = document.getElementById('campana-foto-manual')
+  if (divFotoManual) divFotoManual.style.display = plantillaId === 'nuevos' ? 'none' : 'block'
+  const divFotosNuevos = document.getElementById('campana-fotos-nuevos')
+  if (divFotosNuevos) divFotosNuevos.style.display = plantillaId === 'nuevos' ? 'block' : 'none'
 
   // Vista previa del mensaje
   const preview = document.getElementById('mensaje-preview')
@@ -2024,7 +2089,10 @@ window.actualizarVistaCampana = () => {
     return
   }
 
-  lista.innerHTML = filtrados.map(c => {
+  window._campanaFiltrados = filtrados
+  window._campanaPlantillaId = plantillaId
+
+  lista.innerHTML = filtrados.map((c, idx) => {
     let mensaje
     if (plantillaId === 'personalizado') {
       const texto = document.getElementById('texto-personalizado')?.value || ''
@@ -2035,21 +2103,425 @@ window.actualizarVistaCampana = () => {
     const msgEncoded = encodeURIComponent(mensaje)
     const tel = (c.lada || '52') + c.telefono.replace(/\D/g,'')
     return `
-      <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+      <div class="campana-cli-row" data-idx="${idx}" style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;transition:background 0.15s">
+        <input type="checkbox" class="campana-cli-check" data-idx="${idx}"
+          onchange="actualizarContadorCampana()"
+          style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
         <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
           ${c.nombre.charAt(0).toUpperCase()}
         </div>
-        <div style="flex:1">
-          <p style="font-size:0.85rem;font-weight:600">${c.nombre}</p>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
           <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${c.telefono}</p>
         </div>
         <a href="https://wa.me/${tel}?text=${msgEncoded}" target="_blank"
-           style="background:#25D366;color:white;padding:8px 16px;border-radius:8px;font-size:0.82rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
-          💬 Enviar
+           style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+          💬
         </a>
       </div>
     `
   }).join('')
+  actualizarContadorCampana()
+}
+
+window.actualizarContadorCampana = () => {
+  const checks = document.querySelectorAll('.campana-cli-check:checked')
+  const n = checks.length
+  document.querySelectorAll('#campana-sel-count, #campana-sel-count-auto').forEach(el => { if (el) el.textContent = n })
+  const btnManual = document.getElementById('btn-campana-seleccionados')
+  const btnAuto   = document.getElementById('btn-campana-auto')
+  if (btnManual) btnManual.style.display = n > 0 ? 'inline-flex' : 'none'
+  if (btnAuto)   btnAuto.style.display   = n > 0 ? 'inline-flex' : 'none'
+  document.querySelectorAll('.campana-cli-check').forEach(el => el.disabled = false)
+  const todosCk = document.getElementById('campana-sel-todos')
+  if (todosCk) {
+    const total = document.querySelectorAll('.campana-cli-check').length
+    todosCk.checked = n > 0 && n === total
+    todosCk.indeterminate = n > 0 && n < total
+  }
+}
+
+window.filtrarClientesCampana = (texto) => {
+  const q = (texto || '').toLowerCase().trim()
+  const todos = window._campanaFiltrados || []
+  const plantillaId = window._campanaPlantillaId || 'catalogo'
+  const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
+  const lista = document.getElementById('campana-lista')
+  if (!lista) return
+
+  const filtrados = q ? todos.filter(c => c.nombre.toLowerCase().includes(q) || (c.telefono||'').includes(q)) : todos
+
+  if (!filtrados.length) {
+    lista.innerHTML = '<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">No se encontraron clientes</div>'
+    return
+  }
+
+  lista.innerHTML = filtrados.map((c) => {
+    const idxReal = todos.indexOf(c)
+    let mensaje
+    if (plantillaId === 'personalizado') {
+      const texto2 = document.getElementById('texto-personalizado')?.value || ''
+      mensaje = texto2.replace('{nombre}', c.nombre.split(' ')[0])
+    } else {
+      mensaje = plantilla ? plantilla.mensaje(c.nombre.split(' ')[0]) : ''
+    }
+    const msgEncoded = encodeURIComponent(mensaje)
+    const tel = (c.lada || '52') + c.telefono.replace(/\D/g,'')
+    return `
+      <div class="campana-cli-row" data-idx="${idxReal}" style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;transition:background 0.15s">
+        <input type="checkbox" class="campana-cli-check" data-idx="${idxReal}"
+          onchange="actualizarContadorCampana()"
+          style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+          ${c.nombre.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${c.tipo==='mayoreo'?'Mayoreo':c.tipo==='zapateria'?'Corridas':'Menudeo'} · ${c.telefono}</p>
+        </div>
+        <a href="https://wa.me/${tel}?text=${msgEncoded}" target="_blank"
+           style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+          💬
+        </a>
+      </div>
+    `
+  }).join('')
+}
+
+window.cargarFotosNuevosModelos = async () => {
+  const grid = document.getElementById('campana-fotos-nuevos-grid')
+  const counter = document.getElementById('campana-fotos-count')
+  if (!grid) return
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true&imagen_principal=not.is.null&select=id,nombre,sku_interno,imagen_principal&order=created_at.desc&limit=20')
+    const prods = await res.json()
+    window._campanaFotosNuevos = prods
+    if (!prods.length) { grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa">No hay productos con foto portada</p>'; return }
+    grid.innerHTML = prods.map((p, i) => `
+      <div style="position:relative;cursor:pointer" onclick="toggleFotoNuevo(${i}, this)">
+        <img src="${p.imagen_principal}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:3px solid #E91E8C;display:block">
+        <div style="position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center">
+          <span style="color:white;font-size:10px;font-weight:700" id="foto-check-${i}">✓</span>
+        </div>
+        <p style="font-size:0.6rem;color:#666;text-align:center;margin-top:3px;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre||p.sku_interno}</p>
+      </div>
+    `).join('')
+    window._campanaFotosSeleccionadas = new Set(prods.map((_, i) => i))
+    actualizarCountFotos()
+  } catch(e) { if (grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem">Error cargando fotos</p>' }
+}
+
+window.toggleFotoNuevo = (idx, el) => {
+  if (!window._campanaFotosSeleccionadas) window._campanaFotosSeleccionadas = new Set()
+  const img = el.querySelector('img')
+  const check = document.getElementById('foto-check-' + idx)
+  if (window._campanaFotosSeleccionadas.has(idx)) {
+    window._campanaFotosSeleccionadas.delete(idx)
+    img.style.border = '3px solid #ddd'
+    el.querySelector('div').style.background = '#ccc'
+  } else {
+    window._campanaFotosSeleccionadas.add(idx)
+    img.style.border = '3px solid #E91E8C'
+    el.querySelector('div').style.background = '#E91E8C'
+  }
+  actualizarCountFotos()
+}
+
+window.actualizarCountFotos = () => {
+  const counter = document.getElementById('campana-fotos-count')
+  if (!counter) return
+  const n = window._campanaFotosSeleccionadas?.size || 0
+  counter.textContent = n > 0 ? `${n} foto${n>1?'s':''} seleccionada${n>1?'s':''} — se enviarán ${n} mensaje${n>1?'s':''} por cliente` : 'Ninguna foto seleccionada'
+}
+
+// ── Foto de producto para campaña ──────────────────────────────
+window.cargarProductosCampana = async () => {
+  const sel = document.getElementById('campana-producto-sel')
+  if (!sel) return
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=created_at.desc&limit=60')
+    const prods = await res.json()
+    sel.innerHTML = '<option value="">— Sin foto —</option>' +
+      prods.filter(p => p.imagen_principal).map(p =>
+        `<option value="${p.imagen_principal}" data-nombre="${p.nombre}">${p.nombre || p.sku_interno}</option>`
+      ).join('')
+  } catch(e) { console.error('Error cargando productos campana:', e) }
+}
+
+window.seleccionarProductoCampana = (imgUrl) => {
+  window._campanaImagenUrl = imgUrl || ''
+  const prev = document.getElementById('campana-foto-preview')
+  const img  = document.getElementById('campana-foto-img')
+  if (prev && img) {
+    if (imgUrl) { img.src = imgUrl; prev.style.display = 'block' }
+    else { prev.style.display = 'none'; img.src = '' }
+  }
+}
+
+window.quitarFotoCampana = () => {
+  window._campanaImagenUrl = ''
+  const sel = document.getElementById('campana-producto-sel')
+  if (sel) sel.value = ''
+  const prev = document.getElementById('campana-foto-preview')
+  if (prev) prev.style.display = 'none'
+}
+
+// ── Envío automático vía backend ──────────────────────────────
+window.enviarCampanaAutomatica = async () => {
+  const checks = document.querySelectorAll('.campana-cli-check:checked')
+  const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
+  const clientes = window._campanaFiltrados || []
+  const plantillaId = window._campanaPlantillaId || 'catalogo'
+  const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
+  const imagenUrl = window._campanaImagenUrl || ''
+
+  // Fotos a enviar
+  let fotosUrls = []
+  if (plantillaId === 'nuevos' && window._campanaFotosNuevos?.length) {
+    const sel = window._campanaFotosSeleccionadas || new Set()
+    fotosUrls = window._campanaFotosNuevos.filter((_, i) => sel.has(i)).map(p => p.imagen_principal)
+  } else if (imagenUrl) {
+    fotosUrls = [imagenUrl]
+  }
+
+  const destinatarios = indices.map(i => clientes[i]).filter(Boolean).map(c => {
+    let mensaje
+    if (plantillaId === 'personalizado') {
+      const texto = document.getElementById('texto-personalizado')?.value || ''
+      mensaje = texto.replace('{nombre}', c.nombre.split(' ')[0])
+    } else {
+      mensaje = plantilla.mensaje(c.nombre.split(' ')[0])
+    }
+    return { nombre: c.nombre, telefono: c.telefono, lada: c.lada || '52', mensaje }
+  })
+
+  if (!destinatarios.length) return
+
+  // Crear overlay de progreso
+  const overlay = document.createElement('div')
+  overlay.id = 'campana-auto-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">📤</div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Iniciando campaña…</h3>
+      <p style="font-size:0.82rem;color:#888">Conectando con WhatsApp Business</p>
+    </div>`
+  document.body.appendChild(overlay)
+
+  try {
+    const res = await fetch(API + '/campanas/enviar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        destinatarios: destinatarios.map(d => ({ nombre: d.nombre, telefono: d.telefono, mensaje: d.mensaje })),
+        fotos_urls: fotosUrls,
+        imagen_url: fotosUrls.length === 1 ? fotosUrls[0] : '',
+        delay_segundos: 4
+      })
+    })
+    const data = await res.json()
+    if (data.error) { overlay.remove(); alert('Error: ' + data.error); return }
+
+    const jobId = data.job_id
+    const total = data.total
+
+    // Polling de progreso
+    const renderProgreso = (job) => {
+      const p = job.progreso || 0
+      const pct = Math.round((p / total) * 100)
+      const ok = job.enviados || 0
+      const fail = job.fallidos || 0
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+            <h3 style="font-size:1rem;font-weight:700">🤖 Enviando campaña…</h3>
+            <button onclick="cancelarCampanaAuto('${jobId}')"
+              style="background:none;border:1px solid #eee;border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#888;cursor:pointer">
+              ⏸ Pausar
+            </button>
+          </div>
+          <div style="background:#f5f5f5;border-radius:100px;height:10px;margin-bottom:0.5rem;overflow:hidden">
+            <div style="background:linear-gradient(90deg,#E91E8C,#c4116a);height:10px;border-radius:100px;width:${pct}%;transition:width 0.5s"></div>
+          </div>
+          <p style="font-size:0.78rem;color:#888;text-align:center;margin-bottom:1.5rem">${p} de ${total} mensajes enviados</p>
+          <div style="display:flex;gap:1rem;justify-content:center">
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#25D366">${ok}</p>
+              <p style="font-size:0.72rem;color:#888">Enviados</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#e53e3e">${fail}</p>
+              <p style="font-size:0.72rem;color:#888">Fallidos</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#888">${total - p}</p>
+              <p style="font-size:0.72rem;color:#888">Pendientes</p>
+            </div>
+          </div>
+          ${p > 0 && job.resultados?.length ? `
+            <div style="margin-top:1rem;max-height:120px;overflow-y:auto;border-top:1px solid #f5f5f5;padding-top:0.75rem">
+              ${job.resultados.slice(-5).map(r => `
+                <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.75rem">
+                  <span style="color:${r.ok ? '#25D366' : '#e53e3e'}">${r.ok ? '✅' : '❌'}</span>
+                  <span style="flex:1;color:#555">${r.nombre}</span>
+                  ${!r.ok ? `<span style="color:#e53e3e;font-size:0.68rem">ventana 24h</span>` : ''}
+                </div>`).join('')}
+            </div>` : ''}
+        </div>`
+    }
+
+    window._campanaJobId = jobId
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch(API + '/campanas/estado/' + jobId)
+        const job = await r.json()
+        renderProgreso(job)
+        if (job.terminado) {
+          clearInterval(poll)
+          setTimeout(() => {
+            const ok = job.enviados || 0
+            const fail = job.fallidos || 0
+            overlay.innerHTML = `
+              <div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+                <div style="font-size:3.5rem;margin-bottom:1rem">${fail === 0 ? '🎉' : '✅'}</div>
+                <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">¡Campaña completada!</h3>
+                <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#25D366">${ok} enviados</strong> correctamente</p>
+                ${fail > 0 ? `<p style="color:#e53e3e;font-size:0.8rem;margin-bottom:1rem">${fail} fallaron (ventana de 24h cerrada — esos clientes no han escrito recientemente)</p>` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">¡Todo perfecto!</p>'}
+                <button onclick="document.getElementById('campana-auto-overlay').remove()"
+                  style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">
+                  Cerrar
+                </button>
+              </div>`
+          }, 600)
+        }
+      } catch(e) { clearInterval(poll) }
+    }, 1500)
+
+  } catch(e) {
+    overlay.remove()
+    alert('Error conectando con el servidor: ' + e.message)
+  }
+}
+
+window.cancelarCampanaAuto = async (jobId) => {
+  try {
+    await fetch(API + '/campanas/cancelar/' + jobId, { method: 'POST' })
+  } catch(e) {}
+  const overlay = document.getElementById('campana-auto-overlay')
+  if (overlay) overlay.remove()
+}
+
+window.toggleSeleccionarTodosCampana = (checked) => {
+  const checks = document.querySelectorAll('.campana-cli-check')
+  let count = 0
+  checks.forEach(el => {
+    if (checked) { el.checked = true; count++ }
+    else { el.checked = false }
+  })
+  actualizarContadorCampana()
+}
+
+window.iniciarCampanaSeleccionados = () => {
+  const checks = document.querySelectorAll('.campana-cli-check:checked')
+  const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
+  const clientes = window._campanaFiltrados || []
+  const plantillaId = window._campanaPlantillaId || 'catalogo'
+  const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
+
+  const seleccionados = indices.map(i => clientes[i]).filter(Boolean).map(c => {
+    let mensaje
+    if (plantillaId === 'personalizado') {
+      const texto = document.getElementById('texto-personalizado')?.value || ''
+      mensaje = texto.replace('{nombre}', c.nombre.split(' ')[0])
+    } else {
+      mensaje = plantilla.mensaje(c.nombre.split(' ')[0])
+    }
+    const tel = (c.lada || '52') + c.telefono.replace(/\D/g,'')
+    return { ...c, mensaje, tel }
+  })
+
+  if (!seleccionados.length) return
+
+  // Modal de envío paso a paso
+  let paso = 0
+  const overlay = document.createElement('div')
+  overlay.id = 'campana-modal-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+
+  const renderPaso = () => {
+    const c = seleccionados[paso]
+    const progreso = Math.round(((paso) / seleccionados.length) * 100)
+    overlay.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:2rem;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+          <h3 style="font-size:1rem;font-weight:700">📣 Campaña en curso</h3>
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888">✕</button>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div style="background:#f5f5f5;border-radius:100px;height:6px;margin-bottom:1.5rem">
+          <div style="background:#E91E8C;height:6px;border-radius:100px;width:${progreso}%;transition:width 0.3s"></div>
+        </div>
+        <p style="font-size:0.75rem;color:#888;text-align:center;margin-top:-1rem;margin-bottom:1.5rem">${paso} de ${seleccionados.length} enviados</p>
+
+        <!-- Cliente actual -->
+        <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;flex-shrink:0">
+            ${c.nombre.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
+            <p style="font-size:0.78rem;color:#888">${c.telefono}</p>
+          </div>
+        </div>
+
+        <!-- Preview mensaje -->
+        <div style="background:#e8f5e9;border-radius:10px;padding:0.875rem;font-size:0.8rem;color:#333;white-space:pre-wrap;line-height:1.55;border:1px solid #a5d6a7;max-height:140px;overflow-y:auto;margin-bottom:1.25rem">${c.mensaje}</div>
+
+        <!-- Botones -->
+        <a href="https://wa.me/${c.tel}?text=${encodeURIComponent(c.mensaje)}" target="_blank"
+           onclick="setTimeout(() => document.getElementById('btn-campana-siguiente')?.focus(), 800)"
+           style="display:block;background:#25D366;color:white;padding:12px;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;text-align:center;margin-bottom:10px">
+          💬 Abrir WhatsApp con ${c.nombre.split(' ')[0]}
+        </a>
+        <div style="display:flex;gap:8px">
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="flex:1;padding:10px;border-radius:10px;border:1px solid #eee;background:white;font-size:0.82rem;color:#888;cursor:pointer">
+            Pausar campaña
+          </button>
+          <button id="btn-campana-siguiente"
+            onclick="window._campanaAvanzar()"
+            style="flex:2;padding:10px;border-radius:10px;border:none;background:#E91E8C;color:white;font-size:0.85rem;font-weight:700;cursor:pointer">
+            ${paso < seleccionados.length - 1 ? '✅ Enviado → Siguiente' : '✅ Finalizar campaña'}
+          </button>
+        </div>
+      </div>
+    `
+  }
+
+  window._campanaAvanzar = () => {
+    paso++
+    if (paso >= seleccionados.length) {
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="font-size:3.5rem;margin-bottom:1rem">🎉</div>
+          <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">¡Campaña completada!</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Se enviaron mensajes a <strong>${seleccionados.length} clientes</strong> exitosamente.</p>
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">
+            Cerrar
+          </button>
+        </div>
+      `
+      return
+    }
+    renderPaso()
+  }
+
+  renderPaso()
+  document.body.appendChild(overlay)
 }
 
 async function cargarClientes() {

@@ -1963,15 +1963,15 @@ window.addEventListener('load', () => {
     })
     setTimeout(() => mostrarPaginaExito(paymentId), 500)
   } else if (pSlug) {
-    setTimeout(() => {
+    (window._initPromise || Promise.resolve()).then(() => {
       const prod = productos.find(p => p.sku_interno === pSlug || p.id === pSlug || p.slug === pSlug)
       if (prod) abrirProducto(prod.id)
-    }, 800)
+    })
   } else if (path.startsWith('/producto/')) {
     const sku = path.replace('/producto/', '')
     const colorParam = params.get('color')
     const tallaParam = params.get('talla')
-    setTimeout(() => {
+    ;(window._initPromise || Promise.resolve()).then(() => {
       const prod = productos.find(p => p.sku_interno === sku || p.id === sku || p.slug === sku)
       if (prod) {
         abrirProducto(prod.id)
@@ -1992,16 +1992,19 @@ window.addEventListener('load', () => {
       }
     }, 800)
     } else if (path === '/tabla-tallas') {
-  setTimeout(() => mostrarPagina('tabla-tallas'), 800)
+  ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('tabla-tallas'))
   } else if (hash === '#catalogo') {
-    setTimeout(() => mostrarCatalogo(), 500)
+    (window._initPromise || Promise.resolve()).then(() => mostrarCatalogo())
   } else if (hash === '#nuevos') {
-    setTimeout(() => mostrarNuevos(), 500)
+    (window._initPromise || Promise.resolve()).then(() => mostrarNuevos())
   } else if (hash === '#privacidad') {
-    setTimeout(() => mostrarPagina('privacidad'), 500)
+    (window._initPromise || Promise.resolve()).then(() => mostrarPagina('privacidad'))
+  } else if (hash && hash.startsWith('#') && !hash.startsWith('#categoria/')) {
+    const pageId = hash.slice(1)
+    if (pageId) (window._initPromise || Promise.resolve()).then(() => { if (typeof PAGINAS !== 'undefined' && PAGINAS[pageId]) mostrarPagina(pageId) })
   } else if (hash.startsWith('#categoria/')) {
     const cat = hash.replace('#categoria/', '')
-    setTimeout(() => filtrarCategoria(cat), 500)
+    ;(window._initPromise || Promise.resolve()).then(() => filtrarCategoria(cat))
   } else if (path === '/checkout') {
     const products = decodeURIComponent(params.get('products') || '')
     if (products) {
@@ -2150,7 +2153,35 @@ cargarConfigSEO()
       variantes = await resV.json()
       inventario = await resI.json()
       renderCategorias()
-      renderProductos(productos.filter(p => p.activo).slice(0, 12))
+
+      // Routing directo: restaurar la vista según la URL actual
+      const _hash = window.location.hash
+      const _path = window.location.pathname
+      if (_hash === '#catalogo') {
+        mostrarCatalogo()
+      } else if (_hash === '#nuevos') {
+        mostrarNuevos()
+      } else if (_hash.startsWith('#categoria/')) {
+        const _cat = _hash.replace('#categoria/', '')
+        const _filtrados = productos.filter(p => p.categoria === _cat && p.activo)
+        document.getElementById('productos-titulo').innerHTML = _cat.charAt(0).toUpperCase() + _cat.slice(1) + ' <em>disponibles</em>'
+        const _hero = document.getElementById('hero-section')
+        if (_hero) _hero.style.display = 'none'
+        const _cats = document.querySelector('.section')
+        const _banner = document.querySelector('.banner-mayoreo')
+        if (_cats) _cats.style.display = 'none'
+        if (_banner) _banner.style.display = 'none'
+        renderProductos(_filtrados)
+        document.getElementById('productos-section').style.display = ''
+      } else if (_path === '/tabla-tallas') {
+        mostrarPagina('tabla-tallas')
+      } else if (_hash && _hash.startsWith('#')) {
+        const _pid = _hash.slice(1)
+        if (_pid && typeof PAGINAS !== 'undefined' && PAGINAS[_pid]) mostrarPagina(_pid)
+        else renderProductos(productos.filter(p => p.activo).slice(0, 12))
+      } else {
+        renderProductos(productos.filter(p => p.activo).slice(0, 12))
+      }
     } catch(e) {
       console.error('Error cargando datos:', e)
     }
@@ -2786,6 +2817,13 @@ if (window.ttq) ttq.track('AddToCart', {
     }
     const filtrados = productos.filter(p => p.categoria === categoria && p.activo)
     document.getElementById('productos-titulo').innerHTML = categoria.charAt(0).toUpperCase()+categoria.slice(1)+' <em>disponibles</em>'
+    const _heroEl = document.getElementById('hero-section')
+    if (_heroEl) _heroEl.style.display = 'none'
+    const _catsEl = document.querySelector('.section')
+    const _bannerEl = document.querySelector('.banner-mayoreo')
+    if (_catsEl) _catsEl.style.display = 'none'
+    if (_bannerEl) _bannerEl.style.display = 'none'
+    document.getElementById('productos-section').style.display = ''
     renderProductos(filtrados)
     scrollToProductos()
     history.replaceState({}, '', '/#categoria/' + categoria)
@@ -2823,13 +2861,13 @@ if (window.ttq) ttq.track('AddToCart', {
 }
 function mostrarCatalogo() {
   const pagina = document.getElementById('pagina-interna')
-  const hero = document.getElementById('hero')
+  const hero = document.getElementById('hero-section')
   const productosSection = document.getElementById('productos-section')
   const cats = document.querySelector('.section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
   pagina.style.display = 'none'
-  hero.style.display = 'none'
+  if (hero) hero.style.display = 'none'
   productosSection.style.display = ''
   if (cats) cats.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
@@ -2842,13 +2880,13 @@ function mostrarCatalogo() {
 
 function mostrarNuevos() {
   const pagina = document.getElementById('pagina-interna')
-  const hero = document.getElementById('hero')
+  const hero = document.getElementById('hero-section')
   const productosSection = document.getElementById('productos-section')
   const cats = document.querySelector('.section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
   pagina.style.display = 'none'
-  hero.style.display = 'none'
+  if (hero) hero.style.display = 'none'
   productosSection.style.display = ''
   if (cats) cats.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
@@ -3474,7 +3512,7 @@ const usuarioGuardado = localStorage.getItem('usuario')
 if (usuarioGuardado) {
   try { usuarioActual = JSON.parse(usuarioGuardado); } catch(e) {}
 }
-  inicializar()
+  window._initPromise = inicializar()
   </script>
   <!-- PÁGINA INTERNA -->
 

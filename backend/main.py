@@ -4,6 +4,7 @@ from database import supabase_get
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
+from routers import campanas
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -47,6 +48,7 @@ app.include_router(seo.router)
 app.include_router(crm.router)
 app.include_router(finanzas.router)
 app.include_router(chatbot.router)
+app.include_router(campanas.router)
 
 @app.get("/")
 def inicio():

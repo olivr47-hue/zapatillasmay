@@ -47,7 +47,7 @@ def cerrar_caja(id: str, datos: dict):
             return JSONResponse(status_code=404, content={"error": "Caja no encontrada"})
         
         # Calcular ventas del dia
-        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=eq.confirmado")
+        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)")
         hoy = date.today().isoformat()
         pedidos_hoy = [p for p in pedidos if p['created_at'][:10] == hoy]
         
@@ -165,7 +165,7 @@ def reporte_financiero(sucursal_id: str):
         hoy = date.today()
         hace30 = (hoy - timedelta(days=30)).isoformat()
         
-        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hace30}")
+        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace30}")
         gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
         
         total_ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -200,7 +200,7 @@ def estado_resultados(sucursal_id: str):
 
         resultado = []
         for primer_dia, ultimo_dia in meses:
-            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
+            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
             gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -228,14 +228,14 @@ def flujo_efectivo(sucursal_id: str):
         hace7 = (hoy - timedelta(days=7)).isoformat()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
-        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hace7}T00:00:00")
-        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hace30}T00:00:00")
+        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace7}T00:00:00")
+        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace30}T00:00:00")
         gastos_semana = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}T00:00:00")
         gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
 
         # Por forma de pago hoy
         hoy_str = hoy.isoformat()
-        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=eq.confirmado&created_at=gte.{hoy_str}T00:00:00")
+        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hoy_str}T00:00:00")
 
         return {
             "hoy": {
@@ -263,7 +263,7 @@ def flujo_efectivo(sucursal_id: str):
 @router.get("/cuentas-por-cobrar")
 def cuentas_por_cobrar():
     try:
-        pedidos = supabase_get("pedidos?forma_pago=eq.credito&status=eq.confirmado&select=*,clientes(nombre,telefono)")
+        pedidos = supabase_get("pedidos?forma_pago=eq.credito&status=in.(confirmado,pagado,entregado)&select=*,clientes(nombre,telefono)")
         return pedidos
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -318,13 +318,14 @@ def sugerencias_recompra(sucursal_id: str):
             
             velocidad_semanal = ventas_30 / 4 if ventas_30 > 0 else ventas_90 / 12
             dias_inventario = round(stock_total / velocidad_semanal * 7) if velocidad_semanal > 0 else None
-            stock_minimo = p.get('stock_minimo', 1)
-            
+            stock_minimo = p.get('stock_minimo') or 1  # default 1 par: aparece cuando llega a 1 o 0
+
             cantidad_sugerida = 0
             if velocidad_semanal > 0:
                 cantidad_sugerida = max(0, round(velocidad_semanal * 4) - stock_total)
-            
-            if stock_total <= stock_minimo or (dias_inventario and dias_inventario <= 14):
+
+            # Mostrar si: stock bajo el mínimo, días de inventario críticos, o stock en 0
+            if stock_total == 0 or stock_total <= stock_minimo or (dias_inventario and dias_inventario <= 14):
                 sugerencias.append({
                     "producto_id": p['id'],
                     "nombre": p['nombre'],
