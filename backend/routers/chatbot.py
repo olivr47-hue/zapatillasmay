@@ -692,3 +692,118 @@ async def catalogo_info():
     async with httpx.AsyncClient() as client:
         res = await client.get(f"https://graph.facebook.com/v19.0/{waba_id}/product_catalogs", headers=headers)
         return res.json()
+
+@router.post("/envio-productos")
+async def envio_productos(datos: dict):
+    """Envía mensaje interactivo product_list de WhatsApp con hasta 30 productos del catálogo."""
+    try:
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+        if not wa_token or not phone_id:
+            return JSONResponse(status_code=500, content={"error": "Token no configurado"})
+        if not catalog_id:
+            return JSONResponse(status_code=400, content={"error": "WHATSAPP_CATALOG_ID no configurado en variables de entorno"})
+
+        contactos = datos.get("contactos", [])   # [{"telefono": "...", "nombre": "..."}]
+        skus      = datos.get("skus", [])         # list of sku_interno values (max 30)
+        titulo    = datos.get("titulo", "Nuestros modelos") or "Nuestros modelos"
+        cuerpo    = datos.get("cuerpo", "Elige el que más te guste 👠") or "Elige el que más te guste 👠"
+        pie       = datos.get("pie", "Zapatillas May · León, Gto.") or "Zapatillas May · León, Gto."
+
+        if not contactos:
+            return JSONResponse(status_code=400, content={"error": "Se requiere al menos un contacto"})
+        if not skus:
+            return JSONResponse(status_code=400, content={"error": "Se requiere al menos un SKU"})
+
+        # Limitar a 30 productos
+        skus = skus[:30]
+
+        # Obtener datos de productos para agrupar por categoría
+        productos_db = supabase_get("productos?activo=eq.true&select=sku_interno,id,nombre,categoria")
+        sku_a_prod = {}
+        for p in productos_db:
+            k = p.get("sku_interno") or p.get("id")
+            if k:
+                sku_a_prod[k] = p
+
+        # Agrupar SKUs por categoría para armar secciones
+        secciones_dict = {}  # categoria -> [retailer_ids]
+        for sku in skus:
+            prod = sku_a_prod.get(sku)
+            cat = (prod.get("categoria") or "Modelos") if prod else "Modelos"
+            cat = cat.strip().title() or "Modelos"
+            secciones_dict.setdefault(cat, []).append(sku)
+
+        # Construir secciones (máx 10 secciones, títulos máx 24 chars)
+        sections = []
+        for cat, items in list(secciones_dict.items())[:10]:
+            sections.append({
+                "title": cat[:24],
+                "product_items": [{"product_retailer_id": s} for s in items]
+            })
+
+        # Si hay un solo SKU usar tipo "product", si hay varios usar "product_list"
+        total_skus = sum(len(s["product_items"]) for s in sections)
+
+        wa_url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+        headers_req = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+
+        enviados = 0
+        fallidos = 0
+        errores = []
+
+        for contacto in contactos:
+            telefono = (contacto.get("telefono") or "").replace("+", "").replace(" ", "").replace("-", "")
+            if not telefono:
+                continue
+            if not telefono.startswith("52"):
+                telefono = "52" + telefono
+
+            if total_skus == 1:
+                # Mensaje de producto único
+                interactive_msg = {
+                    "type": "product",
+                    "body": {"text": cuerpo},
+                    "footer": {"text": pie},
+                    "action": {
+                        "catalog_id": catalog_id,
+                        "product_retailer_id": skus[0]
+                    }
+                }
+            else:
+                # Mensaje de lista de productos
+                interactive_msg = {
+                    "type": "product_list",
+                    "header": {"type": "text", "text": titulo[:60]},
+                    "body": {"text": cuerpo[:1024]},
+                    "footer": {"text": pie[:60]},
+                    "action": {
+                        "catalog_id": catalog_id,
+                        "sections": sections
+                    }
+                }
+
+            body_msg = {
+                "messaging_product": "whatsapp",
+                "to": telefono,
+                "type": "interactive",
+                "interactive": interactive_msg
+            }
+
+            body_enc = json.dumps(body_msg).encode("utf-8")
+            req = urllib.request.Request(wa_url, data=body_enc, headers=headers_req, method="POST")
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    enviados += 1
+            except urllib.error.HTTPError as http_e:
+                error_body = http_e.read().decode()
+                fallidos += 1
+                errores.append(f"{telefono}: HTTP {http_e.code} - {error_body}")
+            except Exception as inner_e:
+                fallidos += 1
+                errores.append(f"{telefono}: {str(inner_e)}")
+
+        return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
