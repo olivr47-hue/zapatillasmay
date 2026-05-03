@@ -250,6 +250,32 @@ def feed_meta():
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
+@router.get("/catalogo/listar")
+def listar_catalogos():
+    """Lista todos los catálogos accesibles con el token actual."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    if not wa_token:
+        return {"error": "WHATSAPP_TOKEN no configurado"}
+    results = {}
+    # Listar catálogos del usuario/token
+    for endpoint in [
+        "me/product_catalogs?fields=id,name,vertical",
+        "me?fields=businesses.limit(5){id,name,product_catalogs{id,name,vertical}}",
+    ]:
+        try:
+            req = urllib.request.Request(
+                f"https://graph.facebook.com/v21.0/{endpoint}",
+                headers={"Authorization": f"Bearer {wa_token}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as r:
+                results[endpoint] = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            results[endpoint] = {"error": json.loads(e.read().decode())}
+        except Exception as e:
+            results[endpoint] = {"error": str(e)}
+    return results
+
+
 @router.get("/catalogo/diagnostico")
 def diagnostico_catalogo():
     """Verifica el catalog_id configurado y devuelve info del objeto Meta."""
