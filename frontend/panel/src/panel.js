@@ -282,12 +282,23 @@ async function cargarOrdenes() {
     const sugerencias = await resSugerencias.json()
     const proveedores = await resProveedores.json()
 
-    window._ordenesData = { sugerencias, proveedores, sucursalId }
+    // Filtrar productos pospuestos (guardados en localStorage)
+    const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
+    const hoy = new Date().toISOString().split('T')[0]
+    const sugerenciasFiltradas = sugerencias.filter(p => {
+      const info = pospuestos[p.producto_id]
+      if (!info) return true
+      if (info.hasta === null || info.hasta === undefined) return false  // indefinido
+      return info.hasta <= hoy  // snooze expirado → vuelve a aparecer
+    })
+    const nPospuestos = sugerencias.length - sugerenciasFiltradas.length
+
+    window._ordenesData = { sugerencias: sugerenciasFiltradas, proveedores, sucursalId }
     window._ordenSeleccion = {}
 
-    const urgentes = sugerencias.filter(s => s.urgente)
-    const normales = sugerencias.filter(s => !s.urgente)
-    const totalCosto = sugerencias.reduce((s, p) => s + p.cantidad_sugerida * p.costo_unitario, 0)
+    const urgentes = sugerenciasFiltradas.filter(s => s.urgente)
+    const normales = sugerenciasFiltradas.filter(s => !s.urgente)
+    const totalCosto = sugerenciasFiltradas.reduce((s, p) => s + p.cantidad_sugerida * p.costo_unitario, 0)
 
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -314,16 +325,21 @@ async function cargarOrdenes() {
           <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⚠️ Por resurtir</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.6rem;font-weight:700;color:#333">${sugerencias.reduce((s,p)=>s+p.cantidad_sugerida,0)}</p>
+          <p style="font-size:1.6rem;font-weight:700;color:#333">${sugerenciasFiltradas.reduce((s,p)=>s+p.cantidad_sugerida,0)}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pares sugeridos</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${totalCosto.toFixed(0)}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo estimado</p>
         </div>
+        ${nPospuestos > 0 ? `
+        <div style="background:#f3e5f5;border-radius:12px;padding:1.25rem;border:1px solid #ce93d8;text-align:center;cursor:pointer" onclick="verPospuestos()">
+          <p style="font-size:1.6rem;font-weight:700;color:#6a1b9a">${nPospuestos}</p>
+          <p style="font-size:0.68rem;color:#6a1b9a;text-transform:uppercase;letter-spacing:0.5px">⏸️ Pospuestos</p>
+        </div>` : ''}
       </div>
 
-      ${sugerencias.length === 0
+      ${sugerenciasFiltradas.length === 0
         ? `<div style="background:white;border-radius:12px;padding:3rem;text-align:center;border:1px solid #eee">
             <p style="font-size:2rem;margin-bottom:1rem">✅</p>
             <p style="font-weight:700;font-size:1rem;margin-bottom:4px">Todo el inventario está bien</p>
@@ -335,7 +351,7 @@ async function cargarOrdenes() {
             <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
               <div style="display:flex;align-items:center;gap:12px">
                 <input type="checkbox" id="sel-todos" onchange="seleccionarTodos(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C">
-                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${sugerencias.length})</p>
+                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${sugerenciasFiltradas.length})</p>
               </div>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-secondary" style="font-size:0.78rem" onclick="filtrarOrdenes('todos')">Todos</button>
@@ -343,7 +359,7 @@ async function cargarOrdenes() {
               </div>
             </div>
 
-            ${sugerencias.map(p => `
+            ${sugerenciasFiltradas.map(p => `
               <div class="orden-item" data-urgente="${p.urgente}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
                 <input type="checkbox" class="orden-check" data-id="${p.producto_id}" onchange="actualizarSeleccion('${p.producto_id}', this.checked)"
                        style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C;flex-shrink:0">
@@ -385,6 +401,12 @@ async function cargarOrdenes() {
                   <div style="text-align:center">
                     <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Subtotal</p>
                     <p id="sub-${p.producto_id}" style="font-weight:700;color:#E91E8C;font-size:0.9rem">$${(p.cantidad_sugerida * p.costo_unitario).toFixed(0)}</p>
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">⏸️</p>
+                    <button onclick="posponerProducto('${p.producto_id}', '${p.nombre.replace(/'/g, '')}')"
+                            title="Posponer — no aparecerá por un tiempo"
+                            style="background:none;border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem;color:#999">Posponer</button>
                   </div>
                 </div>
               </div>
@@ -465,110 +487,104 @@ window.generarOrden = () => {
     return
   }
 
-  // Agrupar por proveedor
-  const porProveedor = {}
-  seleccionados.forEach(p => {
-    const provId = p.proveedor_id || 'sin-proveedor'
-    const provNombre = p.proveedor?.nombre || 'Sin proveedor'
-    if (!porProveedor[provId]) porProveedor[provId] = { nombre: provNombre, productos: [] }
-    const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
-    porProveedor[provId].productos.push({ ...p, cantidad_final: qty })
-  })
+  // Guardar referencia para imprimir/guardar
+  window._ordenModal = { seleccionados, sucursalId }
 
   const modal = document.createElement('div')
+  modal.id = 'modal-orden'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto'
+
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:2rem;max-width:700px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:780px;width:100%;max-height:90vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
         <h3 style="font-size:1.1rem;font-weight:700">📋 Orden de compra</h3>
-        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+        <button onclick="document.getElementById('modal-orden').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
       </div>
 
-      <div style="margin-bottom:1rem">
-        <label class="form-label">Sucursal destino</label>
-        <select class="form-input" id="orden-sucursal">
-          <option value="${sucursalId}">Sucursal actual</option>
-        </select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Sucursal destino</label>
+          <select class="form-input" id="orden-sucursal">
+            <option value="${sucursalId}">Sucursal actual</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Fecha de entrega estimada</label>
+          <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+        </div>
       </div>
 
-      <div style="margin-bottom:1rem">
-        <label class="form-label">Fecha de entrega estimada</label>
-        <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
-      </div>
-
-      <div style="margin-bottom:1rem">
+      <div style="margin-bottom:1.25rem">
         <label class="form-label">Notas</label>
         <textarea class="form-input" id="orden-notas" rows="2" placeholder="Condiciones de entrega, forma de pago..."></textarea>
       </div>
 
-      ${Object.entries(porProveedor).map(([provId, prov]) => `
+      ${seleccionados.map(p => {
+        const varsSinStock = (p.variantes || []).filter(v => v.sin_stock)
+        const varsConStock = (p.variantes || []).filter(v => !v.sin_stock)
+        const allVars = [...varsSinStock, ...varsConStock]
+        return `
         <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
-          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem;color:#333">🏭 ${prov.nombre}</p>
-          <table style="width:100%;font-size:0.82rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <span style="font-weight:700;font-size:0.95rem">${p.nombre}</span>
+              <span style="color:#888;font-size:0.75rem;margin-left:8px">${p.sku || ''}</span>
+              ${p.proveedor ? `<span style="color:#6a1b9a;font-size:0.75rem;margin-left:8px">· 🏭 ${p.proveedor.nombre}</span>` : ''}
+            </div>
+            <span style="font-size:0.8rem;color:#888;font-weight:600">$${p.costo_unitario.toFixed(0)}/par</span>
+          </div>
+          ${allVars.length > 0 ? `
+          <table style="width:100%;font-size:0.8rem;border-collapse:collapse">
             <thead>
-              <tr style="color:#888">
-                <th style="text-align:left;padding:4px 0">Producto</th>
-                <th style="text-align:center;padding:4px">Pares</th>
-                <th style="text-align:right;padding:4px">Costo/par</th>
-                <th style="text-align:right;padding:4px">Subtotal</th>
+              <tr style="background:#eeeeee">
+                <th style="padding:5px 8px;text-align:left;font-weight:600;border-radius:4px 0 0 4px">Incluir</th>
+                <th style="padding:5px 8px;text-align:left;font-weight:600">Talla</th>
+                <th style="padding:5px 8px;text-align:left;font-weight:600">Color</th>
+                <th style="padding:5px 8px;text-align:center;font-weight:600">Stock actual</th>
+                <th style="padding:5px 8px;text-align:center;font-weight:600;border-radius:0 4px 4px 0">Pedir (pares)</th>
               </tr>
             </thead>
             <tbody>
-              ${prov.productos.map(p => {
-                const varSinStock = (p.variantes || []).filter(v => v.sin_stock)
-                const varConStock = (p.variantes || []).filter(v => !v.sin_stock)
-                const desglose = varSinStock.length > 0
-                  ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">
-                      ${varSinStock.map(v => {
-                        const label = [v.talla, v.color].filter(Boolean).join(' / ')
-                        return `<span style="background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:1px 6px;border-radius:100px;font-size:0.68rem;font-weight:600">${label} ×1</span>`
-                      }).join('')}
-                      ${varConStock.map(v => {
-                        const label = [v.talla, v.color].filter(Boolean).join(' / ')
-                        return `<span style="background:#f5f5f5;color:#666;border:1px solid #e0e0e0;padding:1px 6px;border-radius:100px;font-size:0.68rem">${label} (${v.stock})</span>`
-                      }).join('')}
-                    </div>`
-                  : ''
-                return `
-                <tr style="border-top:1px solid #eee">
-                  <td style="padding:6px 0">
-                    <p style="font-weight:600">${p.nombre}</p>
-                    <p style="color:#888;font-size:0.72rem">${p.sku || ''}</p>
-                    ${desglose}
-                  </td>
-                  <td style="text-align:center;font-weight:700">${p.cantidad_final}</td>
-                  <td style="text-align:right">$${p.costo_unitario.toFixed(0)}</td>
-                  <td style="text-align:right;font-weight:700;color:#E91E8C">$${(p.cantidad_final * p.costo_unitario).toFixed(0)}</td>
-                </tr>`
-              }).join('')}
+              ${allVars.map(v => `
+              <tr style="border-bottom:1px solid #f0f0f0;${v.sin_stock ? 'background:#fff8f8' : ''}">
+                <td style="padding:5px 8px">
+                  <input type="checkbox" id="chk-var-${v.id}" ${v.sin_stock ? 'checked' : ''}
+                         onchange="ordenToggleVar('${v.id}', this.checked)"
+                         style="accent-color:#E91E8C;cursor:pointer;width:15px;height:15px">
+                </td>
+                <td style="padding:5px 8px;font-weight:${v.sin_stock ? '700' : '400'}">${v.talla || '-'}</td>
+                <td style="padding:5px 8px;color:${v.sin_stock ? '#c62828' : '#555'}">${v.color || '-'}</td>
+                <td style="text-align:center;padding:5px 8px">
+                  <span style="background:${v.sin_stock ? '#ffebee' : '#e8f5e9'};color:${v.sin_stock ? '#c62828' : '#2e7d32'};padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600">${v.stock}</span>
+                </td>
+                <td style="text-align:center;padding:5px 8px">
+                  <input type="number" id="qty-var-${v.id}" min="0" value="${v.sin_stock ? 1 : 0}"
+                         ${v.sin_stock ? '' : 'disabled'}
+                         onchange="ordenRecalcTotal()"
+                         style="width:55px;text-align:center;border:1px solid ${v.sin_stock ? '#E91E8C' : '#ddd'};border-radius:6px;padding:3px 5px;font-size:0.85rem;${v.sin_stock ? '' : 'opacity:0.35'}">
+                </td>
+              </tr>`).join('')}
             </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="3" style="text-align:right;font-weight:700;padding-top:8px">Total ${prov.nombre}:</td>
-                <td style="text-align:right;font-weight:700;color:#E91E8C;padding-top:8px">$${prov.productos.reduce((s,p)=>s+p.cantidad_final*p.costo_unitario,0).toFixed(0)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      `).join('')}
+          </table>` : `<p style="font-size:0.8rem;color:#aaa;margin-top:4px">Sin variantes registradas — pedir ${p.cantidad_sugerida} pares en total</p>`}
+        </div>`
+      }).join('')}
 
       <div style="background:#e8f5e9;border-radius:8px;padding:1rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
         <span style="font-weight:700">Total general</span>
-        <span style="font-weight:700;font-size:1.2rem;color:#2e7d32">$${seleccionados.reduce((s,p)=>{
-          const qty = parseInt(document.getElementById('qty-orden-'+p.producto_id)?.value||p.cantidad_sugerida)
-          return s + qty * p.costo_unitario
-        },0).toFixed(0)}</span>
+        <span id="orden-total-general" style="font-weight:700;font-size:1.2rem;color:#2e7d32">$0</span>
       </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cancelar</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-orden').remove()">Cancelar</button>
         <button class="btn btn-secondary" onclick="imprimirOrden()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">🖨️ Imprimir</button>
-        <button class="btn btn-primary" onclick="guardarOrdenCompra(${JSON.stringify(Object.entries(porProveedor)).replace(/"/g,'&quot;')})">💾 Guardar orden</button>
+        <button class="btn btn-primary" onclick="guardarOrdenCompra2()">💾 Guardar orden</button>
       </div>
     </div>
   `
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  // Calcular total inicial
+  setTimeout(ordenRecalcTotal, 50)
 }
 
 window.guardarOrdenCompra = async (proveedoresStr) => {
@@ -617,8 +633,230 @@ window.guardarOrdenCompra = async (proveedoresStr) => {
   }
 }
 
+window.ordenToggleVar = (varId, checked) => {
+  const qty = document.getElementById('qty-var-' + varId)
+  if (!qty) return
+  qty.disabled = !checked
+  qty.style.opacity = checked ? '1' : '0.35'
+  qty.style.borderColor = checked ? '#E91E8C' : '#ddd'
+  if (checked && (!qty.value || qty.value === '0')) qty.value = 1
+  else if (!checked) qty.value = 0
+  ordenRecalcTotal()
+}
+
+window.ordenRecalcTotal = () => {
+  const { seleccionados } = window._ordenModal || {}
+  if (!seleccionados) return
+  let total = 0
+  seleccionados.forEach(p => {
+    (p.variantes || []).forEach(v => {
+      const chk = document.getElementById('chk-var-' + v.id)
+      const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
+      if (chk?.checked && qty > 0) total += qty * p.costo_unitario
+    })
+    // Si no tiene variantes, usar cantidad sugerida
+    if (!p.variantes || p.variantes.length === 0) {
+      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+      total += qty * p.costo_unitario
+    }
+  })
+  const el = document.getElementById('orden-total-general')
+  if (el) el.textContent = '$' + total.toFixed(0)
+}
+
 window.imprimirOrden = () => {
-  window.print()
+  const { seleccionados } = window._ordenModal || {}
+  if (!seleccionados) return
+  const fecha = document.getElementById('orden-fecha')?.value || ''
+  const notas = document.getElementById('orden-notas')?.value || ''
+  const hoy = new Date().toLocaleDateString('es-MX')
+
+  let rows = ''
+  let total = 0
+  seleccionados.forEach(p => {
+    const vars = p.variantes || []
+    if (vars.length === 0) {
+      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+      const sub = qty * p.costo_unitario
+      total += sub
+      rows += `<tr><td>${p.nombre}</td><td>${p.sku||''}</td><td>—</td><td>—</td><td style="text-align:center">${qty}</td><td style="text-align:right">$${sub.toFixed(0)}</td></tr>`
+    } else {
+      vars.forEach(v => {
+        const chk = document.getElementById('chk-var-' + v.id)
+        if (!chk?.checked) return
+        const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
+        if (qty <= 0) return
+        const sub = qty * p.costo_unitario
+        total += sub
+        rows += `<tr style="${v.sin_stock ? 'background:#fff5f5' : ''}">
+          <td style="font-weight:${v.sin_stock?'bold':'normal'}">${p.nombre}</td>
+          <td style="color:#777">${p.sku||''}</td>
+          <td>${v.talla||'—'}</td>
+          <td>${v.color||'—'}</td>
+          <td style="text-align:center;font-weight:bold">${qty}</td>
+          <td style="text-align:right">$${sub.toFixed(0)}</td>
+        </tr>`
+      })
+    }
+  })
+
+  const win = window.open('', '_blank')
+  win.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Orden de compra</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; padding: 24px; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 11px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #f0f0f0; padding: 7px 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }
+  td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .total-row td { border-top: 2px solid #333; font-weight: bold; font-size: 13px; padding-top: 10px; }
+  @media print {
+    body { padding: 10px; }
+    button { display: none; }
+  }
+</style>
+</head><body>
+  <h1>📋 Orden de compra</h1>
+  <div class="meta">
+    Fecha de emisión: ${hoy}
+    ${fecha ? ' &nbsp;|&nbsp; Entrega estimada: ' + fecha : ''}
+    ${notas ? ' &nbsp;|&nbsp; Notas: ' + notas : ''}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Modelo</th><th>SKU</th><th>Talla</th><th>Color</th>
+        <th style="text-align:center">Pares</th><th style="text-align:right">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="4">TOTAL GENERAL</td>
+        <td></td>
+        <td style="text-align:right">$${total.toFixed(0)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <script>window.onload = () => window.print()</script>
+</body></html>`)
+  win.document.close()
+}
+
+window.posponerProducto = (productoId, nombre) => {
+  const existente = document.getElementById('modal-posponer')
+  if (existente) existente.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-posponer'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1100;display:flex;align-items:center;justify-content:center'
+  m.innerHTML = `
+    <div style="background:white;border-radius:14px;padding:1.5rem;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+      <p style="font-weight:700;font-size:1rem;margin-bottom:4px">⏸️ Posponer producto</p>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">${nombre}</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', 7)" style="text-align:left">📅 7 días — revisaré la próxima semana</button>
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', 30)" style="text-align:left">📅 30 días — esperar el mes que entra</button>
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${productoId}', null)" style="text-align:left;color:#c62828;border-color:#ef9a9a">🚫 No pedir por ahora (indefinido)</button>
+      </div>
+      <button onclick="document.getElementById('modal-posponer').remove()" style="margin-top:1rem;width:100%;background:none;border:none;color:#aaa;cursor:pointer;font-size:0.82rem">Cancelar</button>
+    </div>`
+  m.addEventListener('click', e => { if (e.target === m) m.remove() })
+  document.body.appendChild(m)
+}
+
+window.aplicarPosponer = (productoId, dias) => {
+  const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
+  let hasta = null
+  if (dias !== null) {
+    const fecha = new Date()
+    fecha.setDate(fecha.getDate() + dias)
+    hasta = fecha.toISOString().split('T')[0]
+  }
+  pospuestos[productoId] = { hasta }
+  localStorage.setItem('ordenes_pospuestos', JSON.stringify(pospuestos))
+  document.getElementById('modal-posponer')?.remove()
+  cargarOrdenes()
+}
+
+window.verPospuestos = () => {
+  const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
+  const { sugerencias } = window._ordenesData
+  const hoy = new Date().toISOString().split('T')[0]
+  // Todos los originales que están pospuestos
+  const lista = Object.entries(pospuestos).map(([id, info]) => {
+    const nombre = info.nombre || id
+    const hasta = info.hasta ? 'hasta ' + info.hasta : 'indefinido'
+    return `• ${nombre} — ${hasta}`
+  }).join('\n')
+  if (!lista) { alert('No hay productos pospuestos.'); return }
+  const confirmar = confirm('Productos pospuestos:\n\n' + lista + '\n\n¿Quieres reactivar todos?')
+  if (confirmar) {
+    localStorage.removeItem('ordenes_pospuestos')
+    cargarOrdenes()
+  }
+}
+
+window.guardarOrdenCompra2 = async () => {
+  const { seleccionados, sucursalId } = window._ordenModal || {}
+  if (!seleccionados) return
+  const fecha = document.getElementById('orden-fecha')?.value
+  const notas = document.getElementById('orden-notas')?.value || ''
+
+  // Agrupar por proveedor
+  const porProveedor = {}
+  seleccionados.forEach(p => {
+    const provId = p.proveedor_id || 'sin-proveedor'
+    const provNombre = p.proveedor?.nombre || 'Sin proveedor'
+    if (!porProveedor[provId]) porProveedor[provId] = { nombre: provNombre, items: [] }
+    const vars = p.variantes || []
+    if (vars.length === 0) {
+      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+      porProveedor[provId].items.push({ variante_id: null, cantidad: qty, costo_unitario: p.costo_unitario })
+    } else {
+      vars.forEach(v => {
+        const chk = document.getElementById('chk-var-' + v.id)
+        if (!chk?.checked) return
+        const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
+        if (qty <= 0) return
+        porProveedor[provId].items.push({ variante_id: v.id, cantidad: qty, costo_unitario: p.costo_unitario })
+      })
+    }
+  })
+
+  try {
+    for (const [provId, prov] of Object.entries(porProveedor)) {
+      if (prov.items.length === 0) continue
+      const total = prov.items.reduce((s, i) => s + i.cantidad * i.costo_unitario, 0)
+      const res = await fetch(API + '/finanzas/ordenes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proveedor_id: provId === 'sin-proveedor' ? null : provId,
+          sucursal_id: sucursalId,
+          status: 'borrador',
+          total,
+          notas,
+          fecha_entrega_estimada: fecha || null
+        })
+      })
+      const orden = await res.json()
+      const ordenId = orden[0]?.id
+      if (!ordenId) continue
+      for (const item of prov.items) {
+        await fetch(API + '/finanzas/ordenes/' + ordenId + '/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...item, subtotal: item.cantidad * item.costo_unitario })
+        })
+      }
+    }
+    document.getElementById('modal-orden')?.remove()
+    alert('Orden de compra guardada')
+    cargarOrdenes()
+  } catch(e) {
+    alert('Error guardando orden: ' + e.message)
+  }
 }
 
 
