@@ -3989,43 +3989,7 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
       ${o.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${o.fallidos} fallidos</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
       <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
         style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
-    </div>`}catch(a){n.remove(),alert("Error: "+a.message)}};window.seleccionarImagenProductoEnvio=()=>{var s,d;const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-imagen"),n=document.getElementById("envio-producto-preview"),a=document.getElementById("envio-producto-img"),o=document.getElementById("envio-producto-nombre");if(!e)return;const i=e.value,r=((d=(s=e.options[e.selectedIndex])==null?void 0:s.dataset)==null?void 0:d.nombre)||"";i?(t&&(t.value=i),n&&(n.style.display="flex"),a&&(a.src=i),o&&(o.textContent=r)):(t&&(t.value=""),n&&(n.style.display="none"))};window.limpiarSelProductoEnvio=()=>{const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-producto-preview");e&&(e.value=""),t&&(t.style.display="none")};window.cargarProductosEnvio=async()=>{try{const t=await(await fetch(g+"/productos/")).json(),n=document.getElementById("envio-producto-sel");if(!n)return;const a=t.filter(o=>o.activo&&o.imagen_principal);n.innerHTML='<option value="">Seleccionar producto...</option>'+a.map(o=>`<option value="${o.imagen_principal}" data-nombre="${o.nombre}">${o.nombre}</option>`).join("")}catch(e){console.error("Error:",e)}};window.cargarSEO=async()=>{const e=document.getElementById("content");e&&(e.innerHTML=`
-    <div style="max-width:800px">
-      <div style="margin-bottom:1.5rem">
-        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🔍 SEO y Sitio</h2>
-        <p style="color:#888;font-size:0.85rem">Configuración del sitio web y catálogo de Meta</p>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗂️ Colecciones del catálogo de WhatsApp</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar por categoría desde WhatsApp.</p>
-        <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
-        <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">
-          🗂️ Sincronizar colecciones en Meta
-        </button>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗺️ Sitemap y robots.txt</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Archivos generados automáticamente para indexación en Google.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📄 Ver sitemap.xml</a>
-          <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🤖 Ver robots.txt</a>
-          <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📦 Ver feed Meta</a>
-        </div>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🌐 Sitio web</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Links rápidos al sitio de la tienda.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a href="https://zapatillasmay.mx" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🏠 Inicio</a>
-          <a href="https://zapatillasmay.mx/tabla-tallas" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📏 Tabla de tallas</a>
-          <a href="https://zapatillasmay.mx/devoluciones" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">↩️ Devoluciones</a>
-        </div>
-      </div>
-    </div>
-  `)};window.sincronizarColeccionesMeta=async()=>{const e=document.getElementById("btn-sync-colecciones"),t=document.getElementById("seo-colecciones-resultado");e&&(e.textContent="Sincronizando...",e.disabled=!0);try{const a=await(await fetch(g+"/catalogo/sincronizar-colecciones",{method:"POST"})).json();if(a.error)t.style.display="block",t.style.background="#ffebee",t.style.borderColor="#ef9a9a",t.innerHTML=`❌ Error: ${a.error}`;else{const o=a.resultados.filter(s=>s.accion==="creada").length,i=a.resultados.filter(s=>s.accion==="actualizada").length,r=a.resultados.filter(s=>s.accion==="error");t.style.display="block",t.style.background=r.length?"#fff8e1":"#e8f5e9",t.style.border=`1px solid ${r.length?"#ffe082":"#a5d6a7"}`,t.innerHTML=`
+    </div>`}catch(a){n.remove(),alert("Error: "+a.message)}};window.seleccionarImagenProductoEnvio=()=>{var s,d;const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-imagen"),n=document.getElementById("envio-producto-preview"),a=document.getElementById("envio-producto-img"),o=document.getElementById("envio-producto-nombre");if(!e)return;const i=e.value,r=((d=(s=e.options[e.selectedIndex])==null?void 0:s.dataset)==null?void 0:d.nombre)||"";i?(t&&(t.value=i),n&&(n.style.display="flex"),a&&(a.src=i),o&&(o.textContent=r)):(t&&(t.value=""),n&&(n.style.display="none"))};window.limpiarSelProductoEnvio=()=>{const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-producto-preview");e&&(e.value=""),t&&(t.style.display="none")};window.cargarProductosEnvio=async()=>{try{const t=await(await fetch(g+"/productos/")).json(),n=document.getElementById("envio-producto-sel");if(!n)return;const a=t.filter(o=>o.activo&&o.imagen_principal);n.innerHTML='<option value="">Seleccionar producto...</option>'+a.map(o=>`<option value="${o.imagen_principal}" data-nombre="${o.nombre}">${o.nombre}</option>`).join("")}catch(e){console.error("Error:",e)}};window.sincronizarColeccionesMeta=async()=>{const e=document.getElementById("btn-sync-colecciones"),t=document.getElementById("seo-colecciones-resultado");e&&(e.textContent="Sincronizando...",e.disabled=!0);try{const a=await(await fetch(g+"/catalogo/sincronizar-colecciones",{method:"POST"})).json();if(a.error)t.style.display="block",t.style.background="#ffebee",t.style.borderColor="#ef9a9a",t.innerHTML=`❌ Error: ${a.error}`;else{const o=a.resultados.filter(s=>s.accion==="creada").length,i=a.resultados.filter(s=>s.accion==="actualizada").length,r=a.resultados.filter(s=>s.accion==="error");t.style.display="block",t.style.background=r.length?"#fff8e1":"#e8f5e9",t.style.border=`1px solid ${r.length?"#ffe082":"#a5d6a7"}`,t.innerHTML=`
         ✅ <strong>${o} colecciones creadas</strong> · ${i} actualizadas
         ${r.length?`<br>⚠️ ${r.length} errores: ${r.map(s=>s.categoria+" ("+s.detalle+")").join(", ")}`:""}
         <br><small style="color:#888;margin-top:4px;display:block">${a.resultados.map(s=>`${s.categoria}: ${s.accion}`).join(" · ")}</small>
@@ -4059,6 +4023,12 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
       </div>
     `,document.body.appendChild(s),s.addEventListener("click",d=>{d.target===s&&s.remove()})}catch(a){console.error("Error verOportunidad",a)}};window.actualizarEtapaOportunidad=async(e,t)=>{var n;try{await fetch(g+"/crm/oportunidades/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({etapa:t})}),(n=document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]'))==null||n.remove(),mostrarPipeline()}catch{alert("Error actualizando etapa")}};window.completarTareaDashboard=async(e,t)=>{try{await fetch(g+"/chatbot/tareas/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({completada:t})})}catch(n){console.error(n)}};async function ve(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>';try{const n=await(await fetch(g+"/seo/config")).json(),a={};n.forEach(o=>a[o.clave]=o.valor||""),e.innerHTML=`
       <div style="max-width:800px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1rem">🗂️ Colecciones WhatsApp</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar desde WhatsApp.</p>
+          <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
+          <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">🗂️ Sincronizar colecciones en Meta</button>
+        </div>
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">SEO General</h3>
           <div style="display:grid;gap:1rem">

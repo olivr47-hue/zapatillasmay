@@ -9797,48 +9797,6 @@ window.cargarProductosEnvio = async () => {
   } catch(e) { console.error('Error:', e) }
 }
 
-// ── SEO y Sitio ──────────────────────────────────────────────
-window.cargarSEO = async () => {
-  const content = document.getElementById('content')
-  if (!content) return
-  content.innerHTML = `
-    <div style="max-width:800px">
-      <div style="margin-bottom:1.5rem">
-        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🔍 SEO y Sitio</h2>
-        <p style="color:#888;font-size:0.85rem">Configuración del sitio web y catálogo de Meta</p>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗂️ Colecciones del catálogo de WhatsApp</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar por categoría desde WhatsApp.</p>
-        <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
-        <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">
-          🗂️ Sincronizar colecciones en Meta
-        </button>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗺️ Sitemap y robots.txt</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Archivos generados automáticamente para indexación en Google.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📄 Ver sitemap.xml</a>
-          <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🤖 Ver robots.txt</a>
-          <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📦 Ver feed Meta</a>
-        </div>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🌐 Sitio web</h3>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Links rápidos al sitio de la tienda.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a href="https://zapatillasmay.mx" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🏠 Inicio</a>
-          <a href="https://zapatillasmay.mx/tabla-tallas" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📏 Tabla de tallas</a>
-          <a href="https://zapatillasmay.mx/devoluciones" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">↩️ Devoluciones</a>
-        </div>
-      </div>
-    </div>
-  `
-}
 
 window.sincronizarColeccionesMeta = async () => {
   const btn = document.getElementById('btn-sync-colecciones')
@@ -9967,6 +9925,12 @@ async function cargarSEO() {
 
     content.innerHTML = `
       <div style="max-width:800px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1rem">🗂️ Colecciones WhatsApp</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar desde WhatsApp.</p>
+          <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
+          <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">🗂️ Sincronizar colecciones en Meta</button>
+        </div>
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">SEO General</h3>
           <div style="display:grid;gap:1rem">
