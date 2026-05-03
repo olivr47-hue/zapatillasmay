@@ -2157,6 +2157,12 @@ window.mostrarCampanas = async () => {
         nombre: '✏️ Mensaje personalizado',
         descripcion: 'Escribe tu propio mensaje',
         mensaje: (nombre) => `Hola ${nombre}! 👋\n\n`
+      },
+      {
+        id: 'catalogo_interactivo',
+        nombre: '🛍️ Catálogo interactivo (API)',
+        descripcion: 'Envía hasta 30 productos como tarjetas comprables desde WhatsApp',
+        mensaje: () => '[Mensaje interactivo — tarjetas de producto del catálogo]'
       }
     ]
 
@@ -2225,6 +2231,17 @@ window.mostrarCampanas = async () => {
                 <p style="font-size:0.8rem;color:#aaa">Cargando fotos...</p>
               </div>
               <p id="campana-fotos-count" style="font-size:0.75rem;color:#E91E8C;margin-top:8px;font-weight:600"></p>
+            </div>
+
+            <div id="campana-productos-interactivo" style="display:none">
+              <p style="font-size:0.75rem;color:#999;margin-bottom:0.5rem">Selecciona hasta 30 productos del catálogo</p>
+              <input id="campana-prod-buscador" type="text" placeholder="🔍 Buscar producto..."
+                oninput="filtrarProductosInteractivo(this.value)"
+                style="width:100%;padding:6px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="campana-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px">
+                <p style="font-size:0.8rem;color:#aaa;padding:8px">Cargando productos...</p>
+              </div>
+              <p id="campana-prod-count" style="font-size:0.75rem;color:#E91E8C;margin-top:6px;font-weight:600"></p>
             </div>
           </div>
 
@@ -2325,22 +2342,39 @@ window.actualizarVistaCampana = () => {
   if (plantillaId === 'nuevos') {
     cargarFotosNuevosModelos()
   }
+  if (plantillaId === 'catalogo_interactivo') {
+    cargarProductosInteractivo()
+  }
   const divFotoManual = document.getElementById('campana-foto-manual')
-  if (divFotoManual) divFotoManual.style.display = plantillaId === 'nuevos' ? 'none' : 'block'
+  if (divFotoManual) divFotoManual.style.display = (plantillaId === 'nuevos' || plantillaId === 'catalogo_interactivo') ? 'none' : 'block'
   const divFotosNuevos = document.getElementById('campana-fotos-nuevos')
   if (divFotosNuevos) divFotosNuevos.style.display = plantillaId === 'nuevos' ? 'block' : 'none'
+  const divProdInteractivo = document.getElementById('campana-productos-interactivo')
+  if (divProdInteractivo) divProdInteractivo.style.display = plantillaId === 'catalogo_interactivo' ? 'block' : 'none'
 
   // Vista previa del mensaje
   const preview = document.getElementById('mensaje-preview')
-  if (preview && plantilla) {
-    let msgPreview
-    if (plantillaId === 'personalizado') {
-      const texto = document.getElementById('texto-personalizado')?.value || ''
-      msgPreview = texto.replace('{nombre}', 'María')
+  if (preview) {
+    if (plantillaId === 'catalogo_interactivo') {
+      preview.style.background = '#e3f2fd'
+      preview.style.borderColor = '#90caf9'
+      preview.style.color = '#1565c0'
+      preview.textContent = '🛍️ Los productos seleccionados se enviarán como tarjetas interactivas en WhatsApp.\n\nEl cliente puede ver cada modelo, elegir talla/color y hacer su pedido directamente desde el chat.\n\n⚠️ Requiere que los productos estén en el catálogo de Meta Commerce.'
     } else {
-      msgPreview = plantilla.mensaje('María')
+      preview.style.background = '#e8f5e9'
+      preview.style.borderColor = '#a5d6a7'
+      preview.style.color = '#333'
+      if (plantilla) {
+        let msgPreview
+        if (plantillaId === 'personalizado') {
+          const texto = document.getElementById('texto-personalizado')?.value || ''
+          msgPreview = texto.replace('{nombre}', 'María')
+        } else {
+          msgPreview = plantilla.mensaje('María')
+        }
+        preview.textContent = msgPreview
+      }
     }
-    preview.textContent = msgPreview
   }
 
   // Contador
@@ -2533,12 +2567,128 @@ window.quitarFotoCampana = () => {
   if (prev) prev.style.display = 'none'
 }
 
+// ── Catálogo interactivo WhatsApp ──────────────────────────────
+window.cargarProductosInteractivo = async () => {
+  const grid = document.getElementById('campana-prod-grid')
+  if (!grid) return
+  if (window._campanaProdInteractivoCargado) { renderizarProductosInteractivo(window._campanaProdInteractivo || []); return }
+  grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:8px">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal&order=nombre.asc&limit=300')
+    const prods = await res.json()
+    window._campanaProdInteractivo = prods
+    window._campanaProdSeleccionados = new Set()
+    window._campanaProdInteractivoCargado = true
+    renderizarProductosInteractivo(prods)
+  } catch(e) {
+    if (grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem;padding:8px">Error cargando productos</p>'
+  }
+}
+
+window.renderizarProductosInteractivo = (prods) => {
+  const grid = document.getElementById('campana-prod-grid')
+  if (!grid) return
+  const sel = window._campanaProdSeleccionados || new Set()
+  if (!prods.length) { grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:8px">No hay productos</p>'; return }
+  grid.innerHTML = prods.map(p => {
+    const sku = p.sku_interno || p.id
+    const checked = sel.has(sku)
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid ${checked ? '#E91E8C' : '#f0f0f0'};background:${checked ? '#fff0f8' : 'white'};transition:all 0.1s" id="prod-lbl-${sku}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleProdInteractivo('${sku}', this)"
+        style="accent-color:#E91E8C;width:14px;height:14px;flex-shrink:0">
+      ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:32px;height:32px;background:#f5f5f5;border-radius:4px;flex-shrink:0"></div>'}
+      <div style="min-width:0;flex:1">
+        <p style="font-size:0.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre || sku}</p>
+        <p style="font-size:0.68rem;color:#aaa">${sku}${p.categoria ? ' · ' + p.categoria : ''}</p>
+      </div>
+    </label>`
+  }).join('')
+  actualizarCountProdInteractivo()
+}
+
+window.toggleProdInteractivo = (sku, el) => {
+  if (!window._campanaProdSeleccionados) window._campanaProdSeleccionados = new Set()
+  const lbl = document.getElementById('prod-lbl-' + sku)
+  if (el.checked) {
+    if (window._campanaProdSeleccionados.size >= 30) {
+      el.checked = false
+      alert('Máximo 30 productos por mensaje interactivo')
+      return
+    }
+    window._campanaProdSeleccionados.add(sku)
+    if (lbl) { lbl.style.borderColor = '#E91E8C'; lbl.style.background = '#fff0f8' }
+  } else {
+    window._campanaProdSeleccionados.delete(sku)
+    if (lbl) { lbl.style.borderColor = '#f0f0f0'; lbl.style.background = 'white' }
+  }
+  actualizarCountProdInteractivo()
+}
+
+window.actualizarCountProdInteractivo = () => {
+  const counter = document.getElementById('campana-prod-count')
+  if (!counter) return
+  const n = window._campanaProdSeleccionados?.size || 0
+  counter.textContent = n > 0 ? `${n}/30 producto${n > 1 ? 's' : ''} seleccionado${n > 1 ? 's' : ''}` : 'Ningún producto seleccionado'
+}
+
+window.filtrarProductosInteractivo = (texto) => {
+  const q = (texto || '').toLowerCase().trim()
+  const todos = window._campanaProdInteractivo || []
+  const filtrados = q ? todos.filter(p => (p.nombre||'').toLowerCase().includes(q) || (p.sku_interno||'').toLowerCase().includes(q) || (p.categoria||'').toLowerCase().includes(q)) : todos
+  renderizarProductosInteractivo(filtrados)
+}
+
+window.enviarCatalogoInteractivo = async (indices) => {
+  const clientes = window._campanaFiltrados || []
+  const skus = Array.from(window._campanaProdSeleccionados || new Set())
+  if (!skus.length) { alert('Selecciona al menos un producto'); return }
+  const contactos = indices.map(i => clientes[i]).filter(Boolean).map(c => ({ telefono: c.telefono, nombre: c.nombre }))
+  if (!contactos.length) return
+
+  const overlay = document.createElement('div')
+  overlay.id = 'campana-auto-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🛍️</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando catálogo interactivo…</h3>
+    <p style="font-size:0.82rem;color:#888">${contactos.length} contacto${contactos.length > 1 ? 's' : ''} · ${skus.length} producto${skus.length > 1 ? 's' : ''}</p>
+  </div>`
+  document.body.appendChild(overlay)
+
+  try {
+    const res = await fetch(API + '/envio-productos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactos, skus, titulo: 'Nuestros modelos 👠', cuerpo: 'Mira los modelos disponibles. ¡Elige el tuyo!', pie: 'Zapatillas May · León, Gto.' })
+    })
+    const data = await res.json()
+    overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${data.fallidos === 0 ? '🎉' : '✅'}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${data.enviados || 0} enviados</p>
+      ${data.fallidos ? `<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${data.fallidos} fallidos</p>` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      ${data.errores?.length ? `<p style="font-size:0.7rem;color:#aaa;margin-bottom:1rem">${data.errores[0]}</p>` : ''}
+      <button onclick="document.getElementById('campana-auto-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`
+  } catch(e) {
+    overlay.remove()
+    alert('Error: ' + e.message)
+  }
+}
+
 // ── Envío automático vía backend ──────────────────────────────
 window.enviarCampanaAutomatica = async () => {
   const checks = document.querySelectorAll('.campana-cli-check:checked')
   const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
   const clientes = window._campanaFiltrados || []
   const plantillaId = window._campanaPlantillaId || 'catalogo'
+
+  // Ruta especial: catálogo interactivo
+  if (plantillaId === 'catalogo_interactivo') {
+    return enviarCatalogoInteractivo(indices)
+  }
+
   const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
   const imagenUrl = window._campanaImagenUrl || ''
 
@@ -2694,6 +2844,12 @@ window.iniciarCampanaSeleccionados = () => {
   const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
   const clientes = window._campanaFiltrados || []
   const plantillaId = window._campanaPlantillaId || 'catalogo'
+
+  // Ruta especial: catálogo interactivo (usa envío automático por API)
+  if (plantillaId === 'catalogo_interactivo') {
+    return enviarCatalogoInteractivo(indices)
+  }
+
   const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
 
   const seleccionados = indices.map(i => clientes[i]).filter(Boolean).map(c => {
