@@ -169,8 +169,8 @@ def feed_meta():
                         colores_vistos[color] = v
 
                 for v in vars_prod:
-                    color = v.get('color', '')
-                    talla = v.get('talla', '')
+                    color = (v.get('color', '') or '').strip()
+                    talla = (v.get('talla', '') or '').strip()
                     cantidad = inv_por_variante.get(v['id'], 0)
                     availability = 'in stock' if cantidad > 0 else 'out of stock'
 
@@ -187,9 +187,11 @@ def feed_meta():
 
                     nombre = p.get("nombre", "").title()
                     color_title = color.title()
-                    var_id = f"{sku}-{color.replace(' ','_').replace('/','_')}-{talla}"
+                    # Limpiar color: quitar underscores sobrantes al inicio/fin
+                    color_norm = color.replace(' ', '_').replace('/', '_').replace('-', '_').strip('_')
+                    var_id = f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
                     desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-                    color_encoded = color.replace(' ', '_').replace('/', '_')
+                    color_encoded = color_norm
                     # Normalizar talla: vacío o None → "Única", "Unica" → "One Size
                     if not talla or str(talla).strip() == '':
                         talla_feed = 'Única'
