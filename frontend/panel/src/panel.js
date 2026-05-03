@@ -9542,6 +9542,18 @@ window.cargarEnviosMasivos = async function() {
             </div>
             <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7"></div>
             <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%">📣 Enviar campaña</button>
+
+            <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f0f0f0">
+              <p style="font-size:0.78rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:0.75rem">🛍️ Catálogo interactivo (hasta 30 productos)</p>
+              <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar producto..."
+                oninput="filtrarProductosEnvioInteractivo(this.value)"
+                style="width:100%;padding:6px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="envio-prod-grid" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+                <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando productos...</p>
+              </div>
+              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin-bottom:8px"></p>
+              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="width:100%;border-color:#E91E8C;color:#E91E8C">🛍️ Enviar catálogo interactivo</button>
+            </div>
           </div>
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -9566,6 +9578,7 @@ window.cargarEnviosMasivos = async function() {
       </div>
     `
     cargarProductosEnvio()
+    cargarProductosEnvioInteractivo()
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
   }
@@ -9645,6 +9658,106 @@ window.iniciarEnvioMasivo = async () => {
 }
 
 
+window.cargarProductosEnvioInteractivo = async () => {
+  const grid = document.getElementById('envio-prod-grid')
+  if (!grid || window._envioProdInteractivoCargado) { if (window._envioProdInteractivo) renderizarEnvioProdGrid(window._envioProdInteractivo); return }
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal&order=nombre.asc&limit=300')
+    const prods = await res.json()
+    window._envioProdInteractivo = prods
+    window._envioProdSeleccionados = new Set()
+    window._envioProdInteractivoCargado = true
+    renderizarEnvioProdGrid(prods)
+  } catch(e) {
+    if (grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem;padding:4px">Error cargando productos</p>'
+  }
+}
+
+window.renderizarEnvioProdGrid = (prods) => {
+  const grid = document.getElementById('envio-prod-grid')
+  if (!grid) return
+  const sel = window._envioProdSeleccionados || new Set()
+  if (!prods.length) { grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin productos</p>'; return }
+  grid.innerHTML = prods.map(p => {
+    const sku = p.sku_interno || p.id
+    const checked = sel.has(sku)
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1px solid ${checked ? '#E91E8C' : '#f0f0f0'};background:${checked ? '#fff0f8' : 'white'}" id="envio-prod-lbl-${sku}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleEnvioProd('${sku}',this)" style="accent-color:#E91E8C;width:14px;height:14px;flex-shrink:0">
+      ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0">` : '<div style="width:28px;height:28px;background:#f5f5f5;border-radius:4px;flex-shrink:0"></div>'}
+      <div style="min-width:0;flex:1">
+        <p style="font-size:0.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0">${p.nombre || sku}</p>
+        <p style="font-size:0.65rem;color:#aaa;margin:0">${sku}</p>
+      </div>
+    </label>`
+  }).join('')
+  actualizarCountEnvioProd()
+}
+
+window.toggleEnvioProd = (sku, el) => {
+  if (!window._envioProdSeleccionados) window._envioProdSeleccionados = new Set()
+  const lbl = document.getElementById('envio-prod-lbl-' + sku)
+  if (el.checked) {
+    if (window._envioProdSeleccionados.size >= 30) { el.checked = false; alert('Máximo 30 productos'); return }
+    window._envioProdSeleccionados.add(sku)
+    if (lbl) { lbl.style.borderColor = '#E91E8C'; lbl.style.background = '#fff0f8' }
+  } else {
+    window._envioProdSeleccionados.delete(sku)
+    if (lbl) { lbl.style.borderColor = '#f0f0f0'; lbl.style.background = 'white' }
+  }
+  actualizarCountEnvioProd()
+}
+
+window.actualizarCountEnvioProd = () => {
+  const counter = document.getElementById('envio-prod-count')
+  if (!counter) return
+  const n = window._envioProdSeleccionados?.size || 0
+  counter.textContent = n > 0 ? `${n}/30 producto${n > 1 ? 's' : ''} seleccionado${n > 1 ? 's' : ''}` : ''
+}
+
+window.filtrarProductosEnvioInteractivo = (texto) => {
+  const q = (texto || '').toLowerCase().trim()
+  const todos = window._envioProdInteractivo || []
+  renderizarEnvioProdGrid(q ? todos.filter(p => (p.nombre||'').toLowerCase().includes(q) || (p.sku_interno||'').toLowerCase().includes(q)) : todos)
+}
+
+window.iniciarEnvioInteractivo = async () => {
+  const contactos = window._envioContactos || []
+  const skus = Array.from(window._envioProdSeleccionados || new Set())
+  if (!skus.length) { alert('Selecciona al menos un producto'); return }
+  if (!contactos.length) { alert('No hay contactos en la audiencia'); return }
+  if (!confirm(`¿Enviar catálogo interactivo con ${skus.length} producto${skus.length>1?'s':''} a ${contactos.length} contacto${contactos.length>1?'s':''}?`)) return
+
+  const overlay = document.createElement('div')
+  overlay.id = 'envio-interactivo-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🛍️</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando catálogo interactivo…</h3>
+    <p style="font-size:0.82rem;color:#888">${contactos.length} contacto${contactos.length>1?'s':''} · ${skus.length} producto${skus.length>1?'s':''}</p>
+  </div>`
+  document.body.appendChild(overlay)
+
+  try {
+    const res = await fetch(API + '/chatbot/envio-productos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactos: contactos.map(c => ({ telefono: c.telefono, nombre: c.nombre })), skus, titulo: 'Nuestros modelos 👠', cuerpo: 'Mira los modelos disponibles. ¡Elige el tuyo!', pie: 'Zapatillas May · León, Gto.' })
+    })
+    const data = await res.json()
+    overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${!data.fallidos ? '🎉' : '✅'}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${data.enviados || 0} enviados</p>
+      ${data.fallidos ? `<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${data.fallidos} fallidos</p>` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`
+  } catch(e) {
+    overlay.remove()
+    alert('Error: ' + e.message)
+  }
+}
+
 window.seleccionarImagenProductoEnvio = () => {
   const sel = document.getElementById('envio-producto-sel')
   const imgInput = document.getElementById('envio-imagen')
@@ -9682,6 +9795,82 @@ window.cargarProductosEnvio = async () => {
     sel.innerHTML = '<option value="">Seleccionar producto...</option>' +
       activos.map(p => `<option value="${p.imagen_principal}" data-nombre="${p.nombre}">${p.nombre}</option>`).join('')
   } catch(e) { console.error('Error:', e) }
+}
+
+// ── SEO y Sitio ──────────────────────────────────────────────
+async function cargarSEO() {
+  const content = document.getElementById('content')
+  if (!content) return
+  content.innerHTML = `
+    <div style="max-width:800px">
+      <div style="margin-bottom:1.5rem">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🔍 SEO y Sitio</h2>
+        <p style="color:#888;font-size:0.85rem">Configuración del sitio web y catálogo de Meta</p>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗂️ Colecciones del catálogo de WhatsApp</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar por categoría desde WhatsApp.</p>
+        <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
+        <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">
+          🗂️ Sincronizar colecciones en Meta
+        </button>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗺️ Sitemap y robots.txt</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Archivos generados automáticamente para indexación en Google.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📄 Ver sitemap.xml</a>
+          <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🤖 Ver robots.txt</a>
+          <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📦 Ver feed Meta</a>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🌐 Sitio web</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Links rápidos al sitio de la tienda.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://zapatillasmay.mx" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🏠 Inicio</a>
+          <a href="https://zapatillasmay.mx/tabla-tallas" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📏 Tabla de tallas</a>
+          <a href="https://zapatillasmay.mx/devoluciones" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">↩️ Devoluciones</a>
+        </div>
+      </div>
+    </div>
+  `
+}
+window.cargarSEO = cargarSEO
+
+window.sincronizarColeccionesMeta = async () => {
+  const btn = document.getElementById('btn-sync-colecciones')
+  const resultado = document.getElementById('seo-colecciones-resultado')
+  if (btn) { btn.textContent = 'Sincronizando...'; btn.disabled = true }
+  try {
+    const res = await fetch(API + '/catalogo/sincronizar-colecciones', { method: 'POST' })
+    const data = await res.json()
+    if (data.error) {
+      resultado.style.display = 'block'
+      resultado.style.background = '#ffebee'
+      resultado.style.borderColor = '#ef9a9a'
+      resultado.innerHTML = `❌ Error: ${data.error}`
+    } else {
+      const creadas = data.resultados.filter(r => r.accion === 'creada').length
+      const actualizadas = data.resultados.filter(r => r.accion === 'actualizada').length
+      const errores = data.resultados.filter(r => r.accion === 'error')
+      resultado.style.display = 'block'
+      resultado.style.background = errores.length ? '#fff8e1' : '#e8f5e9'
+      resultado.style.border = `1px solid ${errores.length ? '#ffe082' : '#a5d6a7'}`
+      resultado.innerHTML = `
+        ✅ <strong>${creadas} colecciones creadas</strong> · ${actualizadas} actualizadas
+        ${errores.length ? `<br>⚠️ ${errores.length} errores: ${errores.map(e => e.categoria + ' (' + e.detalle + ')').join(', ')}` : ''}
+        <br><small style="color:#888;margin-top:4px;display:block">${data.resultados.map(r => `${r.categoria}: ${r.accion}`).join(' · ')}</small>
+      `
+    }
+  } catch(e) {
+    if (resultado) { resultado.style.display='block'; resultado.style.background='#ffebee'; resultado.innerHTML = '❌ Error: ' + e.message }
+  } finally {
+    if (btn) { btn.textContent = '🗂️ Sincronizar colecciones en Meta'; btn.disabled = false }
+  }
 }
 
 window.validarCantidadTalla = (varianteId, maxStock) => {

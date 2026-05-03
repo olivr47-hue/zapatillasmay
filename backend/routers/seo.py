@@ -250,6 +250,65 @@ def feed_meta():
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
+@router.post("/catalogo/sincronizar-colecciones")
+def sincronizar_colecciones():
+    """Crea o actualiza los Product Sets (colecciones) en el catálogo de Meta por categoría."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+    if not wa_token or not catalog_id:
+        return {"error": "Faltan variables WHATSAPP_TOKEN o WHATSAPP_CATALOG_ID"}
+
+    categorias_fijas = ["Tacones", "Sandalias", "Botas", "Botines", "Flats", "Plataformas", "Tenis", "Calzado Niña", "Accesorios"]
+    try:
+        prods_cat = supabase_get("productos?activo=eq.true&select=categoria")
+        categorias_bd = list(set([p.get("categoria","").strip() for p in prods_cat if p.get("categoria","").strip()]))
+        categorias = list(set(categorias_fijas + categorias_bd))
+    except:
+        categorias = categorias_fijas
+
+    try:
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v19.0/{catalog_id}/product_sets?fields=id,name&limit=100",
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(req) as r:
+            existing = json.loads(r.read())
+        sets_existentes = {s["name"]: s["id"] for s in existing.get("data", [])}
+    except:
+        sets_existentes = {}
+
+    resultados = []
+    headers_api = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+
+    for cat in categorias:
+        if not cat:
+            continue
+        filtro = json.dumps({"product_type": {"i_contains": cat}})
+        try:
+            if cat in sets_existentes:
+                set_id = sets_existentes[cat]
+                body = json.dumps({"name": cat, "filter": filtro}).encode("utf-8")
+                req = urllib.request.Request(
+                    f"https://graph.facebook.com/v19.0/{set_id}",
+                    data=body, headers=headers_api, method="POST"
+                )
+                with urllib.request.urlopen(req) as r:
+                    r.read()
+                resultados.append({"categoria": cat, "accion": "actualizada", "id": set_id})
+            else:
+                body = json.dumps({"name": cat, "filter": filtro}).encode("utf-8")
+                req = urllib.request.Request(
+                    f"https://graph.facebook.com/v19.0/{catalog_id}/product_sets",
+                    data=body, headers=headers_api, method="POST"
+                )
+                with urllib.request.urlopen(req) as r:
+                    res = json.loads(r.read())
+                resultados.append({"categoria": cat, "accion": "creada", "id": res.get("id")})
+        except Exception as e:
+            resultados.append({"categoria": cat, "accion": "error", "detalle": str(e)})
+
+    return {"ok": True, "resultados": resultados}
+
 @router.get("/feed/google.xml")
 def feed_google():
     try:
