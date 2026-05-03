@@ -324,8 +324,14 @@ def sugerencias_recompra(sucursal_id: str):
             if velocidad_semanal > 0:
                 cantidad_sugerida = max(0, round(velocidad_semanal * 4) - stock_total)
 
-            # Mostrar si: stock bajo el mínimo, días de inventario críticos, o stock en 0
-            if stock_total == 0 or stock_total <= stock_minimo or (dias_inventario and dias_inventario <= 14):
+            # Verificar si alguna variante individual tiene 0 stock
+            tiene_variante_sin_stock = any(
+                sum(i['cantidad'] for i in inventario if i['variante_id'] == v['id']) == 0
+                for v in vars_prod
+            ) if vars_prod else False
+
+            # Mostrar si: stock total bajo mínimo, alguna variante en 0, o días críticos
+            if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 14):
                 sugerencias.append({
                     "producto_id": p['id'],
                     "nombre": p['nombre'],
