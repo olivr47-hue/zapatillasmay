@@ -222,6 +222,7 @@ def feed_meta():
                     xml += f'  <g:size>{talla_feed}</g:size>\n'
                     xml += f'  <g:size_system>MX</g:size_system>\n'
                     xml += f'  <g:size_type>regular</g:size_type>\n'
+                    xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += '</item>\n'
 
             else:
