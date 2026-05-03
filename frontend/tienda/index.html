@@ -2027,10 +2027,19 @@ window.addEventListener('load', () => {
 
         const entries = products.split(',')
         const prods = []
+        // Parsear variant ID: formato {SKU}-{COLOR_NORM}-{TALLA}
+        // talla = último segmento si es numérico; color_norm = penúltimo; sku = el resto
+        function _parseVid(vid) {
+          const parts = vid.trim().split('-')
+          const isNumTalla = /^\d+(\.\d+)?$/.test(parts[parts.length - 1])
+          const talla = isNumTalla ? parts[parts.length - 1] : ''
+          const colorNorm = isNumTalla ? parts[parts.length - 2] : parts[parts.length - 1]
+          const skuParts = isNumTalla ? parts.slice(0, parts.length - 2) : parts.slice(0, parts.length - 1)
+          return { sku: skuParts.join('-'), color: colorNorm.replace(/_/g, ' '), talla }
+        }
         entries.forEach(entry => {
           const [variantId] = entry.split(':')
-          const skuMatch = variantId.trim().match(/^([A-Z]-[A-Z]+-\d+)/)
-          const sku = skuMatch ? skuMatch[1] : variantId.trim()
+          const { sku } = _parseVid(variantId)
           const prod = productos.find(p => p.sku_interno === sku || p.id === sku)
           if (prod && !prods.find(p => p.id === prod.id)) prods.push(prod)
         })
@@ -2038,13 +2047,12 @@ window.addEventListener('load', () => {
         renderProductos(prods)
         document.getElementById('productos-section').scrollIntoView({behavior:'smooth'})
 
-        // Preseleccionar colores al abrir cada modal
+        // Preseleccionar color y talla al abrir cada modal
         entries.forEach(entry => {
           const [variantId] = entry.split(':')
-          const skuMatch = variantId.trim().match(/^([A-Z]-[A-Z]+-\d+)/)
-          const sku = skuMatch ? skuMatch[1] : variantId.trim()
-          const colorRaw = variantId.trim().replace((skuMatch ? skuMatch[1] : '') + '-', '').replace(/_/g, ' ').trim()
-          window['_colorPreselect_' + sku] = colorRaw
+          const { sku, color, talla } = _parseVid(variantId)
+          window['_colorPreselect_' + sku] = color
+          if (talla) window['_tallaPreselect_' + sku] = talla
         })
       }, 2000)
     }
@@ -2260,12 +2268,21 @@ cargarConfigSEO()
     const p = productos.find(prod => prod.id === productoId)
     if (!p) return
     window.history.pushState({}, '', '/producto/' + (p.sku_interno || p.id))
-    // Preseleccionar color si viene de Meta checkout
+    // Preseleccionar color y talla si viene de Meta checkout
 const colorPre = window['_colorPreselect_' + (p.sku_interno || p.id)]
+const tallaPre = window['_tallaPreselect_' + (p.sku_interno || p.id)]
 if (colorPre) {
   setTimeout(() => {
     const colorEl = document.getElementById('color-opt-' + colorPre.replace(/\s/g,'_'))
-    if (colorEl) colorEl.click()
+    if (colorEl) {
+      colorEl.click()
+      if (tallaPre) {
+        setTimeout(() => {
+          const tallaEl = document.getElementById('talla-opt-' + String(tallaPre).replace('.','_'))
+          if (tallaEl && !tallaEl.classList.contains('agotada')) tallaEl.click()
+        }, 400)
+      }
+    }
   }, 300)
 }
     if (window.fbq) fbq('track', 'ViewContent', {
