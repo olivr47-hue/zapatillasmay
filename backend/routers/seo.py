@@ -190,7 +190,13 @@ def feed_meta():
                     var_id = f"{sku}-{color.replace(' ','_').replace('/','_')}-{talla}"
                     desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
                     color_encoded = color.replace(' ', '_').replace('/', '_')
-                    talla_feed = talla if talla != 'Unica' else 'One Size'
+                    # Normalizar talla: vacío o None → "Única", "Unica" → "One Size
+                    if not talla or str(talla).strip() == '':
+                        talla_feed = 'Única'
+                    elif talla in ('Unica', 'Única', 'unica', 'única'):
+                        talla_feed = 'One Size'
+                    else:
+                        talla_feed = str(talla)
                     precio = p.get("precio_menudeo", 0)
 
                     xml += '<item>\n'
@@ -203,10 +209,7 @@ def feed_meta():
                     for img_extra in imagenes_extra[:9]:
                         xml += f'  <g:additional_image_link>{img_extra}</g:additional_image_link>\n'
                     xml += f'  <g:price>{precio} MXN</g:price>\n'
-                    xml += f'  <g:sale_price/>\n'
-                    xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
                     xml += f'  <g:availability>{availability}</g:availability>\n'
-                    xml += f'  <g:quantity>{max(0, cantidad)}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
                     xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                     xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
@@ -230,10 +233,7 @@ def feed_meta():
                 xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{imagen_p}</g:image_link>\n'
                 xml += f'  <g:price>{precio} MXN</g:price>\n'
-                xml += f'  <g:sale_price/>\n'
-                xml += f'  <g:shipping_country>MX</g:shipping_country>\n'
                 xml += f'  <g:availability>out of stock</g:availability>\n'
-                xml += f'  <g:quantity>0</g:quantity>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
                 xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
