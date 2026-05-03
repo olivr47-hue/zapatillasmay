@@ -1952,11 +1952,17 @@ window.addEventListener('load', () => {
   if (path === '/pedido-exitoso' || params.get('status') === 'approved') {
     const paymentId = params.get('payment_id')
     const valor = parseFloat(params.get('merchant_order_id') || 0)
-    if (window.fbq) fbq('track', 'Purchase', {
-      value: valor,
-      currency: 'MXN',
-      content_type: 'product'
-    })
+    if (window.fbq) {
+      // Recuperar IDs del carrito guardados antes de redirigir a MercadoPago
+      let _purchaseIds = []
+      try { _purchaseIds = JSON.parse(sessionStorage.getItem('fbq_checkout_ids') || '[]') } catch(e){}
+      fbq('track', 'Purchase', {
+        value: valor,
+        currency: 'MXN',
+        content_type: 'product',
+        content_ids: _purchaseIds
+      })
+    }
     if (window.ttq) ttq.track('CompletePayment', {
       value: valor,
       currency: 'MXN'
@@ -2264,7 +2270,7 @@ if (colorPre) {
 }
     if (window.fbq) fbq('track', 'ViewContent', {
   content_ids: [p.sku_interno || p.id],
-  content_type: 'product',
+  content_type: 'product_group',
   content_name: p.nombre,
   content_category: p.categoria || '',
   value: p.precio_menudeo,
@@ -2445,12 +2451,18 @@ if (window.ttq) ttq.track('ViewContent', {
   }
 
   function seleccionarTalla(varianteId, talla) {
-    if (window.fbq) fbq('track', 'CustomizeProduct', {
-  content_ids: [productoSeleccionado.sku_interno || productoSeleccionado.id],
-  content_type: 'product',
-  color: colorSeleccionado,
-  talla: talla
-})
+    if (window.fbq) {
+  const _sku = productoSeleccionado.sku_interno || productoSeleccionado.id
+  const _cn = (colorSeleccionado||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
+  const _t = (talla||'').trim()
+  const _varId = _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
+  fbq('track', 'CustomizeProduct', {
+    content_ids: [_varId],
+    content_type: 'product',
+    color: colorSeleccionado,
+    talla: talla
+  })
+}
     tallaSeleccionada = talla
     varianteSeleccionada = varianteId
 
@@ -2489,13 +2501,19 @@ if (window.ttq) ttq.track('ViewContent', {
         precio_unitario: parseFloat(p.precio_menudeo) || 0
       })
     }
-    if (window.fbq) fbq('track', 'AddToCart', {
-  content_ids: [p.sku_interno || p.id],
-  content_type: 'product',
-  content_name: p.nombre,
-  value: p.precio_menudeo,
-  currency: 'MXN'
-})
+    if (window.fbq) {
+  const _sku = p.sku_interno || p.id
+  const _cn = (colorSeleccionado||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
+  const _t = (tallaSeleccionada||'').trim()
+  const _varId = _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
+  fbq('track', 'AddToCart', {
+    content_ids: [_varId],
+    content_type: 'product',
+    content_name: p.nombre,
+    value: p.precio_menudeo,
+    currency: 'MXN'
+  })
+}
 if (window.ttq) ttq.track('AddToCart', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
@@ -3035,19 +3053,37 @@ function mostrarNuevos() {
       const pago = await resPago.json()
       if (!pago.init_point) throw new Error('Error creando pago')
       // Evento pago iniciado
-       if (window.fbq) fbq('track', 'InitiateCheckout', {
-        content_ids: carrito.map(i => i.variante_id),
-        content_type: 'product',
-        num_items: carrito.reduce((s,i) => s + (i.es_corrida ? i.cantidad*6 : i.cantidad), 0),
-        value: totalFinal,
-        currency: 'MXN'
-})
+       if (window.fbq) {
+        const _catalogIds = carrito.map(i => {
+          const _sku = i.sku_interno || i.producto_id
+          const _cn = (i.color||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
+          const _t = (i.talla||'').trim()
+          return _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
+        })
+        fbq('track', 'InitiateCheckout', {
+          content_ids: _catalogIds,
+          content_type: 'product',
+          num_items: carrito.reduce((s,i) => s + (i.es_corrida ? i.cantidad*6 : i.cantidad), 0),
+          value: totalFinal,
+          currency: 'MXN'
+        })
+}
       if (window.ttq) ttq.track('InitiateCheckout', {
         content_type: 'product',
         value: totalFinal,
         currency: 'MXN'
 })
 
+      // Guardar IDs del catálogo para el evento Purchase tras volver de MercadoPago
+      try {
+        const _ids = carrito.map(i => {
+          const _sku = i.sku_interno || i.producto_id
+          const _cn = (i.color||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
+          const _t = (i.talla||'').trim()
+          return _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
+        })
+        sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(_ids))
+      } catch(e){}
       setTimeout(() => {
   window.location.href = pago.init_point
 }, 500)
