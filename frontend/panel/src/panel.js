@@ -2157,12 +2157,6 @@ window.mostrarCampanas = async () => {
         nombre: '✏️ Mensaje personalizado',
         descripcion: 'Escribe tu propio mensaje',
         mensaje: (nombre) => `Hola ${nombre}! 👋\n\n`
-      },
-      {
-        id: 'catalogo_interactivo',
-        nombre: '🛍️ Catálogo interactivo (API)',
-        descripcion: 'Envía hasta 30 productos como tarjetas comprables desde WhatsApp',
-        mensaje: () => '[Mensaje interactivo — tarjetas de producto del catálogo]'
       }
     ]
 
@@ -2233,16 +2227,6 @@ window.mostrarCampanas = async () => {
               <p id="campana-fotos-count" style="font-size:0.75rem;color:#E91E8C;margin-top:8px;font-weight:600"></p>
             </div>
 
-            <div id="campana-productos-interactivo" style="display:none">
-              <p style="font-size:0.75rem;color:#999;margin-bottom:0.5rem">Selecciona hasta 30 productos del catálogo</p>
-              <input id="campana-prod-buscador" type="text" placeholder="🔍 Buscar producto..."
-                oninput="filtrarProductosInteractivo(this.value)"
-                style="width:100%;padding:6px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
-              <div id="campana-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px">
-                <p style="font-size:0.8rem;color:#aaa;padding:8px">Cargando productos...</p>
-              </div>
-              <p id="campana-prod-count" style="font-size:0.75rem;color:#E91E8C;margin-top:6px;font-weight:600"></p>
-            </div>
           </div>
 
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
@@ -2342,15 +2326,10 @@ window.actualizarVistaCampana = () => {
   if (plantillaId === 'nuevos') {
     cargarFotosNuevosModelos()
   }
-  if (plantillaId === 'catalogo_interactivo') {
-    cargarProductosInteractivo()
-  }
   const divFotoManual = document.getElementById('campana-foto-manual')
-  if (divFotoManual) divFotoManual.style.display = (plantillaId === 'nuevos' || plantillaId === 'catalogo_interactivo') ? 'none' : 'block'
+  if (divFotoManual) divFotoManual.style.display = plantillaId === 'nuevos' ? 'none' : 'block'
   const divFotosNuevos = document.getElementById('campana-fotos-nuevos')
   if (divFotosNuevos) divFotosNuevos.style.display = plantillaId === 'nuevos' ? 'block' : 'none'
-  const divProdInteractivo = document.getElementById('campana-productos-interactivo')
-  if (divProdInteractivo) divProdInteractivo.style.display = plantillaId === 'catalogo_interactivo' ? 'block' : 'none'
 
   // Vista previa del mensaje
   const preview = document.getElementById('mensaje-preview')
@@ -2567,7 +2546,6 @@ window.quitarFotoCampana = () => {
   if (prev) prev.style.display = 'none'
 }
 
-// ── Catálogo interactivo WhatsApp ──────────────────────────────
 window.cargarProductosInteractivo = async () => {
   const grid = document.getElementById('campana-prod-grid')
   if (!grid) return
@@ -2683,11 +2661,6 @@ window.enviarCampanaAutomatica = async () => {
   const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
   const clientes = window._campanaFiltrados || []
   const plantillaId = window._campanaPlantillaId || 'catalogo'
-
-  // Ruta especial: catálogo interactivo
-  if (plantillaId === 'catalogo_interactivo') {
-    return enviarCatalogoInteractivo(indices)
-  }
 
   const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
   const imagenUrl = window._campanaImagenUrl || ''
@@ -2844,11 +2817,6 @@ window.iniciarCampanaSeleccionados = () => {
   const indices = Array.from(checks).map(el => parseInt(el.dataset.idx))
   const clientes = window._campanaFiltrados || []
   const plantillaId = window._campanaPlantillaId || 'catalogo'
-
-  // Ruta especial: catálogo interactivo (usa envío automático por API)
-  if (plantillaId === 'catalogo_interactivo') {
-    return enviarCatalogoInteractivo(indices)
-  }
 
   const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
 

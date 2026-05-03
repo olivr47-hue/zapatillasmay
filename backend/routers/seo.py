@@ -304,6 +304,9 @@ def sincronizar_colecciones():
                 with urllib.request.urlopen(req) as r:
                     res = json.loads(r.read())
                 resultados.append({"categoria": cat, "accion": "creada", "id": res.get("id")})
+        except urllib.error.HTTPError as e:
+            body_err = e.read().decode("utf-8", errors="replace")
+            resultados.append({"categoria": cat, "accion": "error", "detalle": body_err})
         except Exception as e:
             resultados.append({"categoria": cat, "accion": "error", "detalle": str(e)})
 
