@@ -356,6 +356,19 @@ async function cargarOrdenes() {
                   <p style="font-size:0.75rem;color:#888">${p.sku || ''} · Stock: ${p.stock_total} pares · Mín: ${p.stock_minimo}</p>
                   <p style="font-size:0.72rem;color:#888">${p.velocidad_semanal} pares/sem · ${p.dias_inventario ? p.dias_inventario + ' días de stock' : 'Sin ventas recientes'}</p>
                   ${p.proveedor ? `<p style="font-size:0.72rem;color:#6a1b9a;margin-top:2px">🏭 ${p.proveedor.nombre}</p>` : '<p style="font-size:0.72rem;color:#aaa;margin-top:2px">Sin proveedor asignado</p>'}
+                  ${p.variantes && p.variantes.length > 0 ? `
+                  <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+                    ${p.variantes.map(v => {
+                      const label = [v.talla, v.color].filter(Boolean).join(' / ')
+                      const sinStock = v.sin_stock
+                      return `<span style="
+                        padding:2px 7px;border-radius:100px;font-size:0.68rem;font-weight:600;
+                        ${sinStock
+                          ? 'background:#ffebee;color:#c62828;border:1px solid #ef9a9a'
+                          : 'background:#f5f5f5;color:#666;border:1px solid #e0e0e0'}
+                      " title="${sinStock ? 'Sin stock' : 'Stock: ' + v.stock}">${label}${sinStock ? ' ✗' : ''}</span>`
+                    }).join('')}
+                  </div>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                   <div style="text-align:center">

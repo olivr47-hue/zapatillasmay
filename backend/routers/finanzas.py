@@ -324,11 +324,28 @@ def sugerencias_recompra(sucursal_id: str):
             if velocidad_semanal > 0:
                 cantidad_sugerida = max(0, round(velocidad_semanal * 4) - stock_total)
 
-            # Verificar si alguna variante individual tiene 0 stock
-            tiene_variante_sin_stock = any(
-                sum(i['cantidad'] for i in inventario if i['variante_id'] == v['id']) == 0
-                for v in vars_prod
-            ) if vars_prod else False
+            # Detalle de stock por variante
+            variantes_detalle = []
+            for v in vars_prod:
+                stock_v = sum(i['cantidad'] for i in inventario if i['variante_id'] == v['id'])
+                variantes_detalle.append({
+                    "id": v['id'],
+                    "talla": v.get('talla', ''),
+                    "color": v.get('color', ''),
+                    "sku": v.get('sku', ''),
+                    "stock": stock_v,
+                    "sin_stock": stock_v == 0
+                })
+
+            # Ordenar por talla numérica si es posible, si no alfabético
+            def sort_talla(v):
+                try:
+                    return (0, float(v['talla']))
+                except:
+                    return (1, v['talla'] or '')
+            variantes_detalle.sort(key=sort_talla)
+
+            tiene_variante_sin_stock = any(v['sin_stock'] for v in variantes_detalle)
 
             # Mostrar si: stock total bajo mínimo, alguna variante en 0, o días críticos
             if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 14):
@@ -347,7 +364,8 @@ def sugerencias_recompra(sucursal_id: str):
                     "costo_unitario": float(p.get('costo') or 0),
                     "proveedor": p.get('proveedores'),
                     "proveedor_id": p.get('proveedor_id'),
-                    "urgente": stock_total == 0 or (dias_inventario and dias_inventario <= 7)
+                    "urgente": stock_total == 0 or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 7),
+                    "variantes": variantes_detalle
                 })
 
         sugerencias.sort(key=lambda x: (not x['urgente'], x['dias_inventario'] or 999))
