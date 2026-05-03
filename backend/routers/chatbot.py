@@ -52,7 +52,8 @@ PRECIOS Y MAYOREO:
 ENVÍOS:
 - Menos de 6 pares: Fedex o Estafeta $99
 - Mayoreo: Castores (pago al recibir), Estafeta o Fedex (pago con pedido)
-- Enviamos en 24hrs después de confirmar pago (excepto sábados 1pm+ y domingos)
+- Horario: Lunes y Sábado 10am–3pm | Martes a Viernes 10am–7pm | Domingo: cerrado
+- Enviamos en 24hrs después de confirmar pago (excepto sábados 3pm+ y domingos)
 - Cambios: el retorno de paquetería corre por cuenta del comprador
 
 CATÁLOGO ACTUAL:
