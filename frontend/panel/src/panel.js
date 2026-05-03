@@ -10012,14 +10012,18 @@ async function cargarSEO() {
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Horarios</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
             <div>
-              <label class="form-label">Lunes a Viernes</label>
-              <input class="form-input" id="seo-hor1" value="${config.horario_semana}" placeholder="9:00 - 18:00">
+              <label class="form-label">Lunes</label>
+              <input class="form-input" id="seo-hor-lunes" value="${config.horario_lunes || '10:00 - 15:00'}" placeholder="10:00 - 15:00">
+            </div>
+            <div>
+              <label class="form-label">Martes a Viernes</label>
+              <input class="form-input" id="seo-hor1" value="${config.horario_semana}" placeholder="10:00 - 19:00">
             </div>
             <div>
               <label class="form-label">Sabado</label>
-              <input class="form-input" id="seo-hor2" value="${config.horario_sabado}" placeholder="9:00 - 15:00">
+              <input class="form-input" id="seo-hor2" value="${config.horario_sabado}" placeholder="10:00 - 15:00">
             </div>
           </div>
         </div>
@@ -10070,6 +10074,7 @@ window.guardarSEO = async () => {
     instagram_url: document.getElementById('seo-ig').value,
     facebook_url: document.getElementById('seo-fb-url').value,
     tiktok_url: document.getElementById('seo-tt-url').value,
+    horario_lunes: document.getElementById('seo-hor-lunes').value,
     horario_semana: document.getElementById('seo-hor1').value,
     horario_sabado: document.getElementById('seo-hor2').value,
   }

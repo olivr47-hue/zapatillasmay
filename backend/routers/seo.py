@@ -283,13 +283,13 @@ def sincronizar_colecciones():
     for cat in categorias:
         if not cat:
             continue
-        filtro = json.dumps({"product_type": {"i_contains": cat}})
+        filtro = {"product_type": {"i_contains": cat}}
         try:
             if cat in sets_existentes:
                 set_id = sets_existentes[cat]
                 body = json.dumps({"name": cat, "filter": filtro}).encode("utf-8")
                 req = urllib.request.Request(
-                    f"https://graph.facebook.com/v19.0/{set_id}",
+                    f"https://graph.facebook.com/v21.0/{set_id}",
                     data=body, headers=headers_api, method="POST"
                 )
                 with urllib.request.urlopen(req) as r:
@@ -298,7 +298,7 @@ def sincronizar_colecciones():
             else:
                 body = json.dumps({"name": cat, "filter": filtro}).encode("utf-8")
                 req = urllib.request.Request(
-                    f"https://graph.facebook.com/v19.0/{catalog_id}/product_sets",
+                    f"https://graph.facebook.com/v21.0/{catalog_id}/product_sets",
                     data=body, headers=headers_api, method="POST"
                 )
                 with urllib.request.urlopen(req) as r:

@@ -4110,14 +4110,18 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Horarios</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
             <div>
-              <label class="form-label">Lunes a Viernes</label>
-              <input class="form-input" id="seo-hor1" value="${a.horario_semana}" placeholder="9:00 - 18:00">
+              <label class="form-label">Lunes</label>
+              <input class="form-input" id="seo-hor-lunes" value="${a.horario_lunes||"10:00 - 15:00"}" placeholder="10:00 - 15:00">
+            </div>
+            <div>
+              <label class="form-label">Martes a Viernes</label>
+              <input class="form-input" id="seo-hor1" value="${a.horario_semana}" placeholder="10:00 - 19:00">
             </div>
             <div>
               <label class="form-label">Sabado</label>
-              <input class="form-input" id="seo-hor2" value="${a.horario_sabado}" placeholder="9:00 - 15:00">
+              <input class="form-input" id="seo-hor2" value="${a.horario_sabado}" placeholder="10:00 - 15:00">
             </div>
           </div>
         </div>
@@ -4139,7 +4143,7 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
           <button class="btn btn-primary" onclick="guardarSEO()">Guardar configuracion</button>
         </div>
       </div>
-    `,document.getElementById("seo-titulo").addEventListener("input",function(){document.getElementById("seo-titulo-count").textContent=this.value.length}),document.getElementById("seo-desc").addEventListener("input",function(){document.getElementById("seo-desc-count").textContent=this.value.length})}catch{e.innerHTML='<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'}}window.guardarSEO=async()=>{const e={favicon_url:document.getElementById("seo-favicon").value,hero_imagen:document.getElementById("seo-hero-img").value,meta_titulo_home:document.getElementById("seo-titulo").value,meta_descripcion_home:document.getElementById("seo-desc").value,google_analytics_id:document.getElementById("seo-ga").value,google_search_console:document.getElementById("seo-gsc").value,google_tag_manager:document.getElementById("seo-gtm").value,facebook_pixel_id:document.getElementById("seo-fb").value,tiktok_pixel_id:document.getElementById("seo-tt").value,whatsapp_flotante:document.getElementById("seo-wa").value,instagram_url:document.getElementById("seo-ig").value,facebook_url:document.getElementById("seo-fb-url").value,tiktok_url:document.getElementById("seo-tt-url").value,horario_semana:document.getElementById("seo-hor1").value,horario_sabado:document.getElementById("seo-hor2").value};try{(await fetch(g+"/seo/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)})).ok?alert("Configuracion SEO guardada correctamente"):alert("Error al guardar")}catch{alert("Error conectando con el servidor")}};document.querySelector("#app").style.cssText="display:flex;min-height:100vh;width:100%";const ie="erp_empleado";function G(){document.querySelector("#app").innerHTML=`
+    `,document.getElementById("seo-titulo").addEventListener("input",function(){document.getElementById("seo-titulo-count").textContent=this.value.length}),document.getElementById("seo-desc").addEventListener("input",function(){document.getElementById("seo-desc-count").textContent=this.value.length})}catch{e.innerHTML='<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'}}window.guardarSEO=async()=>{const e={favicon_url:document.getElementById("seo-favicon").value,hero_imagen:document.getElementById("seo-hero-img").value,meta_titulo_home:document.getElementById("seo-titulo").value,meta_descripcion_home:document.getElementById("seo-desc").value,google_analytics_id:document.getElementById("seo-ga").value,google_search_console:document.getElementById("seo-gsc").value,google_tag_manager:document.getElementById("seo-gtm").value,facebook_pixel_id:document.getElementById("seo-fb").value,tiktok_pixel_id:document.getElementById("seo-tt").value,whatsapp_flotante:document.getElementById("seo-wa").value,instagram_url:document.getElementById("seo-ig").value,facebook_url:document.getElementById("seo-fb-url").value,tiktok_url:document.getElementById("seo-tt-url").value,horario_lunes:document.getElementById("seo-hor-lunes").value,horario_semana:document.getElementById("seo-hor1").value,horario_sabado:document.getElementById("seo-hor2").value};try{(await fetch(g+"/seo/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)})).ok?alert("Configuracion SEO guardada correctamente"):alert("Error al guardar")}catch{alert("Error conectando con el servidor")}};document.querySelector("#app").style.cssText="display:flex;min-height:100vh;width:100%";const ie="erp_empleado";function G(){document.querySelector("#app").innerHTML=`
     <div style="min-height:100vh;background:#0f0f1a;display:flex;align-items:center;justify-content:center;padding:20px">
       <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px;width:100%;max-width:400px">
         <div style="text-align:center;margin-bottom:32px">
