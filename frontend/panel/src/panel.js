@@ -9798,7 +9798,7 @@ window.cargarProductosEnvio = async () => {
 }
 
 // ── SEO y Sitio ──────────────────────────────────────────────
-async function cargarSEO() {
+window.cargarSEO = async () => {
   const content = document.getElementById('content')
   if (!content) return
   content.innerHTML = `
@@ -9839,7 +9839,6 @@ async function cargarSEO() {
     </div>
   `
 }
-window.cargarSEO = cargarSEO
 
 window.sincronizarColeccionesMeta = async () => {
   const btn = document.getElementById('btn-sync-colecciones')

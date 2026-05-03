@@ -3923,6 +3923,18 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
             </div>
             <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7"></div>
             <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%">📣 Enviar campaña</button>
+
+            <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f0f0f0">
+              <p style="font-size:0.78rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:0.75rem">🛍️ Catálogo interactivo (hasta 30 productos)</p>
+              <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar producto..."
+                oninput="filtrarProductosEnvioInteractivo(this.value)"
+                style="width:100%;padding:6px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="envio-prod-grid" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+                <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando productos...</p>
+              </div>
+              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin-bottom:8px"></p>
+              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="width:100%;border-color:#E91E8C;color:#E91E8C">🛍️ Enviar catálogo interactivo</button>
+            </div>
           </div>
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -3945,7 +3957,7 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
           </div>
         </div>
       </div>
-    `,cargarProductosEnvio()}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error: '+t.message+"</p>"}};window.filtrarAudienciaEnvio=()=>{const e=document.getElementById("envio-filtro").value,t=window._envioClientes||[],n=window._envioChats||[];let a=[];if(e==="todos"){const o={};t.forEach(i=>{i.telefono&&(o[i.telefono]={telefono:i.telefono,nombre:i.nombre,fuente:"cliente"})}),n.forEach(i=>{o[i.telefono]||(o[i.telefono]={telefono:i.telefono,nombre:i.nombre||i.telefono,fuente:"whatsapp"})}),a=Object.values(o)}else e==="clientes"?a=t.filter(o=>o.telefono).map(o=>({telefono:o.telefono,nombre:o.nombre,fuente:"cliente"})):e==="whatsapp"?a=n.map(o=>({telefono:o.telefono,nombre:o.nombre||o.telefono,fuente:"whatsapp"})):a=n.filter(o=>o.etiqueta===e).map(o=>({telefono:o.telefono,nombre:o.nombre||o.telefono,fuente:"whatsapp"}));window._envioContactos=a,document.getElementById("envio-count").textContent=a.length,document.getElementById("envio-lista").innerHTML=a.map(o=>`
+    `,cargarProductosEnvio(),cargarProductosEnvioInteractivo()}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error: '+t.message+"</p>"}};window.filtrarAudienciaEnvio=()=>{const e=document.getElementById("envio-filtro").value,t=window._envioClientes||[],n=window._envioChats||[];let a=[];if(e==="todos"){const o={};t.forEach(i=>{i.telefono&&(o[i.telefono]={telefono:i.telefono,nombre:i.nombre,fuente:"cliente"})}),n.forEach(i=>{o[i.telefono]||(o[i.telefono]={telefono:i.telefono,nombre:i.nombre||i.telefono,fuente:"whatsapp"})}),a=Object.values(o)}else e==="clientes"?a=t.filter(o=>o.telefono).map(o=>({telefono:o.telefono,nombre:o.nombre,fuente:"cliente"})):e==="whatsapp"?a=n.map(o=>({telefono:o.telefono,nombre:o.nombre||o.telefono,fuente:"whatsapp"})):a=n.filter(o=>o.etiqueta===e).map(o=>({telefono:o.telefono,nombre:o.nombre||o.telefono,fuente:"whatsapp"}));window._envioContactos=a,document.getElementById("envio-count").textContent=a.length,document.getElementById("envio-lista").innerHTML=a.map(o=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
       <div style="width:32px;height:32px;border-radius:50%;background:${o.fuente==="cliente"?"#e91e8c":"#25D366"};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
         ${(o.nombre||"?").charAt(0).toUpperCase()}
@@ -3959,7 +3971,65 @@ ${n.telefono?'<a href="https://wa.me/'+(n.lada||"52")+n.telefono.replace(/\D/g,"
       <p style="font-weight:700;margin-bottom:4px">${r.fallidos>0?"⚠️":"✅"} Campaña enviada</p>
       <p style="margin:0">Enviados: <strong>${r.enviados}</strong> · Fallidos: <strong>${r.fallidos}</strong></p>
       ${((o=r.errores)==null?void 0:o.length)>0?`<p style="font-size:0.72rem;color:#888;margin-top:4px">${r.errores.slice(0,3).join(", ")}</p>`:""}
-    `}catch(i){alert("Error: "+i.message)}finally{a.textContent="📣 Enviar campaña",a.disabled=!1}};window.seleccionarImagenProductoEnvio=()=>{var s,d;const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-imagen"),n=document.getElementById("envio-producto-preview"),a=document.getElementById("envio-producto-img"),o=document.getElementById("envio-producto-nombre");if(!e)return;const i=e.value,r=((d=(s=e.options[e.selectedIndex])==null?void 0:s.dataset)==null?void 0:d.nombre)||"";i?(t&&(t.value=i),n&&(n.style.display="flex"),a&&(a.src=i),o&&(o.textContent=r)):(t&&(t.value=""),n&&(n.style.display="none"))};window.limpiarSelProductoEnvio=()=>{const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-producto-preview");e&&(e.value=""),t&&(t.style.display="none")};window.cargarProductosEnvio=async()=>{try{const t=await(await fetch(g+"/productos/")).json(),n=document.getElementById("envio-producto-sel");if(!n)return;const a=t.filter(o=>o.activo&&o.imagen_principal);n.innerHTML='<option value="">Seleccionar producto...</option>'+a.map(o=>`<option value="${o.imagen_principal}" data-nombre="${o.nombre}">${o.nombre}</option>`).join("")}catch(e){console.error("Error:",e)}};window.validarCantidadTalla=(e,t)=>{const n=document.getElementById("qty-"+e);if(!n)return;let a=parseInt(n.value)||0;a<0&&(a=0),a>t&&(a=t),n.value=a,n.style.borderColor=a>0?"#E91E8C":"#ddd"};window.recargarFinanzas=async e=>{await D()};window.verOportunidad=async e=>{var n;if(window._crmData)try{const o=await(await fetch(g+"/crm/oportunidades/"+e)).json(),i=Array.isArray(o)?o[0]:o;if(!i)return;const r={contacto:"📞 Contacto",interes:"👀 Interés",cotizacion:"📋 Cotización",negociacion:"🤝 Negociación",ganado:"✅ Ganado",perdido:"❌ Perdido"},s=document.createElement("div");s.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",s.innerHTML=`
+    `}catch(i){alert("Error: "+i.message)}finally{a.textContent="📣 Enviar campaña",a.disabled=!1}};window.cargarProductosEnvioInteractivo=async()=>{const e=document.getElementById("envio-prod-grid");if(!e||window._envioProdInteractivoCargado){window._envioProdInteractivo&&renderizarEnvioProdGrid(window._envioProdInteractivo);return}try{const n=await(await fetch(g+"/productos/?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal&order=nombre.asc&limit=300")).json();window._envioProdInteractivo=n,window._envioProdSeleccionados=new Set,window._envioProdInteractivoCargado=!0,renderizarEnvioProdGrid(n)}catch{e&&(e.innerHTML='<p style="color:red;font-size:0.8rem;padding:4px">Error cargando productos</p>')}};window.renderizarEnvioProdGrid=e=>{const t=document.getElementById("envio-prod-grid");if(!t)return;const n=window._envioProdSeleccionados||new Set;if(!e.length){t.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin productos</p>';return}t.innerHTML=e.map(a=>{const o=a.sku_interno||a.id,i=n.has(o);return`<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1px solid ${i?"#E91E8C":"#f0f0f0"};background:${i?"#fff0f8":"white"}" id="envio-prod-lbl-${o}">
+      <input type="checkbox" ${i?"checked":""} onchange="toggleEnvioProd('${o}',this)" style="accent-color:#E91E8C;width:14px;height:14px;flex-shrink:0">
+      ${a.imagen_principal?`<img src="${a.imagen_principal}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0">`:'<div style="width:28px;height:28px;background:#f5f5f5;border-radius:4px;flex-shrink:0"></div>'}
+      <div style="min-width:0;flex:1">
+        <p style="font-size:0.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0">${a.nombre||o}</p>
+        <p style="font-size:0.65rem;color:#aaa;margin:0">${o}</p>
+      </div>
+    </label>`}).join(""),actualizarCountEnvioProd()};window.toggleEnvioProd=(e,t)=>{window._envioProdSeleccionados||(window._envioProdSeleccionados=new Set);const n=document.getElementById("envio-prod-lbl-"+e);if(t.checked){if(window._envioProdSeleccionados.size>=30){t.checked=!1,alert("Máximo 30 productos");return}window._envioProdSeleccionados.add(e),n&&(n.style.borderColor="#E91E8C",n.style.background="#fff0f8")}else window._envioProdSeleccionados.delete(e),n&&(n.style.borderColor="#f0f0f0",n.style.background="white");actualizarCountEnvioProd()};window.actualizarCountEnvioProd=()=>{var n;const e=document.getElementById("envio-prod-count");if(!e)return;const t=((n=window._envioProdSeleccionados)==null?void 0:n.size)||0;e.textContent=t>0?`${t}/30 producto${t>1?"s":""} seleccionado${t>1?"s":""}`:""};window.filtrarProductosEnvioInteractivo=e=>{const t=(e||"").toLowerCase().trim(),n=window._envioProdInteractivo||[];renderizarEnvioProdGrid(t?n.filter(a=>(a.nombre||"").toLowerCase().includes(t)||(a.sku_interno||"").toLowerCase().includes(t)):n)};window.iniciarEnvioInteractivo=async()=>{const e=window._envioContactos||[],t=Array.from(window._envioProdSeleccionados||new Set);if(!t.length){alert("Selecciona al menos un producto");return}if(!e.length){alert("No hay contactos en la audiencia");return}if(!confirm(`¿Enviar catálogo interactivo con ${t.length} producto${t.length>1?"s":""} a ${e.length} contacto${e.length>1?"s":""}?`))return;const n=document.createElement("div");n.id="envio-interactivo-overlay",n.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",n.innerHTML=`<div style="background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🛍️</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando catálogo interactivo…</h3>
+    <p style="font-size:0.82rem;color:#888">${e.length} contacto${e.length>1?"s":""} · ${t.length} producto${t.length>1?"s":""}</p>
+  </div>`,document.body.appendChild(n);try{const o=await(await fetch(g+"/chatbot/envio-productos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contactos:e.map(i=>({telefono:i.telefono,nombre:i.nombre})),skus:t,titulo:"Nuestros modelos 👠",cuerpo:"Mira los modelos disponibles. ¡Elige el tuyo!",pie:"Zapatillas May · León, Gto."})})).json();n.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${o.fallidos?"✅":"🎉"}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${o.enviados||0} enviados</p>
+      ${o.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${o.fallidos} fallidos</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`}catch(a){n.remove(),alert("Error: "+a.message)}};window.seleccionarImagenProductoEnvio=()=>{var s,d;const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-imagen"),n=document.getElementById("envio-producto-preview"),a=document.getElementById("envio-producto-img"),o=document.getElementById("envio-producto-nombre");if(!e)return;const i=e.value,r=((d=(s=e.options[e.selectedIndex])==null?void 0:s.dataset)==null?void 0:d.nombre)||"";i?(t&&(t.value=i),n&&(n.style.display="flex"),a&&(a.src=i),o&&(o.textContent=r)):(t&&(t.value=""),n&&(n.style.display="none"))};window.limpiarSelProductoEnvio=()=>{const e=document.getElementById("envio-producto-sel"),t=document.getElementById("envio-producto-preview");e&&(e.value=""),t&&(t.style.display="none")};window.cargarProductosEnvio=async()=>{try{const t=await(await fetch(g+"/productos/")).json(),n=document.getElementById("envio-producto-sel");if(!n)return;const a=t.filter(o=>o.activo&&o.imagen_principal);n.innerHTML='<option value="">Seleccionar producto...</option>'+a.map(o=>`<option value="${o.imagen_principal}" data-nombre="${o.nombre}">${o.nombre}</option>`).join("")}catch(e){console.error("Error:",e)}};window.cargarSEO=async()=>{const e=document.getElementById("content");e&&(e.innerHTML=`
+    <div style="max-width:800px">
+      <div style="margin-bottom:1.5rem">
+        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🔍 SEO y Sitio</h2>
+        <p style="color:#888;font-size:0.85rem">Configuración del sitio web y catálogo de Meta</p>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗂️ Colecciones del catálogo de WhatsApp</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar por categoría desde WhatsApp.</p>
+        <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
+        <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">
+          🗂️ Sincronizar colecciones en Meta
+        </button>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🗺️ Sitemap y robots.txt</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Archivos generados automáticamente para indexación en Google.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📄 Ver sitemap.xml</a>
+          <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🤖 Ver robots.txt</a>
+          <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📦 Ver feed Meta</a>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+        <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px">🌐 Sitio web</h3>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Links rápidos al sitio de la tienda.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://zapatillasmay.mx" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">🏠 Inicio</a>
+          <a href="https://zapatillasmay.mx/tabla-tallas" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">📏 Tabla de tallas</a>
+          <a href="https://zapatillasmay.mx/devoluciones" target="_blank" class="btn btn-secondary" style="font-size:0.82rem">↩️ Devoluciones</a>
+        </div>
+      </div>
+    </div>
+  `)};window.sincronizarColeccionesMeta=async()=>{const e=document.getElementById("btn-sync-colecciones"),t=document.getElementById("seo-colecciones-resultado");e&&(e.textContent="Sincronizando...",e.disabled=!0);try{const a=await(await fetch(g+"/catalogo/sincronizar-colecciones",{method:"POST"})).json();if(a.error)t.style.display="block",t.style.background="#ffebee",t.style.borderColor="#ef9a9a",t.innerHTML=`❌ Error: ${a.error}`;else{const o=a.resultados.filter(s=>s.accion==="creada").length,i=a.resultados.filter(s=>s.accion==="actualizada").length,r=a.resultados.filter(s=>s.accion==="error");t.style.display="block",t.style.background=r.length?"#fff8e1":"#e8f5e9",t.style.border=`1px solid ${r.length?"#ffe082":"#a5d6a7"}`,t.innerHTML=`
+        ✅ <strong>${o} colecciones creadas</strong> · ${i} actualizadas
+        ${r.length?`<br>⚠️ ${r.length} errores: ${r.map(s=>s.categoria+" ("+s.detalle+")").join(", ")}`:""}
+        <br><small style="color:#888;margin-top:4px;display:block">${a.resultados.map(s=>`${s.categoria}: ${s.accion}`).join(" · ")}</small>
+      `}}catch(n){t&&(t.style.display="block",t.style.background="#ffebee",t.innerHTML="❌ Error: "+n.message)}finally{e&&(e.textContent="🗂️ Sincronizar colecciones en Meta",e.disabled=!1)}};window.validarCantidadTalla=(e,t)=>{const n=document.getElementById("qty-"+e);if(!n)return;let a=parseInt(n.value)||0;a<0&&(a=0),a>t&&(a=t),n.value=a,n.style.borderColor=a>0?"#E91E8C":"#ddd"};window.recargarFinanzas=async e=>{await D()};window.verOportunidad=async e=>{var n;if(window._crmData)try{const o=await(await fetch(g+"/crm/oportunidades/"+e)).json(),i=Array.isArray(o)?o[0]:o;if(!i)return;const r={contacto:"📞 Contacto",interes:"👀 Interés",cotizacion:"📋 Cotización",negociacion:"🤝 Negociación",ganado:"✅ Ganado",perdido:"❌ Perdido"},s=document.createElement("div");s.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",s.innerHTML=`
       <div style="background:white;border-radius:16px;padding:2rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1.5rem">
           <div>
