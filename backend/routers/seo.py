@@ -250,6 +250,37 @@ def feed_meta():
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
+@router.get("/catalogo/diagnostico")
+def diagnostico_catalogo():
+    """Verifica el catalog_id configurado y devuelve info del objeto Meta."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+    waba_id = os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", os.environ.get("WABA_ID", ""))
+    results = {"catalog_id_env": catalog_id, "waba_id_env": waba_id}
+    if wa_token and catalog_id:
+        try:
+            req = urllib.request.Request(
+                f"https://graph.facebook.com/v21.0/{catalog_id}?fields=id,name,type",
+                headers={"Authorization": f"Bearer {wa_token}"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as r:
+                results["objeto_meta"] = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            results["objeto_meta_error"] = json.loads(e.read().decode())
+        # Intentar listar catálogos del WABA si está disponible
+        if waba_id:
+            try:
+                req = urllib.request.Request(
+                    f"https://graph.facebook.com/v21.0/{waba_id}/product_catalogs?fields=id,name",
+                    headers={"Authorization": f"Bearer {wa_token}"}
+                )
+                with urllib.request.urlopen(req, timeout=8) as r:
+                    results["catalogos_waba"] = json.loads(r.read())
+            except urllib.error.HTTPError as e:
+                results["catalogos_waba_error"] = json.loads(e.read().decode())
+    return results
+
+
 @router.post("/catalogo/sincronizar-colecciones")
 def sincronizar_colecciones():
     """Crea o actualiza los Product Sets (colecciones) en el catálogo de Meta por categoría."""
