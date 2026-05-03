@@ -2176,8 +2176,35 @@ window.mostrarCampanas = async () => {
         <button class="btn btn-secondary" onclick="navegarA('crm')">← Volver al CRM</button>
         <div>
           <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:2px">📣 Campañas de WhatsApp</h2>
-          <p style="font-size:0.82rem;color:#888">Genera mensajes personalizados para enviar por WhatsApp</p>
+          <p style="font-size:0.82rem;color:#888">Envía fotos de nuevos modelos a tus clientes de mayoreo</p>
         </div>
+      </div>
+
+      <!-- CONEXIÓN WHATSAPP BUSINESS -->
+      <div id="wa-conexion-card" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:2px">📱 WhatsApp Business</p>
+          <p id="wa-estado-texto" style="font-size:0.8rem;color:#888">Verificando conexión...</p>
+        </div>
+        <div id="wa-estado-badge" style="padding:4px 12px;border-radius:100px;font-size:0.75rem;font-weight:600;background:#f5f5f5;color:#888">
+          ⏳ Cargando
+        </div>
+        <button id="wa-btn-conectar" onclick="mostrarQRWhatsApp()" class="btn btn-primary" style="display:none">
+          Conectar con QR
+        </button>
+        <button id="wa-btn-desconectar" onclick="desconectarWhatsApp()" class="btn btn-secondary" style="display:none;font-size:0.78rem">
+          Desconectar
+        </button>
+      </div>
+
+      <!-- QR MODAL -->
+      <div id="wa-qr-panel" style="display:none;background:#f8f8f8;border:2px dashed #E91E8C;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;text-align:center">
+        <p style="font-weight:700;margin-bottom:0.5rem">Escanea este QR con tu WhatsApp Business</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+        <div id="wa-qr-img" style="display:inline-block;background:white;padding:12px;border-radius:8px;border:1px solid #eee">
+          <p style="color:#888;font-size:0.85rem;padding:2rem">Cargando QR...</p>
+        </div>
+        <p style="font-size:0.75rem;color:#aaa;margin-top:0.75rem">El QR expira en ~60 segundos. Si expira, haz clic en "Conectar con QR" de nuevo.</p>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
@@ -2301,6 +2328,79 @@ window.mostrarCampanas = async () => {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando campañas</p>'
   }
 }
+
+// ── WhatsApp Business (Evolution API) ─────────────────────────
+window._waEstadoInterval = null
+
+window.verificarEstadoWA = async () => {
+  try {
+    const res = await fetch(API + '/campanas/wa-estado')
+    const data = await res.json()
+    const badge = document.getElementById('wa-estado-badge')
+    const texto = document.getElementById('wa-estado-texto')
+    const btnConectar = document.getElementById('wa-btn-conectar')
+    const btnDesconectar = document.getElementById('wa-btn-desconectar')
+    if (!badge) return data.conectado
+
+    if (data.conectado) {
+      badge.style.background = '#e8f5e9'
+      badge.style.color = '#2e7d32'
+      badge.textContent = '✅ Conectado'
+      texto.textContent = 'WhatsApp Business conectado y listo para enviar'
+      btnConectar.style.display = 'none'
+      btnDesconectar.style.display = 'inline-flex'
+      document.getElementById('wa-qr-panel').style.display = 'none'
+      if (window._waEstadoInterval) { clearInterval(window._waEstadoInterval); window._waEstadoInterval = null }
+    } else {
+      badge.style.background = '#ffebee'
+      badge.style.color = '#c62828'
+      badge.textContent = '🔴 Desconectado'
+      texto.textContent = 'Conecta tu WhatsApp Business para enviar campañas automáticas'
+      btnConectar.style.display = 'inline-flex'
+      btnDesconectar.style.display = 'none'
+    }
+    return data.conectado
+  } catch(e) {
+    const badge = document.getElementById('wa-estado-badge')
+    if (badge) { badge.style.background='#fff8e1'; badge.style.color='#f57f17'; badge.textContent='⚠️ Sin conexión al servidor' }
+    return false
+  }
+}
+
+window.mostrarQRWhatsApp = async () => {
+  const panel = document.getElementById('wa-qr-panel')
+  const qrDiv = document.getElementById('wa-qr-img')
+  if (!panel || !qrDiv) return
+  panel.style.display = 'block'
+  qrDiv.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:2rem">Cargando QR...</p>'
+  try {
+    const res = await fetch(API + '/campanas/wa-qr')
+    const data = await res.json()
+    if (data.qr) {
+      const src = data.qr.startsWith('data:') ? data.qr : 'data:image/png;base64,' + data.qr
+      qrDiv.innerHTML = `<img src="${src}" style="width:220px;height:220px;display:block">`
+      // Pooling para detectar conexión exitosa
+      if (window._waEstadoInterval) clearInterval(window._waEstadoInterval)
+      window._waEstadoInterval = setInterval(async () => {
+        const conectado = await window.verificarEstadoWA()
+        if (conectado) clearInterval(window._waEstadoInterval)
+      }, 4000)
+    } else {
+      qrDiv.innerHTML = `<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${data.error || 'No se obtuvo QR'}</p>`
+    }
+  } catch(e) {
+    qrDiv.innerHTML = `<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${e.message}</p>`
+  }
+}
+
+window.desconectarWhatsApp = async () => {
+  if (!confirm('¿Desconectar WhatsApp Business?')) return
+  await fetch(API + '/campanas/wa-desconectar', { method: 'POST' })
+  verificarEstadoWA()
+}
+
+// Verificar estado al cargar la sección
+setTimeout(() => { if (document.getElementById('wa-estado-badge')) verificarEstadoWA() }, 300)
 
 window.actualizarVistaCampana = () => {
   const segmento = document.querySelector('input[name="campana-segmento"]:checked')?.value || 'todos'

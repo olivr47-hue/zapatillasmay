@@ -134,3 +134,48 @@ def cancelar_campana(job_id: str):
         return {"error": "Campaña no encontrada"}
     job["cancelado"] = True
     return {"ok": True}
+
+
+@router.get("/campanas/wa-estado")
+def wa_estado():
+    """Estado de conexión de la instancia Evolution API."""
+    url = f"{EVOLUTION_URL}/instance/connectionState/{EVOLUTION_INSTANCE}"
+    try:
+        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read())
+        state = data.get("instance", {}).get("state") or data.get("state", "close")
+        return {"estado": state, "conectado": state == "open"}
+    except Exception as e:
+        return {"estado": "error", "conectado": False, "detalle": str(e)}
+
+
+@router.get("/campanas/wa-qr")
+def wa_qr():
+    """Obtiene el QR para conectar WhatsApp Business."""
+    url = f"{EVOLUTION_URL}/instance/connect/{EVOLUTION_INSTANCE}"
+    try:
+        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+        # Evolution API puede devolver el QR como 'base64' o dentro de 'qrcode'
+        qr = data.get("base64") or data.get("qrcode", {}).get("base64") or data.get("code")
+        return {"qr": qr, "raw": data}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return {"error": body}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/campanas/wa-desconectar")
+def wa_desconectar():
+    """Cierra la sesión de WhatsApp Business."""
+    url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+    try:
+        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY}, method="DELETE")
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
