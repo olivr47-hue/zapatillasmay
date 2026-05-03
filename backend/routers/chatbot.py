@@ -799,9 +799,11 @@ async def envio_productos(datos: dict):
             except urllib.error.HTTPError as http_e:
                 error_body = http_e.read().decode()
                 fallidos += 1
+                print(f"Error WA catálogo HTTP {http_e.code}: {error_body}")
                 errores.append(f"{telefono}: HTTP {http_e.code} - {error_body}")
             except Exception as inner_e:
                 fallidos += 1
+                print(f"Error WA catálogo: {str(inner_e)}")
                 errores.append(f"{telefono}: {str(inner_e)}")
 
         return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
