@@ -281,7 +281,7 @@ def diagnostico_catalogo():
     """Verifica el catalog_id configurado y devuelve info del objeto Meta."""
     wa_token = os.environ.get("META_CATALOG_TOKEN") or os.environ.get("WHATSAPP_TOKEN", "")
     catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "2162392191190506")
-    waba_id = os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", os.environ.get("WABA_ID", ""))
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", os.environ.get("WABA_ID", "")))
     tiene_catalog_token = bool(os.environ.get("META_CATALOG_TOKEN"))
     results = {"catalog_id_env": catalog_id, "waba_id_env": waba_id, "usa_meta_catalog_token": tiene_catalog_token}
     if wa_token and catalog_id:
