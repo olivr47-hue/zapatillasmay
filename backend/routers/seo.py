@@ -280,7 +280,7 @@ def listar_catalogos():
 def diagnostico_catalogo():
     """Verifica el catalog_id configurado y devuelve info del objeto Meta."""
     wa_token = os.environ.get("META_CATALOG_TOKEN") or os.environ.get("WHATSAPP_TOKEN", "")
-    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "2162392191190506")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "844924814623850")
     waba_id = os.environ.get("WHATSAPP_WABA_ID", os.environ.get("WHATSAPP_BUSINESS_ACCOUNT_ID", os.environ.get("WABA_ID", "")))
     tiene_catalog_token = bool(os.environ.get("META_CATALOG_TOKEN"))
     results = {"catalog_id_env": catalog_id, "waba_id_env": waba_id, "usa_meta_catalog_token": tiene_catalog_token}
@@ -313,7 +313,7 @@ def sincronizar_colecciones():
     """Crea o actualiza los Product Sets (colecciones) en el catálogo de Meta por categoría."""
     # Usa META_CATALOG_TOKEN si existe (necesita catalog_management), si no intenta con WHATSAPP_TOKEN
     wa_token = os.environ.get("META_CATALOG_TOKEN") or os.environ.get("WHATSAPP_TOKEN", "")
-    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "2162392191190506")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "844924814623850")
     if not wa_token or not catalog_id:
         return {"error": "Faltan variables META_CATALOG_TOKEN o WHATSAPP_CATALOG_ID"}
 
