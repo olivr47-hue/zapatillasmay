@@ -9104,8 +9104,10 @@ window.renderMensaje = (m, esManual, nombreContacto) => {
     const partes = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')
     const url = partes[0].trim()
     const caption = partes.slice(1).join('\n').trim()
-    return '<img src="' + url + '" style="max-width:200px;border-radius:8px;display:block">' + 
-      (caption ? '<p style="font-size:0.82rem;color:#333;white-space:pre-wrap;margin-top:6px">' + caption + '</p>' : '')
+    if (url.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)) {
+      return '<img src="' + url + '" style="max-width:200px;border-radius:8px;display:block">' +
+        (caption ? '<p style="font-size:0.82rem;color:#333;white-space:pre-wrap;margin-top:6px">' + caption + '</p>' : '')
+    }
   }
   return '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
 }
@@ -9173,8 +9175,9 @@ area.style.minHeight = '0'
       ${[...chat.mensajes].reverse().map(m => {
   const esManual = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
   const senderName = esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
-  const msgBody = m.tipo === 'imagen_saliente'
-    ? '<img src="' + m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() + '" style="max-width:200px;border-radius:8px;display:block">'
+  const _imgUrl = m.tipo === 'imagen_saliente' ? m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() : ''
+  const msgBody = (m.tipo === 'imagen_saliente' && _imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i))
+    ? '<img src="' + _imgUrl + '" style="max-width:200px;border-radius:8px;display:block">'
     : '<p>' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
   const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
   return `
