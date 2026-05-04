@@ -700,11 +700,9 @@ async def envio_productos(datos: dict):
     try:
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
         phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
-        catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+        catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "2162392191190506")
         if not wa_token or not phone_id:
             return JSONResponse(status_code=500, content={"error": "Token no configurado"})
-        if not catalog_id:
-            return JSONResponse(status_code=400, content={"error": "WHATSAPP_CATALOG_ID no configurado en variables de entorno"})
 
         contactos = datos.get("contactos", [])   # [{"telefono": "...", "nombre": "..."}]
         skus      = datos.get("skus", [])         # list of sku_interno values (max 30)

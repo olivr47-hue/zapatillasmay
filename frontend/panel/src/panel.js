@@ -2323,6 +2323,7 @@ window.mostrarCampanas = async () => {
     window._campanaImagenUrl = ''
     actualizarVistaCampana()
     cargarProductosCampana()
+    verificarEstadoWA()
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando campañas</p>'
@@ -2399,8 +2400,7 @@ window.desconectarWhatsApp = async () => {
   verificarEstadoWA()
 }
 
-// Verificar estado al cargar la sección
-setTimeout(() => { if (document.getElementById('wa-estado-badge')) verificarEstadoWA() }, 300)
+// verificarEstadoWA se llama desde mostrarCampanas() cuando el DOM ya existe
 
 window.actualizarVistaCampana = () => {
   const segmento = document.querySelector('input[name="campana-segmento"]:checked')?.value || 'todos'
@@ -9812,11 +9812,22 @@ window.iniciarEnvioInteractivo = async () => {
       body: JSON.stringify({ contactos: contactos.map(c => ({ telefono: c.telefono, nombre: c.nombre })), skus, titulo: 'Nuestros modelos 👠', cuerpo: 'Mira los modelos disponibles. ¡Elige el tuyo!', pie: 'Zapatillas May · León, Gto.' })
     })
     const data = await res.json()
+    if (data.error) {
+      overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error al enviar</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${data.error}</p>
+        <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
+          style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`
+      return
+    }
     overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
       <div style="font-size:3rem;margin-bottom:1rem">${!data.fallidos ? '🎉' : '✅'}</div>
       <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
       <p style="color:#25D366;font-weight:700;margin-bottom:4px">${data.enviados || 0} enviados</p>
       ${data.fallidos ? `<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${data.fallidos} fallidos</p>` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      ${data.errores?.length ? `<p style="font-size:0.72rem;color:#aaa;margin-bottom:1rem">${data.errores[0]}</p>` : ''}
       <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
         style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
     </div>`
