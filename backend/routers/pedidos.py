@@ -1,8 +1,75 @@
+import os
+import json
+import urllib.request
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+
+def _enviar_confirmacion_wa(pedido_data, items_data):
+    """Envia confirmacion de venta por WhatsApp al cliente. Nunca lanza excepcion al caller."""
+    try:
+        cliente_id = pedido_data.get("cliente_id")
+        if not cliente_id:
+            return
+
+        cliente = supabase_get(f"clientes?id=eq.{cliente_id}&select=nombre,telefono")
+        if not cliente or not cliente[0].get("telefono"):
+            return
+
+        nombre = cliente[0].get("nombre", "")
+        telefono = cliente[0]["telefono"].strip().replace(" ", "").replace("-", "").replace("+", "")
+        # Asegurar formato internacional Mexico
+        if not telefono.startswith("52") and len(telefono) == 10:
+            telefono = "52" + telefono
+
+        lineas = []
+        for item in items_data:
+            nombre_prod = ""
+            if item.get("variantes") and isinstance(item["variantes"], dict):
+                prod = item["variantes"].get("productos")
+                if isinstance(prod, dict):
+                    nombre_prod = prod.get("nombre", "")
+            if not nombre_prod:
+                nombre_prod = item.get("nombre_producto", "Producto")
+            cantidad = item.get("cantidad", 1)
+            precio = item.get("precio_unitario", 0)
+            lineas.append(f"  • {nombre_prod} x{cantidad} — ${precio:,.0f}")
+
+        items_txt = "\n".join(lineas) if lineas else "  • Ver detalle en tienda"
+        total = pedido_data.get("total", 0)
+        nombre_corto = nombre.split()[0] if nombre else "Cliente"
+
+        mensaje = (
+            f"¡Hola {nombre_corto}! \U0001f460\n\n"
+            f"Tu compra en *Zapatillas May* está confirmada:\n\n"
+            f"{items_txt}\n\n"
+            f"*Total pagado: ${total:,.0f}*\n\n"
+            f"¡Gracias por tu preferencia! \U0001f64f"
+        )
+
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if not wa_token or not phone_id:
+            print("WA confirmacion: sin credenciales configuradas")
+            return
+
+        url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+        headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+        body = json.dumps({
+            "messaging_product": "whatsapp",
+            "to": telefono,
+            "type": "text",
+            "text": {"body": mensaje}
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        urllib.request.urlopen(req)
+        print(f"WA confirmacion enviada a {telefono} ({nombre})")
+    except Exception as e:
+        print(f"WA confirmacion error (no critico): {e}")
+
 
 @router.get("/")
 def listar_pedidos():
@@ -82,7 +149,8 @@ def confirmar_pedido(id: str, datos: dict):
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
-        items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
+        # Traer items con nombre de producto para el mensaje de WhatsApp
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre))")
         sucursal_id = pedido[0].get("sucursal_id")
         for item in items:
             variante_id = item.get("variante_id")
@@ -106,6 +174,10 @@ def confirmar_pedido(id: str, datos: dict):
             "status": "confirmado",
             "forma_pago": datos.get("forma_pago", "efectivo")
         })
+
+        # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
+        _enviar_confirmacion_wa(pedido[0], items)
+
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -151,7 +223,7 @@ def reconfirmar_pedido(id: str, datos: dict):
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
         if pedido[0].get("status") != "cancelado":
             return JSONResponse(status_code=400, content={"error": "Solo se pueden reconfirmar pedidos cancelados"})
-        items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre))")
         sucursal_id = pedido[0].get("sucursal_id")
         for item in items:
             variante_id = item.get("variante_id")
