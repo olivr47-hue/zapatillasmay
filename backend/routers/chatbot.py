@@ -225,22 +225,26 @@ def obtener_colores_modelo(sku):
         return []
 
 def obtener_info_pago():
-    """Obtiene las instrucciones de pago desde la configuración del ERP."""
+    """Obtiene las instrucciones de pago — primero env var, luego DB."""
+    # 1) Variable de entorno en Railway (más fácil de configurar)
+    pago_env = os.environ.get("PAGO_INFO", "").strip()
+    if pago_env:
+        return pago_env
+    # 2) Tabla whatsapp_config en Supabase
     try:
         config = supabase_get("whatsapp_config")
         cfg = {c['clave']: c['valor'] for c in config}
-        pago = cfg.get('info_pago', '')
-        if pago:
-            return pago
-        # Fallback a datos básicos si no hay config
-        banco   = cfg.get('banco', '')
-        clabe   = cfg.get('clabe', '')
-        titular = cfg.get('titular', 'Zapatillas May')
-        if clabe:
-            return f"💳 *Datos de pago:*\nBanco: {banco}\nCLABE: {clabe}\nTitular: {titular}\n\n_Envía tu comprobante por aquí y procesamos tu pedido en 24hrs_ ✅"
-        return "Escríbenos para darte los datos de pago 💳"
+        if cfg.get('info_pago'):
+            return cfg['info_pago']
+        if cfg.get('clabe'):
+            return (f"💳 *Datos de pago:*\n"
+                    f"Banco: {cfg.get('banco','')}\n"
+                    f"CLABE: {cfg['clabe']}\n"
+                    f"Titular: {cfg.get('titular','Zapatillas May')}\n\n"
+                    f"_Envía tu comprobante aquí y procesamos tu pedido en 24hrs_ ✅")
     except:
-        return "Escríbenos para darte los datos de pago 💳"
+        pass
+    return "Escríbenos para darte los datos de pago 💳"
 
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
