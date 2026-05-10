@@ -78,6 +78,49 @@ def enviar_evento_meta(event_name, pedido, payment):
     except Exception as e:
         print("Error enviando evento a Meta:", str(e))
 
+def _confirmar_pago_whatsapp(pedido: dict):
+    """Envía mensaje de confirmación por WhatsApp cuando se confirma el pago."""
+    try:
+        telefono = pedido.get("telefono_cliente", "")
+        if not telefono:
+            return
+        # Solo confirmar si es pedido de WhatsApp
+        if pedido.get("canal") != "whatsapp":
+            return
+        wa_token  = os.getenv("WHATSAPP_TOKEN", "")
+        phone_id  = os.getenv("WHATSAPP_PHONE_ID", "")
+        if not wa_token or not phone_id:
+            return
+        nombre    = (pedido.get("nombre_cliente") or "").split()[0] or "Clienta"
+        total     = pedido.get("total", 0)
+        notas     = pedido.get("notas", "tu pedido")
+        # Normalizar teléfono
+        tel = str(telefono).replace("+","").replace(" ","").replace("-","")
+        if not tel.startswith("52"):
+            tel = "52" + tel
+        mensaje = (
+            f"✅ *¡Pago confirmado, {nombre}!*\n\n"
+            f"Recibimos tu pago de *${total:.0f} MXN* 🎉\n"
+            f"📦 {notas.replace('Pedido WhatsApp | ','')}\n\n"
+            f"_Procesamos tu pedido en las próximas 24hrs y te mandamos tu número de rastreo_ 🚚"
+        )
+        body = json.dumps({
+            "messaging_product": "whatsapp",
+            "to": tel,
+            "type": "text",
+            "text": {"body": mensaje}
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v25.0/{phone_id}/messages",
+            data=body,
+            headers={"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"},
+            method="POST"
+        )
+        urllib.request.urlopen(req)
+    except Exception as e:
+        print(f"Error confirmación WA: {e}")
+
+
 @router.post("/crear-preferencia")
 def crear_preferencia(datos: dict):
     try:
@@ -170,6 +213,8 @@ async def webhook_mercadopago(request: Request):
                             )
                             # Enviar evento Purchase a Meta server-side
                             enviar_evento_meta("Purchase", pedido[0], payment)
+                            # Confirmación por WhatsApp si es pedido de canal whatsapp
+                            _confirmar_pago_whatsapp(pedido[0])
 
                     elif status in ["rejected", "cancelled"]:
                         supabase_patch(

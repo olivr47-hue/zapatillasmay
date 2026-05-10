@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from database import supabase_get
+from database import supabase_get, supabase_post, supabase_patch
 import urllib.request
 import json
 import os
 import base64
 import re
+import mercadopago
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
@@ -87,12 +88,14 @@ Cuando tengas modelo + color + talla:
   • Dirección de envío (calle, número, colonia, ciudad, CP)
   • ¿Cómo prefieres pagar?"
 
-PASO 5 — CERRAR Y COBRAR:
-Cuando tengas TODOS los datos (nombre + dirección + modelo + color + talla):
-- Confirma el resumen del pedido
-- Usa el marcador: LINK_PAGO
-- El sistema enviará automáticamente los datos de pago
-- Ejemplo: "Perfecto [nombre]! Tu pedido es: [modelo] color [color] talla [talla] — $[precio] + $99 envío = $[total] 🛍️ LINK_PAGO"
+PASO 5 — CERRAR PEDIDO Y GENERAR LINK DE PAGO:
+Cuando tengas TODOS los datos (nombre completo + dirección + modelo + color + talla + precio del catálogo):
+- Resume el pedido brevemente
+- Usa el marcador GENERAR_PAGO con JSON exacto (sin espacios extra, sin saltos de línea dentro):
+  GENERAR_PAGO:{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"NOMBRE_MODELO","sku":"SKU_DEL_CATALOGO","color":"COLOR","talla":"TALLA","precio":PRECIO_NUMERO}
+- Ejemplo: "¡Perfecto Lupita! 🛍️ Tu pedido: MA302 Negro talla 24 — $365 + $99 envío = $464 total GENERAR_PAGO:{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, Centro, CDMX 06600","modelo":"Tacón MA302","sku":"MA302","color":"Negro","talla":"24","precio":365}
+- El sistema creará el pedido y mandará el link de Mercado Pago automáticamente
+- NO pongas LINK_PAGO, usa GENERAR_PAGO con el JSON
 
 === REGLAS IMPORTANTES ===
 - Habla como vendedora mexicana amigable y natural (amiga, no robot)
@@ -200,6 +203,65 @@ def enviar_whatsapp_imagen(to, url_img, caption=""):
     except Exception as e:
         print(f"Error imagen WA: {e}")
 
+def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
+    """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id)."""
+    try:
+        nombre     = datos_pedido.get("nombre", "Cliente")
+        direccion  = datos_pedido.get("direccion", "")
+        modelo     = datos_pedido.get("modelo", "Calzado")
+        color      = datos_pedido.get("color", "")
+        talla      = datos_pedido.get("talla", "")
+        precio     = float(datos_pedido.get("precio", 0))
+        envio      = 99.0
+        total      = precio + envio
+        descripcion = f"{modelo} — {color} talla {talla}"
+        notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
+
+        # 1. Crear pedido en Supabase
+        pedido_db = supabase_post("pedidos", {
+            "nombre_cliente":   nombre,
+            "telefono_cliente": telefono,
+            "email_cliente":    "cliente@zapatillasmay.mx",
+            "total":            total,
+            "status":           "pendiente_pago",
+            "canal":            "whatsapp",
+            "notas":            notas,
+        })
+        # supabase_post puede devolver lista o dict
+        pedido_id = (pedido_db[0] if isinstance(pedido_db, list) else pedido_db).get("id")
+        if not pedido_id:
+            return None, total, None
+
+        # 2. Crear preferencia Mercado Pago
+        sdk = mercadopago.SDK(os.environ.get("MP_ACCESS_TOKEN", ""))
+        pref_data = {
+            "items": [
+                {"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"},
+                {"title": "Envío",           "quantity": 1, "unit_price": envio,  "currency_id": "MXN"},
+            ],
+            "payer":              {"name": nombre, "email": "cliente@zapatillasmay.mx"},
+            "external_reference": str(pedido_id),
+            "notification_url":   os.environ.get("MP_WEBHOOK_URL", ""),
+            "back_urls": {
+                "success": "https://zapatillasmay.com/gracias",
+                "failure": "https://zapatillasmay.com/pago-fallido",
+                "pending": "https://zapatillasmay.com/pago-pendiente",
+            },
+            "auto_return": "approved",
+        }
+        result = sdk.preference().create(pref_data)
+        pref   = result["response"]
+        link   = pref.get("init_point", "")
+
+        if pref.get("id"):
+            supabase_patch(f"pedidos?id=eq.{pedido_id}",
+                           {"mp_preference_id": pref["id"]})
+        return link, total, pedido_id
+    except Exception as e:
+        print(f"Error generando link MP: {e}")
+        return None, 0, None
+
+
 def obtener_colores_modelo(sku):
     """Devuelve lista de {color, foto_url} del modelo con ese SKU."""
     try:
@@ -248,6 +310,33 @@ def obtener_info_pago():
 
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
+
+    # ── GENERAR_PAGO:{json} ──────────────────────────────────────────────────
+    match_pago = re.search(r'GENERAR_PAGO:(\{[^}]+\})', respuesta_claude)
+    if match_pago:
+        texto = re.sub(r'GENERAR_PAGO:\{[^}]+\}', '', respuesta_claude).strip()
+        if texto:
+            enviar_whatsapp_texto(from_number, texto)
+        try:
+            datos = json.loads(match_pago.group(1))
+            link, total, pedido_id = generar_link_pago_wa(from_number, datos)
+            import time; time.sleep(1)
+            if link:
+                nombre_corto = datos.get("nombre", "").split()[0] or "aquí"
+                enviar_whatsapp_texto(
+                    from_number,
+                    f"💳 *Link de pago — ${total:.0f} MXN*\n\n{link}\n\n"
+                    f"_Acepta tarjeta, transferencia, OXXO y más. "
+                    f"En cuanto confirme el pago procesamos tu pedido 🚀_"
+                )
+            else:
+                enviar_whatsapp_texto(from_number,
+                    "Hubo un problema generando tu link de pago, escríbeme y te lo mando por otro medio 🙏")
+        except Exception as e:
+            print(f"Error procesando GENERAR_PAGO: {e}")
+            enviar_whatsapp_texto(from_number,
+                "Hubo un problema generando tu link de pago, escríbeme y te lo mando por otro medio 🙏")
+        return texto or respuesta_claude
 
     # ── BUSCAR_COLORES:[SKU] ─────────────────────────────────────────────────
     match_colores = re.search(r'BUSCAR_COLORES:\[?([A-Za-z0-9_\-]+)\]?', respuesta_claude)
