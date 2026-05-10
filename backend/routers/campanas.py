@@ -57,7 +57,11 @@ def _normalizar_tel(telefono):
     return t
 
 
-def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen_url: str, delay: float):
+def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen_url: str, delay: float, fotos_con_caption: list = None):
+    """
+    fotos_con_caption: lista de {url, caption} — se envía cada foto con su propio caption.
+    Si se pasa, tiene prioridad sobre fotos_urls.
+    """
     job = _jobs[job_id]
     total = len(destinatarios)
 
@@ -73,10 +77,18 @@ def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen
 
         ok, err = True, ""
 
-        if fotos_urls:
-            # Primera foto lleva el texto como caption
+        if fotos_con_caption:
+            # Cada foto va con su propio caption (color)
+            # El mensaje de texto va primero, luego las fotos
+            ok, err = _enviar_wa_texto(tel, msg)
+            for foto_item in fotos_con_caption:
+                if job.get("cancelado"):
+                    break
+                time.sleep(1.2)
+                _enviar_wa_imagen(tel, foto_item["url"], foto_item.get("caption", ""))
+        elif fotos_urls:
+            # Backward compat: primera foto con mensaje, resto sin caption
             ok, err = _enviar_wa_imagen(tel, fotos_urls[0], msg)
-            # Fotos adicionales sin caption (pequeña pausa entre cada una)
             for foto in fotos_urls[1:]:
                 if not job.get("cancelado"):
                     time.sleep(1.5)
@@ -100,10 +112,11 @@ def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen
 
 @router.post("/campanas/enviar")
 async def enviar_campana(datos: dict, background_tasks: BackgroundTasks):
-    destinatarios = datos.get("destinatarios", [])
-    fotos_urls    = [u for u in (datos.get("fotos_urls") or []) if u]
-    imagen_url    = (datos.get("imagen_url") or "").strip()
-    delay         = float(datos.get("delay_segundos", 4))
+    destinatarios     = datos.get("destinatarios", [])
+    fotos_urls        = [u for u in (datos.get("fotos_urls") or []) if u]
+    fotos_con_caption = datos.get("fotos_con_caption") or None  # [{url, caption}]
+    imagen_url        = (datos.get("imagen_url") or "").strip()
+    delay             = float(datos.get("delay_segundos", 4))
 
     if not destinatarios:
         return {"error": "No hay destinatarios"}
@@ -115,7 +128,7 @@ async def enviar_campana(datos: dict, background_tasks: BackgroundTasks):
         "terminado": False, "cancelado": False, "estado": "enviando"
     }
 
-    background_tasks.add_task(_procesar_campana, job_id, destinatarios, fotos_urls, imagen_url, delay)
+    background_tasks.add_task(_procesar_campana, job_id, destinatarios, fotos_urls, imagen_url, delay, fotos_con_caption)
     return {"job_id": job_id, "total": len(destinatarios)}
 
 
