@@ -15,7 +15,8 @@ def get_api_key():
 def construir_catalogo(productos):
     catalogo = ""
     for p in productos[:40]:
-        catalogo += f"- {p['nombre']}"
+        sku = p.get('sku_interno') or p.get('id','')
+        catalogo += f"- [SKU:{sku}] {p['nombre']}"
         if p.get('imagen_principal'):
             catalogo += f" [IMG:{p['imagen_principal']}]"
         catalogo += f": menudeo ${p['precio_menudeo']}"
@@ -26,7 +27,7 @@ def construir_catalogo(productos):
         if p.get('precio_corrida') and p.get('corrida_activa'):
             catalogo += f", corrida ${p['precio_corrida']}"
         if p.get('nuevo'):
-            catalogo += " NUEVO"
+            catalogo += " 🆕NUEVO"
         if p.get('categoria'):
             catalogo += f" [{p['categoria']}]"
         if p.get('tallas_disponibles'):
@@ -56,31 +57,52 @@ ENVÍOS:
 - Enviamos en 24hrs después de confirmar pago (excepto sábados 3pm+ y domingos)
 - Cambios: el retorno de paquetería corre por cuenta del comprador
 
-CATÁLOGO ACTUAL:
+CATÁLOGO ACTUAL (cada línea: [SKU:codigo] nombre [IMG:foto] precio | tallas):
 {catalogo if catalogo else "Catálogo en actualización"}
 
-=== CÓMO RESPONDER ===
-Habla como vendedora mexicana amigable y natural. Máximo 3-4 líneas por mensaje.
+=== FLUJO DE VENTA — SIGUE ESTOS PASOS EN ORDEN ===
 
-CUANDO PREGUNTEN POR CALZADO (sandalias, tacones, botas, etc.):
-- Responde SÍ mencionando 1-2 modelos con precio
-- Si el modelo tiene [IMG:url] en el catálogo, DEBES incluir la foto así:
-  ENVIAR_FOTO:[url_exacta_del_IMG]
-- Ejemplo: "Sí amiga! El MA302 está a $365 👠 ENVIAR_FOTO:[https://url.jpg] ¿Te gusta?"
-- Copia la URL EXACTA del [IMG:...], no la modifiques
+PASO 1 — MOSTRAR PRODUCTO:
+Cuando pregunten por algún tipo de calzado o modelo específico:
+- Menciona 1-2 modelos con precio
+- Incluye su foto: ENVIAR_FOTO:[url_exacta_del_IMG]
+- Pregunta si le gusta o si quiere ver los colores disponibles
+- Ejemplo: "Tenemos el MA302 a $365 👠 ENVIAR_FOTO:[https://...] ¿Te gusta? ¿Le doy una vuelta a los colores disponibles?"
 
-CUANDO NO HAY FOTO:
-- Si el producto NO tiene [IMG:url], no pongas ENVIAR_FOTO
+PASO 2 — MOSTRAR COLORES (cuando el cliente muestre interés en un modelo):
+- USA el marcador: BUSCAR_COLORES:[SKU_exacto]
+- Ejemplo: "¡Claro! Mira los colores que tenemos del MA302 😍 BUSCAR_COLORES:[MA302]"
+- El sistema mandará automáticamente las fotos de cada color disponible
+- Después pregunta: "¿Cuál color te late más?"
 
-PROCESO DE PEDIDO:
-- Necesitas: modelo + talla + color + nombre completo + dirección
-- Si el cliente pide hablar con asesor: responde "Con gusto te comunico con una asesora, espera un momento 😊" y no respondas más
+PASO 3 — CONFIRMAR COLOR Y TALLA:
+Cuando el cliente elija color:
+- Confirma el color elegido
+- Pregunta la talla: "¡Perfecto el [color]! ¿Qué talla usas? Manejamos del 22 al 27 👟"
 
-REGLAS:
-- Nunca inventes precios ni modelos que no estén en el catálogo
-- Nunca como primera respuesta mandes SOLO el link al sitio, primero muestra productos
-- Sé natural y diferente en cada mensaje, no repitas siempre el mismo texto
-- Responde siempre en español"""
+PASO 4 — TOMAR DATOS DE ENVÍO:
+Cuando tengas modelo + color + talla:
+- "¡Listo! Para tu pedido necesito 📦:
+  • Tu nombre completo
+  • Dirección de envío (calle, número, colonia, ciudad, CP)
+  • ¿Cómo prefieres pagar?"
+
+PASO 5 — CERRAR Y COBRAR:
+Cuando tengas TODOS los datos (nombre + dirección + modelo + color + talla):
+- Confirma el resumen del pedido
+- Usa el marcador: LINK_PAGO
+- El sistema enviará automáticamente los datos de pago
+- Ejemplo: "Perfecto [nombre]! Tu pedido es: [modelo] color [color] talla [talla] — $[precio] + $99 envío = $[total] 🛍️ LINK_PAGO"
+
+=== REGLAS IMPORTANTES ===
+- Habla como vendedora mexicana amigable y natural (amiga, no robot)
+- Máximo 3-4 líneas por mensaje, nunca textos largos de golpe
+- NUNCA inventes precios ni modelos fuera del catálogo
+- NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
+- Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
+- Si preguntan por mayoreo, explica los precios y pregunta cuántos pares buscan
+- Sé diferente en cada mensaje, no repitas el mismo texto
+- Responde siempre en español mexicano natural"""
 
 def llamar_claude(mensajes, sistema):
     url = "https://api.anthropic.com/v1/messages"
@@ -178,32 +200,101 @@ def enviar_whatsapp_imagen(to, url_img, caption=""):
     except Exception as e:
         print(f"Error imagen WA: {e}")
 
+def obtener_colores_modelo(sku):
+    """Devuelve lista de {color, foto_url} del modelo con ese SKU."""
+    try:
+        # Buscar el producto por sku_interno
+        prods = supabase_get(f"productos?sku_interno=eq.{sku}&select=id")
+        if not prods:
+            return []
+        prod_id = prods[0]['id']
+        variantes = supabase_get(f"variantes?producto_id=eq.{prod_id}&activa=eq.true&select=color,foto_url,color_hex")
+        # Agrupar por color (un registro por color, primera foto disponible)
+        mapa = {}
+        for v in variantes:
+            c = v.get('color','')
+            if not c:
+                continue
+            if c not in mapa:
+                mapa[c] = {'color': c, 'foto_url': v.get('foto_url'), 'hex': v.get('color_hex','')}
+            elif not mapa[c]['foto_url'] and v.get('foto_url'):
+                mapa[c]['foto_url'] = v['foto_url']
+        return list(mapa.values())
+    except Exception as e:
+        print(f"Error obteniendo colores: {e}")
+        return []
+
+def obtener_info_pago():
+    """Obtiene las instrucciones de pago desde la configuración del ERP."""
+    try:
+        config = supabase_get("whatsapp_config")
+        cfg = {c['clave']: c['valor'] for c in config}
+        pago = cfg.get('info_pago', '')
+        if pago:
+            return pago
+        # Fallback a datos básicos si no hay config
+        banco   = cfg.get('banco', '')
+        clabe   = cfg.get('clabe', '')
+        titular = cfg.get('titular', 'Zapatillas May')
+        if clabe:
+            return f"💳 *Datos de pago:*\nBanco: {banco}\nCLABE: {clabe}\nTitular: {titular}\n\n_Envía tu comprobante por aquí y procesamos tu pedido en 24hrs_ ✅"
+        return "Escríbenos para darte los datos de pago 💳"
+    except:
+        return "Escríbenos para darte los datos de pago 💳"
+
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
-    """Extrae marcadores ENVIAR_FOTO:[url] y envía texto + imágenes separados"""
+    """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
+
+    # ── BUSCAR_COLORES:[SKU] ─────────────────────────────────────────────────
+    match_colores = re.search(r'BUSCAR_COLORES:\[?([A-Za-z0-9_\-]+)\]?', respuesta_claude)
+    if match_colores:
+        sku = match_colores.group(1).strip()
+        # Texto sin el marcador
+        texto = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', respuesta_claude).strip()
+        if texto:
+            enviar_whatsapp_texto(from_number, texto)
+        import time
+        colores = obtener_colores_modelo(sku)
+        if colores:
+            for c in colores:
+                if c.get('foto_url'):
+                    time.sleep(0.8)
+                    enviar_whatsapp_imagen(from_number, c['foto_url'], c['color'])
+                else:
+                    time.sleep(0.4)
+                    enviar_whatsapp_texto(from_number, f"• {c['color']} (sin foto disponible)")
+        else:
+            enviar_whatsapp_texto(from_number, "Por el momento no tengo las fotos de colores disponibles, pero escríbeme cuál prefieres y te confirmo 😊")
+        return texto or respuesta_claude
+
+    # ── LINK_PAGO ────────────────────────────────────────────────────────────
+    if 'LINK_PAGO' in respuesta_claude:
+        texto = respuesta_claude.replace('LINK_PAGO', '').strip()
+        if texto:
+            enviar_whatsapp_texto(from_number, texto)
+        import time; time.sleep(0.8)
+        info_pago = obtener_info_pago()
+        enviar_whatsapp_texto(from_number, info_pago)
+        return texto or respuesta_claude
+
+    # ── ENVIAR_FOTO:[url] (fotos de producto, sin límite de 2) ──────────────
     partes = re.split(r'ENVIAR_FOTO:(\S+)', respuesta_claude)
-    
     texto_final = ""
     fotos = []
-    
     for i, parte in enumerate(partes):
         if i % 2 == 0:
             t = parte.strip()
             if t:
                 texto_final += t + " "
         else:
-            # Limpiar corchetes y puntuación del URL
             url_foto = parte.strip().strip('[]').rstrip('.,;)')
             if url_foto.startswith('http'):
                 fotos.append(url_foto)
-    
     texto_final = texto_final.strip()
-    
     if texto_final:
         enviar_whatsapp_texto(from_number, texto_final)
-    
-    for url in fotos[:2]:
+    for url in fotos[:5]:  # máx 5 fotos de producto
         enviar_whatsapp_imagen(from_number, url)
-    
     return texto_final or respuesta_claude
 
 def obtener_historial(telefono, limite=6):
@@ -243,7 +334,7 @@ def enviar_whatsapp(from_number, respuesta):
     enviar_whatsapp_texto(from_number, respuesta)
 
 def cargar_catalogo():
-    return supabase_get("productos?activo=eq.true&select=nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
+    return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
 
 @router.post("/whatsapp")
 async def recibir_mensaje_whatsapp(datos: dict):
