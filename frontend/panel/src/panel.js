@@ -2576,7 +2576,11 @@ window.filtrarClientesCampana = (texto) => {
 // Carga la lista de modelos cuando se activa plantilla "nuevos"
 window.cargarFotosNuevosModelos = async () => {
   const lista = document.getElementById('campana-modelos-lista')
-  if (!lista || window._campanaModelosList) { // ya cargado
+  // Inicializar estado multi-modelo
+  if (!window._campanaModelosData) window._campanaModelosData = new Map()        // productoId → {nombre, colores[]}
+  if (!window._campanaModelosSeleccionados) window._campanaModelosSeleccionados = new Set() // productoId
+  if (!window._campanaColoresSeleccionados) window._campanaColoresSeleccionados = new Set() // "pid::color"
+  if (!lista || window._campanaModelosList) {
     if (window._campanaModelosList) _renderModelosCampana(window._campanaModelosList)
     return
   }
@@ -2596,14 +2600,19 @@ window._renderModelosCampana = (prods) => {
     lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>'
     return
   }
-  lista.innerHTML = prods.map(p => `
+  const sel = window._campanaModelosSeleccionados || new Set()
+  lista.innerHTML = prods.map(p => {
+    const activo = sel.has(String(p.id))
+    return `
     <div onclick="seleccionarModeloCampana('${p.id}', this)" id="modelo-item-${p.id}"
-         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s">
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s;background:${activo ? '#fce4ec' : ''}">
       ${p.imagen_principal
         ? `<img src="${p.imagen_principal}" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0">`
         : `<div style="width:34px;height:34px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">👟</div>`}
-      <span style="font-size:0.83rem;font-weight:500">${p.nombre || p.sku_interno}</span>
-    </div>`).join('')
+      <span style="font-size:0.83rem;font-weight:${activo ? '700' : '500'}">${p.nombre || p.sku_interno}</span>
+      ${activo ? '<span style="margin-left:auto;font-size:0.7rem;background:#E91E8C;color:white;border-radius:20px;padding:1px 8px">✓</span>' : ''}
+    </div>`
+  }).join('')
 }
 
 window.filtrarModelosCampana = (q) => {
@@ -2614,85 +2623,144 @@ window.filtrarModelosCampana = (q) => {
   _renderModelosCampana(filtrados)
 }
 
+// Toggle: clic en modelo lo agrega o lo quita. Los colores se acumulan.
 window.seleccionarModeloCampana = async (productoId, el) => {
-  // Resaltar modelo elegido
-  document.querySelectorAll('[id^="modelo-item-"]').forEach(m => {
-    m.style.background = ''
-    m.style.fontWeight = ''
-  })
-  el.style.background = '#fce4ec'
-  el.querySelector('span').style.fontWeight = '700'
-  // Limpiar colores anteriores y cargar nuevos
-  await cargarColoresNuevoModelo(productoId)
-}
+  const pid = String(productoId)
+  if (!window._campanaModelosSeleccionados) window._campanaModelosSeleccionados = new Set()
+  if (!window._campanaModelosData) window._campanaModelosData = new Map()
+  if (!window._campanaColoresSeleccionados) window._campanaColoresSeleccionados = new Set()
 
-// Carga colores (variantes) del modelo elegido — sin preselección
-window.cargarColoresNuevoModelo = async (productoId) => {
   const grid = document.getElementById('campana-fotos-nuevos-grid')
-  const counter = document.getElementById('campana-fotos-count')
-  window._campanaColoresNuevos = []
-  window._campanaColoresSeleccionados = new Set() // vacío — usuario elige
-  if (!productoId) {
-    if (grid) grid.innerHTML = ''
-    if (counter) counter.textContent = ''
+
+  if (window._campanaModelosSeleccionados.has(pid)) {
+    // ── Deseleccionar: quitar modelo y sus colores ──
+    window._campanaModelosSeleccionados.delete(pid)
+    // Quitar selecciones de colores de este modelo
+    for (const key of [...window._campanaColoresSeleccionados]) {
+      if (key.startsWith(pid + '::')) window._campanaColoresSeleccionados.delete(key)
+    }
+    // Actualizar visual del item en la lista
+    if (el) {
+      el.style.background = ''
+      const span = el.querySelector('span')
+      if (span) span.style.fontWeight = '500'
+      const badge = el.querySelector('span:last-child')
+      // re-render el item es más limpio
+    }
+    _renderColoresNuevos()
+    actualizarCountFotos()
+    // Re-render lista para quitar el ✓
+    if (window._campanaModelosList) _renderModelosCampana(
+      document.getElementById('campana-nuevo-buscar')?.value
+        ? (window._campanaModelosList||[]).filter(p => (p.nombre||'').toLowerCase().includes(document.getElementById('campana-nuevo-buscar').value.toLowerCase()))
+        : (window._campanaModelosList||[])
+    )
     return
   }
-  if (grid) grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px 0">Cargando colores...</p>'
-  try {
-    const res = await fetch(API + '/variantes/producto/' + productoId)
-    const variantes = await res.json()
-    // Agrupar por color
-    const mapa = {}
-    for (const v of variantes) {
-      if (!v.color) continue
-      if (!mapa[v.color]) mapa[v.color] = { color: v.color, color_hex: v.color_hex || null, foto_url: null }
-      if (!mapa[v.color].foto_url && v.foto_url) mapa[v.color].foto_url = v.foto_url
-    }
-    const colores = Object.values(mapa)
-    window._campanaColoresNuevos = colores
-    _renderColoresNuevos(colores)
-    actualizarCountFotos()
-  } catch(e) {
-    if (grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem">Error cargando variantes</p>'
+
+  // ── Seleccionar: añadir modelo ──
+  window._campanaModelosSeleccionados.add(pid)
+
+  // Visual inmediato (sin esperar fetch)
+  if (el) { el.style.background = '#fce4ec'; const sp = el.querySelector('span'); if(sp) sp.style.fontWeight = '700' }
+  if (grid) {
+    const loadEl = document.createElement('p')
+    loadEl.id = 'campana-load-' + pid
+    loadEl.style.cssText = 'font-size:0.8rem;color:#aaa;padding:4px 0'
+    loadEl.textContent = 'Cargando colores...'
+    grid.appendChild(loadEl)
   }
+
+  // Fetch colores si no están en caché
+  if (!window._campanaModelosData.has(pid)) {
+    try {
+      const nombreModelo = el?.querySelector('span')?.textContent || pid
+      const res = await fetch(API + '/variantes/producto/' + pid)
+      const variantes = await res.json()
+      const mapa = {}
+      for (const v of variantes) {
+        if (!v.color) continue
+        if (!mapa[v.color]) mapa[v.color] = { color: v.color, color_hex: v.color_hex || null, foto_url: null }
+        if (!mapa[v.color].foto_url && v.foto_url) mapa[v.color].foto_url = v.foto_url
+      }
+      window._campanaModelosData.set(pid, { nombre: nombreModelo, colores: Object.values(mapa) })
+    } catch(e) {
+      window._campanaModelosSeleccionados.delete(pid)
+      const loadEl = document.getElementById('campana-load-' + pid)
+      if (loadEl) loadEl.remove()
+      if (grid) { const err = document.createElement('p'); err.style.cssText='color:red;font-size:0.8rem'; err.textContent='Error cargando variantes'; grid.appendChild(err) }
+      return
+    }
+  }
+
+  const loadEl = document.getElementById('campana-load-' + pid)
+  if (loadEl) loadEl.remove()
+
+  _renderColoresNuevos()
+  actualizarCountFotos()
+  // Re-render lista para mostrar ✓
+  if (window._campanaModelosList) _renderModelosCampana(
+    document.getElementById('campana-nuevo-buscar')?.value
+      ? (window._campanaModelosList||[]).filter(p => (p.nombre||'').toLowerCase().includes(document.getElementById('campana-nuevo-buscar').value.toLowerCase()))
+      : (window._campanaModelosList||[])
+  )
 }
 
-window._renderColoresNuevos = (colores) => {
+// Construye y renderiza la lista plana de colores de todos los modelos seleccionados
+window._renderColoresNuevos = () => {
   const grid = document.getElementById('campana-fotos-nuevos-grid')
   if (!grid) return
-  if (!colores.length) {
-    grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa">Sin colores registrados</p>'
+  const modelosSel = window._campanaModelosSeleccionados || new Set()
+  if (!modelosSel.size) {
+    grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px 0">Selecciona uno o más modelos arriba</p>'
     return
   }
-  grid.innerHTML = colores.map((c, i) => {
-    const activo = window._campanaColoresSeleccionados?.has(i)
-    const sinFoto = !c.foto_url
-    return `
-    <div onclick="${sinFoto ? '' : `toggleColorNuevo(${i}, this)`}"
-         id="color-nuevo-row-${i}"
-         style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:2px solid ${activo ? '#E91E8C' : '#eee'};cursor:${sinFoto ? 'default' : 'pointer'};background:${activo ? '#fce4ec' : 'white'};opacity:${sinFoto ? '.45' : '1'};transition:all 0.15s">
-      <input type="checkbox" ${activo ? 'checked' : ''} ${sinFoto ? 'disabled' : ''}
-             onclick="event.stopPropagation();toggleColorNuevo(${i}, this.closest('[id^=color-nuevo-row]'))"
-             style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0">
-      <div style="width:24px;height:24px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
-      <span style="flex:1;font-size:0.84rem;font-weight:600">${c.color}</span>
-      ${c.foto_url
-        ? `<img src="${c.foto_url}" style="width:48px;height:48px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`
-        : `<span style="font-size:0.7rem;color:#bbb;flex-shrink:0">sin foto</span>`}
-    </div>`
-  }).join('')
+  const sel = window._campanaColoresSeleccionados || new Set()
+  const multiModelo = modelosSel.size > 1
+  let html = ''
+  for (const pid of modelosSel) {
+    const datos = window._campanaModelosData?.get(pid)
+    if (!datos) continue
+    if (multiModelo) {
+      html += `<p style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px;padding:0 2px">${datos.nombre}</p>`
+    }
+    if (!datos.colores.length) {
+      html += `<p style="font-size:0.78rem;color:#aaa;margin:0 0 6px">Sin colores registrados</p>`
+      continue
+    }
+    html += datos.colores.map(c => {
+      const key = `${pid}::${c.color}`
+      const activo = sel.has(key)
+      const sinFoto = !c.foto_url
+      return `
+      <div onclick="${sinFoto ? '' : `toggleColorNuevo('${key}', this)`}"
+           id="color-nuevo-row-${key.replace(/[^a-zA-Z0-9]/g,'-')}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:2px solid ${activo ? '#E91E8C' : '#eee'};cursor:${sinFoto ? 'default' : 'pointer'};background:${activo ? '#fce4ec' : 'white'};opacity:${sinFoto ? '.45' : '1'};transition:all 0.15s;margin-bottom:4px">
+        <input type="checkbox" ${activo ? 'checked' : ''} ${sinFoto ? 'disabled' : ''}
+               onclick="event.stopPropagation();toggleColorNuevo('${key}', this.closest('div'))"
+               style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0">
+        <div style="width:24px;height:24px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.84rem;font-weight:600">${c.color}</span>
+        ${c.foto_url
+          ? `<img src="${c.foto_url}" style="width:48px;height:48px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`
+          : `<span style="font-size:0.7rem;color:#bbb;flex-shrink:0">sin foto</span>`}
+      </div>`
+    }).join('')
+  }
+  grid.innerHTML = html
 }
 
-window.toggleColorNuevo = (idx, el) => {
+window.toggleColorNuevo = (key, el) => {
   if (!window._campanaColoresSeleccionados) window._campanaColoresSeleccionados = new Set()
-  const row = document.getElementById('color-nuevo-row-' + idx)
+  const rowId = 'color-nuevo-row-' + key.replace(/[^a-zA-Z0-9]/g, '-')
+  const row = document.getElementById(rowId) || (el?.closest ? el.closest('[id^="color-nuevo-row"]') : null)
   const cb  = row?.querySelector('input[type=checkbox]')
-  if (window._campanaColoresSeleccionados.has(idx)) {
-    window._campanaColoresSeleccionados.delete(idx)
+  if (window._campanaColoresSeleccionados.has(key)) {
+    window._campanaColoresSeleccionados.delete(key)
     if (row) { row.style.borderColor = '#eee'; row.style.background = 'white' }
     if (cb) cb.checked = false
   } else {
-    window._campanaColoresSeleccionados.add(idx)
+    window._campanaColoresSeleccionados.add(key)
     if (row) { row.style.borderColor = '#E91E8C'; row.style.background = '#fce4ec' }
     if (cb) cb.checked = true
   }
@@ -2862,12 +2930,22 @@ window.enviarCampanaAutomatica = async () => {
   // Fotos a enviar (con caption por color para plantilla "nuevos")
   let fotosUrls = []
   let fotosConCaption = []  // [{url, caption}] para colores
-  if (plantillaId === 'nuevos' && window._campanaColoresNuevos?.length) {
-    const selIdx = window._campanaColoresSeleccionados || new Set()
-    const coloresSel = window._campanaColoresNuevos.filter((_, i) => selIdx.has(i))
-    if (!coloresSel.length) { alert('Selecciona al menos un color'); overlay?.remove(); return }
-    fotosConCaption = coloresSel.map(c => ({ url: c.foto_url, caption: c.color }))
-    fotosUrls = coloresSel.map(c => c.foto_url)
+  if (plantillaId === 'nuevos') {
+    const selKeys = window._campanaColoresSeleccionados || new Set()
+    if (!selKeys.size) { alert('Selecciona al menos un color'); return }
+    // Reconstruir lista de colores seleccionados desde _campanaModelosData
+    for (const pid of (window._campanaModelosSeleccionados || new Set())) {
+      const datos = window._campanaModelosData?.get(pid)
+      if (!datos) continue
+      for (const c of datos.colores) {
+        const key = `${pid}::${c.color}`
+        if (selKeys.has(key) && c.foto_url) {
+          fotosConCaption.push({ url: c.foto_url, caption: c.color })
+          fotosUrls.push(c.foto_url)
+        }
+      }
+    }
+    if (!fotosConCaption.length) { alert('Los colores seleccionados no tienen foto. Selecciona colores con imagen.'); return }
   } else if (imagenUrl) {
     fotosUrls = [imagenUrl]
   }
