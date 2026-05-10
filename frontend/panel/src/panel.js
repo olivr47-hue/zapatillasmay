@@ -2247,10 +2247,14 @@ window.mostrarCampanas = async () => {
             </div>
 
             <div id="campana-fotos-nuevos" style="display:none">
-              <p style="font-size:0.75rem;color:#999;margin-bottom:0.5rem">Elige el modelo y selecciona los colores a enviar</p>
-              <select id="campana-nuevo-modelo-sel" class="form-input" style="font-size:0.82rem;margin-bottom:0.75rem;width:100%" onchange="cargarColoresNuevoModelo(this.value)">
-                <option value="">— Elige un modelo —</option>
-              </select>
+              <p style="font-size:0.75rem;color:#999;margin-bottom:6px">Busca y elige el modelo, luego selecciona los colores</p>
+              <input type="text" id="campana-nuevo-buscar" placeholder="🔍 Buscar modelo..."
+                oninput="filtrarModelosCampana(this.value)"
+                style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="campana-modelos-lista"
+                style="max-height:150px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:10px">
+                <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Cargando modelos...</p>
+              </div>
               <div id="campana-fotos-nuevos-grid" style="display:flex;flex-direction:column;gap:6px"></div>
               <p id="campana-fotos-count" style="font-size:0.75rem;color:#E91E8C;margin-top:8px;font-weight:600"></p>
             </div>
@@ -2569,67 +2573,112 @@ window.filtrarClientesCampana = (texto) => {
   }).join('')
 }
 
-// Carga el dropdown de modelos cuando se activa plantilla "nuevos"
+// Carga la lista de modelos cuando se activa plantilla "nuevos"
 window.cargarFotosNuevosModelos = async () => {
-  const sel = document.getElementById('campana-nuevo-modelo-sel')
-  const grid = document.getElementById('campana-fotos-nuevos-grid')
-  if (!sel) return
-  // Solo cargar si el select está vacío (evitar recargar)
-  if (sel.options.length > 1) return
+  const lista = document.getElementById('campana-modelos-lista')
+  if (!lista || window._campanaModelosList) { // ya cargado
+    if (window._campanaModelosList) _renderModelosCampana(window._campanaModelosList)
+    return
+  }
   try {
-    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno&order=created_at.desc&limit=100')
-    const prods = await res.json()
-    if (!prods.length) { if(grid) grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa">No hay productos activos</p>'; return }
-    sel.innerHTML = '<option value="">— Elige un modelo —</option>' +
-      prods.map(p => `<option value="${p.id}">${p.nombre || p.sku_interno}</option>`).join('')
-  } catch(e) { if(grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem">Error cargando modelos</p>' }
+    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=nombre.asc&limit=500')
+    window._campanaModelosList = await res.json()
+    _renderModelosCampana(window._campanaModelosList)
+  } catch(e) {
+    if (lista) lista.innerHTML = '<p style="padding:10px 12px;color:red;font-size:0.8rem">Error cargando modelos</p>'
+  }
 }
 
-// Carga colores (variantes) del modelo elegido
+window._renderModelosCampana = (prods) => {
+  const lista = document.getElementById('campana-modelos-lista')
+  if (!lista) return
+  if (!prods.length) {
+    lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>'
+    return
+  }
+  lista.innerHTML = prods.map(p => `
+    <div onclick="seleccionarModeloCampana('${p.id}', this)" id="modelo-item-${p.id}"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s">
+      ${p.imagen_principal
+        ? `<img src="${p.imagen_principal}" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0">`
+        : `<div style="width:34px;height:34px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">👟</div>`}
+      <span style="font-size:0.83rem;font-weight:500">${p.nombre || p.sku_interno}</span>
+    </div>`).join('')
+}
+
+window.filtrarModelosCampana = (q) => {
+  const todos = window._campanaModelosList || []
+  const filtrados = q.trim()
+    ? todos.filter(p => (p.nombre||'').toLowerCase().includes(q.toLowerCase()) || (p.sku_interno||'').toLowerCase().includes(q.toLowerCase()))
+    : todos
+  _renderModelosCampana(filtrados)
+}
+
+window.seleccionarModeloCampana = async (productoId, el) => {
+  // Resaltar modelo elegido
+  document.querySelectorAll('[id^="modelo-item-"]').forEach(m => {
+    m.style.background = ''
+    m.style.fontWeight = ''
+  })
+  el.style.background = '#fce4ec'
+  el.querySelector('span').style.fontWeight = '700'
+  // Limpiar colores anteriores y cargar nuevos
+  await cargarColoresNuevoModelo(productoId)
+}
+
+// Carga colores (variantes) del modelo elegido — sin preselección
 window.cargarColoresNuevoModelo = async (productoId) => {
   const grid = document.getElementById('campana-fotos-nuevos-grid')
   const counter = document.getElementById('campana-fotos-count')
   window._campanaColoresNuevos = []
-  window._campanaColoresSeleccionados = new Set()
-  if (!productoId) { grid.innerHTML = ''; if(counter) counter.textContent = ''; return }
-  grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px 0">Cargando colores...</p>'
+  window._campanaColoresSeleccionados = new Set() // vacío — usuario elige
+  if (!productoId) {
+    if (grid) grid.innerHTML = ''
+    if (counter) counter.textContent = ''
+    return
+  }
+  if (grid) grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px 0">Cargando colores...</p>'
   try {
     const res = await fetch(API + '/variantes/producto/' + productoId)
     const variantes = await res.json()
-    // Agrupar por color, quedarse con la primera foto de cada uno
+    // Agrupar por color
     const mapa = {}
     for (const v of variantes) {
       if (!v.color) continue
       if (!mapa[v.color]) mapa[v.color] = { color: v.color, color_hex: v.color_hex || null, foto_url: null }
       if (!mapa[v.color].foto_url && v.foto_url) mapa[v.color].foto_url = v.foto_url
     }
-    const colores = Object.values(mapa).filter(c => c.foto_url)
-    if (!colores.length) {
-      grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa">Este modelo no tiene fotos en sus variantes. Sube fotos a las variantes primero.</p>'
-      if(counter) counter.textContent = ''
-      return
-    }
+    const colores = Object.values(mapa)
     window._campanaColoresNuevos = colores
-    // Seleccionar todos por default
-    colores.forEach((_, i) => window._campanaColoresSeleccionados.add(i))
     _renderColoresNuevos(colores)
     actualizarCountFotos()
-  } catch(e) { grid.innerHTML = '<p style="color:red;font-size:0.8rem">Error cargando variantes</p>' }
+  } catch(e) {
+    if (grid) grid.innerHTML = '<p style="color:red;font-size:0.8rem">Error cargando variantes</p>'
+  }
 }
 
 window._renderColoresNuevos = (colores) => {
   const grid = document.getElementById('campana-fotos-nuevos-grid')
   if (!grid) return
+  if (!colores.length) {
+    grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa">Sin colores registrados</p>'
+    return
+  }
   grid.innerHTML = colores.map((c, i) => {
-    const sel = window._campanaColoresSeleccionados?.has(i)
+    const activo = window._campanaColoresSeleccionados?.has(i)
+    const sinFoto = !c.foto_url
     return `
-    <div onclick="toggleColorNuevo(${i}, this)"
-         style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:2px solid ${sel ? '#E91E8C' : '#eee'};cursor:pointer;background:${sel ? '#fce4ec' : 'white'};transition:all 0.15s" id="color-nuevo-row-${i}">
-      <input type="checkbox" ${sel ? 'checked' : ''} onclick="event.stopPropagation();toggleColorNuevo(${i},this.closest('[id]'))"
+    <div onclick="${sinFoto ? '' : `toggleColorNuevo(${i}, this)`}"
+         id="color-nuevo-row-${i}"
+         style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:2px solid ${activo ? '#E91E8C' : '#eee'};cursor:${sinFoto ? 'default' : 'pointer'};background:${activo ? '#fce4ec' : 'white'};opacity:${sinFoto ? '.45' : '1'};transition:all 0.15s">
+      <input type="checkbox" ${activo ? 'checked' : ''} ${sinFoto ? 'disabled' : ''}
+             onclick="event.stopPropagation();toggleColorNuevo(${i}, this.closest('[id^=color-nuevo-row]'))"
              style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0">
-      <div style="width:24px;height:24px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.1);flex-shrink:0"></div>
-      <span style="flex:1;font-size:0.85rem;font-weight:600">${c.color}</span>
-      <img src="${c.foto_url}" style="width:46px;height:46px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">
+      <div style="width:24px;height:24px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+      <span style="flex:1;font-size:0.84rem;font-weight:600">${c.color}</span>
+      ${c.foto_url
+        ? `<img src="${c.foto_url}" style="width:48px;height:48px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`
+        : `<span style="font-size:0.7rem;color:#bbb;flex-shrink:0">sin foto</span>`}
     </div>`
   }).join('')
 }
@@ -2655,8 +2704,8 @@ window.actualizarCountFotos = () => {
   if (!counter) return
   const n = window._campanaColoresSeleccionados?.size || 0
   counter.textContent = n > 0
-    ? `${n} color${n>1?'es':''} seleccionado${n>1?'s':''} — cada cliente recibirá ${n} foto${n>1?'s':''}`
-    : 'Ningún color seleccionado'
+    ? `${n} color${n > 1 ? 'es' : ''} seleccionado${n > 1 ? 's' : ''} — cada cliente recibirá ${n} foto${n > 1 ? 's' : ''}`
+    : 'Palomea los colores que quieres enviar'
 }
 
 // ── Foto de producto para campaña ──────────────────────────────
