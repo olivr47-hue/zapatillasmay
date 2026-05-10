@@ -9,17 +9,31 @@ EVOLUTION_URL      = os.environ.get("EVOLUTION_URL", "https://evolution-api-prod
 EVOLUTION_INSTANCE = os.environ.get("EVOLUTION_INSTANCE", "zapatillasmay")
 EVOLUTION_APIKEY   = os.environ.get("EVOLUTION_APIKEY", "zapatillasmay2024")
 
+# Bridge local (PC del negocio con ngrok) — tiene prioridad si está configurado
+WA_BRIDGE_URL = os.environ.get("WA_BRIDGE_URL", "").rstrip("/")
+
 
 def _enviar_wa_texto(to, texto):
+    # Usar bridge ngrok si está configurado
+    if WA_BRIDGE_URL:
+        url = f"{WA_BRIDGE_URL}/send-text"
+        body = json.dumps({"phone": to, "message": texto}).encode("utf-8")
+        req = urllib.request.Request(url, data=body,
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=15):
+                return True, ""
+        except urllib.error.HTTPError as e:
+            return False, e.read().decode()
+        except Exception as e:
+            return False, str(e)
+    # Fallback: Evolution API
     url = f"{EVOLUTION_URL}/message/sendText/{EVOLUTION_INSTANCE}"
     body = json.dumps({"number": to, "text": texto}).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=body,
-        headers={"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"},
-        method="POST"
-    )
+    req = urllib.request.Request(url, data=body,
+        headers={"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=15):
             return True, ""
     except urllib.error.HTTPError as e:
         return False, e.read().decode()
@@ -28,21 +42,29 @@ def _enviar_wa_texto(to, texto):
 
 
 def _enviar_wa_imagen(to, img_url, caption=""):
+    # Usar bridge ngrok si está configurado
+    if WA_BRIDGE_URL:
+        url = f"{WA_BRIDGE_URL}/send-image"
+        body = json.dumps({"phone": to, "imageUrl": img_url, "caption": caption}).encode("utf-8")
+        req = urllib.request.Request(url, data=body,
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=20):
+                return True, ""
+        except urllib.error.HTTPError as e:
+            return False, e.read().decode()
+        except Exception as e:
+            return False, str(e)
+    # Fallback: Evolution API
     url = f"{EVOLUTION_URL}/message/sendMedia/{EVOLUTION_INSTANCE}"
     body = json.dumps({
-        "number": to,
-        "mediatype": "image",
-        "mimetype": "image/jpeg",
-        "media": img_url,
-        "caption": caption
+        "number": to, "mediatype": "image",
+        "mimetype": "image/jpeg", "media": img_url, "caption": caption
     }).encode("utf-8")
-    req = urllib.request.Request(
-        url, data=body,
-        headers={"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"},
-        method="POST"
-    )
+    req = urllib.request.Request(url, data=body,
+        headers={"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=20):
             return True, ""
     except urllib.error.HTTPError as e:
         return False, e.read().decode()
