@@ -1,4 +1,4 @@
-const API = 'https://zapatillasmay-production.up.railway.app'
+const API = '/api'
 
 const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
