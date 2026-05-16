@@ -92,8 +92,8 @@ PASO 5 — CERRAR PEDIDO Y GENERAR LINK DE PAGO:
 Cuando tengas TODOS los datos (nombre completo + dirección + modelo + color + talla + precio del catálogo):
 - Resume el pedido brevemente
 - Usa el marcador GENERAR_PAGO con JSON exacto (sin espacios extra, sin saltos de línea dentro):
-  GENERAR_PAGO:{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"NOMBRE_MODELO","sku":"SKU_DEL_CATALOGO","color":"COLOR","talla":"TALLA","precio":PRECIO_NUMERO}
-- Ejemplo: "¡Perfecto Lupita! 🛍️ Tu pedido: MA302 Negro talla 24 — $365 + $99 envío = $464 total GENERAR_PAGO:{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, Centro, CDMX 06600","modelo":"Tacón MA302","sku":"MA302","color":"Negro","talla":"24","precio":365}
+  GENERAR_PAGO:{{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"NOMBRE_MODELO","sku":"SKU_DEL_CATALOGO","color":"COLOR","talla":"TALLA","precio":PRECIO_NUMERO}}
+- Ejemplo: "¡Perfecto Lupita! 🛍️ Tu pedido: MA302 Negro talla 24 — $365 + $99 envío = $464 total GENERAR_PAGO:{{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, Centro, CDMX 06600","modelo":"Tacón MA302","sku":"MA302","color":"Negro","talla":"24","precio":365}}
 - El sistema creará el pedido y mandará el link de Mercado Pago automáticamente
 - NO pongas LINK_PAGO, usa GENERAR_PAGO con el JSON
 
