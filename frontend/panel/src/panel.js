@@ -10190,6 +10190,31 @@ async function cargarSEO() {
           <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
           <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">🗂️ Sincronizar colecciones en Meta</button>
         </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🎵 TikTok Shop — Sincronización</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Descarga los archivos Excel listos para subir al <b>TikTok Shop Seller Center</b>.<br>
+            <b>Paso 1:</b> Importa todos los productos (primera vez).<br>
+            <b>Paso 2:</b> Actualiza el stock cuando cambie tu inventario.
+          </p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <a href="${API}/tiktok/import-excel" target="_blank" download
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none">
+              📥 Descargar Excel de Importación
+            </a>
+            <a href="${API}/tiktok/stock-excel" target="_blank" download
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none">
+              📊 Descargar Excel de Stock
+            </a>
+          </div>
+          <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-secondary);border-radius:8px;font-size:0.78rem;color:var(--text-muted)">
+            <b>Cómo usar:</b>
+            1. Elimina los productos actuales en TikTok Shop.
+            2. Descarga "Excel de Importación" → súbelo en <i>Gestionar productos → Agregar producto</i>.
+            3. Cuando cambie tu stock, descarga "Excel de Stock" y súbelo en <i>Administrar existencias → Reabastecer en lote</i>.
+          </div>
+        </div>
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">SEO General</h3>
           <div style="display:grid;gap:1rem">
