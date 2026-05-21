@@ -2293,14 +2293,14 @@ if (colorPre) {
   content_type: 'product_group',
   content_name: p.nombre,
   content_category: p.categoria || '',
-  value: p.precio_menudeo,
+  value: p.precio_menudeo + 80,
   currency: 'MXN'
 })
 if (window.ttq) ttq.track('ViewContent', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
   content_name: p.nombre,
-  price: p.precio_menudeo,
+  price: p.precio_menudeo + 80,
   currency: 'MXN'
 })
     productoSeleccionado = p
@@ -2370,7 +2370,7 @@ if (window.ttq) ttq.track('ViewContent', {
     "offers": {
       "@type": "Offer",
       "priceCurrency": "MXN",
-      "price": p.precio_menudeo,
+      "price": p.precio_menudeo + 80,
       "availability": "https://schema.org/InStock",
       "seller": {
         "@type": "Organization",
@@ -2385,7 +2385,7 @@ if (window.ttq) ttq.track('ViewContent', {
   document.title = `${p.nombre} | Zapatillas May`
   let metaDesc = document.querySelector('meta[name="description"]')
   if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc) }
-  metaDesc.content = p.descripcion || `Compra ${p.nombre} en Zapatillas May. Calzado de moda para dama en Leon Guanajuato. Precio: $${p.precio_menudeo} MXN.`
+  metaDesc.content = p.descripcion || `Compra ${p.nombre} en Zapatillas May. Calzado de moda para dama en Leon Guanajuato. Precio: $${p.precio_menudeo + 80} MXN.`
 
   let ogTitle = document.querySelector('meta[property="og:title"]')
   if (!ogTitle) { ogTitle = document.createElement('meta'); ogTitle.setAttribute('property','og:title'); document.head.appendChild(ogTitle) }
@@ -2530,7 +2530,7 @@ if (window.ttq) ttq.track('ViewContent', {
     content_ids: [_varId],
     content_type: 'product',
     content_name: p.nombre,
-    value: p.precio_menudeo,
+    value: p.precio_menudeo + 80,
     currency: 'MXN'
   })
 }
@@ -2538,7 +2538,7 @@ if (window.ttq) ttq.track('AddToCart', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
   content_name: p.nombre,
-  price: p.precio_menudeo,
+  price: p.precio_menudeo + 80,
   currency: 'MXN'
 })
     cerrarModalBtn()
