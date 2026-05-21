@@ -2,7 +2,8 @@
   "rewrites": [
     { "source": "/producto/:slug", "destination": "/index.html" },
     { "source": "/pedido-exitoso", "destination": "/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" },
-    { "source": "/checkout", "destination": "/index.html" }
+    { "source": "/checkout", "destination": "/index.html" },
+    { "source": "/politica-de-devoluciones", "destination": "/politica-de-devoluciones.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
