@@ -2132,7 +2132,7 @@ window.mostrarCampanas = async () => {
         id: 'mayoreo',
         nombre: '📦 Precios mayoreo',
         descripcion: 'Envía información de precios mayoreo',
-        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nTe recordamos nuestros precios de mayoreo:\n\n📦 3-5 pares variados: -$30 por par\n📦 6+ pares variados: -$70 por par\n📦 Corrida completa: -$110 por par\n\n🛍️ Ver catálogo:\nhttps://zapatillasmay.mx/#catalogo\n\n¿Te interesa hacer un pedido? Con gusto te atendemos 😊`
+        mensaje: (nombre) => `Hola ${nombre}! 👋\n\nTe recordamos nuestros precios de mayoreo:\n\n📦 3-5 pares variados: -$80 por par\n📦 6+ pares variados: -$150 por par\n📦 Corrida completa: -$180 por par\n\n🛍️ Ver catálogo:\nhttps://zapatillasmay.mx/#catalogo\n\n¿Te interesa hacer un pedido? Con gusto te atendemos 😊`
       },
       {
         id: 'tacones',
@@ -4254,7 +4254,7 @@ if (!datos) window._coloresExistentes = null
             </div>
             <div>
               <label class="form-label">Media corrida (6 mismo estilo)</label>
-              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $110</p>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $100</p>
               <input class="form-input" id="f-corrida" type="number" step="0.01" placeholder="Automatico" value="${d.precio_corrida || ''}">
             </div>
           </div>
@@ -6277,7 +6277,7 @@ window.agregarItemPedido = async (varianteId, nombre) => {
     precio_menudeo: precioBase,
     precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (precioBase - 30),
     precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (precioBase - 70),
-    precio_corrida: parseFloat(producto.precio_corrida) || (precioBase - 110),
+    precio_corrida: parseFloat(producto.precio_corrida) || (precioBase - 100),
     es_oferta: producto.es_oferta || false,
     foto_url: variante.foto_url || producto.imagen_principal || null
   })
@@ -7350,10 +7350,10 @@ window.confirmarCorridaNueva = (productoId) => {
         precio_menudeo: parseFloat(p.precio_menudeo) || 0,
         precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
-        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110),
+        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_corrida: true,
         imagen: window._posData.variantes.find(va => va.id === varianteId)?.foto_url || p.imagen_principal || null,
-        precio_unitario: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110)
+        precio_unitario: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100)
       })
     }
     agregados++
@@ -7577,7 +7577,7 @@ window.confirmarModalPOS = (productoId) => {
           precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
           precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
           precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
-          precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+          precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100),
           es_oferta: producto.es_oferta || false,
           es_corrida: false,
           imagen: (window._posBuffer[v ? v.color : color] && window._posData.variantes.find(va => va.id === varId)?.foto_url) || producto.imagen_principal || null,
@@ -7700,7 +7700,7 @@ window.agregarTallasPOS = (productoId, color) => {
         precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
-        precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+        precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100),
         imagen: producto.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         precio_unitario: parseFloat(producto.precio_menudeo) || 0
@@ -7803,7 +7803,7 @@ window.agregarAlCarritoPOS = (productoId) => {
       precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
       precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
-      precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+      precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100),
       imagen: producto.imagen_principal || null,
       es_oferta: producto.es_oferta || false,
       precio_unitario: parseFloat(producto.precio_menudeo) || 0
@@ -7896,7 +7896,7 @@ window.confirmarCorridaPOS = (productoId, color) => {
         precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
         precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
-        precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+        precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100),
         imagen: producto.imagen_principal || null,
         es_oferta: producto.es_oferta || false,
         es_corrida: true,
@@ -8154,7 +8154,7 @@ window.guardarEdicionCorridaPOS = (producto_id, color) => {
   const producto = productos.find(p => p.id === producto_id)
   if (!producto) return
 
-  const precioCorrida = precioManual !== null ? precioManual : (parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110))
+  const precioCorrida = precioManual !== null ? precioManual : (parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100))
 
   varsColor.forEach(v => {
     const input = document.getElementById('edit-corrida-' + v.id)
@@ -8171,7 +8171,7 @@ window.guardarEdicionCorridaPOS = (producto_id, color) => {
       precio_menudeo: parseFloat(producto.precio_menudeo) || 0,
       precio_mayoreo3: parseFloat(producto.precio_mayoreo3) || (parseFloat(producto.precio_menudeo) - 30),
       precio_mayoreo6: parseFloat(producto.precio_mayoreo6) || (parseFloat(producto.precio_menudeo) - 70),
-      precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 110),
+      precio_corrida: parseFloat(producto.precio_corrida) || (parseFloat(producto.precio_menudeo) - 100),
       es_oferta: producto.es_oferta || false,
       imagen: producto.imagen_principal || null,
       es_corrida: true,
@@ -9690,7 +9690,7 @@ window._buildCaption = (id) => {
   return '👠 *' + p.nombre + '*\n\n💰 *Precios:*\n• Menudeo (1-2 pares): $' + p.precio_menudeo +
     '\n• Mayoreo 3-5 pares: $' + (p.precio_mayoreo3 || (p.precio_menudeo - 30)) +
     '\n• Mayoreo 6+ pares: $' + (p.precio_mayoreo6 || (p.precio_menudeo - 70)) +
-    '\n• Corrida completa: $' + (p.precio_corrida || (p.precio_menudeo - 110)) +
+    '\n• Corrida completa: $' + (p.precio_corrida || (p.precio_menudeo - 100)) +
     '\n\n🛍️ Ver y comprar: https://zapatillasmay.mx'
 }
 
@@ -10199,11 +10199,11 @@ async function cargarSEO() {
             <b>Paso 2:</b> Actualiza el stock cuando cambie tu inventario.
           </p>
           <div style="display:flex;gap:1rem;flex-wrap:wrap">
-            <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.xlsx')"
+            <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.csv')"
                style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
               📥 Descargar Excel de Importación
             </button>
-            <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.xlsx')"
+            <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.csv')"
                style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
               📊 Descargar Excel de Stock
             </button>

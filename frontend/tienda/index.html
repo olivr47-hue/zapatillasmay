@@ -1746,15 +1746,15 @@
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:2px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">3 — 5 pares</span>
-        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$30 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$80 por par</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:2px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">6+ pares</span>
-        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$70 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$150 por par</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.22);border-left:2px solid var(--pink);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">Corrida completa</span>
-        <span style="font-size:0.95rem;font-weight:600;color:var(--pink)">-$110 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:var(--pink)">-$180 por par</span>
       </div>
     </div>
   </div>
@@ -2239,7 +2239,7 @@ cargarConfigSEO()
     grid.innerHTML = lista.map(p => {
       const varsProd = variantes.filter(v => v.producto_id === p.id)
       const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
-      const precioMayoreo3 = p.precio_mayoreo3 || (p.precio_menudeo - 30)
+      const precioMayoreo3 = p.precio_mayoreo3 || p.precio_menudeo
       return `
         <div class="product-card fade-in" onclick="abrirProducto('${p.id}')">
           <div class="product-img-wrap">
@@ -2313,11 +2313,11 @@ if (window.ttq) ttq.track('ViewContent', {
 
     document.getElementById('modal-sku').textContent = p.sku_interno || ''
     document.getElementById('modal-name').textContent = p.nombre
-    document.getElementById('modal-price').textContent = '$' + p.precio_menudeo + ' MXN'
+    document.getElementById('modal-price').textContent = '$' + (p.precio_menudeo + 80) + ' MXN'
 
-    const precioM3 = p.precio_mayoreo3 || (p.precio_menudeo - 30)
+    const precioM3 = p.precio_mayoreo3 || p.precio_menudeo
     const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
-    const precioCorrida = p.precio_corrida || (p.precio_menudeo - 110)
+    const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
 
     document.getElementById('modal-mayoreo').innerHTML = `
       <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
@@ -2509,16 +2509,16 @@ if (window.ttq) ttq.track('ViewContent', {
         color: colorSeleccionado,
         talla: tallaSeleccionada,
         cantidad: 1,
-        precio_menudeo: parseFloat(p.precio_menudeo) || 0,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
+        precio_menudeo: (parseFloat(p.precio_menudeo) || 0) + 80,
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || parseFloat(p.precio_menudeo),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
-        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 110),
+        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
         imagen: (() => {
           const varImg = variantes.find(v2 => v2.id === varianteSeleccionada)
           return varImg?.foto_url || (varImg?.imagenes && varImg.imagenes[0]) || p.imagen_principal || null
         })(),
-        precio_unitario: parseFloat(p.precio_menudeo) || 0
+        precio_unitario: (parseFloat(p.precio_menudeo) || 0) + 80
       })
     }
     if (window.fbq) {
@@ -2621,14 +2621,14 @@ if (window.ttq) ttq.track('AddToCart', {
         talla: 'Corrida completa',
         tallas_corrida: tallasCorrida,
         cantidad: 1,
-        precio_menudeo: parseFloat(p.precio_menudeo)||0,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo)-30),
+        precio_menudeo: (parseFloat(p.precio_menudeo)||0) + 80,
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo)),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70),
-        precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-110),
+        precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-100),
         es_oferta: p.es_oferta||false,
         es_corrida: true,
         imagen: imgColor,
-        precio_unitario: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-110)
+        precio_unitario: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-100)
       })
     }
     
@@ -2835,7 +2835,7 @@ if (window.ttq) ttq.track('AddToCart', {
         ${p.imagen_principal ? `<img class="search-result-img" src="${p.imagen_principal}" alt="${p.nombre}">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
         <div class="search-result-info">
           <p class="name">${p.nombre}</p>
-          <p class="price">$${p.precio_menudeo} MXN</p>
+          <p class="price">$${p.precio_menudeo + 80} MXN</p>
         </div>
       </div>
     `).join('')
@@ -3787,17 +3787,17 @@ const PAGINAS = {
       </div>
       <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
         <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">3 — 5 pares</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$30 por par</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$80 por par</p>
         <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
       </div>
       <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
         <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">6+ pares</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$70 por par</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$150 por par</p>
         <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
       </div>
       <div style="background:var(--gray-100);border-radius:8px;padding:28px;text-align:center;border:2px solid var(--pink)">
         <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--pink);margin-bottom:10px">Corrida completa</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--pink);margin-bottom:6px">-$110 por par</p>
+        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--pink);margin-bottom:6px">-$180 por par</p>
         <p style="font-size:0.8rem;color:var(--gray-600)">Mismo modelo y color, todas las tallas</p>
       </div>
     </div>
