@@ -4948,7 +4948,7 @@ for (const v of variantesData) {
     fetch(API + '/variantes/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
+      body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [], activa: true })
     }).then(async r => {
       if (!r.ok) {
         const txt = await r.text().catch(() => '')
@@ -4979,35 +4979,52 @@ if (sucursalStock && pid) {
   const varsGuardadas = await varRes.json()
   const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
 
+  // Obtener variantes actualizadas (incluye recién creadas) e inventario actual de la sucursal
+  const varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
+  const invActual = await fetch(API + '/inventario/').then(r => r.json())
+  const varIdsConInv = new Set(invActual.filter(i => i.sucursal_id === sucursalStock).map(i => i.variante_id))
+
   for (const c of colores) {
     for (const t of tallasGuardar) {
       const tallaId = t.replace('.', '_')
       const inputStock = document.getElementById('stock-ini-' + c.id + '-' + tallaId)
       const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
-      if (cantidad <= 0) continue
 
-      const varMatch = varsGuardadas.find(vr => vr.color === c.nombre && vr.talla === t)
-      if (varMatch) {
-        if (window._productoEditandoId) {
-          // Editar — sumar al stock existente como entrada
-          await fetch(API + '/movimientos/entrada', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              variante_id: varMatch.id,
-              sucursal_id: sucursalStock,
-              cantidad,
-              motivo: 'Resurtido desde edicion de producto'
-            })
+      const varMatch = varsActualizadas.find(vr =>
+        vr.color.trim().toLowerCase() === c.nombre.trim().toLowerCase() &&
+        String(vr.talla).trim() === String(t).trim()
+      )
+
+      if (!varMatch) {
+        console.warn(`[Stock] VARIANTE NO ENCONTRADA para ${c.nombre} T${t}`)
+        continue
+      }
+
+      if (cantidad > 0) {
+        // Registrar entrada de mercancía (crea el registro de inventario si no existe)
+        const resStock = await fetch(API + '/movimientos/entrada', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variante_id: varMatch.id,
+            sucursal_id: sucursalStock,
+            cantidad,
+            motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
           })
+        })
+        if (!resStock.ok) {
+          console.error(`[Stock] Error ${c.nombre} T${t}:`, await resStock.text())
         } else {
-          // Nuevo producto — crear stock inicial
-          await fetch(API + '/inventario/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad, stock_minimo: 1 })
-          })
+          console.log(`[Stock] ✓ Entrada: ${c.nombre} T${t} +${cantidad}`)
         }
+      } else if (!varIdsConInv.has(varMatch.id)) {
+        // Sin stock pero tampoco tiene registro en inventario → crear con 0 para que aparezca
+        await fetch(API + '/inventario/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, stock_minimo: 1 })
+        })
+        console.log(`[Stock] Registro inventario creado (0 pares): ${c.nombre} T${t}`)
       }
     }
   }

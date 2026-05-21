@@ -84,6 +84,20 @@ def crear_variante(variante: dict):
                     return supabase_post("variantes", variante)
         raise e
 
+@router.post("/activar-todas")
+def activar_variantes_sin_activa():
+    """Activa todas las variantes que tienen activa=null (creadas sin el campo)"""
+    from database import get_url, get_headers
+    import urllib.request, json
+    url = f"{get_url()}/rest/v1/variantes?activa=is.null"
+    body = json.dumps({"activa": True}).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=get_headers(), method="PATCH")
+    try:
+        with urllib.request.urlopen(req) as r:
+            return {"ok": True, "actualizadas": r.read().decode()}
+    except Exception as e:
+        return {"error": str(e)}
+
 @router.patch("/{variante_id}")
 def actualizar_variante(variante_id: str, variante: dict):
     return supabase_patch(f"variantes?id=eq.{variante_id}", variante)
