@@ -4,11 +4,18 @@ Utilidades de seguridad: bcrypt, JWT, rate limiting y dependencias para FastAPI.
 import os
 import hashlib
 from datetime import datetime, timedelta, timezone
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-
-# Rate limiter compartido entre routers
-limiter = Limiter(key_func=get_remote_address)
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    limiter = Limiter(key_func=get_remote_address)
+except ImportError:
+    # Fallback si slowapi aún no está instalado: decorador no-op
+    class _NoOpLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = _NoOpLimiter()
 
 import bcrypt
 import jwt
