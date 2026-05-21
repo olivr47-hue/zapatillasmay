@@ -4786,22 +4786,37 @@ if (preview) {
       const portadaDiv = preview ? preview.querySelector('[data-es-portada="true"]') : null
       const portadaFileIdx = portadaDiv ? parseInt(portadaDiv.dataset.fileIdx) : 0
       const files = Array.from(inputImgs.files)
-      
+      console.log(`[Fotos] Color "${nombre.value}": ${files.length} foto(s) a subir`)
+
       // Ordenar para que portada vaya primero
       const ordenados = [
         ...files.filter((_, i) => i === portadaFileIdx),
         ...files.filter((_, i) => i !== portadaFileIdx)
       ]
 
-      for (const file of ordenados) {
+      for (let fi = 0; fi < ordenados.length; fi++) {
+        const file = ordenados[fi]
         const formData = new FormData()
         formData.append('archivo', file)
         try {
           const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+          if (!res.ok) {
+            const txt = await res.text().catch(() => '')
+            console.error(`[Fotos] Error HTTP ${res.status} subiendo foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, txt)
+            continue
+          }
           const data = await res.json()
-          if (data.url) urls.push(data.url)
-        } catch(e) {}
+          if (data.url) {
+            urls.push(data.url)
+            console.log(`[Fotos] Foto ${fi+1}/${ordenados.length} subida OK: ${data.url}`)
+          } else {
+            console.error(`[Fotos] Respuesta sin URL para foto ${fi+1}/${ordenados.length}:`, data)
+          }
+        } catch(e) {
+          console.error(`[Fotos] Error de red subiendo foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, e)
+        }
       }
+      console.log(`[Fotos] Color "${nombre.value}": ${urls.length} URL(s) guardadas de ${files.length} archivos`)
     }
 
     resultado.push({ 
@@ -4831,7 +4846,9 @@ window.guardarProducto = async () => {
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
 
   const tallas = [...document.querySelectorAll('.talla-label input:checked')].map(i => i.value)
+  console.log(`[Guardar] Tallas seleccionadas (${tallas.length}):`, tallas)
   const variantesData = await subirImagenesVariantes()
+  console.log(`[Guardar] Colores a guardar (${variantesData.length}):`, variantesData.map(v => v.color))
   const colores = []
 document.querySelectorAll('.variante-item').forEach(v => {
   const id = v.id.replace('variante-', '')
