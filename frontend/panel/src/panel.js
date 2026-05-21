@@ -4904,10 +4904,11 @@ document.querySelectorAll('.variante-item').forEach(v => {
   }
 
   const promesas = []
+  const erroresVariante = []
 for (const v of variantesData) {
   for (const talla of tallasGuardar) {
-    const varExistente = varsExistentes.find(ve => 
-  ve.color.trim().toLowerCase() === v.color.trim().toLowerCase() && 
+    const varExistente = varsExistentes.find(ve =>
+  ve.color.trim().toLowerCase() === v.color.trim().toLowerCase() &&
   ve.talla === talla
 )
     if (varExistente) {
@@ -4925,12 +4926,25 @@ for (const v of variantesData) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [] })
-    }).catch(e => console.log('Variante ya existe:', v.color, talla))
+    }).then(async r => {
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '')
+        erroresVariante.push(`${v.color} T${talla}: ${r.status}`)
+        console.error('Error variante:', v.color, talla, r.status, txt)
+      }
+    }).catch(e => {
+      erroresVariante.push(`${v.color} T${talla}: error de red`)
+      console.error('Error red variante:', v.color, talla, e)
+    })
   )
 }
   }
 }
 await Promise.all(promesas)
+if (erroresVariante.length > 0) {
+  console.warn('Variantes con error:', erroresVariante)
+  alert('⚠️ Algunas variantes no se guardaron:\n' + erroresVariante.join('\n') + '\n\nRevisa la consola para más detalles.')
+}
 }
 console.log('Colores:', colores)
 console.log('Tallas:', tallas)

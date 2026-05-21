@@ -15,13 +15,21 @@ COLORES_CODIGO = {
     'Dorado': 'DOR', 'Plateado': 'PLA',
     'Azul claro': 'AZC', 'Azul': 'AZU', 'Azul marino': 'AZM', 'Turquesa': 'TUR',
     'Verde': 'VER', 'Verde menta': 'VRM',
-    'Morado': 'MOR', 'Lila': 'LIL', 'Multicolor': 'MUL'
+    'Morado': 'MOR', 'Lila': 'LIL', 'Multicolor': 'MUL',
+    # Colores paleta que no estaban y causaban colision de SKU
+    'Nude': 'NUD', 'Nude claro': 'NUDCL', 'Nude oscuro': 'NUDOC', 'Nude rosa': 'NUDRS',
+    'Palo de rosa': 'PALRS',
+    'Oro rosa': 'OROS', 'Oro': 'ORO', 'Oro viejo': 'ORVJ', 'Oro metalico': 'ORMT',
 }
 
 def color_a_codigo(color):
-    if color in COLORES_CODIGO:
-        return COLORES_CODIGO[color]
-    return color.upper().replace(' ', '')[:3]
+    # Buscar exacto (case-insensitive)
+    for k, v in COLORES_CODIGO.items():
+        if k.lower() == color.lower():
+            return v
+    # Fallback: usar hasta 6 caracteres del nombre sin espacios (reduce colisiones vs 3 chars)
+    codigo = color.upper().replace(' ', '')
+    return codigo[:6] if len(codigo) >= 6 else codigo
 
 def talla_a_codigo(talla):
     return talla.replace('.', '_')
@@ -51,11 +59,29 @@ def crear_variante(variante: dict):
     except Exception as e:
         if "23505" in str(e):
             sku = variante.get("sku", "")
-            existente = supabase_get(f"variantes?sku=eq.{sku}&select=id")
+            color_nuevo = variante.get("color", "")
+            existente = supabase_get(f"variantes?sku=eq.{sku}&select=id,color")
             if existente and len(existente) > 0:
+                color_existente = existente[0].get("color", "")
                 variante_id = existente[0]["id"]
-                update = {k: v for k, v in variante.items() if k in ["foto_url", "imagenes", "color_hex"]}
-                return supabase_patch(f"variantes?id=eq.{variante_id}", update)
+                # Si es el mismo color: actualizar (resurtido o edicion)
+                if color_existente.strip().lower() == color_nuevo.strip().lower():
+                    update = {k: v for k, v in variante.items() if k in ["foto_url", "imagenes", "color_hex"]}
+                    return supabase_patch(f"variantes?id=eq.{variante_id}", update)
+                else:
+                    # Colision de SKU entre colores distintos: agregar sufijo numerico al SKU
+                    for sufijo in range(2, 10):
+                        sku_nuevo = f"{sku}-{sufijo}"
+                        variante_mod = dict(variante)
+                        variante_mod["sku"] = sku_nuevo
+                        try:
+                            return supabase_post("variantes", variante_mod)
+                        except Exception:
+                            continue
+                    # Si todos los sufijos fallan, forzar con timestamp
+                    import time
+                    variante["sku"] = f"{sku}-{int(time.time()) % 10000}"
+                    return supabase_post("variantes", variante)
         raise e
 
 @router.patch("/{variante_id}")
