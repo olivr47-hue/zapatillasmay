@@ -10199,14 +10199,14 @@ async function cargarSEO() {
             <b>Paso 2:</b> Actualiza el stock cuando cambie tu inventario.
           </p>
           <div style="display:flex;gap:1rem;flex-wrap:wrap">
-            <a href="${API}/tiktok/import-excel" target="_blank" download
-               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none">
+            <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.xlsx')"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
               📥 Descargar Excel de Importación
-            </a>
-            <a href="${API}/tiktok/stock-excel" target="_blank" download
-               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;text-decoration:none">
+            </button>
+            <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.xlsx')"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
               📊 Descargar Excel de Stock
-            </a>
+            </button>
           </div>
           <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-secondary);border-radius:8px;font-size:0.78rem;color:var(--text-muted)">
             <b>Cómo usar:</b>
@@ -10372,6 +10372,30 @@ window.guardarSEO = async () => {
     else alert('Error al guardar')
   } catch(e) {
     alert('Error conectando con el servidor')
+  }
+}
+
+window.descargarExcelTikTok = async function(btn, endpoint, filename) {
+  const textoOriginal = btn.innerHTML
+  try {
+    btn.innerHTML = '⏳ Generando...'
+    btn.disabled = true
+    const res = await fetch(`${API}/tiktok/${endpoint}`)
+    if (!res.ok) { const txt = await res.text(); throw new Error(`Error ${res.status}: ${txt}`) }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch(e) {
+    alert('Error al descargar el archivo: ' + e.message)
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
   }
 }
 
