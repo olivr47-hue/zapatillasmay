@@ -1,15 +1,24 @@
 """
-Utilidades de seguridad: bcrypt, JWT, rate limiting y dependencias para FastAPI.
+Utilidades de seguridad: contraseñas, JWT y rate limiting.
+Usa bcrypt/PyJWT si están disponibles; cae a stdlib (pbkdf2 + hmac) si no.
 """
 import os
 import hashlib
+import hmac as _hmac
+import base64
+import json
 from datetime import datetime, timedelta, timezone
+
+SECRET_KEY = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
+ALGORITHM = "HS256"
+TOKEN_EXPIRE_HOURS = 12
+
+# ── Rate limiter (opcional) ───────────────────────────────────────────────────
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
     limiter = Limiter(key_func=get_remote_address)
 except ImportError:
-    # Fallback si slowapi aún no está instalado: decorador no-op
     class _NoOpLimiter:
         def limit(self, *args, **kwargs):
             def decorator(f):
@@ -17,65 +26,118 @@ except ImportError:
             return decorator
     limiter = _NoOpLimiter()
 
-import bcrypt
-import jwt
-from jwt.exceptions import InvalidTokenError
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# ── bcrypt (opcional; cae a pbkdf2_hmac que también es seguro) ────────────────
+try:
+    import bcrypt as _bcrypt
+    _BCRYPT = True
+except ImportError:
+    _bcrypt = None
+    _BCRYPT = False
 
-SECRET_KEY = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
-ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 12
+_PBKDF2_ITERS = 260_000
 
-_bearer = HTTPBearer(auto_error=False)
-
-
-# ── Passwords ─────────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    """Hashea con bcrypt (salt incluido)."""
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    if _BCRYPT:
+        return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt(rounds=12)).decode()
+    # Fallback: pbkdf2_hmac con salt aleatorio
+    import os as _os
+    salt = _os.urandom(16).hex()
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), _PBKDF2_ITERS)
+    return f"pbkdf2:{salt}:{dk.hex()}"
 
 
-def verify_password(plain: str, stored_hash: str) -> bool:
-    """
-    Verifica la contraseña. Soporta bcrypt (nuevo) y SHA-256 (legacy).
-    Si el hash es SHA-256 la verificación tiene éxito para permitir la migración
-    automática al siguiente login.
-    """
-    if not plain or not stored_hash:
+def verify_password(plain: str, stored: str) -> bool:
+    if not plain or not stored:
         return False
-    # Intentar bcrypt primero
-    try:
-        if stored_hash.startswith("$2"):
-            return bcrypt.checkpw(plain.encode(), stored_hash.encode())
-    except Exception:
-        pass
-    # Fallback SHA-256 (migración)
-    return stored_hash == hashlib.sha256(plain.encode()).hexdigest()
+    # bcrypt hash
+    if stored.startswith("$2"):
+        if _BCRYPT:
+            try:
+                return _bcrypt.checkpw(plain.encode(), stored.encode())
+            except Exception:
+                return False
+        return False
+    # pbkdf2 hash (nuestro fallback)
+    if stored.startswith("pbkdf2:"):
+        try:
+            _, salt, dk_hex = stored.split(":", 2)
+            dk = hashlib.pbkdf2_hmac("sha256", plain.encode(), salt.encode(), _PBKDF2_ITERS)
+            return _hmac.compare_digest(dk.hex(), dk_hex)
+        except Exception:
+            return False
+    # SHA-256 legacy (migración automática)
+    return _hmac.compare_digest(stored, hashlib.sha256(plain.encode()).hexdigest())
 
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
+# ── JWT (opcional; cae a implementación stdlib) ───────────────────────────────
+try:
+    import jwt as _jwt
+    from jwt.exceptions import InvalidTokenError as _JWTError
+    _PYJWT = True
+except ImportError:
+    _jwt = None
+    _JWTError = Exception
+    _PYJWT = False
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _b64url_decode(s: str) -> bytes:
+    pad = 4 - len(s) % 4
+    return base64.urlsafe_b64decode(s + "=" * (pad % 4))
+
 
 def create_token(payload: dict, expires_hours: int = TOKEN_EXPIRE_HOURS) -> str:
     data = payload.copy()
-    data["exp"] = datetime.now(tz=timezone.utc) + timedelta(hours=expires_hours)
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+    exp = datetime.now(tz=timezone.utc) + timedelta(hours=expires_hours)
+    data["exp"] = int(exp.timestamp())
+    if _PYJWT:
+        return _jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+    # Fallback stdlib
+    header = _b64url_encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body   = _b64url_encode(json.dumps(data).encode())
+    sig    = _b64url_encode(
+        _hmac.new(SECRET_KEY.encode(), f"{header}.{body}".encode(), hashlib.sha256).digest()
+    )
+    return f"{header}.{body}.{sig}"
 
 
 def verify_token(token: str) -> dict:
+    from fastapi import HTTPException
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except InvalidTokenError:
+        if _PYJWT:
+            return _jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        # Fallback stdlib
+        parts = token.split(".")
+        if len(parts) != 3:
+            raise ValueError("token malformado")
+        header, body, sig = parts
+        expected = _b64url_encode(
+            _hmac.new(SECRET_KEY.encode(), f"{header}.{body}".encode(), hashlib.sha256).digest()
+        )
+        if not _hmac.compare_digest(sig, expected):
+            raise ValueError("firma invalida")
+        payload = json.loads(_b64url_decode(body))
+        if payload.get("exp", 0) < datetime.now(tz=timezone.utc).timestamp():
+            raise ValueError("token expirado")
+        return payload
+    except Exception:
         raise HTTPException(status_code=401, detail="Token invalido o expirado")
 
 
 # ── Dependencias FastAPI ──────────────────────────────────────────────────────
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+_bearer = HTTPBearer(auto_error=False)
+
 
 def require_admin(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
-    """Dependencia que exige JWT con rol='admin'."""
     if not credentials:
         raise HTTPException(status_code=401, detail="Autenticacion requerida")
     payload = verify_token(credentials.credentials)
@@ -87,7 +149,6 @@ def require_admin(
 def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
-    """Dependencia que exige cualquier JWT valido."""
     if not credentials:
         raise HTTPException(status_code=401, detail="Autenticacion requerida")
     return verify_token(credentials.credentials)
