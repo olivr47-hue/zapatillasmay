@@ -4907,14 +4907,18 @@ document.querySelectorAll('.variante-item').forEach(v => {
       const prod = await res.json()
       const pid = window._productoEditandoId || (prod && prod.length > 0 ? prod[0].id : null)
 
+      if (!pid) console.error('[Variantes] ERROR: pid es null, no se crearán variantes')
+      if (variantesData.length === 0) console.error('[Variantes] ERROR: variantesData vacío, no se crearán variantes (¿colores sin nombre?)')
       if (pid && variantesData.length > 0) {
   const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
-  
+  console.log(`[Variantes] pid=${pid} | colores=${variantesData.length} | tallas=${tallasGuardar.length}:`, tallasGuardar)
+
   // Si estamos editando, obtener variantes existentes
   let varsExistentes = []
   if (window._productoEditandoId) {
     const resVars = await fetch(API + '/variantes/producto/' + pid)
     varsExistentes = await resVars.json()
+    console.log(`[Variantes] Existentes en DB: ${varsExistentes.length}`)
     if (window._coloresEliminados && window._coloresEliminados.length > 0) {
   varsExistentes = varsExistentes.filter(v => !window._coloresEliminados.includes(v.color))
 }
@@ -4929,6 +4933,7 @@ for (const v of variantesData) {
   ve.talla === talla
 )
     if (varExistente) {
+      console.log(`[Variantes] ACTUALIZAR: ${v.color} T${talla} → ${varExistente.id}`)
       const update = { color_hex: v.color_hex }
       update.foto_url = v.imagenes.length > 0 ? v.imagenes[0] : null
       update.imagenes = v.imagenes
@@ -4938,6 +4943,7 @@ for (const v of variantesData) {
         body: JSON.stringify(update)
       }))
     } else {
+      console.log(`[Variantes] CREAR NUEVO: ${v.color} T${talla}`)
   promesas.push(
     fetch(API + '/variantes/', {
       method: 'POST',
