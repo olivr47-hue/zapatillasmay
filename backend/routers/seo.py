@@ -425,123 +425,81 @@ def feed_tiktok():
 
 @router.get("/tiktok/import-excel")
 def tiktok_import_excel():
-    """Genera Excel listo para importar al TikTok Shop Seller Center.
-    Cada fila = una variante (color + talla) con SKU del ERP, precio e inventario."""
+    """Genera CSV listo para importar al TikTok Shop Seller Center."""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment
+        import csv
 
         productos  = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,imagen_principal")
-        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla,imagenes")
+        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
 
         inv = {i["variante_id"]: int(i.get("cantidad", 0) or 0) for i in inventario}
 
         vars_por_prod = {}
         for v in variantes:
-            pid = v["producto_id"]
-            vars_por_prod.setdefault(pid, []).append(v)
+            vars_por_prod.setdefault(v["producto_id"], []).append(v)
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Import_Variants_Template_BR01"
+        buf = io.StringIO()
+        writer = csv.writer(buf)
 
-        # ── Encabezados (igual al template oficial de TikTok) ──────────────────
         headers = [
-            "SPU*\n(Obligatorio 1-200 caracteres, solo números, letras y caracteres especiales)",
-            "SKU*\n(Obligatorio 1-200 caracteres, solo números, letras y caracteres especiales)",
-            "Título*\n(Obligatorio 1-500 caracteres)",
-            "Alias de Producto\n(1-500 caracteres)",
-            "Variantes1*\n(Obligatorio 1-14 caracteres)",
-            "Valor de la Variante1*\n(Obligatorio 1-30 caracteres)",
-            "Variantes2\n(Límite 1-14 caracteres)",
-            "Valor de la Variante2\n(Límite 1-30 caracteres)",
-            "Variantes3", "Valor de la Variante3",
-            "Variantes4", "Valor de la Variante4",
-            "Variantes5", "Valor de la Variante5",
-            "Precio minorista\n(Límite 0-999999999)",
-            "Costo de Compra\n(Límite 0-999999999)",
-            "Cantidad\n(Límite 0-999999999)",
-            "N. de Anaqueles",
-            "Código de Barras",
-            "Imagen",
-            "Peso (g)\n(Límite 1-999999)",
-            "Longitud (cm)", "Ancho (cm)", "Altura (cm)",
-            "Enlace del Proveedor"
+            "SPU", "SKU", "Titulo", "Alias",
+            "Variante1", "Valor Variante1",
+            "Variante2", "Valor Variante2",
+            "Variante3", "Valor Variante3",
+            "Variante4", "Valor Variante4",
+            "Variante5", "Valor Variante5",
+            "Precio", "Costo", "Cantidad",
+            "Anaquel", "Codigo Barras", "Imagen",
+            "Peso g", "Largo cm", "Ancho cm", "Alto cm", "Enlace Proveedor"
         ]
-        header_fill = PatternFill("solid", fgColor="1A1A2E")
-        header_font = Font(bold=True, color="FFFFFF", size=9)
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(wrap_text=True, vertical="top")
+        writer.writerow(headers)
 
-        # ── Datos ──────────────────────────────────────────────────────────────
-        row_num = 2
         for p in productos:
-            pid   = p["id"]
-            spu   = (p.get("sku_interno") or str(pid))[:200]
-            title = (p.get("nombre") or spu)[:500]
-            desc  = (p.get("descripcion") or title)[:500]
+            pid    = p["id"]
+            spu    = (p.get("sku_interno") or str(pid))[:200]
+            title  = (p.get("nombre") or spu)[:500]
             precio = float(p.get("precio_menudeo") or 0)
-            img_principal = p.get("imagen_principal") or ""
+            img    = p.get("imagen_principal") or ""
+            pvars  = vars_por_prod.get(pid, [])
 
-            pvars = vars_por_prod.get(pid, [])
             if not pvars:
-                # Producto sin variantes → fila única sin talla/color
-                sku_cell = f"{spu}-UNICA"[:200]
-                ws.append([
-                    spu, sku_cell, title, desc,
-                    "Color", "Único",
-                    "Talla", "Única",
-                    None, None, None, None, None, None,
-                    precio, "", 0, "", "", img_principal,
+                writer.writerow([
+                    spu, f"{spu}-UNICA", title, "",
+                    "Color", "Unico", "Talla", "Unica",
+                    "", "", "", "", "", "",
+                    precio, "", 0, "", "", img,
                     1000, 30, 20, 10, ""
                 ])
-                row_num += 1
                 continue
 
-            # Agrupar variantes: una imagen por color (primera talla de ese color)
             imagen_por_color = {}
             for v in pvars:
-                color = (v.get("color") or "Único").strip()
+                color = (v.get("color") or "Unico").strip()
                 if color not in imagen_por_color:
-                    imagen_por_color[color] = v.get("foto_url") or img_principal
+                    imagen_por_color[color] = v.get("foto_url") or img
 
             for v in pvars:
-                color = (v.get("color") or "Único").strip()
-                talla = str(v.get("talla") or "Única").strip()
-                imagen = imagen_por_color.get(color) or img_principal
+                color    = (v.get("color") or "Unico").strip()
+                talla    = str(v.get("talla") or "Unica").strip()
+                imagen   = imagen_por_color.get(color) or img
                 cantidad = inv.get(v["id"], 0)
-                # Color limpio para SKU (sin espacios/caracteres raros)
                 color_sku = re.sub(r"[^A-Za-z0-9]", "", color.upper())[:20]
-                talla_sku = re.sub(r"[^A-Za-z0-9]", "", str(talla))[:10]
-                sku_cell = f"{spu}-{color_sku}-{talla_sku}"[:200]
-
-                ws.append([
+                talla_sku = re.sub(r"[^A-Za-z0-9]", "", talla)[:10]
+                sku_cell  = f"{spu}-{color_sku}-{talla_sku}"[:200]
+                writer.writerow([
                     spu, sku_cell, title, "",
-                    "Color", color,
-                    "Talla", talla,
-                    None, None, None, None, None, None,
+                    "Color", color, "Talla", talla,
+                    "", "", "", "", "", "",
                     precio, "", cantidad, "", "", imagen,
                     1000, 30, 20, 10, ""
                 ])
-                row_num += 1
 
-        # Ajustar anchos
-        col_widths = [25, 35, 40, 30, 12, 20, 12, 12, 8, 8, 8, 8, 8, 8,
-                      15, 15, 12, 15, 20, 60, 10, 12, 12, 12, 40]
-        for i, w in enumerate(col_widths, 1):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-
-        buf = io.BytesIO()
-        wb.save(buf)
-        buf.seek(0)
-        return StreamingResponse(
-            buf,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=TikTok_Import_ZapatillasMay.xlsx"}
+        csv_bytes = buf.getvalue().encode("utf-8-sig")  # utf-8-sig = BOM para Excel
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=TikTok_Import_ZapatillasMay.csv"}
         )
     except Exception as e:
         return Response(content=str(e), status_code=500)
@@ -549,54 +507,37 @@ def tiktok_import_excel():
 
 @router.get("/tiktok/stock-excel")
 def tiktok_stock_excel():
-    """Genera Excel de reabastecimiento de stock para TikTok Shop.
-    Funciona DESPUÉS de que los productos fueron importados con /tiktok/import-excel
-    (los SKUs de vendedor tienen formato ERP para cruzar los datos).
-    Descarga el stock actual del ERP y devuelve el Excel listo para subir a TikTok."""
+    """Genera CSV de reabastecimiento de stock para TikTok Shop."""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill
+        import csv
 
         variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,talla")
         productos  = supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
 
-        inv = {i["variante_id"]: int(i.get("cantidad", 0) or 0) for i in inventario}
+        inv      = {i["variante_id"]: int(i.get("cantidad", 0) or 0) for i in inventario}
         prod_map = {p["id"]: p for p in productos}
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Stock"
-
-        headers = ["SKU de vendedor (ERP)", "Producto", "Color", "Talla", "Cantidad ERP", "Notas"]
-        hf = Font(bold=True, color="FFFFFF")
-        hfill = PatternFill("solid", fgColor="1A1A2E")
-        for c, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=c, value=h)
-            cell.font = hf
-            cell.fill = hfill
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["SKU Vendedor", "Producto", "Color", "Talla", "Cantidad", "Notas"])
 
         for v in variantes:
-            p = prod_map.get(v["producto_id"], {})
-            spu = (p.get("sku_interno") or str(v["producto_id"]))[:200]
-            color = (v.get("color") or "Único").strip()
-            talla = str(v.get("talla") or "Única").strip()
+            p        = prod_map.get(v["producto_id"], {})
+            spu      = (p.get("sku_interno") or str(v["producto_id"]))[:200]
+            color    = (v.get("color") or "Unico").strip()
+            talla    = str(v.get("talla") or "Unica").strip()
             color_sku = re.sub(r"[^A-Za-z0-9]", "", color.upper())[:20]
-            talla_sku = re.sub(r"[^A-Za-z0-9]", "", str(talla))[:10]
-            sku_cell = f"{spu}-{color_sku}-{talla_sku}"[:200]
-            cantidad = inv.get(v["id"], 0)
-            ws.append([sku_cell, p.get("nombre",""), color, talla, cantidad, ""])
+            talla_sku = re.sub(r"[^A-Za-z0-9]", "", talla)[:10]
+            sku_cell  = f"{spu}-{color_sku}-{talla_sku}"[:200]
+            cantidad  = inv.get(v["id"], 0)
+            writer.writerow([sku_cell, p.get("nombre", ""), color, talla, cantidad, ""])
 
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = 30
-
-        buf = io.BytesIO()
-        wb.save(buf)
-        buf.seek(0)
-        return StreamingResponse(
-            buf,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=TikTok_Stock_ZapatillasMay.xlsx"}
+        csv_bytes = buf.getvalue().encode("utf-8-sig")
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=TikTok_Stock_ZapatillasMay.csv"}
         )
     except Exception as e:
         return Response(content=str(e), status_code=500)
