@@ -10200,7 +10200,7 @@ async function cargarSEO() {
           </p>
           <div style="display:flex;gap:1rem;flex-wrap:wrap">
             <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.csv')"
-               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:var(--primary);color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#6366f1;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
               📥 Descargar Excel de Importación
             </button>
             <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.csv')"
