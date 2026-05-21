@@ -225,6 +225,7 @@ def feed_meta():
                     xml += f'  <g:size_type>regular</g:size_type>\n'
                     xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += f'  <g:gender>female</g:gender>\n'
+                    xml += f'  <g:age_group>adult</g:age_group>\n'
                     xml += '</item>\n'
 
             else:
@@ -244,6 +245,11 @@ def feed_meta():
                 xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
                 xml += f'  <g:google_product_category>187</g:google_product_category>\n'
                 xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+                xml += f'  <g:color>Multicolor</g:color>\n'
+                xml += f'  <g:gender>female</g:gender>\n'
+                xml += f'  <g:age_group>adult</g:age_group>\n'
+                xml += f'  <g:size>One Size</g:size>\n'
+                xml += f'  <g:size_system>MX</g:size_system>\n'
                 xml += '</item>\n'
 
         xml += '</channel>\n</rss>'
@@ -391,8 +397,14 @@ def feed_google():
             xml += f'  <g:availability>in stock</g:availability>\n'
             xml += f'  <g:condition>new</g:condition>\n'
             xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+            xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
             xml += f'  <g:google_product_category>187</g:google_product_category>\n'
             xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+            xml += f'  <g:color>Multicolor</g:color>\n'
+            xml += f'  <g:gender>female</g:gender>\n'
+            xml += f'  <g:age_group>adult</g:age_group>\n'
+            xml += f'  <g:size>One Size</g:size>\n'
+            xml += f'  <g:size_system>MX</g:size_system>\n'
             xml += '</entry>\n'
         xml += '</feed>'
         return Response(content=xml, media_type="application/xml")
