@@ -5,6 +5,7 @@ from routers import productos, sucursales, inventario, clientes, pedidos, imagen
 from routers import empleados
 from routers import seo
 from routers import campanas
+from routers import tiktok
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -49,6 +50,7 @@ app.include_router(crm.router)
 app.include_router(finanzas.router)
 app.include_router(chatbot.router)
 app.include_router(campanas.router)
+app.include_router(tiktok.router)
 
 @app.get("/")
 def inicio():
