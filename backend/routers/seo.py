@@ -200,7 +200,7 @@ def feed_meta():
                         talla_feed = 'One Size'
                     else:
                         talla_feed = str(talla)
-                    precio = p.get("precio_menudeo", 0)
+                    precio = (p.get("precio_menudeo") or 0) + 80
 
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
@@ -230,7 +230,7 @@ def feed_meta():
             else:
                 imagen_p = p.get('imagen_principal', '')
                 desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-                precio = p.get("precio_menudeo", 0)
+                precio = (p.get("precio_menudeo") or 0) + 80
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
                 xml += f'  <g:title>{p.get("nombre","").title()}</g:title>\n'
@@ -387,7 +387,7 @@ def feed_google():
             xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
             xml += f'  <g:link>{url}</g:link>\n'
             xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
-            xml += f'  <g:price>{p.get("precio_menudeo",0)} MXN</g:price>\n'
+            xml += f'  <g:price>{(p.get("precio_menudeo") or 0) + 80} MXN</g:price>\n'
             xml += f'  <g:availability>in stock</g:availability>\n'
             xml += f'  <g:condition>new</g:condition>\n'
             xml += f'  <g:brand>Zapatillas May</g:brand>\n'
@@ -412,7 +412,7 @@ def feed_tiktok():
                 "description": p.get("descripcion","") or p.get("nombre",""),
                 "availability": "in stock",
                 "condition": "new",
-                "price": f"{p.get('precio_menudeo',0)} MXN",
+                "price": f"{(p.get('precio_menudeo') or 0) + 80} MXN",
                 "link": f"https://zapatillasmay.mx/producto/{sku}",
                 "image_link": p.get("imagen_principal",""),
                 "brand": "Zapatillas May",
@@ -459,7 +459,7 @@ def tiktok_import_excel():
             pid    = p["id"]
             spu    = (p.get("sku_interno") or str(pid))[:200]
             title  = (p.get("nombre") or spu)[:500]
-            precio = float(p.get("precio_menudeo") or 0)
+            precio = float(p.get("precio_menudeo") or 0) + 80
             img    = p.get("imagen_principal") or ""
             pvars  = vars_por_prod.get(pid, [])
 
