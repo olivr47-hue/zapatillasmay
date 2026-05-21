@@ -7,7 +7,7 @@ _jobs = {}
 
 EVOLUTION_URL      = os.environ.get("EVOLUTION_URL", "https://evolution-api-production-fd49.up.railway.app")
 EVOLUTION_INSTANCE = os.environ.get("EVOLUTION_INSTANCE", "zapatillasmay")
-EVOLUTION_APIKEY   = os.environ.get("EVOLUTION_APIKEY", "zapatillasmay2024")
+EVOLUTION_APIKEY   = os.environ.get("EVOLUTION_APIKEY", "")
 
 # Bridge local (PC del negocio con ngrok) — tiene prioridad si está configurado
 WA_BRIDGE_URL = os.environ.get("WA_BRIDGE_URL", "").rstrip("/")

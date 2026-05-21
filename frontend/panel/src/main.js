@@ -50,6 +50,7 @@ function renderLogin() {
       const data = await res.json()
       if (res.ok) {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(data))
+        if (data.token) sessionStorage.setItem('erp_token', data.token)
         window._empleadoActual = data
         renderPanel()
       } else {
@@ -68,6 +69,13 @@ function renderLogin() {
     const error = document.getElementById('login-error')
     if (error) { error.textContent = msg; error.style.display = 'block' }
   }
+}
+
+// Helper global: encabezados con JWT para endpoints protegidos
+window.authHeaders = () => {
+  const token = sessionStorage.getItem('erp_token')
+  return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+               : { 'Content-Type': 'application/json' }
 }
 
 const sesion = sessionStorage.getItem(SESSION_KEY)

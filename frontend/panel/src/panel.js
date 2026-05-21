@@ -8912,13 +8912,14 @@ window.eliminarItemPedido = (idx) => {
 window.cerrarSesionPanel = () => {
   if (!confirm('Cerrar sesion?')) return
   sessionStorage.removeItem('erp_empleado')
+  sessionStorage.removeItem('erp_token')
   window._empleadoActual = null
   location.reload()
 }
 async function cargarEmpleados() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(API + '/empleados/')
+    const res = await fetch(API + '/empleados/', { headers: window.authHeaders() })
     const data = await res.json()
     content.innerHTML = `
       <div class="table-card">
@@ -8956,7 +8957,7 @@ window.mostrarFormEmpleado = async (id) => {
   let d = {}
   if (id) {
     try {
-      const res = await fetch(API + '/empleados/')
+      const res = await fetch(API + '/empleados/', { headers: window.authHeaders() })
       const data = await res.json()
       d = data.find(e => e.id === id) || {}
     } catch(e) {}
@@ -8997,7 +8998,7 @@ window.guardarEmpleado = async (id) => {
     const url = id ? API + '/empleados/' + id : API + '/empleados/'
     const body = { nombre, email, rol }
     if (password) body.password = password
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const res = await fetch(url, { method, headers: window.authHeaders(), body: JSON.stringify(body) })
     if (res.ok) { alert('Empleado guardado correctamente'); navegarA('empleados') }
     else { const err = await res.json(); alert('Error: ' + (err.error || 'No se pudo guardar')) }
   } catch(e) { alert('Error conectando con el servidor') }
@@ -9006,7 +9007,7 @@ window.guardarEmpleado = async (id) => {
 window.toggleEmpleado = async (id, activo) => {
   if (!confirm(activo ? 'Desactivar este empleado?' : 'Activar este empleado?')) return
   try {
-    const res = await fetch(API + '/empleados/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: !activo }) })
+    const res = await fetch(API + '/empleados/' + id, { method: 'PATCH', headers: window.authHeaders(), body: JSON.stringify({ activo: !activo }) })
     if (res.ok) cargarEmpleados()
     else alert('Error al cambiar estado')
   } catch(e) { alert('Error conectando con el servidor') }
@@ -9018,7 +9019,7 @@ window.resetearPassword = async (id, nombre) => {
   try {
     const res = await fetch(API + '/empleados/' + id, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: window.authHeaders(),
       body: JSON.stringify({ password: nueva })
     })
     if (res.ok) {

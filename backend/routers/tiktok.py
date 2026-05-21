@@ -14,8 +14,8 @@ load_dotenv()
 
 router = APIRouter(prefix="/tiktok", tags=["TikTok Shop"])
 
-TIKTOK_APP_KEY    = os.getenv("TIKTOK_APP_KEY", "6k2ue1es4pusc")
-TIKTOK_APP_SECRET = os.getenv("TIKTOK_APP_SECRET", "f83b504b055c2bf3f3c875ccc3b08a2bf900e187")
+TIKTOK_APP_KEY    = os.getenv("TIKTOK_APP_KEY", "")
+TIKTOK_APP_SECRET = os.getenv("TIKTOK_APP_SECRET", "")
 TIKTOK_REDIRECT_URI = os.getenv(
     "TIKTOK_REDIRECT_URI",
     "https://zapatillasmay-production.up.railway.app/tiktok/callback"

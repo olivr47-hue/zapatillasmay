@@ -4,6 +4,7 @@ from database import supabase_get, supabase_patch, supabase_post
 import mercadopago
 import os
 import hashlib
+import hmac
 import time
 import urllib.request
 import json
@@ -17,13 +18,54 @@ sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
 
 META_PIXEL_ID = os.getenv("META_PIXEL_ID")
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
+MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
+
 
 def hash_data(value):
     if not value:
         return None
     return hashlib.sha256(value.strip().lower().encode()).hexdigest()
 
+
+def _validar_firma_mp(request_body: bytes, headers: dict) -> bool:
+    """
+    Valida la firma HMAC-SHA256 del webhook de Mercado Pago.
+    Retorna True si la firma es válida o si no hay secret configurado (modo dev).
+    """
+    if not MP_WEBHOOK_SECRET:
+        return True  # Sin secret: permitir (para desarrollo; en producción siempre configurar)
+
+    signature_header = headers.get("x-signature", "")
+    request_id = headers.get("x-request-id", "")
+
+    # Parsear ts y v1 del header x-signature
+    ts = ""
+    v1 = ""
+    for part in signature_header.split(","):
+        k, _, v = part.partition("=")
+        if k.strip() == "ts":
+            ts = v.strip()
+        elif k.strip() == "v1":
+            v1 = v.strip()
+
+    if not ts or not v1:
+        return False
+
+    # El manifest que firma MP: id:{data_id};request-id:{x-request-id};ts:{ts};
+    try:
+        body_json = json.loads(request_body)
+        data_id = str(body_json.get("data", {}).get("id", ""))
+    except Exception:
+        return False
+
+    manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+    expected = hmac.new(MP_WEBHOOK_SECRET.encode(), manifest.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, v1)
+
+
 def enviar_evento_meta(event_name, pedido, payment):
+    if not META_PIXEL_ID or not META_ACCESS_TOKEN:
+        return
     try:
         total = float(pedido.get("total", 0))
         email = pedido.get("email_cliente", "")
@@ -36,13 +78,14 @@ def enviar_evento_meta(event_name, pedido, payment):
         fn = nombre_parts[0] if nombre_parts else ""
         ln = nombre_parts[1] if len(nombre_parts) > 1 else ""
 
-        contents = []
-        for item in items:
-            contents.append({
+        contents = [
+            {
                 "id": item.get("variante_id", ""),
                 "quantity": item.get("cantidad", 1),
                 "item_price": float(item.get("precio_unitario", 0))
-            })
+            }
+            for item in items
+        ]
 
         payload = {
             "data": [
@@ -69,39 +112,44 @@ def enviar_evento_meta(event_name, pedido, payment):
             ]
         }
 
-        url = f"https://graph.facebook.com/v18.0/{META_PIXEL_ID}/events?access_token={META_ACCESS_TOKEN}"
+        # Token como header Authorization, no en la URL
+        url = f"https://graph.facebook.com/v18.0/{META_PIXEL_ID}/events"
         data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
-        with urllib.request.urlopen(req) as res:
-            print("Meta evento enviado:", event_name, res.read())
+        req = urllib.request.Request(
+            url, data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+            },
+            method="POST"
+        )
+        urllib.request.urlopen(req)
 
-    except Exception as e:
-        print("Error enviando evento a Meta:", str(e))
+    except Exception:
+        pass  # No exponer detalles de error en logs
+
 
 def _confirmar_pago_whatsapp(pedido: dict):
-    """Envía mensaje de confirmación por WhatsApp cuando se confirma el pago."""
     try:
         telefono = pedido.get("telefono_cliente", "")
         if not telefono:
             return
-        # Solo confirmar si es pedido de WhatsApp
         if pedido.get("canal") != "whatsapp":
             return
-        wa_token  = os.getenv("WHATSAPP_TOKEN", "")
-        phone_id  = os.getenv("WHATSAPP_PHONE_ID", "")
+        wa_token = os.getenv("WHATSAPP_TOKEN", "")
+        phone_id = os.getenv("WHATSAPP_PHONE_ID", "")
         if not wa_token or not phone_id:
             return
-        nombre    = (pedido.get("nombre_cliente") or "").split()[0] or "Clienta"
-        total     = pedido.get("total", 0)
-        notas     = pedido.get("notas", "tu pedido")
-        # Normalizar teléfono
-        tel = str(telefono).replace("+","").replace(" ","").replace("-","")
+        nombre = (pedido.get("nombre_cliente") or "").split()[0] or "Clienta"
+        total = pedido.get("total", 0)
+        notas = pedido.get("notas", "tu pedido")
+        tel = str(telefono).replace("+", "").replace(" ", "").replace("-", "")
         if not tel.startswith("52"):
             tel = "52" + tel
         mensaje = (
             f"✅ *¡Pago confirmado, {nombre}!*\n\n"
             f"Recibimos tu pago de *${total:.0f} MXN* 🎉\n"
-            f"📦 {notas.replace('Pedido WhatsApp | ','')}\n\n"
+            f"📦 {notas.replace('Pedido WhatsApp | ', '')}\n\n"
             f"_Procesamos tu pedido en las próximas 24hrs y te mandamos tu número de rastreo_ 🚚"
         )
         body = json.dumps({
@@ -117,8 +165,8 @@ def _confirmar_pago_whatsapp(pedido: dict):
             method="POST"
         )
         urllib.request.urlopen(req)
-    except Exception as e:
-        print(f"Error confirmación WA: {e}")
+    except Exception:
+        pass
 
 
 @router.post("/crear-preferencia")
@@ -127,7 +175,6 @@ def crear_preferencia(datos: dict):
         pedido_id = datos.get("pedido_id")
         items = datos.get("items", [])
         cliente = datos.get("cliente", {})
-        total = datos.get("total", 0)
 
         preference_data = {
             "items": [
@@ -146,9 +193,9 @@ def crear_preferencia(datos: dict):
             "external_reference": pedido_id,
             "notification_url": os.getenv("MP_WEBHOOK_URL", ""),
             "back_urls": {
-                "success": os.getenv("FRONTEND_URL", "http://localhost:5173") + "/pedido-exitoso",
-                "failure": os.getenv("FRONTEND_URL", "http://localhost:5173") + "/pedido-fallido",
-                "pending": os.getenv("FRONTEND_URL", "http://localhost:5173") + "/pedido-pendiente"
+                "success": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-exitoso",
+                "failure": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-fallido",
+                "pending": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-pendiente"
             },
             "auto_return": "approved",
             "payment_methods": {
@@ -171,15 +218,22 @@ def crear_preferencia(datos: dict):
                 "sandbox_init_point": preference["sandbox_init_point"]
             }
         else:
-            return JSONResponse(status_code=500, content={"error": "Error creando preferencia", "detalle": preference})
+            return JSONResponse(status_code=500, content={"error": "Error creando preferencia"})
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.post("/webhook")
 async def webhook_mercadopago(request: Request):
     try:
-        body = await request.json()
+        raw_body = await request.body()
+
+        # Validar firma HMAC de Mercado Pago
+        if not _validar_firma_mp(raw_body, dict(request.headers)):
+            return JSONResponse(status_code=400, content={"error": "Firma invalida"})
+
+        body = json.loads(raw_body)
         tipo = body.get("type")
 
         if tipo == "payment":
@@ -193,7 +247,7 @@ async def webhook_mercadopago(request: Request):
                 if pedido_id:
                     if status == "approved":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
-                        if pedido and len(pedido) > 0:
+                        if pedido:
                             items = pedido[0].get("pedido_items", [])
                             sucursal_id = pedido[0].get("sucursal_id")
                             for item in items:
@@ -211,32 +265,25 @@ async def webhook_mercadopago(request: Request):
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id)}
                             )
-                            # Enviar evento Purchase a Meta server-side
                             enviar_evento_meta("Purchase", pedido[0], payment)
-                            # Confirmación por WhatsApp si es pedido de canal whatsapp
                             _confirmar_pago_whatsapp(pedido[0])
 
                     elif status in ["rejected", "cancelled"]:
-                        supabase_patch(
-                            f"pedidos?id=eq.{pedido_id}",
-                            {"status": "cancelado"}
-                        )
+                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado"})
                     elif status == "pending":
-                        supabase_patch(
-                            f"pedidos?id=eq.{pedido_id}",
-                            {"status": "pendiente_pago"}
-                        )
+                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago"})
 
         return {"ok": True}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.get("/estado/{pedido_id}")
 def estado_pago(pedido_id: str):
     try:
         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}")
-        if pedido and len(pedido) > 0:
+        if pedido:
             return {"status": pedido[0].get("status"), "pedido_id": pedido_id}
         return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    except Exception:
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})

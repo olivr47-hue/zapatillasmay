@@ -1,18 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
-import hashlib
+from security import hash_password, verify_password, create_token, limiter
 import os
-import random
-import string
 import resend
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 resend.api_key = os.getenv("RESEND_API_KEY")
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
 
 @router.post("/registro")
 def registro(datos: dict):
@@ -40,14 +36,13 @@ def registro(datos: dict):
         cliente_existente = supabase_get(f"clientes?email=eq.{email}")
         if not cliente_existente and telefono:
             cliente_existente = supabase_get(f"clientes?telefono=eq.{telefono}")
-        
+
         if cliente_existente:
-            # Vincular usuario con cliente existente
-            cliente = cliente_existente
             supabase_patch(f"clientes?id=eq.{cliente_existente[0]['id']}", {
                 "email": email,
                 "origen": "tienda"
             })
+            cliente = cliente_existente
         else:
             cliente = supabase_post("clientes", {
                 "nombre": nombre,
@@ -66,21 +61,36 @@ def registro(datos: dict):
             "cliente_id": cliente_id
         }
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.post("/login")
-def login(datos: dict):
+@limiter.limit("10/minute")
+async def login(request: Request, datos: dict):
     try:
         email = datos.get("email")
         password = datos.get("password")
         if not email or not password:
             return JSONResponse(status_code=400, content={"error": "Email y password requeridos"})
-        password_hash = hash_password(password)
-        usuarios = supabase_get(f"usuarios?email=eq.{email}&password_hash=eq.{password_hash}&activo=eq.true")
+
+        # Buscar solo por email (nunca enviar el hash en la URL)
+        usuarios = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
         if not usuarios:
             return JSONResponse(status_code=401, content={"error": "Email o password incorrectos"})
+
         u = usuarios[0]
+        if not verify_password(password, u.get("password_hash", "")):
+            return JSONResponse(status_code=401, content={"error": "Email o password incorrectos"})
+
+        # Migrar SHA-256 → bcrypt si aplica
+        stored = u.get("password_hash", "")
+        if not stored.startswith("$2"):
+            nuevo_hash = hash_password(password)
+            supabase_patch(f"usuarios?id=eq.{u['id']}", {"password_hash": nuevo_hash})
+
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"]})
         return {
+            "token": token,
             "id": u["id"],
             "nombre": u["nombre"],
             "email": u["email"],
@@ -88,12 +98,13 @@ def login(datos: dict):
             "cliente_id": u.get("cliente_id")
         }
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.get("/perfil/{usuario_id}")
 def perfil(usuario_id: str):
     try:
-        usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&select=*,clientes(*)")
+        usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&select=id,nombre,email,tipo,cliente_id,clientes(*)")
         if not usuarios:
             return JSONResponse(status_code=404, content={"error": "Usuario no encontrado"})
         u = usuarios[0]
@@ -106,39 +117,51 @@ def perfil(usuario_id: str):
             "cliente": u.get("clientes")
         }
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.get("/pedidos/{cliente_id}")
 def pedidos_cliente(cliente_id: str):
     try:
         return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&order=created_at.desc&select=*,pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.post("/recuperar")
-def recuperar_password(datos: dict):
+@limiter.limit("3/minute")
+async def recuperar_password(request: Request, datos: dict):
     try:
         email = datos.get("email")
         if not email:
             return JSONResponse(status_code=400, content={"error": "Email requerido"})
 
-        usuarios = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true")
+        usuarios = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre")
         if not usuarios:
-            return JSONResponse(status_code=404, content={"error": "No existe una cuenta con ese email"})
+            # Respuesta genérica para no revelar si el email existe
+            return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
 
         u = usuarios[0]
         nombre = u.get("nombre", "Cliente")
 
-        # Generar contraseña temporal
-        nueva_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-        password_hash = hash_password(nueva_password)
-        supabase_patch(f"usuarios?email=eq.{email}", {"password_hash": password_hash})
+        # Generar token temporal de 1 hora (no se envía la contraseña en texto plano)
+        import secrets
+        reset_token = secrets.token_urlsafe(32)
+        reset_hash = hash_password(reset_token)
 
-        # Enviar email con Resend
+        # Guardar hash del token y expiración en el usuario
+        import time
+        supabase_patch(f"usuarios?id=eq.{u['id']}", {
+            "reset_token_hash": reset_hash,
+            "reset_token_exp": int(time.time()) + 3600
+        })
+
+        reset_url = f"https://zapatillasmay.mx/restablecer?token={reset_token}&uid={u['id']}"
+
         resend.Emails.send({
             "from": "Zapatillas May <onboarding@resend.dev>",
             "to": email,
-            "subject": "Tu contraseña temporal — Zapatillas May",
+            "subject": "Restablecer contraseña — Zapatillas May",
             "html": f"""
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff">
                 <div style="text-align:center;margin-bottom:24px">
@@ -146,20 +169,17 @@ def recuperar_password(datos: dict):
                 </div>
                 <h2 style="font-size:1.1rem;color:#0A0A0A;margin-bottom:8px">Hola, {nombre}</h2>
                 <p style="color:#555;font-size:0.9rem;line-height:1.6;margin-bottom:24px">
-                    Recibimos una solicitud para restablecer tu contraseña. 
-                    Tu contraseña temporal es:
+                    Recibimos una solicitud para restablecer tu contraseña.
+                    Haz clic en el siguiente enlace (válido por 1 hora):
                 </p>
-                <div style="background:#f9f9f9;border:2px dashed #E91E8C;border-radius:10px;padding:20px;text-align:center;margin-bottom:24px">
-                    <span style="font-size:1.8rem;font-weight:700;letter-spacing:4px;color:#0A0A0A">{nueva_password}</span>
-                </div>
-                <p style="color:#555;font-size:0.85rem;line-height:1.6;margin-bottom:24px">
-                    Ingresa con esta contraseña y cámbiala desde tu perfil.<br>
-                    Si no solicitaste este cambio, ignora este correo.
-                </p>
-                <a href="https://zapatillasmay.mx" 
-                   style="display:block;text-align:center;background:#E91E8C;color:white;padding:12px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9rem">
-                    Ir a Zapatillas May
+                <a href="{reset_url}"
+                   style="display:block;text-align:center;background:#E91E8C;color:white;padding:14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-bottom:24px">
+                    Restablecer contraseña
                 </a>
+                <p style="color:#aaa;font-size:0.8rem;line-height:1.5">
+                    Si no solicitaste este cambio, ignora este correo.<br>
+                    El enlace expira en 1 hora.
+                </p>
                 <p style="text-align:center;color:#aaa;font-size:0.75rem;margin-top:24px">
                     León, Guanajuato · zapatillasmay.mx
                 </p>
@@ -167,10 +187,11 @@ def recuperar_password(datos: dict):
             """
         })
 
-        return {"ok": True, "mensaje": "Te enviamos un email con tu contraseña temporal. Revisa tu bandeja de entrada."}
+        return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
 
 @router.post("/cambiar-password")
 def cambiar_password(datos: dict):
@@ -182,17 +203,20 @@ def cambiar_password(datos: dict):
         if not usuario_id or not password_actual or not password_nueva:
             return JSONResponse(status_code=400, content={"error": "Faltan datos"})
 
-        hash_actual = hash_password(password_actual)
-        usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&password_hash=eq.{hash_actual}&activo=eq.true")
+        if len(password_nueva) < 8:
+            return JSONResponse(status_code=400, content={"error": "La nueva contraseña debe tener al menos 8 caracteres"})
+
+        usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&activo=eq.true&select=id,password_hash")
         if not usuarios:
             return JSONResponse(status_code=401, content={"error": "La contraseña actual es incorrecta"})
 
-        if len(password_nueva) < 6:
-            return JSONResponse(status_code=400, content={"error": "La nueva contraseña debe tener al menos 6 caracteres"})
+        u = usuarios[0]
+        if not verify_password(password_actual, u.get("password_hash", "")):
+            return JSONResponse(status_code=401, content={"error": "La contraseña actual es incorrecta"})
 
         hash_nueva = hash_password(password_nueva)
         supabase_patch(f"usuarios?id=eq.{usuario_id}", {"password_hash": hash_nueva})
 
         return {"ok": True, "mensaje": "Contraseña actualizada correctamente"}
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})

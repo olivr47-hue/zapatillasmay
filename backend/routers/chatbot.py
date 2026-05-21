@@ -499,9 +499,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
         guardar_conversacion(from_number, mensaje, respuesta_claude, "texto", nombre_contacto)
         return {"status": "ok"}
 
-    except Exception as e:
-        print(f"ERROR WHATSAPP: {str(e)}")
+    except Exception:
         return {"status": "ok"}
+
+_WA_VERIFY_TOKEN = os.getenv("WA_VERIFY_TOKEN", "")
 
 @router.get("/whatsapp")
 async def verificar_webhook(request: Request):
@@ -509,7 +510,7 @@ async def verificar_webhook(request: Request):
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge")
-    if mode == "subscribe" and token == "zapatillasmay2024":
+    if _WA_VERIFY_TOKEN and mode == "subscribe" and token == _WA_VERIFY_TOKEN:
         return int(challenge)
     return JSONResponse(status_code=403, content={"error": "Token invalido"})
 
