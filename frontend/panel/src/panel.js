@@ -5068,6 +5068,21 @@ window.editarProducto = async (id) => {
 
     window._productoEditandoId = id
     window._coloresExistentes = coloresUnicos.length > 0 ? coloresUnicos : null
+
+    // Derivar tallas disponibles desde las variantes (fuente de verdad)
+    // Esto garantiza que los checkboxes estén correctamente marcados al editar
+    const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+    const tallasDeVariantes = [...new Set(variantes.filter(v => v.producto_id === id).map(v => v.talla))].filter(Boolean)
+    tallasDeVariantes.sort((a, b) => TALLAS_ORDEN.indexOf(a) - TALLAS_ORDEN.indexOf(b))
+    if (tallasDeVariantes.length > 0) {
+      data[0].tallas_disponibles = tallasDeVariantes
+      console.log('[Editar] Tallas cargadas desde variantes:', tallasDeVariantes)
+    } else if (data[0].tallas_disponibles && Array.isArray(data[0].tallas_disponibles)) {
+      // Fallback: usar el campo del producto, convirtiendo a strings por si hay números
+      data[0].tallas_disponibles = data[0].tallas_disponibles.map(String)
+      console.log('[Editar] Tallas cargadas desde producto:', data[0].tallas_disponibles)
+    }
+
     mostrarFormProducto(data[0])
   } catch(e) {
     alert('Error cargando el producto')
