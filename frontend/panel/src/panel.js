@@ -3735,15 +3735,19 @@ window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
   const nuevoMinimo = prompt('Stock minimo de alerta:', minimo)
   if (nuevoMinimo === null) return
   try {
-    const res = await fetch(API + '/inventario/actualizar', {
-      method: 'PATCH',
+    // Usar /movimientos/ajuste que crea el registro si no existe (a diferencia de PATCH que falla silencioso)
+    const res = await fetch(API + '/movimientos/ajuste', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(nuevaCantidad), stock_minimo: parseInt(nuevoMinimo) })
+      body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(nuevaCantidad), stock_minimo: parseInt(nuevoMinimo), motivo: 'Ajuste manual desde inventario' })
     })
     if (res.ok) {
       const resInv = await fetch(API + '/inventario/')
       window._invData.inventario = await resInv.json()
       renderInventario()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      alert('Error al guardar: ' + (err.error || res.status))
     }
   } catch(e) {
     alert('Error conectando con el servidor')
@@ -3805,16 +3809,18 @@ window.guardarInventario = async () => {
     return
   }
   try {
-    const res = await fetch(API + '/inventario/', {
+    // Usar /movimientos/ajuste que hace upsert (crea o actualiza según exista registro)
+    const res = await fetch(API + '/movimientos/ajuste', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sucursal_id, variante_id, cantidad: parseInt(cantidad), stock_minimo: parseInt(stock_minimo) })
+      body: JSON.stringify({ sucursal_id, variante_id, cantidad: parseInt(cantidad), stock_minimo: parseInt(stock_minimo), motivo: 'Stock cargado manualmente' })
     })
     if (res.ok) {
       alert('Stock guardado correctamente')
       navegarA('inventario')
     } else {
-      alert('Error al guardar stock')
+      const err = await res.json().catch(() => ({}))
+      alert('Error al guardar stock: ' + (err.error || res.status))
     }
   } catch(e) {
     alert('Error conectando con el servidor')
@@ -5128,12 +5134,21 @@ console.log('Sucursal stock:', document.getElementById('f-sucursal-stock') ? doc
 console.log('PID editando:', window._productoEditandoId)
 const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
 if (sucursalStock && pid) {
-  const varRes = await fetch(API + '/variantes/producto/' + pid)
-  const varsGuardadas = await varRes.json()
   const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
 
-  // Obtener variantes actualizadas (incluye recién creadas) e inventario actual de la sucursal
-  const varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
+  // Esperar un momento para que Supabase confirme todas las variantes recién creadas
+  await new Promise(r => setTimeout(r, 800))
+
+  // Reintentar hasta 3 veces si no aparecen todas las variantes esperadas
+  let varsActualizadas = []
+  const totalEsperadas = variantesData.length * tallasGuardar.length
+  for (let intento = 0; intento < 3; intento++) {
+    varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
+    console.log(`[Stock] Intento ${intento+1}: ${varsActualizadas.length} variantes (esperadas ~${totalEsperadas})`)
+    if (varsActualizadas.length >= totalEsperadas) break
+    await new Promise(r => setTimeout(r, 600))
+  }
+
   const invActual = await fetch(API + '/inventario/').then(r => r.json())
   const varIdsConInv = new Set(invActual.filter(i => i.sucursal_id === sucursalStock).map(i => i.variante_id))
 
