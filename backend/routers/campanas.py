@@ -206,11 +206,62 @@ def wa_qr():
 @router.post("/campanas/wa-desconectar")
 def wa_desconectar():
     """Cierra la sesión de WhatsApp Business."""
-    url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+    headers = {"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}
+    errores = []
+    # Intentar logout
+    for method in ["DELETE", "POST"]:
+        try:
+            url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+            req = urllib.request.Request(url, data=b"{}" if method=="POST" else None,
+                                         headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=8) as r:
+                r.read()
+            return {"ok": True}
+        except Exception as e:
+            errores.append(str(e))
+    return {"error": " | ".join(errores)}
+
+
+@router.post("/campanas/wa-reiniciar")
+def wa_reiniciar():
+    """Fuerza el reinicio de la sesión para poder reconectar con QR."""
+    headers = {"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}
+    resultados = {}
+
+    # 1. Intentar logout (ignorar error)
+    for method in ["DELETE", "POST"]:
+        try:
+            url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+            req = urllib.request.Request(url, data=b"{}" if method=="POST" else None,
+                                         headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=6) as r:
+                resultados["logout"] = r.read().decode()
+            break
+        except Exception as e:
+            resultados["logout_err"] = str(e)
+
+    # 2. Intentar restart
     try:
-        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY}, method="DELETE")
+        url = f"{EVOLUTION_URL}/instance/restart/{EVOLUTION_INSTANCE}"
+        req = urllib.request.Request(url, data=b"{}", headers=headers, method="PUT")
         with urllib.request.urlopen(req, timeout=8) as r:
-            r.read()
-        return {"ok": True}
+            resultados["restart"] = r.read().decode()
     except Exception as e:
-        return {"error": str(e)}
+        resultados["restart_err"] = str(e)
+
+    # 3. Obtener QR de reconexión
+    import time as _time
+    _time.sleep(2)
+    try:
+        url = f"{EVOLUTION_URL}/instance/connect/{EVOLUTION_INSTANCE}"
+        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+        qr = data.get("base64") or data.get("qrcode", {}).get("base64") or data.get("code")
+        resultados["qr"] = qr
+    except urllib.error.HTTPError as e:
+        resultados["qr_err"] = e.read().decode()
+    except Exception as e:
+        resultados["qr_err"] = str(e)
+
+    return resultados

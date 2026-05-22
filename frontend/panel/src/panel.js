@@ -2195,6 +2195,9 @@ window.mostrarCampanas = async () => {
         <button id="wa-btn-desconectar" onclick="desconectarWhatsApp()" class="btn btn-secondary" style="display:none;font-size:0.78rem">
           Desconectar
         </button>
+        <button onclick="forzarReconexionWA()" class="btn btn-secondary" style="font-size:0.78rem;background:#ff6b35;color:white;border-color:#ff6b35">
+          🔄 Forzar reconexión
+        </button>
       </div>
 
       <!-- QR MODAL -->
@@ -2370,6 +2373,33 @@ window.verificarEstadoWA = async () => {
     const badge = document.getElementById('wa-estado-badge')
     if (badge) { badge.style.background='#fff8e1'; badge.style.color='#f57f17'; badge.textContent='⚠️ Sin conexión al servidor' }
     return false
+  }
+}
+
+window.forzarReconexionWA = async () => {
+  const panel = document.getElementById('wa-qr-panel')
+  const qrDiv = document.getElementById('wa-qr-img')
+  if (!panel || !qrDiv) return
+  panel.style.display = 'block'
+  qrDiv.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:2rem">⏳ Reiniciando sesión... espera unos segundos</p>'
+  try {
+    const res = await fetch(API + '/campanas/wa-reiniciar', { method: 'POST' })
+    const data = await res.json()
+    if (data.qr) {
+      const src = data.qr.startsWith('data:') ? data.qr : 'data:image/png;base64,' + data.qr
+      qrDiv.innerHTML = `<img src="${src}" style="width:220px;height:220px;display:block">`
+      if (window._waEstadoInterval) clearInterval(window._waEstadoInterval)
+      window._waEstadoInterval = setInterval(async () => {
+        const conectado = await verificarEstadoWA()
+        if (conectado) clearInterval(window._waEstadoInterval)
+      }, 4000)
+    } else {
+      qrDiv.innerHTML = `<p style="color:#888;font-size:0.82rem;padding:1rem">Sesión reiniciada. Ahora haz clic en <strong>"Conectar con QR"</strong> para escanear.</p>`
+      if (window._waEstadoInterval) clearInterval(window._waEstadoInterval)
+      window._waEstadoInterval = setInterval(verificarEstadoWA, 3000)
+    }
+  } catch(e) {
+    qrDiv.innerHTML = `<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${e.message}</p>`
   }
 }
 
@@ -3032,7 +3062,7 @@ window.enviarCampanaAutomatica = async () => {
                 <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.75rem">
                   <span style="color:${r.ok ? '#25D366' : '#e53e3e'}">${r.ok ? '✅' : '❌'}</span>
                   <span style="flex:1;color:#555">${r.nombre}</span>
-                  ${!r.ok ? `<span style="color:#e53e3e;font-size:0.68rem">ventana 24h</span>` : ''}
+                  ${!r.ok ? `<span style="color:#e53e3e;font-size:0.68rem" title="${(r.error||'').replace(/"/g,"'")}">Error</span>` : ''}
                 </div>`).join('')}
             </div>` : ''}
         </div>`
@@ -3046,6 +3076,7 @@ window.enviarCampanaAutomatica = async () => {
         renderProgreso(job)
         if (job.terminado) {
           clearInterval(poll)
+          window._campanaUltimosResultados = job.resultados || []
           setTimeout(() => {
             const ok = job.enviados || 0
             const fail = job.fallidos || 0
@@ -3054,11 +3085,27 @@ window.enviarCampanaAutomatica = async () => {
                 <div style="font-size:3.5rem;margin-bottom:1rem">${fail === 0 ? '🎉' : '✅'}</div>
                 <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">¡Campaña completada!</h3>
                 <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#25D366">${ok} enviados</strong> correctamente</p>
-                ${fail > 0 ? `<p style="color:#e53e3e;font-size:0.8rem;margin-bottom:1rem">${fail} fallaron (ventana de 24h cerrada — esos clientes no han escrito recientemente)</p>` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">¡Todo perfecto!</p>'}
-                <button onclick="document.getElementById('campana-auto-overlay').remove()"
-                  style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">
-                  Cerrar
-                </button>
+                ${fail > 0 ? `
+                  <p style="color:#e53e3e;font-size:0.8rem;margin-bottom:0.5rem">${fail} no se pudieron enviar</p>
+                  <div style="background:#fff5f5;border-radius:8px;padding:0.75rem;margin-bottom:1rem;text-align:left;max-height:140px;overflow-y:auto">
+                    ${job.resultados.filter(r => !r.ok).map(r => `
+                      <div style="font-size:0.75rem;padding:3px 0;border-bottom:1px solid #ffe0e0">
+                        <span style="font-weight:600">📵 ${r.nombre}</span>
+                        <span style="color:#aaa;margin-left:4px">${r.telefono}</span><br>
+                        <span style="color:#e53e3e;font-size:0.68rem">${r.error ? r.error.substring(0,120) : 'Error desconocido'}</span>
+                      </div>`).join('')}
+                  </div>
+                  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+                    <button onclick="reintentarFallidos(window._campanaUltimosResultados)"
+                      style="background:#555;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                      🔄 Reintentar fallidos
+                    </button>
+                    <button onclick="document.getElementById('campana-auto-overlay').remove()"
+                      style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                      Cerrar
+                    </button>
+                  </div>
+                ` : '<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">¡Todo perfecto!</p><button onclick="document.getElementById(\'campana-auto-overlay\').remove()" style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>'}
               </div>`
           }, 600)
         }
@@ -3077,6 +3124,47 @@ window.cancelarCampanaAuto = async (jobId) => {
   } catch(e) {}
   const overlay = document.getElementById('campana-auto-overlay')
   if (overlay) overlay.remove()
+}
+
+window.reintentarFallidos = async (resultados) => {
+  const fallidos = (resultados || []).filter(r => !r.ok)
+  if (!fallidos.length) return
+  document.getElementById('campana-auto-overlay')?.remove()
+
+  // Reconstruir destinatarios con el mismo mensaje que tenían originalmente
+  const clientes = window._campanaFiltrados || []
+  const plantillaId = window._campanaPlantillaId || 'catalogo'
+  const plantilla = window._plantillasCampana?.find(p => p.id === plantillaId)
+  const fotos = window._campanaFotosUrls || []
+  const fotosConCaption = window._campanaFotosConCaption || null
+  const imagenUrl = window._campanaImagenUrl || ''
+
+  const destinatarios = fallidos.map(r => {
+    const c = clientes.find(cl => {
+      const t = String(cl.telefono || '').replace(/\D/g, '')
+      const rt = String(r.telefono || '').replace(/\D/g, '')
+      return rt.endsWith(t) || t.endsWith(rt)
+    })
+    const nombre = r.nombre || (c ? c.nombre : 'Cliente')
+    const primerNombre = nombre.split(' ')[0]
+    let mensaje = plantilla ? plantilla.texto.replace('{nombre}', primerNombre) : `Hola ${primerNombre}`
+    return { nombre, telefono: r.telefono, mensaje }
+  })
+
+  if (!destinatarios.length) { alert('No se pudo reconstruir los destinatarios'); return }
+
+  try {
+    const res = await fetch(API + '/campanas/enviar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ destinatarios, fotos_urls: fotos, fotos_con_caption: fotosConCaption, imagen_url: imagenUrl, delay_segundos: 5 })
+    })
+    const data = await res.json()
+    if (data.error) { alert('Error: ' + data.error); return }
+    alert(`Reintentando ${destinatarios.length} mensaje(s) fallido(s)...`)
+  } catch(e) {
+    alert('Error al reintentar: ' + e.message)
+  }
 }
 
 window.toggleSeleccionarTodosCampana = (checked) => {
