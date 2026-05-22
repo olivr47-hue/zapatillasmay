@@ -2276,6 +2276,13 @@ cargarConfigSEO()
       productos = await resP.json()
       variantes = await resV.json()
       inventario = await resI.json()
+      // Complementar variantes con las que vienen anidadas en inventario
+      // (cubren variantes con activa=false que aún tienen stock)
+      inventario.forEach(i => {
+        if (i.variantes && i.variantes.id && !variantes.find(v => v.id === i.variantes.id)) {
+          variantes.push(i.variantes)
+        }
+      })
       renderCategorias()
 
       // Routing directo: restaurar la vista según la URL actual
@@ -2440,10 +2447,11 @@ if (window.ttq) ttq.track('ViewContent', {
       return { color: c, hex: v ? (v.color_hex || '#888') : '#888', foto }
     }).filter(cf => cf.foto)
 
+    // Mostrar imagen: grid de colores si hay más de 1 con foto, si no imagen principal
     if (colorFotos.length > 1) {
       imgWrap.innerHTML = `<div class="color-foto-grid">
         ${colorFotos.map(cf => `
-          <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'")}')">
+          <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
             <img src="${cf.foto}" alt="${cf.color}" loading="lazy">
             <div class="color-foto-label">
               <span class="color-foto-dot" style="background:${cf.hex}"></span>
@@ -2451,30 +2459,51 @@ if (window.ttq) ttq.track('ViewContent', {
             </div>
           </div>`).join('')}
       </div>`
-    } else if (colorFotos.length === 1) {
-      seleccionarColor(colorFotos[0].color)
     } else if (p.imagen_principal) {
       imgWrap.innerHTML = `<img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)">`
     } else {
       imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
     }
 
-    document.getElementById('modal-colores').innerHTML = colores.map(c => {
-      const v = varsProd.find(v => v.color === c)
-      return `<div class="color-opt" onclick="seleccionarColor('${c}')" id="color-opt-${c.replace(/\s/g,'_')}">
-        <div class="dot" style="background:${v?v.color_hex:'#888'}"></div>
-        <span class="label">${c}</span>
-      </div>`
-    }).join('')
+    // Secciones de color y talla
+    const seccionColor = document.getElementById('modal-colores')
+    const seccionTalla = document.getElementById('modal-tallas')
+    const labelColor = seccionColor ? seccionColor.previousElementSibling : null
+    const labelTalla = seccionTalla ? seccionTalla.previousElementSibling : null
 
-    document.getElementById('modal-tallas').innerHTML = '<p style="font-size:0.82rem;color:#aaa">Selecciona un color</p>'
+    if (colores.length === 0) {
+      // Sin variantes: ocultar color/talla, botón deshabilitado con mensaje
+      if (labelColor) labelColor.style.display = 'none'
+      if (labelTalla) labelTalla.style.display = 'none'
+      seccionColor.innerHTML = ''
+      seccionTalla.innerHTML = ''
+    } else {
+      if (labelColor) labelColor.style.display = ''
+      if (labelTalla) labelTalla.style.display = ''
+
+      // Renderizar bolitas de colores
+      seccionColor.innerHTML = colores.map(c => {
+        const v = varsProd.find(v => v.color === c)
+        return `<div class="color-opt" onclick="seleccionarColor('${c.replace(/'/g,"\\'")}')" id="color-opt-${c.replace(/\s/g,'_').replace(/'/g,'')}">
+          <div class="dot" style="background:${v?v.color_hex:'#888'}"></div>
+          <span class="label">${c}</span>
+        </div>`
+      }).join('')
+
+      // Si solo hay un color, auto-seleccionarlo (DESPUÉS de renderizar los dots)
+      if (colores.length === 1) {
+        seleccionarColor(colores[0])
+      } else {
+        seccionTalla.innerHTML = '<p style="font-size:0.82rem;color:#aaa">Selecciona un color</p>'
+      }
+    }
 
     const btnCorrida = document.getElementById('btn-corrida')
     btnCorrida.style.display = p.corrida_activa ? 'block' : 'none'
 
     const btn = document.getElementById('btn-agregar')
     btn.disabled = true
-    btn.textContent = 'Selecciona color y talla'
+    btn.textContent = colores.length === 0 ? 'Sin stock disponible' : 'Selecciona color y talla'
 
     document.getElementById('modal-overlay').classList.add('active')
     document.body.style.overflow = 'hidden'
