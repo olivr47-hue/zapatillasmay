@@ -3390,6 +3390,16 @@ async function cargarInventario() {
     const resInv = await fetch(API + '/inventario/')
     const inventario = await resInv.json()
     window._invData = { sucursales, productos, variantes, inventario }
+
+    // Diagnóstico automático AR1011
+    const ar1011 = productos.find(p => p.sku_interno === 'AR1011')
+    if (ar1011) {
+      const varsAr = variantes.filter(v => v.producto_id === ar1011.id)
+      const invAr = inventario.filter(i => varsAr.some(v => v.id === i.variante_id))
+      console.log(`[Diag AR1011] Variantes en listado: ${varsAr.length}`, varsAr.map(v => v.color + ' T' + v.talla))
+      console.log(`[Diag AR1011] Con inventario: ${invAr.length}`)
+    }
+
     content.innerHTML = `
   <div style="margin-bottom:1.5rem">
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">

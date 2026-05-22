@@ -36,14 +36,17 @@ def talla_a_codigo(talla):
 
 @router.get("/")
 def listar_variantes():
-    return supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
+    # Incluir variantes activas Y las que tienen activa=null (creadas sin el campo)
+    return supabase_get("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):
-    return supabase_get(f"variantes?producto_id=eq.{producto_id}&activa=eq.true")
+    # Incluir variantes activas Y las que tienen activa=null
+    return supabase_get(f"variantes?producto_id=eq.{producto_id}&or=(activa.eq.true,activa.is.null)")
 
 @router.post("/")
 def crear_variante(variante: dict):
+    variante["activa"] = True  # Siempre activa al crear
     producto_id = variante.get("producto_id")
     color = variante.get("color", "")
     talla = variante.get("talla", "")
