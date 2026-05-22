@@ -21,6 +21,22 @@ def supabase_get(tabla):
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read())
 
+def supabase_get_all(tabla_base, page_size=1000):
+    """Trae todos los registros paginando de a {page_size} para evitar el límite de Supabase."""
+    todos = []
+    offset = 0
+    sep = "&" if "?" in tabla_base else "?"
+    while True:
+        chunk = supabase_get(f"{tabla_base}{sep}limit={page_size}&offset={offset}")
+        if not isinstance(chunk, list):
+            # Si hay error, devolver lo que llevamos
+            break
+        todos.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
+    return todos
+
 def supabase_post(tabla, data):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     body = json.dumps(data).encode("utf-8")
