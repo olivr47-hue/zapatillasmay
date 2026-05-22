@@ -2363,10 +2363,26 @@ window.verificarEstadoWA = async () => {
     } else {
       badge.style.background = '#ffebee'
       badge.style.color = '#c62828'
-      badge.textContent = '🔴 Desconectado'
-      texto.textContent = 'Conecta tu WhatsApp Business para enviar campañas automáticas'
+      const esSesionCaida = data.detalle && data.detalle.includes('caída')
+      badge.textContent = esSesionCaida ? '⚠️ Sesión caída' : '🔴 Desconectado'
+      texto.textContent = data.detalle || 'Conecta tu WhatsApp Business para enviar campañas automáticas'
       btnConectar.style.display = 'inline-flex'
       btnDesconectar.style.display = 'none'
+      // Si la sesión está caída, mostrar aviso y botón prominente
+      if (esSesionCaida) {
+        badge.style.background = '#fff3e0'
+        badge.style.color = '#e65100'
+        const qrPanel = document.getElementById('wa-qr-panel')
+        if (qrPanel && qrPanel.style.display === 'none') {
+          qrPanel.style.display = 'block'
+          document.getElementById('wa-qr-img').innerHTML = `
+            <div style="padding:1.5rem;text-align:center">
+              <p style="font-size:0.9rem;font-weight:700;color:#e65100;margin-bottom:0.5rem">⚠️ WhatsApp desconectado</p>
+              <p style="font-size:0.8rem;color:#666;margin-bottom:1rem">La sesión se cerró. Necesitas reconectar.</p>
+              <p style="font-size:0.8rem;color:#555;margin-bottom:1rem">1️⃣ Abre <strong>INICIAR ERP.bat</strong> en tu escritorio<br>2️⃣ Espera que Railway actualice (~2 min)<br>3️⃣ Haz clic en <strong>"Conectar con QR"</strong></p>
+            </div>`
+        }
+      }
     }
     return data.conectado
   } catch(e) {

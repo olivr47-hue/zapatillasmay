@@ -173,16 +173,48 @@ def cancelar_campana(job_id: str):
 
 @router.get("/campanas/wa-estado")
 def wa_estado():
-    """Estado de conexión de la instancia Evolution API."""
-    url = f"{EVOLUTION_URL}/instance/connectionState/{EVOLUTION_INSTANCE}"
+    """Estado de conexión — verifica también si puede enviar mensajes reales."""
+    # 1. Verificar estado reportado
+    url_estado = f"{EVOLUTION_URL}/instance/connectionState/{EVOLUTION_INSTANCE}"
     try:
-        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+        req = urllib.request.Request(url_estado, headers={"apikey": EVOLUTION_APIKEY})
         with urllib.request.urlopen(req, timeout=8) as r:
             data = json.loads(r.read())
         state = data.get("instance", {}).get("state") or data.get("state", "close")
-        return {"estado": state, "conectado": state == "open"}
     except Exception as e:
         return {"estado": "error", "conectado": False, "detalle": str(e)}
+
+    if state != "open":
+        return {"estado": state, "conectado": False}
+
+    # 2. Si dice "open", verificar que realmente pueda enviar
+    # Intentar enviar a un número inválido — si responde con error de número
+    # (no de conexión) significa que SÍ está conectado de verdad
+    try:
+        if WA_BRIDGE_URL:
+            test_url = f"{WA_BRIDGE_URL}/send-text"
+            body = json.dumps({"phone": "000", "message": "ping"}).encode()
+            req2 = urllib.request.Request(test_url, data=body,
+                headers={"Content-Type": "application/json"}, method="POST")
+        else:
+            test_url = f"{EVOLUTION_URL}/message/sendText/{EVOLUTION_INSTANCE}"
+            body = json.dumps({"number": "000", "text": "ping"}).encode()
+            req2 = urllib.request.Request(test_url, data=body,
+                headers={"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}, method="POST")
+        with urllib.request.urlopen(req2, timeout=8) as r:
+            r.read()
+        return {"estado": "open", "conectado": True}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        # Si el error menciona "Connection Closed" = conexión fantasma
+        if "Connection Closed" in err_body or "connection" in err_body.lower():
+            return {"estado": "open", "conectado": False,
+                    "detalle": "Sesión caída — necesitas reconectar WhatsApp"}
+        # Cualquier otro error HTTP (ej: número inválido) = sí está conectado
+        return {"estado": "open", "conectado": True}
+    except Exception as e:
+        return {"estado": "open", "conectado": False,
+                "detalle": f"Sin respuesta del servidor WhatsApp: {str(e)}"}
 
 
 @router.get("/campanas/wa-qr")
