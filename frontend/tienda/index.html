@@ -14,6 +14,9 @@
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
     :root {
   --black: #2A1A0E;
@@ -2344,41 +2347,86 @@ cargarConfigSEO()
   `).join('')
 }
 
+  // ── Scroll infinito ──────────────────────────────────────────────────────────
+  const _BATCH = 20
+  let _listaActual = []
+  let _mostrados = 0
+  let _scrollObs = null
+
+  function _cardHTML(p) {
+    const varsProd = variantes.filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+    return `
+      <div class="product-card fade-in" onclick="abrirProducto('${p.id}')">
+        <div class="product-img-wrap">
+          ${p.imagen_principal
+            ? `<img src="${p.imagen_principal}" alt="${p.nombre}" loading="lazy">`
+            : `<div class="product-placeholder">👠</div>`}
+          ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
+          ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
+          <div class="product-actions">
+            <button class="btn-add-cart" onclick="event.stopPropagation();abrirProducto('${p.id}')">Seleccionar talla</button>
+          </div>
+        </div>
+        <div class="product-colors">
+          ${colores.slice(0,5).map(c => {
+            const v = varsProd.find(v => v.color === c)
+            return `<div class="color-dot" style="background:${v?v.color_hex:'#888'}" title="${c}"></div>`
+          }).join('')}
+          ${colores.length > 5 ? `<span style="font-size:0.7rem;color:#aaa;line-height:14px">+${colores.length-5}</span>` : ''}
+        </div>
+        <p class="product-name">${p.nombre}</p>
+        <p class="product-sku">${p.sku_interno || ''}</p>
+      </div>`
+  }
+
+  function _agregarLote() {
+    const grid = document.getElementById('products-grid')
+    const lote = _listaActual.slice(_mostrados, _mostrados + _BATCH)
+    lote.forEach(p => {
+      const wrap = document.createElement('div')
+      wrap.innerHTML = _cardHTML(p).trim()
+      grid.appendChild(wrap.firstChild)
+    })
+    _mostrados += lote.length
+    _actualizarSentinel()
+  }
+
+  function _actualizarSentinel() {
+    const hay = _mostrados < _listaActual.length
+    let s = document.getElementById('scroll-sentinel')
+    if (!s) {
+      s = document.createElement('div')
+      s.id = 'scroll-sentinel'
+      s.style.cssText = 'grid-column:1/-1;display:flex;justify-content:center;padding:32px 0'
+      document.getElementById('productos-section').appendChild(s)
+    }
+    s.style.display = hay ? '' : 'none'
+    s.innerHTML = hay
+      ? '<div style="width:36px;height:36px;border:3px solid var(--cream-dark);border-top-color:var(--pink);border-radius:50%;animation:spin 0.8s linear infinite"></div>'
+      : ''
+    if (hay && !_scrollObs) {
+      _scrollObs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) _agregarLote()
+      }, { rootMargin: '300px' })
+      _scrollObs.observe(s)
+    }
+    if (!hay && _scrollObs) { _scrollObs.disconnect(); _scrollObs = null }
+  }
+
   function renderProductos(lista) {
     const grid = document.getElementById('products-grid')
+    if (_scrollObs) { _scrollObs.disconnect(); _scrollObs = null }
+    _listaActual = lista
+    _mostrados = 0
     if (!lista.length) {
       grid.innerHTML = '<div class="empty"><div style="font-size:3rem">🔍</div><p>No se encontraron productos</p></div>'
+      const s = document.getElementById('scroll-sentinel')
+      if (s) s.style.display = 'none'
       return
     }
-    grid.innerHTML = lista.map(p => {
-      const varsProd = variantes.filter(v => v.producto_id === p.id)
-      const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
-      const precioMayoreo3 = p.precio_mayoreo3 || p.precio_menudeo
-      return `
-        <div class="product-card fade-in" onclick="abrirProducto('${p.id}')">
-          <div class="product-img-wrap">
-            ${p.imagen_principal
-              ? `<img src="${p.imagen_principal}" alt="${p.nombre}" loading="lazy">`
-              : `<div class="product-placeholder">👠</div>`}
-            ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
-            ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
-            <div class="product-actions">
-              <button class="btn-add-cart" onclick="event.stopPropagation();abrirProducto('${p.id}')">Seleccionar talla</button>
-            </div>
-          </div>
-          <div class="product-colors">
-            ${colores.slice(0,5).map(c => {
-              const v = varsProd.find(v => v.color === c)
-              return `<div class="color-dot" style="background:${v?v.color_hex:'#888'}" title="${c}"></div>`
-            }).join('')}
-            ${colores.length > 5 ? `<span style="font-size:0.7rem;color:#aaa;line-height:14px">+${colores.length-5}</span>` : ''}
-          </div>
-          <p class="product-name">${p.nombre}</p>
-          <p class="product-sku">${p.sku_interno || ''}</p>
-
-        </div>
-      `
-    }).join('')
+    grid.innerHTML = ''
+    _agregarLote()
   }
 
   function abrirProducto(productoId) {
@@ -3097,7 +3145,7 @@ if (window.ttq) ttq.track('AddToCart', {
   if (bannerMayoreo) bannerMayoreo.style.display = ''
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
-  renderProductos(productos.filter(p => p.activo).slice(0, 12))
+  renderProductos(productos.filter(p => p.activo))
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/')
 }
