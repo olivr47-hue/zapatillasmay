@@ -5130,13 +5130,25 @@ if (erroresVariante.length > 0) {
 }
 console.log('Colores:', colores)
 console.log('Tallas:', tallas)
-console.log('Sucursal stock:', document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : 'no encontrado')
-console.log('PID editando:', window._productoEditandoId)
 const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
-if (sucursalStock && pid) {
+// Verificar si hay cantidades capturadas en la tabla (aunque sea una)
+const hayStockCapturado = colores.some(c =>
+  (tallas.length > 0 ? tallas : ['Unica']).some(t => {
+    const el = document.getElementById('stock-ini-' + c.id + '-' + t.replace('.','_'))
+    return el && parseInt(el.value) > 0
+  })
+)
+
+let stockGuardado = 0
+let stockErrores = []
+let stockSaltados = []
+
+if (hayStockCapturado && !sucursalStock) {
+  alert('⚠️ Capturaste cantidades de stock pero no hay sucursal seleccionada.\nEl producto se guardó, pero el inventario NO se guardó.\n\nVe a Inventario → Reabastecer para agregar las cantidades.')
+} else if (sucursalStock && pid) {
   const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
 
-  // Esperar un momento para que Supabase confirme todas las variantes recién creadas
+  // Esperar a que Supabase confirme todas las variantes recién creadas
   await new Promise(r => setTimeout(r, 800))
 
   // Reintentar hasta 3 veces si no aparecen todas las variantes esperadas
@@ -5144,7 +5156,6 @@ if (sucursalStock && pid) {
   const totalEsperadas = variantesData.length * tallasGuardar.length
   for (let intento = 0; intento < 3; intento++) {
     varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
-    console.log(`[Stock] Intento ${intento+1}: ${varsActualizadas.length} variantes (esperadas ~${totalEsperadas})`)
     if (varsActualizadas.length >= totalEsperadas) break
     await new Promise(r => setTimeout(r, 600))
   }
@@ -5165,12 +5176,13 @@ if (sucursalStock && pid) {
 
       if (!varMatch) {
         console.warn(`[Stock] VARIANTE NO ENCONTRADA para ${c.nombre} T${t}`)
+        if (cantidad > 0) stockSaltados.push(`${c.nombre} T${t}`)
         continue
       }
 
       if (cantidad > 0) {
-        // Registrar entrada de mercancía (crea el registro de inventario si no existe)
-        const resStock = await fetch(API + '/movimientos/entrada', {
+        // Usar /movimientos/ajuste que hace upsert (crea o actualiza el registro)
+        const resStock = await fetch(API + '/movimientos/ajuste', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -5181,18 +5193,19 @@ if (sucursalStock && pid) {
           })
         })
         if (!resStock.ok) {
-          console.error(`[Stock] Error ${c.nombre} T${t}:`, await resStock.text())
+          const errTxt = await resStock.text()
+          console.error(`[Stock] Error ${c.nombre} T${t}:`, errTxt)
+          stockErrores.push(`${c.nombre} T${t}`)
         } else {
-          console.log(`[Stock] ✓ Entrada: ${c.nombre} T${t} +${cantidad}`)
+          stockGuardado++
         }
       } else if (!varIdsConInv.has(varMatch.id)) {
-        // Sin stock pero tampoco tiene registro en inventario → crear con 0 para que aparezca
-        await fetch(API + '/inventario/', {
+        // Sin stock capturado pero tampoco tiene registro → crear con 0 para que aparezca
+        await fetch(API + '/movimientos/ajuste', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, stock_minimo: 1 })
+          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
         })
-        console.log(`[Stock] Registro inventario creado (0 pares): ${c.nombre} T${t}`)
       }
     }
   }
@@ -5202,7 +5215,12 @@ if (sucursalStock && pid) {
         if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
         return
       }
-      alert('Producto guardado correctamente')
+      // Mensaje de resultado con detalle de stock
+      let msgFinal = 'Producto guardado correctamente'
+      if (stockGuardado > 0) msgFinal += `\n✅ Stock guardado: ${stockGuardado} variante(s)`
+      if (stockSaltados.length > 0) msgFinal += `\n⚠️ No se encontraron variantes para: ${stockSaltados.join(', ')}`
+      if (stockErrores.length > 0) msgFinal += `\n❌ Errores al guardar: ${stockErrores.join(', ')}`
+      alert(msgFinal)
       window._productoEditandoId = null
       navegarA('productos')
     } else {
