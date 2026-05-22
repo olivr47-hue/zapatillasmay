@@ -3386,9 +3386,18 @@ async function cargarInventario() {
     const resProductos = await fetch(API + '/productos/')
     const productos = await resProductos.json()
     const resVariantes = await fetch(API + '/variantes/')
-    const variantes = await resVariantes.json()
+    let variantes = await resVariantes.json()
     const resInv = await fetch(API + '/inventario/')
     const inventario = await resInv.json()
+
+    // Complementar variantes con las que vienen anidadas en inventario
+    // (cubre variantes con activa=null que el endpoint /variantes/ filtra)
+    inventario.forEach(i => {
+      if (i.variantes && i.variantes.id && !variantes.find(v => v.id === i.variantes.id)) {
+        variantes.push(i.variantes)
+      }
+    })
+
     window._invData = { sucursales, productos, variantes, inventario }
 
     // Diagnóstico automático AR1011
