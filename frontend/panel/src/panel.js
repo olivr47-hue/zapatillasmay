@@ -5163,50 +5163,47 @@ if (hayStockCapturado && !sucursalStock) {
   const invActual = await fetch(API + '/inventario/').then(r => r.json())
   const varIdsConInv = new Set(invActual.filter(i => i.sucursal_id === sucursalStock).map(i => i.variante_id))
 
-  for (const c of colores) {
-    for (const t of tallasGuardar) {
-      const tallaId = t.replace('.', '_')
-      const inputStock = document.getElementById('stock-ini-' + c.id + '-' + tallaId)
-      const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
+  // Iterar sobre variantes reales de la BD (no sobre checkboxes)
+  // Esto evita crear variantes incorrectas si los checkboxes no coinciden exactamente
+  for (const varMatch of varsActualizadas) {
+    // Encontrar el color en el DOM para saber el id del input de stock
+    const colorMatch = colores.find(c =>
+      c.nombre.trim().toLowerCase() === (varMatch.color || '').trim().toLowerCase()
+    )
+    if (!colorMatch) continue  // color no está en el formulario actual → saltar
 
-      const varMatch = varsActualizadas.find(vr =>
-        vr.color.trim().toLowerCase() === c.nombre.trim().toLowerCase() &&
-        String(vr.talla).trim() === String(t).trim()
-      )
+    const tallaId = String(varMatch.talla || '').replace('.', '_')
+    const inputStock = document.getElementById('stock-ini-' + colorMatch.id + '-' + tallaId)
+    const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
 
-      if (!varMatch) {
-        console.warn(`[Stock] VARIANTE NO ENCONTRADA para ${c.nombre} T${t}`)
-        if (cantidad > 0) stockSaltados.push(`${c.nombre} T${t}`)
-        continue
-      }
-
-      if (cantidad > 0) {
-        // Usar /movimientos/ajuste que hace upsert (crea o actualiza el registro)
-        const resStock = await fetch(API + '/movimientos/ajuste', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            variante_id: varMatch.id,
-            sucursal_id: sucursalStock,
-            cantidad,
-            motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
-          })
+    if (cantidad > 0) {
+      // Guardar entrada de stock
+      const resStock = await fetch(API + '/movimientos/ajuste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: varMatch.id,
+          sucursal_id: sucursalStock,
+          cantidad,
+          motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
         })
-        if (!resStock.ok) {
-          const errTxt = await resStock.text()
-          console.error(`[Stock] Error ${c.nombre} T${t}:`, errTxt)
-          stockErrores.push(`${c.nombre} T${t}`)
-        } else {
-          stockGuardado++
-        }
-      } else if (!varIdsConInv.has(varMatch.id)) {
-        // Sin stock capturado pero tampoco tiene registro → crear con 0 para que aparezca
-        await fetch(API + '/movimientos/ajuste', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
-        })
+      })
+      if (!resStock.ok) {
+        const errTxt = await resStock.text()
+        console.error(`[Stock] Error ${varMatch.color} T${varMatch.talla}:`, errTxt)
+        stockErrores.push(`${varMatch.color} T${varMatch.talla}`)
+      } else {
+        stockGuardado++
+        console.log(`[Stock] ✓ ${varMatch.color} T${varMatch.talla} +${cantidad}`)
       }
+    } else if (!varIdsConInv.has(varMatch.id)) {
+      // Sin stock capturado y sin registro en inventario → crear con 0 para que aparezca en inventario
+      await fetch(API + '/movimientos/ajuste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
+      })
+      console.log(`[Stock] Registro 0 creado: ${varMatch.color} T${varMatch.talla}`)
     }
   }
 }
