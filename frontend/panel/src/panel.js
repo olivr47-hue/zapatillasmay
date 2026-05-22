@@ -2397,25 +2397,41 @@ window.forzarReconexionWA = async () => {
   const qrDiv = document.getElementById('wa-qr-img')
   if (!panel || !qrDiv) return
   panel.style.display = 'block'
-  qrDiv.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:2rem">⏳ Reiniciando sesión... espera unos segundos</p>'
+  qrDiv.innerHTML = '<p style="color:#888;font-size:0.85rem;padding:2rem">⏳ Desconectando sesión anterior y generando QR...<br><small>Esto puede tardar hasta 20 segundos</small></p>'
   try {
     const res = await fetch(API + '/campanas/wa-reiniciar', { method: 'POST' })
     const data = await res.json()
     if (data.qr) {
       const src = data.qr.startsWith('data:') ? data.qr : 'data:image/png;base64,' + data.qr
-      qrDiv.innerHTML = `<img src="${src}" style="width:220px;height:220px;display:block">`
+      qrDiv.innerHTML = `
+        <p style="color:#2e7d32;font-size:0.82rem;margin-bottom:8px">✅ Escanea este QR con WhatsApp en tu celular</p>
+        <img src="${src}" style="width:220px;height:220px;display:block;margin:0 auto">
+        <p style="color:#888;font-size:0.75rem;margin-top:8px">El QR expira en ~20 segundos. Si expira, vuelve a hacer clic.</p>`
       if (window._waEstadoInterval) clearInterval(window._waEstadoInterval)
       window._waEstadoInterval = setInterval(async () => {
         const conectado = await verificarEstadoWA()
-        if (conectado) clearInterval(window._waEstadoInterval)
+        if (conectado) {
+          clearInterval(window._waEstadoInterval)
+          panel.style.display = 'none'
+        }
       }, 4000)
+    } else if (data.nota) {
+      // La instancia reconectó sola
+      qrDiv.innerHTML = `<p style="color:#1565c0;font-size:0.82rem;padding:1rem">ℹ️ ${data.nota}<br>Intenta enviar un mensaje de prueba.</p>`
+      verificarEstadoWA()
     } else {
-      qrDiv.innerHTML = `<p style="color:#888;font-size:0.82rem;padding:1rem">Sesión reiniciada. Ahora haz clic en <strong>"Conectar con QR"</strong> para escanear.</p>`
-      if (window._waEstadoInterval) clearInterval(window._waEstadoInterval)
-      window._waEstadoInterval = setInterval(verificarEstadoWA, 3000)
+      // No se obtuvo QR — mostrar error detallado
+      const errMsg = data.qr_err || data.logout_err || 'No se pudo obtener QR'
+      qrDiv.innerHTML = `
+        <p style="color:#c62828;font-size:0.82rem;padding:1rem">
+          ❌ ${errMsg.replace(/\n/g, '<br>')}
+        </p>
+        <button onclick="mostrarQRWhatsApp()" style="margin:0.5rem;padding:0.4rem 1rem;background:#E91E8C;color:white;border:none;border-radius:6px;cursor:pointer">
+          🔄 Intentar obtener QR de nuevo
+        </button>`
     }
   } catch(e) {
-    qrDiv.innerHTML = `<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${e.message}</p>`
+    qrDiv.innerHTML = `<p style="color:red;font-size:0.8rem;padding:1rem">Error de conexión: ${e.message}<br><small>Verifica que el servidor local esté corriendo.</small></p>`
   }
 }
 
