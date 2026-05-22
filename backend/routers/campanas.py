@@ -237,68 +237,109 @@ def wa_qr():
 
 @router.post("/campanas/wa-desconectar")
 def wa_desconectar():
-    """Cierra la sesión de WhatsApp Business."""
+    """Cierra la sesión de WhatsApp Business (DELETE /instance/logout)."""
     headers = {"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}
-    errores = []
-    # Intentar logout
-    for method in ["DELETE", "POST"]:
-        try:
-            url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
-            req = urllib.request.Request(url, data=b"{}" if method=="POST" else None,
-                                         headers=headers, method=method)
-            with urllib.request.urlopen(req, timeout=8) as r:
-                r.read()
-            return {"ok": True}
-        except Exception as e:
-            errores.append(str(e))
-    return {"error": " | ".join(errores)}
+    try:
+        url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+        req = urllib.request.Request(url, headers=headers, method="DELETE")
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+        return {"ok": True}
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        # Error 400 "not connected" también es OK — ya estaba desconectado
+        if e.code == 400:
+            return {"ok": True, "nota": "Ya estaba desconectado"}
+        return {"error": err_body}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @router.post("/campanas/wa-reiniciar")
 def wa_reiniciar():
-    """Elimina y recrea la instancia limpia, luego espera y retorna el QR."""
+    """
+    Desconecta la sesión WhatsApp actual (logout) y luego solicita nuevo QR.
+    Flujo correcto para Evolution API v2.3.7 Baileys:
+      1. DELETE /instance/logout/{instance}  → limpia credenciales, estado pasa a 'close'
+      2. GET    /instance/connect/{instance} → cuando estado es 'close', genera QR y lo retorna
+    """
     headers = {"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}
     resultados = {}
 
-    # 1. Eliminar instancia existente (ignorar error si no existe)
+    # 1. Verificar estado actual
     try:
-        url = f"{EVOLUTION_URL}/instance/delete/{EVOLUTION_INSTANCE}"
-        req = urllib.request.Request(url, headers=headers, method="DELETE")
+        url_estado = f"{EVOLUTION_URL}/instance/connectionState/{EVOLUTION_INSTANCE}"
+        req = urllib.request.Request(url_estado, headers={"apikey": EVOLUTION_APIKEY})
         with urllib.request.urlopen(req, timeout=8) as r:
-            resultados["delete"] = "ok"
+            estado_data = json.loads(r.read())
+        estado_actual = estado_data.get("instance", {}).get("state") or estado_data.get("state", "close")
+        resultados["estado_inicial"] = estado_actual
     except Exception as e:
-        resultados["delete_err"] = str(e)
+        estado_actual = "open"  # Asumir open para intentar logout
+        resultados["estado_err"] = str(e)
 
-    # 2. Recrear instancia limpia con qrcode habilitado
-    time.sleep(2)
-    try:
-        url = f"{EVOLUTION_URL}/instance/create"
-        body = json.dumps({"instanceName": EVOLUTION_INSTANCE, "qrcode": True, "integration": "WHATSAPP-BAILEYS"}).encode()
-        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=15) as r:
-            resultados["create"] = "ok"
-    except Exception as e:
-        resultados["create_err"] = str(e)
-        return resultados
+    # 2. Logout (solo si está open o connecting — si ya está close, saltar)
+    if estado_actual in ("open", "connecting"):
+        try:
+            url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
+            req = urllib.request.Request(url, headers=headers, method="DELETE")
+            with urllib.request.urlopen(req, timeout=10) as r:
+                resultados["logout"] = "ok"
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace")
+            resultados["logout_err"] = err_body
+            # Si el logout falla (ej: sesión ya caída), intentar restart
+            try:
+                url2 = f"{EVOLUTION_URL}/instance/restart/{EVOLUTION_INSTANCE}"
+                req2 = urllib.request.Request(url2, data=b"{}", headers=headers, method="POST")
+                with urllib.request.urlopen(req2, timeout=10) as r2:
+                    resultados["restart"] = "ok"
+            except Exception as e2:
+                resultados["restart_err"] = str(e2)
+        except Exception as e:
+            resultados["logout_err"] = str(e)
+    else:
+        resultados["logout"] = "skipped (ya estaba desconectado)"
 
-    # 3. Intentar obtener QR con reintentos (hasta 10 intentos, 2s entre cada uno)
+    # 3. Esperar a que el estado cambie a 'close'
+    time.sleep(3)
+
+    # 4. Solicitar conexión/QR — polling hasta obtenerlo (hasta 8 intentos, 2s c/u)
     qr = None
-    for intento in range(10):
-        time.sleep(2)
+    for intento in range(8):
         try:
             url = f"{EVOLUTION_URL}/instance/connect/{EVOLUTION_INSTANCE}"
             req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
-            with urllib.request.urlopen(req, timeout=10) as r:
+            with urllib.request.urlopen(req, timeout=12) as r:
                 data = json.loads(r.read())
+            # El QR puede venir en distintos campos según la versión
             qr = (data.get("base64") or
                   data.get("qrcode", {}).get("base64") or
-                  data.get("code"))
+                  data.get("code") or
+                  data.get("pairingCode"))
             if qr:
+                resultados["intentos_qr"] = intento + 1
                 break
+            # Si el estado sigue siendo 'open', necesitamos forzar logout de nuevo
+            inner_state = (data.get("instance", {}).get("state") or
+                           data.get("state", ""))
+            if inner_state == "open":
+                # La sesión volvió a open (reconectó sola) — eso significa que la sesión
+                # real de WhatsApp aún existe. En este caso el logout fue exitoso pero
+                # WhatsApp re-autenticó. Esto es raro, reportar el estado.
+                resultados["nota"] = "La instancia reconectó sola — sesión WhatsApp activa"
+                resultados["qr"] = None
+                return resultados
         except Exception:
             pass
+        time.sleep(2)
 
     resultados["qr"] = qr
     if not qr:
-        resultados["qr_err"] = "QR no disponible aún — intenta el botón 'Conectar con QR' en unos segundos"
+        resultados["qr_err"] = (
+            "QR no disponible. Asegúrate de que:\n"
+            "1. El servidor WhatsApp local está corriendo (corre el .bat)\n"
+            "2. El túnel Cloudflare está activo\n"
+            "3. Intenta de nuevo en unos segundos"
+        )
     return resultados
