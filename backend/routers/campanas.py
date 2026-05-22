@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks
-import os, time, uuid, json, urllib.request
+import os, time, uuid, json, urllib.request, urllib.error
 
 router = APIRouter(tags=["Campanas"])
 
@@ -224,44 +224,49 @@ def wa_desconectar():
 
 @router.post("/campanas/wa-reiniciar")
 def wa_reiniciar():
-    """Fuerza el reinicio de la sesión para poder reconectar con QR."""
+    """Elimina y recrea la instancia limpia, luego espera y retorna el QR."""
     headers = {"apikey": EVOLUTION_APIKEY, "Content-Type": "application/json"}
     resultados = {}
 
-    # 1. Intentar logout (ignorar error)
-    for method in ["DELETE", "POST"]:
-        try:
-            url = f"{EVOLUTION_URL}/instance/logout/{EVOLUTION_INSTANCE}"
-            req = urllib.request.Request(url, data=b"{}" if method=="POST" else None,
-                                         headers=headers, method=method)
-            with urllib.request.urlopen(req, timeout=6) as r:
-                resultados["logout"] = r.read().decode()
-            break
-        except Exception as e:
-            resultados["logout_err"] = str(e)
-
-    # 2. Intentar restart
+    # 1. Eliminar instancia existente (ignorar error si no existe)
     try:
-        url = f"{EVOLUTION_URL}/instance/restart/{EVOLUTION_INSTANCE}"
-        req = urllib.request.Request(url, data=b"{}", headers=headers, method="PUT")
+        url = f"{EVOLUTION_URL}/instance/delete/{EVOLUTION_INSTANCE}"
+        req = urllib.request.Request(url, headers=headers, method="DELETE")
         with urllib.request.urlopen(req, timeout=8) as r:
-            resultados["restart"] = r.read().decode()
+            resultados["delete"] = "ok"
     except Exception as e:
-        resultados["restart_err"] = str(e)
+        resultados["delete_err"] = str(e)
 
-    # 3. Obtener QR de reconexión
-    import time as _time
-    _time.sleep(2)
+    # 2. Recrear instancia limpia con qrcode habilitado
+    time.sleep(2)
     try:
-        url = f"{EVOLUTION_URL}/instance/connect/{EVOLUTION_INSTANCE}"
-        req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+        url = f"{EVOLUTION_URL}/instance/create"
+        body = json.dumps({"instanceName": EVOLUTION_INSTANCE, "qrcode": True, "integration": "WHATSAPP-BAILEYS"}).encode()
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=15) as r:
-            data = json.loads(r.read())
-        qr = data.get("base64") or data.get("qrcode", {}).get("base64") or data.get("code")
-        resultados["qr"] = qr
-    except urllib.error.HTTPError as e:
-        resultados["qr_err"] = e.read().decode()
+            resultados["create"] = "ok"
     except Exception as e:
-        resultados["qr_err"] = str(e)
+        resultados["create_err"] = str(e)
+        return resultados
 
+    # 3. Intentar obtener QR con reintentos (hasta 10 intentos, 2s entre cada uno)
+    qr = None
+    for intento in range(10):
+        time.sleep(2)
+        try:
+            url = f"{EVOLUTION_URL}/instance/connect/{EVOLUTION_INSTANCE}"
+            req = urllib.request.Request(url, headers={"apikey": EVOLUTION_APIKEY})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read())
+            qr = (data.get("base64") or
+                  data.get("qrcode", {}).get("base64") or
+                  data.get("code"))
+            if qr:
+                break
+        except Exception:
+            pass
+
+    resultados["qr"] = qr
+    if not qr:
+        resultados["qr_err"] = "QR no disponible aún — intenta el botón 'Conectar con QR' en unos segundos"
     return resultados
