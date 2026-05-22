@@ -4815,25 +4815,39 @@ if (preview) {
 
       for (let fi = 0; fi < ordenados.length; fi++) {
         const file = ordenados[fi]
-        const formData = new FormData()
-        formData.append('archivo', file)
-        try {
-          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
-          if (!res.ok) {
-            const txt = await res.text().catch(() => '')
-            console.error(`[Fotos] Error HTTP ${res.status} subiendo foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, txt)
-            continue
+        let subidaOk = false
+        for (let intento = 1; intento <= 3; intento++) {
+          const formData = new FormData()
+          formData.append('archivo', file)
+          try {
+            const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+            if (!res.ok) {
+              const txt = await res.text().catch(() => '')
+              console.warn(`[Fotos] Intento ${intento}/3 — Error HTTP ${res.status} foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, txt)
+              if (intento < 3) await new Promise(r => setTimeout(r, 1500))
+              continue
+            }
+            const data = await res.json()
+            if (data.url) {
+              urls.push(data.url)
+              console.log(`[Fotos] Foto ${fi+1}/${ordenados.length} subida OK (intento ${intento}): ${data.url}`)
+              subidaOk = true
+              break
+            } else {
+              console.warn(`[Fotos] Intento ${intento}/3 — Respuesta sin URL para foto ${fi+1}/${ordenados.length}:`, data)
+            }
+          } catch(e) {
+            console.warn(`[Fotos] Intento ${intento}/3 — Error de red foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, e)
+            if (intento < 3) await new Promise(r => setTimeout(r, 1500))
           }
-          const data = await res.json()
-          if (data.url) {
-            urls.push(data.url)
-            console.log(`[Fotos] Foto ${fi+1}/${ordenados.length} subida OK: ${data.url}`)
-          } else {
-            console.error(`[Fotos] Respuesta sin URL para foto ${fi+1}/${ordenados.length}:`, data)
-          }
-        } catch(e) {
-          console.error(`[Fotos] Error de red subiendo foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, e)
         }
+        if (!subidaOk) {
+          console.error(`[Fotos] FALLÓ foto ${fi+1}/${ordenados.length} de "${nombre.value}" tras 3 intentos`)
+        }
+      }
+      const falladasCount = files.length - (urls.length - (preview ? preview.querySelectorAll('div[data-url]').length : 0))
+      if (falladasCount > 0) {
+        alert(`⚠️ ${falladasCount} foto(s) del color "${nombre.value}" no se pudieron subir después de 3 intentos. Intenta subirlas nuevamente.`)
       }
       console.log(`[Fotos] Color "${nombre.value}": ${urls.length} URL(s) guardadas de ${files.length} archivos`)
     }

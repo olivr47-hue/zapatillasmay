@@ -1496,6 +1496,104 @@
   #pagina-contenido div:hover > svg {
     transform: scale(1.15) rotate(-5deg);
   }
+
+  /* LIGHTBOX */
+  #lightbox-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.93);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #lightbox-overlay.active { display: flex; }
+  #lightbox-img {
+    max-width: 92vw;
+    max-height: 82vh;
+    object-fit: contain;
+    border-radius: 8px;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: none; border: none;
+    color: white; font-size: 2rem;
+    cursor: pointer; line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+  .lightbox-close:hover { opacity: 1; }
+  .lightbox-nav {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.15);
+    border: none; color: white;
+    font-size: 2rem; width: 48px; height: 48px;
+    border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .lightbox-nav:hover { background: rgba(255,255,255,0.3); }
+  .lightbox-nav.prev { left: 16px; }
+  .lightbox-nav.next { right: 16px; }
+  .lightbox-dots {
+    display: flex; gap: 8px; margin-top: 16px;
+  }
+  .lightbox-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.35); cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+  }
+  .lightbox-dot.active { background: white; }
+  /* Foto clickeable en modal */
+  .modal-foto-clickeable {
+    cursor: zoom-in;
+    transition: opacity 0.15s;
+  }
+  .modal-foto-clickeable:hover { opacity: 0.92; }
+  /* Grid de colores sin selección */
+  .color-foto-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    align-content: start;
+  }
+  .color-foto-card {
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 1;
+    background: #f5f5f5;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .color-foto-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .color-foto-card img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .color-foto-label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.55));
+    color: white; font-size: 0.72rem;
+    padding: 18px 8px 6px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .color-foto-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0; border: 1px solid rgba(255,255,255,0.5);
+  }
   </style>
   <!-- SEO META TAGS BASE -->
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -1780,6 +1878,15 @@
       <button class="btn-corrida" id="btn-corrida" style="display:none" onclick="agregarCorridaAlCarrito()">+ Agregar corrida completa</button>
     </div>
   </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox-overlay" onclick="lightboxClickFondo(event)">
+  <button class="lightbox-close" onclick="cerrarLightbox()">✕</button>
+  <button class="lightbox-nav prev" id="lightbox-prev" onclick="lightboxNav(-1)">‹</button>
+  <img id="lightbox-img" src="" alt="Foto ampliada">
+  <button class="lightbox-nav next" id="lightbox-next" onclick="lightboxNav(1)">›</button>
+  <div class="lightbox-dots" id="lightbox-dots"></div>
 </div>
 
 <!-- CARRITO DRAWER -->
@@ -2326,9 +2433,31 @@ if (window.ttq) ttq.track('ViewContent', {
     `
 
     const imgWrap = document.getElementById('modal-img-wrap')
-    imgWrap.innerHTML = p.imagen_principal
-      ? `<img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">`
-  : `<div class="modal-img-placeholder">👠</div>`
+    // Construir grid de todos los colores con sus fotos
+    const colorFotos = colores.map(c => {
+      const v = varsProd.find(vv => vv.color === c)
+      const foto = v ? (v.foto_url || (v.imagenes && v.imagenes[0]) || null) : null
+      return { color: c, hex: v ? (v.color_hex || '#888') : '#888', foto }
+    }).filter(cf => cf.foto)
+
+    if (colorFotos.length > 1) {
+      imgWrap.innerHTML = `<div class="color-foto-grid">
+        ${colorFotos.map(cf => `
+          <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'")}')">
+            <img src="${cf.foto}" alt="${cf.color}" loading="lazy">
+            <div class="color-foto-label">
+              <span class="color-foto-dot" style="background:${cf.hex}"></span>
+              ${cf.color}
+            </div>
+          </div>`).join('')}
+      </div>`
+    } else if (colorFotos.length === 1) {
+      seleccionarColor(colorFotos[0].color)
+    } else if (p.imagen_principal) {
+      imgWrap.innerHTML = `<img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)">`
+    } else {
+      imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
+    }
 
     document.getElementById('modal-colores').innerHTML = colores.map(c => {
       const v = varsProd.find(v => v.color === c)
@@ -2420,43 +2549,40 @@ if (window.ttq) ttq.track('ViewContent', {
     if (!fotos.length && productoSeleccionado.imagen_principal) fotos.push(productoSeleccionado.imagen_principal)
     
     const imgWrap2 = document.getElementById('modal-img-wrap')
-    if (fotos.length > 1) {
-      let fotoIdx = 0
+    window._fotosActuales = fotos
+    window._fotoIdx = 0
+    if (fotos.length > 0) {
       const renderFotos = () => {
+        const idx = window._fotoIdx
         imgWrap2.innerHTML = `
-          <div style="position:relative;width:100%;height:100%">
-            <img src="${fotos[fotoIdx]}" alt="${color}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">
-            ${fotos.length > 1 ? `
-              <button onclick="event.stopPropagation();cambiarFoto(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">‹</button>
-              <button onclick="event.stopPropagation();cambiarFoto(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.4);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">›</button>
-            ` : ''}
-          </div>
-          ${fotos.length > 1 ? `
-            <div style="display:flex;gap:6px;padding:8px 4px;justify-content:center;flex-wrap:wrap">
-              ${fotos.map((f, i) => `
-                <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)" 
-                  style="width:52px;height:52px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===fotoIdx?'#E91E8C':'#eee'};transition:border 0.2s">
-                  <img src="${f}" style="width:100%;height:100%;object-fit:cover">
-                </div>
-              `).join('')}
+          <div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column">
+            <div style="position:relative;flex:1;min-height:0">
+              <img src="${fotos[idx]}" alt="${color}"
+                class="modal-foto-clickeable"
+                onclick="abrirLightbox(window._fotosActuales, ${idx})"
+                style="width:100%;height:100%;object-fit:contain;background:#f5f5f5;display:block">
+              ${fotos.length > 1 ? `
+                <button onclick="event.stopPropagation();window.cambiarFoto(-1)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
+                <button onclick="event.stopPropagation();window.cambiarFoto(1)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
+                <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,0.45);color:white;font-size:0.68rem;padding:2px 7px;border-radius:10px">${idx+1}/${fotos.length}</div>
+              ` : ''}
             </div>
-          ` : ''}
-        `
+            ${fotos.length > 1 ? `
+              <div style="display:flex;gap:6px;padding:8px 4px 4px;justify-content:center;flex-wrap:wrap;flex-shrink:0">
+                ${fotos.map((f, i) => `
+                  <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)"
+                    style="width:48px;height:48px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===idx?'#E91E8C':'#eee'};transition:border 0.2s">
+                    <img src="${f}" style="width:100%;height:100%;object-fit:cover">
+                  </div>`).join('')}
+              </div>` : ''}
+          </div>`
       }
-      window._fotosActuales = fotos
-      window._fotoIdx = fotoIdx
       window.cambiarFoto = (dir) => {
-        if (dir === 0) {
-          fotoIdx = window._fotoIdx
-        } else {
-          window._fotoIdx = (window._fotoIdx + dir + window._fotosActuales.length) % window._fotosActuales.length
-          fotoIdx = window._fotoIdx
-        }
+        if (dir === 0) { /* ya está seteado window._fotoIdx */ }
+        else { window._fotoIdx = (window._fotoIdx + dir + window._fotosActuales.length) % window._fotosActuales.length }
         renderFotos()
       }
       renderFotos()
-    } else if (fotos.length === 1) {
-      imgWrap2.innerHTML = `<img src="${fotos[0]}" alt="${color}" style="width:100%;height:100%;object-fit:contain;background:#f5f5f5">`
     }
 
     document.getElementById('modal-tallas').innerHTML = varsProd.map(v => {
@@ -2785,6 +2911,55 @@ if (window.ttq) ttq.track('AddToCart', {
     document.getElementById('modal-overlay').classList.remove('active')
     document.body.style.overflow = ''
   }
+
+  // ── LIGHTBOX ──────────────────────────────────────────────
+  let _lbFotos = [], _lbIdx = 0
+
+  function abrirLightbox(fotos, idx) {
+    _lbFotos = Array.isArray(fotos) ? fotos : [fotos]
+    _lbIdx = idx || 0
+    _renderLightbox()
+    document.getElementById('lightbox-overlay').classList.add('active')
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', _lbKeyHandler)
+  }
+
+  function cerrarLightbox() {
+    document.getElementById('lightbox-overlay').classList.remove('active')
+    document.removeEventListener('keydown', _lbKeyHandler)
+    // Restaurar el overflow del body sólo si el modal del producto también está cerrado
+    if (!document.getElementById('modal-overlay').classList.contains('active')) {
+      document.body.style.overflow = ''
+    }
+  }
+
+  function lightboxNav(dir) {
+    _lbIdx = (_lbIdx + dir + _lbFotos.length) % _lbFotos.length
+    _renderLightbox()
+  }
+
+  function lightboxClickFondo(event) {
+    if (event.target === document.getElementById('lightbox-overlay')) cerrarLightbox()
+  }
+
+  function _lbKeyHandler(e) {
+    if (e.key === 'Escape') cerrarLightbox()
+    if (e.key === 'ArrowLeft') lightboxNav(-1)
+    if (e.key === 'ArrowRight') lightboxNav(1)
+  }
+
+  function _renderLightbox() {
+    document.getElementById('lightbox-img').src = _lbFotos[_lbIdx]
+    const prev = document.getElementById('lightbox-prev')
+    const next = document.getElementById('lightbox-next')
+    prev.style.display = _lbFotos.length > 1 ? 'flex' : 'none'
+    next.style.display = _lbFotos.length > 1 ? 'flex' : 'none'
+    const dots = document.getElementById('lightbox-dots')
+    dots.innerHTML = _lbFotos.length > 1
+      ? _lbFotos.map((_, i) => `<button class="lightbox-dot ${i===_lbIdx?'active':''}" onclick="event.stopPropagation();_lbIdx=${i};_renderLightbox()"></button>`).join('')
+      : ''
+  }
+  // ─────────────────────────────────────────────────────────
   function mostrarPaginaExito(paymentId) {
   const hero = document.getElementById('hero')
   const productosSection = document.getElementById('productos-section')
