@@ -3690,14 +3690,16 @@ window.renderInventario = () => {
 window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, minimo, delta) => {
   const nuevaCantidad = Math.max(0, cantidadActual + delta)
   try {
-    const res = await fetch(API + '/inventario/actualizar', {
-      method: 'PATCH',
+    // Usar /movimientos/ajuste que crea el registro si no existe (upsert)
+    const res = await fetch(API + '/movimientos/ajuste', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         variante_id: varianteId,
         sucursal_id: sucursalId,
         cantidad: nuevaCantidad,
-        stock_minimo: minimo
+        stock_minimo: minimo,
+        motivo: 'Ajuste desde inventario'
       })
     })
     if (res.ok) {
