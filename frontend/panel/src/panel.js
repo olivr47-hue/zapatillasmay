@@ -4920,8 +4920,11 @@ async function subirImagenesVariantes() {
 
     const urls = []
 
-    // Conservar fotos existentes desde el DOM
+    // Conservar fotos existentes desde el DOM — portada seleccionada va primero
 if (preview) {
+  const portadaDiv = preview.querySelector('[data-es-portada="true"]')
+  const portadaUrl = portadaDiv ? portadaDiv.dataset.url : null
+  if (portadaUrl) urls.push(portadaUrl)
   preview.querySelectorAll('div[data-url]').forEach(div => {
     const url = div.dataset.url
     if (url && !urls.includes(url)) urls.push(url)
@@ -5049,7 +5052,15 @@ document.querySelectorAll('.variante-item').forEach(v => {
     slug: document.getElementById('f-slug') && document.getElementById('f-slug').value ? document.getElementById('f-slug').value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : null,
     meta_titulo: document.getElementById('f-metatitulo') ? document.getElementById('f-metatitulo').value || null : null,
     meta_descripcion: document.getElementById('f-metadesc') ? document.getElementById('f-metadesc').value || null : null,
-    imagen_principal: variantesData.length > 0 && variantesData[0].imagenes.length > 0 ? variantesData[0].imagenes[0] : null,
+    imagen_principal: (() => {
+      // Leer la foto marcada como PORTADA directamente del DOM
+      const _prev = document.getElementById('v0-preview')
+      const _pd   = _prev ? _prev.querySelector('[data-es-portada="true"]') : null
+      if (_pd && _pd.dataset.url) return _pd.dataset.url
+      // Fallback: primera imagen del primer color
+      return variantesData.length > 0 && variantesData[0].imagenes.length > 0
+        ? variantesData[0].imagenes[0] : null
+    })(),
     activo: true,
     nuevo: !window._productoEditandoId
   }
