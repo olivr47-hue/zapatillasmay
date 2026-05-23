@@ -4103,14 +4103,14 @@ function renderVariante(i, datos) {
       const esPortada = fIdx === 0
       return `<div style="position:relative;cursor:pointer" data-url="${url}" data-es-portada="${esPortada}" data-file-idx="${fIdx}">
   <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}" onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
-        ${esPortada ? '<span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>' : ''}
+        ${esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>' : ''}
         <button onclick="eliminarFotoExistente(${i}, this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
       </div>`
     }).join('')
   } else if (d.foto_url) {
     fotosHTML = `<div style="position:relative" data-url="${d.foto_url}" data-es-portada="true" data-file-idx="0">
       <img src="${d.foto_url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid #E91E8C">
-      <span style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700">PORTADA</span>
+      <span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>
     </div>`
   }
 
@@ -4267,12 +4267,12 @@ window.seleccionarPortadaExistente = (idx, fotoIdx) => {
   const preview = document.getElementById('v' + idx + '-preview')
   if (!preview) return
   preview.querySelectorAll('.portada-badge').forEach(b => b.remove())
-  preview.querySelectorAll('img').forEach(img => img.style.border = '2px solid #ddd')
+  preview.querySelectorAll('img').forEach(img => img.style.border = '3px solid #eee')
   preview.querySelectorAll('[data-es-portada]').forEach(d => d.dataset.esPortada = 'false')
   const divs = preview.querySelectorAll('div[data-file-idx]')
   if (divs[fotoIdx]) {
     divs[fotoIdx].dataset.esPortada = 'true'
-    divs[fotoIdx].querySelector('img').style.border = '2px solid #E91E8C'
+    divs[fotoIdx].querySelector('img').style.border = '3px solid #E91E8C'
     const badge = document.createElement('span')
     badge.className = 'portada-badge'
     badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
