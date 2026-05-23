@@ -22,14 +22,29 @@ def supabase_get(tabla):
         return json.loads(response.read())
 
 def supabase_get_all(tabla_base, page_size=1000):
-    """Trae todos los registros paginando de a {page_size} para evitar el límite de Supabase."""
+    """Trae todos los registros paginando con Range headers (método oficial PostgREST/Supabase)."""
     todos = []
     offset = 0
-    sep = "&" if "?" in tabla_base else "?"
+    url = f"{SUPABASE_URL}/rest/v1/{tabla_base}"
     while True:
-        chunk = supabase_get(f"{tabla_base}{sep}limit={page_size}&offset={offset}")
+        headers = {
+            **HEADERS,
+            "Range-Unit": "items",
+            "Range": f"{offset}-{offset + page_size - 1}"
+        }
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req) as response:
+                chunk = json.loads(response.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 416:
+                # 416 Range Not Satisfiable = ya no hay más registros
+                break
+            # Otro error HTTP — devolver lo que llevamos
+            break
+        except Exception:
+            break
         if not isinstance(chunk, list):
-            # Si hay error, devolver lo que llevamos
             break
         todos.extend(chunk)
         if len(chunk) < page_size:
