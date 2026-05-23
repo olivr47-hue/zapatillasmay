@@ -7,7 +7,7 @@ router = APIRouter(prefix="/inventario", tags=["Inventario"])
 @router.get("/alertas")
 def alertas_stock_bajo():
     try:
-        data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno)),sucursales(nombre)&order=created_at.asc")
+        data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno)),sucursales(nombre)")
         alertas = [i for i in data if i.get("cantidad", 0) <= i.get("stock_minimo", 3)]
         return alertas
     except Exception as e:
@@ -16,7 +16,7 @@ def alertas_stock_bajo():
 @router.get("/")
 def listar_inventario():
     try:
-        return supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)&order=created_at.asc")
+        return supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
