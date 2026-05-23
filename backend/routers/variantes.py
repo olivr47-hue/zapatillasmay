@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from fastapi.responses import Response, JSONResponse
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
@@ -37,7 +37,8 @@ def talla_a_codigo(talla):
 @router.get("/")
 def listar_variantes():
     # Incluir variantes activas Y las que tienen activa=null (creadas sin el campo)
-    return supabase_get("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
+    # Usar paginación para traer las 1400+ variantes (Supabase limita a 1000 por defecto)
+    return supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):
