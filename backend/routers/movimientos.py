@@ -1,13 +1,13 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
 @router.get("/")
 def listar_movimientos():
     try:
-        return supabase_get("movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)")
+        return supabase_get_all("movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
