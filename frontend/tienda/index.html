@@ -1239,8 +1239,8 @@
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .modal { display: flex; flex-direction: column; height: 95vh; max-height: 95vh; overflow: hidden; }
   .modal-img { flex: 0 0 auto; border-radius: 12px 12px 0 0; max-height: clamp(280px, 42vh, 380px); overflow: hidden; padding: 0; }
-  .color-foto-grid { grid-template-columns: repeat(3, 1fr) !important; }
-  #modal-thumb-row { flex-shrink: 0; gap: 6px; padding: 6px 12px; justify-content: center; background: #f5f5f5; overflow-x: auto; }
+  .color-foto-grid { grid-template-columns: repeat(3, 1fr) !important; padding: 12px !important; }
+  #modal-thumb-row { flex-shrink: 0; gap: 6px; padding: 8px 14px; justify-content: center; background: white; overflow-x: auto; }
   .modal-info { flex: 1 1 0; min-height: 0; padding: 20px 20px 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; max-height: none; }
   .modal-overlay { align-items: flex-end; padding: 0; }
   #modal-producto { position: relative; border-radius: 16px 16px 0 0; height: 95vh; max-height: 95vh; width: 100%; }
@@ -2544,7 +2544,7 @@ if (window.ttq) ttq.track('ViewContent', {
           </div>`).join('')}
       </div>`
     } else if (p.imagen_principal) {
-      imgWrap.innerHTML = `<img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:auto;display:block;object-fit:cover;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)">`
+      imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:auto;display:block;object-fit:cover;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
     } else {
       imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
     }
@@ -2672,17 +2672,17 @@ if (window.ttq) ttq.track('ViewContent', {
       const renderFotos = () => {
         const idx = window._fotoIdx
         imgWrap2.innerHTML = `
-          <div style="position:relative;width:100%"
+          <div style="padding:12px 12px 0;box-sizing:border-box;position:relative"
                ontouchstart="event.stopPropagation();window._swipeStartX=event.touches[0].clientX"
                ontouchend="event.stopPropagation();if(Math.abs(event.changedTouches[0].clientX-window._swipeStartX)>40)window.cambiarFoto(event.changedTouches[0].clientX<window._swipeStartX?1:-1)">
             <img src="${fotos[idx]}" alt="${color}"
               class="modal-foto-clickeable"
               onclick="abrirLightbox(window._fotosActuales, ${idx})"
-              style="width:100%;height:auto;display:block;object-fit:cover;">
+              style="width:100%;height:auto;display:block;object-fit:cover;border-radius:8px;">
             ${fotos.length > 1 ? `
-              <button onclick="event.stopPropagation();window.cambiarFoto(-1)" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
-              <button onclick="event.stopPropagation();window.cambiarFoto(1)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
-              <div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,0.45);color:white;font-size:0.68rem;padding:2px 7px;border-radius:10px">${idx+1}/${fotos.length}</div>
+              <button onclick="event.stopPropagation();window.cambiarFoto(-1)" style="position:absolute;left:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
+              <button onclick="event.stopPropagation();window.cambiarFoto(1)" style="position:absolute;right:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
+              <div style="position:absolute;bottom:12px;right:18px;background:rgba(0,0,0,0.45);color:white;font-size:0.68rem;padding:2px 7px;border-radius:10px">${idx+1}/${fotos.length}</div>
             ` : ''}
             ${window._videoUrl ? `<button onclick="event.stopPropagation();_mostrarVideoModal()" class="btn-ver-video">▶ Video</button>` : ''}
           </div>`
@@ -3085,7 +3085,7 @@ if (window.ttq) ttq.track('AddToCart', {
             <div class="color-foto-label"><span class="color-foto-dot" style="background:${cf.hex}"></span>${cf.color}</div>
           </div>`).join('')}</div>`
       } else if (p.imagen_principal) {
-        imgWrap.innerHTML = `<img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:auto;display:block;object-fit:cover;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)">`
+        imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;height:auto;display:block;object-fit:cover;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
       } else {
         imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
       }
