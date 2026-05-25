@@ -27,3 +27,14 @@ def subir_imagen(archivo, carpeta="productos"):
 
 def eliminar_imagen(public_id):
     return cloudinary.uploader.destroy(public_id)
+
+def subir_video(archivo, carpeta="productos_video"):
+    resultado = cloudinary.uploader.upload(
+        archivo,
+        folder=carpeta,
+        resource_type="video"
+    )
+    return {
+        "url": resultado["secure_url"],
+        "public_id": resultado["public_id"]
+    }

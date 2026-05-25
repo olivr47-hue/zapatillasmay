@@ -4528,6 +4528,31 @@ if (!datos) window._coloresExistentes = null
         </div>
       </div>
 
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <p style="font-weight:600;color:#333;margin:0">🎬 Video del producto</p>
+          <span style="font-size:0.72rem;background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:100px;font-weight:600">Opcional</span>
+        </div>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:12px">Pega un link de YouTube, TikTok, Vimeo o sube un MP4. Se mostrará en el modal del producto en la tienda.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+          <input class="form-input" id="f-video-url"
+                 placeholder="https://youtube.com/watch?v=... · https://tiktok.com/... · archivo.mp4"
+                 value="${d.video_url || ''}"
+                 style="flex:1;min-width:200px"
+                 oninput="previsualizarVideoPanel(this.value)">
+          <button type="button"
+                  onclick="document.getElementById('f-video-file').click()"
+                  style="background:#f3f4f6;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;color:#374151;white-space:nowrap">
+            📁 Subir video
+          </button>
+          <input type="file" id="f-video-file" accept="video/*" style="display:none"
+                 onchange="subirVideoProducto(this)">
+        </div>
+        <div id="video-preview-panel" style="margin-top:8px">
+          ${d.video_url ? `<div style="font-size:0.8rem;color:#555;background:#f5f5f5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px"><span>🎬</span><a href="${d.video_url}" target="_blank" rel="noopener" style="color:#E91E8C;word-break:break-all;flex:1">${d.video_url}</a></div>` : ''}
+        </div>
+      </div>
+
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
         <input type="hidden" id="f-producto-id" value="${d.id || ''}">
         <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">💾 Guardar producto</button>
@@ -4992,6 +5017,36 @@ if (preview) {
   return resultado
 }
 
+window.previsualizarVideoPanel = (url) => {
+  const prev = document.getElementById('video-preview-panel')
+  if (!prev) return
+  if (!url || !url.trim()) { prev.innerHTML = ''; return }
+  prev.innerHTML = `<div style="font-size:0.8rem;color:#555;background:#f5f5f5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px"><span>🎬</span><a href="${url}" target="_blank" rel="noopener" style="color:#E91E8C;word-break:break-all;flex:1">${url}</a></div>`
+}
+
+window.subirVideoProducto = async (input) => {
+  const file = input.files[0]
+  if (!file) return
+  const urlInput = document.getElementById('f-video-url')
+  const prev = document.getElementById('video-preview-panel')
+  if (prev) prev.innerHTML = '<div style="color:#888;font-size:0.82rem;padding:8px 0">Subiendo video... ⏳ (puede tardar unos segundos)</div>'
+  try {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    const res = await fetch(API + '/imagenes/videos/subir', { method: 'POST', body: formData })
+    const data = await res.json()
+    if (data.url) {
+      if (urlInput) urlInput.value = data.url
+      window.previsualizarVideoPanel(data.url)
+    } else {
+      if (prev) prev.innerHTML = '<div style="color:#c62828;font-size:0.82rem;padding:8px 0">❌ Error al subir. Intenta pegar el URL manualmente.</div>'
+    }
+  } catch (e) {
+    if (prev) prev.innerHTML = '<div style="color:#c62828;font-size:0.82rem;padding:8px 0">❌ Error de red. Intenta pegar el URL manualmente.</div>'
+  }
+  input.value = ''
+}
+
 window.guardarProducto = async () => {
   // Leer ID del campo oculto
   const idOculto = document.getElementById('f-producto-id') ? document.getElementById('f-producto-id').value : ''
@@ -5061,6 +5116,7 @@ document.querySelectorAll('.variante-item').forEach(v => {
       return variantesData.length > 0 && variantesData[0].imagenes.length > 0
         ? variantesData[0].imagenes[0] : null
     })(),
+    video_url: document.getElementById('f-video-url') ? (document.getElementById('f-video-url').value.trim() || null) : null,
     activo: true,
     nuevo: !window._productoEditandoId
   }
