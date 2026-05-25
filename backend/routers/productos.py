@@ -1,7 +1,10 @@
 from fastapi import APIRouter
 from database import supabase_get, supabase_post, supabase_patch, obtener_consecutivo
+from cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
+
+_CK = "productos"  # prefijo de caché
 
 @router.get("/siguiente-sku/{categoria}/{proveedor}")
 def siguiente_sku(categoria: str, proveedor: str):
@@ -18,19 +21,40 @@ def siguiente_sku(categoria: str, proveedor: str):
 
 @router.get("/")
 def listar_productos():
-    return supabase_get("productos?order=created_at.desc")
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        return cached
+    data = supabase_get("productos?order=created_at.desc")
+    cache_set(_CK + "_all", data)
+    return data
 
 @router.get("/destacados")
 def productos_destacados():
-    return supabase_get("productos?destacado=eq.true&activo=eq.true")
+    cached = cache_get(_CK + "_destacados")
+    if cached is not None:
+        return cached
+    data = supabase_get("productos?destacado=eq.true&activo=eq.true")
+    cache_set(_CK + "_destacados", data)
+    return data
 
 @router.get("/nuevos")
 def productos_nuevos():
-    return supabase_get("productos?nuevo=eq.true&activo=eq.true")
+    cached = cache_get(_CK + "_nuevos")
+    if cached is not None:
+        return cached
+    data = supabase_get("productos?nuevo=eq.true&activo=eq.true")
+    cache_set(_CK + "_nuevos", data)
+    return data
 
 @router.get("/categoria/{categoria}")
 def productos_por_categoria(categoria: str):
-    return supabase_get(f"productos?categoria=eq.{categoria}&activo=eq.true")
+    key = f"{_CK}_cat_{categoria}"
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    data = supabase_get(f"productos?categoria=eq.{categoria}&activo=eq.true")
+    cache_set(key, data)
+    return data
 
 @router.get("/{id}")
 def obtener_producto(id: str):
@@ -54,7 +78,9 @@ def crear_producto(producto: dict):
             prefix = cat_prefijos.get(categoria, "MAY")
             prov = proveedor[0].upper() if proveedor else "M"
             producto["sku_interno"] = f"{prov}-{prefix}-{str(num).zfill(4)}"
-    return supabase_post("productos", producto)
+    resultado = supabase_post("productos", producto)
+    cache_invalidate_prefix(_CK)
+    return resultado
 
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict):
@@ -62,12 +88,18 @@ def actualizar_producto(id: str, producto: dict):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
         if existente:
             return {"error": f"El SKU {producto['sku_interno']} ya existe en otro producto"}
-    return supabase_patch(f"productos?id=eq.{id}", producto)
+    resultado = supabase_patch(f"productos?id=eq.{id}", producto)
+    cache_invalidate_prefix(_CK)
+    return resultado
 
 @router.patch("/{id}/desactivar")
 def desactivar_producto(id: str):
-    return supabase_patch(f"productos?id=eq.{id}", {"activo": False})
+    resultado = supabase_patch(f"productos?id=eq.{id}", {"activo": False})
+    cache_invalidate_prefix(_CK)
+    return resultado
 
 @router.patch("/{id}/activar")
 def activar_producto(id: str):
-    return supabase_patch(f"productos?id=eq.{id}", {"activo": True})
+    resultado = supabase_patch(f"productos?id=eq.{id}", {"activo": True})
+    cache_invalidate_prefix(_CK)
+    return resultado

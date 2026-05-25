@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from security import limiter
 from database import supabase_get
+from cache import cache_stats, cache_invalidate_prefix
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
@@ -74,4 +75,16 @@ def salud():
         
 @app.get("/health")
 def health():
-    return {"ok": True}        
+    return {"ok": True}
+
+@app.get("/cache/stats")
+def cache_estado():
+    """Ver qué hay en caché y cuánto tiempo le queda a cada clave."""
+    return cache_stats()
+
+@app.post("/cache/limpiar")
+def cache_limpiar():
+    """Limpiar todo el caché manualmente (fuerza recarga desde Supabase)."""
+    for prefijo in ("productos", "variantes", "inventario"):
+        cache_invalidate_prefix(prefijo)
+    return {"ok": True, "mensaje": "Caché limpiado"}        

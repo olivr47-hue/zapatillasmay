@@ -1,8 +1,11 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter(prefix="/inventario", tags=["Inventario"])
+
+_CK = "inventario"  # prefijo de caché
 
 @router.get("/alertas")
 def alertas_stock_bajo():
@@ -16,7 +19,12 @@ def alertas_stock_bajo():
 @router.get("/")
 def listar_inventario():
     try:
-        return supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)")
+        cached = cache_get(_CK + "_all")
+        if cached is not None:
+            return cached
+        data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)")
+        cache_set(_CK + "_all", data, ttl=180)  # 3 min — más sensible a cambios de stock
+        return data
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -37,7 +45,9 @@ def inventario_por_producto(producto_id: str):
 @router.post("/")
 def agregar_inventario(datos: dict):
     try:
-        return supabase_post("inventario", datos)
+        resultado = supabase_post("inventario", datos)
+        cache_invalidate_prefix(_CK)
+        return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -46,9 +56,11 @@ def actualizar_inventario(datos: dict):
     try:
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")
-        return supabase_patch(
+        resultado = supabase_patch(
             f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
             {"cantidad": datos.get("cantidad"), "stock_minimo": datos.get("stock_minimo", 3)}
         )
+        cache_invalidate_prefix(_CK)
+        return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

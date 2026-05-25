@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Request
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from fastapi.responses import Response, JSONResponse
+from cache import cache_get, cache_set, cache_invalidate_prefix
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
+
+_CK = "variantes"  # prefijo de caché
 
 COLORES_CODIGO = {
     'Negro': 'NEG', 'Blanco': 'BLA', 'Hueso': 'HUE', 'Beige': 'BEI',
@@ -36,9 +39,13 @@ def talla_a_codigo(talla):
 
 @router.get("/")
 def listar_variantes():
-    # Incluir variantes activas Y las que tienen activa=null (creadas sin el campo)
+    cached = cache_get(_CK + "_all")
+    if cached is not None:
+        return cached
     # Usar paginación para traer las 1400+ variantes (Supabase limita a 1000 por defecto)
-    return supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
+    data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,talla,sku,foto_url,imagenes,activa,created_at,productos(nombre)")
+    cache_set(_CK + "_all", data)
+    return data
 
 @router.get("/producto/{producto_id}")
 def variantes_producto(producto_id: str):
@@ -59,7 +66,9 @@ def crear_variante(variante: dict):
             cod_talla = talla_a_codigo(talla)
             variante["sku"] = f"{sku_base}-{cod_color}-{cod_talla}"
     try:
-        return supabase_post("variantes", variante)
+        resultado = supabase_post("variantes", variante)
+        cache_invalidate_prefix(_CK)
+        return resultado
     except Exception as e:
         if "23505" in str(e):
             sku = variante.get("sku", "")
@@ -71,7 +80,9 @@ def crear_variante(variante: dict):
                 # Si es el mismo color: actualizar (resurtido o edicion)
                 if color_existente.strip().lower() == color_nuevo.strip().lower():
                     update = {k: v for k, v in variante.items() if k in ["foto_url", "imagenes", "color_hex"]}
-                    return supabase_patch(f"variantes?id=eq.{variante_id}", update)
+                    resultado = supabase_patch(f"variantes?id=eq.{variante_id}", update)
+                    cache_invalidate_prefix(_CK)
+                    return resultado
                 else:
                     # Colision de SKU entre colores distintos: agregar sufijo numerico al SKU
                     for sufijo in range(2, 10):
@@ -79,13 +90,17 @@ def crear_variante(variante: dict):
                         variante_mod = dict(variante)
                         variante_mod["sku"] = sku_nuevo
                         try:
-                            return supabase_post("variantes", variante_mod)
+                            resultado = supabase_post("variantes", variante_mod)
+                            cache_invalidate_prefix(_CK)
+                            return resultado
                         except Exception:
                             continue
                     # Si todos los sufijos fallan, forzar con timestamp
                     import time
                     variante["sku"] = f"{sku}-{int(time.time()) % 10000}"
-                    return supabase_post("variantes", variante)
+                    resultado = supabase_post("variantes", variante)
+                    cache_invalidate_prefix(_CK)
+                    return resultado
         raise e
 
 @router.post("/activar-todas")
@@ -98,25 +113,32 @@ def activar_variantes_sin_activa():
     req = urllib.request.Request(url, data=body, headers=get_headers(), method="PATCH")
     try:
         with urllib.request.urlopen(req) as r:
+            cache_invalidate_prefix(_CK)
             return {"ok": True, "actualizadas": r.read().decode()}
     except Exception as e:
         return {"error": str(e)}
 
 @router.patch("/{variante_id}")
 def actualizar_variante(variante_id: str, variante: dict):
-    return supabase_patch(f"variantes?id=eq.{variante_id}", variante)
+    resultado = supabase_patch(f"variantes?id=eq.{variante_id}", variante)
+    cache_invalidate_prefix(_CK)
+    return resultado
 
 @router.delete("/{variante_id}")
 def eliminar_variante(variante_id: str):
     try:
-        return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
+        resultado = supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
+        cache_invalidate_prefix(_CK)
+        return resultado
     except Exception as e:
         return {"error": str(e)}
 
 @router.post("/{variante_id}/eliminar")
 def eliminar_variante_post(variante_id: str):
     try:
-        return supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
+        resultado = supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
+        cache_invalidate_prefix(_CK)
+        return resultado
     except Exception as e:
         return {"error": str(e)}
 
