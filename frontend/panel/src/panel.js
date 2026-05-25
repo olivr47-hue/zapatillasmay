@@ -76,6 +76,7 @@ const modulos = [
   { id: 'ordenes', icon: '🛒', label: 'Órdenes de compra', section: 'Finanzas', soloAdmin: true },
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
+  { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -234,6 +235,7 @@ async function cargarModulo(id) {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   switch(id) {
+    case 'catalogos': await cargarCatalogos(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'clientes': await cargarClientes(); break
@@ -10697,6 +10699,680 @@ window.guardarSEO = async () => {
   }
 }
 
+// ═══════════════════════════════════════════════════════
+//  MÓDULO CATÁLOGOS  (v2 — selector + generador canvas)
+// ═══════════════════════════════════════════════════════
+
+async function cargarCatalogos() {
+  const content = document.getElementById('content')
+  try {
+    const res = await fetch(API + '/catalogos/todos')
+    const catalogos = await res.json()
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Catálogos (${catalogos.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormCatalogo()">+ Nuevo catálogo</button>
+        </div>
+        <div id="catalogos-form-area"></div>
+        ${catalogos.length === 0 ? `
+          <div style="padding:3rem;text-align:center;color:#888">
+            <div style="font-size:2.5rem;margin-bottom:12px">📖</div>
+            <p>Aún no tienes catálogos. ¡Crea el primero!</p>
+          </div>` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;padding:8px 0 4px">
+          ${catalogos.map(c => `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+              ${c.portada_url
+                ? `<img src="${c.portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">`
+                : `<div style="width:100%;aspect-ratio:3/4;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:3rem">📖</div>`}
+              <div style="padding:14px">
+                ${c.temporada ? `<p style="font-size:0.68rem;letter-spacing:2px;color:#C8967A;text-transform:uppercase;margin-bottom:4px">${c.temporada}</p>` : ''}
+                <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${c.nombre}</p>
+                <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${c.activo ? '✅ Visible' : '🔴 Oculto'}</p>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${c.id}','${(c.nombre||'').replace(/'/g,"\\'")}')">📄 Gestionar páginas</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem" onclick="mostrarFormCatalogo('${c.id}')">✏️ Editar</button>
+                    <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem;color:${c.activo?'#dc2626':'#16a34a'}" onclick="toggleCatalogo('${c.id}',${c.activo})">${c.activo?'Ocultar':'Publicar'}</button>
+                  </div>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+      </div>`
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando catálogos: ' + e.message + '</p>'
+  }
+}
+
+window.mostrarFormCatalogo = function(id = null) {
+  const area = document.getElementById('catalogos-form-area')
+  if (!area) return
+  area.innerHTML = `
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px">
+      <h4 style="margin-bottom:16px;font-size:0.95rem">${id ? '✏️ Editar catálogo' : '➕ Nuevo catálogo'}</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nombre *</label>
+          <input class="form-input" id="cat-nombre" placeholder="Ej: Colección Primavera 2026" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Temporada</label>
+          <input class="form-input" id="cat-temporada" placeholder="Ej: PV26" style="width:100%">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Imagen de portada</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem" onclick="document.getElementById('cat-portada-file').click()">📁 Subir imagen</button>
+          <input type="file" id="cat-portada-file" accept="image/*" style="display:none" onchange="previewPortadaCat(this)">
+          <span id="cat-portada-nombre" style="font-size:0.8rem;color:#888">Ningún archivo seleccionado</span>
+        </div>
+        <div id="cat-portada-preview" style="margin-top:8px"></div>
+        <input type="hidden" id="cat-portada-url" value="">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="guardarCatalogo('${id||''}')">💾 Guardar</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('catalogos-form-area').innerHTML=''">Cancelar</button>
+      </div>
+    </div>`
+
+  if (id) {
+    // Cargar datos actuales
+    fetch(API + '/catalogos/' + id)
+      .then(r => r.json())
+      .then(data => {
+        const c = Array.isArray(data) ? data[0] : data
+        if (!c) return
+        document.getElementById('cat-nombre').value = c.nombre || ''
+        document.getElementById('cat-temporada').value = c.temporada || ''
+        if (c.portada_url) {
+          document.getElementById('cat-portada-url').value = c.portada_url
+          document.getElementById('cat-portada-nombre').textContent = 'Portada actual'
+          document.getElementById('cat-portada-preview').innerHTML =
+            `<img src="${c.portada_url}" style="height:80px;border-radius:6px;object-fit:cover">`
+        }
+      })
+  }
+}
+
+window.previewPortadaCat = function(input) {
+  const file = input.files[0]
+  if (!file) return
+  document.getElementById('cat-portada-nombre').textContent = file.name
+  const reader = new FileReader()
+  reader.onload = e => {
+    document.getElementById('cat-portada-preview').innerHTML =
+      `<img src="${e.target.result}" style="height:80px;border-radius:6px;object-fit:cover">`
+  }
+  reader.readAsDataURL(file)
+}
+
+window.guardarCatalogo = async function(id) {
+  const nombre = document.getElementById('cat-nombre').value.trim()
+  if (!nombre) { alert('El nombre es obligatorio'); return }
+  const temporada = document.getElementById('cat-temporada').value.trim()
+  let portada_url = document.getElementById('cat-portada-url').value
+
+  // Subir portada si hay archivo nuevo
+  const fileInput = document.getElementById('cat-portada-file')
+  if (fileInput.files.length > 0) {
+    const formData = new FormData()
+    formData.append('archivo', fileInput.files[0])
+    formData.append('carpeta', 'catalogos')
+    try {
+      const res = await fetch(API + '/imagenes/subir?carpeta=catalogos', { method: 'POST', body: formData })
+      const data = await res.json()
+      portada_url = data.url || portada_url
+    } catch(e) {
+      alert('Error subiendo portada: ' + e.message); return
+    }
+  }
+
+  const payload = { nombre, temporada, portada_url: portada_url || null }
+  try {
+    if (id) {
+      await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    } else {
+      await fetch(API + '/catalogos/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    }
+    await cargarCatalogos()
+  } catch(e) {
+    alert('Error guardando: ' + e.message)
+  }
+}
+
+window.toggleCatalogo = async function(id, activo) {
+  if (!confirm(activo ? '¿Ocultar este catálogo de la tienda?' : '¿Publicar este catálogo en la tienda?')) return
+  await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ activo: !activo }) })
+  await cargarCatalogos()
+}
+
+// ── GESTIÓN DE PÁGINAS ────────────────────────────────────
+
+window.gestionarPaginas = async function(catalogoId, nombre) {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/catalogos/' + catalogoId + '/paginas')
+    const paginas = await res.json()
+    window._catalogoPaginasData = { catalogoId, nombre, paginas, tabActiva: 'subir' }
+    renderGestionPaginas()
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+function _tabStyle(activa, id) {
+  return `padding:9px 18px;font-size:0.83rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid ${activa===id?'#C8967A':'transparent'};background:none;color:${activa===id?'#C8967A':'#6b7280'};transition:all 0.2s;font-family:inherit`
+}
+
+function renderGestionPaginas() {
+  const { catalogoId, nombre, paginas, tabActiva } = window._catalogoPaginasData
+  const content = document.getElementById('content')
+  const nextNum = paginas.length > 0 ? Math.max(...paginas.map(p => p.pagina_numero)) + 1 : 1
+
+  content.innerHTML = `
+    <div class="table-card">
+      <div class="table-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="padding:5px 12px;font-size:0.8rem" onclick="navegarA('catalogos')">← Catálogos</button>
+          <h3>📖 ${nombre} <span style="color:#888;font-weight:400">(${paginas.length} páginas)</span></h3>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:20px;gap:4px">
+        <button style="${_tabStyle(tabActiva,'subir')}" onclick="switchTabCat('subir')">📁 Subir imágenes</button>
+        <button style="${_tabStyle(tabActiva,'seleccionar')}" onclick="switchTabCat('seleccionar')">🖼 De la tienda</button>
+        <button style="${_tabStyle(tabActiva,'generar')}" onclick="switchTabCat('generar')">✨ Generar automático</button>
+      </div>
+
+      <!-- Tab: SUBIR -->
+      <div id="tab-subir" style="display:${tabActiva==='subir'?'block':'none'}">
+        <div style="border:2px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s"
+             onclick="document.getElementById('cat-pag-files').click()"
+             ondragover="event.preventDefault();this.style.borderColor='#C8967A'"
+             ondragleave="this.style.borderColor='#e5e7eb'"
+             ondrop="event.preventDefault();this.style.borderColor='#e5e7eb';subirPaginasCatalogo({files:event.dataTransfer.files},'${catalogoId}')">
+          <div style="font-size:2.5rem;margin-bottom:10px">🖼️</div>
+          <p style="font-weight:600;margin-bottom:4px">Arrastra imágenes aquí o haz click</p>
+          <p style="font-size:0.8rem;color:#888">Selecciona varias a la vez — se agregan en orden alfabético</p>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="event.stopPropagation();document.getElementById('cat-pag-files').click()">+ Seleccionar imágenes</button>
+        </div>
+        <input type="file" id="cat-pag-files" accept="image/*" multiple style="display:none" onchange="subirPaginasCatalogo(this,'${catalogoId}')">
+        <div id="upload-progress" style="display:none;margin-top:14px;padding:12px;background:#eff6ff;border-radius:8px">
+          <p id="upload-msg" style="font-size:0.85rem;color:#1d4ed8;margin-bottom:6px">Subiendo...</p>
+          <div style="height:6px;background:#dbeafe;border-radius:3px">
+            <div id="upload-bar" style="height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: SELECCIONAR DE LA TIENDA -->
+      <div id="tab-seleccionar" style="display:${tabActiva==='seleccionar'?'block':'none'}">
+        <div id="selector-tienda-content">
+          <p style="color:#888;font-size:0.85rem;margin-bottom:12px">Cargando fotos de tus productos...</p>
+        </div>
+      </div>
+
+      <!-- Tab: GENERAR AUTOMÁTICO -->
+      <div id="tab-generar" style="display:${tabActiva==='generar'?'block':'none'}">
+        <div id="generador-content">
+          <p style="color:#888;font-size:0.85rem;margin-bottom:12px">Cargando productos...</p>
+        </div>
+      </div>
+
+      <!-- Páginas actuales -->
+      ${paginas.length > 0 ? `
+      <div style="margin-top:28px">
+        <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
+        <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px">
+          ${paginas.map((p, i) => `
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+              <img src="${p.imagen_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+              <div style="padding:6px 8px">
+                <div style="font-size:0.7rem;font-weight:600;color:#374151;margin-bottom:4px">Pág ${p.pagina_numero}</div>
+                <div style="display:flex;gap:3px;flex-wrap:wrap">
+                  ${i > 0 ? `<button onclick="moverPagina('${p.id}','up')" title="Mover arriba" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↑</button>` : ''}
+                  ${i < paginas.length-1 ? `<button onclick="moverPagina('${p.id}','down')" title="Mover abajo" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↓</button>` : ''}
+                  <button onclick="usarComoPortada('${p.imagen_url}','${catalogoId}')" title="Usar como portada" style="flex:1;background:#fef3c7;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">🖼</button>
+                  <button onclick="eliminarPagina('${p.id}','${catalogoId}')" title="Eliminar" style="flex:1;background:#fee2e2;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem;color:#dc2626">✕</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>` : `
+      <div style="margin-top:24px;text-align:center;padding:24px;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:10px">
+        <p>Aún no hay páginas. Usa una de las opciones de arriba para agregarlas.</p>
+      </div>`}
+    </div>`
+
+  // Inicializar tab activa
+  if (tabActiva === 'seleccionar') _cargarSelectorTienda(catalogoId)
+  if (tabActiva === 'generar') _cargarGenerador(catalogoId)
+}
+
+window.switchTabCat = function(tab) {
+  const { catalogoId } = window._catalogoPaginasData
+  window._catalogoPaginasData.tabActiva = tab
+  document.querySelectorAll('#tab-subir,#tab-seleccionar,#tab-generar').forEach(el => el.style.display = 'none')
+  document.getElementById('tab-' + tab).style.display = 'block'
+  // Actualizar estilos de botones
+  document.querySelectorAll('[onclick^="switchTabCat"]').forEach(btn => {
+    const t = btn.getAttribute('onclick').match(/'(\w+)'/)?.[1]
+    btn.style.borderBottomColor = t === tab ? '#C8967A' : 'transparent'
+    btn.style.color = t === tab ? '#C8967A' : '#6b7280'
+  })
+  if (tab === 'seleccionar') _cargarSelectorTienda(catalogoId)
+  if (tab === 'generar') _cargarGenerador(catalogoId)
+}
+
+// ── TAB: SELECCIONAR DE LA TIENDA ──────────────────────────
+
+async function _cargarSelectorTienda(catalogoId) {
+  const cont = document.getElementById('selector-tienda-content')
+  if (!cont) return
+  try {
+    const [resV, resP] = await Promise.all([
+      fetch(API + '/variantes/'),
+      fetch(API + '/productos/')
+    ])
+    const variantes = await resV.json()
+    const productos = await resP.json()
+
+    // Recopilar todas las fotos únicas con contexto
+    const fotos = []
+    variantes.forEach(v => {
+      const prod = productos.find(p => p.id === v.producto_id)
+      const nombre = prod?.nombre || v.sku || ''
+      if (v.foto_url) fotos.push({ url: v.foto_url, nombre, color: v.color || '' })
+      if (v.imagenes && Array.isArray(v.imagenes)) {
+        v.imagenes.forEach(u => { if (u && u !== v.foto_url) fotos.push({ url: u, nombre, color: v.color || '' }) })
+      }
+    })
+    // Eliminar duplicados por URL
+    const unicas = fotos.filter((f, i, a) => a.findIndex(x => x.url === f.url) === i)
+
+    window._selectorFotos = { fotos: unicas, seleccionadas: new Set() }
+
+    cont.innerHTML = `
+      <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <p style="font-size:0.83rem;color:#374151">${unicas.length} fotos disponibles — haz click para seleccionar</p>
+        <div style="display:flex;gap:8px">
+          <span id="sel-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionadas</span>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="agregarSeleccionadas('${catalogoId}')">✅ Agregar seleccionadas</button>
+        </div>
+      </div>
+      <input class="form-input" placeholder="🔍 Buscar por nombre o color..." style="width:100%;margin-bottom:10px" oninput="_filtrarSelectorFotos(this.value)">
+      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:420px;overflow-y:auto;padding:4px">
+        ${unicas.map((f, i) => `
+          <div id="foto-item-${i}" onclick="_toggleFoto(${i})"
+               style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color 0.15s;position:relative">
+            <img src="${f.url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+            <div style="padding:4px 6px;background:white">
+              <p style="font-size:0.62rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nombre}</p>
+              ${f.color ? `<p style="font-size:0.6rem;color:#888">${f.color}</p>` : ''}
+            </div>
+            <div id="foto-check-${i}" style="display:none;position:absolute;top:4px;right:4px;background:#C8967A;color:white;border-radius:50%;width:20px;height:20px;font-size:0.7rem;display:none;align-items:center;justify-content:center;font-weight:700">✓</div>
+          </div>`).join('')}
+      </div>`
+  } catch(e) {
+    cont.innerHTML = '<p style="color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window._toggleFoto = function(idx) {
+  const { seleccionadas, fotos } = window._selectorFotos
+  const item = document.getElementById('foto-item-' + idx)
+  const check = document.getElementById('foto-check-' + idx)
+  if (seleccionadas.has(idx)) {
+    seleccionadas.delete(idx)
+    item.style.borderColor = 'transparent'
+    check.style.display = 'none'
+  } else {
+    seleccionadas.add(idx)
+    item.style.borderColor = '#C8967A'
+    check.style.display = 'flex'
+  }
+  document.getElementById('sel-count').textContent = seleccionadas.size + ' seleccionadas'
+}
+
+window._filtrarSelectorFotos = function(texto) {
+  const { fotos } = window._selectorFotos
+  const t = texto.toLowerCase()
+  fotos.forEach((f, i) => {
+    const item = document.getElementById('foto-item-' + i)
+    if (item) item.style.display = (!t || f.nombre.toLowerCase().includes(t) || f.color.toLowerCase().includes(t)) ? '' : 'none'
+  })
+}
+
+window.agregarSeleccionadas = async function(catalogoId) {
+  const { seleccionadas, fotos } = window._selectorFotos
+  if (!seleccionadas.size) { alert('Selecciona al menos una foto'); return }
+  const { paginas } = window._catalogoPaginasData
+  let nextNum = paginas.length > 0 ? Math.max(...paginas.map(p => p.pagina_numero)) + 1 : 1
+  const btn = event.target
+  btn.disabled = true; btn.textContent = 'Agregando...'
+  for (const idx of seleccionadas) {
+    await fetch(API + '/catalogos/' + catalogoId + '/paginas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imagen_url: fotos[idx].url, pagina_numero: nextNum++ })
+    })
+  }
+  await gestionarPaginas(catalogoId, window._catalogoPaginasData.nombre)
+}
+
+// ── TAB: GENERAR AUTOMÁTICO ────────────────────────────────
+
+async function _cargarGenerador(catalogoId) {
+  const cont = document.getElementById('generador-content')
+  if (!cont) return
+  try {
+    const [resP, resV] = await Promise.all([
+      fetch(API + '/productos/'),
+      fetch(API + '/variantes/')
+    ])
+    const productos = (await resP.json()).filter(p => p.activo && p.imagen_principal)
+    const variantes = await resV.json()
+    window._generadorData = { productos, variantes, catalogoId, seleccionados: new Set() }
+
+    cont.innerHTML = `
+      <div style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.83rem;color:#7c3a1a">
+        <strong>✨ Cómo funciona:</strong> selecciona los productos que quieres incluir. El sistema generará páginas con foto + nombre + precio automáticamente y las agregará al catálogo.
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:0.8rem;font-weight:600">Productos por página:</label>
+          <select id="gen-layout" class="form-input" style="width:auto;padding:5px 10px;font-size:0.8rem">
+            <option value="1">1 por página</option>
+            <option value="2" selected>2 por página</option>
+            <option value="4">4 por página</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="gen-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionados</span>
+          <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="_selTodosGenerador()">Todos</button>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" id="btn-generar" onclick="generarPaginasCanvas('${catalogoId}')">✨ Generar páginas</button>
+        </div>
+      </div>
+      <div id="gen-progress" style="display:none;padding:10px;background:#eff6ff;border-radius:8px;margin-bottom:12px">
+        <p id="gen-msg" style="font-size:0.83rem;color:#1d4ed8;margin-bottom:6px">Generando...</p>
+        <div style="height:6px;background:#dbeafe;border-radius:3px"><div id="gen-bar" style="height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;width:0%"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:420px;overflow-y:auto;padding:4px">
+        ${productos.map((p, i) => {
+          const vars = variantes.filter(v => v.producto_id === p.id)
+          const precios = vars.length ? vars.map(v => v.precio_menudeo).filter(Boolean) : []
+          const precio = p.precio_menudeo || (precios.length ? Math.min(...precios) : 0)
+          return `
+          <div id="gen-item-${i}" onclick="_toggleGenProd(${i})"
+               style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color 0.15s;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+            <img src="${p.imagen_principal}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+            <div style="padding:5px 7px">
+              <p style="font-size:0.62rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre}</p>
+              <p style="font-size:0.6rem;color:#C8967A;font-weight:600">$${precio || '—'}</p>
+            </div>
+          </div>`
+        }).join('')}
+      </div>`
+  } catch(e) {
+    cont.innerHTML = '<p style="color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window._toggleGenProd = function(idx) {
+  const { seleccionados } = window._generadorData
+  const item = document.getElementById('gen-item-' + idx)
+  if (seleccionados.has(idx)) {
+    seleccionados.delete(idx)
+    item.style.borderColor = 'transparent'
+  } else {
+    seleccionados.add(idx)
+    item.style.borderColor = '#C8967A'
+  }
+  document.getElementById('gen-count').textContent = seleccionados.size + ' seleccionados'
+}
+
+window._selTodosGenerador = function() {
+  const { productos, seleccionados } = window._generadorData
+  const todos = seleccionados.size === productos.length
+  seleccionados.clear()
+  productos.forEach((_, i) => {
+    const item = document.getElementById('gen-item-' + i)
+    if (!todos) { seleccionados.add(i); if (item) item.style.borderColor = '#C8967A' }
+    else { if (item) item.style.borderColor = 'transparent' }
+  })
+  document.getElementById('gen-count').textContent = seleccionados.size + ' seleccionados'
+}
+
+// Carga una imagen con CORS para poder usarla en canvas
+function _cargarImgCanvas(url) {
+  return new Promise(resolve => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now()
+  })
+}
+
+// Dibuja texto con wrap en canvas
+function _wrapText(ctx, text, x, y, maxW, lineH) {
+  const words = text.split(' ')
+  let line = ''
+  let cy = y
+  for (let w of words) {
+    const test = line + (line ? ' ' : '') + w
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, x, cy)
+      line = w; cy += lineH
+    } else { line = test }
+  }
+  if (line) ctx.fillText(line, x, cy)
+  return cy + lineH
+}
+
+window.generarPaginasCanvas = async function(catalogoId) {
+  const { productos, variantes, seleccionados } = window._generadorData
+  if (!seleccionados.size) { alert('Selecciona al menos un producto'); return }
+
+  const layout = parseInt(document.getElementById('gen-layout').value)
+  const selArr = Array.from(seleccionados).map(i => productos[i])
+
+  // Agrupar según layout
+  const grupos = []
+  for (let i = 0; i < selArr.length; i += layout) grupos.push(selArr.slice(i, i + layout))
+
+  const btn = document.getElementById('btn-generar')
+  const prog = document.getElementById('gen-progress')
+  const msg = document.getElementById('gen-msg')
+  const bar = document.getElementById('gen-bar')
+  btn.disabled = true; prog.style.display = 'block'
+
+  const { paginas } = window._catalogoPaginasData
+  let nextNum = paginas.length > 0 ? Math.max(...paginas.map(p => p.pagina_numero)) + 1 : 1
+
+  for (let gi = 0; gi < grupos.length; gi++) {
+    const grupo = grupos[gi]
+    msg.textContent = `Generando página ${gi + 1} de ${grupos.length}...`
+    bar.style.width = ((gi / grupos.length) * 100) + '%'
+
+    // Crear canvas 1080x1440
+    const canvas = document.createElement('canvas')
+    canvas.width = 1080; canvas.height = 1440
+    const ctx = canvas.getContext('2d')
+
+    // Fondo crema
+    ctx.fillStyle = '#F5ECE2'
+    ctx.fillRect(0, 0, 1080, 1440)
+
+    // Barra superior
+    ctx.fillStyle = '#C8967A'
+    ctx.fillRect(0, 0, 1080, 8)
+
+    // Marca de agua superior
+    ctx.fillStyle = '#C8967A'
+    ctx.font = '600 28px DM Sans, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('ZAPATILLAS MAY', 540, 52)
+    ctx.fillStyle = '#A07860'
+    ctx.font = '300 18px DM Sans, sans-serif'
+    ctx.fillText('Calzado de Moda · León, Gto.', 540, 80)
+
+    const cols = Math.min(grupo.length, layout <= 2 ? layout : 2)
+    const rows = layout === 4 ? 2 : 1
+    const padX = 40, padTop = 100
+    const cellW = (1080 - padX * (cols + 1)) / cols
+    const cellH = (1440 - padTop - 80 - 40 * rows) / rows
+
+    for (let pi = 0; pi < grupo.length; pi++) {
+      const p = grupo[pi]
+      const col = pi % cols, row = Math.floor(pi / cols)
+      const x = padX + col * (cellW + padX)
+      const y = padTop + row * (cellH + 40)
+      const imgH = cellH - 140
+
+      // Tarjeta blanca
+      ctx.fillStyle = 'white'
+      _roundRect(ctx, x, y, cellW, cellH, 16)
+      ctx.fill()
+
+      // Foto del producto
+      const img = await _cargarImgCanvas(p.imagen_principal)
+      if (img) {
+        ctx.save()
+        _roundRect(ctx, x, y, cellW, imgH, [16, 16, 0, 0])
+        ctx.clip()
+        // object-fit: contain centrado
+        const ir = img.naturalWidth / img.naturalHeight
+        const cr = cellW / imgH
+        let dx, dy, dw, dh
+        if (ir > cr) { dw = cellW; dh = cellW / ir; dx = x; dy = y + (imgH - dh) / 2 }
+        else { dh = imgH; dw = imgH * ir; dy = y; dx = x + (cellW - dw) / 2 }
+        ctx.drawImage(img, dx, dy, dw, dh)
+        ctx.restore()
+      }
+
+      // Nombre del producto
+      const infoY = y + imgH + 16
+      ctx.fillStyle = '#2A1A0E'
+      ctx.textAlign = 'center'
+      ctx.font = `600 ${layout === 1 ? 36 : 26}px DM Sans, sans-serif`
+      _wrapText(ctx, p.nombre.toUpperCase(), x + cellW / 2, infoY, cellW - 20, layout === 1 ? 44 : 32)
+
+      // Precio
+      const vars = variantes.filter(v => v.producto_id === p.id)
+      const precio = p.precio_menudeo || (vars.length ? Math.min(...vars.map(v=>v.precio_menudeo||9999).filter(n=>n<9999)) : 0)
+      if (precio) {
+        ctx.fillStyle = '#C8967A'
+        ctx.font = `700 ${layout === 1 ? 42 : 30}px DM Mono, monospace`
+        ctx.fillText(`$${precio} MXN`, x + cellW / 2, infoY + (layout === 1 ? 80 : 58))
+      }
+    }
+
+    // Línea inferior
+    ctx.fillStyle = '#C8967A'
+    ctx.fillRect(0, 1432, 1080, 8)
+
+    // Canvas → Blob → subir
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88))
+    const fd = new FormData()
+    fd.append('archivo', blob, `catalogo-pag-${nextNum}.jpg`)
+    try {
+      const upRes = await fetch(API + '/imagenes/subir?carpeta=catalogos', { method: 'POST', body: fd })
+      const upData = await upRes.json()
+      if (upData.url) {
+        await fetch(API + '/catalogos/' + catalogoId + '/paginas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagen_url: upData.url, pagina_numero: nextNum++ })
+        })
+      }
+    } catch(e) { console.error('Error subiendo página generada', e) }
+  }
+
+  bar.style.width = '100%'
+  msg.textContent = `✅ ${grupos.length} páginas generadas`
+  setTimeout(() => { prog.style.display = 'none' }, 2000)
+  btn.disabled = false
+  await gestionarPaginas(catalogoId, window._catalogoPaginasData.nombre)
+}
+
+// Helper: rectángulo con bordes redondeados
+function _roundRect(ctx, x, y, w, h, r) {
+  if (typeof r === 'number') r = [r, r, r, r]
+  ctx.beginPath()
+  ctx.moveTo(x + r[0], y)
+  ctx.lineTo(x + w - r[1], y); ctx.arcTo(x + w, y, x + w, y + r[1], r[1])
+  ctx.lineTo(x + w, y + h - r[2]); ctx.arcTo(x + w, y + h, x + w - r[2], y + h, r[2])
+  ctx.lineTo(x + r[3], y + h); ctx.arcTo(x, y + h, x, y + h - r[3], r[3])
+  ctx.lineTo(x, y + r[0]); ctx.arcTo(x, y, x + r[0], y, r[0])
+  ctx.closePath()
+}
+
+window.subirPaginasCatalogo = async function(input, catalogoId) {
+  const files = Array.from(input.files || input)
+  if (!files.length) return
+  const progress = document.getElementById('upload-progress')
+  const msg = document.getElementById('upload-msg')
+  const bar = document.getElementById('upload-bar')
+  if (progress) progress.style.display = 'block'
+  const { paginas } = window._catalogoPaginasData
+  let nextNum = paginas.length > 0 ? Math.max(...paginas.map(p => p.pagina_numero)) + 1 : 1
+  for (let i = 0; i < files.length; i++) {
+    if (msg) msg.textContent = `Subiendo ${i + 1} de ${files.length}...`
+    if (bar) bar.style.width = ((i / files.length) * 100) + '%'
+    try {
+      const fd = new FormData()
+      fd.append('archivo', files[i])
+      const res = await fetch(API + '/imagenes/subir?carpeta=catalogos', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.url) {
+        await fetch(API + '/catalogos/' + catalogoId + '/paginas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagen_url: data.url, pagina_numero: nextNum++ })
+        })
+      }
+    } catch(e) { console.error('Error subiendo página ' + (i+1), e) }
+  }
+  if (bar) bar.style.width = '100%'
+  if (msg) msg.textContent = '✅ Listo'
+  setTimeout(() => { if (progress) progress.style.display = 'none' }, 1500)
+  if (input.value !== undefined) input.value = ''
+  await gestionarPaginas(catalogoId, window._catalogoPaginasData.nombre)
+}
+
+window.moverPagina = async function(pagId, direccion) {
+  const { paginas, catalogoId, nombre } = window._catalogoPaginasData
+  const idx = paginas.findIndex(p => p.id === pagId)
+  if (idx === -1) return
+  const otrIdx = direccion === 'up' ? idx - 1 : idx + 1
+  if (otrIdx < 0 || otrIdx >= paginas.length) return
+  const numA = paginas[idx].pagina_numero
+  const numB = paginas[otrIdx].pagina_numero
+  await Promise.all([
+    fetch(API + '/catalogos/paginas/' + paginas[idx].id, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pagina_numero: numB }) }),
+    fetch(API + '/catalogos/paginas/' + paginas[otrIdx].id, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pagina_numero: numA }) })
+  ])
+  await gestionarPaginas(catalogoId, nombre)
+}
+
+window.eliminarPagina = async function(pagId, catalogoId) {
+  if (!confirm('¿Eliminar esta página?')) return
+  await fetch(API + '/catalogos/paginas/' + pagId, { method: 'DELETE' })
+  await gestionarPaginas(catalogoId, window._catalogoPaginasData.nombre)
+}
+
+window.usarComoPortada = async function(url, catalogoId) {
+  await fetch(API + '/catalogos/' + catalogoId, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ portada_url: url }) })
+  alert('✅ Portada actualizada')
+}
+
+// ═══════════════════════════════════════════════════════
 window.descargarExcelTikTok = async function(btn, endpoint, filename) {
   const textoOriginal = btn.innerHTML
   try {

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogos — Zapatillas May</title>
+  <meta name="description" content="Explora nuestros catálogos de temporada. Calzado de moda para dama.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --black: #2A1A0E;
+      --white: #FBF7F3;
+      --pink: #C8967A;
+      --pink-light: rgba(200,150,122,0.09);
+      --cream: #F5ECE2;
+      --cream-dark: #EDE0D2;
+      --mauve: #A07860;
+      --gray-100: #F5ECE2;
+      --gray-200: #EDE0D2;
+      --gray-400: #C8A88C;
+      --gray-600: #8B6A54;
+      --font-display: 'Cormorant Garamond', serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--white);
+      color: var(--black);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* HEADER */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(250,248,246,0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--cream-dark);
+    }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 40px; height: 68px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      font-family: var(--font-display);
+      font-size: 1.5rem; font-weight: 500;
+      color: var(--black); text-decoration: none;
+    }
+    .header-back {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--gray-600); text-decoration: none;
+      font-size: 0.88rem; font-weight: 500;
+      transition: var(--transition);
+    }
+    .header-back:hover { color: var(--pink); }
+
+    /* HERO */
+    .hero {
+      padding: 120px 40px 60px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.72rem; letter-spacing: 3px;
+      color: var(--pink); text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 300; line-height: 1.1;
+      color: var(--black);
+    }
+    .hero p {
+      margin-top: 16px;
+      color: var(--gray-600); font-size: 0.95rem;
+    }
+
+    /* GRID */
+    .catalogo-grid {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 40px 100px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 32px;
+    }
+
+    .catalogo-card {
+      cursor: pointer;
+      border-radius: 12px;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 2px 16px rgba(42,26,14,0.08);
+      transition: var(--transition);
+      position: relative;
+    }
+    .catalogo-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 40px rgba(42,26,14,0.16);
+    }
+    .catalogo-cover {
+      width: 100%; aspect-ratio: 3/4;
+      object-fit: cover; display: block;
+      background: var(--cream);
+    }
+    .catalogo-cover-placeholder {
+      width: 100%; aspect-ratio: 3/4;
+      background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 4rem;
+    }
+    .catalogo-info {
+      padding: 20px;
+    }
+    .catalogo-temporada {
+      font-family: var(--font-mono);
+      font-size: 0.68rem; letter-spacing: 2px;
+      color: var(--pink); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .catalogo-nombre {
+      font-family: var(--font-display);
+      font-size: 1.3rem; font-weight: 500;
+      margin-bottom: 16px; line-height: 1.2;
+    }
+    .btn-ver {
+      width: 100%;
+      background: var(--black); color: white;
+      border: none; border-radius: 6px;
+      padding: 12px; font-size: 0.88rem;
+      font-weight: 500; cursor: pointer;
+      transition: var(--transition);
+      font-family: var(--font-body);
+    }
+    .btn-ver:hover { background: var(--pink); }
+
+    /* EMPTY STATE */
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center; padding: 80px 20px;
+      color: var(--gray-600);
+    }
+    .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+
+    /* LOADING */
+    .loading {
+      grid-column: 1 / -1;
+      display: flex; justify-content: center; padding: 80px;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--cream-dark);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FLIPBOOK OVERLAY ── */
+    #flipbook-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 999;
+      background: rgba(20,12,6,0.96);
+      flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    #flipbook-overlay.active { display: flex; }
+
+    .flipbook-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1001;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+      background: rgba(20,12,6,0.7);
+      backdrop-filter: blur(8px);
+    }
+    .flipbook-title {
+      font-family: var(--font-display);
+      color: white; font-size: 1.2rem; font-weight: 400;
+    }
+    .flipbook-counter {
+      font-family: var(--font-mono);
+      color: rgba(255,255,255,0.55); font-size: 0.78rem;
+    }
+    .flipbook-close {
+      background: rgba(255,255,255,0.12);
+      border: none; color: white;
+      width: 36px; height: 36px; border-radius: 50%;
+      cursor: pointer; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: var(--transition);
+    }
+    .flipbook-close:hover { background: var(--pink); }
+
+    /* Container del flipbook */
+    #flipbook-container {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      padding: 70px 16px 80px;
+    }
+    #flipbook-stage {
+      position: relative;
+      max-width: 100%;
+    }
+
+    /* Botones prev/next */
+    .flipbook-nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001;
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; padding: 16px;
+      background: rgba(20,12,6,0.7);
+      backdrop-filter: blur(8px);
+    }
+    .flipbook-btn {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white; border-radius: 8px;
+      padding: 10px 28px; font-size: 0.9rem;
+      cursor: pointer; transition: var(--transition);
+      font-family: var(--font-body);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .flipbook-btn:hover:not(:disabled) { background: var(--pink); border-color: var(--pink); }
+    .flipbook-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Thumbnails de páginas */
+    .flipbook-thumbs {
+      position: fixed; bottom: 72px; left: 0; right: 0; z-index: 1000;
+      display: none; /* se activa con JS en mobile */
+      overflow-x: auto; gap: 6px;
+      padding: 8px 16px;
+      background: rgba(20,12,6,0.6);
+      -webkit-overflow-scrolling: touch;
+    }
+    .flipbook-thumb {
+      flex-shrink: 0; width: 44px; height: 60px;
+      object-fit: cover; border-radius: 4px;
+      cursor: pointer; opacity: 0.5; transition: opacity 0.2s;
+      border: 2px solid transparent;
+    }
+    .flipbook-thumb.active { opacity: 1; border-color: var(--pink); }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      .header-inner { padding: 0 20px; }
+      .hero { padding: 90px 20px 40px; }
+      .catalogo-grid { padding: 0 20px 80px; gap: 20px;
+        grid-template-columns: repeat(2, 1fr); }
+      .catalogo-info { padding: 14px; }
+      .catalogo-nombre { font-size: 1.1rem; }
+    }
+    @media (max-width: 480px) {
+      .catalogo-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">Zapatillas May</a>
+    <a href="/" class="header-back">← Volver a la tienda</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="hero-eyebrow">Colecciones</div>
+    <h1>Nuestros Catálogos</h1>
+    <p>Explora las colecciones de temporada</p>
+  </div>
+
+  <div class="catalogo-grid" id="catalogo-grid">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<!-- ── FLIPBOOK OVERLAY ── -->
+<div id="flipbook-overlay">
+  <div class="flipbook-header">
+    <div>
+      <div class="flipbook-title" id="fb-titulo">Catálogo</div>
+    </div>
+    <span class="flipbook-counter" id="fb-counter"></span>
+    <button class="flipbook-close" onclick="cerrarFlipbook()">✕</button>
+  </div>
+
+  <div id="flipbook-container">
+    <div id="flipbook-stage">
+      <!-- StPageFlip monta aquí -->
+    </div>
+  </div>
+
+  <div class="flipbook-thumbs" id="fb-thumbs"></div>
+
+  <div class="flipbook-nav">
+    <button class="flipbook-btn" id="fb-prev" onclick="flipPrev()">‹ Anterior</button>
+    <button class="flipbook-btn" id="fb-next" onclick="flipNext()">Siguiente ›</button>
+  </div>
+</div>
+
+<!-- StPageFlip -->
+<script src="https://unpkg.com/page-flip/dist/js/page-flip.browser.js"></script>
+
+<script>
+  const API = 'https://erp-zapatillas-may-production.up.railway.app'
+  let pageFlip = null
+  let _paginas = []
+  let _catalogoActual = null
+
+  // ── CARGAR CATÁLOGOS ────────────────────────────────────
+
+  async function cargarCatalogos() {
+    const grid = document.getElementById('catalogo-grid')
+    try {
+      const res = await fetch(`${API}/catalogos/`)
+      const catalogos = await res.json()
+      if (!catalogos.length) {
+        grid.innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">📖</div>
+            <p>Próximamente nuevos catálogos</p>
+          </div>`
+        return
+      }
+      grid.innerHTML = catalogos.map(c => `
+        <div class="catalogo-card" onclick="abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\'")}')">
+          ${c.portada_url
+            ? `<img class="catalogo-cover" src="${c.portada_url}" alt="${c.nombre}" loading="lazy">`
+            : `<div class="catalogo-cover-placeholder">📖</div>`}
+          <div class="catalogo-info">
+            ${c.temporada ? `<div class="catalogo-temporada">${c.temporada}</div>` : ''}
+            <div class="catalogo-nombre">${c.nombre}</div>
+            <button class="btn-ver">Ver catálogo →</button>
+          </div>
+        </div>`).join('')
+    } catch (e) {
+      grid.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>Error al cargar catálogos</p></div>`
+    }
+  }
+
+  // ── ABRIR FLIPBOOK ──────────────────────────────────────
+
+  async function abrirCatalogo(catalogoId, nombre) {
+    const overlay = document.getElementById('flipbook-overlay')
+    const stage   = document.getElementById('flipbook-stage')
+    document.getElementById('fb-titulo').textContent = nombre
+    document.getElementById('fb-counter').textContent = 'Cargando...'
+    overlay.classList.add('active')
+    document.body.style.overflow = 'hidden'
+    _catalogoActual = { id: catalogoId, nombre }
+
+    // Destruir flipbook anterior
+    if (pageFlip) { try { pageFlip.destroy() } catch(e){} pageFlip = null }
+    stage.innerHTML = '<div style="color:rgba(255,255,255,0.5);font-size:0.9rem;padding:40px">Cargando páginas…</div>'
+
+    try {
+      const res = await fetch(`${API}/catalogos/${catalogoId}/paginas`)
+      _paginas = await res.json()
+
+      if (!_paginas.length) {
+        stage.innerHTML = '<div style="color:rgba(255,255,255,0.5);padding:40px;text-align:center">Este catálogo no tiene páginas todavía</div>'
+        document.getElementById('fb-counter').textContent = ''
+        return
+      }
+
+      // Calcular tamaño según pantalla
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const disponibleH = vh - 140  // header + nav
+      const disponibleW = vw - 32
+      const isMobile = vw < 700
+
+      // Usamos la primera imagen para saber el ratio
+      const primerImg = await cargarImagen(_paginas[0].imagen_url)
+      const ratio = primerImg.naturalHeight / primerImg.naturalWidth
+
+      let pageW, pageH
+      if (isMobile) {
+        pageW = Math.min(disponibleW, 420)
+        pageH = Math.round(pageW * ratio)
+        if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
+      } else {
+        // Desktop: doble página
+        const maxW = Math.min(disponibleW / 2, 500)
+        pageW = maxW
+        pageH = Math.round(pageW * ratio)
+        if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
+      }
+
+      stage.innerHTML = ''
+
+      pageFlip = new St.PageFlip(stage, {
+        width: pageW,
+        height: pageH,
+        size: 'fixed',
+        minWidth: pageW,
+        maxWidth: pageW,
+        minHeight: pageH,
+        maxHeight: pageH,
+        maxShadowOpacity: 0.4,
+        showCover: true,
+        mobileScrollSupport: false,
+        usePortrait: isMobile,
+        startPage: 0,
+        drawShadow: true,
+        flippingTime: 700,
+        useMouseEvents: true,
+        swipeDistance: 30,
+        clickEventForward: true,
+      })
+
+      const urls = _paginas.map(p => p.imagen_url)
+      pageFlip.loadFromImages(urls)
+
+      pageFlip.on('flip', (e) => actualizarEstado(e.data))
+      pageFlip.on('changeState', () => actualizarEstado(pageFlip.getCurrentPageIndex()))
+
+      // Miniaturas
+      renderThumbs(urls, 0)
+      actualizarEstado(0)
+
+      // Pushstate para botón atrás
+      window.history.pushState({ catalogo: catalogoId }, '', `/catalogo/${catalogoId}`)
+
+    } catch (e) {
+      stage.innerHTML = `<div style="color:rgba(255,255,255,0.5);padding:40px">Error al cargar páginas: ${e.message}</div>`
+    }
+  }
+
+  function cargarImagen(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = src
+    })
+  }
+
+  function renderThumbs(urls, activo) {
+    const cont = document.getElementById('fb-thumbs')
+    cont.style.display = window.innerWidth < 700 ? 'flex' : 'none'
+    cont.innerHTML = urls.map((u, i) => `
+      <img class="flipbook-thumb ${i === activo ? 'active' : ''}"
+           src="${u}" onclick="irPagina(${i})">`).join('')
+  }
+
+  function actualizarEstado(idx) {
+    const total = _paginas.length
+    document.getElementById('fb-counter').textContent = `Pág ${idx + 1} / ${total}`
+    document.getElementById('fb-prev').disabled = idx <= 0
+    document.getElementById('fb-next').disabled = idx >= total - 1
+
+    // Actualizar thumb activo
+    document.querySelectorAll('.flipbook-thumb').forEach((t, i) => {
+      t.classList.toggle('active', i === idx)
+    })
+  }
+
+  function flipPrev() { if (pageFlip) pageFlip.flipPrev() }
+  function flipNext() { if (pageFlip) pageFlip.flipNext() }
+  function irPagina(n) { if (pageFlip) pageFlip.flip(n) }
+
+  function cerrarFlipbook() {
+    document.getElementById('flipbook-overlay').classList.remove('active')
+    document.body.style.overflow = ''
+    if (pageFlip) { try { pageFlip.destroy() } catch(e){} pageFlip = null }
+    if (window.location.pathname !== '/catalogo') {
+      window.history.replaceState({}, '', '/catalogo')
+    }
+  }
+
+  // Botón atrás cierra el flipbook
+  window.addEventListener('popstate', () => {
+    const overlay = document.getElementById('flipbook-overlay')
+    if (overlay.classList.contains('active')) cerrarFlipbook()
+  })
+
+  // Tecla Escape
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarFlipbook()
+    if (e.key === 'ArrowLeft')  flipPrev()
+    if (e.key === 'ArrowRight') flipNext()
+  })
+
+  // ── INIT ─────────────────────────────────────────────────
+  cargarCatalogos()
+</script>
+</body>
+</html>

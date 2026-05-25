@@ -4,6 +4,8 @@
     { "source": "/pedido-exitoso", "destination": "/index.html" },
     { "source": "/checkout", "destination": "/index.html" },
     { "source": "/politica-de-devoluciones", "destination": "/politica-de-devoluciones.html" },
+    { "source": "/catalogo", "destination": "/catalogo.html" },
+    { "source": "/catalogo/:id", "destination": "/catalogo.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
