@@ -602,6 +602,7 @@
 
     .modal-img {
       position: relative;
+      grid-row: 1 / span 2;
       border-radius: 12px 0 0 12px;
       overflow: hidden;
       background: var(--gray-100);
@@ -609,7 +610,6 @@
       align-items: center;
       justify-content: center;
       padding: 24px;
-      min-height: 100%;
     }
 
     .modal-img img {
@@ -631,9 +631,14 @@
     }
 
     .modal-info {
-      padding: 40px;
+      padding: 40px 40px 12px;
       display: flex;
       flex-direction: column;
+    }
+
+    .modal-actions {
+      padding: 0 40px 36px;
+      background: white;
     }
 
     .modal-close {
@@ -1235,13 +1240,13 @@
   .modal { display: flex; flex-direction: column; max-height: 95vh; overflow: hidden; }
   .modal-img { flex: 0 0 auto; border-radius: 12px 12px 0 0; height: auto; max-height: 34vh; min-height: 130px; padding: 12px; }
   .modal-img img { object-fit: contain !important; height: 100% !important; max-height: 100% !important; width: auto !important; max-width: 100%; }
-  .modal-info { flex: 1 1 0; padding: 20px 20px 0; overflow-y: auto; max-height: none; display: flex; flex-direction: column; }
+  .modal-info { flex: 1 1 0; min-height: 0; padding: 20px 20px 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; max-height: none; }
   .modal-overlay { align-items: flex-end; padding: 0; }
   #modal-producto { position: relative; border-radius: 16px 16px 0 0; max-height: 95vh; width: 100%; }
   .modal-close { position: absolute; top: 10px; right: 12px; z-index: 5; background: rgba(255,255,255,0.92); backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); margin-bottom: 0; }
   .modal-name { font-size: 1.35rem; }
   .color-selector { grid-template-columns: repeat(3, 1fr); }
-  .modal-actions { flex-shrink: 0; position: sticky; bottom: 0; padding: 12px 0 20px; background: white; border-top: 1px solid var(--gray-100); }
+  .modal-actions { flex-shrink: 0; padding: 12px 20px 20px; background: white; border-top: 1px solid var(--gray-100); }
   .cart-drawer { width: 100%; }
   .banner-mayoreo-inner { grid-template-columns: 1fr; gap: 40px; }
   .footer-top { grid-template-columns: 1fr 1fr; }
@@ -1903,10 +1908,10 @@
       <div class="color-selector" id="modal-colores"></div>
       <div class="modal-section-label">Talla</div>
       <div class="talla-selector" id="modal-tallas"></div>
-      <div class="modal-actions">
-        <button class="btn-agregar" id="btn-agregar" onclick="agregarAlCarrito()" disabled>Selecciona color y talla</button>
-        <button class="btn-corrida" id="btn-corrida" style="display:none" onclick="agregarCorridaAlCarrito()">+ Agregar corrida completa</button>
-      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-agregar" id="btn-agregar" onclick="agregarAlCarrito()" disabled>Selecciona color y talla</button>
+      <button class="btn-corrida" id="btn-corrida" style="display:none" onclick="agregarCorridaAlCarrito()">+ Agregar corrida completa</button>
     </div>
   </div>
 </div>
