@@ -198,6 +198,28 @@
     }
     .flipbook-close:hover { background: var(--pink); }
 
+    /* Zoom overlay */
+    #zoom-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.96);
+      align-items: center; justify-content: center;
+      cursor: zoom-out;
+    }
+    #zoom-overlay.active { display: flex; }
+    #zoom-overlay img {
+      max-width: 100%; max-height: 100%;
+      object-fit: contain;
+      user-select: none;
+      touch-action: pinch-zoom;
+    }
+    #zoom-close {
+      position: fixed; top: 16px; right: 16px; z-index: 2001;
+      background: rgba(255,255,255,0.15); border: none; color: white;
+      width: 40px; height: 40px; border-radius: 50%;
+      font-size: 1.2rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
     /* Container del flipbook */
     #flipbook-container {
       width: 100%; height: 100%;
@@ -288,7 +310,10 @@
       <div class="flipbook-title" id="fb-titulo">Catálogo</div>
     </div>
     <span class="flipbook-counter" id="fb-counter"></span>
-    <button class="flipbook-close" onclick="cerrarFlipbook()">✕</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="flipbook-close" onclick="abrirZoom()" title="Ampliar página" style="font-size:1rem">🔍</button>
+      <button class="flipbook-close" onclick="cerrarFlipbook()">✕</button>
+    </div>
   </div>
 
   <div id="flipbook-container">
@@ -303,6 +328,12 @@
     <button class="flipbook-btn" id="fb-prev" onclick="flipPrev()">‹ Anterior</button>
     <button class="flipbook-btn" id="fb-next" onclick="flipNext()">Siguiente ›</button>
   </div>
+</div>
+
+<!-- Zoom overlay -->
+<div id="zoom-overlay" onclick="cerrarZoom()">
+  <button id="zoom-close" onclick="cerrarZoom()">✕</button>
+  <img id="zoom-img" src="" alt="Página ampliada">
 </div>
 
 <!-- StPageFlip -->
@@ -491,15 +522,43 @@
     }
   }
 
-  // Botón atrás cierra el flipbook
+  // ── ZOOM ─────────────────────────────────────────────────
+  function abrirZoom() {
+    if (!pageFlip || !_paginas.length) return
+    const idx = pageFlip.getCurrentPageIndex()
+    const pagina = _paginas[idx]
+    if (!pagina) return
+    document.getElementById('zoom-img').src = pagina.imagen_url
+    document.getElementById('zoom-overlay').classList.add('active')
+    document.body.style.overflow = 'hidden'
+  }
+
+  function cerrarZoom() {
+    document.getElementById('zoom-overlay').classList.remove('active')
+  }
+
+  // Doble tap en el stage para zoom (móvil)
+  let _lastTap = 0
+  document.getElementById('flipbook-stage').addEventListener('touchend', function(e) {
+    const now = Date.now()
+    if (now - _lastTap < 300) { e.preventDefault(); abrirZoom() }
+    _lastTap = now
+  }, { passive: false })
+
+  // Botón atrás cierra el flipbook o el zoom
   window.addEventListener('popstate', () => {
+    const zoom = document.getElementById('zoom-overlay')
+    if (zoom.classList.contains('active')) { cerrarZoom(); return }
     const overlay = document.getElementById('flipbook-overlay')
     if (overlay.classList.contains('active')) cerrarFlipbook()
   })
 
   // Tecla Escape
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') cerrarFlipbook()
+    if (e.key === 'Escape') {
+      if (document.getElementById('zoom-overlay').classList.contains('active')) { cerrarZoom(); return }
+      cerrarFlipbook()
+    }
     if (e.key === 'ArrowLeft')  flipPrev()
     if (e.key === 'ArrowRight') flipNext()
   })
