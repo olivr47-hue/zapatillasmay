@@ -4298,7 +4298,7 @@ if (!datos) window._coloresExistentes = null
     <div class="table-card" style="padding:2rem;overflow:visible">
       <div style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;margin:-2rem -2rem 1.5rem -2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
         <button type="button" class="btn btn-secondary" onclick="navegarA('productos')" style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.85rem">← Volver</button>
-        <button type="button" class="btn btn-primary" onclick="guardarProducto()" style="padding:6px 18px;font-size:0.85rem">💾 Guardar</button>
+        <button type="button" id="btn-guardar" class="btn btn-primary" onclick="guardarProducto()" style="padding:6px 18px;font-size:0.85rem">💾 Guardar</button>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
@@ -5050,6 +5050,9 @@ window.subirVideoProducto = async (input) => {
 }
 
 window.guardarProducto = async () => {
+  // Evitar doble submit
+  if (window._guardandoProducto) return
+  window._guardandoProducto = true
   // Leer ID del campo oculto
   const idOculto = document.getElementById('f-producto-id') ? document.getElementById('f-producto-id').value : ''
   if (idOculto) window._productoEditandoId = idOculto
@@ -5281,6 +5284,7 @@ if (hayStockCapturado && !sucursalStock) {
       if (prod && prod.error) {
         alert('Error: ' + prod.error)
         if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
+        window._guardandoProducto = false
         return
       }
       // Mensaje de resultado con detalle de stock
@@ -5290,16 +5294,19 @@ if (hayStockCapturado && !sucursalStock) {
       if (stockErrores.length > 0) msgFinal += `\n❌ Errores al guardar: ${stockErrores.join(', ')}`
       alert(msgFinal)
       window._productoEditandoId = null
+      window._guardandoProducto = false
       navegarA('productos')
     } else {
       const err = await res.text()
       alert('Error al guardar: ' + err)
       if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
+      window._guardandoProducto = false
     }
     window._coloresEliminados = []
   } catch(e) {
     alert('Error conectando con el servidor')
     if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
+    window._guardandoProducto = false
   }
 }
 
