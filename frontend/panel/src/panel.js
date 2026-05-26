@@ -11241,7 +11241,7 @@ window.generarPaginasCanvas = async function(catalogoId) {
     ctx.fillRect(60, 58, 960, 1)
 
     if (layoutVal === '1e') {
-      // ── LAYOUT EDITORIAL: 1 producto, múltiples fotos ─────────────────────
+      // ── LAYOUT EDITORIAL ADAPTATIVO: 1 producto, 1-2-3 fotos ──────────────
       const p = grupo[0]
 
       // Recopilar fotos únicas: principal → variantes (foto_url) → imagenes extra
@@ -11254,55 +11254,116 @@ window.generarPaginasCanvas = async function(catalogoId) {
         if (Array.isArray(v.imagenes)) v.imagenes.forEach(_addFoto)
         if (fotosUnicas.length >= 3) break
       }
-      // Garantizar 3 fotos (repetir la principal si faltan)
-      while (fotosUnicas.length < 3) fotosUnicas.push(fotosUnicas[0] || '')
+      const nFotos = fotosUnicas.length  // 1, 2 ó 3+
 
-      const [imgIzq, imgArrDer, imgAbajoDer] = await Promise.all([
-        _cargarImgCanvas(fotosUnicas[0]),
-        _cargarImgCanvas(fotosUnicas[1]),
-        _cargarImgCanvas(fotosUnicas[2])
-      ])
+      // Colores únicos con su hex para las bolitas
+      const coloresDisp = []
+      const _colVist = new Set()
+      for (const v of varsP) {
+        const c = (v.color || '').trim()
+        if (c && !_colVist.has(c)) { _colVist.add(c); coloresDisp.push({ color: c, hex: v.color_hex }) }
+      }
 
-      // Helper: dibuja una foto con recorte tipo "cover" (rellena la celda, sin distorsión)
-      const _drawCover = (img, x, y, w, h) => {
+      // Fallback de hex por nombre de color
+      const _hexMap = {
+        'negro':'#1C1C1C','blanco':'#F8F8F8','hueso':'#F0EBE1','beige':'#D9C9A8',
+        'camel':'#C19A6B','cafe claro':'#A0725A','cafe medio':'#7A4A30','cafe oscuro':'#4A2010',
+        'cafe':'#6B3A2A','chocolate':'#3D1C02','cognac':'#9B4421','taupe':'#8B7355',
+        'nude':'#D4A97A','nude claro':'#E8C9A8','nude oscuro':'#C0886A','nude rosa':'#DDA090',
+        'palo de rosa':'#D4A0A0','salmon':'#FA8072','coral':'#FF6B4A',
+        'rojo':'#CC2200','vino':'#722F37','bordo':'#800020',
+        'rosa claro':'#F9C0CB','rosa':'#F4607A','fusha':'#E91E8C',
+        'naranja':'#FF8C00','amarillo':'#F5C518',
+        'dorado':'#D4AF37','oro':'#CFB53B','oro rosa':'#E8B4B8','plateado':'#C0C0C0',
+        'azul claro':'#5B8DB8','azul':'#1E4080','azul marino':'#001F5B','turquesa':'#40C4AA',
+        'verde':'#2D6A4F','verde menta':'#98D8C8',
+        'gris claro':'#C8C8C8','gris':'#909090','gris oscuro':'#505050',
+        'morado':'#7B2D8B','lila':'#C8A0D8','multicolor':'#CCAA88'
+      }
+      const _getHex = ({ color, hex }) => {
+        if (hex && hex.startsWith('#')) return hex
+        const lower = (color || '').toLowerCase()
+        if (_hexMap[lower]) return _hexMap[lower]
+        for (const [k, v] of Object.entries(_hexMap)) { if (lower.includes(k)) return v }
+        return '#BBAA99'
+      }
+
+      // Helper: contain — imagen completa visible, sin recorte, fondo blanco
+      const _drawContain = (img, x, y, w, h) => {
         ctx.save()
-        ctx.fillStyle = '#F5ECE2'
+        ctx.fillStyle = '#FFFFFF'
         ctx.fillRect(x, y, w, h)
-        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
         if (img) {
+          ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
           const ir = img.naturalWidth / img.naturalHeight, cr = w / h
           let dx, dy, dw, dh
-          if (ir > cr) { dh = h; dw = h * ir; dy = y; dx = x - (dw - w) / 2 }
-          else          { dw = w; dh = w / ir; dx = x; dy = y - (dh - h) / 2 }
+          if (ir > cr) { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2 }
+          else          { dh = h; dw = h * ir; dy = y; dx = x + (w - dw) / 2 }
           ctx.drawImage(img, dx, dy, dw, dh)
         }
         ctx.restore()
       }
 
-      // Medidas: foto izquierda grande + 2 fotos apiladas a la derecha
-      const cTop = 62, imgAreaH = 1178
-      const gapC = 10, gapR = 10
-      const leftW = 648, rightW = 1080 - leftW - gapC   // 422
-      const rightH = Math.floor((imgAreaH - gapR) / 2)   // 584
+      // Área de imagen más corta para dejar espacio a nombre + bolitas
+      const cTop = 62, imgAreaH = 1080
+      const nyBase = cTop + imgAreaH + 12  // = 1154
 
-      _drawCover(imgIzq,      0,            cTop,                    leftW,  imgAreaH)
-      _drawCover(imgArrDer,   leftW + gapC, cTop,                    rightW, rightH)
-      _drawCover(imgAbajoDer, leftW + gapC, cTop + rightH + gapR,   rightW, rightH)
+      if (nFotos >= 3) {
+        // ── 3 fotos: grande izquierda + 2 apiladas derecha (contain, sin recorte)
+        const [imgIzq, imgArrDer, imgAbajoDer] = await Promise.all(fotosUnicas.slice(0,3).map(_cargarImgCanvas))
+        const gapC = 10, gapR = 10
+        const leftW = 648, rightW = 1080 - leftW - gapC          // 422
+        const rightH = Math.floor((imgAreaH - gapR) / 2)          // 535
+        _drawContain(imgIzq,      0,            cTop,                  leftW,  imgAreaH)
+        _drawContain(imgArrDer,   leftW + gapC, cTop,                  rightW, rightH)
+        _drawContain(imgAbajoDer, leftW + gapC, cTop + rightH + gapR, rightW, rightH)
 
-      // Nombre del producto bajo las fotos
-      const nyBase = cTop + imgAreaH + 12
+      } else if (nFotos === 2) {
+        // ── 2 fotos: columnas iguales lado a lado (contain, sin recorte)
+        const [imgA, imgB] = await Promise.all(fotosUnicas.map(_cargarImgCanvas))
+        const gap = 10, colW = Math.floor((1080 - gap) / 2)       // 535
+        _drawContain(imgA, 0,          cTop, colW, imgAreaH)
+        _drawContain(imgB, colW + gap, cTop, colW, imgAreaH)
+
+      } else {
+        // ── 1 foto: imagen grande centrada (contain, sin recorte)
+        const [imgSolo] = await Promise.all([_cargarImgCanvas(fotosUnicas[0])])
+        _drawContain(imgSolo, 40, cTop, 1000, imgAreaH)
+      }
+
+      // ── Nombre del producto ─────────────────────────────────────────────────
       ctx.fillStyle = '#E8DDD5'
       ctx.fillRect(0, nyBase, 1080, 1)
       ctx.fillStyle = '#2A1A0E'
       ctx.textAlign = 'center'
-      ctx.font = '300 30px DM Sans, sans-serif'
+      ctx.font = '300 28px DM Sans, sans-serif'
       ctx.letterSpacing = '3px'
-      _wrapText(ctx, p.nombre.toUpperCase(), 540, nyBase + 46, 960, 40)
+      _wrapText(ctx, p.nombre.toUpperCase(), 540, nyBase + 42, 960, 38)
       ctx.letterSpacing = '0px'
       if (p.sku) {
         ctx.fillStyle = '#A07860'
-        ctx.font = '400 15px DM Mono, monospace'
-        ctx.fillText(p.sku, 540, nyBase + 72)
+        ctx.font = '400 14px DM Mono, monospace'
+        ctx.fillText(p.sku, 540, nyBase + 66)
+      }
+
+      // ── Bolitas de colores disponibles ─────────────────────────────────────
+      if (coloresDisp.length > 0) {
+        const dotR = 11, dotGap = 8
+        const maxDots = Math.min(coloresDisp.length, 14)
+        const totalW = maxDots * (dotR * 2) + (maxDots - 1) * dotGap
+        let dotX = Math.round(540 - totalW / 2 + dotR)
+        const dotY = nyBase + 100  // y ≈ 1254
+
+        for (let di = 0; di < maxDots; di++) {
+          const cx = dotX + di * (dotR * 2 + dotGap)
+          ctx.beginPath()
+          ctx.arc(cx, dotY, dotR, 0, Math.PI * 2)
+          ctx.fillStyle = _getHex(coloresDisp[di])
+          ctx.fill()
+          ctx.strokeStyle = 'rgba(0,0,0,0.18)'
+          ctx.lineWidth = 1.5
+          ctx.stroke()
+        }
       }
 
     } else {
