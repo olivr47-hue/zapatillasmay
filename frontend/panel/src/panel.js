@@ -11103,6 +11103,7 @@ async function _cargarGenerador(catalogoId) {
           <label style="font-size:0.8rem;font-weight:600">Productos por página:</label>
           <select id="gen-layout" class="form-input" style="width:auto;padding:5px 10px;font-size:0.8rem">
             <option value="1">1 por página</option>
+            <option value="1e">1 prod. — editorial 📸</option>
             <option value="2" selected>2 por página</option>
             <option value="4">4 por página</option>
           </select>
@@ -11194,7 +11195,8 @@ window.generarPaginasCanvas = async function(catalogoId) {
   const { productos, variantes, seleccionados } = window._generadorData
   if (!seleccionados.size) { alert('Selecciona al menos un producto'); return }
 
-  const layout = parseInt(document.getElementById('gen-layout').value)
+  const layoutVal = document.getElementById('gen-layout').value
+  const layout = layoutVal === '1e' ? 1 : parseInt(layoutVal)
   const selArr = Array.from(seleccionados).map(i => productos[i])
 
   // Agrupar según layout
@@ -11238,62 +11240,130 @@ window.generarPaginasCanvas = async function(catalogoId) {
     ctx.fillStyle = '#C8967A'
     ctx.fillRect(60, 58, 960, 1)
 
-    const cols = layout <= 2 ? layout : 2
-    const rows = layout === 4 ? 2 : 1
-    // Zona disponible para los productos
-    const areaTop = 80, areaBottom = 100
-    const gapX = layout === 1 ? 0 : 20
-    const gapY = layout === 4 ? 20 : 0
-    const padX = layout === 1 ? 40 : 28
-    const cellW = (1080 - padX * 2 - gapX * (cols - 1)) / cols
-    const cellH = (1440 - areaTop - areaBottom - gapY * (rows - 1)) / rows
+    if (layoutVal === '1e') {
+      // ── LAYOUT EDITORIAL: 1 producto, múltiples fotos ─────────────────────
+      const p = grupo[0]
 
-    for (let pi = 0; pi < grupo.length; pi++) {
-      const p = grupo[pi]
-      const col = pi % cols, row = Math.floor(pi / cols)
-      const x = padX + col * (cellW + gapX)
-      const y = areaTop + row * (cellH + gapY)
-
-      // Altura para la foto (reserva espacio para el nombre abajo)
-      const nameH = layout === 1 ? 120 : (layout === 2 ? 90 : 70)
-      const imgH = cellH - nameH
-
-      // ── Foto del producto ──────────────────────────────
-      const img = await _cargarImgCanvas(p.imagen_principal)
-      ctx.save()
-      // Fondo blanco detrás de la foto
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fillRect(x, y, cellW, imgH)
-      if (img) {
-        ctx.beginPath(); ctx.rect(x, y, cellW, imgH); ctx.clip()
-        const ir = img.naturalWidth / img.naturalHeight
-        const cr = cellW / imgH
-        let dx, dy, dw, dh
-        if (ir > cr) { dw = cellW; dh = cellW / ir; dx = x; dy = y + (imgH - dh) / 2 }
-        else { dh = imgH; dw = imgH * ir; dy = y; dx = x + (cellW - dw) / 2 }
-        ctx.drawImage(img, dx, dy, dw, dh)
+      // Recopilar fotos únicas: principal → variantes (foto_url) → imagenes extra
+      const varsP = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+      const fotosUnicas = [], urlsVistas = new Set()
+      const _addFoto = u => { if (u && !urlsVistas.has(u)) { urlsVistas.add(u); fotosUnicas.push(u) } }
+      _addFoto(p.imagen_principal)
+      for (const v of varsP) {
+        _addFoto(v.foto_url)
+        if (Array.isArray(v.imagenes)) v.imagenes.forEach(_addFoto)
+        if (fotosUnicas.length >= 3) break
       }
-      ctx.restore()
+      // Garantizar 3 fotos (repetir la principal si faltan)
+      while (fotosUnicas.length < 3) fotosUnicas.push(fotosUnicas[0] || '')
 
-      // ── Separador fino entre foto y nombre ────────────
+      const [imgIzq, imgArrDer, imgAbajoDer] = await Promise.all([
+        _cargarImgCanvas(fotosUnicas[0]),
+        _cargarImgCanvas(fotosUnicas[1]),
+        _cargarImgCanvas(fotosUnicas[2])
+      ])
+
+      // Helper: dibuja una foto con recorte tipo "cover" (rellena la celda, sin distorsión)
+      const _drawCover = (img, x, y, w, h) => {
+        ctx.save()
+        ctx.fillStyle = '#F5ECE2'
+        ctx.fillRect(x, y, w, h)
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+        if (img) {
+          const ir = img.naturalWidth / img.naturalHeight, cr = w / h
+          let dx, dy, dw, dh
+          if (ir > cr) { dh = h; dw = h * ir; dy = y; dx = x - (dw - w) / 2 }
+          else          { dw = w; dh = w / ir; dx = x; dy = y - (dh - h) / 2 }
+          ctx.drawImage(img, dx, dy, dw, dh)
+        }
+        ctx.restore()
+      }
+
+      // Medidas: foto izquierda grande + 2 fotos apiladas a la derecha
+      const cTop = 62, imgAreaH = 1178
+      const gapC = 10, gapR = 10
+      const leftW = 648, rightW = 1080 - leftW - gapC   // 422
+      const rightH = Math.floor((imgAreaH - gapR) / 2)   // 584
+
+      _drawCover(imgIzq,      0,            cTop,                    leftW,  imgAreaH)
+      _drawCover(imgArrDer,   leftW + gapC, cTop,                    rightW, rightH)
+      _drawCover(imgAbajoDer, leftW + gapC, cTop + rightH + gapR,   rightW, rightH)
+
+      // Nombre del producto bajo las fotos
+      const nyBase = cTop + imgAreaH + 12
       ctx.fillStyle = '#E8DDD5'
-      ctx.fillRect(x, y + imgH, cellW, 1)
-
-      // ── Nombre del producto ────────────────────────────
-      const nameY = y + imgH + (nameH / 2)
+      ctx.fillRect(0, nyBase, 1080, 1)
       ctx.fillStyle = '#2A1A0E'
       ctx.textAlign = 'center'
-      const fs = layout === 1 ? 34 : (layout === 2 ? 24 : 19)
-      ctx.font = `300 ${fs}px DM Sans, sans-serif`
-      // Nombre en mayúsculas con espaciado
-      ctx.letterSpacing = '2px'
-      _wrapText(ctx, p.nombre.toUpperCase(), x + cellW / 2, nameY - 8, cellW - 32, fs + 10)
+      ctx.font = '300 30px DM Sans, sans-serif'
+      ctx.letterSpacing = '3px'
+      _wrapText(ctx, p.nombre.toUpperCase(), 540, nyBase + 46, 960, 40)
       ctx.letterSpacing = '0px'
-      // Código SKU en pequeño
       if (p.sku) {
         ctx.fillStyle = '#A07860'
-        ctx.font = `400 ${layout === 1 ? 18 : 13}px DM Mono, monospace`
-        ctx.fillText(p.sku, x + cellW / 2, nameY + (layout === 1 ? 36 : 26))
+        ctx.font = '400 15px DM Mono, monospace'
+        ctx.fillText(p.sku, 540, nyBase + 72)
+      }
+
+    } else {
+      // ── LAYOUT GRILLA (1 / 2 / 4 por página) ──────────────────────────────
+      const cols = layout <= 2 ? layout : 2
+      const rows = layout === 4 ? 2 : 1
+      // Zona disponible para los productos
+      const areaTop = 80, areaBottom = 100
+      const gapX = layout === 1 ? 0 : 20
+      const gapY = layout === 4 ? 20 : 0
+      const padX = layout === 1 ? 40 : 28
+      const cellW = (1080 - padX * 2 - gapX * (cols - 1)) / cols
+      const cellH = (1440 - areaTop - areaBottom - gapY * (rows - 1)) / rows
+
+      for (let pi = 0; pi < grupo.length; pi++) {
+        const p = grupo[pi]
+        const col = pi % cols, row = Math.floor(pi / cols)
+        const x = padX + col * (cellW + gapX)
+        const y = areaTop + row * (cellH + gapY)
+
+        // Altura para la foto (reserva espacio para el nombre abajo)
+        const nameH = layout === 1 ? 120 : (layout === 2 ? 90 : 70)
+        const imgH = cellH - nameH
+
+        // ── Foto del producto ──────────────────────────────
+        const img = await _cargarImgCanvas(p.imagen_principal)
+        ctx.save()
+        // Fondo blanco detrás de la foto
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(x, y, cellW, imgH)
+        if (img) {
+          ctx.beginPath(); ctx.rect(x, y, cellW, imgH); ctx.clip()
+          const ir = img.naturalWidth / img.naturalHeight
+          const cr = cellW / imgH
+          let dx, dy, dw, dh
+          if (ir > cr) { dw = cellW; dh = cellW / ir; dx = x; dy = y + (imgH - dh) / 2 }
+          else { dh = imgH; dw = imgH * ir; dy = y; dx = x + (cellW - dw) / 2 }
+          ctx.drawImage(img, dx, dy, dw, dh)
+        }
+        ctx.restore()
+
+        // ── Separador fino entre foto y nombre ────────────
+        ctx.fillStyle = '#E8DDD5'
+        ctx.fillRect(x, y + imgH, cellW, 1)
+
+        // ── Nombre del producto ────────────────────────────
+        const nameY = y + imgH + (nameH / 2)
+        ctx.fillStyle = '#2A1A0E'
+        ctx.textAlign = 'center'
+        const fs = layout === 1 ? 34 : (layout === 2 ? 24 : 19)
+        ctx.font = `300 ${fs}px DM Sans, sans-serif`
+        // Nombre en mayúsculas con espaciado
+        ctx.letterSpacing = '2px'
+        _wrapText(ctx, p.nombre.toUpperCase(), x + cellW / 2, nameY - 8, cellW - 32, fs + 10)
+        ctx.letterSpacing = '0px'
+        // Código SKU en pequeño
+        if (p.sku) {
+          ctx.fillStyle = '#A07860'
+          ctx.font = `400 ${layout === 1 ? 18 : 13}px DM Mono, monospace`
+          ctx.fillText(p.sku, x + cellW / 2, nameY + (layout === 1 ? 36 : 26))
+        }
       }
     }
 
