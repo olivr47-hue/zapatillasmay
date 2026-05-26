@@ -418,11 +418,11 @@
       // Calcular tamaño según pantalla
       const vw = window.innerWidth
       const vh = window.innerHeight
-      const disponibleH = vh - 100  // header ~40px + nav ~55px
+      const disponibleH = vh - 100
       const disponibleW = vw - 16
       const isMobile = vw < 700
 
-      // Usar el ratio de las PÁGINAS (no la portada) para que el tamaño sea correcto
+      // Usar el ratio de las PÁGINAS (no la portada) para dimensionar el flipbook
       const ratioIdx = (_paginas[0]?._es_portada && _paginas.length > 1) ? 1 : 0
       const ratioImg = await cargarImagen(_paginas[ratioIdx].imagen_url)
       const ratio = ratioImg.naturalHeight / ratioImg.naturalWidth
@@ -433,11 +433,40 @@
         pageW = Math.round(pageH / ratio)
         if (pageW > disponibleW) { pageW = disponibleW; pageH = Math.round(pageW * ratio) }
       } else {
-        // Desktop: llenar altura primero, luego verificar ancho
         pageH = disponibleH
         pageW = Math.round(pageH / ratio)
         const maxHalfW = Math.floor(disponibleW / 2) - 4
         if (pageW > maxHalfW) { pageW = maxHalfW; pageH = Math.round(pageW * ratio) }
+      }
+
+      // Si la portada tiene diferente ratio, dibujarla en canvas con object-fit:contain
+      // para evitar que se estire al mostrarse en el flipbook
+      if (_paginas[0]?._es_portada) {
+        // Cargar con crossOrigin para poder usar canvas.toDataURL
+        const portadaImg = await new Promise(res => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => res(img)
+          img.onerror = () => res(null)
+          img.src = _paginas[0].imagen_url + (_paginas[0].imagen_url.includes('?') ? '&' : '?') + '_c=1'
+        })
+        if (portadaImg) {
+          const canvas = document.createElement('canvas')
+          canvas.width = pageW
+          canvas.height = pageH
+          const ctx = canvas.getContext('2d')
+          // Fondo crema
+          ctx.fillStyle = '#F5ECE2'
+          ctx.fillRect(0, 0, pageW, pageH)
+          // Calcular posición centrada (object-fit: contain)
+          const iR = portadaImg.naturalWidth / portadaImg.naturalHeight
+          const cR = pageW / pageH
+          let dw, dh, dx, dy
+          if (iR > cR) { dw = pageW; dh = pageW / iR; dx = 0; dy = (pageH - dh) / 2 }
+          else          { dh = pageH; dw = pageH * iR; dy = 0; dx = (pageW - dw) / 2 }
+          ctx.drawImage(portadaImg, dx, dy, dw, dh)
+          _paginas[0]._url_normalizada = canvas.toDataURL('image/jpeg', 0.92)
+        }
       }
 
       stage.innerHTML = ''
@@ -462,7 +491,8 @@
         clickEventForward: true,
       })
 
-      const urls = _paginas.map(p => p.imagen_url)
+      // Usar URL normalizada para portada si existe
+      const urls = _paginas.map(p => p._url_normalizada || p.imagen_url)
       pageFlip.loadFromImages(urls)
 
       pageFlip.on('flip', (e) => actualizarEstado(e.data))
