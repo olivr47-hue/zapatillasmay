@@ -10935,7 +10935,7 @@ function renderGestionPaginas() {
       <div style="margin-top:28px">
         ${(portada_url || paginas.length > 0) ? `
         <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
-        <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px">
+        <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
           ${portada_url ? `
             <div style="background:white;border:2px solid #C8967A;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
               <img src="${portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">

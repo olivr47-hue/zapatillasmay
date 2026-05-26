@@ -387,8 +387,8 @@
       // Calcular tamaño según pantalla
       const vw = window.innerWidth
       const vh = window.innerHeight
-      const disponibleH = vh - 140  // header + nav
-      const disponibleW = vw - 32
+      const disponibleH = vh - 110  // header + nav
+      const disponibleW = vw - 24
       const isMobile = vw < 700
 
       // Usamos la primera imagen para saber el ratio
@@ -397,12 +397,13 @@
 
       let pageW, pageH
       if (isMobile) {
-        pageW = Math.min(disponibleW, 420)
+        // Móvil: página única, usa todo el ancho disponible
+        pageW = disponibleW
         pageH = Math.round(pageW * ratio)
         if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
       } else {
-        // Desktop: doble página
-        const maxW = Math.min(disponibleW / 2, 500)
+        // Desktop: doble página — cada página ocupa casi la mitad del ancho
+        const maxW = Math.min(Math.floor(disponibleW / 2) - 8, 680)
         pageW = maxW
         pageH = Math.round(pageW * ratio)
         if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
