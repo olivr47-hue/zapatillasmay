@@ -11215,85 +11215,105 @@ window.generarPaginasCanvas = async function(catalogoId) {
     msg.textContent = `Generando página ${gi + 1} de ${grupos.length}...`
     bar.style.width = ((gi / grupos.length) * 100) + '%'
 
-    // Crear canvas 1080x1440
     const canvas = document.createElement('canvas')
     canvas.width = 1080; canvas.height = 1440
     const ctx = canvas.getContext('2d')
 
-    // Fondo crema
-    ctx.fillStyle = '#F5ECE2'
+    // ── Fondo blanco roto ──────────────────────────────────
+    ctx.fillStyle = '#FAFAF8'
     ctx.fillRect(0, 0, 1080, 1440)
 
-    // Barra superior
+    // ── Encabezado editorial ───────────────────────────────
+    // Línea fina superior
     ctx.fillStyle = '#C8967A'
-    ctx.fillRect(0, 0, 1080, 8)
-
-    // Marca de agua superior
-    ctx.fillStyle = '#C8967A'
-    ctx.font = '600 28px DM Sans, sans-serif'
+    ctx.fillRect(60, 48, 960, 1)
+    // Nombre marca centrado
+    ctx.fillStyle = '#2A1A0E'
+    ctx.font = '300 22px DM Sans, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText('ZAPATILLAS MAY', 540, 52)
-    ctx.fillStyle = '#A07860'
-    ctx.font = '300 18px DM Sans, sans-serif'
-    ctx.fillText('Calzado de Moda · León, Gto.', 540, 80)
+    ctx.letterSpacing = '8px'
+    ctx.fillText('ZAPATILLAS MAY', 540, 42)
+    ctx.letterSpacing = '0px'
+    // Línea fina inferior del header
+    ctx.fillStyle = '#C8967A'
+    ctx.fillRect(60, 58, 960, 1)
 
-    const cols = Math.min(grupo.length, layout <= 2 ? layout : 2)
+    const cols = layout <= 2 ? layout : 2
     const rows = layout === 4 ? 2 : 1
-    const padX = 40, padTop = 100
-    const cellW = (1080 - padX * (cols + 1)) / cols
-    const cellH = (1440 - padTop - 80 - 40 * rows) / rows
+    // Zona disponible para los productos
+    const areaTop = 80, areaBottom = 100
+    const gapX = layout === 1 ? 0 : 20
+    const gapY = layout === 4 ? 20 : 0
+    const padX = layout === 1 ? 40 : 28
+    const cellW = (1080 - padX * 2 - gapX * (cols - 1)) / cols
+    const cellH = (1440 - areaTop - areaBottom - gapY * (rows - 1)) / rows
 
     for (let pi = 0; pi < grupo.length; pi++) {
       const p = grupo[pi]
       const col = pi % cols, row = Math.floor(pi / cols)
-      const x = padX + col * (cellW + padX)
-      const y = padTop + row * (cellH + 40)
-      const imgH = cellH - 140
+      const x = padX + col * (cellW + gapX)
+      const y = areaTop + row * (cellH + gapY)
 
-      // Tarjeta blanca
-      ctx.fillStyle = 'white'
-      _roundRect(ctx, x, y, cellW, cellH, 16)
-      ctx.fill()
+      // Altura para la foto (reserva espacio para el nombre abajo)
+      const nameH = layout === 1 ? 120 : (layout === 2 ? 90 : 70)
+      const imgH = cellH - nameH
 
-      // Foto del producto
+      // ── Foto del producto ──────────────────────────────
       const img = await _cargarImgCanvas(p.imagen_principal)
+      ctx.save()
+      // Fondo blanco detrás de la foto
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(x, y, cellW, imgH)
       if (img) {
-        ctx.save()
-        _roundRect(ctx, x, y, cellW, imgH, [16, 16, 0, 0])
-        ctx.clip()
-        // object-fit: contain centrado
+        ctx.beginPath(); ctx.rect(x, y, cellW, imgH); ctx.clip()
         const ir = img.naturalWidth / img.naturalHeight
         const cr = cellW / imgH
         let dx, dy, dw, dh
         if (ir > cr) { dw = cellW; dh = cellW / ir; dx = x; dy = y + (imgH - dh) / 2 }
         else { dh = imgH; dw = imgH * ir; dy = y; dx = x + (cellW - dw) / 2 }
         ctx.drawImage(img, dx, dy, dw, dh)
-        ctx.restore()
       }
+      ctx.restore()
 
-      // Nombre del producto
-      const infoY = y + imgH + 16
+      // ── Separador fino entre foto y nombre ────────────
+      ctx.fillStyle = '#E8DDD5'
+      ctx.fillRect(x, y + imgH, cellW, 1)
+
+      // ── Nombre del producto ────────────────────────────
+      const nameY = y + imgH + (nameH / 2)
       ctx.fillStyle = '#2A1A0E'
       ctx.textAlign = 'center'
-      ctx.font = `600 ${layout === 1 ? 36 : 26}px DM Sans, sans-serif`
-      _wrapText(ctx, p.nombre.toUpperCase(), x + cellW / 2, infoY, cellW - 20, layout === 1 ? 44 : 32)
-
-      // Precio
-      const vars = variantes.filter(v => v.producto_id === p.id)
-      const precio = p.precio_menudeo || (vars.length ? Math.min(...vars.map(v=>v.precio_menudeo||9999).filter(n=>n<9999)) : 0)
-      if (precio) {
-        ctx.fillStyle = '#C8967A'
-        ctx.font = `700 ${layout === 1 ? 42 : 30}px DM Mono, monospace`
-        ctx.fillText(`$${precio} MXN`, x + cellW / 2, infoY + (layout === 1 ? 80 : 58))
+      const fs = layout === 1 ? 34 : (layout === 2 ? 24 : 19)
+      ctx.font = `300 ${fs}px DM Sans, sans-serif`
+      // Nombre en mayúsculas con espaciado
+      ctx.letterSpacing = '2px'
+      _wrapText(ctx, p.nombre.toUpperCase(), x + cellW / 2, nameY - 8, cellW - 32, fs + 10)
+      ctx.letterSpacing = '0px'
+      // Código SKU en pequeño
+      if (p.sku) {
+        ctx.fillStyle = '#A07860'
+        ctx.font = `400 ${layout === 1 ? 18 : 13}px DM Mono, monospace`
+        ctx.fillText(p.sku, x + cellW / 2, nameY + (layout === 1 ? 36 : 26))
       }
     }
 
-    // Línea inferior
+    // ── Pie editorial ──────────────────────────────────────
+    // Línea fina
     ctx.fillStyle = '#C8967A'
-    ctx.fillRect(0, 1432, 1080, 8)
+    ctx.fillRect(60, 1340, 960, 1)
+    // Instagram handle
+    ctx.fillStyle = '#A07860'
+    ctx.font = '300 18px DM Sans, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.letterSpacing = '3px'
+    ctx.fillText('@ZAPATILLASMAY', 540, 1368)
+    ctx.letterSpacing = '0px'
+    ctx.fillStyle = '#C0A898'
+    ctx.font = '300 15px DM Sans, sans-serif'
+    ctx.fillText('zapatillasmay.mx  ·  León, Guanajuato', 540, 1394)
 
     // Canvas → Blob → subir
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88))
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92))
     const fd = new FormData()
     fd.append('archivo', blob, `catalogo-pag-${nextNum}.jpg`)
     try {
