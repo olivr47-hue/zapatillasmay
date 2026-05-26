@@ -10732,6 +10732,7 @@ async function cargarCatalogos() {
                 <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${c.activo ? '✅ Visible' : '🔴 Oculto'}</p>
                 <div style="display:flex;flex-direction:column;gap:6px">
                   <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${c.id}','${(c.nombre||'').replace(/'/g,"\\'")}')">📄 Gestionar páginas</button>
+                  <button class="btn btn-secondary" style="padding:6px;font-size:0.8rem" onclick="window.open('https://zapatillasmay.mx/catalogo?abrir=${c.id}','_blank')">👁 Vista previa</button>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem" onclick="mostrarFormCatalogo('${c.id}')">✏️ Editar</button>
                     <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem;color:${c.activo?'#dc2626':'#16a34a'}" onclick="toggleCatalogo('${c.id}',${c.activo})">${c.activo?'Ocultar':'Publicar'}</button>
@@ -10879,6 +10880,7 @@ function renderGestionPaginas() {
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <button class="btn btn-secondary" style="padding:5px 12px;font-size:0.8rem" onclick="navegarA('catalogos')">← Catálogos</button>
           <h3>📖 ${nombre} <span style="color:#888;font-weight:400">(${paginas.length} páginas)</span></h3>
+          <button class="btn btn-secondary" style="padding:5px 12px;font-size:0.8rem;margin-left:auto" onclick="window.open('https://zapatillasmay.mx/catalogo?abrir=${catalogoId}','_blank')">👁 Vista previa</button>
         </div>
       </div>
 

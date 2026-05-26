@@ -490,7 +490,18 @@
   })
 
   // ── INIT ─────────────────────────────────────────────────
-  cargarCatalogos()
+  cargarCatalogos().then(async () => {
+    const params = new URLSearchParams(window.location.search)
+    const abrirId = params.get('abrir')
+    if (abrirId) {
+      try {
+        const res = await fetch(`${API}/catalogos/${abrirId}`)
+        const data = await res.json()
+        const c = Array.isArray(data) ? data[0] : data
+        if (c) abrirCatalogo(c.id, c.nombre || 'Catálogo')
+      } catch(e) { /* ignora */ }
+    }
+  })
 </script>
 </body>
 </html>
