@@ -10856,9 +10856,14 @@ window.gestionarPaginas = async function(catalogoId, nombre) {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
-    const res = await fetch(API + '/catalogos/' + catalogoId + '/paginas')
-    const paginas = await res.json()
-    window._catalogoPaginasData = { catalogoId, nombre, paginas, tabActiva: 'subir' }
+    const [resCat, resPag] = await Promise.all([
+      fetch(API + '/catalogos/' + catalogoId),
+      fetch(API + '/catalogos/' + catalogoId + '/paginas')
+    ])
+    const catData = await resCat.json()
+    const catInfo = Array.isArray(catData) ? catData[0] : catData
+    const paginas = await resPag.json()
+    window._catalogoPaginasData = { catalogoId, nombre, paginas, tabActiva: 'subir', portada_url: catInfo?.portada_url || null }
     renderGestionPaginas()
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
@@ -10870,7 +10875,7 @@ function _tabStyle(activa, id) {
 }
 
 function renderGestionPaginas() {
-  const { catalogoId, nombre, paginas, tabActiva } = window._catalogoPaginasData
+  const { catalogoId, nombre, paginas, tabActiva, portada_url } = window._catalogoPaginasData
   const content = document.getElementById('content')
   const nextNum = paginas.length > 0 ? Math.max(...paginas.map(p => p.pagina_numero)) + 1 : 1
 
@@ -10927,10 +10932,18 @@ function renderGestionPaginas() {
       </div>
 
       <!-- Páginas actuales -->
-      ${paginas.length > 0 ? `
       <div style="margin-top:28px">
+        ${(portada_url || paginas.length > 0) ? `
         <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
         <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px">
+          ${portada_url ? `
+            <div style="background:white;border:2px solid #C8967A;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+              <img src="${portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+              <div style="padding:6px 8px;background:#fff8f5">
+                <div style="font-size:0.7rem;font-weight:700;color:#C8967A;margin-bottom:2px">🖼 Portada</div>
+                <div style="font-size:0.65rem;color:#888">Primera página</div>
+              </div>
+            </div>` : ''}
           ${paginas.map((p, i) => `
             <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
               <img src="${p.imagen_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
@@ -10944,11 +10957,11 @@ function renderGestionPaginas() {
                 </div>
               </div>
             </div>`).join('')}
-        </div>
-      </div>` : `
-      <div style="margin-top:24px;text-align:center;padding:24px;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:10px">
-        <p>Aún no hay páginas. Usa una de las opciones de arriba para agregarlas.</p>
-      </div>`}
+        </div>` : `
+        <div style="text-align:center;padding:24px;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:10px">
+          <p>Aún no hay páginas. Usa una de las opciones de arriba para agregarlas.</p>
+        </div>`}
+      </div>
     </div>`
 
   // Inicializar tab activa

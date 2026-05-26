@@ -361,8 +361,22 @@
     stage.innerHTML = '<div style="color:rgba(255,255,255,0.5);font-size:0.9rem;padding:40px">Cargando páginas…</div>'
 
     try {
-      const res = await fetch(`${API}/catalogos/${catalogoId}/paginas`)
-      _paginas = await res.json()
+      // Cargar catálogo (para portada) y páginas en paralelo
+      const [resCat, resPag] = await Promise.all([
+        fetch(`${API}/catalogos/${catalogoId}`),
+        fetch(`${API}/catalogos/${catalogoId}/paginas`)
+      ])
+      const catData  = await resCat.json()
+      const catInfo  = Array.isArray(catData) ? catData[0] : catData
+      _paginas = await resPag.json()
+
+      // Anteponer portada como primera página si existe y no está ya en páginas
+      if (catInfo?.portada_url) {
+        const yaIncluida = _paginas.some(p => p.imagen_url === catInfo.portada_url)
+        if (!yaIncluida) {
+          _paginas = [{ imagen_url: catInfo.portada_url, pagina_numero: 0, _es_portada: true }, ..._paginas]
+        }
+      }
 
       if (!_paginas.length) {
         stage.innerHTML = '<div style="color:rgba(255,255,255,0.5);padding:40px;text-align:center">Este catálogo no tiene páginas todavía</div>'
