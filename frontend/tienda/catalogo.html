@@ -202,7 +202,7 @@
     #flipbook-container {
       width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
-      padding: 70px 16px 80px;
+      padding: 48px 8px 58px;
     }
     #flipbook-stage {
       position: relative;
@@ -387,26 +387,26 @@
       // Calcular tamaño según pantalla
       const vw = window.innerWidth
       const vh = window.innerHeight
-      const disponibleH = vh - 110  // header + nav
-      const disponibleW = vw - 24
+      const disponibleH = vh - 100  // header ~40px + nav ~55px
+      const disponibleW = vw - 16
       const isMobile = vw < 700
 
-      // Usamos la primera imagen para saber el ratio
-      const primerImg = await cargarImagen(_paginas[0].imagen_url)
-      const ratio = primerImg.naturalHeight / primerImg.naturalWidth
+      // Usar el ratio de las PÁGINAS (no la portada) para que el tamaño sea correcto
+      const ratioIdx = (_paginas[0]?._es_portada && _paginas.length > 1) ? 1 : 0
+      const ratioImg = await cargarImagen(_paginas[ratioIdx].imagen_url)
+      const ratio = ratioImg.naturalHeight / ratioImg.naturalWidth
 
       let pageW, pageH
       if (isMobile) {
-        // Móvil: página única, usa todo el ancho disponible
-        pageW = disponibleW
-        pageH = Math.round(pageW * ratio)
-        if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
+        pageH = disponibleH
+        pageW = Math.round(pageH / ratio)
+        if (pageW > disponibleW) { pageW = disponibleW; pageH = Math.round(pageW * ratio) }
       } else {
-        // Desktop: doble página — cada página ocupa casi la mitad del ancho
-        const maxW = Math.min(Math.floor(disponibleW / 2) - 8, 680)
-        pageW = maxW
-        pageH = Math.round(pageW * ratio)
-        if (pageH > disponibleH) { pageH = disponibleH; pageW = Math.round(pageH / ratio) }
+        // Desktop: llenar altura primero, luego verificar ancho
+        pageH = disponibleH
+        pageW = Math.round(pageH / ratio)
+        const maxHalfW = Math.floor(disponibleW / 2) - 4
+        if (pageW > maxHalfW) { pageW = maxHalfW; pageH = Math.round(pageW * ratio) }
       }
 
       stage.innerHTML = ''
