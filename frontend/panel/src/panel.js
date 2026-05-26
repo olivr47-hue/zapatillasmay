@@ -11239,21 +11239,37 @@ window.generarPaginasCanvas = async function(catalogoId) {
   const layoutVal = document.getElementById('gen-layout').value
   const layout = layoutVal === '1e' ? 1 : parseInt(layoutVal)
 
-  // Helper: obtener variantes filtradas según colores seleccionados por el usuario
-  const _varsSeleccionadas = (p, prodIdx) => {
-    const allVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+  // Expandir: 1 entrada por color seleccionado (así se genera 1 página por color)
+  const selArr = []
+  Array.from(seleccionados).sort((a, b) => a - b).forEach(prodIdx => {
+    const p = productos[prodIdx]
     const colores = coloresPorProd ? coloresPorProd[prodIdx] : []
-    if (!colores || colores.length <= 1) return allVars
-    const selColors = new Set(
-      colores
-        .filter((_, ci) => { const s = document.getElementById(`gen-col-${prodIdx}-${ci}`); return !s || s.dataset.sel !== '0' })
-        .map(c => c.color)
-    )
-    if (!selColors.size) return allVars // fallback: todos
-    return allVars.filter(v => { const c = (v.color || '').trim(); return !c || selColors.has(c) })
-  }
 
-  const selArr = Array.from(seleccionados).map(i => ({ prod: productos[i], origIdx: i }))
+    if (!colores || colores.length <= 1) {
+      // Sin variantes de color: una sola página para el producto
+      selArr.push({ prod: p, origIdx: prodIdx, colorFiltro: null, todosColSel: colores || [] })
+    } else {
+      // Colores múltiples: filtrar los que el usuario dejó activos
+      const activos = colores.filter((_, ci) => {
+        const s = document.getElementById(`gen-col-${prodIdx}-${ci}`)
+        return !s || s.dataset.sel !== '0'
+      })
+      const usar = activos.length > 0 ? activos : colores // fallback: todos
+      // Una entrada (= una página) por cada color activo
+      for (const c of usar) {
+        selArr.push({ prod: p, origIdx: prodIdx, colorFiltro: c.color, todosColSel: usar })
+      }
+    }
+  })
+
+  // Helper: variantes de un ítem (filtradas al color específico de esa página)
+  const _varsDeItem = (item) => {
+    const all = variantes.filter(v => v.producto_id === item.prod.id && v.activa !== false)
+    if (!item.colorFiltro) return all
+    return all.filter(v => (v.color || '').trim() === item.colorFiltro)
+  }
+  // Compatibilidad con helpers anteriores
+  const _varsSeleccionadas = (p, origIdx) => _varsDeItem(selArr.find(s => s.prod.id === p.id && s.origIdx === origIdx) || { prod: p, origIdx, colorFiltro: null })
 
   // Agrupar según layout
   const grupos = []
@@ -11300,18 +11316,16 @@ window.generarPaginasCanvas = async function(catalogoId) {
     ctx.fillRect(60, 58, 960, 1)
 
     if (layoutVal === '1e') {
-      // ── LAYOUT EDITORIAL ADAPTATIVO: 1 producto, 1-2-3 fotos ──────────────
+      // ── LAYOUT EDITORIAL: 1 página por color ──────────────────────────────
       const item0 = grupo[0]
       const p = _getProd(item0)
-      const origIdx = _getOrigIdx(item0)
 
-      // Variantes filtradas por colores seleccionados por el usuario
-      const varsP = _varsSeleccionadas(p, origIdx)
+      // Variantes de ESTE color específico (una página por color)
+      const varsP = _varsDeItem(item0)
 
-      // Recopilar fotos únicas de los colores seleccionados
+      // Fotos de este color
       const fotosUnicas = [], urlsVistas = new Set()
       const _addFoto = u => { if (u && !urlsVistas.has(u)) { urlsVistas.add(u); fotosUnicas.push(u) } }
-      // Primera foto: si hay colores seleccionados, usar la foto del primer color seleccionado; si no, usar imagen_principal
       if (varsP.length > 0 && varsP[0].foto_url) _addFoto(varsP[0].foto_url)
       else _addFoto(p.imagen_principal)
       for (const v of varsP) {
@@ -11321,13 +11335,8 @@ window.generarPaginasCanvas = async function(catalogoId) {
       }
       const nFotos = fotosUnicas.length  // 1, 2 ó 3+
 
-      // Bolitas: solo los colores seleccionados
-      const coloresDisp = []
-      const _colVist = new Set()
-      for (const v of varsP) {
-        const c = (v.color || '').trim()
-        if (c && !_colVist.has(c)) { _colVist.add(c); coloresDisp.push({ color: c, hex: v.color_hex }) }
-      }
+      // Bolitas: TODOS los colores activos de este producto (para que el cliente vea las opciones)
+      const coloresDisp = (item0.todosColSel || []).map(c => ({ color: c.color, hex: c.hex }))
 
       // Fallback de hex por nombre de color
       const _hexMap = {
@@ -11454,8 +11463,8 @@ window.generarPaginasCanvas = async function(catalogoId) {
         const nameH = layout === 1 ? 120 : (layout === 2 ? 90 : 70)
         const imgH = cellH - nameH
 
-        // ── Foto del producto (usa foto del primer color seleccionado si aplica) ──
-        const varsGrilla = _varsSeleccionadas(p, origIdx)
+        // ── Foto del producto (foto del color de esta página) ──────────────────
+        const varsGrilla = _varsDeItem(grupo[pi])
         const fotoGrilla = (varsGrilla.length > 0 && varsGrilla[0].foto_url) ? varsGrilla[0].foto_url : p.imagen_principal
         const img = await _cargarImgCanvas(fotoGrilla)
         ctx.save()
