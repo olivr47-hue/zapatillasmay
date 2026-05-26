@@ -4958,56 +4958,46 @@ if (preview) {
   })
 }
 
-    // Subir fotos nuevas — portada primero
+    // Subir fotos nuevas — todas en PARALELO
     if (inputImgs && inputImgs.files.length > 0) {
       const portadaDiv = preview ? preview.querySelector('[data-es-portada="true"]') : null
-      const portadaFileIdx = portadaDiv ? parseInt(portadaDiv.dataset.fileIdx) : 0
+      const portadaFileIdx = portadaDiv ? parseInt(portadaDiv.dataset.fileIdx ?? '0') : 0
       const files = Array.from(inputImgs.files)
-      console.log(`[Fotos] Color "${nombre.value}": ${files.length} foto(s) a subir`)
+      console.log(`[Fotos] Color "${nombre.value}": subiendo ${files.length} foto(s) en paralelo`)
 
-      // Ordenar para que portada vaya primero
-      const ordenados = [
-        ...files.filter((_, i) => i === portadaFileIdx),
-        ...files.filter((_, i) => i !== portadaFileIdx)
-      ]
-
-      for (let fi = 0; fi < ordenados.length; fi++) {
-        const file = ordenados[fi]
-        let subidaOk = false
+      const subir = async (file, fi) => {
         for (let intento = 1; intento <= 3; intento++) {
           const formData = new FormData()
           formData.append('archivo', file)
           try {
             const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
             if (!res.ok) {
-              const txt = await res.text().catch(() => '')
-              console.warn(`[Fotos] Intento ${intento}/3 — Error HTTP ${res.status} foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, txt)
-              if (intento < 3) await new Promise(r => setTimeout(r, 1500))
+              if (intento < 3) await new Promise(r => setTimeout(r, 1200))
               continue
             }
             const data = await res.json()
-            if (data.url) {
-              urls.push(data.url)
-              console.log(`[Fotos] Foto ${fi+1}/${ordenados.length} subida OK (intento ${intento}): ${data.url}`)
-              subidaOk = true
-              break
-            } else {
-              console.warn(`[Fotos] Intento ${intento}/3 — Respuesta sin URL para foto ${fi+1}/${ordenados.length}:`, data)
-            }
+            if (data.url) return { fi, url: data.url }
           } catch(e) {
-            console.warn(`[Fotos] Intento ${intento}/3 — Error de red foto ${fi+1}/${ordenados.length} de "${nombre.value}":`, e)
-            if (intento < 3) await new Promise(r => setTimeout(r, 1500))
+            if (intento < 3) await new Promise(r => setTimeout(r, 1200))
           }
         }
-        if (!subidaOk) {
-          console.error(`[Fotos] FALLÓ foto ${fi+1}/${ordenados.length} de "${nombre.value}" tras 3 intentos`)
-        }
+        console.error(`[Fotos] FALLÓ foto ${fi+1} de "${nombre.value}" tras 3 intentos`)
+        return { fi, url: null }
       }
-      const falladasCount = files.length - (urls.length - (preview ? preview.querySelectorAll('div[data-url]').length : 0))
-      if (falladasCount > 0) {
-        alert(`⚠️ ${falladasCount} foto(s) del color "${nombre.value}" no se pudieron subir después de 3 intentos. Intenta subirlas nuevamente.`)
+
+      // Subir todas a la vez
+      const resultados = await Promise.all(files.map((f, fi) => subir(f, fi)))
+
+      // Agregar a urls: portada primero, luego el resto en orden
+      const portadaRes = resultados.find(r => r.fi === portadaFileIdx)
+      if (portadaRes?.url) urls.push(portadaRes.url)
+      for (const r of resultados) {
+        if (r.fi !== portadaFileIdx && r.url) urls.push(r.url)
       }
-      console.log(`[Fotos] Color "${nombre.value}": ${urls.length} URL(s) guardadas de ${files.length} archivos`)
+
+      const fallidas = resultados.filter(r => !r.url).length
+      if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) de "${nombre.value}" no se pudieron subir. Intenta de nuevo.`)
+      console.log(`[Fotos] Color "${nombre.value}": ${urls.length} URL(s) listas`)
     }
 
     resultado.push({ 
@@ -5166,15 +5156,23 @@ for (const v of variantesData) {
   ve.talla === talla
 )
     if (varExistente) {
-      console.log(`[Variantes] ACTUALIZAR: ${v.color} T${talla} → ${varExistente.id}`)
-      const update = { color_hex: v.color_hex }
-      update.foto_url = v.imagenes.length > 0 ? v.imagenes[0] : null
-      update.imagenes = v.imagenes
-      promesas.push(fetch(API + '/variantes/' + varExistente.id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(update)
-      }))
+      // Solo actualizar si algo cambió realmente
+      const nuevaFoto = v.imagenes.length > 0 ? v.imagenes[0] : null
+      const nuevasImagenes = JSON.stringify(v.imagenes)
+      const mismaFoto = varExistente.foto_url === nuevaFoto
+      const mismasImagenes = JSON.stringify(varExistente.imagenes || []) === nuevasImagenes
+      const mismoHex = varExistente.color_hex === v.color_hex
+      if (mismaFoto && mismasImagenes && mismoHex) {
+        console.log(`[Variantes] SIN CAMBIOS: ${v.color} T${talla} — omitiendo PATCH`)
+      } else {
+        console.log(`[Variantes] ACTUALIZAR: ${v.color} T${talla} → ${varExistente.id}`)
+        const update = { color_hex: v.color_hex, foto_url: nuevaFoto, imagenes: v.imagenes }
+        promesas.push(fetch(API + '/variantes/' + varExistente.id, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(update)
+        }))
+      }
     } else {
       console.log(`[Variantes] CREAR NUEVO: ${v.color} T${talla}`)
   promesas.push(
