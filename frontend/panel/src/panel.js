@@ -10939,7 +10939,12 @@ function renderGestionPaginas() {
       <!-- Páginas actuales -->
       <div style="margin-top:28px">
         ${(portada_url || paginas.length > 0) ? `
-        <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin:0;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
+          <button onclick="descargarCatalogoPDF()" style="background:#C8967A;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            📥 Descargar PDF
+          </button>
+        </div>
         <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
           ${portada_url ? `
             <div style="background:white;border:2px solid #C8967A;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
@@ -10987,6 +10992,84 @@ window.switchTabCat = function(tab) {
   })
   if (tab === 'seleccionar') _cargarSelectorTienda(catalogoId)
   if (tab === 'generar') _cargarGenerador(catalogoId)
+}
+
+// ── DESCARGAR CATÁLOGO PDF ──────────────────────────────────
+
+window.descargarCatalogoPDF = async function() {
+  const data = window._catalogoPaginasData
+  if (!data) return
+  const { portada_url, paginas, nombre } = data
+
+  const imagenes = []
+  if (portada_url) imagenes.push(portada_url)
+  const paginasOrdenadas = [...paginas].sort((a, b) => a.pagina_numero - b.pagina_numero)
+  paginasOrdenadas.forEach(p => { if (p.imagen_url) imagenes.push(p.imagen_url) })
+
+  if (imagenes.length === 0) {
+    alert('No hay páginas para descargar.')
+    return
+  }
+
+  const btn = document.querySelector('[onclick="descargarCatalogoPDF()"]')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando PDF...' }
+
+  try {
+    // Cargar jsPDF dinámicamente si no está disponible
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = resolve; s.onerror = reject
+        document.head.appendChild(s)
+      })
+    }
+    const { jsPDF } = window.jspdf
+
+    // Cargar todas las imágenes como dataURL
+    const cargarImg = (url) => new Promise((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth || img.width
+        canvas.height = img.naturalHeight || img.height
+        canvas.getContext('2d').drawImage(img, 0, 0)
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), w: canvas.width, h: canvas.height })
+      }
+      img.onerror = () => resolve(null)
+      img.src = url
+    })
+
+    const imgs = await Promise.all(imagenes.map(cargarImg))
+    const validas = imgs.filter(Boolean)
+
+    if (validas.length === 0) {
+      alert('No se pudieron cargar las imágenes. Revisa tu conexión.')
+      return
+    }
+
+    // Crear PDF con el tamaño de la primera imagen
+    const first = validas[0]
+    const ratio = first.h / first.w
+    const pdfW = 210 // A4 ancho mm
+    const pdfH = Math.round(pdfW * ratio)
+
+    const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] })
+
+    validas.forEach((img, i) => {
+      if (i > 0) pdf.addPage([pdfW, pdfH])
+      pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pdfH)
+    })
+
+    const nombreArchivo = (nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
+    pdf.save(`${nombreArchivo}.pdf`)
+  } catch(e) {
+    console.error('Error generando PDF:', e)
+    alert('Error al generar el PDF: ' + e.message)
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '📥 Descargar PDF' }
+  }
 }
 
 // ── TAB: SELECCIONAR DE LA TIENDA ──────────────────────────

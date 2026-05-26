@@ -312,6 +312,9 @@
     <span class="flipbook-counter" id="fb-counter"></span>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="flipbook-close" onclick="abrirZoom()" title="Ampliar página" style="font-size:1rem">🔍</button>
+      <button id="btn-pdf-tienda" onclick="descargarPDF()" title="Descargar PDF" style="background:rgba(200,150,122,0.25);border:1px solid rgba(200,150,122,0.5);color:white;border-radius:20px;padding:7px 14px;font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--font-body);transition:var(--transition)">
+        📥 PDF
+      </button>
       <button class="flipbook-close" onclick="cerrarFlipbook()">✕</button>
     </div>
   </div>
@@ -592,6 +595,64 @@
     if (e.key === 'ArrowLeft')  flipPrev()
     if (e.key === 'ArrowRight') flipNext()
   })
+
+  // ── DESCARGAR PDF ─────────────────────────────────────────
+
+  async function descargarPDF() {
+    if (!_paginas.length) return
+    const btn = document.getElementById('btn-pdf-tienda')
+    if (btn) { btn.disabled = true; btn.textContent = '⏳...' }
+
+    try {
+      if (!window.jspdf) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+          s.onload = resolve; s.onerror = reject
+          document.head.appendChild(s)
+        })
+      }
+      const { jsPDF } = window.jspdf
+
+      const cargarDataUrl = (url) => new Promise((resolve) => {
+        const img = new Image()
+        img.crossOrigin = 'anonymous'
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.naturalWidth || img.width
+          canvas.height = img.naturalHeight || img.height
+          canvas.getContext('2d').drawImage(img, 0, 0)
+          resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.92), w: canvas.width, h: canvas.height })
+        }
+        img.onerror = () => resolve(null)
+        img.src = url
+      })
+
+      const urls = _paginas.map(p => p._url_normalizada || p.imagen_url)
+      const imgs = await Promise.all(urls.map(cargarDataUrl))
+      const validas = imgs.filter(Boolean)
+      if (!validas.length) { alert('No se pudieron cargar las imágenes.'); return }
+
+      const first = validas[0]
+      const ratio = first.h / first.w
+      const pdfW = 210
+      const pdfH = Math.round(pdfW * ratio)
+
+      const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] })
+      validas.forEach((img, i) => {
+        if (i > 0) pdf.addPage([pdfW, pdfH])
+        pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pdfH)
+      })
+
+      const nombreArchivo = (_catalogoActual?.nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
+      pdf.save(`${nombreArchivo}.pdf`)
+    } catch(e) {
+      console.error('Error generando PDF:', e)
+      alert('Error al generar el PDF: ' + e.message)
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '📥 PDF' }
+    }
+  }
 
   // ── INIT ─────────────────────────────────────────────────
   cargarCatalogos().then(async () => {
