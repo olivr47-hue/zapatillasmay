@@ -11097,11 +11097,22 @@ async function _cargarGenerador(catalogoId) {
     ])
     const productos = (await resP.json()).filter(p => p.activo && p.imagen_principal)
     const variantes = await resV.json()
-    window._generadorData = { productos, variantes, catalogoId, seleccionados: new Set() }
+    // Pre-computar colores únicos por producto
+    const coloresPorProd = productos.map(p => {
+      const vars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+      const uniq = [], seen = new Set()
+      for (const v of vars) {
+        const c = (v.color || '').trim()
+        if (c && !seen.has(c)) { seen.add(c); uniq.push({ color: c, hex: v.color_hex || '#999', foto: v.foto_url }) }
+      }
+      return uniq
+    })
+
+    window._generadorData = { productos, variantes, catalogoId, seleccionados: new Set(), coloresPorProd }
 
     cont.innerHTML = `
       <div style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.83rem;color:#7c3a1a">
-        <strong>✨ Cómo funciona:</strong> selecciona los productos que quieres incluir. El sistema generará páginas con foto + nombre + precio automáticamente y las agregará al catálogo.
+        <strong>✨ Cómo funciona:</strong> selecciona los productos que quieres incluir. Luego activa o desactiva los colores (bolitas) que aparecerán en cada página.
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;gap:8px;align-items:center">
@@ -11123,18 +11134,30 @@ async function _cargarGenerador(catalogoId) {
         <p id="gen-msg" style="font-size:0.83rem;color:#1d4ed8;margin-bottom:6px">Generando...</p>
         <div style="height:6px;background:#dbeafe;border-radius:3px"><div id="gen-bar" style="height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;width:0%"></div></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;max-height:420px;overflow-y:auto;padding:4px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:460px;overflow-y:auto;padding:4px">
         ${productos.map((p, i) => {
           const vars = variantes.filter(v => v.producto_id === p.id)
-          const precios = vars.length ? vars.map(v => v.precio_menudeo).filter(Boolean) : []
-          const precio = p.precio_menudeo || (precios.length ? Math.min(...precios) : 0)
+          const precio = p.precio_menudeo || 0
+          const colores = coloresPorProd[i]
+          const swatches = colores.length > 1
+            ? `<div id="gen-colores-${i}" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;opacity:0.35;pointer-events:none">
+                ${colores.map((c, ci) => `
+                  <div id="gen-col-${i}-${ci}"
+                       title="${c.color}"
+                       onclick="event.stopPropagation();_toggleColorGen(${i},${ci})"
+                       data-sel="1"
+                       style="width:13px;height:13px;border-radius:50%;background:${c.hex};border:2px solid #C8967A;cursor:pointer;flex-shrink:0;box-sizing:border-box;transition:opacity 0.15s,border-color 0.15s">
+                  </div>`).join('')}
+               </div>`
+            : ''
           return `
           <div id="gen-item-${i}" onclick="_toggleGenProd(${i})"
                style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color 0.15s;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
             <img src="${p.imagen_principal}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
-            <div style="padding:5px 7px">
+            <div style="padding:5px 7px 7px">
               <p style="font-size:0.62rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre}</p>
               <p style="font-size:0.6rem;color:#C8967A;font-weight:600">$${precio || '—'}</p>
+              ${swatches}
             </div>
           </div>`
         }).join('')}
@@ -11147,14 +11170,27 @@ async function _cargarGenerador(catalogoId) {
 window._toggleGenProd = function(idx) {
   const { seleccionados } = window._generadorData
   const item = document.getElementById('gen-item-' + idx)
+  const colDiv = document.getElementById('gen-colores-' + idx)
   if (seleccionados.has(idx)) {
     seleccionados.delete(idx)
     item.style.borderColor = 'transparent'
+    if (colDiv) { colDiv.style.opacity = '0.35'; colDiv.style.pointerEvents = 'none' }
   } else {
     seleccionados.add(idx)
     item.style.borderColor = '#C8967A'
+    if (colDiv) { colDiv.style.opacity = '1'; colDiv.style.pointerEvents = 'auto' }
   }
   document.getElementById('gen-count').textContent = seleccionados.size + ' seleccionados'
+}
+
+window._toggleColorGen = function(prodIdx, colorIdx) {
+  const swatch = document.getElementById(`gen-col-${prodIdx}-${colorIdx}`)
+  if (!swatch) return
+  const esSel = swatch.dataset.sel === '1'
+  swatch.dataset.sel = esSel ? '0' : '1'
+  swatch.style.borderColor = esSel ? '#ccc' : '#C8967A'
+  swatch.style.opacity = esSel ? '0.3' : '1'
+  swatch.title = (window._generadorData.coloresPorProd[prodIdx]?.[colorIdx]?.color || '') + (esSel ? ' (excluido)' : '')
 }
 
 window._selTodosGenerador = function() {
@@ -11197,12 +11233,27 @@ function _wrapText(ctx, text, x, y, maxW, lineH) {
 }
 
 window.generarPaginasCanvas = async function(catalogoId) {
-  const { productos, variantes, seleccionados } = window._generadorData
+  const { productos, variantes, seleccionados, coloresPorProd } = window._generadorData
   if (!seleccionados.size) { alert('Selecciona al menos un producto'); return }
 
   const layoutVal = document.getElementById('gen-layout').value
   const layout = layoutVal === '1e' ? 1 : parseInt(layoutVal)
-  const selArr = Array.from(seleccionados).map(i => productos[i])
+
+  // Helper: obtener variantes filtradas según colores seleccionados por el usuario
+  const _varsSeleccionadas = (p, prodIdx) => {
+    const allVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+    const colores = coloresPorProd ? coloresPorProd[prodIdx] : []
+    if (!colores || colores.length <= 1) return allVars
+    const selColors = new Set(
+      colores
+        .filter((_, ci) => { const s = document.getElementById(`gen-col-${prodIdx}-${ci}`); return !s || s.dataset.sel !== '0' })
+        .map(c => c.color)
+    )
+    if (!selColors.size) return allVars // fallback: todos
+    return allVars.filter(v => { const c = (v.color || '').trim(); return !c || selColors.has(c) })
+  }
+
+  const selArr = Array.from(seleccionados).map(i => ({ prod: productos[i], origIdx: i }))
 
   // Agrupar según layout
   const grupos = []
@@ -11219,6 +11270,9 @@ window.generarPaginasCanvas = async function(catalogoId) {
 
   for (let gi = 0; gi < grupos.length; gi++) {
     const grupo = grupos[gi]
+    // Extraer el producto real del wrapper { prod, origIdx }
+    const _getProd = (item) => item?.prod ?? item
+    const _getOrigIdx = (item) => item?.origIdx ?? productos.indexOf(item?.prod ?? item)
     msg.textContent = `Generando página ${gi + 1} de ${grupos.length}...`
     bar.style.width = ((gi / grupos.length) * 100) + '%'
 
@@ -11247,13 +11301,19 @@ window.generarPaginasCanvas = async function(catalogoId) {
 
     if (layoutVal === '1e') {
       // ── LAYOUT EDITORIAL ADAPTATIVO: 1 producto, 1-2-3 fotos ──────────────
-      const p = grupo[0]
+      const item0 = grupo[0]
+      const p = _getProd(item0)
+      const origIdx = _getOrigIdx(item0)
 
-      // Recopilar fotos únicas: principal → variantes (foto_url) → imagenes extra
-      const varsP = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+      // Variantes filtradas por colores seleccionados por el usuario
+      const varsP = _varsSeleccionadas(p, origIdx)
+
+      // Recopilar fotos únicas de los colores seleccionados
       const fotosUnicas = [], urlsVistas = new Set()
       const _addFoto = u => { if (u && !urlsVistas.has(u)) { urlsVistas.add(u); fotosUnicas.push(u) } }
-      _addFoto(p.imagen_principal)
+      // Primera foto: si hay colores seleccionados, usar la foto del primer color seleccionado; si no, usar imagen_principal
+      if (varsP.length > 0 && varsP[0].foto_url) _addFoto(varsP[0].foto_url)
+      else _addFoto(p.imagen_principal)
       for (const v of varsP) {
         _addFoto(v.foto_url)
         if (Array.isArray(v.imagenes)) v.imagenes.forEach(_addFoto)
@@ -11261,7 +11321,7 @@ window.generarPaginasCanvas = async function(catalogoId) {
       }
       const nFotos = fotosUnicas.length  // 1, 2 ó 3+
 
-      // Colores únicos con su hex para las bolitas
+      // Bolitas: solo los colores seleccionados
       const coloresDisp = []
       const _colVist = new Set()
       for (const v of varsP) {
@@ -11384,7 +11444,8 @@ window.generarPaginasCanvas = async function(catalogoId) {
       const cellH = (1440 - areaTop - areaBottom - gapY * (rows - 1)) / rows
 
       for (let pi = 0; pi < grupo.length; pi++) {
-        const p = grupo[pi]
+        const p = _getProd(grupo[pi])
+        const origIdx = _getOrigIdx(grupo[pi])
         const col = pi % cols, row = Math.floor(pi / cols)
         const x = padX + col * (cellW + gapX)
         const y = areaTop + row * (cellH + gapY)
@@ -11393,8 +11454,10 @@ window.generarPaginasCanvas = async function(catalogoId) {
         const nameH = layout === 1 ? 120 : (layout === 2 ? 90 : 70)
         const imgH = cellH - nameH
 
-        // ── Foto del producto ──────────────────────────────
-        const img = await _cargarImgCanvas(p.imagen_principal)
+        // ── Foto del producto (usa foto del primer color seleccionado si aplica) ──
+        const varsGrilla = _varsSeleccionadas(p, origIdx)
+        const fotoGrilla = (varsGrilla.length > 0 && varsGrilla[0].foto_url) ? varsGrilla[0].foto_url : p.imagen_principal
+        const img = await _cargarImgCanvas(fotoGrilla)
         ctx.save()
         // Fondo blanco detrás de la foto
         ctx.fillStyle = '#FFFFFF'
