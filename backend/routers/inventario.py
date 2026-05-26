@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
-from cache import cache_get, cache_set, cache_invalidate_prefix
+from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_STOCK
 
 router = APIRouter(prefix="/inventario", tags=["Inventario"])
 
@@ -23,7 +23,7 @@ def listar_inventario():
         if cached is not None:
             return cached
         data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)")
-        cache_set(_CK + "_all", data, ttl=180)  # 3 min — más sensible a cambios de stock
+        cache_set(_CK + "_all", data, ttl=TTL_STOCK)
         return data
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

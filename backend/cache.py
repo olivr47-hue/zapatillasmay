@@ -8,8 +8,9 @@ from typing import Any, Optional
 
 _cache: dict = {}
 
-TTL_PUBLICO = 300   # 5 min — productos, variantes (cambian poco)
-TTL_STOCK   = 180   # 3 min — inventario (más sensible a cambios)
+TTL_PUBLICO  = 1800  # 30 min — productos, variantes (cambian poco)
+TTL_STOCK    = 600   # 10 min — inventario
+TTL_ESTATICO = 86400 # 24 h  — config SEO, sucursales, feeds (casi nunca cambian)
 
 
 def cache_get(key: str) -> Optional[Any]:

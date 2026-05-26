@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import Response, StreamingResponse
 from database import supabase_get, supabase_post, supabase_patch
+from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO
 import urllib.request
 import json
 import os
@@ -88,6 +89,9 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
 
 @router.get("/sitemap.xml")
 def sitemap():
+    cached = cache_get("seo_sitemap")
+    if cached is not None:
+        return Response(content=cached, media_type="application/xml")
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at")
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
@@ -103,6 +107,7 @@ def sitemap():
         for url in urls:
             xml += f'  <url>\n    <loc>{url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
         xml += '</urlset>'
+        cache_set("seo_sitemap", xml, ttl=TTL_ESTATICO)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
@@ -114,8 +119,13 @@ def robots():
 
 @router.get("/seo/config")
 def get_config():
+    cached = cache_get("seo_config")
+    if cached is not None:
+        return cached
     try:
-        return supabase_get("configuracion_seo?select=clave,valor")
+        data = supabase_get("configuracion_seo?select=clave,valor")
+        cache_set("seo_config", data, ttl=TTL_ESTATICO)
+        return data
     except Exception as e:
         return []
 
@@ -128,12 +138,16 @@ def save_config(datos: dict):
                 supabase_patch(f"configuracion_seo?clave=eq.{clave}", {"valor": valor})
             else:
                 supabase_post("configuracion_seo", {"clave": clave, "valor": valor})
+        cache_invalidate_prefix("seo_")
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
 
 @router.get("/feed/meta.xml")
 def feed_meta():
+    cached = cache_get("feed_meta")
+    if cached is not None:
+        return Response(content=cached, media_type="application/xml")
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
         variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
@@ -253,6 +267,7 @@ def feed_meta():
                 xml += '</item>\n'
 
         xml += '</channel>\n</rss>'
+        cache_set("feed_meta", xml, ttl=TTL_ESTATICO)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
@@ -380,6 +395,9 @@ def sincronizar_colecciones():
 
 @router.get("/feed/google.xml")
 def feed_google():
+    cached = cache_get("feed_google")
+    if cached is not None:
+        return Response(content=cached, media_type="application/xml")
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -407,6 +425,7 @@ def feed_google():
             xml += f'  <g:size_system>MX</g:size_system>\n'
             xml += '</entry>\n'
         xml += '</feed>'
+        cache_set("feed_google", xml, ttl=TTL_ESTATICO)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
