@@ -11049,18 +11049,21 @@ window.descargarCatalogoPDF = async function() {
       return
     }
 
-    // Crear PDF con el tamaño de la primera imagen
+    // Cada página usa sus propias dimensiones para no distorsionar el ratio
+    const pdfW = 210 // ancho fijo en mm, el alto varía según cada imagen
+    const _pageH = (img) => Math.round(pdfW * img.h / img.w)
+
     const first = validas[0]
-    const ratio = first.h / first.w
-    const pdfW = 210 // A4 ancho mm
-    const pdfH = Math.round(pdfW * ratio)
+    const firstH = _pageH(first)
+    const pdf = new jsPDF({ orientation: firstH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, firstH] })
+    pdf.addImage(first.dataUrl, 'JPEG', 0, 0, pdfW, firstH)
 
-    const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] })
-
-    validas.forEach((img, i) => {
-      if (i > 0) pdf.addPage([pdfW, pdfH])
-      pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pdfH)
-    })
+    for (let i = 1; i < validas.length; i++) {
+      const img = validas[i]
+      const pageH = _pageH(img)
+      pdf.addPage([pdfW, pageH])
+      pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pageH)
+    }
 
     const nombreArchivo = (nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
     pdf.save(`${nombreArchivo}.pdf`)

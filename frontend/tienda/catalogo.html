@@ -633,16 +633,20 @@
       const validas = imgs.filter(Boolean)
       if (!validas.length) { alert('No se pudieron cargar las imágenes.'); return }
 
-      const first = validas[0]
-      const ratio = first.h / first.w
       const pdfW = 210
-      const pdfH = Math.round(pdfW * ratio)
+      const _pageH = (img) => Math.round(pdfW * img.h / img.w)
 
-      const pdf = new jsPDF({ orientation: pdfH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, pdfH] })
-      validas.forEach((img, i) => {
-        if (i > 0) pdf.addPage([pdfW, pdfH])
-        pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pdfH)
-      })
+      const first = validas[0]
+      const firstH = _pageH(first)
+      const pdf = new jsPDF({ orientation: firstH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, firstH] })
+      pdf.addImage(first.dataUrl, 'JPEG', 0, 0, pdfW, firstH)
+
+      for (let i = 1; i < validas.length; i++) {
+        const img = validas[i]
+        const pageH = _pageH(img)
+        pdf.addPage([pdfW, pageH])
+        pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pageH)
+      }
 
       const nombreArchivo = (_catalogoActual?.nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
       pdf.save(`${nombreArchivo}.pdf`)
