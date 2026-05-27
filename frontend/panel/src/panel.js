@@ -11049,21 +11049,22 @@ window.descargarCatalogoPDF = async function() {
       return
     }
 
-    // Cada página usa sus propias dimensiones para no distorsionar el ratio
-    const pdfW = 210 // ancho fijo en mm, el alto varía según cada imagen
-    const _pageH = (img) => Math.round(pdfW * img.h / img.w)
+    // Página fija 3:4 portrait para todo (210×280mm)
+    // Las páginas del catálogo (1080×1440 = exactamente 3:4) llenan perfecto.
+    // Si la portada tiene otro ratio, se centra con fondo blanco (contain).
+    const pdfW = 210, pdfH = 280
+    const pdf = new jsPDF({ unit: 'mm', format: [pdfW, pdfH] })
 
-    const first = validas[0]
-    const firstH = _pageH(first)
-    const pdf = new jsPDF({ orientation: firstH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, firstH] })
-    pdf.addImage(first.dataUrl, 'JPEG', 0, 0, pdfW, firstH)
-
-    for (let i = 1; i < validas.length; i++) {
-      const img = validas[i]
-      const pageH = _pageH(img)
-      pdf.addPage([pdfW, pageH])
-      pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pageH)
+    const _addImgContain = (img, isFirst) => {
+      if (!isFirst) pdf.addPage([pdfW, pdfH])
+      const ir = img.w / img.h, pr = pdfW / pdfH
+      let dw, dh, dx, dy
+      if (ir > pr) { dw = pdfW; dh = pdfW / ir; dx = 0; dy = (pdfH - dh) / 2 }
+      else         { dh = pdfH; dw = pdfH * ir;  dy = 0; dx = (pdfW - dw) / 2 }
+      pdf.addImage(img.dataUrl, 'JPEG', dx, dy, dw, dh)
     }
+
+    validas.forEach((img, i) => _addImgContain(img, i === 0))
 
     const nombreArchivo = (nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
     pdf.save(`${nombreArchivo}.pdf`)

@@ -633,20 +633,19 @@
       const validas = imgs.filter(Boolean)
       if (!validas.length) { alert('No se pudieron cargar las imágenes.'); return }
 
-      const pdfW = 210
-      const _pageH = (img) => Math.round(pdfW * img.h / img.w)
+      const pdfW = 210, pdfH = 280
+      const pdf = new jsPDF({ unit: 'mm', format: [pdfW, pdfH] })
 
-      const first = validas[0]
-      const firstH = _pageH(first)
-      const pdf = new jsPDF({ orientation: firstH > pdfW ? 'portrait' : 'landscape', unit: 'mm', format: [pdfW, firstH] })
-      pdf.addImage(first.dataUrl, 'JPEG', 0, 0, pdfW, firstH)
-
-      for (let i = 1; i < validas.length; i++) {
-        const img = validas[i]
-        const pageH = _pageH(img)
-        pdf.addPage([pdfW, pageH])
-        pdf.addImage(img.dataUrl, 'JPEG', 0, 0, pdfW, pageH)
+      const _addImgContain = (img, isFirst) => {
+        if (!isFirst) pdf.addPage([pdfW, pdfH])
+        const ir = img.w / img.h, pr = pdfW / pdfH
+        let dw, dh, dx, dy
+        if (ir > pr) { dw = pdfW; dh = pdfW / ir; dx = 0; dy = (pdfH - dh) / 2 }
+        else         { dh = pdfH; dw = pdfH * ir;  dy = 0; dx = (pdfW - dw) / 2 }
+        pdf.addImage(img.dataUrl, 'JPEG', dx, dy, dw, dh)
       }
+
+      validas.forEach((img, i) => _addImgContain(img, i === 0))
 
       const nombreArchivo = (_catalogoActual?.nombre || 'catalogo').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g, '').trim() || 'catalogo'
       pdf.save(`${nombreArchivo}.pdf`)
