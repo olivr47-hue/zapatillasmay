@@ -36,7 +36,9 @@
   --font-body: 'DM Sans', sans-serif;
   --font-mono: 'DM Mono', monospace;
   --radius: 2px;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --pink-dark: #a6795f;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
     body {
@@ -255,9 +257,9 @@
 
 .btn-primary:hover {
   background: var(--pink);
-  transform: translateY(-2px);
   box-shadow: 0 8px 24px var(--pink-glow);
 }
+.btn-primary:active { transform: scale(0.97); }
 
     .btn-outline {
   display: inline-flex;
@@ -331,7 +333,6 @@
 
     .cat-card:hover {
       border-color: var(--pink);
-      transform: translateY(-4px);
       box-shadow: 0 12px 32px rgba(0,0,0,0.15), 0 0 0 1px var(--pink);
     }
 
@@ -362,7 +363,7 @@
     }
 
     .product-card:hover .product-img-wrap img {
-      transform: scale(1.04);
+      transform: none;
     }
 
     .product-card:hover .product-actions {
@@ -383,7 +384,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
     .product-placeholder {
@@ -438,6 +439,7 @@
     }
 
     .btn-add-cart:hover { background: var(--pink); }
+    .btn-add-cart:active { transform: scale(0.97); }
 
     .product-colors {
       display: flex;
@@ -453,7 +455,7 @@
       transition: transform 0.15s;
     }
 
-    .color-dot:hover { transform: scale(1.2); }
+    .color-dot:hover { transform: none; }
 
     .product-name {
       font-size: 0.95rem;
@@ -710,10 +712,10 @@
       flex-direction: column;
       gap: 2px;
       margin-bottom: 24px;
-      padding: 12px;
-      background: var(--gray-100);
-      border-radius: var(--radius);
-      border-left: 3px solid var(--pink);
+      padding: 12px 14px;
+      background: var(--pink-light);
+      border-radius: 6px;
+      border: 1px solid rgba(200,150,122,0.2);
     }
 
     .modal-prices-mayoreo p {
@@ -751,7 +753,7 @@
       transition: all 0.2s ease;
     }
 
-    .color-opt:hover { border-color: var(--gray-200); transform: translateY(-1px); }
+    .color-opt:hover { border-color: var(--gray-200); }
     .color-opt.active { border-color: var(--pink); background: var(--pink-light); }
 
     .color-opt .dot {
@@ -838,7 +840,7 @@
       display: flex;
       flex-direction: column;
       transform: translateX(100%);
-      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
       box-shadow: -4px 0 40px rgba(0,0,0,0.15);
     }
 
@@ -1002,9 +1004,10 @@
     }
 
     .btn-checkout:hover {
-      background: #c4116a;
+      background: var(--pink-dark);
       box-shadow: 0 8px 24px var(--pink-glow);
     }
+    .btn-checkout:active { transform: scale(0.97); }
 
     /* SEARCH RESULTS */
     .search-results {
@@ -1111,9 +1114,9 @@
       font-size: 0.85rem;
       font-weight: 500;
       z-index: 999;
-      transition: transform 0.3s;
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
       white-space: nowrap;
-      border-left: 3px solid var(--pink);
+      border: 1px solid rgba(200, 150, 122, 0.3);
     }
 
     .toast.show { transform: translateX(-50%) translateY(0); }
@@ -1283,10 +1286,9 @@
     width: 82% !important;
     max-width: 300px !important;
     background:#ffffff !important;
-    border-left: 3px solid #C8967A !important;
     z-index: 10001 !important;
     transform:translateX(100%);
-    transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);
     box-shadow:-8px 0 40px rgba(0,0,0,0.3) !important;
     display:flex !important;
     flex-direction:column !important;
@@ -1327,19 +1329,18 @@
 
     /* Hover en tarjetas */
     .product-card {
-      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                  box-shadow 0.4s ease;
+      transition: transform 0.3s var(--ease-out),
+                  box-shadow 0.3s var(--ease-out);
     }
     .product-card:hover {
-      transform: translateY(-4px);
       box-shadow: 0 12px 24px rgba(30, 20, 21, 0.08);
     }
     .cat-card {
-      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                  box-shadow 0.4s ease;
+      transition: transform 0.3s var(--ease-out),
+                  box-shadow 0.3s var(--ease-out);
     }
     .cat-card img {
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.5s var(--ease-out);
     }
     .cat-card:hover img { transform: scale(1.05); }
 
@@ -1432,7 +1433,7 @@
     70%{box-shadow:0 0 0 10px rgba(200,150,122,0);}
     100%{box-shadow:0 0 0 0 rgba(200,150,122,0);}
   }
-  .btn-agregar:active { animation: addPulse 0.5s ease; }
+  .btn-agregar:active { animation: addPulse 0.5s ease; transform: scale(0.97); }
 
   @keyframes headerGlow {
     from{box-shadow:none;}
@@ -1633,6 +1634,71 @@
   .color-foto-dot {
     width: 9px; height: 9px; border-radius: 50%;
     flex-shrink: 0; border: 1px solid rgba(255,255,255,0.5);
+  }
+
+  /* ── BOTÓN VER MÁS ──────────────────────────── */
+  .btn-ver-mas {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 36px;
+    background: transparent;
+    color: var(--black);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border: 1.5px solid var(--black);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .btn-ver-mas:hover { background: var(--black); color: var(--white); }
+  .btn-ver-mas:active { transform: scale(0.97); }
+  .btn-ver-mas-count {
+    font-size: 0.72rem;
+    font-weight: 400;
+    opacity: 0.45;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  /* ── HOVER GUARD: no transforms en touch ─────── */
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover { transform: translateY(-2px); }
+    .cat-card:hover { transform: translateY(-4px); }
+    .product-card:hover { transform: translateY(-4px); }
+    .product-card:hover .product-img-wrap img { transform: scale(1.04); }
+    .color-dot:hover { transform: scale(1.2); }
+    .color-opt:hover { transform: translateY(-1px); }
+    .color-foto-card:hover { transform: scale(1.03); }
+  }
+  @media (hover: none) {
+    .color-foto-card:hover { transform: none; box-shadow: none; }
+    .product-card:hover .product-img-wrap img { transform: none; }
+  }
+
+  /* ── REDUCED MOTION ──────────────────────────── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    .hero-bg {
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .hero.loaded .hero-eyebrow,
+    .hero.loaded .hero-title,
+    .hero.loaded .hero-subtitle,
+    .hero.loaded .hero-cta {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
   </style>
   <!-- SEO META TAGS BASE -->
@@ -2368,14 +2434,14 @@ cargarConfigSEO()
   const grid = document.getElementById('cats-grid')
   if (!cats.length) { grid.innerHTML = '<p style="color:#aaa">No hay categorias</p>'; return }
   const IMG_CATS = {
-    tacones: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&q=80',
-    sandalias: 'https://images.unsplash.com/photo-1562273138-f46be4ebdf33?w=400&q=80',
-    botas: 'https://images.unsplash.com/photo-1608256246200-a931be1f3b7d?w=400&q=80',
-    botines: 'https://images.unsplash.com/photo-1605812860427-4024433a70fd?w=400&q=80',
-    flats: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&q=80',
-    plataformas: 'https://images.unsplash.com/photo-1515347619252-60a4bf4fff4f?w=400&q=80',
-    nina: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=400&q=80',
-    accesorios: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
+    tacones:     'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&q=80',
+    sandalias:   'https://images.unsplash.com/photo-1630331010250-7524271ed506?w=400&q=80',
+    botas:       'https://images.unsplash.com/photo-1556121017-bc6f100e2b4a?w=400&q=80',
+    botines:     'https://images.unsplash.com/photo-1571489555750-c932b569ef5d?w=400&q=80',
+    flats:       'https://images.unsplash.com/photo-1485728195354-66b299de7ee8?w=400&q=80',
+    plataformas: 'https://images.unsplash.com/photo-1562273138-f46be4ebdf33?w=400&q=80',
+    nina:        'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=400&q=80',
+    accesorios:  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
   }
   grid.innerHTML = cats.map(c => `
     <div class="cat-card" onclick="filtrarCategoria('${c}')">
@@ -2436,24 +2502,18 @@ cargarConfigSEO()
 
   function _actualizarSentinel() {
     const hay = _mostrados < _listaActual.length
+    if (_scrollObs) { _scrollObs.disconnect(); _scrollObs = null }
     let s = document.getElementById('scroll-sentinel')
     if (!s) {
       s = document.createElement('div')
       s.id = 'scroll-sentinel'
-      s.style.cssText = 'grid-column:1/-1;display:flex;justify-content:center;padding:32px 0'
+      s.style.cssText = 'grid-column:1/-1;display:flex;justify-content:center;padding:32px 0 56px'
       document.getElementById('productos-section').appendChild(s)
     }
     s.style.display = hay ? '' : 'none'
-    s.innerHTML = hay
-      ? '<div style="width:36px;height:36px;border:3px solid var(--cream-dark);border-top-color:var(--pink);border-radius:50%;animation:spin 0.8s linear infinite"></div>'
-      : ''
-    if (hay && !_scrollObs) {
-      _scrollObs = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting) _agregarLote()
-      }, { rootMargin: '300px' })
-      _scrollObs.observe(s)
-    }
-    if (!hay && _scrollObs) { _scrollObs.disconnect(); _scrollObs = null }
+    if (!hay) { s.innerHTML = ''; return }
+    const restantes = _listaActual.length - _mostrados
+    s.innerHTML = `<button class="btn-ver-mas" onclick="_agregarLote()">Ver más <span class="btn-ver-mas-count">${restantes} productos</span></button>`
   }
 
   function renderProductos(lista) {
