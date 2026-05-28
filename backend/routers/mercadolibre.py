@@ -574,27 +574,19 @@ def _build_item(producto: dict, variante: dict, qty: int,
               else "Primavera/Verano")
 
     attrs = [
-        {"id": "SELLER_SKU",       "value_name": variante.get("sku", "")},
-        {"id": "BRAND",            "value_name": "May"},
-        {"id": "GENDER",           "value_name": "Mujer"},
-        {"id": "FILTRABLE_GENDER", "value_name": "Mujer"},
-        {"id": "ITEM_CONDITION",   "value_name": "Nuevo"},
-        {"id": "COLOR",            "value_name": color_simple},
-        {"id": "MAIN_COLOR",       "value_id": mc_id, "value_name": mc_name},
-        {"id": "SIZE",             "value_name": f"{talla_display} MX"},
-        {"id": "FILTRABLE_SIZE",   "value_name": talla_display},
-        {"id": "SIZE_GRID_ID",     "value_name": grid_id},
-        {"id": "RELEASE_YEAR",     "value_name": "2026"},
-        {"id": "RELEASE_SEASON",   "value_name": season},
-        {"id": "FOOTWEAR_TYPE",    "value_name": tipo},
+        {"id": "SELLER_SKU",   "value_name": variante.get("sku", "")},
+        {"id": "BRAND",        "value_name": "May"},
+        {"id": "GENDER",       "value_name": "Mujer"},
+        {"id": "COLOR",        "value_name": color_simple},
+        {"id": "MAIN_COLOR",   "value_id": mc_id, "value_name": mc_name},
+        {"id": "SIZE",         "value_name": f"{talla_display} MX"},
+        {"id": "SIZE_GRID_ID", "value_name": grid_id},
     ]
+    # FILTRABLE_GENDER, FILTRABLE_SIZE, ITEM_CONDITION → read-only, ML los asigna solo
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if nombre:
         attrs.append({"id": "MODEL", "value_name": nombre})
-    material = (producto.get("material") or "").strip().lower()
-    if material:
-        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_name": material})
 
     precio = float(producto.get("precio_menudeo") or 0)
 
@@ -608,6 +600,7 @@ def _build_item(producto: dict, variante: dict, qty: int,
         "buying_mode":        "buy_it_now",
         "listing_type_id":    listing_type,
         "condition":          "new",
+        "catalog_listing":    False,
         "description":        {"plain_text": descripcion},
         "pictures":           pictures,
         "attributes":         attrs,
@@ -638,6 +631,65 @@ def test_item_ml(body: dict):
         except Exception:
             err = {"raw": raw.decode(errors="replace")}
         return {"ok": False, "codigo": e.code, "error": err}
+
+
+@router.post("/debug-publicar")
+def debug_publicar(body: dict):
+    """
+    Construye el payload de la PRIMERA variante activa del producto y lo envía a ML.
+    Devuelve el payload completo + la respuesta/error de ML con el cause array.
+    Útil para diagnosticar body.invalid_fields sin tener que publicar todas las variantes.
+    Body: { "sku_interno": "O-TAC-0118" }
+    """
+    sku_interno = (body.get("sku_interno") or "").strip().upper()
+    producto_id = (body.get("producto_id") or "").strip()
+    listing_type = body.get("listing_type") or "free"
+
+    if not sku_interno and not producto_id:
+        raise HTTPException(400, "Se requiere sku_interno o producto_id")
+
+    if producto_id:
+        prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    else:
+        prods = supabase_get_all(f"productos?sku_interno=eq.{sku_interno}&select=*&limit=1")
+    if not prods:
+        raise HTTPException(404, "Producto no encontrado")
+    producto = prods[0]
+    producto_id = producto_id or producto.get("id", "")
+
+    variantes = supabase_get_all(
+        f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*&limit=1"
+    )
+    if not variantes:
+        raise HTTPException(404, "Sin variantes activas")
+    variante = variantes[0]
+
+    cat_key     = (producto.get("categoria") or "sandalia").lower().strip()
+    category_id = _CATEGORY_ID.get(cat_key, _CATEGORY_DEFAULT)
+    payload     = _build_item(producto, variante, 5, category_id, listing_type)
+
+    # Enviar a ML y devolver error completo
+    req_body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            ml_resp = json.loads(r.read())
+            return {"ok": True, "payload_enviado": payload, "ml_response": ml_resp}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {
+            "ok": False,
+            "payload_enviado": payload,
+            "ml_error": err,
+            "causa_detalle": err.get("cause") or [],
+            "mensaje": err.get("message") or "",
+        }
 
 
 @router.get("/categorias")
