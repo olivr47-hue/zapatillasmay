@@ -509,10 +509,17 @@ def _build_item(producto: dict, variante: dict, qty: int,
     color_simple  = color_raw.split()[0].title() if color_raw else ""
 
     # Título ML — max 60 chars
-    title = f"{tipo} {marca} {modelo} {color_title} {talla_display} Mx"
-    if len(title) > 60:
-        title = f"{tipo} {color_title} {talla_display} Mx"
-    title = title[:60].strip()
+    # ML NO acepta: marca en el título, palabras en ALL-CAPS, nombre de tienda.
+    # Formato: "{Tipo} {material_breve} {subcategoria} {color} {talla} Mx"
+    subcat   = (producto.get("subcategoria") or "").strip().title()  # "Casual", "Fiesta"
+    mat_breve = (producto.get("material") or "").strip().split()[0].title()  # "Sintético"
+    # Construir desde más descriptivo a más simple si excede 60 chars
+    candidates = [
+        f"{tipo} {mat_breve} {subcat} {color_title} {talla_display} Mx",
+        f"{tipo} {mat_breve} {color_title} {talla_display} Mx",
+        f"{tipo} {color_title} {talla_display} Mx",
+    ]
+    title = next((c for c in candidates if len(c) <= 60), candidates[-1])[:60].strip()
 
     # Imágenes (Cloudinary)
     fotos = list(variante.get("imagenes") or [])
@@ -552,8 +559,8 @@ def _build_item(producto: dict, variante: dict, qty: int,
     precio = float(producto.get("precio_menudeo") or 0)
 
     # family_name = título base sin color ni talla (ML lo usa para agrupar variantes)
-    # Ej: "Botines ZAPATILLAS MAY MA6050"
-    family_name = f"{tipo} {marca} {modelo}".strip()[:80]
+    # No incluir marca — misma regla que el título
+    family_name = f"{tipo} {mat_breve} {subcat}".strip().rstrip()[:80]
 
     # Detectar temporada desde la descripción
     desc_lower = descripcion.lower()
