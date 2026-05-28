@@ -77,6 +77,7 @@ const modulos = [
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
+  { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -253,6 +254,7 @@ async function cargarModulo(id) {
     case 'ordenes': await cargarOrdenes(); break;
     case 'conversaciones': await cargarConversaciones(); break;
     case 'envios': await cargarEnviosMasivos(); break;
+    case 'mercadolibre': await cargarMercadoLibre(); break;
   }
 }
 
@@ -11946,6 +11948,110 @@ window.descargarExcelTikTok = async function(btn, endpoint, filename) {
   } finally {
     btn.innerHTML = textoOriginal
     btn.disabled = false
+  }
+}
+
+// ─── MERCADOLIBRE ─────────────────────────────────────────────────────────────
+
+async function cargarMercadoLibre() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:2rem;max-width:700px">
+      <h2 style="margin-bottom:1.5rem">🛒 MercadoLibre</h2>
+
+      <!-- Publicar producto -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <h3 style="margin-bottom:1rem">Publicar producto en ML</h3>
+        <div style="display:grid;gap:0.75rem">
+
+          <label style="font-size:0.85rem;font-weight:600">SKU del producto</label>
+          <input id="ml-sku" type="text" class="form-control" placeholder="Ej: C-TAC-0014"
+                 style="font-size:1rem;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;width:100%">
+
+          <label style="font-size:0.85rem;font-weight:600">Tipo de publicación</label>
+          <select id="ml-listing" class="form-control"
+                  style="font-size:1rem;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;width:100%">
+            <option value="free">Gratis</option>
+            <option value="bronze">Bronce (5%)</option>
+            <option value="silver">Plata (9%)</option>
+            <option value="gold_pro">Oro Premium (16%)</option>
+          </select>
+
+          <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
+            <button class="btn btn-secondary" onclick="mlPreview()"
+                    style="flex:1;padding:0.6rem">🔍 Ver preview (sin publicar)</button>
+            <button class="btn btn-primary" onclick="mlPublicar()"
+                    style="flex:1;padding:0.6rem;background:#ffe600;color:#333;border:none;border-radius:6px;cursor:pointer;font-weight:600">
+              🚀 Publicar en ML
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div id="ml-resultado" style="display:none" class="card">
+        <h3 style="margin-bottom:0.75rem" id="ml-resultado-titulo">Resultado</h3>
+        <div id="ml-resultado-body"></div>
+      </div>
+    </div>
+  `
+
+  window.mlPreview = async () => _mlEnviar(true)
+  window.mlPublicar = async () => {
+    if (!confirm('¿Publicar este producto en MercadoLibre? Se crearán los listings reales.')) return
+    _mlEnviar(false)
+  }
+}
+
+async function _mlEnviar(soloPreview) {
+  const sku    = document.getElementById('ml-sku').value.trim().toUpperCase()
+  const tipo   = document.getElementById('ml-listing').value
+  const resDiv = document.getElementById('ml-resultado')
+  const titulo = document.getElementById('ml-resultado-titulo')
+  const body   = document.getElementById('ml-resultado-body')
+
+  if (!sku) { alert('Ingresa el SKU del producto'); return }
+
+  resDiv.style.display = 'block'
+  titulo.textContent   = soloPreview ? '🔍 Preview del payload' : '⏳ Publicando...'
+  body.innerHTML       = '<p style="color:#888">Procesando...</p>'
+
+  try {
+    const res = await fetch(`${API}/ml/publicar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._token || ''}` },
+      body: JSON.stringify({ sku_interno: sku, listing_type: tipo, solo_preview: soloPreview })
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      titulo.textContent = '❌ Error'
+      body.innerHTML = `<p style="color:red">${data.detail || JSON.stringify(data)}</p>`
+      return
+    }
+
+    if (soloPreview) {
+      titulo.textContent = `🔍 Preview — ${data.total || 0} variante(s)`
+      body.innerHTML = `<pre style="font-size:0.75rem;overflow:auto;max-height:400px;background:#f5f5f5;padding:1rem;border-radius:6px">${JSON.stringify(data, null, 2)}</pre>`
+    } else {
+      const publicados = data.publicados || 0
+      const errores    = data.errores    || 0
+      titulo.textContent = `✅ ${publicados} publicado(s)${errores ? ` · ❌ ${errores} error(s)` : ''} de ${data.total || 0}`
+      const resultados = data.resultados || []
+      body.innerHTML = resultados.map(it => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #eee">
+          <span style="font-size:0.85rem">${it.sku || ''} — ${it.title || ''}</span>
+          ${it.status === 'publicado'
+            ? `<a href="${it.permalink || '#'}" target="_blank"
+                 style="font-size:0.8rem;color:#3483fa">🔗 ${it.item_id}</a>`
+            : `<span style="font-size:0.8rem;color:red" title="${JSON.stringify(it.causas||[])}">❌ ${it.error || 'Error'}</span>`
+          }
+        </div>
+      `).join('') || '<p style="color:#888">Sin detalles</p>'
+    }
+  } catch(e) {
+    titulo.textContent = '❌ Error de conexión'
+    body.innerHTML = `<p style="color:red">${e.message}</p>`
   }
 }
 
