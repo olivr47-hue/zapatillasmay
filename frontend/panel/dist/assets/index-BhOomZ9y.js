@@ -4606,7 +4606,7 @@ ERRORES:
       <!-- Paso 1: configurar -->
       <div class="card" style="margin-bottom:1.5rem">
         <h3 style="margin-bottom:1rem">Paso 1 — Producto</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
           <div>
             <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
             <input id="ml-sku" type="text" placeholder="Ej: O-TAC-0118"
@@ -4623,9 +4623,19 @@ ERRORES:
             </select>
           </div>
         </div>
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+            Título para ML <span style="color:#3483fa">★</span>
+            <span style="font-weight:400;color:#888">(se aplica igual a todas las variantes)</span>
+          </label>
+          <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
+                 maxlength="60"
+                 style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
+          <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
+        </div>
         <button onclick="mlGenerarPreview()" id="ml-btn-preview"
-                style="margin-top:1rem;padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
-          🔍 Generar preview y editar JSONs
+                style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
+          🔍 Generar preview
         </button>
       </div>
 
@@ -4650,19 +4660,18 @@ ERRORES:
         <div id="ml-resultado-body"></div>
       </div>
     </div>
-  `,window.mlGenerarPreview=async()=>{const t=document.getElementById("ml-sku").value.trim().toUpperCase(),a=document.getElementById("ml-listing").value;if(!t){alert("Ingresa el SKU del producto");return}const o=document.getElementById("ml-btn-preview");o.textContent="⏳ Generando...",o.disabled=!0;try{const n=await fetch(`${f}/ml/publicar`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_interno:t,listing_type:a,solo_preview:!0})}),r=await n.json();if(!n.ok){alert("Error: "+(r.detail||JSON.stringify(r)));return}const i=r.resultados||[];if(!i.length){alert("No se encontraron variantes activas");return}const s=document.getElementById("ml-variantes-wrap"),d=document.getElementById("ml-variantes-list"),l=document.getElementById("ml-variantes-titulo");l.textContent=`Paso 2 — Edita los JSONs (${i.length} variantes)`,d.innerHTML=i.map((c,m)=>`
-        <details style="margin-bottom:0.75rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-          <summary style="padding:0.6rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center">
-            <span>${c.sku||"Variante "+(m+1)} — ${c.color||""} ${c.talla||""}</span>
-            <span style="font-size:0.75rem;color:#888">Click para editar ▾</span>
-          </summary>
-          <div style="padding:0.75rem">
-            <textarea id="ml-json-${m}"
-                      style="width:100%;height:320px;font-family:monospace;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical"
-                      spellcheck="false">${JSON.stringify(c.preview,null,2)}</textarea>
-          </div>
-        </details>
-      `).join(""),s.style.display="block";const p=d.querySelector("details");p&&(p.open=!0)}catch(n){alert("Error de conexión: "+n.message)}finally{o.textContent="🔍 Generar preview y editar JSONs",o.disabled=!1}},window.mlPublicarTodas=async()=>{if(!confirm("¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?"))return;const a=document.getElementById("ml-variantes-list").querySelectorAll("textarea"),o=[];for(let d=0;d<a.length;d++)try{o.push(JSON.parse(a[d].value))}catch(l){alert(`JSON inválido en variante ${d+1}: ${l.message}`);return}const n=document.getElementById("ml-btn-publicar");n.textContent="⏳ Publicando...",n.disabled=!0;const r=document.getElementById("ml-resultado"),i=document.getElementById("ml-resultado-titulo"),s=document.getElementById("ml-resultado-body");r.style.display="block",i.textContent="⏳ Publicando...",s.innerHTML='<p style="color:#888">Enviando a MercadoLibre...</p>';try{const l=await(await fetch(`${f}/ml/publicar-payloads`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({payloads:o})})).json(),p=l.publicados||0,c=l.errores||0;i.textContent=`✅ ${p} publicado(s)${c?` · ❌ ${c} con error`:""} de ${l.total||0}`,s.innerHTML=(l.resultados||[]).map(m=>`
+  `,document.getElementById("ml-titulo").addEventListener("input",function(){document.getElementById("ml-titulo-count").textContent=this.value.length}),window.mlGenerarPreview=async()=>{const t=document.getElementById("ml-sku").value.trim().toUpperCase(),a=document.getElementById("ml-listing").value,o=document.getElementById("ml-titulo").value.trim();if(!t){alert("Ingresa el SKU del producto");return}if(!o){alert("Ingresa el título para ML");return}if(o.length>60){alert("El título no puede superar 60 caracteres");return}const n=document.getElementById("ml-btn-preview");n.textContent="⏳ Generando...",n.disabled=!0;try{const r=await fetch(`${f}/ml/publicar`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_interno:t,listing_type:a,solo_preview:!0})}),i=await r.json();if(!r.ok){alert("Error: "+(i.detail||JSON.stringify(i)));return}const s=i.resultados||[];if(!s.length){alert("No se encontraron variantes activas");return}const d=document.getElementById("ml-variantes-wrap"),l=document.getElementById("ml-variantes-list"),p=document.getElementById("ml-variantes-titulo");p.textContent=`Paso 2 — Revisa y edita (${s.length} variantes, título aplicado a todas)`,l.innerHTML=s.map((c,m)=>{const u={...c.preview,title:o};return`
+          <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+            <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
+              <span>${c.sku||"Variante "+(m+1)} &nbsp;·&nbsp; ${c.color||""} ${c.talla||""}</span>
+              <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
+            </summary>
+            <div style="padding:0.5rem">
+              <textarea id="ml-json-${m}"
+                        style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
+                        spellcheck="false">${JSON.stringify(u,null,2)}</textarea>
+            </div>
+          </details>`}).join(""),d.style.display="block",d.scrollIntoView({behavior:"smooth",block:"start"})}catch(r){alert("Error de conexión: "+r.message)}finally{n.textContent="🔍 Generar preview",n.disabled=!1}},window.mlPublicarTodas=async()=>{if(!confirm("¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?"))return;const a=document.getElementById("ml-variantes-list").querySelectorAll("textarea"),o=[];for(let d=0;d<a.length;d++)try{o.push(JSON.parse(a[d].value))}catch(l){alert(`JSON inválido en variante ${d+1}: ${l.message}`);return}const n=document.getElementById("ml-btn-publicar");n.textContent="⏳ Publicando...",n.disabled=!0;const r=document.getElementById("ml-resultado"),i=document.getElementById("ml-resultado-titulo"),s=document.getElementById("ml-resultado-body");r.style.display="block",i.textContent="⏳ Publicando...",s.innerHTML='<p style="color:#888">Enviando a MercadoLibre...</p>';try{const l=await(await fetch(`${f}/ml/publicar-payloads`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({payloads:o})})).json(),p=l.publicados||0,c=l.errores||0;i.textContent=`✅ ${p} publicado(s)${c?` · ❌ ${c} con error`:""} de ${l.total||0}`,s.innerHTML=(l.resultados||[]).map(m=>`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #eee">
           <span style="font-size:0.85rem">${m.sku||"—"} ${m.title?"— "+m.title:""}</span>
           ${m.ok?`<a href="${m.permalink||"#"}" target="_blank"

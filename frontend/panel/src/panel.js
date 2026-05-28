@@ -11965,7 +11965,7 @@ async function cargarMercadoLibre() {
       <!-- Paso 1: configurar -->
       <div class="card" style="margin-bottom:1.5rem">
         <h3 style="margin-bottom:1rem">Paso 1 — Producto</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
           <div>
             <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
             <input id="ml-sku" type="text" placeholder="Ej: O-TAC-0118"
@@ -11982,9 +11982,19 @@ async function cargarMercadoLibre() {
             </select>
           </div>
         </div>
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+            Título para ML <span style="color:#3483fa">★</span>
+            <span style="font-weight:400;color:#888">(se aplica igual a todas las variantes)</span>
+          </label>
+          <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
+                 maxlength="60"
+                 style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
+          <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
+        </div>
         <button onclick="mlGenerarPreview()" id="ml-btn-preview"
-                style="margin-top:1rem;padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
-          🔍 Generar preview y editar JSONs
+                style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
+          🔍 Generar preview
         </button>
       </div>
 
@@ -12011,10 +12021,18 @@ async function cargarMercadoLibre() {
     </div>
   `
 
+  // Contador de caracteres del título
+  document.getElementById('ml-titulo').addEventListener('input', function() {
+    document.getElementById('ml-titulo-count').textContent = this.value.length
+  })
+
   window.mlGenerarPreview = async () => {
-    const sku  = document.getElementById('ml-sku').value.trim().toUpperCase()
-    const tipo = document.getElementById('ml-listing').value
-    if (!sku) { alert('Ingresa el SKU del producto'); return }
+    const sku    = document.getElementById('ml-sku').value.trim().toUpperCase()
+    const tipo   = document.getElementById('ml-listing').value
+    const titulo = document.getElementById('ml-titulo').value.trim()
+    if (!sku)    { alert('Ingresa el SKU del producto'); return }
+    if (!titulo) { alert('Ingresa el título para ML'); return }
+    if (titulo.length > 60) { alert('El título no puede superar 60 caracteres'); return }
 
     const btn = document.getElementById('ml-btn-preview')
     btn.textContent = '⏳ Generando...'
@@ -12032,34 +12050,36 @@ async function cargarMercadoLibre() {
       const resultados = data.resultados || []
       if (!resultados.length) { alert('No se encontraron variantes activas'); return }
 
-      const wrap  = document.getElementById('ml-variantes-wrap')
-      const list  = document.getElementById('ml-variantes-list')
-      const tit   = document.getElementById('ml-variantes-titulo')
+      const wrap = document.getElementById('ml-variantes-wrap')
+      const list = document.getElementById('ml-variantes-list')
+      const tit  = document.getElementById('ml-variantes-titulo')
 
-      tit.textContent = `Paso 2 — Edita los JSONs (${resultados.length} variantes)`
-      list.innerHTML  = resultados.map((r, i) => `
-        <details style="margin-bottom:0.75rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-          <summary style="padding:0.6rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center">
-            <span>${r.sku || 'Variante ' + (i+1)} — ${r.color || ''} ${r.talla || ''}</span>
-            <span style="font-size:0.75rem;color:#888">Click para editar ▾</span>
-          </summary>
-          <div style="padding:0.75rem">
-            <textarea id="ml-json-${i}"
-                      style="width:100%;height:320px;font-family:monospace;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical"
-                      spellcheck="false">${JSON.stringify(r.preview, null, 2)}</textarea>
-          </div>
-        </details>
-      `).join('')
+      tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
+
+      list.innerHTML = resultados.map((r, i) => {
+        // Aplicar el título del usuario a cada payload
+        const payload = { ...r.preview, title: titulo }
+        return `
+          <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+            <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
+              <span>${r.sku || 'Variante ' + (i+1)} &nbsp;·&nbsp; ${r.color || ''} ${r.talla || ''}</span>
+              <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
+            </summary>
+            <div style="padding:0.5rem">
+              <textarea id="ml-json-${i}"
+                        style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
+                        spellcheck="false">${JSON.stringify(payload, null, 2)}</textarea>
+            </div>
+          </details>`
+      }).join('')
 
       wrap.style.display = 'block'
-      // Abrir la primera para que el usuario vea que puede editar
-      const firstDetails = list.querySelector('details')
-      if (firstDetails) firstDetails.open = true
+      wrap.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
     } catch(e) {
       alert('Error de conexión: ' + e.message)
     } finally {
-      btn.textContent = '🔍 Generar preview y editar JSONs'
+      btn.textContent = '🔍 Generar preview'
       btn.disabled = false
     }
   }
