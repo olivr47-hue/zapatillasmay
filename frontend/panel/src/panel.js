@@ -11983,15 +11983,25 @@ async function cargarMercadoLibre() {
             <div style="font-size:0.75rem;color:#e67e22;margin-top:3px">⚠️ La categoría de calzado no admite publicaciones gratis</div>
           </div>
         </div>
-        <div style="margin-bottom:0.75rem">
-          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
-            Título para ML <span style="color:#3483fa">★</span>
-            <span style="font-weight:400;color:#888">(se aplica igual a todas las variantes)</span>
-          </label>
-          <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
-                 maxlength="60"
-                 style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
-          <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem;align-items:start">
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+              Título para ML <span style="color:#3483fa">★</span>
+              <span style="font-weight:400;color:#888">(igual para todas las variantes)</span>
+            </label>
+            <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
+                   maxlength="60"
+                   style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
+            <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+              Precio ML (MXN) <span style="color:#888;font-weight:400">— opcional</span>
+            </label>
+            <input id="ml-precio" type="number" min="1" step="1" placeholder="Ej: 520"
+                   style="width:130px;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+            <div style="font-size:0.75rem;color:#888;margin-top:3px">Vacío = precio del ERP</div>
+          </div>
         </div>
         <button onclick="mlGenerarPreview()" id="ml-btn-preview"
                 style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
@@ -12028,12 +12038,15 @@ async function cargarMercadoLibre() {
   })
 
   window.mlGenerarPreview = async () => {
-    const sku    = document.getElementById('ml-sku').value.trim().toUpperCase()
-    const tipo   = document.getElementById('ml-listing').value
-    const titulo = document.getElementById('ml-titulo').value.trim()
+    const sku       = document.getElementById('ml-sku').value.trim().toUpperCase()
+    const tipo      = document.getElementById('ml-listing').value
+    const titulo    = document.getElementById('ml-titulo').value.trim()
+    const precioRaw = document.getElementById('ml-precio').value.trim()
+    const precio    = precioRaw ? parseFloat(precioRaw) : null
     if (!sku)    { alert('Ingresa el SKU del producto'); return }
     if (!titulo) { alert('Ingresa el título para ML'); return }
     if (titulo.length > 60) { alert('El título no puede superar 60 caracteres'); return }
+    if (precio !== null && (isNaN(precio) || precio <= 0)) { alert('El precio debe ser mayor a 0'); return }
 
     const btn = document.getElementById('ml-btn-preview')
     btn.textContent = '⏳ Generando...'
@@ -12061,6 +12074,8 @@ async function cargarMercadoLibre() {
         // ML rechaza el campo "title" para categorías de catálogo — solo va family_name
         const payload = { ...r.preview, family_name: titulo }
         delete payload.title
+        // Precio ML (puede ser diferente al del ERP por comisiones y envío)
+        if (precio !== null) payload.price = precio
         return `
           <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
             <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
