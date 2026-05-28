@@ -467,26 +467,61 @@ _TIPO_CALZADO = {
 }
 
 # ERP categoria → category_id de ML México
+# Verificados 2026-05-28: MLM192717=Sandalias, MLM193324=Zapatillas/Tacones,
+# MLM192062=Botas y Botines, MLM193197=Flats
 _CATEGORY_ID = {
     "sandalia": "MLM192717", "sandalias": "MLM192717",
     "tacon": "MLM192717",    "tacones":   "MLM192717",
-    "botin": "MLM192719",    "botines":   "MLM192719",
-    "flat":  "MLM174354",    "flats":     "MLM174354",
-    "balerina": "MLM174354", "balerinas": "MLM174354",
+    "botin": "MLM192717",    "botines":   "MLM192717",   # ML redirige a MLM193324, SIZE_GRID 487994
+    "flat":  "MLM193197",    "flats":     "MLM193197",
+    "balerina": "MLM193197", "balerinas": "MLM193197",
+    "tenis": "MLM6585",
 }
 _CATEGORY_DEFAULT = "MLM192717"
 
+# Categoría → SIZE_GRID_ID verificado en items existentes
+_SIZE_GRID = {
+    "MLM192717": "487994",   # Sandalias (→MLM193324 en storage)
+    "MLM193324": "487994",
+    "MLM192062": "356657",   # Botas y Botines
+    "MLM193197": "487994",   # Flats
+    "MLM6585":   "487994",   # Tenis
+}
 
-def _talla_to_row(talla) -> str | None:
+# Color ERP → (value_id ML, value_name estándar)
+_MAIN_COLOR = {
+    "negro": ("2450295","Negro"),    "black": ("2450295","Negro"),
+    "blanco":("2450308","Blanco"),   "white": ("2450308","Blanco"),
+    "azul":  ("2450293","Azul"),     "blue":  ("2450293","Azul"),
+    "rojo":  ("2450307","Rojo"),     "red":   ("2450307","Rojo"),
+    "marron":("2450291","Marrón"),   "cafe":  ("2450291","Marrón"),
+    "brown": ("2450291","Marrón"),   "camel": ("2450291","Marrón"),
+    "latte": ("2450281","Beige"),    "beige": ("2450281","Beige"),
+    "nude":  ("2450281","Beige"),    "hueso": ("2450281","Beige"),
+    "rosa":  ("2450312","Rosa"),     "pink":  ("2450312","Rosa"),
+    "violeta":("2450311","Violeta"), "morado":("2450311","Violeta"),
+    "verde": ("2450314","Verde"),    "green": ("2450314","Verde"),
+    "naranja":("2450327","Naranja"), "orange":("2450327","Naranja"),
+    "amarillo":("2450296","Amarillo"),"yellow":("2450296","Amarillo"),
+    "gris":  ("2450294","Gris"),     "gray":  ("2450294","Gris"),
+    "dorado":("2450289","Dorado"),   "gold":  ("2450289","Dorado"),
+    "oro":   ("2450289","Dorado"),   "inox":  ("2450303","Plateado"),
+    "plateado":("2450303","Plateado"),"silver":("2450303","Plateado"),
+    "plata": ("2450303","Plateado"), "celeste":("2450278","Celeste"),
+    "multicolor":("46671867","Multicolor"),
+}
+
+
+def _talla_to_row(talla, grid_id: str = "487994") -> str | None:
     """
-    Talla MX → SIZE_GRID_ROW_ID del grid 487994.
-    Base verificada: 23 = row 1, cada 0.5 = +1 row (26 = row 7, confirmado).
+    Talla MX → SIZE_GRID_ROW_ID.
+    Grid 487994: base 23 = row 1, cada 0.5 = +1 row (verificado en items existentes).
     """
     try:
         t = float(str(talla).replace("_", "."))
         row = int(round((t - 23) * 2)) + 1
         if 1 <= row <= 20:
-            return f"487994:{row}"
+            return f"{grid_id}:{row}"
     except Exception:
         pass
     return None
@@ -496,53 +531,23 @@ def _build_item(producto: dict, variante: dict, qty: int,
                 category_id: str, listing_type: str) -> dict:
     """
     Construye el payload de POST /items para ML.
-    Título: "Botín casual de tacón para dama marca May Latte 23 Mx"
+    Título: "{Tipo} {nombre del producto} Marca May"  (máx 60 chars)
     Marca:  siempre "May"
     """
     cat    = (producto.get("categoria") or "sandalia").lower().strip()
     tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
-    modelo = (producto.get("nombre") or "").strip()
+    nombre = (producto.get("nombre") or "").strip()
 
     talla_raw     = str(variante.get("talla") or "")
     talla_display = talla_raw.replace("_", ".")
     color_raw     = (variante.get("color") or "").strip()
-    color_title   = color_raw.title()               # "NEGRO NAPA" → "Negro Napa"
     color_simple  = color_raw.split()[0].title() if color_raw else ""
 
-    # ── Descriptor de tacón (desde campo tipo_tacon) ──
-    _TACON_MAP = {
-        "tacon_alto":    "de Tacón Alto",
-        "tacon alto":    "de Tacón Alto",
-        "tacon_bloque":  "de Tacón Bloque",
-        "tacon bloque":  "de Tacón Bloque",
-        "tacon_kitten":  "de Tacón Kitten",
-        "tacon_bajo":    "de Tacón Bajo",
-        "plataforma":    "de Plataforma",
-        "cuña":          "de Cuña",
-        "cuna":          "de Cuña",
-        "sin_tacon":     "",
-        "sin tacon":     "",
-    }
-    tipo_tacon_raw = (producto.get("tipo_tacon") or "").lower().strip()
-    tacon_desc = _TACON_MAP.get(tipo_tacon_raw, "de Tacón" if tipo_tacon_raw else "")
-
-    # ── Subcategoría (solo la primera palabra para evitar "Casual Fiesta") ──
-    subcat_raw   = (producto.get("subcategoria") or "").strip()
-    subcat_word  = subcat_raw.split()[0].capitalize() if subcat_raw else ""   # "Casual"
-
-    # ── Título ML (máx 60 chars) ──
-    # NO llevar color, talla ni "Mx" — ML diferencia variantes por atributos SIZE/COLOR.
-    # Ej: "Botines Casual de Tacón para Dama Marca May"
-    base = f"{tipo} {subcat_word} {tacon_desc} para Dama Marca May".replace("  ", " ").strip()
-    # Reducir si excede 60 chars
-    title_candidates = [
-        base,
-        f"{tipo} {tacon_desc} para Dama Marca May".replace("  ", " ").strip(),
-        f"{tipo} para Dama Marca May",
-    ]
-    title = next((c for c in title_candidates if len(c) <= 60), title_candidates[-1])[:60].strip()
-
-    # family_name = igual al título (ML los agrupa bajo la misma familia)
+    # ── Título ML (máx 60 chars, sin color ni talla — ML los agrega solo) ──
+    # Usar el nombre del producto para que ML lo asocie al catálogo correcto.
+    # Ej: "Sandalia De Tacón Con Plataforma Para Fiesta Marca May"
+    title_raw   = f"{tipo} {nombre} Marca May".strip() if nombre else f"{tipo} Marca May"
+    title       = title_raw[:60].strip()
     family_name = title
 
     # ── Imágenes (Cloudinary) ──
@@ -553,8 +558,13 @@ def _build_item(producto: dict, variante: dict, qty: int,
         fotos = [producto["imagen_principal"]]
     pictures = [{"source": u} for u in fotos[:12] if u]
 
-    # ── SIZE_GRID_ROW_ID ──
-    row_id = _talla_to_row(talla_display)
+    # ── SIZE_GRID_ID y ROW por categoría ──
+    grid_id = _SIZE_GRID.get(category_id, "487994")
+    row_id  = _talla_to_row(talla_display, grid_id)
+
+    # ── MAIN_COLOR con value_id estándar de ML ──
+    color_key = color_raw.lower().split()[0] if color_raw else ""
+    mc_id, mc_name = _MAIN_COLOR.get(color_key, ("46671867", "Multicolor"))
 
     # ── Temporada desde descripción ──
     descripcion  = (producto.get("descripcion") or "").strip()[:4000]
@@ -570,18 +580,18 @@ def _build_item(producto: dict, variante: dict, qty: int,
         {"id": "FILTRABLE_GENDER", "value_name": "Mujer"},
         {"id": "ITEM_CONDITION",   "value_name": "Nuevo"},
         {"id": "COLOR",            "value_name": color_simple},
-        {"id": "MAIN_COLOR",       "value_name": color_simple},
+        {"id": "MAIN_COLOR",       "value_id": mc_id, "value_name": mc_name},
         {"id": "SIZE",             "value_name": f"{talla_display} MX"},
         {"id": "FILTRABLE_SIZE",   "value_name": talla_display},
-        {"id": "SIZE_GRID_ID",     "value_name": "487994"},
+        {"id": "SIZE_GRID_ID",     "value_name": grid_id},
         {"id": "RELEASE_YEAR",     "value_name": "2026"},
         {"id": "RELEASE_SEASON",   "value_name": season},
         {"id": "FOOTWEAR_TYPE",    "value_name": tipo},
     ]
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
-    if modelo:
-        attrs.append({"id": "MODEL", "value_name": modelo})
+    if nombre:
+        attrs.append({"id": "MODEL", "value_name": nombre})
     material = (producto.get("material") or "").strip().lower()
     if material:
         attrs.append({"id": "FOOTWEAR_MATERIALS", "value_name": material})
@@ -667,6 +677,7 @@ def publicar_producto(body: dict):
     if not prods:
         raise HTTPException(404, f"Producto no encontrado (sku={sku_interno or producto_id})")
     producto = prods[0]
+    producto_id = producto_id or producto.get("id", "")  # FIX: usar ID real si se buscó por SKU
 
     # Leer variantes
     if variante_ids:
