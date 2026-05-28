@@ -78,6 +78,7 @@ const modulos = [
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
+  { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -255,6 +256,7 @@ async function cargarModulo(id) {
     case 'conversaciones': await cargarConversaciones(); break;
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
+    case 'analytics':    await cargarAnalyticsGA(); break;
   }
 }
 
@@ -12250,5 +12252,173 @@ async function cargarMercadoLibre() {
       btn.disabled = false
     }
   }
+}
+
+// ─── GOOGLE ANALYTICS ─────────────────────────────────────────────────────────
+
+let _gaRealtimeInterval = null
+
+async function cargarAnalyticsGA() {
+  if (_gaRealtimeInterval) { clearInterval(_gaRealtimeInterval); _gaRealtimeInterval = null }
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:2rem;max-width:900px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="margin:0">📊 Google Analytics</h2>
+        <span id="ga-ultima-act" style="font-size:0.78rem;color:#aaa"></span>
+      </div>
+
+      <!-- Tiempo real -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:1.5rem;margin-bottom:1.5rem">
+        <div class="card" style="text-align:center;min-width:160px;padding:1.5rem">
+          <div style="font-size:0.78rem;color:#888;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:.05em">Ahora en el sitio</div>
+          <div id="ga-activos" style="font-size:3.5rem;font-weight:700;color:#22c55e;line-height:1">—</div>
+          <div style="font-size:0.78rem;color:#888;margin-top:0.25rem">usuarios activos</div>
+          <div id="ga-dispositivos" style="font-size:0.72rem;color:#aaa;margin-top:0.5rem"></div>
+        </div>
+        <div class="card" style="padding:1.25rem">
+          <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Hoy</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem" id="ga-hoy-stats">
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-sesiones">—</div><div style="font-size:0.72rem;color:#888">Sesiones</div></div>
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-usuarios">—</div><div style="font-size:0.72rem;color:#888">Usuarios</div></div>
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-pageviews">—</div><div style="font-size:0.72rem;color:#888">Páginas vistas</div></div>
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-nuevos">—</div><div style="font-size:0.72rem;color:#888">Nuevos</div></div>
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-duracion">—</div><div style="font-size:0.72rem;color:#888">Duración media</div></div>
+            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-rebote">—</div><div style="font-size:0.72rem;color:#888">Tasa rebote</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfica 7 días -->
+      <div class="card" style="margin-bottom:1.5rem;padding:1.25rem">
+        <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Últimos 7 días — Sesiones</div>
+        <canvas id="ga-chart" height="80"></canvas>
+      </div>
+
+      <!-- Top páginas -->
+      <div class="card" style="padding:1.25rem">
+        <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Top páginas hoy</div>
+        <div id="ga-top-paginas"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
+      <!-- Setup guide si no está configurado -->
+      <div id="ga-setup" style="display:none" class="card" style="margin-top:1.5rem;padding:1.25rem;border:2px dashed #ddd">
+        <h4 style="margin-top:0">⚙️ Configuración pendiente</h4>
+        <div id="ga-setup-body"></div>
+      </div>
+    </div>
+  `
+
+  await _gaCargarTodo()
+
+  // Auto-refresh del tiempo real cada 30 segundos
+  _gaRealtimeInterval = setInterval(async () => {
+    if (document.getElementById('ga-activos')) await _gaActualizarRealtime()
+    else { clearInterval(_gaRealtimeInterval); _gaRealtimeInterval = null }
+  }, 30000)
+}
+
+async function _gaCargarTodo() {
+  await Promise.all([_gaActualizarRealtime(), _gaCargarHoy(), _gaCargarSemana()])
+  document.getElementById('ga-ultima-act').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+}
+
+async function _gaActualizarRealtime() {
+  try {
+    const r = await fetch(`${API}/analytics/tiempo-real`)
+    const d = await r.json()
+    if (!d.configurado) { _gaMostrarSetup(d); return }
+    const el = document.getElementById('ga-activos')
+    if (!el) return
+    el.textContent  = d.activos_ahora ?? 0
+    const dispEl    = document.getElementById('ga-dispositivos')
+    if (dispEl && d.por_dispositivo) {
+      dispEl.textContent = Object.entries(d.por_dispositivo)
+        .map(([k,v]) => `${k}: ${v}`).join(' · ')
+    }
+  } catch(e) { console.warn('GA realtime:', e.message) }
+}
+
+async function _gaCargarHoy() {
+  try {
+    const r = await fetch(`${API}/analytics/hoy`)
+    const d = await r.json()
+    if (!d.configurado) return
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
+    set('ga-sesiones',  d.sesiones ?? '—')
+    set('ga-usuarios',  d.usuarios_activos ?? '—')
+    set('ga-pageviews', d.paginas_vistas ?? '—')
+    set('ga-nuevos',    d.usuarios_nuevos ?? '—')
+    const dur = d.duracion_promedio_s
+    set('ga-duracion', dur ? `${Math.floor(dur/60)}m ${dur%60}s` : '—')
+    set('ga-rebote',   d.tasa_rebote != null ? `${d.tasa_rebote}%` : '—')
+
+    const top = document.getElementById('ga-top-paginas')
+    if (top && d.top_paginas?.length) {
+      top.innerHTML = d.top_paginas.map(p => `
+        <div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid #f0f0f0;font-size:0.83rem">
+          <span style="color:#333;max-width:75%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pagina}</span>
+          <span style="font-weight:600;color:#3483fa">${p.vistas} vistas</span>
+        </div>`).join('')
+    }
+  } catch(e) { console.warn('GA hoy:', e.message) }
+}
+
+async function _gaCargarSemana() {
+  try {
+    const r = await fetch(`${API}/analytics/semana`)
+    const d = await r.json()
+    if (!d.configurado || !d.dias?.length) return
+
+    const canvas = document.getElementById('ga-chart')
+    if (!canvas || !window.Chart) return
+
+    if (canvas._chartInstance) canvas._chartInstance.destroy()
+    canvas._chartInstance = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels:   d.dias.map(x => x.fecha),
+        datasets: [
+          {
+            label:           'Sesiones',
+            data:            d.dias.map(x => x.sesiones),
+            backgroundColor: 'rgba(52,131,250,0.7)',
+            borderRadius:    4,
+          },
+          {
+            label:           'Usuarios',
+            data:            d.dias.map(x => x.usuarios),
+            backgroundColor: 'rgba(34,197,94,0.5)',
+            borderRadius:    4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    })
+  } catch(e) { console.warn('GA semana:', e.message) }
+}
+
+function _gaMostrarSetup(d) {
+  const el = document.getElementById('ga-setup')
+  const body = document.getElementById('ga-setup-body')
+  if (!el || !body) return
+  el.style.display = 'block'
+  body.innerHTML = `
+    <p style="color:#666;margin-bottom:0.75rem">${d.mensaje || ''}</p>
+    <ol style="color:#555;font-size:0.85rem;line-height:1.8">
+      ${(d.pasos || []).map(p => `<li>${p}</li>`).join('')}
+    </ol>
+    <p style="font-size:0.82rem;color:#888;margin-top:0.75rem">
+      Variables a agregar en Railway → Variables:
+      <code style="background:#f0f0f0;padding:2px 6px;border-radius:4px">GA4_PROPERTY_ID</code> y
+      <code style="background:#f0f0f0;padding:2px 6px;border-radius:4px">GA4_CREDENTIALS_JSON</code>
+    </p>`
+  // Poner placeholder en los números
+  ;['ga-activos','ga-sesiones','ga-usuarios','ga-pageviews','ga-nuevos','ga-duracion','ga-rebote']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—' })
 }
 

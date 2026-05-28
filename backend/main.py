@@ -10,6 +10,7 @@ from routers import campanas
 from routers import tiktok
 from routers import catalogos
 from routers import mercadolibre
+from routers import analytics
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -60,6 +61,7 @@ app.include_router(campanas.router)
 app.include_router(tiktok.router)
 app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)
+app.include_router(analytics.router)
 
 @app.get("/")
 def inicio():
