@@ -7,6 +7,31 @@ router = APIRouter(prefix="/inventario", tags=["Inventario"])
 
 _CK = "inventario"  # prefijo de caché
 
+@router.get("/slim")
+def inventario_slim():
+    """
+    Versión ligera para la tienda pública.
+    Solo devuelve variante_id + cantidad. Sin JOINs.
+    ~50KB vs ~3-5MB del endpoint completo.
+    """
+    try:
+        cached = cache_get(_CK + "_slim")
+        if cached is not None:
+            return cached
+        data = supabase_get_all("inventario?select=variante_id,cantidad")
+        # Si hay múltiples sucursales, sumar el stock de todas para la tienda
+        stock: dict = {}
+        for row in data:
+            vid = row.get("variante_id")
+            if vid:
+                stock[vid] = stock.get(vid, 0) + (row.get("cantidad") or 0)
+        result = [{"variante_id": k, "cantidad": v} for k, v in stock.items()]
+        cache_set(_CK + "_slim", result, ttl=TTL_STOCK)
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/alertas")
 def alertas_stock_bajo():
     try:
