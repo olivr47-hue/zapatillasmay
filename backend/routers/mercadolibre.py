@@ -551,8 +551,25 @@ def _build_item(producto: dict, variante: dict, qty: int,
     descripcion = (producto.get("descripcion") or "").strip()[:4000]
     precio = float(producto.get("precio_menudeo") or 0)
 
+    # family_name = título base sin color ni talla (ML lo usa para agrupar variantes)
+    # Ej: "Botines ZAPATILLAS MAY MA6050"
+    family_name = f"{tipo} {marca} {modelo}".strip()[:80]
+
+    # Detectar temporada desde la descripción
+    desc_lower = descripcion.lower()
+    if "otoño" in desc_lower or "invierno" in desc_lower or "oto" in desc_lower:
+        season = "Otoño/Invierno"
+    else:
+        season = "Primavera/Verano"
+    # Actualizar atributo de temporada según detección
+    for a in attrs:
+        if a["id"] == "RELEASE_SEASON":
+            a["value_name"] = season
+            break
+
     return {
         "title":              title,
+        "family_name":        family_name,
         "category_id":        category_id,
         "price":              precio,
         "currency_id":        "MXN",
