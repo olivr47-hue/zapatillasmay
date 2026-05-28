@@ -538,11 +538,15 @@ def _build_item(producto: dict, variante: dict, qty: int,
         {"id": "SIZE_GRID_ID",     "value_name": "487994"},
         {"id": "RELEASE_YEAR",     "value_name": "2026"},
         {"id": "RELEASE_SEASON",   "value_name": "Primavera/Verano"},
+        {"id": "FOOTWEAR_TYPE",    "value_name": tipo},
     ]
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if modelo:
         attrs.append({"id": "MODEL", "value_name": modelo})
+    material_limpio = (producto.get("material") or "").strip().lower()
+    if material_limpio:
+        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_name": material_limpio})
 
     descripcion = (producto.get("descripcion") or "").strip()[:4000]
     precio = float(producto.get("precio_menudeo") or 0)
