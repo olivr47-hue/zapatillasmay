@@ -9,6 +9,7 @@ from routers import seo
 from routers import campanas
 from routers import tiktok
 from routers import catalogos
+from routers import mercadolibre
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -58,6 +59,7 @@ app.include_router(chatbot.router)
 app.include_router(campanas.router)
 app.include_router(tiktok.router)
 app.include_router(catalogos.router)
+app.include_router(mercadolibre.router)
 
 @app.get("/")
 def inicio():
