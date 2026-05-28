@@ -12088,15 +12088,25 @@ async function cargarMercadoLibre() {
       const resultados = data.resultados || []
       if (!resultados.length) { alert('No se encontraron variantes activas'); return }
 
-      // Pre-llenar descripción con la del primer variante si está vacía
+      // Pre-llenar descripción siempre (sobrescribir si el usuario no ha escrito nada)
       const descEl = document.getElementById('ml-descripcion')
-      if (!descEl.value.trim() && resultados[0]?.preview?.description?.plain_text) {
-        descEl.value = resultados[0].preview.description.plain_text
+      const descTexto = resultados[0]?.preview?.description?.plain_text || ''
+      if (!descEl.value.trim()) descEl.value = descTexto
+
+      // Recolectar TODAS las fotos únicas de TODAS las variantes
+      // → así cada variante muestra el catálogo completo de imágenes del producto
+      const urlsVistos = new Set()
+      const todasFotos = []
+      for (const r of resultados) {
+        for (const pic of (r.preview?.pictures || [])) {
+          if (pic.source && !urlsVistos.has(pic.source)) {
+            urlsVistos.add(pic.source)
+            todasFotos.push(pic)
+          }
+        }
       }
 
-      // Mostrar selector de foto de portada (fotos del primer variante)
-      const todasFotos = resultados[0]?.preview?.pictures || []
-      if (todasFotos.length > 1) {
+      if (todasFotos.length >= 1) {
         const fotosWrap = document.getElementById('ml-fotos-wrap')
         const fotosGrid = document.getElementById('ml-fotos-grid')
         fotosGrid.innerHTML = todasFotos.map((p, i) => `
@@ -12122,7 +12132,7 @@ async function cargarMercadoLibre() {
             }
           })
           // Regenerar JSONs con la nueva portada
-          _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim())
+          _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim(), todasFotos)
         }
       }
 
@@ -12140,7 +12150,7 @@ async function cargarMercadoLibre() {
     }
   }
 
-  function _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descripcion) {
+  function _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descripcion, todasFotos) {
     const tit  = document.getElementById('ml-variantes-titulo')
     const list = document.getElementById('ml-variantes-list')
     tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
@@ -12155,12 +12165,15 @@ async function cargarMercadoLibre() {
       // Descripción personalizada
       if (descripcion) payload.description = { plain_text: descripcion }
 
-      // Reordenar fotos: portada seleccionada va primero
-      if (payload.pictures && payload.pictures.length > 1 && portadaIdx > 0) {
-        const fotos = [...payload.pictures]
-        const [portada] = fotos.splice(portadaIdx, 1)
-        fotos.unshift(portada)
-        payload.pictures = fotos
+      // Todas las fotos del producto en cada variante (no solo las de esa talla/color)
+      if (todasFotos && todasFotos.length > 0) {
+        let fotos = [...todasFotos]
+        // Portada seleccionada va primero
+        if (portadaIdx > 0 && portadaIdx < fotos.length) {
+          const [portada] = fotos.splice(portadaIdx, 1)
+          fotos.unshift(portada)
+        }
+        payload.pictures = fotos.slice(0, 12)
       }
 
       return `
