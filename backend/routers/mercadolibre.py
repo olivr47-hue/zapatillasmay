@@ -494,41 +494,61 @@ def _talla_to_row(talla) -> str | None:
 
 def _build_item(producto: dict, variante: dict, qty: int,
                 category_id: str, listing_type: str) -> dict:
-    """Construye el payload de POST /items para ML."""
-    cat      = (producto.get("categoria") or "sandalia").lower().strip()
-    tipo     = _TIPO_CALZADO.get(cat, "Sandalia")
-    # Marca corta: "ZAPATILLAS MAY " → "May"
-    marca_erp = (producto.get("marca") or "").upper()
-    marca_ml  = "May"  # ML siempre muestra "May" en tus publicaciones
+    """
+    Construye el payload de POST /items para ML.
+    Título: "Botín casual de tacón para dama marca May Latte 23 Mx"
+    Marca:  siempre "May"
+    """
+    cat    = (producto.get("categoria") or "sandalia").lower().strip()
+    tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
+    modelo = (producto.get("nombre") or "").strip()
 
     talla_raw     = str(variante.get("talla") or "")
     talla_display = talla_raw.replace("_", ".")
     color_raw     = (variante.get("color") or "").strip()
-    color_title   = color_raw.title()          # "NEGRO NAPA" → "Negro Napa"
-    color_simple  = color_raw.split()[0].title() if color_raw else ""  # para atributo COLOR
+    color_title   = color_raw.title()               # "NEGRO NAPA" → "Negro Napa"
+    color_simple  = color_raw.split()[0].title() if color_raw else ""
 
-    # Descriptores del producto
-    subcat     = (producto.get("subcategoria") or "").strip().title()  # "Casual", "Fiesta"
-    tipo_tacon = (producto.get("tipo_tacon") or "").lower().replace("_", " ").strip()
-    # "tacon alto" → "de tacón", "sin tacon" → ""
-    tacon_desc = ""
-    if tipo_tacon and tipo_tacon not in ("sin tacon", "sin_tacon", ""):
-        tacon_desc = f"de {tipo_tacon.replace('tacon', 'tacón').title()}"
+    # ── Descriptor de tacón (desde campo tipo_tacon) ──
+    _TACON_MAP = {
+        "tacon_alto":    "de Tacón Alto",
+        "tacon alto":    "de Tacón Alto",
+        "tacon_bloque":  "de Tacón Bloque",
+        "tacon bloque":  "de Tacón Bloque",
+        "tacon_kitten":  "de Tacón Kitten",
+        "tacon_bajo":    "de Tacón Bajo",
+        "plataforma":    "de Plataforma",
+        "cuña":          "de Cuña",
+        "cuna":          "de Cuña",
+        "sin_tacon":     "",
+        "sin tacon":     "",
+    }
+    tipo_tacon_raw = (producto.get("tipo_tacon") or "").lower().strip()
+    tacon_desc = _TACON_MAP.get(tipo_tacon_raw, "de Tacón" if tipo_tacon_raw else "")
 
-    # Título ML — max 60 chars
-    # Formato: "{Tipo} {Subcat} {TaconDesc} para Dama Marca May {Color} {Talla} Mx"
-    base = f"{tipo} {subcat} {tacon_desc} para Dama Marca {marca_ml}".replace("  ", " ").strip()
+    # ── Subcategoría (solo la primera palabra para evitar "Casual Fiesta") ──
+    subcat_raw   = (producto.get("subcategoria") or "").strip()
+    subcat_word  = subcat_raw.split()[0].capitalize() if subcat_raw else ""   # "Casual"
+
+    # ── Título ML (máx 60 chars) ──
+    # Base: "Botín casual de tacón para dama marca May"
+    base = f"{tipo} {subcat_word} {tacon_desc} para Dama Marca May".replace("  ", " ").strip()
+    # Variantes con color+talla; ir bajando complejidad si excede 60 chars
     candidates = [
         f"{base} {color_title} {talla_display} Mx",
-        f"{tipo} {subcat} para Dama Marca {marca_ml} {color_title} {talla_display} Mx",
-        f"{tipo} para Dama Marca {marca_ml} {color_title} {talla_display} Mx",
+        f"{tipo} {tacon_desc} para Dama Marca May {color_title} {talla_display} Mx",
+        f"{tipo} para Dama Marca May {color_title} {talla_display} Mx",
         f"{tipo} {color_title} {talla_display} Mx",
     ]
-    title = next((c for c in candidates if len(c) <= 60), candidates[-1])[:60].strip()
-    subcat   = subcat  # reutilizado abajo
-    mat_breve = (producto.get("material") or "").strip().split()[0].title()
+    title = next(
+        (c.replace("  ", " ").strip() for c in candidates if len(c) <= 60),
+        candidates[-1][:60].strip()
+    )
 
-    # Imágenes (Cloudinary)
+    # ── family_name = base del título (sin color+talla) ──
+    family_name = base[:80]
+
+    # ── Imágenes (Cloudinary) ──
     fotos = list(variante.get("imagenes") or [])
     if not fotos and variante.get("foto_url"):
         fotos = [variante["foto_url"]]
@@ -536,12 +556,19 @@ def _build_item(producto: dict, variante: dict, qty: int,
         fotos = [producto["imagen_principal"]]
     pictures = [{"source": u} for u in fotos[:12] if u]
 
-    # SIZE_GRID_ROW_ID
+    # ── SIZE_GRID_ROW_ID ──
     row_id = _talla_to_row(talla_display)
+
+    # ── Temporada desde descripción ──
+    descripcion  = (producto.get("descripcion") or "").strip()[:4000]
+    desc_lower   = descripcion.lower()
+    season = ("Otoño/Invierno"
+              if any(p in desc_lower for p in ("otoño", "invierno"))
+              else "Primavera/Verano")
 
     attrs = [
         {"id": "SELLER_SKU",       "value_name": variante.get("sku", "")},
-        {"id": "BRAND",            "value_name": marca_ml},
+        {"id": "BRAND",            "value_name": "May"},
         {"id": "GENDER",           "value_name": "Mujer"},
         {"id": "FILTRABLE_GENDER", "value_name": "Mujer"},
         {"id": "ITEM_CONDITION",   "value_name": "Nuevo"},
@@ -551,34 +578,18 @@ def _build_item(producto: dict, variante: dict, qty: int,
         {"id": "FILTRABLE_SIZE",   "value_name": talla_display},
         {"id": "SIZE_GRID_ID",     "value_name": "487994"},
         {"id": "RELEASE_YEAR",     "value_name": "2026"},
-        {"id": "RELEASE_SEASON",   "value_name": "Primavera/Verano"},
+        {"id": "RELEASE_SEASON",   "value_name": season},
         {"id": "FOOTWEAR_TYPE",    "value_name": tipo},
     ]
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if modelo:
         attrs.append({"id": "MODEL", "value_name": modelo})
-    material_limpio = (producto.get("material") or "").strip().lower()
-    if material_limpio:
-        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_name": material_limpio})
+    material = (producto.get("material") or "").strip().lower()
+    if material:
+        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_name": material})
 
-    descripcion = (producto.get("descripcion") or "").strip()[:4000]
     precio = float(producto.get("precio_menudeo") or 0)
-
-    # family_name = título sin color+talla — debe ser igual al inicio del title
-    family_name = f"{base}"[:80]
-
-    # Detectar temporada desde la descripción
-    desc_lower = descripcion.lower()
-    if "otoño" in desc_lower or "invierno" in desc_lower or "oto" in desc_lower:
-        season = "Otoño/Invierno"
-    else:
-        season = "Primavera/Verano"
-    # Actualizar atributo de temporada según detección
-    for a in attrs:
-        if a["id"] == "RELEASE_SEASON":
-            a["value_name"] = season
-            break
 
     return {
         "title":              title,
@@ -586,7 +597,7 @@ def _build_item(producto: dict, variante: dict, qty: int,
         "category_id":        category_id,
         "price":              precio,
         "currency_id":        "MXN",
-        "available_quantity": max(1, int(qty)),  # ML no acepta 0 al crear
+        "available_quantity": max(1, int(qty)),
         "buying_mode":        "buy_it_now",
         "listing_type_id":    listing_type,
         "condition":          "new",
