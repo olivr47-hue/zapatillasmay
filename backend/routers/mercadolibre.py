@@ -298,8 +298,22 @@ def listar_items():
 
 # ─── Stock del ERP ────────────────────────────────────────────────────────────
 
+def _norm_sku(sku: str) -> str:
+    """Normaliza un SKU para comparar ML vs ERP:
+    - Mayúsculas
+    - Punto decimal de talla → guión bajo  (23.5 → 23_5)
+    - Reemplaza Ñ/ñ → N (COGÑAC → COGNAC)
+    """
+    s = (sku or "").upper().strip()
+    s = s.replace("Ñ", "N").replace("ñ", "N")
+    # Normalizar talla: último segmento con punto → guión bajo
+    partes = s.split("-")
+    if partes:
+        partes[-1] = partes[-1].replace(".", "_")
+    return "-".join(partes)
+
 def _stock_erp() -> dict:
-    """SKU (mayúsculas) → cantidad total en todas las sucursales."""
+    """SKU normalizado → cantidad total en todas las sucursales."""
     rows = supabase_get_all("inventario?select=variante_id,cantidad")
     por_variante: dict = {}
     for r in rows:
@@ -308,7 +322,7 @@ def _stock_erp() -> dict:
             por_variante[vid] = por_variante.get(vid, 0) + (r.get("cantidad") or 0)
     variantes = supabase_get_all("variantes?activa=eq.true&select=id,sku")
     return {
-        v["sku"].upper().strip(): por_variante.get(v["id"], 0)
+        _norm_sku(v["sku"]): por_variante.get(v["id"], 0)
         for v in variantes if v.get("sku")
     }
 
@@ -324,7 +338,7 @@ def ver_stock_ml():
     for it in items_data["items"]:
         if it["status"] != "active":
             continue
-        sku = it["seller_sku"].upper()
+        sku = _norm_sku(it["seller_sku"])
         if not sku:
             sin_match.append(it["item_id"])
             continue
@@ -368,7 +382,7 @@ def _hacer_sync():
         for it in items:
             if it["status"] != "active":
                 continue
-            sku = it["seller_sku"].upper()
+            sku = _norm_sku(it["seller_sku"])
             if not sku or sku not in stock_erp:
                 sin_match.append({"item": it["item_id"], "sku": sku or "(vacio)"})
                 continue
