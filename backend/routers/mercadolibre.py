@@ -608,6 +608,62 @@ def _build_item(producto: dict, variante: dict, qty: int,
     return payload
 
 
+@router.post("/publicar-payloads")
+def publicar_payloads_raw(body: dict):
+    """
+    Publica uno o varios payloads editados manualmente desde el panel.
+    Body: { "payloads": [ { ...item payload... }, ... ] }
+    Devuelve resultado por cada payload.
+    """
+    payloads = body.get("payloads") or []
+    if not payloads:
+        raise HTTPException(400, "Se requiere 'payloads' (lista de items a publicar)")
+
+    resultados = []
+    for payload in payloads:
+        sku = ""
+        for attr in payload.get("attributes") or []:
+            if attr.get("id") == "SELLER_SKU":
+                sku = attr.get("value_name", "")
+        req_body = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req) as r:
+                resp = json.loads(r.read())
+                resultados.append({
+                    "sku":       sku,
+                    "ok":        True,
+                    "item_id":   resp.get("id"),
+                    "permalink": resp.get("permalink"),
+                    "title":     resp.get("title"),
+                })
+        except urllib.error.HTTPError as e:
+            raw = e.read()
+            try:
+                err = json.loads(raw)
+            except Exception:
+                err = {"raw": raw.decode(errors="replace")}
+            resultados.append({
+                "sku":    sku,
+                "ok":     False,
+                "codigo": e.code,
+                "error":  err.get("message") or str(err),
+                "causa":  err.get("cause") or [],
+                "ml_raw": err,
+            })
+
+    ok  = [r for r in resultados if r["ok"]]
+    err = [r for r in resultados if not r["ok"]]
+    return {
+        "total":      len(resultados),
+        "publicados": len(ok),
+        "errores":    len(err),
+        "resultados": resultados,
+    }
+
+
 @router.post("/test-item")
 def test_item_ml(body: dict):
     """

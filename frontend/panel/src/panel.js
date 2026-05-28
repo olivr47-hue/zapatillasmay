@@ -11956,102 +11956,172 @@ window.descargarExcelTikTok = async function(btn, endpoint, filename) {
 async function cargarMercadoLibre() {
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:2rem;max-width:700px">
-      <h2 style="margin-bottom:1.5rem">🛒 MercadoLibre</h2>
+    <div style="padding:2rem;max-width:860px">
+      <h2 style="margin-bottom:0.25rem">🛒 MercadoLibre</h2>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">
+        Genera el preview, edita el JSON de cada variante (especialmente el título), y publica.
+      </p>
 
-      <!-- Publicar producto -->
+      <!-- Paso 1: configurar -->
       <div class="card" style="margin-bottom:1.5rem">
-        <h3 style="margin-bottom:1rem">Publicar producto en ML</h3>
-        <div style="display:grid;gap:0.75rem">
-
-          <label style="font-size:0.85rem;font-weight:600">SKU del producto</label>
-          <input id="ml-sku" type="text" class="form-control" placeholder="Ej: C-TAC-0014"
-                 style="font-size:1rem;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;width:100%">
-
-          <label style="font-size:0.85rem;font-weight:600">Tipo de publicación</label>
-          <select id="ml-listing" class="form-control"
-                  style="font-size:1rem;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;width:100%">
-            <option value="free">Gratis</option>
-            <option value="bronze">Bronce (5%)</option>
-            <option value="silver">Plata (9%)</option>
-            <option value="gold_pro">Oro Premium (16%)</option>
-          </select>
-
-          <div style="display:flex;gap:0.75rem;margin-top:0.5rem">
-            <button class="btn btn-secondary" onclick="mlPreview()"
-                    style="flex:1;padding:0.6rem">🔍 Ver preview (sin publicar)</button>
-            <button class="btn btn-primary" onclick="mlPublicar()"
-                    style="flex:1;padding:0.6rem;background:#ffe600;color:#333;border:none;border-radius:6px;cursor:pointer;font-weight:600">
-              🚀 Publicar en ML
-            </button>
+        <h3 style="margin-bottom:1rem">Paso 1 — Producto</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
+            <input id="ml-sku" type="text" placeholder="Ej: O-TAC-0118"
+                   style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de publicación</label>
+            <select id="ml-listing"
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+              <option value="free">Gratis</option>
+              <option value="bronze">Bronce (5%)</option>
+              <option value="silver">Plata (9%)</option>
+              <option value="gold_pro">Oro Premium (16%)</option>
+            </select>
           </div>
         </div>
+        <button onclick="mlGenerarPreview()" id="ml-btn-preview"
+                style="margin-top:1rem;padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
+          🔍 Generar preview y editar JSONs
+        </button>
       </div>
 
-      <!-- Resultado -->
-      <div id="ml-resultado" style="display:none" class="card">
-        <h3 style="margin-bottom:0.75rem" id="ml-resultado-titulo">Resultado</h3>
+      <!-- Paso 2: editar variantes -->
+      <div id="ml-variantes-wrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 id="ml-variantes-titulo" style="margin:0">Paso 2 — Edita los JSONs</h3>
+          <button onclick="mlPublicarTodas()" id="ml-btn-publicar"
+                  style="padding:0.6rem 1.5rem;background:#ffe600;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:700">
+            🚀 Publicar todas en ML
+          </button>
+        </div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">
+          Cada textarea es el JSON que se enviará a ML. Puedes cambiar el título, precio, imágenes, etc.
+        </p>
+        <div id="ml-variantes-list"></div>
+      </div>
+
+      <!-- Resultado publicación -->
+      <div id="ml-resultado" style="display:none;margin-top:1.5rem" class="card">
+        <h3 id="ml-resultado-titulo" style="margin-bottom:0.75rem">Resultado</h3>
         <div id="ml-resultado-body"></div>
       </div>
     </div>
   `
 
-  window.mlPreview = async () => _mlEnviar(true)
-  window.mlPublicar = async () => {
-    if (!confirm('¿Publicar este producto en MercadoLibre? Se crearán los listings reales.')) return
-    _mlEnviar(false)
+  window.mlGenerarPreview = async () => {
+    const sku  = document.getElementById('ml-sku').value.trim().toUpperCase()
+    const tipo = document.getElementById('ml-listing').value
+    if (!sku) { alert('Ingresa el SKU del producto'); return }
+
+    const btn = document.getElementById('ml-btn-preview')
+    btn.textContent = '⏳ Generando...'
+    btn.disabled = true
+
+    try {
+      const res  = await fetch(`${API}/ml/publicar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku_interno: sku, listing_type: tipo, solo_preview: true })
+      })
+      const data = await res.json()
+      if (!res.ok) { alert('Error: ' + (data.detail || JSON.stringify(data))); return }
+
+      const resultados = data.resultados || []
+      if (!resultados.length) { alert('No se encontraron variantes activas'); return }
+
+      const wrap  = document.getElementById('ml-variantes-wrap')
+      const list  = document.getElementById('ml-variantes-list')
+      const tit   = document.getElementById('ml-variantes-titulo')
+
+      tit.textContent = `Paso 2 — Edita los JSONs (${resultados.length} variantes)`
+      list.innerHTML  = resultados.map((r, i) => `
+        <details style="margin-bottom:0.75rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+          <summary style="padding:0.6rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center">
+            <span>${r.sku || 'Variante ' + (i+1)} — ${r.color || ''} ${r.talla || ''}</span>
+            <span style="font-size:0.75rem;color:#888">Click para editar ▾</span>
+          </summary>
+          <div style="padding:0.75rem">
+            <textarea id="ml-json-${i}"
+                      style="width:100%;height:320px;font-family:monospace;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical"
+                      spellcheck="false">${JSON.stringify(r.preview, null, 2)}</textarea>
+          </div>
+        </details>
+      `).join('')
+
+      wrap.style.display = 'block'
+      // Abrir la primera para que el usuario vea que puede editar
+      const firstDetails = list.querySelector('details')
+      if (firstDetails) firstDetails.open = true
+
+    } catch(e) {
+      alert('Error de conexión: ' + e.message)
+    } finally {
+      btn.textContent = '🔍 Generar preview y editar JSONs'
+      btn.disabled = false
+    }
   }
-}
 
-async function _mlEnviar(soloPreview) {
-  const sku    = document.getElementById('ml-sku').value.trim().toUpperCase()
-  const tipo   = document.getElementById('ml-listing').value
-  const resDiv = document.getElementById('ml-resultado')
-  const titulo = document.getElementById('ml-resultado-titulo')
-  const body   = document.getElementById('ml-resultado-body')
+  window.mlPublicarTodas = async () => {
+    if (!confirm('¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?')) return
 
-  if (!sku) { alert('Ingresa el SKU del producto'); return }
+    const list     = document.getElementById('ml-variantes-list')
+    const textareas = list.querySelectorAll('textarea')
+    const payloads = []
 
-  resDiv.style.display = 'block'
-  titulo.textContent   = soloPreview ? '🔍 Preview del payload' : '⏳ Publicando...'
-  body.innerHTML       = '<p style="color:#888">Procesando...</p>'
-
-  try {
-    const res = await fetch(`${API}/ml/publicar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._token || ''}` },
-      body: JSON.stringify({ sku_interno: sku, listing_type: tipo, solo_preview: soloPreview })
-    })
-    const data = await res.json()
-
-    if (!res.ok) {
-      titulo.textContent = '❌ Error'
-      body.innerHTML = `<p style="color:red">${data.detail || JSON.stringify(data)}</p>`
-      return
+    for (let i = 0; i < textareas.length; i++) {
+      try {
+        payloads.push(JSON.parse(textareas[i].value))
+      } catch(e) {
+        alert(`JSON inválido en variante ${i+1}: ${e.message}`)
+        return
+      }
     }
 
-    if (soloPreview) {
-      titulo.textContent = `🔍 Preview — ${data.total || 0} variante(s)`
-      body.innerHTML = `<pre style="font-size:0.75rem;overflow:auto;max-height:400px;background:#f5f5f5;padding:1rem;border-radius:6px">${JSON.stringify(data, null, 2)}</pre>`
-    } else {
-      const publicados = data.publicados || 0
-      const errores    = data.errores    || 0
-      titulo.textContent = `✅ ${publicados} publicado(s)${errores ? ` · ❌ ${errores} error(s)` : ''} de ${data.total || 0}`
-      const resultados = data.resultados || []
-      body.innerHTML = resultados.map(it => `
+    const btn = document.getElementById('ml-btn-publicar')
+    btn.textContent = '⏳ Publicando...'
+    btn.disabled = true
+
+    const resDiv = document.getElementById('ml-resultado')
+    const titulo = document.getElementById('ml-resultado-titulo')
+    const body   = document.getElementById('ml-resultado-body')
+    resDiv.style.display = 'block'
+    titulo.textContent   = '⏳ Publicando...'
+    body.innerHTML       = '<p style="color:#888">Enviando a MercadoLibre...</p>'
+
+    try {
+      const res  = await fetch(`${API}/ml/publicar-payloads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payloads })
+      })
+      const data = await res.json()
+
+      const pub = data.publicados || 0
+      const err = data.errores    || 0
+      titulo.textContent = `✅ ${pub} publicado(s)${err ? ` · ❌ ${err} con error` : ''} de ${data.total || 0}`
+
+      body.innerHTML = (data.resultados || []).map(it => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #eee">
-          <span style="font-size:0.85rem">${it.sku || ''} — ${it.title || ''}</span>
-          ${it.status === 'publicado'
+          <span style="font-size:0.85rem">${it.sku || '—'} ${it.title ? '— ' + it.title : ''}</span>
+          ${it.ok
             ? `<a href="${it.permalink || '#'}" target="_blank"
-                 style="font-size:0.8rem;color:#3483fa">🔗 ${it.item_id}</a>`
-            : `<span style="font-size:0.8rem;color:red" title="${JSON.stringify(it.causas||[])}">❌ ${it.error || 'Error'}</span>`
+                 style="font-size:0.8rem;color:#3483fa;white-space:nowrap">🔗 ${it.item_id}</a>`
+            : `<span style="font-size:0.8rem;color:red"
+                     title='${JSON.stringify(it.causa||[])}'>❌ ${it.error || 'Error'}</span>`
           }
         </div>
       `).join('') || '<p style="color:#888">Sin detalles</p>'
+
+    } catch(e) {
+      titulo.textContent = '❌ Error de conexión'
+      body.innerHTML = `<p style="color:red">${e.message}</p>`
+    } finally {
+      btn.textContent = '🚀 Publicar todas en ML'
+      btn.disabled = false
     }
-  } catch(e) {
-    titulo.textContent = '❌ Error de conexión'
-    body.innerHTML = `<p style="color:red">${e.message}</p>`
   }
 }
 
