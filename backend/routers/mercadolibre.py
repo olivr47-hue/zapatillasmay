@@ -452,6 +452,234 @@ def ver_log_sync():
     return log
 
 
+# ─── Publicar productos en ML ──────────────────────────────────────────────────
+
+# ERP categoria → nombre de calzado para el título
+_TIPO_CALZADO = {
+    "sandalia": "Sandalia", "sandalias": "Sandalia",
+    "tacon": "Tacón", "tacones": "Tacón",
+    "botin": "Botín", "botines": "Botines",
+    "flat": "Flat", "flats": "Flat",
+    "balerina": "Balerina", "balerinas": "Balerina",
+    "sneaker": "Tenis", "tenis": "Tenis",
+    "plataforma": "Plataforma", "mocasin": "Mocasín",
+    "oxford": "Oxford", "mule": "Mule",
+}
+
+# ERP categoria → category_id de ML México
+_CATEGORY_ID = {
+    "sandalia": "MLM192717", "sandalias": "MLM192717",
+    "tacon": "MLM192717",    "tacones":   "MLM192717",
+    "botin": "MLM192719",    "botines":   "MLM192719",
+    "flat":  "MLM174354",    "flats":     "MLM174354",
+    "balerina": "MLM174354", "balerinas": "MLM174354",
+}
+_CATEGORY_DEFAULT = "MLM192717"
+
+
+def _talla_to_row(talla) -> str | None:
+    """
+    Talla MX → SIZE_GRID_ROW_ID del grid 487994.
+    Base verificada: 23 = row 1, cada 0.5 = +1 row (26 = row 7, confirmado).
+    """
+    try:
+        t = float(str(talla).replace("_", "."))
+        row = int(round((t - 23) * 2)) + 1
+        if 1 <= row <= 20:
+            return f"487994:{row}"
+    except Exception:
+        pass
+    return None
+
+
+def _build_item(producto: dict, variante: dict, qty: int,
+                category_id: str, listing_type: str) -> dict:
+    """Construye el payload de POST /items para ML."""
+    cat      = (producto.get("categoria") or "sandalia").lower().strip()
+    tipo     = _TIPO_CALZADO.get(cat, "Sandalia")
+    marca    = (producto.get("marca") or "Zapatillas May").strip() or "May"
+    modelo   = (producto.get("nombre") or "").strip()
+
+    talla_raw     = str(variante.get("talla") or "")
+    talla_display = talla_raw.replace("_", ".")
+    color_raw     = (variante.get("color") or "").strip()
+    # Capitalizar cada palabra: "NEGRO NAPA" → "Negro Napa"
+    color_title   = color_raw.title()
+    # Solo primera palabra para atributos de color
+    color_simple  = color_raw.split()[0].title() if color_raw else ""
+
+    # Título ML — max 60 chars
+    title = f"{tipo} {marca} {modelo} {color_title} {talla_display} Mx"
+    if len(title) > 60:
+        title = f"{tipo} {color_title} {talla_display} Mx"
+    title = title[:60].strip()
+
+    # Imágenes (Cloudinary)
+    fotos = list(variante.get("imagenes") or [])
+    if not fotos and variante.get("foto_url"):
+        fotos = [variante["foto_url"]]
+    if not fotos and producto.get("imagen_principal"):
+        fotos = [producto["imagen_principal"]]
+    pictures = [{"source": u} for u in fotos[:12] if u]
+
+    # SIZE_GRID_ROW_ID
+    row_id = _talla_to_row(talla_display)
+
+    attrs = [
+        {"id": "SELLER_SKU",       "value_name": variante.get("sku", "")},
+        {"id": "BRAND",            "value_name": marca},
+        {"id": "GENDER",           "value_name": "Mujer"},
+        {"id": "FILTRABLE_GENDER", "value_name": "Mujer"},
+        {"id": "ITEM_CONDITION",   "value_name": "Nuevo"},
+        {"id": "COLOR",            "value_name": color_simple},
+        {"id": "MAIN_COLOR",       "value_name": color_simple},
+        {"id": "SIZE",             "value_name": f"{talla_display} MX"},
+        {"id": "FILTRABLE_SIZE",   "value_name": talla_display},
+        {"id": "SIZE_GRID_ID",     "value_name": "487994"},
+        {"id": "RELEASE_YEAR",     "value_name": "2026"},
+        {"id": "RELEASE_SEASON",   "value_name": "Primavera/Verano"},
+    ]
+    if row_id:
+        attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
+    if modelo:
+        attrs.append({"id": "MODEL", "value_name": modelo})
+
+    descripcion = (producto.get("descripcion") or "").strip()[:4000]
+    precio = float(producto.get("precio_menudeo") or 0)
+
+    return {
+        "title":              title,
+        "category_id":        category_id,
+        "price":              precio,
+        "currency_id":        "MXN",
+        "available_quantity": max(1, int(qty)),  # ML no acepta 0 al crear
+        "buying_mode":        "buy_it_now",
+        "listing_type_id":    listing_type,
+        "condition":          "new",
+        "description":        {"plain_text": descripcion},
+        "pictures":           pictures,
+        "attributes":         attrs,
+    }
+
+
+@router.get("/categorias")
+def predecir_categoria(q: str = "sandalia mujer"):
+    """Llama al predictor de ML para encontrar la category_id correcta."""
+    return ml_get(f"/sites/MLM/category_predictor/select?title={urllib.parse.quote(q)}")
+
+
+@router.post("/publicar")
+def publicar_producto(body: dict):
+    """
+    Publica variantes de un producto ERP en ML como items individuales.
+
+    Body:
+    {
+        "producto_id":  "uuid",
+        "variante_ids": ["uuid1", ...],   // opcional; vacío = todas las activas
+        "category_id":  "MLM192717",      // opcional; se auto-detecta por categoria ERP
+        "listing_type": "free" | "bronze" | "silver" | "gold_pro",
+        "solo_preview": true              // true = solo muestra payloads, no publica
+    }
+    """
+    producto_id  = (body.get("producto_id") or "").strip()
+    variante_ids = body.get("variante_ids") or []
+    listing_type = body.get("listing_type") or "free"
+    solo_preview = bool(body.get("solo_preview", False))
+
+    if not producto_id:
+        raise HTTPException(400, "producto_id requerido")
+
+    # Leer producto
+    prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    if not prods:
+        raise HTTPException(404, "Producto no encontrado")
+    producto = prods[0]
+
+    # Leer variantes
+    if variante_ids:
+        ids_str  = ",".join(variante_ids)
+        variantes = supabase_get_all(
+            f"variantes?id=in.({ids_str})&activa=eq.true&select=*"
+        )
+    else:
+        variantes = supabase_get_all(
+            f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*"
+        )
+
+    if not variantes:
+        raise HTTPException(404, "Sin variantes activas para este producto")
+
+    # Leer stock ERP solo de estas variantes
+    vids_str = ",".join(v["id"] for v in variantes)
+    inv_rows = supabase_get_all(
+        f"inventario?variante_id=in.({vids_str})&select=variante_id,cantidad"
+    )
+    stock_map: dict = {}
+    for row in inv_rows:
+        vid = row.get("variante_id")
+        if vid:
+            stock_map[vid] = stock_map.get(vid, 0) + (row.get("cantidad") or 0)
+
+    # Determinar category_id
+    cat_key     = (producto.get("categoria") or "sandalia").lower().strip()
+    category_id = (body.get("category_id") or "").strip() or _CATEGORY_ID.get(cat_key, _CATEGORY_DEFAULT)
+
+    # Construir y publicar
+    resultados = []
+    for variante in variantes:
+        qty     = stock_map.get(variante["id"], 0)
+        payload = _build_item(producto, variante, qty, category_id, listing_type)
+
+        if solo_preview:
+            resultados.append({
+                "sku":     variante.get("sku"),
+                "preview": payload,
+            })
+            continue
+
+        # POST a ML
+        req_body = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            f"{ML_BASE}/items",
+            data=req_body,
+            headers=ml_headers(),
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req) as r:
+                resp = json.loads(r.read())
+                resultados.append({
+                    "sku":     variante.get("sku"),
+                    "item_id": resp.get("id"),
+                    "title":   resp.get("title"),
+                    "status":  "publicado",
+                    "permalink": resp.get("permalink"),
+                })
+        except urllib.error.HTTPError as e:
+            err = json.loads(e.read())
+            resultados.append({
+                "sku":    variante.get("sku"),
+                "status": "error",
+                "codigo": e.code,
+                "error":  err.get("message") or err.get("error") or str(err),
+                "causas": err.get("cause") or [],
+            })
+
+    ok  = [r for r in resultados if r.get("status") == "publicado"]
+    err = [r for r in resultados if r.get("status") == "error"]
+
+    return {
+        "producto":   producto.get("nombre"),
+        "categoria":  cat_key,
+        "category_id": category_id,
+        "total":      len(resultados),
+        "publicados": len(ok),
+        "errores":    len(err),
+        "resultados": resultados,
+    }
+
+
 # ─── Actualizar token manualmente ─────────────────────────────────────────────
 
 @router.post("/token")

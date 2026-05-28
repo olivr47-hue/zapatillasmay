@@ -10543,6 +10543,45 @@ async function cargarSEO() {
           <div id="ml-resultado" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg-secondary);border-radius:8px;font-size:0.82rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
         </div>
 
+        <!-- ── MercadoLibre: Publicar nuevo estilo ── -->
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🟡 MercadoLibre — Publicar nuevo estilo</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Crea publicaciones individuales por variante (color+talla) directo desde el ERP.
+            Usa <b>Solo preview</b> para revisar el payload antes de publicar.
+          </p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div>
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
+              <input id="ml-pub-sku" type="text" placeholder="Ej: M-TAC-0022"
+                style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;background:var(--bg-primary);color:var(--text-primary)">
+            </div>
+            <div>
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de listing</label>
+              <select id="ml-pub-listing"
+                style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="free">Gratis (free)</option>
+                <option value="bronze">Bronce</option>
+                <option value="silver">Plata</option>
+                <option value="gold_pro" selected>Oro Pro (como los actuales)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+            <button onclick="mlPublicarPreview(this)"
+              style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#0284c7;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              👁️ Solo preview (sin publicar)
+            </button>
+            <button onclick="mlPublicarReal(this)"
+              style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#16a34a;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🚀 Publicar en ML
+            </button>
+          </div>
+          <div id="ml-pub-resultado" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg-secondary);border-radius:8px;font-size:0.82rem;max-height:500px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+        </div>
+
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:0.5rem">🎵 TikTok Shop — Sincronización</h3>
           <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
@@ -11798,6 +11837,108 @@ window.mlVerLog = async function(btn) {
   }
   btn.innerHTML = orig
   btn.disabled = false
+}
+
+// ─── MercadoLibre: Publicar nuevo estilo ────────────────────────────────────
+
+async function _mlBuscarProductoPorSku(sku) {
+  // Busca el producto_id por sku_interno
+  const r = await fetch(API + '/productos/?sku_interno=eq.' + encodeURIComponent(sku.toUpperCase().trim()) + '&select=id,nombre,categoria')
+  const arr = await r.json()
+  return Array.isArray(arr) ? arr[0] : null
+}
+
+async function _mlPublicar(solo_preview, btn) {
+  const sku         = document.getElementById('ml-pub-sku').value.trim()
+  const listing     = document.getElementById('ml-pub-listing').value
+  const box         = document.getElementById('ml-pub-resultado')
+  const orig        = btn.innerHTML
+  if (!sku) { alert('Ingresa el SKU del producto'); return }
+
+  btn.innerHTML = '⏳ Buscando producto...'
+  btn.disabled = true
+  box.style.display = 'none'
+
+  try {
+    // 1. Buscar producto_id por SKU
+    const prod = await _mlBuscarProductoPorSku(sku)
+    if (!prod) {
+      box.style.display = 'block'
+      box.textContent = `❌ No se encontró el producto con SKU "${sku}". Verifica que exista en el ERP.`
+      return
+    }
+
+    btn.innerHTML = solo_preview ? '⏳ Generando preview...' : '⏳ Publicando en ML...'
+
+    // 2. Llamar al endpoint de publicación
+    const r = await fetch(API + '/ml/publicar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        producto_id:  prod.id,
+        listing_type: listing,
+        solo_preview: solo_preview,
+      })
+    })
+    const d = await r.json()
+
+    box.style.display = 'block'
+
+    if (!r.ok) {
+      box.textContent = '❌ Error: ' + (d.detail || JSON.stringify(d))
+      return
+    }
+
+    if (solo_preview) {
+      // Mostrar el primer payload de forma legible
+      const first = d.resultados?.[0]
+      if (!first) { box.textContent = 'Sin resultados'; return }
+      const p = first.preview
+      let txt = `=== PREVIEW — ${prod.nombre} (${d.total} variantes) ===\n\n`
+      txt += `Producto:    ${prod.nombre} (${d.categoria})\n`
+      txt += `Category ID: ${d.category_id}\n`
+      txt += `Listing:     ${listing}\n\n`
+      txt += `--- Primera variante: ${first.sku} ---\n`
+      txt += `Título:      ${p.title}\n`
+      txt += `Precio:      $${p.price} MXN\n`
+      txt += `Stock:       ${p.available_quantity}\n`
+      txt += `Imágenes:    ${p.pictures?.length || 0}\n`
+      txt += `Descripción: ${p.description?.plain_text?.substring(0,120)}...\n\n`
+      txt += `Atributos:\n` + (p.attributes || []).map(a => `  ${a.id}: ${a.value_name}`).join('\n')
+      txt += `\n\n... y ${d.total - 1} variantes más con la misma estructura.`
+      box.textContent = txt
+    } else {
+      // Resultados reales
+      const ok  = d.resultados?.filter(r => r.status === 'publicado') || []
+      const err = d.resultados?.filter(r => r.status === 'error') || []
+      let txt = `=== RESULTADO — ${prod.nombre} ===\n`
+      txt += `✅ Publicados: ${ok.length}   ❌ Errores: ${err.length}\n\n`
+      if (ok.length) {
+        txt += 'PUBLICADOS:\n'
+        ok.forEach(x => { txt += `  ${x.sku} → ${x.item_id}\n  ${x.permalink || ''}\n` })
+      }
+      if (err.length) {
+        txt += '\nERRORES:\n'
+        err.forEach(x => {
+          txt += `  ${x.sku}  [${x.codigo}] ${x.error}\n`
+          if (x.causas?.length) x.causas.forEach(c => { txt += `    ↳ ${c.code}: ${c.message}\n` })
+        })
+      }
+      box.textContent = txt
+    }
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error inesperado: ' + e.message
+  } finally {
+    btn.innerHTML = orig
+    btn.disabled = false
+  }
+}
+
+window.mlPublicarPreview = function(btn) { _mlPublicar(true, btn) }
+window.mlPublicarReal    = function(btn) {
+  if (!confirm('¿Publicar TODAS las variantes activas de este producto en MercadoLibre? Esto creará nuevos items en tu cuenta.')) return
+  _mlPublicar(false, btn)
 }
 
 // ═══════════════════════════════════════════════════════
