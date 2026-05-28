@@ -587,17 +587,21 @@ def publicar_producto(body: dict):
     }
     """
     producto_id  = (body.get("producto_id") or "").strip()
+    sku_interno  = (body.get("sku_interno") or "").strip().upper()
     variante_ids = body.get("variante_ids") or []
     listing_type = body.get("listing_type") or "free"
     solo_preview = bool(body.get("solo_preview", False))
 
-    if not producto_id:
-        raise HTTPException(400, "producto_id requerido")
+    if not producto_id and not sku_interno:
+        raise HTTPException(400, "Se requiere producto_id o sku_interno")
 
-    # Leer producto
-    prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    # Leer producto (por ID o por SKU)
+    if producto_id:
+        prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    else:
+        prods = supabase_get_all(f"productos?sku_interno=eq.{sku_interno}&select=*&limit=1")
     if not prods:
-        raise HTTPException(404, "Producto no encontrado")
+        raise HTTPException(404, f"Producto no encontrado (sku={sku_interno or producto_id})")
     producto = prods[0]
 
     # Leer variantes

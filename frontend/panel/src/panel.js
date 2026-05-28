@@ -11841,41 +11841,24 @@ window.mlVerLog = async function(btn) {
 
 // ─── MercadoLibre: Publicar nuevo estilo ────────────────────────────────────
 
-async function _mlBuscarProductoPorSku(sku) {
-  // Busca el producto_id por sku_interno
-  const r = await fetch(API + '/productos/?sku_interno=eq.' + encodeURIComponent(sku.toUpperCase().trim()) + '&select=id,nombre,categoria')
-  const arr = await r.json()
-  return Array.isArray(arr) ? arr[0] : null
-}
-
 async function _mlPublicar(solo_preview, btn) {
-  const sku         = document.getElementById('ml-pub-sku').value.trim()
-  const listing     = document.getElementById('ml-pub-listing').value
-  const box         = document.getElementById('ml-pub-resultado')
-  const orig        = btn.innerHTML
-  if (!sku) { alert('Ingresa el SKU del producto'); return }
+  const sku     = document.getElementById('ml-pub-sku').value.trim()
+  const listing = document.getElementById('ml-pub-listing').value
+  const box     = document.getElementById('ml-pub-resultado')
+  const orig    = btn.innerHTML
+  if (!sku) { alert('Ingresa el SKU del producto (ej: M-SAN-0148)'); return }
 
-  btn.innerHTML = '⏳ Buscando producto...'
+  btn.innerHTML = solo_preview ? '⏳ Generando preview...' : '⏳ Publicando en ML...'
   btn.disabled = true
   box.style.display = 'none'
 
   try {
-    // 1. Buscar producto_id por SKU
-    const prod = await _mlBuscarProductoPorSku(sku)
-    if (!prod) {
-      box.style.display = 'block'
-      box.textContent = `❌ No se encontró el producto con SKU "${sku}". Verifica que exista en el ERP.`
-      return
-    }
-
-    btn.innerHTML = solo_preview ? '⏳ Generando preview...' : '⏳ Publicando en ML...'
-
-    // 2. Llamar al endpoint de publicación
+    // Pasar sku_interno directamente — el backend hace el lookup en Supabase
     const r = await fetch(API + '/ml/publicar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        producto_id:  prod.id,
+        sku_interno:  sku.toUpperCase().trim(),
         listing_type: listing,
         solo_preview: solo_preview,
       })
@@ -11894,8 +11877,8 @@ async function _mlPublicar(solo_preview, btn) {
       const first = d.resultados?.[0]
       if (!first) { box.textContent = 'Sin resultados'; return }
       const p = first.preview
-      let txt = `=== PREVIEW — ${prod.nombre} (${d.total} variantes) ===\n\n`
-      txt += `Producto:    ${prod.nombre} (${d.categoria})\n`
+      let txt = `=== PREVIEW — ${d.producto} (${d.total} variantes) ===\n\n`
+      txt += `Producto:    ${d.producto} (${d.categoria})\n`
       txt += `Category ID: ${d.category_id}\n`
       txt += `Listing:     ${listing}\n\n`
       txt += `--- Primera variante: ${first.sku} ---\n`
@@ -11911,7 +11894,7 @@ async function _mlPublicar(solo_preview, btn) {
       // Resultados reales
       const ok  = d.resultados?.filter(r => r.status === 'publicado') || []
       const err = d.resultados?.filter(r => r.status === 'error') || []
-      let txt = `=== RESULTADO — ${prod.nombre} ===\n`
+      let txt = `=== RESULTADO — ${d.producto} ===\n`
       txt += `✅ Publicados: ${ok.length}   ❌ Errores: ${err.length}\n\n`
       if (ok.length) {
         txt += 'PUBLICADOS:\n'
