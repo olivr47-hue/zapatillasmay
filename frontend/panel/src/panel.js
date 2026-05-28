@@ -11975,11 +11975,12 @@ async function cargarMercadoLibre() {
             <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de publicación</label>
             <select id="ml-listing"
                     style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
-              <option value="free">Gratis</option>
-              <option value="bronze">Bronce (5%)</option>
+              <option value="gold_pro">Oro Premium — gold_pro (16%)</option>
+              <option value="gold_special">Oro Especial — gold_special (12%)</option>
               <option value="silver">Plata (9%)</option>
-              <option value="gold_pro">Oro Premium (16%)</option>
+              <option value="bronze">Bronce (5%)</option>
             </select>
+            <div style="font-size:0.75rem;color:#e67e22;margin-top:3px">⚠️ La categoría de calzado no admite publicaciones gratis</div>
           </div>
         </div>
         <div style="margin-bottom:0.75rem">

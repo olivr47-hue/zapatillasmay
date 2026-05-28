@@ -574,15 +574,16 @@ def _build_item(producto: dict, variante: dict, qty: int,
               else "Primavera/Verano")
 
     attrs = [
-        {"id": "SELLER_SKU",   "value_name": variante.get("sku", "")},
-        {"id": "BRAND",        "value_name": "May"},
-        {"id": "GENDER",       "value_name": "Mujer"},
-        {"id": "COLOR",        "value_name": color_simple},
-        {"id": "MAIN_COLOR",   "value_id": mc_id, "value_name": mc_name},
-        {"id": "SIZE",         "value_name": f"{talla_display} MX"},
-        {"id": "SIZE_GRID_ID", "value_name": grid_id},
+        {"id": "SELLER_SKU",    "value_name": variante.get("sku", "")},
+        {"id": "BRAND",         "value_name": "May"},
+        {"id": "GENDER",        "value_name": "Mujer"},
+        {"id": "AGE_GROUP",     "value_id": "6725189"},          # Adulto (requerido por ML)
+        {"id": "FOOTWEAR_TYPE", "value_name": tipo},             # requerido para MLM192717
+        {"id": "COLOR",         "value_name": color_simple},
+        {"id": "MAIN_COLOR",    "value_id": mc_id, "value_name": mc_name},
+        {"id": "SIZE",          "value_name": f"{talla_display} MX"},
+        {"id": "SIZE_GRID_ID",  "value_name": grid_id},
     ]
-    # FILTRABLE_GENDER, FILTRABLE_SIZE, ITEM_CONDITION → read-only, ML los asigna solo
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if nombre:
