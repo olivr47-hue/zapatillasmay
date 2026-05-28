@@ -12057,8 +12057,8 @@ async function cargarMercadoLibre() {
       tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
 
       list.innerHTML = resultados.map((r, i) => {
-        // Aplicar el título del usuario a cada payload
-        const payload = { ...r.preview, title: titulo }
+        // Aplicar el título del usuario a cada payload (family_name = mismo título)
+        const payload = { ...r.preview, title: titulo, family_name: titulo }
         return `
           <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
             <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
