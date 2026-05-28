@@ -6,7 +6,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 
 import os, json, time, urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from database import supabase_get_all
 from cache import cache_get, cache_set, cache_invalidate
 
@@ -91,6 +91,108 @@ def ml_put(path: str, data: dict):
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
         return {"error": json.loads(e.read()).get("message", str(e))}
+
+# ─── OAuth — obtener / renovar token ──────────────────────────────────────────
+
+RAILWAY_URL = "https://zapatillasmay-production.up.railway.app"
+
+@router.get("/auth", response_class=HTMLResponse)
+def auth_inicio():
+    """
+    Paso 1: Genera la URL de autorización de ML y redirige al usuario.
+    Abre en el navegador: https://zapatillasmay-production.up.railway.app/ml/auth
+    """
+    if not ML_APP_ID:
+        return HTMLResponse("<h2>Falta ML_APP_ID en Railway Variables</h2>", status_code=500)
+
+    redirect_uri = urllib.parse.quote(f"{RAILWAY_URL}/ml/callback", safe="")
+    url = (
+        f"https://auth.mercadolibre.com.mx/authorization"
+        f"?response_type=code"
+        f"&client_id={ML_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+    )
+    return HTMLResponse(f"""
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>body{{font-family:sans-serif;display:flex;align-items:center;justify-content:center;
+    height:100vh;margin:0;background:#f5f5f5}}
+    .box{{background:white;padding:40px;border-radius:12px;text-align:center;max-width:400px;
+    box-shadow:0 4px 20px rgba(0,0,0,.1)}}
+    a{{display:inline-block;margin-top:20px;padding:14px 32px;background:#FFE600;
+    color:#333;border-radius:8px;text-decoration:none;font-weight:700;font-size:1rem}}</style>
+    </head><body><div class="box">
+    <h2>🔑 Conectar MercadoLibre</h2>
+    <p>Haz clic para autorizar el acceso a tu cuenta <strong>ZAPATILLAS MAY</strong></p>
+    <a href="{url}">Autorizar con MercadoLibre</a>
+    </div></body></html>
+    """)
+
+
+@router.get("/callback")
+def auth_callback(code: str = "", error: str = ""):
+    """
+    Paso 2: ML redirige aquí con el código. Lo intercambiamos por access_token + refresh_token.
+    """
+    if error:
+        return HTMLResponse(f"<h2>Error: {error}</h2>", status_code=400)
+    if not code:
+        return HTMLResponse("<h2>No se recibió código de autorización</h2>", status_code=400)
+
+    redirect_uri = f"{RAILWAY_URL}/ml/callback"
+    body = urllib.parse.urlencode({
+        "grant_type":    "authorization_code",
+        "client_id":     ML_APP_ID,
+        "client_secret": ML_SECRET,
+        "code":          code,
+        "redirect_uri":  redirect_uri,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{ML_BASE}/oauth/token", data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        err = json.loads(e.read())
+        return HTMLResponse(f"<h2>Error ML: {err}</h2>", status_code=400)
+
+    access_token  = resp.get("access_token", "")
+    refresh_token = resp.get("refresh_token", "")
+    expires_in    = resp.get("expires_in", 21600)
+
+    # Guardar en memoria del servidor
+    _token_cache["token"]      = access_token
+    _token_cache["expires_at"] = time.time() + expires_in
+    if refresh_token:
+        _token_cache["refresh"] = refresh_token
+
+    cache_invalidate("ml_items")
+
+    return HTMLResponse(f"""
+    <!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>body{{font-family:sans-serif;display:flex;align-items:center;justify-content:center;
+    height:100vh;margin:0;background:#f5f5f5}}
+    .box{{background:white;padding:40px;border-radius:12px;text-align:center;max-width:500px;
+    box-shadow:0 4px 20px rgba(0,0,0,.1)}}
+    .token{{background:#f0f0f0;padding:10px;border-radius:6px;font-family:monospace;
+    font-size:.75rem;word-break:break-all;text-align:left;margin:12px 0}}
+    .ok{{color:#22c55e;font-size:2rem}}</style>
+    </head><body><div class="box">
+    <p class="ok">✓</p>
+    <h2>¡Cuenta conectada!</h2>
+    <p>Token activo por <strong>{expires_in // 3600}h</strong>.
+    El servidor lo usa automáticamente.</p>
+    <p style="font-size:.8rem;color:#888">Guarda este Access Token en Railway Variables como
+    <code>ML_ACCESS_TOKEN</code> para que sobreviva reinicios:</p>
+    <div class="token">{access_token}</div>
+    {"<p style='font-size:.8rem;color:#888'>Refresh Token (guárdalo como <code>ML_REFRESH_TOKEN</code>):</p><div class='token'>" + refresh_token + "</div>" if refresh_token else ""}
+    <p style="margin-top:20px"><a href="/ml/ping">Verificar conexión →</a></p>
+    </div></body></html>
+    """)
+
 
 # ─── Endpoints de diagnóstico ──────────────────────────────────────────────────
 
