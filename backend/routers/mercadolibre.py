@@ -239,18 +239,11 @@ def ping():
     except HTTPException as e:
         return {"ok": False, "error": e.detail, "tip": "Actualiza ML_ACCESS_TOKEN en Railway Variables"}
 
-# ─── Buscar Item IDs de las 3 publicaciones ────────────────────────────────────
+# ─── Listar todos los items con su SELLER_SKU ────────────────────────────────
 
-@router.get("/items")
-def listar_items():
-    """Devuelve los Item IDs reales (MLM...) de las 3 publicaciones del catálogo."""
-    cached = cache_get("ml_items")
-    if cached:
-        return cached
-
-    # 1. Traer todos los items del vendedor
-    all_ids = []
-    offset = 0
+def _get_all_item_ids() -> list:
+    """Trae todos los IDs de items del vendedor."""
+    all_ids, offset = [], 0
     while True:
         resp = ml_get(f"/users/{ML_USER_ID}/items/search?limit=100&offset={offset}")
         batch = resp.get("results", [])
@@ -258,135 +251,147 @@ def listar_items():
         if len(batch) < 100:
             break
         offset += 100
+    return all_ids
 
-    if not all_ids:
-        return {"items": [], "message": "No se encontraron publicaciones"}
-
-    # 2. Consultar detalles en batches de 20
-    encontrados = {}
+def _get_items_with_sku(all_ids: list) -> list:
+    """Devuelve lista de dicts con item_id, title, status, qty, seller_sku."""
+    items = []
     for i in range(0, len(all_ids), 20):
-        ids_str = ",".join(all_ids[i:i+20])
-        resp = ml_get(f"/items?ids={ids_str}&attributes=id,title,catalog_product_id,available_quantity,status,variations")
+        batch = ",".join(all_ids[i:i+20])
+        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,available_quantity,attributes")
         for entry in resp:
             if entry.get("code") != 200:
                 continue
-            item = entry["body"]
-            cat_id = item.get("catalog_product_id", "")
-            if cat_id in CATALOGOS:
-                encontrados[cat_id] = {
-                    "item_id":    item["id"],
-                    "title":      item.get("title"),
-                    "status":     item.get("status"),
-                    "qty":        item.get("available_quantity", 0),
-                    "variaciones": len(item.get("variations", [])),
-                    "catalogo":   CATALOGOS[cat_id],
-                }
+            b = entry["body"]
+            sku = ""
+            for attr in b.get("attributes", []):
+                if attr.get("id") == "SELLER_SKU":
+                    sku = (attr.get("value_name") or "").strip()
+                    break
+            items.append({
+                "item_id":    b["id"],
+                "title":      b.get("title", ""),
+                "status":     b.get("status", ""),
+                "qty":        b.get("available_quantity", 0),
+                "seller_sku": sku,
+            })
+    return items
 
-    result = {"total_publicaciones": len(all_ids), "encontrados": encontrados}
+
+@router.get("/items")
+def listar_items():
+    """Devuelve todos los items del vendedor con su SELLER_SKU del ERP."""
+    cached = cache_get("ml_items")
+    if cached:
+        return cached
+    all_ids = _get_all_item_ids()
+    items   = _get_items_with_sku(all_ids)
+    con_sku = [it for it in items if it["seller_sku"]]
+    result  = {
+        "total":    len(items),
+        "con_sku":  len(con_sku),
+        "sin_sku":  len(items) - len(con_sku),
+        "items":    items,
+    }
     cache_set("ml_items", result, ttl=300)
     return result
 
 # ─── Stock del ERP ────────────────────────────────────────────────────────────
 
 def _stock_erp() -> dict:
-    """SKU → cantidad total en todas las sucursales."""
+    """SKU (mayúsculas) → cantidad total en todas las sucursales."""
     rows = supabase_get_all("inventario?select=variante_id,cantidad")
     por_variante: dict = {}
     for r in rows:
         vid = r.get("variante_id")
         if vid:
             por_variante[vid] = por_variante.get(vid, 0) + (r.get("cantidad") or 0)
-
     variantes = supabase_get_all("variantes?activa=eq.true&select=id,sku")
     return {
         v["sku"].upper().strip(): por_variante.get(v["id"], 0)
         for v in variantes if v.get("sku")
     }
 
-# ─── Sincronización de inventario ─────────────────────────────────────────────
+# ─── Comparar stock ERP vs ML ─────────────────────────────────────────────────
 
 @router.get("/stock")
 def ver_stock_ml():
-    """Compara el stock del ERP vs el stock actual en ML para las 3 publicaciones."""
+    """Compara stock ERP vs ML para cada item. Muestra diferencias."""
     items_data = listar_items()
-    stock_erp = _stock_erp()
-    encontrados = items_data.get("encontrados", {})
+    stock_erp  = _stock_erp()
+    reporte, sin_match = [], []
 
-    reporte = []
-    for cat_id, item in encontrados.items():
-        item_id = item["item_id"]
-        variaciones_ml = ml_get(f"/items/{item_id}?attributes=variations").get("variations", [])
+    for it in items_data["items"]:
+        if it["status"] != "active":
+            continue
+        sku = it["seller_sku"].upper()
+        if not sku:
+            sin_match.append(it["item_id"])
+            continue
+        qty_erp = stock_erp.get(sku)
+        reporte.append({
+            "item_id":    it["item_id"],
+            "seller_sku": sku,
+            "qty_ml":     it["qty"],
+            "qty_erp":    qty_erp if qty_erp is not None else "no encontrado",
+            "ok":         qty_erp == it["qty"] if qty_erp is not None else False,
+        })
 
-        for var in variaciones_ml:
-            seller_sku = ""
-            for attr in var.get("attributes", []):
-                if attr.get("id") == "SELLER_SKU":
-                    seller_sku = (attr.get("value_name") or "").upper().strip()
-                    break
-            qty_ml  = var.get("available_quantity", 0)
-            qty_erp = stock_erp.get(seller_sku, None)
-            reporte.append({
-                "catalogo":   CATALOGOS[cat_id],
-                "item_id":    item_id,
-                "var_id":     var["id"],
-                "seller_sku": seller_sku,
-                "qty_ml":     qty_ml,
-                "qty_erp":    qty_erp,
-                "diferencia": (qty_erp - qty_ml) if qty_erp is not None else "SKU no encontrado",
-            })
+    desactualizados = [r for r in reporte if not r["ok"]]
+    return {
+        "total_items":      len(reporte),
+        "desactualizados":  len(desactualizados),
+        "sin_sku":          len(sin_match),
+        "diferencias":      desactualizados[:50],   # primeras 50
+    }
 
-    return {"comparacion": reporte, "total_skus_erp": len(stock_erp)}
-
+# ─── Sincronización de inventario ─────────────────────────────────────────────
 
 @router.post("/sync")
 def sincronizar_inventario(background_tasks: BackgroundTasks):
     """
-    Actualiza el stock de las 3 publicaciones en ML desde el ERP.
-    Se ejecuta en background para no bloquear la respuesta.
+    Actualiza el stock de todos los items en ML desde el ERP (por SELLER_SKU).
+    Se ejecuta en background.
     """
     background_tasks.add_task(_hacer_sync)
-    return {"message": "Sincronización iniciada en background", "catalogos": list(CATALOGOS.values())}
+    return {"message": "Sincronizacion iniciada. Consulta /ml/sync/log en ~30s"}
 
 
 def _hacer_sync():
-    """Lógica real de sincronización (corre en background)."""
+    """Sincroniza available_quantity de cada item activo usando SELLER_SKU → ERP stock."""
     try:
-        items_data = listar_items()
-        stock_erp  = _stock_erp()
-        encontrados = items_data.get("encontrados", {})
-        log = []
+        all_ids   = _get_all_item_ids()
+        items     = _get_items_with_sku(all_ids)
+        stock_erp = _stock_erp()
+        actualizados, sin_match, errores, iguales = [], [], [], []
 
-        for cat_id, item in encontrados.items():
-            item_id = item["item_id"]
-            detalles = ml_get(f"/items/{item_id}?attributes=variations")
-            variaciones = detalles.get("variations", [])
-
-            if not variaciones:
-                log.append({"item": item_id, "tipo": "simple", "skipped": True})
+        for it in items:
+            if it["status"] != "active":
                 continue
+            sku = it["seller_sku"].upper()
+            if not sku or sku not in stock_erp:
+                sin_match.append({"item": it["item_id"], "sku": sku or "(vacio)"})
+                continue
+            nueva_qty = stock_erp[sku]
+            if nueva_qty == it["qty"]:
+                iguales.append(it["item_id"])
+                continue
+            resultado = ml_put(f"/items/{it['item_id']}", {"available_quantity": nueva_qty})
+            if resultado and "error" not in resultado:
+                actualizados.append({"item": it["item_id"], "sku": sku, "antes": it["qty"], "despues": nueva_qty})
+            else:
+                errores.append({"item": it["item_id"], "sku": sku, "error": str(resultado)})
 
-            for var in variaciones:
-                var_id = var["id"]
-                seller_sku = ""
-                for attr in var.get("attributes", []):
-                    if attr.get("id") == "SELLER_SKU":
-                        seller_sku = (attr.get("value_name") or "").upper().strip()
-                        break
-
-                if not seller_sku or seller_sku not in stock_erp:
-                    log.append({"item": item_id, "var": var_id, "sku": seller_sku, "resultado": "SKU no encontrado"})
-                    continue
-
-                nueva_qty = stock_erp[seller_sku]
-                resultado = ml_put(f"/items/{item_id}/variations/{var_id}", {"available_quantity": nueva_qty})
-                log.append({
-                    "item": item_id, "var": var_id,
-                    "sku": seller_sku, "nueva_qty": nueva_qty,
-                    "resultado": "ok" if "error" not in resultado else resultado.get("error")
-                })
-
-        # Guardar log en caché para consultarlo
-        cache_set("ml_sync_log", {"ts": time.time(), "log": log}, ttl=3600)
+        cache_set("ml_sync_log", {
+            "ts":           time.time(),
+            "actualizados": len(actualizados),
+            "sin_cambio":   len(iguales),
+            "sin_match":    len(sin_match),
+            "errores":      len(errores),
+            "detalle_actualizados": actualizados,
+            "detalle_errores":      errores,
+            "detalle_sin_match":    sin_match[:20],
+        }, ttl=3600)
     except Exception as e:
         cache_set("ml_sync_log", {"ts": time.time(), "error": str(e)}, ttl=3600)
 
