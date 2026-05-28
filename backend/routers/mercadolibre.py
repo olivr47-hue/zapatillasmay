@@ -590,7 +590,8 @@ def _build_item(producto: dict, variante: dict, qty: int,
 
     precio = float(producto.get("precio_menudeo") or 0)
 
-    payload = {
+    return {
+        "family_name":        title,   # requerido por ML; el título final lo pone el usuario en el panel
         "category_id":        category_id,
         "price":              precio,
         "currency_id":        "MXN",
@@ -603,9 +604,6 @@ def _build_item(producto: dict, variante: dict, qty: int,
         "pictures":           pictures,
         "attributes":         attrs,
     }
-    # MLM192717/MLM193324 son categorías de catálogo → ML asigna el título
-    # automáticamente desde su catálogo de productos. NO enviar title ni family_name.
-    return payload
 
 
 @router.post("/publicar-payloads")
