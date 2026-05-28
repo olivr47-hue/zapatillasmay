@@ -682,13 +682,18 @@ def publicar_producto(body: dict):
                     "permalink": resp.get("permalink"),
                 })
         except urllib.error.HTTPError as e:
-            err = json.loads(e.read())
+            raw = e.read()
+            try:
+                err = json.loads(raw)
+            except Exception:
+                err = {"raw_text": raw.decode(errors="replace")}
             resultados.append({
                 "sku":    variante.get("sku"),
                 "status": "error",
                 "codigo": e.code,
                 "error":  err.get("message") or err.get("error") or str(err),
                 "causas": err.get("cause") or [],
+                "ml_raw": err,   # respuesta completa de ML para debug
             })
 
     ok  = [r for r in resultados if r.get("status") == "publicado"]
