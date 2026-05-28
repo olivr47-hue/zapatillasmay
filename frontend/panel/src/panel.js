@@ -12003,6 +12003,27 @@ async function cargarMercadoLibre() {
             <div style="font-size:0.75rem;color:#888;margin-top:3px">Vacío = precio del ERP</div>
           </div>
         </div>
+
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+            Descripción ML
+            <span style="font-weight:400;color:#888">— vacío = usa la del ERP</span>
+          </label>
+          <textarea id="ml-descripcion" rows="4"
+                    placeholder="Descripción del producto para MercadoLibre..."
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.88rem;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+
+        <!-- Selector de foto de portada — se llena al generar preview -->
+        <div id="ml-fotos-wrap" style="display:none;margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:6px">
+            📷 Foto de portada
+            <span style="color:#e67e22">★</span>
+            <span style="font-weight:400;color:#888"> — ML exige fondo blanco/sin fondo. Click para seleccionar cuál va primero.</span>
+          </label>
+          <div id="ml-fotos-grid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+
         <button onclick="mlGenerarPreview()" id="ml-btn-preview"
                 style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
           🔍 Generar preview
@@ -12052,6 +12073,9 @@ async function cargarMercadoLibre() {
     btn.textContent = '⏳ Generando...'
     btn.disabled = true
 
+    // Descripción e índice de portada (se llenan después del fetch)
+    let portadaIdx = 0
+
     try {
       const res  = await fetch(`${API}/ml/publicar`, {
         method: 'POST',
@@ -12064,32 +12088,47 @@ async function cargarMercadoLibre() {
       const resultados = data.resultados || []
       if (!resultados.length) { alert('No se encontraron variantes activas'); return }
 
+      // Pre-llenar descripción con la del primer variante si está vacía
+      const descEl = document.getElementById('ml-descripcion')
+      if (!descEl.value.trim() && resultados[0]?.preview?.description?.plain_text) {
+        descEl.value = resultados[0].preview.description.plain_text
+      }
+
+      // Mostrar selector de foto de portada (fotos del primer variante)
+      const todasFotos = resultados[0]?.preview?.pictures || []
+      if (todasFotos.length > 1) {
+        const fotosWrap = document.getElementById('ml-fotos-wrap')
+        const fotosGrid = document.getElementById('ml-fotos-grid')
+        fotosGrid.innerHTML = todasFotos.map((p, i) => `
+          <div onclick="mlSeleccionarPortada(${i})" id="ml-foto-thumb-${i}"
+               style="cursor:pointer;border:3px solid ${i===0?'#3483fa':'#ddd'};border-radius:8px;overflow:hidden;width:90px;height:90px;position:relative">
+            <img src="${p.source}" style="width:100%;height:100%;object-fit:cover">
+            ${i===0 ? '<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.6rem;text-align:center;padding:2px">PORTADA</div>' : ''}
+          </div>
+        `).join('')
+        fotosWrap.style.display = 'block'
+        window.mlSeleccionarPortada = (idx) => {
+          portadaIdx = idx
+          todasFotos.forEach((_, i) => {
+            const el = document.getElementById(`ml-foto-thumb-${i}`)
+            if (!el) return
+            el.style.border = i === idx ? '3px solid #3483fa' : '3px solid #ddd'
+            el.querySelector('div')?.remove()
+            if (i === idx) {
+              const badge = document.createElement('div')
+              badge.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.6rem;text-align:center;padding:2px'
+              badge.textContent = 'PORTADA'
+              el.appendChild(badge)
+            }
+          })
+          // Regenerar JSONs con la nueva portada
+          _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim())
+        }
+      }
+
+      _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim())
+
       const wrap = document.getElementById('ml-variantes-wrap')
-      const list = document.getElementById('ml-variantes-list')
-      const tit  = document.getElementById('ml-variantes-titulo')
-
-      tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
-
-      list.innerHTML = resultados.map((r, i) => {
-        // ML rechaza el campo "title" para categorías de catálogo — solo va family_name
-        const payload = { ...r.preview, family_name: titulo }
-        delete payload.title
-        // Precio ML (puede ser diferente al del ERP por comisiones y envío)
-        if (precio !== null) payload.price = precio
-        return `
-          <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-            <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
-              <span>${r.sku || 'Variante ' + (i+1)} &nbsp;·&nbsp; ${r.color || ''} ${r.talla || ''}</span>
-              <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
-            </summary>
-            <div style="padding:0.5rem">
-              <textarea id="ml-json-${i}"
-                        style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
-                        spellcheck="false">${JSON.stringify(payload, null, 2)}</textarea>
-            </div>
-          </details>`
-      }).join('')
-
       wrap.style.display = 'block'
       wrap.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
@@ -12099,6 +12138,44 @@ async function cargarMercadoLibre() {
       btn.textContent = '🔍 Generar preview'
       btn.disabled = false
     }
+  }
+
+  function _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descripcion) {
+    const tit  = document.getElementById('ml-variantes-titulo')
+    const list = document.getElementById('ml-variantes-list')
+    tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
+
+    list.innerHTML = resultados.map((r, i) => {
+      const payload = { ...r.preview, family_name: titulo }
+      delete payload.title
+
+      // Precio ML
+      if (precio !== null) payload.price = precio
+
+      // Descripción personalizada
+      if (descripcion) payload.description = { plain_text: descripcion }
+
+      // Reordenar fotos: portada seleccionada va primero
+      if (payload.pictures && payload.pictures.length > 1 && portadaIdx > 0) {
+        const fotos = [...payload.pictures]
+        const [portada] = fotos.splice(portadaIdx, 1)
+        fotos.unshift(portada)
+        payload.pictures = fotos
+      }
+
+      return `
+        <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+          <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
+            <span>${r.sku || 'Variante ' + (i+1)} &nbsp;·&nbsp; ${r.color || ''} ${r.talla || ''}</span>
+            <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
+          </summary>
+          <div style="padding:0.5rem">
+            <textarea id="ml-json-${i}"
+                      style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
+                      spellcheck="false">${JSON.stringify(payload, null, 2)}</textarea>
+          </div>
+        </details>`
+    }).join('')
   }
 
   window.mlPublicarTodas = async () => {
