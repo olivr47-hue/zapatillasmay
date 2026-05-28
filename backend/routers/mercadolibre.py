@@ -283,6 +283,11 @@ def _get_items_with_sku(all_ids: list) -> list:
     return items
 
 
+@router.get("/item/{item_id}")
+def detalle_item(item_id: str):
+    """Devuelve el detalle completo de un item de ML (para ver estructura)."""
+    return ml_get(f"/items/{item_id}")
+
 @router.get("/items")
 def listar_items():
     """Devuelve todos los items del vendedor con su SELLER_SKU del ERP."""
