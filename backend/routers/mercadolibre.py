@@ -497,29 +497,36 @@ def _build_item(producto: dict, variante: dict, qty: int,
     """Construye el payload de POST /items para ML."""
     cat      = (producto.get("categoria") or "sandalia").lower().strip()
     tipo     = _TIPO_CALZADO.get(cat, "Sandalia")
-    marca    = (producto.get("marca") or "Zapatillas May").strip() or "May"
-    modelo   = (producto.get("nombre") or "").strip()
+    # Marca corta: "ZAPATILLAS MAY " → "May"
+    marca_erp = (producto.get("marca") or "").upper()
+    marca_ml  = "May"  # ML siempre muestra "May" en tus publicaciones
 
     talla_raw     = str(variante.get("talla") or "")
     talla_display = talla_raw.replace("_", ".")
     color_raw     = (variante.get("color") or "").strip()
-    # Capitalizar cada palabra: "NEGRO NAPA" → "Negro Napa"
-    color_title   = color_raw.title()
-    # Solo primera palabra para atributos de color
-    color_simple  = color_raw.split()[0].title() if color_raw else ""
+    color_title   = color_raw.title()          # "NEGRO NAPA" → "Negro Napa"
+    color_simple  = color_raw.split()[0].title() if color_raw else ""  # para atributo COLOR
+
+    # Descriptores del producto
+    subcat     = (producto.get("subcategoria") or "").strip().title()  # "Casual", "Fiesta"
+    tipo_tacon = (producto.get("tipo_tacon") or "").lower().replace("_", " ").strip()
+    # "tacon alto" → "de tacón", "sin tacon" → ""
+    tacon_desc = ""
+    if tipo_tacon and tipo_tacon not in ("sin tacon", "sin_tacon", ""):
+        tacon_desc = f"de {tipo_tacon.replace('tacon', 'tacón').title()}"
 
     # Título ML — max 60 chars
-    # ML NO acepta: marca en el título, palabras en ALL-CAPS, nombre de tienda.
-    # Formato: "{Tipo} {material_breve} {subcategoria} {color} {talla} Mx"
-    subcat   = (producto.get("subcategoria") or "").strip().title()  # "Casual", "Fiesta"
-    mat_breve = (producto.get("material") or "").strip().split()[0].title()  # "Sintético"
-    # Construir desde más descriptivo a más simple si excede 60 chars
+    # Formato: "{Tipo} {Subcat} {TaconDesc} para Dama Marca May {Color} {Talla} Mx"
+    base = f"{tipo} {subcat} {tacon_desc} para Dama Marca {marca_ml}".replace("  ", " ").strip()
     candidates = [
-        f"{tipo} {mat_breve} {subcat} {color_title} {talla_display} Mx",
-        f"{tipo} {mat_breve} {color_title} {talla_display} Mx",
+        f"{base} {color_title} {talla_display} Mx",
+        f"{tipo} {subcat} para Dama Marca {marca_ml} {color_title} {talla_display} Mx",
+        f"{tipo} para Dama Marca {marca_ml} {color_title} {talla_display} Mx",
         f"{tipo} {color_title} {talla_display} Mx",
     ]
     title = next((c for c in candidates if len(c) <= 60), candidates[-1])[:60].strip()
+    subcat   = subcat  # reutilizado abajo
+    mat_breve = (producto.get("material") or "").strip().split()[0].title()
 
     # Imágenes (Cloudinary)
     fotos = list(variante.get("imagenes") or [])
@@ -534,7 +541,7 @@ def _build_item(producto: dict, variante: dict, qty: int,
 
     attrs = [
         {"id": "SELLER_SKU",       "value_name": variante.get("sku", "")},
-        {"id": "BRAND",            "value_name": marca},
+        {"id": "BRAND",            "value_name": marca_ml},
         {"id": "GENDER",           "value_name": "Mujer"},
         {"id": "FILTRABLE_GENDER", "value_name": "Mujer"},
         {"id": "ITEM_CONDITION",   "value_name": "Nuevo"},
@@ -558,9 +565,8 @@ def _build_item(producto: dict, variante: dict, qty: int,
     descripcion = (producto.get("descripcion") or "").strip()[:4000]
     precio = float(producto.get("precio_menudeo") or 0)
 
-    # family_name = título base sin color ni talla (ML lo usa para agrupar variantes)
-    # No incluir marca — misma regla que el título
-    family_name = f"{tipo} {mat_breve} {subcat}".strip().rstrip()[:80]
+    # family_name = título sin color+talla — debe ser igual al inicio del title
+    family_name = f"{base}"[:80]
 
     # Detectar temporada desde la descripción
     desc_lower = descripcion.lower()
