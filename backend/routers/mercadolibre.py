@@ -531,22 +531,19 @@ def _build_item(producto: dict, variante: dict, qty: int,
     subcat_word  = subcat_raw.split()[0].capitalize() if subcat_raw else ""   # "Casual"
 
     # ── Título ML (máx 60 chars) ──
-    # Base: "Botín casual de tacón para dama marca May"
+    # NO llevar color, talla ni "Mx" — ML diferencia variantes por atributos SIZE/COLOR.
+    # Ej: "Botines Casual de Tacón para Dama Marca May"
     base = f"{tipo} {subcat_word} {tacon_desc} para Dama Marca May".replace("  ", " ").strip()
-    # Variantes con color+talla; ir bajando complejidad si excede 60 chars
-    candidates = [
-        f"{base} {color_title} {talla_display} Mx",
-        f"{tipo} {tacon_desc} para Dama Marca May {color_title} {talla_display} Mx",
-        f"{tipo} para Dama Marca May {color_title} {talla_display} Mx",
-        f"{tipo} {color_title} {talla_display} Mx",
+    # Reducir si excede 60 chars
+    title_candidates = [
+        base,
+        f"{tipo} {tacon_desc} para Dama Marca May".replace("  ", " ").strip(),
+        f"{tipo} para Dama Marca May",
     ]
-    title = next(
-        (c.replace("  ", " ").strip() for c in candidates if len(c) <= 60),
-        candidates[-1][:60].strip()
-    )
+    title = next((c for c in title_candidates if len(c) <= 60), title_candidates[-1])[:60].strip()
 
-    # ── family_name = base del título (sin color+talla) ──
-    family_name = base[:80]
+    # family_name = igual al título (ML los agrupa bajo la misma familia)
+    family_name = title
 
     # ── Imágenes (Cloudinary) ──
     fotos = list(variante.get("imagenes") or [])
