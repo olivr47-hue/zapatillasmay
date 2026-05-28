@@ -1009,6 +1009,9 @@
     }
     .btn-checkout:active { transform: scale(0.97); }
 
+    /* MOBILE SEARCH BAR — oculto en desktop */
+    .mobile-search-bar { display: none; }
+
     /* SEARCH RESULTS */
     .search-results {
       position: absolute;
@@ -1240,9 +1243,52 @@
   header { top: 36px; }
   .header-inner { padding: 0 20px; height: 56px; }
   .logo img { height: 120px !important; max-width: 240px; object-fit: contain; padding: 8px 0; }
-  .hero { margin-top: calc(36px + 56px); }
+  .hero { margin-top: calc(36px + 56px + 52px); }
   .nav-cats { display: none; }
   .header-search { display: none; }
+
+  /* ── Buscador móvil ── */
+  .mobile-search-bar {
+    display: block;
+    position: fixed;
+    top: calc(36px + 56px);
+    left: 0; right: 0;
+    z-index: 99;
+    background: rgba(250,248,246,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--cream-dark);
+    padding: 8px 16px;
+    box-sizing: border-box;
+    height: 52px;
+  }
+  .mobile-search-bar .msb-inner { position: relative; }
+  .mobile-search-bar input {
+    width: 100%;
+    padding: 9px 16px 9px 36px;
+    border: 1px solid var(--gray-200);
+    border-radius: 100px;
+    background: var(--gray-100);
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+    color: var(--black);
+    transition: var(--transition);
+    box-sizing: border-box;
+  }
+  .mobile-search-bar input:focus {
+    border-color: var(--pink);
+    background: white;
+    box-shadow: 0 0 0 3px var(--pink-light);
+  }
+  .mobile-search-bar .msb-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-400);
+    pointer-events: none;
+  }
   .section { padding: 60px 20px; }
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .modal { display: flex; flex-direction: column; height: 88vh; max-height: 88vh; overflow: hidden; }
@@ -1899,6 +1945,15 @@
 </div>
 </header>
 
+<!-- BUSCADOR MÓVIL -->
+<div class="mobile-search-bar" id="mobile-search-bar">
+  <div class="msb-inner">
+    <svg class="msb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" placeholder="Buscar modelos..." id="mobile-search-input" oninput="buscarProductos(this.value)" autocomplete="off" inputmode="search">
+    <div class="search-results" id="mobile-search-results" style="max-height:55vh"></div>
+  </div>
+</div>
+
 <!-- HERO -->
 <section class="hero" id="hero-section">
   <div class="hero-bg" id="hero-bg"></div>
@@ -2377,23 +2432,49 @@ if (config.favicon_url) {
 
 cargarConfigSEO()
 
+  // ── Caché local de productos (TTL: 5 minutos) ──────────────────────────────
+  const CACHE_KEY = 'zm_catalog_v1'
+  const CACHE_TTL = 5 * 60 * 1000 // 5 minutos en ms
+
+  function _cacheSave(data) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }))
+    } catch(e) {} // ignora si localStorage está lleno
+  }
+
+  function _cacheLoad() {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY)
+      if (!raw) return null
+      const { ts, data } = JSON.parse(raw)
+      if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(CACHE_KEY); return null }
+      return data
+    } catch(e) { return null }
+  }
+
+  // Llama esto desde el panel o desde la consola para forzar recarga
+  window.zmRefreshCatalog = () => { localStorage.removeItem(CACHE_KEY); location.reload() }
+
   async function inicializar() {
     try {
-      const [resP, resV, resI] = await Promise.all([
-        fetch(API + '/productos/'),
-        fetch(API + '/variantes/?activa=eq.true'),
-        fetch(API + '/inventario/')
-      ])
-      productos = await resP.json()
-      variantes = await resV.json()
-      inventario = await resI.json()
-      // Complementar variantes con las que vienen anidadas en inventario
-      // (cubren variantes con activa=false que aún tienen stock)
-      inventario.forEach(i => {
-        if (i.variantes && i.variantes.id && !variantes.find(v => v.id === i.variantes.id)) {
-          variantes.push(i.variantes)
-        }
-      })
+      // Intentar cargar desde caché primero
+      const cached = _cacheLoad()
+      if (cached) {
+        productos = cached.productos
+        variantes = cached.variantes
+        inventario = cached.inventario
+      } else {
+        const [resP, resV, resI] = await Promise.all([
+          fetch(API + '/productos/'),
+          fetch(API + '/variantes/?activa=eq.true'),
+          fetch(API + '/inventario/slim')   // solo variante_id + cantidad (~50KB vs 3MB)
+        ])
+        productos = await resP.json()
+        variantes = await resV.json()
+        inventario = await resI.json()
+        _cacheSave({ productos, variantes, inventario })
+      }
+      // inventario/slim solo tiene variante_id + cantidad, sin datos anidados
       renderCategorias()
 
       // Routing directo: restaurar la vista según la URL actual
@@ -2420,9 +2501,9 @@ cargarConfigSEO()
       } else if (_hash && _hash.startsWith('#')) {
         const _pid = _hash.slice(1)
         if (_pid && typeof PAGINAS !== 'undefined' && PAGINAS[_pid]) mostrarPagina(_pid)
-        else renderProductos(productos.filter(p => p.activo).slice(0, 12))
+        else renderProductos(productos.filter(p => p.activo))
       } else {
-        renderProductos(productos.filter(p => p.activo).slice(0, 12))
+        renderProductos(productos.filter(p => p.activo))
       }
     } catch(e) {
       console.error('Error cargando datos:', e)
@@ -2435,10 +2516,10 @@ cargarConfigSEO()
   if (!cats.length) { grid.innerHTML = '<p style="color:#aaa">No hay categorias</p>'; return }
   const IMG_CATS = {
     tacones:     'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&q=80',
-    sandalias:   'https://images.unsplash.com/photo-1630331010250-7524271ed506?w=400&q=80',
-    botas:       'https://images.unsplash.com/photo-1556121017-bc6f100e2b4a?w=400&q=80',
+    sandalias:   'https://images.unsplash.com/photo-1630407332126-70ebb700976b?w=400&q=80',
+    botas:       'https://images.unsplash.com/photo-1763661300203-aa3e2702f510?w=400&q=80',
     botines:     'https://images.unsplash.com/photo-1571489555750-c932b569ef5d?w=400&q=80',
-    flats:       'https://images.unsplash.com/photo-1485728195354-66b299de7ee8?w=400&q=80',
+    flats:       'https://images.unsplash.com/photo-1758542988664-49951c5b1999?w=400&q=80',
     plataformas: 'https://images.unsplash.com/photo-1562273138-f46be4ebdf33?w=400&q=80',
     nina:        'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=400&q=80',
     accesorios:  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
@@ -3252,17 +3333,26 @@ if (window.ttq) ttq.track('AddToCart', {
     setTimeout(() => t.classList.remove('show'), 2500)
   }
 
+  function _cerrarBusqueda() {
+    ['search-results','mobile-search-results'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.classList.remove('show')
+    })
+    const si = document.getElementById('search-input'); if (si) si.value = ''
+    const mi = document.getElementById('mobile-search-input'); if (mi) mi.value = ''
+  }
+
   function buscarProductos(texto) {
-    const results = document.getElementById('search-results')
-    if (!texto || texto.length < 2) { results.classList.remove('show'); return }
+    const containers = ['search-results','mobile-search-results']
+      .map(id => document.getElementById(id)).filter(Boolean)
+    if (!texto || texto.length < 2) { containers.forEach(c => c.classList.remove('show')); return }
     const terminos = texto.toLowerCase().split(' ').filter(t => t)
     const filtrados = productos.filter(p => {
       const txt = (p.nombre+' '+(p.sku_interno||'')+' '+(p.categoria||'')).toLowerCase()
       return terminos.every(t => txt.includes(t))
     }).slice(0, 6)
-    if (!filtrados.length) { results.classList.remove('show'); return }
-    results.innerHTML = filtrados.map(p => `
-      <div class="search-result-item" onclick="abrirProducto('${p.id}');document.getElementById('search-results').classList.remove('show');document.getElementById('search-input').value=''">
+    if (!filtrados.length) { containers.forEach(c => c.classList.remove('show')); return }
+    const html = filtrados.map(p => `
+      <div class="search-result-item" onclick="abrirProducto('${p.id}');_cerrarBusqueda()">
         ${p.imagen_principal ? `<img class="search-result-img" src="${p.imagen_principal}" alt="${p.nombre}">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
         <div class="search-result-info">
           <p class="name">${p.nombre}</p>
@@ -3270,12 +3360,12 @@ if (window.ttq) ttq.track('AddToCart', {
         </div>
       </div>
     `).join('')
-    results.classList.add('show')
-    clearTimeout(window._st);
+    containers.forEach(c => { c.innerHTML = html; c.classList.add('show') })
+    clearTimeout(window._st)
     window._st = setTimeout(function() {
-      if (window.fbq) fbq('track', 'Search', {search_string: texto, content_category: 'calzado'});
-      if (window.ttq) ttq.track('Search', {query: texto});
-    }, 800);
+      if (window.fbq) fbq('track', 'Search', {search_string: texto, content_category: 'calzado'})
+      if (window.ttq) ttq.track('Search', {query: texto})
+    }, 800)
   }
 
   function filtrarCategoria(categoria) {

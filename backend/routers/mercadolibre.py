@@ -29,7 +29,11 @@ CATALOGOS = {
 
 # ─── Token management ──────────────────────────────────────────────────────────
 
-_token_cache = {"token": ML_TOKEN_ENV, "expires_at": 0}
+_token_cache = {
+    "token":      ML_TOKEN_ENV,
+    "expires_at": time.time() + 21600 if ML_TOKEN_ENV else 0,  # asume 6h si viene del env
+    "refresh":    ML_REFRESH,
+}
 
 def get_token() -> str:
     """Devuelve el token vigente; lo refresca si tiene refresh_token."""
@@ -39,7 +43,8 @@ def get_token() -> str:
         return _token_cache["token"]
 
     # Intentar refrescar con refresh_token
-    refresh = ML_REFRESH or os.getenv("ML_REFRESH_TOKEN", "")
+    # Prioridad: 1) token renovado durante la sesión, 2) variable de entorno
+    refresh = _token_cache.get("refresh") or ML_REFRESH
     if refresh and ML_APP_ID and ML_SECRET:
         body = urllib.parse.urlencode({
             "grant_type":    "refresh_token",
@@ -313,18 +318,41 @@ def _norm_sku(sku: str) -> str:
     return "-".join(partes)
 
 def _stock_erp() -> dict:
-    """SKU normalizado → cantidad total en todas las sucursales."""
+    """
+    SKU normalizado → cantidad total.
+    Indexa por DOS claves por variante:
+      1. SKU abreviado del ERP:  M-TAC-0022-NEG-24
+      2. SKU con color completo: M-TAC-0022-NEGRO-24
+    Así matchea tanto los items subidos manualmente (nombre completo)
+    como los generados por el ERP (código corto).
+    """
     rows = supabase_get_all("inventario?select=variante_id,cantidad")
     por_variante: dict = {}
     for r in rows:
         vid = r.get("variante_id")
         if vid:
             por_variante[vid] = por_variante.get(vid, 0) + (r.get("cantidad") or 0)
-    variantes = supabase_get_all("variantes?activa=eq.true&select=id,sku")
-    return {
-        _norm_sku(v["sku"]): por_variante.get(v["id"], 0)
-        for v in variantes if v.get("sku")
-    }
+
+    variantes = supabase_get_all("variantes?activa=eq.true&select=id,sku,color,talla")
+    stock = {}
+    for v in variantes:
+        if not v.get("sku"):
+            continue
+        qty = por_variante.get(v["id"], 0)
+        # Clave 1: SKU abreviado normalizado (como está en el ERP)
+        stock[_norm_sku(v["sku"])] = qty
+        # Clave 2: SKU con color completo (como puede estar en ML manual)
+        # Estructura: {sku_interno}-{cod_color}-{cod_talla}
+        # Reconstruir con el nombre completo del color
+        partes = v["sku"].split("-")
+        if len(partes) >= 3 and v.get("color"):
+            sku_base  = "-".join(partes[:-2])     # M-TAC-0022
+            cod_talla = partes[-1]                  # 24
+            color_completo = _norm_sku(v["color"]) # NEGRO, NUDE, COGNAC
+            talla_norm = cod_talla.replace(".", "_")
+            clave_full = f"{sku_base}-{color_completo}-{talla_norm}"
+            stock[clave_full] = qty
+    return stock
 
 # ─── Comparar stock ERP vs ML ─────────────────────────────────────────────────
 

@@ -10521,6 +10521,29 @@ async function cargarSEO() {
         </div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🟡 MercadoLibre — Inventario</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Sincroniza el stock de tus <b>96 publicaciones</b> de MercadoLibre con el ERP.<br>
+            Primero verifica las diferencias y luego sincroniza.
+          </p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+            <button onclick="mlVerStock(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#f59e0b;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🔍 Ver diferencias ERP vs ML
+            </button>
+            <button onclick="mlSincronizar(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🔄 Sincronizar stock ahora
+            </button>
+            <button onclick="mlVerLog(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#6366f1;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              📋 Ver resultado
+            </button>
+          </div>
+          <div id="ml-resultado" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg-secondary);border-radius:8px;font-size:0.82rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:0.5rem">🎵 TikTok Shop — Sincronización</h3>
           <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
             Descarga los archivos Excel listos para subir al <b>TikTok Shop Seller Center</b>.<br>
@@ -11700,6 +11723,81 @@ window.eliminarPagina = async function(pagId, catalogoId) {
 window.usarComoPortada = async function(url, catalogoId) {
   await fetch(API + '/catalogos/' + catalogoId, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ portada_url: url }) })
   alert('✅ Portada actualizada')
+}
+
+// ═══════════════════════════════════════════════════════
+// MercadoLibre — funciones del panel
+// ═══════════════════════════════════════════════════════
+window.mlVerStock = async function(btn) {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Consultando...'
+  btn.disabled = true
+  const box = document.getElementById('ml-resultado')
+  try {
+    const r = await fetch(API + '/ml/stock')
+    const d = await r.json()
+    box.style.display = 'block'
+    if (d.diferencias && d.diferencias.length > 0) {
+      const lineas = d.diferencias.map(x =>
+        `${x.item_id} | SKU: ${x.seller_sku} | ML: ${x.qty_ml} | ERP: ${x.qty_erp}`
+      ).join('\n')
+      box.textContent = `📊 ${d.total_items} items · ${d.desactualizados} desactualizados · ${d.sin_sku} sin SKU\n\nDIFERENCIAS:\n${lineas}`
+    } else {
+      box.textContent = `✅ Todo sincronizado — ${d.total_items} items revisados`
+    }
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
+}
+
+window.mlSincronizar = async function(btn) {
+  if (!confirm('¿Sincronizar el stock de todas las publicaciones de MercadoLibre con el ERP?')) return
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Sincronizando...'
+  btn.disabled = true
+  const box = document.getElementById('ml-resultado')
+  try {
+    const r = await fetch(API + '/ml/sync', { method: 'POST' })
+    const d = await r.json()
+    box.style.display = 'block'
+    box.textContent = '🔄 ' + d.message + '\n\nEspera 30 segundos y haz clic en "Ver resultado".'
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
+}
+
+window.mlVerLog = async function(btn) {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Cargando...'
+  btn.disabled = true
+  const box = document.getElementById('ml-resultado')
+  try {
+    const r = await fetch(API + '/ml/sync/log')
+    const d = await r.json()
+    box.style.display = 'block'
+    if (d.error) {
+      box.textContent = '❌ Error: ' + d.error
+    } else if (d.message) {
+      box.textContent = d.message
+    } else {
+      const fecha = d.ts ? new Date(d.ts * 1000).toLocaleString('es-MX') : ''
+      box.textContent = `Última sync: ${fecha}\n\n✅ Actualizados: ${d.actualizados}\n⏭️  Sin cambio:   ${d.sin_cambio}\n❓ Sin match:    ${d.sin_match}\n❌ Errores:      ${d.errores}` +
+        (d.detalle_actualizados?.length ? '\n\nACTUALIZADOS:\n' + d.detalle_actualizados.map(x => `  ${x.sku}: ${x.antes} → ${x.despues}`).join('\n') : '') +
+        (d.detalle_errores?.length ? '\n\nERRORES:\n' + d.detalle_errores.map(x => `  ${x.sku}: ${x.error}`).join('\n') : '') +
+        (d.detalle_sin_match?.length ? '\n\nSIN MATCH (primeros 20):\n' + d.detalle_sin_match.map(x => `  ${x.item} ${x.sku}`).join('\n') : '')
+    }
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
 }
 
 // ═══════════════════════════════════════════════════════
