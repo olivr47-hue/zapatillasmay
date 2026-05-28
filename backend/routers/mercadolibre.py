@@ -590,6 +590,32 @@ def _build_item(producto: dict, variante: dict, qty: int,
     }
 
 
+@router.post("/test-item")
+def test_item_ml(body: dict):
+    """
+    Envía un payload minimalista a ML para diagnóstico.
+    Útil para probar qué campos acepta antes de publicar real.
+    Body: el payload exacto que se enviará a POST /items.
+    """
+    req_body = json.dumps(body).encode()
+    req = urllib.request.Request(
+        f"{ML_BASE}/items",
+        data=req_body,
+        headers=ml_headers(),
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return {"ok": True, "response": json.loads(r.read())}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {"ok": False, "codigo": e.code, "error": err}
+
+
 @router.get("/categorias")
 def predecir_categoria(q: str = "sandalia mujer"):
     """Llama al predictor de ML para encontrar la category_id correcta."""
