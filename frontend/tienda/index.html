@@ -2262,9 +2262,35 @@ window.addEventListener('load', () => {
     })
     setTimeout(() => mostrarPaginaExito(paymentId), 500)
   } else if (pSlug) {
-    (window._initPromise || Promise.resolve()).then(() => {
+    const colorParam = params.get('color')
+    const tallaParam = params.get('talla')
+    const doAddToCart = params.get('addtocart') === '1'
+    ;(window._initPromise || Promise.resolve()).then(() => {
       const prod = productos.find(p => p.sku_interno === pSlug || p.id === pSlug || p.slug === pSlug)
-      if (prod) abrirProducto(prod.id)
+      if (!prod) return
+      if (doAddToCart && colorParam && tallaParam) {
+        // Agregar directo al carrito sin abrir modal
+        abrirProducto(prod.id)
+        setTimeout(() => {
+          const colorEl = document.getElementById('color-opt-' + colorParam)
+          if (colorEl) {
+            colorEl.click()
+            setTimeout(() => {
+              const tallaEl = document.getElementById('talla-opt-' + tallaParam.replace('.','_'))
+              if (tallaEl && !tallaEl.classList.contains('agotada')) {
+                tallaEl.click()
+                setTimeout(() => {
+                  agregarAlCarrito()
+                  cerrarModalBtn()
+                  abrirCarrito()
+                }, 300)
+              }
+            }, 400)
+          }
+        }, 300)
+      } else {
+        abrirProducto(prod.id)
+      }
     })
   } else if (path.startsWith('/producto/')) {
     const sku = path.replace('/producto/', '')
