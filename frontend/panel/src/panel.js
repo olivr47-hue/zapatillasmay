@@ -12362,7 +12362,7 @@ function _ohRenderLista() {
   }).join('')
 }
 
-function _ohMover(idx, dir) {
+window._ohMover = function(idx, dir) {
   const nuevoIdx = idx + dir
   if (nuevoIdx < 0 || nuevoIdx >= _ordenHomeList.length) return
   const tmp = _ordenHomeList[idx]
@@ -12372,18 +12372,18 @@ function _ohMover(idx, dir) {
 }
 
 let _ohDragIdx = null
-function _ohDragStart(e, i) {
+window._ohDragStart = function(e, i) {
   _ohDragIdx = i
   e.dataTransfer.effectAllowed = 'move'
   setTimeout(() => { const el = document.getElementById(`oh-row-${i}`); if(el) el.classList.add('dragging') }, 0)
 }
-function _ohDragOver(e, i) {
+window._ohDragOver = function(e, i) {
   e.preventDefault()
   document.querySelectorAll('.oh-row').forEach(r => r.classList.remove('drag-over'))
   const el = document.getElementById(`oh-row-${i}`)
   if (el) el.classList.add('drag-over')
 }
-function _ohDrop(e, i) {
+window._ohDrop = function(e, i) {
   e.preventDefault()
   if (_ohDragIdx === null || _ohDragIdx === i) return
   const item = _ordenHomeList.splice(_ohDragIdx, 1)[0]
@@ -12391,12 +12391,12 @@ function _ohDrop(e, i) {
   _ohDragIdx = null
   _ohRenderLista()
 }
-function _ohDragEnd() {
+window._ohDragEnd = function() {
   _ohDragIdx = null
   document.querySelectorAll('.oh-row').forEach(r => { r.classList.remove('dragging'); r.classList.remove('drag-over') })
 }
 
-async function guardarOrdenHome() {
+window.guardarOrdenHome = async function() {
   const btn = document.querySelector('button[onclick="guardarOrdenHome()"]')
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
   try {
