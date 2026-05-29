@@ -3,6 +3,20 @@
 <head>
   <meta name="facebook-domain-verification" content="gqlzwwupwb78hyzm4cbjboo43041zj" />
   <meta charset="UTF-8">
+  <!-- Google Consent Mode v2 — defaults ANTES de cualquier tag -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    var _zm_consent = localStorage.getItem('zm_consent');
+    var _zm_granted = _zm_consent === 'accepted';
+    gtag('consent', 'default', {
+      analytics_storage:   _zm_granted ? 'granted' : 'denied',
+      ad_storage:          _zm_granted ? 'granted' : 'denied',
+      ad_user_data:        _zm_granted ? 'granted' : 'denied',
+      ad_personalization:  _zm_granted ? 'granted' : 'denied',
+      wait_for_update: 500
+    });
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zapatillas May — Calzado de Moda</title>
   <meta name="description" content="Calzado de moda para dama. Mayoreo y menudeo. Leon, Guanajuato.">
@@ -2390,18 +2404,15 @@ window.addEventListener('load', () => {
       document.head.appendChild(gaConfig)
     }
 
-    // Facebook Pixel
-    if (config.facebook_pixel_id) {
-      const fbScript = document.createElement('script')
-      fbScript.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}');fbq('track','PageView');`
-      document.head.appendChild(fbScript)
-    }
+    // Guardar config para uso posterior (si el usuario acepta cookies después)
+    window._zmSeoConfig = config
 
-    // TikTok Pixel
-    if (config.tiktok_pixel_id) {
-      const ttScript = document.createElement('script')
-      ttScript.textContent = `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript";o.async=!0;o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${config.tiktok_pixel_id}');ttq.page();}(window,document,'ttq');`
-      document.head.appendChild(ttScript)
+    // Facebook Pixel y TikTok — solo si hay consentimiento
+    if (localStorage.getItem('zm_consent') === 'accepted') {
+      _cargarPixelesMarketing(config)
+    } else if (!localStorage.getItem('zm_consent')) {
+      // Primera visita — mostrar banner
+      setTimeout(() => { const b = document.getElementById('cookie-banner'); if(b) b.style.display = 'flex' }, 800)
     }
 
     // WhatsApp flotante
@@ -4821,5 +4832,55 @@ window.addEventListener('scroll', () => {
     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/>
   </svg>
 </a>
+
+<!-- ── COOKIE CONSENT BANNER ── -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#fff;border-top:1px solid #e8e0d8;padding:16px 20px;box-shadow:0 -4px 24px rgba(0,0,0,0.10);flex-direction:column;gap:12px;animation:cookieFadeIn 0.4s ease">
+  <style>
+    @keyframes cookieFadeIn { from { transform:translateY(20px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+    #cookie-banner p { font-size:0.82rem; color:#444; line-height:1.5; margin:0 }
+    #cookie-banner a { color:#C8986A; text-decoration:underline }
+    .cookie-btns { display:flex; gap:8px; flex-wrap:wrap }
+    .cookie-btn-aceptar { background:#0A0A0A; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:0.82rem; font-weight:600; cursor:pointer; flex:1; min-width:120px }
+    .cookie-btn-rechazar { background:#fff; color:#555; border:1px solid #ddd; border-radius:8px; padding:10px 20px; font-size:0.82rem; font-weight:600; cursor:pointer; flex:1; min-width:120px }
+    @media(min-width:640px){
+      #cookie-banner { flex-direction:row; align-items:center; max-width:860px; margin:0 auto 16px; border-radius:14px; bottom:16px; left:50%; right:auto; transform:translateX(-50%); width:calc(100% - 32px) }
+      .cookie-btns { flex:0 0 auto; flex-wrap:nowrap }
+    }
+  </style>
+  <p>Usamos cookies para mejorar tu experiencia y mostrarte anuncios relevantes. <a href="/politica-de-devoluciones">Más info</a></p>
+  <div class="cookie-btns">
+    <button class="cookie-btn-aceptar" onclick="zmAceptarCookies()">Aceptar todo</button>
+    <button class="cookie-btn-rechazar" onclick="zmRechazarCookies()">Solo necesarias</button>
+  </div>
+</div>
+
+<script>
+function _cargarPixelesMarketing(config) {
+  if (config.facebook_pixel_id && !window.fbq) {
+    const s = document.createElement('script')
+    s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}');fbq('track','PageView');`
+    document.head.appendChild(s)
+  }
+  if (config.tiktok_pixel_id && !window.ttq) {
+    const s = document.createElement('script')
+    s.textContent = `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript";o.async=!0;o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${config.tiktok_pixel_id}');ttq.page();}(window,document,'ttq');`
+    document.head.appendChild(s)
+  }
+}
+
+function zmAceptarCookies() {
+  localStorage.setItem('zm_consent', 'accepted')
+  if (typeof gtag === 'function') {
+    gtag('consent', 'update', { analytics_storage:'granted', ad_storage:'granted', ad_user_data:'granted', ad_personalization:'granted' })
+  }
+  if (window._zmSeoConfig) _cargarPixelesMarketing(window._zmSeoConfig)
+  document.getElementById('cookie-banner').style.display = 'none'
+}
+
+function zmRechazarCookies() {
+  localStorage.setItem('zm_consent', 'rejected')
+  document.getElementById('cookie-banner').style.display = 'none'
+}
+</script>
 </body>
 </html>
