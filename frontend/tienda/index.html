@@ -2269,6 +2269,8 @@ window.addEventListener('load', () => {
       const prod = productos.find(p => p.sku_interno === pSlug || p.id === pSlug || p.slug === pSlug)
       if (!prod) return
       if (doAddToCart && colorParam && tallaParam) {
+        // Limpiar URL inmediatamente para evitar que bfcache repita la acción
+        history.replaceState(null, '', '/')
         // Agregar directo al carrito sin abrir modal
         abrirProducto(prod.id)
         setTimeout(() => {
@@ -2311,6 +2313,7 @@ window.addEventListener('load', () => {
                   if (tallaEl && !tallaEl.classList.contains('agotada')) {
                     tallaEl.click()
                     if (params.get('addtocart') === '1') {
+                      history.replaceState(null, '', '/')
                       setTimeout(() => {
                         agregarAlCarrito()
                         cerrarModalBtn()
