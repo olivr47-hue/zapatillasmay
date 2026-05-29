@@ -12262,47 +12262,63 @@ async function cargarAnalyticsGA() {
   if (_gaRealtimeInterval) { clearInterval(_gaRealtimeInterval); _gaRealtimeInterval = null }
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:2rem;max-width:900px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
-        <h2 style="margin:0">📊 Google Analytics</h2>
-        <span id="ga-ultima-act" style="font-size:0.78rem;color:#aaa"></span>
+    <style>
+      .ga-wrap { padding:1rem; max-width:900px; box-sizing:border-box; }
+      .ga-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem; }
+      .ga-top { display:grid; grid-template-columns:160px 1fr; gap:1rem; margin-bottom:1rem; }
+      .ga-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:0.6rem; }
+      .ga-stat { text-align:center; }
+      .ga-stat-num { font-size:1.6rem; font-weight:700; line-height:1.2; }
+      .ga-stat-lbl { font-size:0.7rem; color:#888; margin-top:2px; }
+      @media(max-width:600px){
+        .ga-wrap { padding:0.75rem; }
+        .ga-top { grid-template-columns:1fr; }
+        .ga-stats { grid-template-columns:repeat(3,1fr); gap:0.4rem; }
+        .ga-stat-num { font-size:1.25rem; }
+        .ga-stat-lbl { font-size:0.65rem; }
+      }
+    </style>
+    <div class="ga-wrap">
+      <div class="ga-header">
+        <h2 style="margin:0;font-size:1.1rem">📊 Google Analytics</h2>
+        <span id="ga-ultima-act" style="font-size:0.75rem;color:#aaa"></span>
       </div>
 
-      <!-- Tiempo real -->
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:1.5rem;margin-bottom:1.5rem">
-        <div class="card" style="text-align:center;min-width:160px;padding:1.5rem">
-          <div style="font-size:0.78rem;color:#888;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:.05em">Ahora en el sitio</div>
-          <div id="ga-activos" style="font-size:3.5rem;font-weight:700;color:#22c55e;line-height:1">—</div>
-          <div style="font-size:0.78rem;color:#888;margin-top:0.25rem">usuarios activos</div>
-          <div id="ga-dispositivos" style="font-size:0.72rem;color:#aaa;margin-top:0.5rem"></div>
+      <!-- Tiempo real + Hoy -->
+      <div class="ga-top">
+        <div class="card" style="text-align:center;padding:1.25rem">
+          <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.25rem">Ahora en el sitio</div>
+          <div id="ga-activos" style="font-size:3rem;font-weight:700;color:#22c55e;line-height:1">—</div>
+          <div style="font-size:0.7rem;color:#888;margin-top:0.2rem">usuarios activos</div>
+          <div id="ga-dispositivos" style="font-size:0.68rem;color:#bbb;margin-top:0.4rem;line-height:1.5"></div>
         </div>
-        <div class="card" style="padding:1.25rem">
-          <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Hoy</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem" id="ga-hoy-stats">
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-sesiones">—</div><div style="font-size:0.72rem;color:#888">Sesiones</div></div>
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-usuarios">—</div><div style="font-size:0.72rem;color:#888">Usuarios</div></div>
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-pageviews">—</div><div style="font-size:0.72rem;color:#888">Páginas vistas</div></div>
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-nuevos">—</div><div style="font-size:0.72rem;color:#888">Nuevos</div></div>
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-duracion">—</div><div style="font-size:0.72rem;color:#888">Duración media</div></div>
-            <div style="text-align:center"><div style="font-size:1.6rem;font-weight:700" id="ga-rebote">—</div><div style="font-size:0.72rem;color:#888">Tasa rebote</div></div>
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Hoy</div>
+          <div class="ga-stats">
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-sesiones">—</div><div class="ga-stat-lbl">Sesiones</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-usuarios">—</div><div class="ga-stat-lbl">Usuarios</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-pageviews">—</div><div class="ga-stat-lbl">Páginas</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-nuevos">—</div><div class="ga-stat-lbl">Nuevos</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-duracion">—</div><div class="ga-stat-lbl">Duración</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-rebote">—</div><div class="ga-stat-lbl">Rebote</div></div>
           </div>
         </div>
       </div>
 
       <!-- Gráfica 7 días -->
-      <div class="card" style="margin-bottom:1.5rem;padding:1.25rem">
-        <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Últimos 7 días — Sesiones</div>
-        <canvas id="ga-chart" height="80"></canvas>
+      <div class="card" style="margin-bottom:1rem;padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Últimos 7 días</div>
+        <canvas id="ga-chart" height="90"></canvas>
       </div>
 
       <!-- Top páginas -->
-      <div class="card" style="padding:1.25rem">
-        <div style="font-size:0.78rem;font-weight:600;color:#888;margin-bottom:0.75rem;text-transform:uppercase;letter-spacing:.05em">Top páginas hoy</div>
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Top páginas hoy</div>
         <div id="ga-top-paginas"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
       </div>
 
       <!-- Setup guide si no está configurado -->
-      <div id="ga-setup" style="display:none" class="card" style="margin-top:1.5rem;padding:1.25rem;border:2px dashed #ddd">
+      <div id="ga-setup" style="display:none;margin-top:1rem" class="card">
         <h4 style="margin-top:0">⚙️ Configuración pendiente</h4>
         <div id="ga-setup-body"></div>
       </div>
