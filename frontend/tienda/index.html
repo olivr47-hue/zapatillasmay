@@ -2638,14 +2638,14 @@ if (colorPre) {
   content_type: 'product_group',
   content_name: p.nombre,
   content_category: p.categoria || '',
-  value: p.precio_menudeo + 80,
+  value: p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80,
   currency: 'MXN'
 })
 if (window.ttq) ttq.track('ViewContent', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
   content_name: p.nombre,
-  price: p.precio_menudeo + 80,
+  price: p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80,
   currency: 'MXN'
 })
     productoSeleccionado = p
@@ -2659,17 +2659,35 @@ if (window.ttq) ttq.track('ViewContent', {
 
     document.getElementById('modal-sku').textContent = p.sku_interno || ''
     document.getElementById('modal-name').textContent = p.nombre
-    document.getElementById('modal-price').textContent = '$' + (p.precio_menudeo + 80) + ' MXN'
 
-    const precioM3 = p.precio_mayoreo3 || p.precio_menudeo
-    const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
-    const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
+    // Precio: oferta no suma +80, precio normal sí
+    const _precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
+    const _precioAntes   = p.es_oferta && p.precio_antes ? (parseFloat(p.precio_antes) + 80) : null
+    const _priceEl = document.getElementById('modal-price')
+    if (_precioAntes) {
+      _priceEl.innerHTML =
+        `<span style="text-decoration:line-through;color:#aaa;font-size:1rem;font-weight:400;margin-right:6px">$${_precioAntes} MXN</span>` +
+        `<span style="color:#E91E8C">$${_precioDisplay} MXN</span>`
+    } else {
+      _priceEl.textContent = '$' + _precioDisplay + ' MXN'
+    }
 
-    document.getElementById('modal-mayoreo').innerHTML = `
-      <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
-      <p>Mayoreo 6+ pares: <strong>$${precioM6} MXN</strong> por par</p>
-      ${p.corrida_activa ? `<p>Media corrida: <strong>$${precioCorrida} MXN</strong> por par</p>` : ''}
-    `
+    // Mayoreo: ocultar si es oferta
+    const _mayoreoEl = document.getElementById('modal-mayoreo')
+    if (p.es_oferta) {
+      _mayoreoEl.innerHTML = ''
+      _mayoreoEl.style.display = 'none'
+    } else {
+      _mayoreoEl.style.display = ''
+      const precioM3 = p.precio_mayoreo3 || p.precio_menudeo
+      const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
+      const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
+      _mayoreoEl.innerHTML = `
+        <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
+        <p>Mayoreo 6+ pares: <strong>$${precioM6} MXN</strong> por par</p>
+        ${p.corrida_activa ? `<p>Media corrida: <strong>$${precioCorrida} MXN</strong> por par</p>` : ''}
+      `
+    }
 
     const imgWrap = document.getElementById('modal-img-wrap')
     // Construir grid de todos los colores con sus fotos
@@ -2764,7 +2782,7 @@ if (window.ttq) ttq.track('ViewContent', {
     "offers": {
       "@type": "Offer",
       "priceCurrency": "MXN",
-      "price": p.precio_menudeo + 80,
+      "price": p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80,
       "availability": "https://schema.org/InStock",
       "seller": {
         "@type": "Organization",
@@ -2779,7 +2797,7 @@ if (window.ttq) ttq.track('ViewContent', {
   document.title = `${p.nombre} | Zapatillas May`
   let metaDesc = document.querySelector('meta[name="description"]')
   if (!metaDesc) { metaDesc = document.createElement('meta'); metaDesc.name = 'description'; document.head.appendChild(metaDesc) }
-  metaDesc.content = p.descripcion || `Compra ${p.nombre} en Zapatillas May. Calzado de moda para dama en Leon Guanajuato. Precio: $${p.precio_menudeo + 80} MXN.`
+  metaDesc.content = p.descripcion || `Compra ${p.nombre} en Zapatillas May. Calzado de moda para dama en Leon Guanajuato. Precio: $${p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80} MXN.`
 
   let ogTitle = document.querySelector('meta[property="og:title"]')
   if (!ogTitle) { ogTitle = document.createElement('meta'); ogTitle.setAttribute('property','og:title'); document.head.appendChild(ogTitle) }
@@ -2905,7 +2923,7 @@ if (window.ttq) ttq.track('ViewContent', {
         color: colorSeleccionado,
         talla: tallaSeleccionada,
         cantidad: 1,
-        precio_menudeo: (parseFloat(p.precio_menudeo) || 0) + 80,
+        precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
         precio_mayoreo3: parseFloat(p.precio_mayoreo3) || parseFloat(p.precio_menudeo),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
@@ -2914,7 +2932,7 @@ if (window.ttq) ttq.track('ViewContent', {
           const varImg = variantes.find(v2 => v2.id === varianteSeleccionada)
           return varImg?.foto_url || (varImg?.imagenes && varImg.imagenes[0]) || p.imagen_principal || null
         })(),
-        precio_unitario: (parseFloat(p.precio_menudeo) || 0) + 80
+        precio_unitario: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
       })
     }
     if (window.fbq) {
@@ -3356,7 +3374,7 @@ if (window.ttq) ttq.track('AddToCart', {
         ${p.imagen_principal ? `<img class="search-result-img" src="${p.imagen_principal}" alt="${p.nombre}">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
         <div class="search-result-info">
           <p class="name">${p.nombre}</p>
-          <p class="price">$${p.precio_menudeo + 80} MXN</p>
+          <p class="price">$${p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80} MXN</p>
         </div>
       </div>
     `).join('')
