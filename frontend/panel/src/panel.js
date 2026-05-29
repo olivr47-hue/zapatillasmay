@@ -12503,9 +12503,10 @@ async function cargarAnalyticsGA() {
           <div id="ga-activos" style="font-size:3rem;font-weight:700;color:#22c55e;line-height:1">—</div>
           <div style="font-size:0.7rem;color:#888;margin-top:0.2rem">usuarios activos</div>
           <div id="ga-dispositivos" style="font-size:0.68rem;color:#bbb;margin-top:0.4rem;line-height:1.5"></div>
+          <div id="ga-paginas-rt" style="margin-top:0.6rem;text-align:left"></div>
         </div>
         <div class="card" style="padding:1rem">
-          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Hoy</div>
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em" id="ga-hoy-label">Hoy</div>
           <div class="ga-stats">
             <div class="ga-stat"><div class="ga-stat-num" id="ga-sesiones">—</div><div class="ga-stat-lbl">Sesiones</div></div>
             <div class="ga-stat"><div class="ga-stat-num" id="ga-usuarios">—</div><div class="ga-stat-lbl">Usuarios</div></div>
@@ -12558,11 +12559,28 @@ async function _gaActualizarRealtime() {
     if (!d.configurado) { _gaMostrarSetup(d); return }
     const el = document.getElementById('ga-activos')
     if (!el) return
-    el.textContent  = d.activos_ahora ?? 0
-    const dispEl    = document.getElementById('ga-dispositivos')
+    el.textContent = d.activos_ahora ?? 0
+
+    // Dispositivos
+    const dispEl = document.getElementById('ga-dispositivos')
     if (dispEl && d.por_dispositivo) {
       dispEl.textContent = Object.entries(d.por_dispositivo)
         .map(([k,v]) => `${k}: ${v}`).join(' · ')
+    }
+
+    // Páginas en tiempo real
+    const paginasEl = document.getElementById('ga-paginas-rt')
+    if (paginasEl && d.por_pagina?.length) {
+      paginasEl.innerHTML =
+        `<div style="font-size:0.65rem;color:#aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Viendo ahora</div>` +
+        d.por_pagina.map(p => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f5f5f5;gap:4px">
+            <span style="font-size:0.68rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
+                  title="${p.pagina}">${p.pagina === '(not set)' ? 'inicio' : p.pagina}</span>
+            <span style="font-size:0.68rem;font-weight:700;color:#22c55e;flex-shrink:0">${p.activos}</span>
+          </div>`).join('')
+    } else if (paginasEl) {
+      paginasEl.innerHTML = ''
     }
   } catch(e) { console.warn('GA realtime:', e.message) }
 }
@@ -12572,6 +12590,12 @@ async function _gaCargarHoy() {
     const r = await fetch(`${API}/analytics/hoy`)
     const d = await r.json()
     if (!d.configurado) return
+    if (d.error) { console.warn('GA hoy error:', d.error); return }
+
+    // Etiqueta del período (hoy o ayer si GA4 aún no procesó)
+    const labelEl = document.getElementById('ga-hoy-label')
+    if (labelEl) labelEl.textContent = d.periodo === 'ayer' ? 'Ayer (GA4 procesando hoy)' : 'Hoy'
+
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
     set('ga-sesiones',  d.sesiones ?? '—')
     set('ga-usuarios',  d.usuarios_activos ?? '—')
@@ -12582,12 +12606,17 @@ async function _gaCargarHoy() {
     set('ga-rebote',   d.tasa_rebote != null ? `${d.tasa_rebote}%` : '—')
 
     const top = document.getElementById('ga-top-paginas')
-    if (top && d.top_paginas?.length) {
-      top.innerHTML = d.top_paginas.map(p => `
-        <div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid #f0f0f0;font-size:0.83rem">
-          <span style="color:#333;max-width:75%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.pagina}</span>
-          <span style="font-weight:600;color:#3483fa">${p.vistas} vistas</span>
-        </div>`).join('')
+    if (top) {
+      if (d.top_paginas?.length) {
+        top.innerHTML = d.top_paginas.map(p => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid #f0f0f0;gap:0.5rem">
+            <span style="font-size:0.8rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
+                  title="${p.pagina}">${p.pagina}</span>
+            <span style="font-size:0.8rem;font-weight:600;color:#3483fa;flex-shrink:0">${p.vistas} vistas</span>
+          </div>`).join('')
+      } else {
+        top.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos de páginas aún</p>'
+      }
     }
   } catch(e) { console.warn('GA hoy:', e.message) }
 }

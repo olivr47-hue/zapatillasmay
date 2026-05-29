@@ -264,10 +264,20 @@ def usuarios_tiempo_real():
     if not _esta_configurado():
         return _no_credenciales()
 
+    # Usuarios por país + dispositivo
     resp = _ga4_post("runRealtimeReport", {
-        "metrics": [{"name": "activeUsers"}],
+        "metrics":    [{"name": "activeUsers"}],
         "dimensions": [{"name": "country"}, {"name": "deviceCategory"}],
         "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
+    })
+
+    # Usuarios por página (en tiempo real)
+    resp_pags = _ga4_post("runRealtimeReport", {
+        "metrics":    [{"name": "activeUsers"}],
+        "dimensions": [{"name": "unifiedPageScreen"}],
+        "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
+        "orderBys":   [{"metric": {"metricName": "activeUsers"}, "desc": True}],
+        "limit":      10,
     })
 
     if not resp:
@@ -286,11 +296,17 @@ def usuarios_tiempo_real():
         por_pais[pais]         = por_pais.get(pais, 0) + valor
         por_dispositivo[dispo] = por_dispositivo.get(dispo, 0) + valor
 
+    por_pagina = []
+    for row in (resp_pags or {}).get("rows", []):
+        dims  = [d.get("value", "") for d in row.get("dimensionValues", [])]
+        valor = int(row.get("metricValues", [{}])[0].get("value", 0))
+        por_pagina.append({"pagina": dims[0] if dims else "/", "activos": valor})
+
     return {
         "configurado":     True,
         "activos_ahora":   total,
-        "por_pais":        dict(sorted(por_pais.items(), key=lambda x: -x[1])[:5]),
         "por_dispositivo": por_dispositivo,
+        "por_pagina":      por_pagina,
     }
 
 
@@ -300,6 +316,7 @@ def metricas_hoy():
     if not _esta_configurado():
         return _no_credenciales()
 
+    # Intentar hoy primero; si no hay datos (GA4 tiene delay), usar ayer
     resp = _ga4_post("runReport", {
         "dateRanges": [{"startDate": "today", "endDate": "today"}],
         "metrics": [
@@ -314,6 +331,24 @@ def metricas_hoy():
         "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
         "limit":      10,
     })
+    _periodo = "hoy"
+    # Si hoy no tiene filas todavía (GA4 procesa con delay), usar ayer
+    if resp and not resp.get("rows"):
+        resp = _ga4_post("runReport", {
+            "dateRanges": [{"startDate": "yesterday", "endDate": "yesterday"}],
+            "metrics": [
+                {"name": "sessions"},
+                {"name": "activeUsers"},
+                {"name": "newUsers"},
+                {"name": "screenPageViews"},
+                {"name": "averageSessionDuration"},
+                {"name": "bounceRate"},
+            ],
+            "dimensions": [{"name": "pagePath"}],
+            "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
+            "limit":      10,
+        })
+        _periodo = "ayer"
 
     if not resp:
         return {"configurado": True, "error": "No se pudo obtener datos de GA4"}
@@ -337,6 +372,7 @@ def metricas_hoy():
 
     return {
         "configurado":         True,
+        "periodo":             _periodo,
         "sesiones":            int(totals.get("sessions", 0)),
         "usuarios_activos":    int(totals.get("activeUsers", 0)),
         "usuarios_nuevos":     int(totals.get("newUsers", 0)),
