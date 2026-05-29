@@ -139,7 +139,8 @@
       .sticky-bar-info { display: flex; flex-direction: column; justify-content: center; flex: 1; }
       .sticky-bar-info .sb-nombre { font-size: 1rem; font-weight: 700; color: var(--black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
       .sticky-bar-info .sb-precio { font-size: 0.85rem; color: var(--tan); font-weight: 600; margin-top: 2px; }
-      .btn-agregar { flex: 0 0 280px; padding: 15px 32px; font-size: 1rem; border-radius: 12px; }
+      .btn-agregar { flex: 0 0 260px; padding: 15px 32px; font-size: 1rem; border-radius: 12px; }
+      #btn-ver-carrito { padding: 14px 20px; border-radius: 10px; font-size: 0.85rem; }
     }
   </style>
 </head>
@@ -199,6 +200,9 @@
     <span class="sb-nombre" id="sb-nombre"></span>
     <span class="sb-precio" id="sb-precio"></span>
   </div>
+  <a id="btn-ver-carrito" href="/" style="display:none;background:#f5f0ea;color:#333;border:none;border-radius:10px;padding:14px 18px;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;text-align:center">
+    🛒 Ver carrito (<span id="cart-count-prod">0</span>)
+  </a>
   <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
 </div>
 
@@ -257,6 +261,8 @@ async function init() {
     producto = prods[0]
     renderProducto()
     cargarSimilares()
+    // Mostrar badge si ya hay productos en el carrito
+    try { _actualizarBadgeCarrito(JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')) } catch(e) {}
   } catch(e) {
     window.location.href = '/'
   }
@@ -504,8 +510,36 @@ function irACarrito() {
     precio_unitario: precioBase,
     sku_interno: p.sku_interno || p.id
   }
-  sessionStorage.setItem('zm_addtocart', JSON.stringify(item))
-  window.location.href = '/?addtocart=1'
+
+  // Agregar directo al sessionStorage sin salir de la página
+  try {
+    const carrito = JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')
+    const existente = carrito.find(i => i.variante_id && i.variante_id === item.variante_id)
+    if (existente) { existente.cantidad++ } else { carrito.push(item) }
+    sessionStorage.setItem('zm_carrito', JSON.stringify(carrito))
+    _actualizarBadgeCarrito(carrito)
+  } catch(e) {}
+
+  // Pixels
+  if (window.fbq) fbq('track', 'AddToCart', { content_ids: [p.sku_interno || p.id], content_type: 'product', content_name: p.nombre, value: precioBase, currency: 'MXN' })
+  if (window.ttq) ttq.track('AddToCart', { content_id: p.sku_interno || p.id, content_type: 'product', content_name: p.nombre, price: precioBase, currency: 'MXN' })
+
+  // Toast + reset talla para agregar otro par fácil
+  mostrarToast('✓ Agregado al carrito')
+  tallaSeleccionada = null
+  document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('selected'))
+  const btn = document.getElementById('btn-agregar')
+  btn.textContent = 'Selecciona talla'
+  btn.disabled = true
+  btn.classList.remove('listo')
+}
+
+function _actualizarBadgeCarrito(carrito) {
+  const total = carrito.reduce((s, i) => s + i.cantidad, 0)
+  const btnVer = document.getElementById('btn-ver-carrito')
+  const count = document.getElementById('cart-count-prod')
+  if (btnVer) btnVer.style.display = total > 0 ? 'flex' : 'none'
+  if (count) count.textContent = total
 }
 
 // ── SIMILARES ─────────────────────────────────────────────────────
