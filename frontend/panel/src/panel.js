@@ -12568,15 +12568,14 @@ async function _gaActualizarRealtime() {
         .map(([k,v]) => `${k}: ${v}`).join(' · ')
     }
 
-    // Páginas en tiempo real
+    // Países en tiempo real
     const paginasEl = document.getElementById('ga-paginas-rt')
-    if (paginasEl && d.por_pagina?.length) {
+    if (paginasEl && d.por_pais?.length) {
       paginasEl.innerHTML =
-        `<div style="font-size:0.65rem;color:#aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Viendo ahora</div>` +
-        d.por_pagina.map(p => `
+        `<div style="font-size:0.65rem;color:#aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Por país</div>` +
+        d.por_pais.map(p => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f5f5f5;gap:4px">
-            <span style="font-size:0.68rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
-                  title="${p.pagina}">${p.pagina === '(not set)' ? 'inicio' : p.pagina}</span>
+            <span style="font-size:0.68rem;color:#555;flex:1">${p.pais || 'Desconocido'}</span>
             <span style="font-size:0.68rem;font-weight:700;color:#22c55e;flex-shrink:0">${p.activos}</span>
           </div>`).join('')
     } else if (paginasEl) {

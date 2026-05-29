@@ -271,14 +271,7 @@ def usuarios_tiempo_real():
         "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
     })
 
-    # Usuarios por página en tiempo real — intentar pagePath
-    resp_pags = _ga4_post("runRealtimeReport", {
-        "metrics":    [{"name": "activeUsers"}],
-        "dimensions": [{"name": "pagePath"}],
-        "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
-        "orderBys":   [{"metric": {"metricName": "activeUsers"}, "desc": True}],
-        "limit":      10,
-    })
+    # GA4 no devuelve pagePath en realtime para esta propiedad — omitir segunda llamada
 
     if not resp:
         return {"configurado": True, "error": "No se pudo obtener datos de GA4", "activos": 0}
@@ -296,17 +289,11 @@ def usuarios_tiempo_real():
         por_pais[pais]         = por_pais.get(pais, 0) + valor
         por_dispositivo[dispo] = por_dispositivo.get(dispo, 0) + valor
 
-    por_pagina = []
-    for row in (resp_pags or {}).get("rows", []):
-        dims  = [d.get("value", "") for d in row.get("dimensionValues", [])]
-        valor = int(row.get("metricValues", [{}])[0].get("value", 0))
-        por_pagina.append({"pagina": dims[0] if dims else "/", "activos": valor})
-
     return {
         "configurado":     True,
         "activos_ahora":   total,
         "por_dispositivo": por_dispositivo,
-        "por_pagina":      por_pagina,
+        "por_pais":        [{"pais": k, "activos": v} for k, v in sorted(por_pais.items(), key=lambda x: -x[1])],
     }
 
 
