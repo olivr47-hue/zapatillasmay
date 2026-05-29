@@ -8568,6 +8568,7 @@ window.limpiarCarritoPOS = () => {
 
 window.cobrarPOS = async () => {
   if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
+
   // Evitar doble click
   const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
   if (btnCobrar) {
@@ -8581,7 +8582,26 @@ window.cobrarPOS = async () => {
   const formaPago = document.getElementById('pos-pago').value
   const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
 
+  // ── Validar stock antes de crear el pedido ──────────────────────
+  if (window._posData?.inventario) {
+    const sinStock = []
+    for (const item of window._posCarrito) {
+      const inv = window._posData.inventario.find(i => i.variante_id === item.variante_id)
+      const disponible = inv ? inv.cantidad : 0
+      if (disponible < item.cantidad) {
+        sinStock.push(`${item.nombre} ${item.color} T:${item.talla} (disponible: ${disponible}, pedido: ${item.cantidad})`)
+      }
+    }
+    if (sinStock.length > 0) {
+      alert('Sin stock suficiente:\n' + sinStock.join('\n'))
+      if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
+      return
+    }
+  }
+
+  let pedidoId = null
   try {
+    // 1. Crear pedido como borrador primero
     const resPedido = await fetch(API + '/pedidos/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -8592,17 +8612,15 @@ window.cobrarPOS = async () => {
         forma_pago: formaPago,
         total,
         subtotal: total,
-        status: formaPago === 'spei' ? 'pendiente_pago' : 'confirmado'
+        status: 'borrador'
       })
     })
-
     const pedidoData = await resPedido.json()
-    console.log('Respuesta POST /pedidos:', JSON.stringify(pedidoData))
+    if (!resPedido.ok) throw new Error('No se pudo crear el pedido: ' + JSON.stringify(pedidoData))
+    pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
+    if (!pedidoId) throw new Error('No se obtuvo ID del pedido')
 
-    if (!resPedido.ok) throw new Error('POST /pedidos falló: ' + JSON.stringify(pedidoData))
-    const pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
-    if (!pedidoId) throw new Error('No se obtuvo ID del pedido. Respuesta: ' + JSON.stringify(pedidoData))
-
+    // 2. Agregar items
     for (const item of window._posCarrito) {
       const resItem = await fetch(API + '/pedidos/' + pedidoId + '/items', {
         method: 'POST',
@@ -8616,10 +8634,11 @@ window.cobrarPOS = async () => {
       })
       if (!resItem.ok) {
         const errItem = await resItem.json().catch(() => ({}))
-        throw new Error('Error agregando item ' + item.nombre + ': ' + JSON.stringify(errItem))
+        throw new Error('Error en item ' + item.nombre + ': ' + JSON.stringify(errItem))
       }
     }
 
+    // 3. Confirmar (descuenta stock)
     if (formaPago !== 'spei') {
       const resConf = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
         method: 'POST',
@@ -8628,23 +8647,38 @@ window.cobrarPOS = async () => {
       })
       if (!resConf.ok) {
         const errConf = await resConf.json().catch(() => ({}))
-        throw new Error('Error confirmando pedido: ' + JSON.stringify(errConf))
+        throw new Error('Error confirmando: ' + JSON.stringify(errConf))
       }
+    } else {
+      // SPEI: solo marcar como pendiente_pago
+      await fetch(API + '/pedidos/' + pedidoId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pendiente_pago' })
+      })
     }
 
+    // 4. Éxito — limpiar carrito e imprimir
     const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
     window._posCarrito = []
-      renderCarritoPOS()
-      imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
+    renderCarritoPOS()
+    imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
 
+    // 5. Refrescar inventario
     const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
     window._posData.inventario = await resInv.json()
     renderProductosPOS(window._posData.productos)
 
   } catch(e) {
     console.error('Error procesando la venta:', e)
-    alert('Error procesando la venta:\n' + (e?.message || e))
-    const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
+    // Si el pedido ya se creó, cancelarlo automáticamente para no dejar basura
+    if (pedidoId) {
+      try {
+        await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+        console.warn('Pedido ' + pedidoId + ' cancelado por error')
+      } catch(e2) {}
+    }
+    alert('Error al procesar la venta:\n' + (e?.message || e))
     if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
   }
 }
