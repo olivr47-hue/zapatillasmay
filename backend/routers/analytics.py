@@ -271,10 +271,10 @@ def usuarios_tiempo_real():
         "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
     })
 
-    # Usuarios por página (en tiempo real) — usar pageTitle que sí soporta runRealtimeReport
+    # Usuarios por página en tiempo real — intentar pagePath
     resp_pags = _ga4_post("runRealtimeReport", {
         "metrics":    [{"name": "activeUsers"}],
-        "dimensions": [{"name": "pageTitle"}],
+        "dimensions": [{"name": "pagePath"}],
         "minuteRanges": [{"name": "now", "startMinutesAgo": 29, "endMinutesAgo": 0}],
         "orderBys":   [{"metric": {"metricName": "activeUsers"}, "desc": True}],
         "limit":      10,
