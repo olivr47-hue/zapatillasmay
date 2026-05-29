@@ -2236,12 +2236,20 @@
   // Manejar URLs directas
 window.addEventListener('load', () => {
   document.getElementById('hero-section').classList.add('loaded')
-  console.log('PATH:', window.location.pathname)
-  console.log('PARAMS:', window.location.search)
   const path = window.location.pathname
   const hash = window.location.hash
   const params = new URLSearchParams(window.location.search)
   const pSlug = params.get('p')
+
+  // Renderizar carrito restaurado desde sessionStorage
+  recalcularCarrito()
+  renderCarrito()
+
+  // Abrir carrito automáticamente si viene de "Ver carrito" en página de producto
+  if (params.get('opencart') === '1') {
+    history.replaceState(null, '', '/')
+    setTimeout(() => abrirCarrito(), 300)
+  }
 
   // ── Agregar al carrito desde página de producto (sin modal) ──
   if (params.get('addtocart') === '1' && !pSlug) {

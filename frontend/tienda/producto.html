@@ -124,6 +124,9 @@
     /* ── TOAST ── */
     #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 100px; font-size: 0.82rem; font-weight: 500; opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 500; white-space: nowrap; pointer-events: none; }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    @media (min-width: 640px) {
+      #toast { bottom: 100px; padding: 14px 32px; font-size: 1rem; border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.22); }
+    }
 
     /* ── SKELETON ── */
     .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
@@ -156,7 +159,10 @@
     <img src="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" style="height:104px;object-fit:contain">
   </a>
   <div style="width:60px;text-align:right">
-    <a href="/#catalogo" style="font-size:0.78rem;color:var(--tan);text-decoration:none;font-weight:600">Ver más</a>
+    <a id="header-cart-btn" href="/?opencart=1" style="display:none;align-items:center;gap:5px;text-decoration:none;font-size:0.82rem;font-weight:700;color:var(--black);background:#f5f0ea;border-radius:100px;padding:7px 13px;white-space:nowrap">
+      🛒 <span id="header-cart-count">0</span>
+    </a>
+    <a id="header-catalog-link" href="/#catalogo" style="font-size:0.78rem;color:var(--tan);text-decoration:none;font-weight:600">Ver más</a>
   </div>
 </header>
 
@@ -200,7 +206,7 @@
     <span class="sb-nombre" id="sb-nombre"></span>
     <span class="sb-precio" id="sb-precio"></span>
   </div>
-  <a id="btn-ver-carrito" href="/" style="display:none;background:#f5f0ea;color:#333;border:none;border-radius:10px;padding:14px 18px;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;text-align:center">
+  <a id="btn-ver-carrito" href="/?opencart=1" style="display:none;background:var(--pink);color:white;border:none;border-radius:10px;padding:14px 20px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;text-align:center;box-shadow:0 4px 14px rgba(233,30,140,0.35)">
     🛒 Ver carrito (<span id="cart-count-prod">0</span>)
   </a>
   <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
@@ -231,6 +237,12 @@ const _slug = _path.replace('/producto/', '').replace(/^\/|\/$/g, '')
 // ── INIT ──────────────────────────────────────────────────────────
 
 async function init() {
+  // Mostrar badge del carrito existente desde sessionStorage
+  try {
+    const carritoExistente = JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')
+    if (carritoExistente.length > 0) _actualizarBadgeCarrito(carritoExistente)
+  } catch(e) {}
+
   // Cargar config (pixels + SEO)
   cargarConfig()
 
@@ -540,6 +552,13 @@ function _actualizarBadgeCarrito(carrito) {
   const count = document.getElementById('cart-count-prod')
   if (btnVer) btnVer.style.display = total > 0 ? 'flex' : 'none'
   if (count) count.textContent = total
+  // Header cart icon
+  const headerBtn = document.getElementById('header-cart-btn')
+  const headerCount = document.getElementById('header-cart-count')
+  const catalogLink = document.getElementById('header-catalog-link')
+  if (headerBtn) headerBtn.style.display = total > 0 ? 'flex' : 'none'
+  if (headerCount) headerCount.textContent = total
+  if (catalogLink) catalogLink.style.display = total > 0 ? 'none' : 'inline'
 }
 
 // ── SIMILARES ─────────────────────────────────────────────────────
