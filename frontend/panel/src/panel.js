@@ -8597,10 +8597,14 @@ window.cobrarPOS = async () => {
     })
 
     const pedidoData = await resPedido.json()
-    const pedidoId = pedidoData[0].id
+    console.log('Respuesta POST /pedidos:', JSON.stringify(pedidoData))
+
+    if (!resPedido.ok) throw new Error('POST /pedidos falló: ' + JSON.stringify(pedidoData))
+    const pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
+    if (!pedidoId) throw new Error('No se obtuvo ID del pedido. Respuesta: ' + JSON.stringify(pedidoData))
 
     for (const item of window._posCarrito) {
-      await fetch(API + '/pedidos/' + pedidoId + '/items', {
+      const resItem = await fetch(API + '/pedidos/' + pedidoId + '/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -8610,14 +8614,22 @@ window.cobrarPOS = async () => {
           subtotal: item.cantidad * item.precio_unitario
         })
       })
+      if (!resItem.ok) {
+        const errItem = await resItem.json().catch(() => ({}))
+        throw new Error('Error agregando item ' + item.nombre + ': ' + JSON.stringify(errItem))
+      }
     }
 
     if (formaPago !== 'spei') {
-      await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+      const resConf = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ forma_pago: formaPago })
       })
+      if (!resConf.ok) {
+        const errConf = await resConf.json().catch(() => ({}))
+        throw new Error('Error confirmando pedido: ' + JSON.stringify(errConf))
+      }
     }
 
     const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
@@ -8630,7 +8642,8 @@ window.cobrarPOS = async () => {
     renderProductosPOS(window._posData.productos)
 
   } catch(e) {
-    alert('Error procesando la venta')
+    console.error('Error procesando la venta:', e)
+    alert('Error procesando la venta:\n' + (e?.message || e))
     const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
     if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
   }
