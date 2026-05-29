@@ -109,6 +109,7 @@
 
     /* ── STICKY BOTTOM BAR ── */
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 10px; align-items: center; }
+    .sticky-bar-info { display: none; }
     .btn-agregar { flex: 1; background: var(--black); color: white; border: none; border-radius: 10px; padding: 14px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.5px; }
     .btn-agregar:active { transform: scale(0.98); }
     .btn-agregar:disabled { background: #ccc; cursor: not-allowed; }
@@ -134,7 +135,11 @@
       .product-section { max-width: 640px; margin: 0 auto; padding: 20px 24px 0; }
       .info-card { max-width: 640px; margin: 12px auto 0; }
       .similares-section { max-width: 640px; margin: 0 auto; }
-      .sticky-bar { max-width: 560px; left: 50%; right: auto; transform: translateX(-50%); border-radius: 12px 12px 0 0; padding: 10px 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
+      .sticky-bar { padding: 14px 48px; gap: 20px; box-shadow: 0 -2px 16px rgba(0,0,0,0.07); }
+      .sticky-bar-info { display: flex; flex-direction: column; justify-content: center; flex: 1; }
+      .sticky-bar-info .sb-nombre { font-size: 1rem; font-weight: 700; color: var(--black); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+      .sticky-bar-info .sb-precio { font-size: 0.85rem; color: var(--tan); font-weight: 600; margin-top: 2px; }
+      .btn-agregar { flex: 0 0 280px; padding: 15px 32px; font-size: 1rem; border-radius: 12px; }
     }
   </style>
 </head>
@@ -190,6 +195,10 @@
 
 <!-- STICKY BOTTOM BAR -->
 <div class="sticky-bar">
+  <div class="sticky-bar-info">
+    <span class="sb-nombre" id="sb-nombre"></span>
+    <span class="sb-precio" id="sb-precio"></span>
+  </div>
   <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
 </div>
 
@@ -263,6 +272,10 @@ function renderProducto() {
   // SEO dinámico
   const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
   document.title = `${p.nombre} | Zapatillas May`
+  const sbNombre = document.getElementById('sb-nombre')
+  const sbPrecio = document.getElementById('sb-precio')
+  if (sbNombre) sbNombre.textContent = p.nombre
+  if (sbPrecio) sbPrecio.textContent = `$${precioDisplay} MXN`
   setMeta('description', p.descripcion || `${p.nombre} — Zapatillas May. Calzado de moda para dama.`)
   setMeta('og:title', `${p.nombre} | Zapatillas May`, true)
   setMeta('og:description', p.descripcion || `${p.nombre}`, true)
@@ -470,9 +483,29 @@ function actualizarCTA() {
 }
 
 function irACarrito() {
-  if (!colorSeleccionado || !tallaSeleccionada) return
-  const url = `/?p=${encodeURIComponent(_slug)}&color=${encodeURIComponent(colorSeleccionado)}&talla=${encodeURIComponent(tallaSeleccionada)}&addtocart=1`
-  window.location.href = url
+  if (!colorSeleccionado || !tallaSeleccionada || !producto) return
+  const p = producto
+  const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+  const variante = varsProd.find(v => v.color === colorSeleccionado && String(v.talla) === String(tallaSeleccionada))
+  const precioBase = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
+  const item = {
+    variante_id: variante?.id || null,
+    producto_id: p.id,
+    nombre: p.nombre,
+    color: colorSeleccionado,
+    talla: tallaSeleccionada,
+    cantidad: 1,
+    precio_menudeo: precioBase,
+    precio_mayoreo3: parseFloat(p.precio_mayoreo3) || parseFloat(p.precio_menudeo),
+    precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
+    precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
+    es_oferta: p.es_oferta || false,
+    imagen: variante?.foto_url || (variante?.imagenes && variante.imagenes[0]) || p.imagen_principal || null,
+    precio_unitario: precioBase,
+    sku_interno: p.sku_interno || p.id
+  }
+  sessionStorage.setItem('zm_addtocart', JSON.stringify(item))
+  window.location.href = '/?addtocart=1'
 }
 
 // ── SIMILARES ─────────────────────────────────────────────────────

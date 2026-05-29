@@ -2242,6 +2242,30 @@ window.addEventListener('load', () => {
   const params = new URLSearchParams(window.location.search)
   const pSlug = params.get('p')
 
+  // ── Agregar al carrito desde página de producto (sin modal) ──
+  if (params.get('addtocart') === '1' && !pSlug) {
+    const _raw = sessionStorage.getItem('zm_addtocart')
+    sessionStorage.removeItem('zm_addtocart')
+    history.replaceState(null, '', '/')
+    if (_raw) {
+      ;(window._initPromise || Promise.resolve()).then(() => {
+        try {
+          const item = JSON.parse(_raw)
+          const existente = carrito.find(i => i.variante_id && i.variante_id === item.variante_id)
+          if (existente) { existente.cantidad++ }
+          else { carrito.push(item) }
+          // Pixels
+          if (window.fbq) fbq('track', 'AddToCart', { content_ids: [item.sku_interno || item.producto_id], content_type: 'product', content_name: item.nombre, value: item.precio_unitario, currency: 'MXN' })
+          if (window.ttq) ttq.track('AddToCart', { content_id: item.sku_interno || item.producto_id, content_type: 'product', content_name: item.nombre, price: item.precio_unitario, currency: 'MXN' })
+          recalcularCarrito()
+          renderCarrito()
+          mostrarToast('Producto agregado al carrito')
+          setTimeout(() => abrirCarrito(), 200)
+        } catch(e) {}
+      })
+    }
+  }
+
   if (path === '/pedido-exitoso' || params.get('status') === 'approved') {
     const paymentId = params.get('payment_id')
     const valor = parseFloat(params.get('merchant_order_id') || 0)
