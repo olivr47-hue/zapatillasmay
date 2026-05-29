@@ -1,3 +1,4 @@
 .env
 __pycache__/
 *.pyc
+get_ga4_token.py
