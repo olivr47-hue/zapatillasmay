@@ -53,6 +53,25 @@ def registro(datos: dict):
                 "origen": "tienda"
             })
         cliente_id = cliente[0]["id"] if cliente else None
+
+        # Aplicar código de referido (solo menudeo)
+        codigo_ref = datos.get("codigo_referido", "").strip().upper()
+        if codigo_ref and cliente_id and tipo != "zapateria":
+            referidores = supabase_get(
+                f"clientes?codigo_referido=eq.{codigo_ref}&tipo=eq.menudeo&select=id,credito_disponible"
+            )
+            if referidores:
+                ref = referidores[0]
+                if ref["id"] != cliente_id:
+                    supabase_patch(f"clientes?id=eq.{cliente_id}", {
+                        "referido_por": codigo_ref,
+                        "credito_disponible": 50
+                    })
+                    credito_actual = float(ref.get("credito_disponible") or 0)
+                    supabase_patch(f"clientes?id=eq.{ref['id']}", {
+                        "credito_disponible": credito_actual + 50
+                    })
+
         return {
             "id": u["id"],
             "nombre": u["nombre"],

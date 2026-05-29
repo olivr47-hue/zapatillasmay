@@ -10788,6 +10788,18 @@ async function cargarCatalogos() {
           <button class="btn btn-primary" onclick="mostrarFormCatalogo()">+ Nuevo catálogo</button>
         </div>
         <div id="catalogos-form-area"></div>
+
+        <!-- Catálogos por categoría -->
+        <div style="background:#fef9f5;border:1px solid #fde8d8;border-radius:12px;padding:16px;margin-bottom:20px">
+          <p style="font-size:0.85rem;font-weight:700;color:#7c3a1a;margin-bottom:4px">📥 Descargar catálogo por categoría</p>
+          <p style="font-size:0.78rem;color:#A07860;margin-bottom:12px">Genera un PDF con todos los productos activos de esa categoría. Se actualiza automáticamente.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px" id="cat-pdf-btns">
+            ${[['tacones','👠 Tacones'],['sandalias','👡 Sandalias'],['botas','🥾 Botas'],['botines','👢 Botines'],['flats','🥿 Flats'],['plataformas','⬆️ Plataformas'],['tenis','👟 Tenis'],['nina','🎀 Niña'],['accesorios','👜 Accesorios']].map(([id,label]) =>
+              `<button onclick="descargarCatalogoPorCategoria('${id}','${label}')" style="background:white;border:1.5px solid #C8967A;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;color:#7c3a1a;cursor:pointer">${label}</button>`
+            ).join('')}
+          </div>
+          <p id="cat-pdf-msg" style="font-size:0.78rem;color:#C8967A;margin-top:10px;display:none"></p>
+        </div>
         ${catalogos.length === 0 ? `
           <div style="padding:3rem;text-align:center;color:#888">
             <div style="font-size:2.5rem;margin-bottom:12px">📖</div>
@@ -11697,6 +11709,151 @@ window.generarPaginasCanvas = async function(catalogoId) {
   setTimeout(() => { prog.style.display = 'none' }, 2000)
   btn.disabled = false
   await gestionarPaginas(catalogoId, window._catalogoPaginasData.nombre)
+}
+
+// ── CATÁLOGO PDF POR CATEGORÍA ─────────────────────────────
+
+window.descargarCatalogoPorCategoria = async function(cat, label) {
+  const msg = document.getElementById('cat-pdf-msg')
+  const btns = document.querySelectorAll('#cat-pdf-btns button')
+  btns.forEach(b => b.disabled = true)
+  if (msg) { msg.style.display = 'block'; msg.textContent = `⏳ Cargando productos de ${label}...` }
+
+  try {
+    const [resP, resV] = await Promise.all([
+      fetch(API + `/productos/?categoria=eq.${cat}&activo=eq.true&order=nombre.asc`),
+      fetch(API + '/variantes/')
+    ])
+    const productos = await resP.json()
+    const variantes = await resV.json()
+
+    if (!productos.length) {
+      if (msg) msg.textContent = `Sin productos activos en ${label}`
+      btns.forEach(b => b.disabled = false)
+      return
+    }
+
+    if (msg) msg.textContent = `✏️ Generando PDF (${productos.length} productos)...`
+
+    // Cargar jsPDF
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = resolve; s.onerror = reject
+        document.head.appendChild(s)
+      })
+    }
+    const { jsPDF } = window.jspdf
+
+    const COLS = 2, ROWS = 2, PER_PAGE = COLS * ROWS
+    const CW = 1080, CH = 1440
+    const PAD = 40, GAP = 16
+    const HEADER_H = 70, FOOTER_H = 80
+    const cellW = (CW - PAD * 2 - GAP * (COLS - 1)) / COLS
+    const cellH = (CH - HEADER_H - FOOTER_H - GAP * (ROWS - 1)) / ROWS
+    const NAME_H = 60
+
+    const _cargarImg = url => new Promise(resolve => {
+      if (!url) return resolve(null)
+      const img = new Image(); img.crossOrigin = 'anonymous'
+      img.onload = () => resolve(img)
+      img.onerror = () => resolve(null)
+      img.src = url
+    })
+
+    const _drawContain = (ctx, img, x, y, w, h) => {
+      ctx.save()
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h)
+      if (img) {
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+        const ir = img.naturalWidth / img.naturalHeight, cr = w / h
+        let dx, dy, dw, dh
+        if (ir > cr) { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2 }
+        else          { dh = h; dw = h * ir; dy = y; dx = x + (w - dw) / 2 }
+        ctx.drawImage(img, dx, dy, dw, dh)
+      }
+      ctx.restore()
+    }
+
+    const grupos = []
+    for (let i = 0; i < productos.length; i += PER_PAGE) grupos.push(productos.slice(i, i + PER_PAGE))
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [CW, CH] })
+    let primeraPagina = true
+
+    for (let gi = 0; gi < grupos.length; gi++) {
+      if (msg) msg.textContent = `✏️ Página ${gi + 1} de ${grupos.length}...`
+      const grupo = grupos[gi]
+
+      const canvas = document.createElement('canvas')
+      canvas.width = CW; canvas.height = CH
+      const ctx = canvas.getContext('2d')
+
+      // Fondo
+      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, CW, CH)
+
+      // Header
+      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, 36, CW - PAD * 2, 1)
+      ctx.fillStyle = '#2A1A0E'; ctx.font = '300 20px sans-serif'
+      ctx.textAlign = 'center'; ctx.letterSpacing = '8px'
+      ctx.fillText('ZAPATILLAS MAY', CW / 2, 32)
+      ctx.letterSpacing = '3px'
+      ctx.font = '400 13px sans-serif'; ctx.fillStyle = '#A07860'
+      ctx.fillText(label.replace(/^[^\s]+\s/, '').toUpperCase(), CW / 2, 54)
+      ctx.letterSpacing = '0px'
+      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, 62, CW - PAD * 2, 1)
+
+      // Celdas
+      for (let pi = 0; pi < grupo.length; pi++) {
+        const p = grupo[pi]
+        const col = pi % COLS, row = Math.floor(pi / COLS)
+        const x = PAD + col * (cellW + GAP)
+        const y = HEADER_H + row * (cellH + GAP)
+        const imgH = cellH - NAME_H
+
+        const vars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+        const fotoUrl = (vars.length > 0 && vars[0].foto_url) ? vars[0].foto_url : p.imagen_principal
+        const img = await _cargarImg(fotoUrl)
+        _drawContain(ctx, img, x, y, cellW, imgH)
+
+        // Separador
+        ctx.fillStyle = '#E8DDD5'; ctx.fillRect(x, y + imgH, cellW, 1)
+
+        // Nombre
+        ctx.fillStyle = '#2A1A0E'; ctx.textAlign = 'center'
+        ctx.font = '600 18px sans-serif'
+        const nombre = p.nombre.length > 28 ? p.nombre.substring(0, 26) + '…' : p.nombre
+        ctx.fillText(nombre.toUpperCase(), x + cellW / 2, y + imgH + 26)
+        if (p.precio_menudeo) {
+          ctx.fillStyle = '#C8967A'; ctx.font = '400 15px sans-serif'
+          ctx.fillText(`$${Number(p.precio_menudeo).toFixed(0)} MXN`, x + cellW / 2, y + imgH + 48)
+        }
+      }
+
+      // Footer
+      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, CH - FOOTER_H, CW - PAD * 2, 1)
+      ctx.fillStyle = '#A07860'; ctx.textAlign = 'center'; ctx.font = '300 16px sans-serif'
+      ctx.letterSpacing = '3px'; ctx.fillText('@ZAPATILLASMAY', CW / 2, CH - 50)
+      ctx.letterSpacing = '0px'; ctx.fillStyle = '#C0A898'; ctx.font = '300 13px sans-serif'
+      ctx.fillText('zapatillasmay.mx  ·  León, Guanajuato', CW / 2, CH - 28)
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
+      if (!primeraPagina) pdf.addPage()
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, CW, CH)
+      primeraPagina = false
+    }
+
+    const nombreArchivo = `catalogo-${cat}-zapatillasmay.pdf`
+    pdf.save(nombreArchivo)
+    if (msg) { msg.textContent = `✅ Descargado: ${nombreArchivo}`; setTimeout(() => { msg.style.display = 'none' }, 4000) }
+
+  } catch(e) {
+    console.error(e)
+    if (msg) msg.textContent = 'Error generando el PDF: ' + e.message
+  } finally {
+    btns.forEach(b => b.disabled = false)
+  }
 }
 
 // Helper: rectángulo con bordes redondeados

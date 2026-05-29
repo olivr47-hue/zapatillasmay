@@ -2134,6 +2134,11 @@
           <option value="zapateria">Zapateria (corrida completa)</option>
         </select>
       </div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Código de referido <span style="font-weight:400;text-transform:none;color:#bbb">(opcional)</span></label>
+        <input type="text" id="reg-referido" placeholder="Ej: AB12CD34" maxlength="8" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onblur="validarCodigoReferido(this.value)">
+        <p id="ref-msg" style="font-size:0.78rem;margin-top:4px;display:none"></p>
+      </div>
       <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:background 0.2s">Crear cuenta</button>
     </div>
     <div id="form-recuperacion" style="display:none">
@@ -2263,7 +2268,16 @@ window.addEventListener('load', () => {
               if (tallaParam) {
                 setTimeout(() => {
                   const tallaEl = document.getElementById('talla-opt-' + tallaParam.replace('.','_'))
-                  if (tallaEl && !tallaEl.classList.contains('agotada')) tallaEl.click()
+                  if (tallaEl && !tallaEl.classList.contains('agotada')) {
+                    tallaEl.click()
+                    if (params.get('addtocart') === '1') {
+                      setTimeout(() => {
+                        agregarAlCarrito()
+                        cerrarModalBtn()
+                        abrirCarrito()
+                      }, 300)
+                    }
+                  }
                 }, 400)
               }
             }
@@ -2546,7 +2560,7 @@ cargarConfigSEO()
     const varsProd = variantes.filter(v => v.producto_id === p.id)
     const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
     return `
-      <div class="product-card fade-in" onclick="abrirProducto('${p.id}')">
+      <div class="product-card fade-in" onclick="window.location.href='/producto/${p.sku_interno||p.id}'">
         <div class="product-img-wrap">
           ${p.imagen_principal
             ? `<img src="${p.imagen_principal}" alt="${p.nombre}" loading="lazy">`
@@ -2554,7 +2568,7 @@ cargarConfigSEO()
           ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
           <div class="product-actions">
-            <button class="btn-add-cart" onclick="event.stopPropagation();abrirProducto('${p.id}')">Seleccionar talla</button>
+            <button class="btn-add-cart" onclick="event.stopPropagation();window.location.href='/producto/${p.sku_interno||p.id}'">Seleccionar talla</button>
           </div>
         </div>
         <div class="product-colors">
@@ -3732,6 +3746,7 @@ function cerrarAuthBtn() {
 function mostrarTab(tab) {
   document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none'
   document.getElementById('form-registro').style.display = tab === 'registro' ? 'block' : 'none'
+  if (tab === 'registro') setTimeout(_aplicarRefPendiente, 50)
   document.getElementById('form-recuperacion').style.display = 'none'
   
   // Reset mensaje y botón de recuperación
@@ -3777,6 +3792,24 @@ async function hacerLogin() {
   }
 }
 
+async function validarCodigoReferido(codigo) {
+  const msg = document.getElementById('ref-msg')
+  if (!msg) return
+  const c = (codigo || '').trim().toUpperCase()
+  if (!c) { msg.style.display = 'none'; return }
+  try {
+    const res = await fetch(API + '/referidos/validar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ codigo: c }) })
+    const data = await res.json()
+    if (data.valido) {
+      msg.style.display = 'block'; msg.style.color = '#2e7d32'
+      msg.textContent = `✅ Código válido — ${data.nombre_referidor} te regala $50 de descuento en tu primera compra`
+    } else {
+      msg.style.display = 'block'; msg.style.color = '#c62828'
+      msg.textContent = '❌ Código inválido'
+    }
+  } catch(e) { msg.style.display = 'none' }
+}
+
 async function hacerRegistro() {
   const nombre = document.getElementById('reg-nombre').value
   const email = document.getElementById('reg-email').value
@@ -3787,7 +3820,7 @@ async function hacerRegistro() {
     const res = await fetch(API + '/auth/registro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, email, password, tipo, telefono: document.getElementById('reg-telefono').value || '' })
+      body: JSON.stringify({ nombre, email, password, tipo, telefono: document.getElementById('reg-telefono').value || '', codigo_referido: (document.getElementById('reg-referido')?.value || '').trim().toUpperCase() || undefined })
     })
     const data = await res.json()
     if (res.ok) {
@@ -3966,6 +3999,15 @@ async function cargarCuenta() {
         <p id="pass-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
       </div>
 
+      ${usuarioActual.tipo !== 'zapateria' ? `
+      <div id="ref-section" style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
+        <p style="font-weight:600;margin-bottom:4px">🎁 Invita y gana $50</p>
+        <p style="font-size:0.78rem;color:#aaa;margin-bottom:14px">Comparte tu código. Cuando alguien se registre con él, ambos reciben $50 de descuento en su próxima compra.</p>
+        <div id="ref-datos" style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px">
+          <p style="font-size:0.78rem;color:#aaa;text-align:center">Cargando...</p>
+        </div>
+      </div>` : ''}
+
       <div>
         <p style="font-weight:600;margin-bottom:14px">Mis pedidos (${pedidos.length})</p>
         ${pedidos.length === 0
@@ -3984,10 +4026,37 @@ async function cargarCuenta() {
           `).join('')}
       </div>
     `
+    // Cargar datos de referidos si aplica
+    if (usuarioActual.tipo !== 'zapateria' && usuarioActual.cliente_id) {
+      _cargarDatosReferido(usuarioActual.cliente_id)
+    }
   } catch(e) {
     contenido.innerHTML = '<p style="color:#e53e3e;text-align:center;padding:24px">Error cargando la cuenta. Intenta de nuevo.</p>'
   }
 }
+
+async function _cargarDatosReferido(clienteId) {
+  const box = document.getElementById('ref-datos')
+  if (!box) return
+  try {
+    const res = await fetch(API + '/referidos/mi-codigo/' + clienteId)
+    if (!res.ok) { box.innerHTML = ''; return }
+    const d = await res.json()
+    const credito = parseFloat(d.credito_disponible || 0)
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div>
+          <p style="font-size:0.7rem;font-weight:600;color:#A07860;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Tu código</p>
+          <p style="font-size:1.4rem;font-weight:700;letter-spacing:4px;color:#2A1A0E;font-family:monospace">${d.codigo}</p>
+        </div>
+        <button onclick="navigator.clipboard.writeText('${d.link}').then(()=>mostrarToast('¡Enlace copiado!'))" style="background:#C8967A;color:white;border:none;border-radius:8px;padding:8px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer">📋 Copiar enlace</button>
+      </div>
+      ${credito > 0 ? `<div style="background:#e8f5e9;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px"><span style="font-size:1rem">💰</span><p style="font-size:0.85rem;color:#2e7d32;font-weight:600">Tienes $${credito.toFixed(0)} MXN de crédito disponible</p></div>` : ''}
+      <p style="font-size:0.73rem;color:#bbb;margin-top:8px">Tu enlace: <span style="color:#C8967A">${d.link}</span></p>
+    `
+  } catch(e) { box.innerHTML = '' }
+}
+
 function navegarInicio() {
   mostrarInicio()
   setTimeout(() => {
@@ -4106,6 +4175,27 @@ function cerrarSesion() {
 const usuarioGuardado = localStorage.getItem('usuario')
 if (usuarioGuardado) {
   try { usuarioActual = JSON.parse(usuarioGuardado); } catch(e) {}
+}
+
+// Auto-relleno de código de referido desde URL ?ref=XXXX
+;(function() {
+  const ref = new URLSearchParams(window.location.search).get('ref')
+  if (ref) {
+    localStorage.setItem('ref_pendiente', ref.toUpperCase())
+    // Limpiar la URL sin recargar
+    const url = new URL(window.location)
+    url.searchParams.delete('ref')
+    history.replaceState({}, '', url)
+  }
+})()
+
+function _aplicarRefPendiente() {
+  const ref = localStorage.getItem('ref_pendiente')
+  const campo = document.getElementById('reg-referido')
+  if (ref && campo && !campo.value) {
+    campo.value = ref
+    validarCodigoReferido(ref)
+  }
 }
   window._initPromise = inicializar()
   </script>

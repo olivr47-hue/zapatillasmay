@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Zapatillas May</title>
+  <meta name="description" content="Calzado de moda para dama. León, Guanajuato.">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pink: #E91E8C;
+      --black: #0A0A0A;
+      --tan: #C8967A;
+      --bg: #FAFAFA;
+      --border: #F0F0F0;
+      --gray: #888;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { overflow-x: hidden; max-width: 100vw; scroll-behavior: smooth; }
+    body { font-family: var(--font-body); background: var(--bg); color: var(--black); -webkit-font-smoothing: antialiased; padding-bottom: 100px; }
+
+    /* ── HEADER ── */
+    .header { position: sticky; top: 0; z-index: 100; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; height: auto; }
+    .header-logo { font-size: 1.05rem; font-weight: 700; letter-spacing: 1px; text-decoration: none; color: var(--black); }
+    .header-logo span { color: var(--pink); }
+    .header-back { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--gray); text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--font-body); padding: 8px 0; }
+    .header-back svg { flex-shrink: 0; }
+
+    /* ── GALLERY ── */
+    .gallery { background: white; position: relative; }
+    .gallery-main { width: 100%; aspect-ratio: 1 / 1; object-fit: contain; display: block; background: #f9f9f9; cursor: zoom-in; }
+    .gallery-thumbs { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 1px solid var(--border); }
+    .gallery-thumbs::-webkit-scrollbar { display: none; }
+    .gallery-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; background: #f3f3f3; }
+    .gallery-thumb.active { border-color: var(--tan); }
+
+    /* ── PRODUCT INFO ── */
+    .product-section { padding: 16px 16px 0; background: white; }
+    .product-cat { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--tan); margin-bottom: 6px; }
+    .product-name { font-size: 1.3rem; font-weight: 700; line-height: 1.25; margin-bottom: 4px; }
+    .product-sku { font-size: 0.72rem; color: var(--gray); font-family: var(--font-mono); margin-bottom: 14px; }
+    .product-price-main { font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); color: var(--black); line-height: 1; }
+    .product-price-before { font-size: 1rem; font-weight: 400; color: #bbb; text-decoration: line-through; margin-right: 6px; }
+    .product-price-offer { color: var(--pink); }
+    .mayoreo-box { margin-top: 10px; background: #fff8f5; border: 1px solid rgba(200,150,122,0.25); border-radius: 8px; padding: 10px 12px; }
+    .mayoreo-box p { font-size: 0.78rem; color: #666; margin-bottom: 2px; }
+    .mayoreo-box strong { color: var(--tan); font-weight: 600; }
+
+    /* ── COLOR / TALLA ── */
+    .section-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--gray); margin: 18px 0 10px; }
+    .color-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .color-btn { display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px; border: 1.5px solid #e8e8e8; border-radius: 100px; cursor: pointer; font-size: 0.8rem; font-family: var(--font-body); background: white; transition: border-color 0.15s, background 0.15s; }
+    .color-btn.active { border-color: var(--tan); background: #fff8f5; font-weight: 600; }
+    .color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0; }
+    .talla-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .talla-btn { padding: 8px 14px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 0.82rem; font-weight: 500; cursor: pointer; background: white; font-family: var(--font-body); transition: all 0.15s; min-width: 52px; text-align: center; }
+    .talla-btn:hover:not(.agotada) { border-color: var(--tan); }
+    .talla-btn.active { border-color: var(--black); background: var(--black); color: white; }
+    .talla-btn.agotada { color: #ccc; border-color: #f0f0f0; cursor: not-allowed; text-decoration: line-through; }
+
+    /* ── SHARE ── */
+    .share-row { display: flex; gap: 8px; align-items: center; padding: 16px 0 0; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
+    .share-row::-webkit-scrollbar { display: none; }
+    .share-label { font-size: 0.75rem; color: var(--gray); margin-right: 4px; }
+    .share-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border: 1.5px solid #e8e8e8; border-radius: 100px; font-size: 0.75rem; font-weight: 600; cursor: pointer; background: white; font-family: var(--font-body); text-decoration: none; color: var(--black); transition: border-color 0.15s; white-space: nowrap; }
+    .share-btn:hover { border-color: var(--tan); }
+    .share-btn.wha { border-color: #25D366; color: #25D366; }
+    .share-btn.wha:hover { background: #25D366; color: white; }
+
+    /* ── DESCRIPTION / DETAILS ── */
+    .info-card { margin: 12px 16px 0; background: white; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+    .info-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; user-select: none; }
+    .info-card-title { font-size: 0.82rem; font-weight: 700; }
+    .info-card-body { padding: 0 16px 16px; font-size: 0.85rem; line-height: 1.65; color: #444; display: none; }
+    .info-card-body.open { display: block; }
+    .info-card-chevron { transition: transform 0.2s; color: var(--gray); }
+    .info-card-chevron.open { transform: rotate(180deg); }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .detail-item { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+    .detail-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--gray); margin-bottom: 2px; }
+    .detail-val { font-size: 0.82rem; font-weight: 500; }
+
+    /* ── SIMILARES ── */
+    .similares-section { padding: 20px 0 0; }
+    .similares-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 0 16px 12px; color: var(--black); }
+    .similares-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 16px; scrollbar-width: none; }
+    .similares-scroll::-webkit-scrollbar { display: none; }
+    .similar-card { flex-shrink: 0; width: 150px; cursor: pointer; text-decoration: none; color: inherit; }
+    .similar-card img { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; display: block; background: #f3f3f3; }
+    .similar-card-name { font-size: 0.78rem; font-weight: 500; margin-top: 6px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .similar-card-price { font-size: 0.75rem; color: var(--tan); font-family: var(--font-mono); margin-top: 2px; }
+
+    /* ── STICKY BOTTOM BAR ── */
+    .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 10px; align-items: center; }
+    .btn-agregar { flex: 1; background: var(--black); color: white; border: none; border-radius: 10px; padding: 14px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.5px; }
+    .btn-agregar:active { transform: scale(0.98); }
+    .btn-agregar:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-agregar.listo { background: var(--pink); }
+
+    /* ── LIGHTBOX ── */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 999; align-items: center; justify-content: center; }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 95vw; max-height: 90vh; object-fit: contain; border-radius: 4px; }
+    #lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border: none; color: white; font-size: 1.4rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 100px; font-size: 0.82rem; font-weight: 500; opacity: 0; transition: opacity 0.25s, transform 0.25s; z-index: 500; white-space: nowrap; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── SKELETON ── */
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    @media (min-width: 640px) {
+      .gallery-main { max-width: 480px; margin: 0 auto; aspect-ratio: 3/4; }
+      .product-section { max-width: 640px; margin: 0 auto; padding: 20px 24px 0; }
+      .info-card { max-width: 640px; margin: 12px auto 0; }
+      .similares-section { max-width: 640px; margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <button class="header-back" onclick="history.length>1 ? history.back() : window.location.href='/'">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Inicio
+  </button>
+  <a href="/" style="display:flex;align-items:center;text-decoration:none">
+    <img src="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" style="height:104px;object-fit:contain">
+  </a>
+  <div style="width:60px;text-align:right">
+    <a href="/#catalogo" style="font-size:0.78rem;color:var(--tan);text-decoration:none;font-weight:600">Ver más</a>
+  </div>
+</header>
+
+<!-- GALLERY -->
+<div class="gallery">
+  <img id="gallery-main" class="gallery-main" src="" alt="" onclick="abrirLightbox()">
+  <div class="gallery-thumbs" id="gallery-thumbs"></div>
+</div>
+
+<!-- PRODUCT INFO -->
+<div class="product-section" id="product-section">
+  <div style="height:200px" class="skeleton" id="skeleton-info"></div>
+</div>
+
+<!-- INFO CARDS -->
+<div id="desc-card" style="display:none" class="info-card">
+  <div class="info-card-header" onclick="toggleCard('desc')">
+    <span class="info-card-title">Descripción</span>
+    <svg class="info-card-chevron" id="desc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="info-card-body open" id="desc-body"></div>
+</div>
+
+<div id="details-card" style="display:none" class="info-card">
+  <div class="info-card-header" onclick="toggleCard('details')">
+    <span class="info-card-title">Detalles del producto</span>
+    <svg class="info-card-chevron" id="details-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+  <div class="info-card-body" id="details-body"></div>
+</div>
+
+<!-- SIMILARES -->
+<div class="similares-section" id="similares-section" style="display:none">
+  <p class="similares-title">También te puede gustar</p>
+  <div class="similares-scroll" id="similares-scroll"></div>
+</div>
+
+<!-- STICKY BOTTOM BAR -->
+<div class="sticky-bar">
+  <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lightbox" onclick="cerrarLightbox(event)">
+  <button id="lightbox-close" onclick="cerrarLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+const API = 'https://zapatillasmay-production.up.railway.app'
+let producto = null
+let variantes = []
+let inventario = []
+let fotosActuales = []
+let colorSeleccionado = null
+let tallaSeleccionada = null
+
+// Leer slug de la URL
+const _path = window.location.pathname
+const _slug = _path.replace('/producto/', '').replace(/^\/|\/$/g, '')
+
+// ── INIT ──────────────────────────────────────────────────────────
+
+async function init() {
+  // Cargar config (pixels + SEO)
+  cargarConfig()
+
+  // Cargar producto + variantes + inventario en paralelo
+  try {
+    const [resV, resI] = await Promise.all([
+      fetch(`${API}/variantes/`).catch(() => null),
+      fetch(`${API}/inventario/slim`).catch(() => null)
+    ])
+    variantes = resV ? await resV.json() : []
+    inventario = resI ? await resI.json() : []
+
+    // Buscar por sku_interno primero, luego por id (uuid)
+    let prods = []
+    if (_slug && _slug !== 'null' && _slug !== 'undefined') {
+      const r1 = await fetch(`${API}/productos/sku/${encodeURIComponent(_slug)}`).catch(() => null)
+      prods = r1 ? await r1.json() : []
+    }
+    if (!prods.length) {
+      const r2 = await fetch(`${API}/productos/${encodeURIComponent(_slug)}`).catch(() => null)
+      prods = r2 ? await r2.json() : []
+    }
+
+    if (!prods || !prods.length) {
+      window.location.href = '/'
+      return
+    }
+    producto = prods[0]
+    renderProducto()
+    cargarSimilares()
+  } catch(e) {
+    window.location.href = '/'
+  }
+}
+
+// ── RENDER PRODUCTO ───────────────────────────────────────────────
+
+function renderProducto() {
+  const p = producto
+  const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+  const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+
+  // SEO dinámico
+  const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
+  document.title = `${p.nombre} | Zapatillas May`
+  setMeta('description', p.descripcion || `${p.nombre} — Zapatillas May. Calzado de moda para dama.`)
+  setMeta('og:title', `${p.nombre} | Zapatillas May`, true)
+  setMeta('og:description', p.descripcion || `${p.nombre}`, true)
+  setMeta('og:image', p.imagen_principal || '', true)
+  setMeta('og:url', `https://zapatillasmay.mx/producto/${_slug}`, true)
+  setMeta('og:type', 'product', true)
+  setMeta('product:price:amount', precioDisplay, true)
+  setMeta('product:price:currency', 'MXN', true)
+
+  // Galería inicial: imagen principal
+  const imgMain = document.getElementById('gallery-main')
+  const imgPrincipal = p.imagen_principal || ''
+  fotosActuales = imgPrincipal ? [imgPrincipal] : []
+  imgMain.src = imgPrincipal
+  imgMain.alt = p.nombre
+  renderThumbs()
+
+  // Info section
+  const sec = document.getElementById('product-section')
+  document.getElementById('skeleton-info')?.remove()
+
+  const catLabel = { tacones:'Tacones', sandalias:'Sandalias', botas:'Botas', botines:'Botines', flats:'Flats', plataformas:'Plataformas', tenis:'Tenis', nina:'Niña', accesorios:'Accesorios' }[p.categoria] || p.categoria || ''
+
+  let precioHTML = ''
+  if (p.es_oferta && p.precio_antes) {
+    const precioAntes = parseFloat(p.precio_antes) + 80
+    precioHTML = `<span class="product-price-before">$${precioAntes} MXN</span><span class="product-price-offer">$${precioDisplay} MXN</span>`
+  } else {
+    precioHTML = `$${precioDisplay} MXN`
+  }
+
+  let mayoreoHTML = ''
+  if (!p.es_oferta) {
+    const m3 = p.precio_mayoreo3 || p.precio_menudeo
+    const m6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
+    const mc = p.precio_corrida || (p.precio_menudeo - 100)
+    mayoreoHTML = `<div class="mayoreo-box">
+      <p>Mayoreo 3-5 pares: <strong>$${m3} MXN</strong> c/u</p>
+      <p>Mayoreo 6+ pares: <strong>$${m6} MXN</strong> c/u</p>
+      ${p.corrida_activa ? `<p>Media corrida: <strong>$${mc} MXN</strong> c/u</p>` : ''}
+    </div>`
+  }
+
+  sec.innerHTML = `
+    <p class="product-cat">${catLabel}</p>
+    <h1 class="product-name">${p.nombre}</h1>
+    <p class="product-sku">${p.sku_interno || ''}</p>
+    <p class="product-price-main">${precioHTML}</p>
+    ${mayoreoHTML}
+
+    ${colores.length ? `
+    <p class="section-label">Color <span id="color-label" style="text-transform:none;letter-spacing:0;color:var(--black);font-size:0.78rem;font-weight:600;margin-left:4px"></span></p>
+    <div class="color-grid" id="color-grid"></div>` : ''}
+
+    <p class="section-label">Talla</p>
+    <div class="talla-grid" id="talla-grid"></div>
+
+    <div class="share-row">
+      <span class="share-label">Compartir:</span>
+      <a class="share-btn wha" href="https://wa.me/?text=${encodeURIComponent(`¡Mira este calzado! ${p.nombre} — $${precioDisplay} MXN\nhttps://zapatillasmay.mx/producto/${_slug}`)}" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        WhatsApp
+      </a>
+      <a class="share-btn" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://zapatillasmay.mx/producto/${_slug}`)}" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        Facebook
+      </a>
+      <button class="share-btn" onclick="copiarLink()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copiar
+      </button>
+    </div>
+  `
+
+  // Render colores
+  if (colores.length) renderColores(colores, varsProd)
+  // Render tallas iniciales (sin color)
+  renderTallas(null, varsProd)
+
+  // Descripción
+  if (p.descripcion && p.descripcion.trim()) {
+    const dc = document.getElementById('desc-card')
+    dc.style.display = 'block'
+    document.getElementById('desc-body').textContent = p.descripcion
+  }
+
+  // Detalles
+  const detalles = []
+  if (p.material) detalles.push(['Material', p.material])
+  if (p.forro) detalles.push(['Forro', p.forro])
+  if (p.tacon) detalles.push(['Tacón', p.tacon + ' cm'])
+  if (p.tipo_tacon) detalles.push(['Tipo de tacón', p.tipo_tacon])
+  if (p.horma) detalles.push(['Horma', p.horma])
+  if (detalles.length) {
+    const detCard = document.getElementById('details-card')
+    detCard.style.display = 'block'
+    document.getElementById('details-body').innerHTML = `<div class="details-grid">${detalles.map(([l,v]) => `<div class="detail-item"><div class="detail-label">${l}</div><div class="detail-val">${v}</div></div>`).join('')}</div>`
+  }
+
+  // Meta / TikTok ViewContent
+  if (window.fbq) fbq('track', 'ViewContent', { content_ids:[p.sku_interno||p.id], content_type:'product_group', content_name:p.nombre, value:precioDisplay, currency:'MXN' })
+  if (window.ttq) ttq.track('ViewContent', { content_id:p.sku_interno||p.id, content_type:'product', content_name:p.nombre, price:precioDisplay, currency:'MXN' })
+}
+
+function renderColores(colores, varsProd) {
+  const grid = document.getElementById('color-grid')
+  if (!grid) return
+  grid.innerHTML = colores.map(c => {
+    const v = varsProd.find(vv => vv.color === c)
+    const hex = v ? (v.color_hex || '#999') : '#999'
+    return `<button class="color-btn" id="cbtn-${CSS.escape(c)}" onclick="seleccionarColor('${c.replace(/'/g,"\\'")}')">
+      <span class="color-dot" style="background:${hex}"></span>${c}
+    </button>`
+  }).join('')
+}
+
+function renderTallas(color, varsProd) {
+  const grid = document.getElementById('talla-grid')
+  if (!grid) return
+  let vars = varsProd
+  if (color) vars = varsProd.filter(v => v.color === color)
+  const tallas = [...new Set(vars.map(v => v.talla).filter(Boolean))].sort((a,b) => parseFloat(a)-parseFloat(b))
+  grid.innerHTML = tallas.map(t => {
+    const v = vars.find(vv => vv.talla === t)
+    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 1) : 0
+    const agotada = stock <= 0
+    return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}</button>`
+  }).join('')
+}
+
+function seleccionarColor(color) {
+  colorSeleccionado = color
+  tallaSeleccionada = null
+  const varsProd = variantes.filter(v => v.producto_id === producto.id && v.activa !== false)
+
+  // Highlight botón de color
+  document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'))
+  const btn = document.getElementById('cbtn-' + CSS.escape(color))
+  if (btn) btn.classList.add('active')
+  const label = document.getElementById('color-label')
+  if (label) label.textContent = color
+
+  // Cambiar imagen principal a la foto de este color
+  const v = varsProd.find(vv => vv.color === color)
+  if (v) {
+    fotosActuales = []
+    if (v.foto_url) fotosActuales.push(v.foto_url)
+    if (Array.isArray(v.imagenes)) v.imagenes.forEach(u => { if (u && u !== v.foto_url) fotosActuales.push(u) })
+    if (!fotosActuales.length && producto.imagen_principal) fotosActuales.push(producto.imagen_principal)
+    const imgMain = document.getElementById('gallery-main')
+    imgMain.src = fotosActuales[0] || ''
+    renderThumbs()
+  }
+
+  // Renderizar tallas para este color
+  renderTallas(color, varsProd)
+  actualizarCTA()
+}
+
+function seleccionarTalla(talla) {
+  tallaSeleccionada = talla
+  document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('active'))
+  const btn = document.getElementById('tbtn-' + talla.replace('.','_'))
+  if (btn) btn.classList.add('active')
+  actualizarCTA()
+}
+
+function renderThumbs() {
+  const row = document.getElementById('gallery-thumbs')
+  if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
+  row.style.display = 'flex'
+  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${url}" alt="foto ${i+1}" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
+}
+
+function cambiarFoto(idx) {
+  const imgMain = document.getElementById('gallery-main')
+  imgMain.src = fotosActuales[idx]
+  document.querySelectorAll('.gallery-thumb').forEach((t,i) => t.classList.toggle('active', i===idx))
+}
+
+function actualizarCTA() {
+  const btn = document.getElementById('btn-agregar')
+  const varsProd = variantes.filter(v => v.producto_id === producto.id && v.activa !== false)
+  if (!colorSeleccionado) {
+    btn.textContent = 'Selecciona un color'
+    btn.disabled = true
+    btn.classList.remove('listo')
+  } else if (!tallaSeleccionada) {
+    btn.textContent = 'Selecciona tu talla'
+    btn.disabled = true
+    btn.classList.remove('listo')
+  } else {
+    const v = varsProd.find(vv => vv.color === colorSeleccionado && vv.talla === tallaSeleccionada)
+    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 1) : 0
+    if (stock <= 0) {
+      btn.textContent = 'Agotado'
+      btn.disabled = true
+      btn.classList.remove('listo')
+    } else {
+      btn.textContent = '🛒 Agregar al carrito'
+      btn.disabled = false
+      btn.classList.add('listo')
+    }
+  }
+}
+
+function irACarrito() {
+  if (!colorSeleccionado || !tallaSeleccionada) return
+  const url = `/?p=${encodeURIComponent(_slug)}&color=${encodeURIComponent(colorSeleccionado)}&talla=${encodeURIComponent(tallaSeleccionada)}&addtocart=1`
+  window.location.href = url
+}
+
+// ── SIMILARES ─────────────────────────────────────────────────────
+
+async function cargarSimilares() {
+  if (!producto || !producto.categoria) return
+  try {
+    const res = await fetch(`${API}/productos/?categoria=eq.${producto.categoria}&activo=eq.true&order=destacado.desc,nuevo.desc&limit=12`)
+    const todos = await res.json()
+    const similares = todos.filter(p => p.id !== producto.id).slice(0, 8)
+    if (!similares.length) return
+    const sec = document.getElementById('similares-section')
+    const scroll = document.getElementById('similares-scroll')
+    sec.style.display = 'block'
+    scroll.innerHTML = similares.map(p => {
+      const precio = p.es_oferta ? p.precio_menudeo : (p.precio_menudeo + 80)
+      const dest = p.sku_interno || p.slug
+      if (!dest) return ''
+      return `<a class="similar-card" href="/producto/${dest}">
+        <img src="${p.imagen_principal || ''}" alt="${p.nombre}" loading="lazy">
+        <p class="similar-card-name">${p.nombre}</p>
+        <p class="similar-card-price">$${precio} MXN</p>
+      </a>`
+    }).join('')
+  } catch(e) {}
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────
+
+function setMeta(name, content, isProperty = false) {
+  const attr = isProperty ? 'property' : 'name'
+  let el = document.querySelector(`meta[${attr}="${name}"]`)
+  if (!el) { el = document.createElement('meta'); el.setAttribute(attr, name); document.head.appendChild(el) }
+  el.setAttribute('content', content)
+}
+
+function toggleCard(id) {
+  const body = document.getElementById(id + '-body')
+  const chev = document.getElementById(id + '-chevron')
+  body.classList.toggle('open')
+  chev.classList.toggle('open')
+}
+
+function abrirLightbox() {
+  const src = document.getElementById('gallery-main').src
+  if (!src) return
+  document.getElementById('lightbox-img').src = src
+  document.getElementById('lightbox').classList.add('open')
+  document.body.style.overflow = 'hidden'
+}
+
+function cerrarLightbox(e) {
+  if (e && e.target !== document.getElementById('lightbox') && e.target !== document.getElementById('lightbox-close')) return
+  document.getElementById('lightbox').classList.remove('open')
+  document.body.style.overflow = ''
+}
+
+function copiarLink() {
+  const url = `https://zapatillasmay.mx/producto/${_slug}`
+  navigator.clipboard.writeText(url).then(() => mostrarToast('¡Enlace copiado!')).catch(() => {})
+}
+
+function mostrarToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2500)
+}
+
+// ── PIXELS ────────────────────────────────────────────────────────
+
+async function cargarConfig() {
+  try {
+    const res = await fetch(`${API}/seo/config`)
+    const data = await res.json()
+    const config = {}
+    data.forEach(item => config[item.clave] = item.valor || '')
+
+    if (config.facebook_pixel_id) {
+      const s = document.createElement('script')
+      s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}');fbq('track','PageView');`
+      document.head.appendChild(s)
+    }
+    if (config.tiktok_pixel_id) {
+      const s = document.createElement('script')
+      s.textContent = `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${config.tiktok_pixel_id}');ttq.page()}(window,document,'ttq');`
+      document.head.appendChild(s)
+    }
+    if (config.google_tag_manager) {
+      const s = document.createElement('script')
+      s.textContent = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${config.google_tag_manager}');`
+      document.head.appendChild(s)
+    }
+  } catch(e) {}
+}
+
+// Forzar recarga si el navegador restaura desde bfcache (evita mostrar producto equivocado)
+window.addEventListener('pageshow', (e) => { if (e.persisted) window.location.reload() })
+
+init()
+</script>
+</body>
+</html>

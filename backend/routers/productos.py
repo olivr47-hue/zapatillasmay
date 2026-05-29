@@ -57,6 +57,10 @@ def productos_por_categoria(categoria: str):
     cache_set(key, data)
     return data
 
+@router.get("/sku/{sku}")
+def producto_por_sku(sku: str):
+    return supabase_get(f"productos?sku_interno=eq.{sku}")
+
 @router.get("/{id}")
 def obtener_producto(id: str):
     return supabase_get(f"productos?id=eq.{id}")
