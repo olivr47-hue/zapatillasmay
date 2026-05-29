@@ -12261,6 +12261,7 @@ async function cargarMercadoLibre() {
 // ─── ORDEN EN HOME ───────────────────────────────────────────────────────────
 
 let _ordenHomeList = []
+let _ohBusqueda = ''
 
 async function cargarOrdenHome() {
   const content = document.getElementById('content')
@@ -12268,48 +12269,52 @@ async function cargarOrdenHome() {
     <style>
       .oh-wrap { padding:1rem; max-width:700px; }
       .oh-row {
-        display:flex; align-items:center; gap:0.75rem;
+        display:flex; align-items:center; gap:0.6rem;
         background:#fff; border:1px solid #eee; border-radius:8px;
-        padding:0.6rem 0.75rem; margin-bottom:0.5rem;
-        transition: box-shadow .15s;
-        touch-action: none;
+        padding:0.5rem 0.65rem; margin-bottom:0.4rem;
+        transition: box-shadow .15s, opacity .15s;
       }
-      .oh-row.dragging { opacity:.5; }
-      .oh-row.drag-over { box-shadow:0 0 0 2px #3483fa; }
-      .oh-pos {
-        min-width:28px; height:28px; border-radius:50%;
-        background:#3483fa; color:#fff; font-size:0.75rem;
-        font-weight:700; display:flex; align-items:center; justify-content:center;
+      .oh-row.dragging { opacity:.4; }
+      .oh-row.drag-over { box-shadow:0 0 0 2px #3483fa; background:#f0f6ff; }
+      .oh-handle { cursor:grab; color:#ccc; font-size:1.1rem; user-select:none; flex-shrink:0; }
+      .oh-pos-input {
+        width:42px; height:32px; border:1px solid #ddd; border-radius:6px;
+        text-align:center; font-size:0.85rem; font-weight:700; color:#3483fa;
+        background:#f8f9ff; flex-shrink:0;
       }
-      .oh-img { width:44px; height:44px; object-fit:cover; border-radius:6px; background:#f5f5f5; flex-shrink:0; }
+      .oh-pos-input:focus { outline:none; border-color:#3483fa; background:#fff; }
+      .oh-img { width:40px; height:40px; object-fit:cover; border-radius:6px; background:#f5f5f5; flex-shrink:0; }
       .oh-info { flex:1; min-width:0; }
-      .oh-nombre { font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .oh-sku { font-size:0.72rem; color:#aaa; }
-      .oh-btns { display:flex; flex-direction:column; gap:3px; }
+      .oh-nombre { font-size:0.83rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .oh-sku { font-size:0.7rem; color:#aaa; }
+      .oh-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
       .oh-btn {
-        width:28px; height:28px; border:1px solid #ddd; border-radius:5px;
-        background:#fafafa; cursor:pointer; font-size:0.9rem;
-        display:flex; align-items:center; justify-content:center;
-        transition: background .1s;
+        width:26px; height:26px; border:1px solid #e0e0e0; border-radius:5px;
+        background:#fafafa; cursor:pointer; font-size:0.85rem;
+        display:flex; align-items:center; justify-content:center; padding:0;
       }
-      .oh-btn:hover { background:#e8f0ff; border-color:#3483fa; }
-      .oh-btn:disabled { opacity:.3; cursor:default; }
-      .oh-handle { cursor:grab; color:#ccc; font-size:1rem; user-select:none; }
-      @media(max-width:500px){
-        .oh-nombre { font-size:0.8rem; }
-        .oh-img { width:36px; height:36px; }
+      .oh-btn:active { background:#e8f0ff; }
+      .oh-btn:disabled { opacity:.25; cursor:default; }
+      @media(max-width:480px){
+        .oh-nombre { font-size:0.78rem; }
+        .oh-img { width:34px; height:34px; }
+        .oh-handle { display:none; }
       }
     </style>
     <div class="oh-wrap">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
         <div>
           <h2 style="margin:0;font-size:1.05rem">🏠 Orden en Home</h2>
-          <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#888">Los primeros aparecen primero en la página principal</p>
+          <p style="margin:0.2rem 0 0;font-size:0.75rem;color:#888">Escribe un número para mover el modelo a esa posición</p>
         </div>
-        <button onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.25rem;font-size:0.85rem;font-weight:600;cursor:pointer">
+        <button id="oh-save-btn" onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;font-size:0.83rem;font-weight:600;cursor:pointer">
           💾 Guardar orden
         </button>
       </div>
+      <input id="oh-search" type="text" placeholder="🔍 Buscar modelo o SKU..."
+        oninput="_ohFiltrar(this.value)"
+        style="width:100%;box-sizing:border-box;padding:0.55rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;margin-bottom:0.75rem">
+      <div id="oh-count" style="font-size:0.75rem;color:#aaa;margin-bottom:0.5rem"></div>
       <div id="oh-lista"><p style="color:#888;text-align:center;padding:2rem">Cargando...</p></div>
     </div>
   `
@@ -12323,43 +12328,84 @@ async function cargarOrdenHome() {
       if (ao !== bo) return ao - bo
       return new Date(b.created_at) - new Date(a.created_at)
     })
+    _ohBusqueda = ''
     _ohRenderLista()
   } catch(e) {
-    document.getElementById('oh-lista').innerHTML = `<p style="color:red">Error cargando productos: ${e.message}</p>`
+    document.getElementById('oh-lista').innerHTML = `<p style="color:red">Error: ${e.message}</p>`
   }
+}
+
+window._ohFiltrar = function(val) {
+  _ohBusqueda = val.toLowerCase().trim()
+  _ohRenderLista()
 }
 
 function _ohRenderLista() {
   const lista = document.getElementById('oh-lista')
+  const countEl = document.getElementById('oh-count')
   if (!lista) return
-  if (!_ordenHomeList.length) {
+
+  const total = _ordenHomeList.length
+  const visibles = _ohBusqueda
+    ? _ordenHomeList.filter(p =>
+        (p.nombre || '').toLowerCase().includes(_ohBusqueda) ||
+        (p.sku_interno || '').toLowerCase().includes(_ohBusqueda)
+      )
+    : _ordenHomeList
+
+  if (countEl) countEl.textContent = _ohBusqueda
+    ? `${visibles.length} de ${total} modelos`
+    : `${total} modelos activos`
+
+  if (!total) {
     lista.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">No hay productos activos</p>'
     return
   }
-  lista.innerHTML = _ordenHomeList.map((p, i) => {
+  if (!visibles.length) {
+    lista.innerHTML = '<p style="color:#aaa;text-align:center;padding:1.5rem">Sin resultados para esa búsqueda</p>'
+    return
+  }
+
+  lista.innerHTML = visibles.map(p => {
+    const i = _ordenHomeList.indexOf(p)  // posición real en la lista completa
+    const pos = i + 1
     const foto = p.foto_principal || (p.imagenes && p.imagenes[0]) || ''
     const imgHtml = foto
-      ? `<img class="oh-img" src="${foto}" alt="" onerror="this.style.display='none'">`
-      : `<div class="oh-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`
+      ? `<img class="oh-img" src="${foto}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : `<div class="oh-img" style="display:flex;align-items:center;justify-content:center;font-size:1.1rem">👠</div>`
     return `
       <div class="oh-row" id="oh-row-${i}" draggable="true"
            ondragstart="_ohDragStart(event,${i})"
            ondragover="_ohDragOver(event,${i})"
            ondrop="_ohDrop(event,${i})"
            ondragend="_ohDragEnd()">
-        <span class="oh-handle" title="Arrastra para reordenar">⠿</span>
-        <div class="oh-pos">${i + 1}</div>
+        <span class="oh-handle">⠿</span>
+        <input class="oh-pos-input" type="number" min="1" max="${total}" value="${pos}"
+          title="Posición — presiona Enter para mover"
+          onkeydown="if(event.key==='Enter')_ohSetPos('${p.id}',+this.value)"
+          onblur="_ohSetPos('${p.id}',+this.value)">
         ${imgHtml}
         <div class="oh-info">
           <div class="oh-nombre">${p.nombre || 'Sin nombre'}</div>
           <div class="oh-sku">${p.sku_interno || ''}</div>
         </div>
         <div class="oh-btns">
-          <button class="oh-btn" onclick="_ohMover(${i},-1)" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
-          <button class="oh-btn" onclick="_ohMover(${i},1)" ${i === _ordenHomeList.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
+          <button class="oh-btn" onclick="_ohMover(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button class="oh-btn" onclick="_ohMover(${i},1)" ${i === total - 1 ? 'disabled' : ''}>↓</button>
         </div>
       </div>`
   }).join('')
+}
+
+window._ohSetPos = function(id, nuevaPos) {
+  const idx = _ordenHomeList.findIndex(p => p.id === id)
+  if (idx === -1) return
+  nuevaPos = Math.max(1, Math.min(Math.round(nuevaPos), _ordenHomeList.length)) - 1
+  if (idx === nuevaPos) return
+  const [item] = _ordenHomeList.splice(idx, 1)
+  _ordenHomeList.splice(nuevaPos, 0, item)
+  _ohRenderLista()
+  // Mantener el foco en el buscador si estaba activo
 }
 
 window._ohMover = function(idx, dir) {
@@ -12386,7 +12432,7 @@ window._ohDragOver = function(e, i) {
 window._ohDrop = function(e, i) {
   e.preventDefault()
   if (_ohDragIdx === null || _ohDragIdx === i) return
-  const item = _ordenHomeList.splice(_ohDragIdx, 1)[0]
+  const [item] = _ordenHomeList.splice(_ohDragIdx, 1)
   _ordenHomeList.splice(i, 0, item)
   _ohDragIdx = null
   _ohRenderLista()
@@ -12397,7 +12443,7 @@ window._ohDragEnd = function() {
 }
 
 window.guardarOrdenHome = async function() {
-  const btn = document.querySelector('button[onclick="guardarOrdenHome()"]')
+  const btn = document.getElementById('oh-save-btn')
   if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
   try {
     const ordenes = _ordenHomeList.map((p, i) => ({ id: p.id, orden_home: i + 1 }))
@@ -12408,7 +12454,8 @@ window.guardarOrdenHome = async function() {
     })
     const d = await r.json()
     if (d.ok) {
-      if (btn) { btn.textContent = '✅ Guardado'; setTimeout(() => { if(btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden' } }, 2000) }
+      if (btn) { btn.textContent = '✅ Guardado'; btn.style.background = '#22c55e' }
+      setTimeout(() => { if(btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden'; btn.style.background = '#3483fa' } }, 2000)
     } else {
       alert('Error al guardar: ' + JSON.stringify(d))
       if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden' }

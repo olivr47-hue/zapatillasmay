@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
+from typing import List
 from database import supabase_get, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix
 
@@ -105,7 +106,7 @@ def activar_producto(id: str):
     return resultado
 
 @router.post("/orden-home")
-def guardar_orden_home(ordenes: list):
+def guardar_orden_home(ordenes: List[dict] = Body(...)):
     """Guarda el orden de aparición en la home. Recibe [{id, orden_home}]."""
     errores = []
     for item in ordenes:
