@@ -77,6 +77,7 @@ const modulos = [
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
+  { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
 ]
@@ -257,6 +258,7 @@ async function cargarModulo(id) {
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
+    case 'orden-home':   await cargarOrdenHome(); break;
   }
 }
 
@@ -12255,6 +12257,169 @@ async function cargarMercadoLibre() {
 }
 
 // ─── GOOGLE ANALYTICS ─────────────────────────────────────────────────────────
+
+// ─── ORDEN EN HOME ───────────────────────────────────────────────────────────
+
+let _ordenHomeList = []
+
+async function cargarOrdenHome() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <style>
+      .oh-wrap { padding:1rem; max-width:700px; }
+      .oh-row {
+        display:flex; align-items:center; gap:0.75rem;
+        background:#fff; border:1px solid #eee; border-radius:8px;
+        padding:0.6rem 0.75rem; margin-bottom:0.5rem;
+        transition: box-shadow .15s;
+        touch-action: none;
+      }
+      .oh-row.dragging { opacity:.5; }
+      .oh-row.drag-over { box-shadow:0 0 0 2px #3483fa; }
+      .oh-pos {
+        min-width:28px; height:28px; border-radius:50%;
+        background:#3483fa; color:#fff; font-size:0.75rem;
+        font-weight:700; display:flex; align-items:center; justify-content:center;
+      }
+      .oh-img { width:44px; height:44px; object-fit:cover; border-radius:6px; background:#f5f5f5; flex-shrink:0; }
+      .oh-info { flex:1; min-width:0; }
+      .oh-nombre { font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .oh-sku { font-size:0.72rem; color:#aaa; }
+      .oh-btns { display:flex; flex-direction:column; gap:3px; }
+      .oh-btn {
+        width:28px; height:28px; border:1px solid #ddd; border-radius:5px;
+        background:#fafafa; cursor:pointer; font-size:0.9rem;
+        display:flex; align-items:center; justify-content:center;
+        transition: background .1s;
+      }
+      .oh-btn:hover { background:#e8f0ff; border-color:#3483fa; }
+      .oh-btn:disabled { opacity:.3; cursor:default; }
+      .oh-handle { cursor:grab; color:#ccc; font-size:1rem; user-select:none; }
+      @media(max-width:500px){
+        .oh-nombre { font-size:0.8rem; }
+        .oh-img { width:36px; height:36px; }
+      }
+    </style>
+    <div class="oh-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <h2 style="margin:0;font-size:1.05rem">🏠 Orden en Home</h2>
+          <p style="margin:0.25rem 0 0;font-size:0.78rem;color:#888">Los primeros aparecen primero en la página principal</p>
+        </div>
+        <button onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.25rem;font-size:0.85rem;font-weight:600;cursor:pointer">
+          💾 Guardar orden
+        </button>
+      </div>
+      <div id="oh-lista"><p style="color:#888;text-align:center;padding:2rem">Cargando...</p></div>
+    </div>
+  `
+
+  try {
+    const r = await fetch(`${API}/productos/`)
+    const todos = await r.json()
+    _ordenHomeList = todos.filter(p => p.activo).sort((a, b) => {
+      const ao = a.orden_home ?? 99999
+      const bo = b.orden_home ?? 99999
+      if (ao !== bo) return ao - bo
+      return new Date(b.created_at) - new Date(a.created_at)
+    })
+    _ohRenderLista()
+  } catch(e) {
+    document.getElementById('oh-lista').innerHTML = `<p style="color:red">Error cargando productos: ${e.message}</p>`
+  }
+}
+
+function _ohRenderLista() {
+  const lista = document.getElementById('oh-lista')
+  if (!lista) return
+  if (!_ordenHomeList.length) {
+    lista.innerHTML = '<p style="color:#888;text-align:center;padding:2rem">No hay productos activos</p>'
+    return
+  }
+  lista.innerHTML = _ordenHomeList.map((p, i) => {
+    const foto = p.foto_principal || (p.imagenes && p.imagenes[0]) || ''
+    const imgHtml = foto
+      ? `<img class="oh-img" src="${foto}" alt="" onerror="this.style.display='none'">`
+      : `<div class="oh-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`
+    return `
+      <div class="oh-row" id="oh-row-${i}" draggable="true"
+           ondragstart="_ohDragStart(event,${i})"
+           ondragover="_ohDragOver(event,${i})"
+           ondrop="_ohDrop(event,${i})"
+           ondragend="_ohDragEnd()">
+        <span class="oh-handle" title="Arrastra para reordenar">⠿</span>
+        <div class="oh-pos">${i + 1}</div>
+        ${imgHtml}
+        <div class="oh-info">
+          <div class="oh-nombre">${p.nombre || 'Sin nombre'}</div>
+          <div class="oh-sku">${p.sku_interno || ''}</div>
+        </div>
+        <div class="oh-btns">
+          <button class="oh-btn" onclick="_ohMover(${i},-1)" ${i === 0 ? 'disabled' : ''} title="Subir">↑</button>
+          <button class="oh-btn" onclick="_ohMover(${i},1)" ${i === _ordenHomeList.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
+        </div>
+      </div>`
+  }).join('')
+}
+
+function _ohMover(idx, dir) {
+  const nuevoIdx = idx + dir
+  if (nuevoIdx < 0 || nuevoIdx >= _ordenHomeList.length) return
+  const tmp = _ordenHomeList[idx]
+  _ordenHomeList[idx] = _ordenHomeList[nuevoIdx]
+  _ordenHomeList[nuevoIdx] = tmp
+  _ohRenderLista()
+}
+
+let _ohDragIdx = null
+function _ohDragStart(e, i) {
+  _ohDragIdx = i
+  e.dataTransfer.effectAllowed = 'move'
+  setTimeout(() => { const el = document.getElementById(`oh-row-${i}`); if(el) el.classList.add('dragging') }, 0)
+}
+function _ohDragOver(e, i) {
+  e.preventDefault()
+  document.querySelectorAll('.oh-row').forEach(r => r.classList.remove('drag-over'))
+  const el = document.getElementById(`oh-row-${i}`)
+  if (el) el.classList.add('drag-over')
+}
+function _ohDrop(e, i) {
+  e.preventDefault()
+  if (_ohDragIdx === null || _ohDragIdx === i) return
+  const item = _ordenHomeList.splice(_ohDragIdx, 1)[0]
+  _ordenHomeList.splice(i, 0, item)
+  _ohDragIdx = null
+  _ohRenderLista()
+}
+function _ohDragEnd() {
+  _ohDragIdx = null
+  document.querySelectorAll('.oh-row').forEach(r => { r.classList.remove('dragging'); r.classList.remove('drag-over') })
+}
+
+async function guardarOrdenHome() {
+  const btn = document.querySelector('button[onclick="guardarOrdenHome()"]')
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
+  try {
+    const ordenes = _ordenHomeList.map((p, i) => ({ id: p.id, orden_home: i + 1 }))
+    const r = await fetch(`${API}/productos/orden-home`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ordenes)
+    })
+    const d = await r.json()
+    if (d.ok) {
+      if (btn) { btn.textContent = '✅ Guardado'; setTimeout(() => { if(btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden' } }, 2000) }
+    } else {
+      alert('Error al guardar: ' + JSON.stringify(d))
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden' }
+    }
+  } catch(e) {
+    alert('Error: ' + e.message)
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar orden' }
+  }
+}
+
+// ─── FIN ORDEN EN HOME ───────────────────────────────────────────────────────
 
 let _gaRealtimeInterval = null
 

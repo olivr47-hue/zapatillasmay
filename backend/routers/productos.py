@@ -24,7 +24,7 @@ def listar_productos():
     cached = cache_get(_CK + "_all")
     if cached is not None:
         return cached
-    data = supabase_get("productos?order=created_at.desc")
+    data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
     cache_set(_CK + "_all", data)
     return data
 
@@ -103,3 +103,15 @@ def activar_producto(id: str):
     resultado = supabase_patch(f"productos?id=eq.{id}", {"activo": True})
     cache_invalidate_prefix(_CK)
     return resultado
+
+@router.post("/orden-home")
+def guardar_orden_home(ordenes: list):
+    """Guarda el orden de aparición en la home. Recibe [{id, orden_home}]."""
+    errores = []
+    for item in ordenes:
+        try:
+            supabase_patch(f"productos?id=eq.{item['id']}", {"orden_home": item["orden_home"]})
+        except Exception as e:
+            errores.append({"id": item["id"], "error": str(e)})
+    cache_invalidate_prefix(_CK)
+    return {"ok": True, "actualizados": len(ordenes) - len(errores), "errores": errores}
