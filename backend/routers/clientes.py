@@ -11,6 +11,13 @@ def listar_clientes():
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/referidos")
+def listar_referidos():
+    try:
+        return supabase_get_all("clientes?tipo=eq.menudeo&activo=eq.true&order=credito_disponible.desc&select=id,nombre,email,telefono,codigo_referido,referido_por,credito_disponible")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.get("/{id}")
 def obtener_cliente(id: str):
     try:

@@ -80,6 +80,7 @@ const modulos = [
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
+  { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -259,6 +260,7 @@ async function cargarModulo(id) {
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
     case 'orden-home':   await cargarOrdenHome(); break;
+    case 'referidos':    await cargarReferidos(); break;
   }
 }
 
@@ -12833,5 +12835,139 @@ function _gaMostrarSetup(d) {
   // Poner placeholder en los números
   ;['ga-activos','ga-sesiones','ga-usuarios','ga-pageviews','ga-nuevos','ga-duracion','ga-rebote']
     .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '—' })
+}
+
+// ── REFERIDOS ──────────────────────────────────────────────────────────────
+async function cargarReferidos() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando referidos...</p>'
+  try {
+    const res = await fetch(API + '/clientes/referidos')
+    const clientes = await res.json()
+
+    // Stats generales
+    const conCodigo    = clientes.filter(c => c.codigo_referido).length
+    const conCredito   = clientes.filter(c => parseFloat(c.credito_disponible || 0) > 0).length
+    const totalCredito = clientes.reduce((s, c) => s + parseFloat(c.credito_disponible || 0), 0)
+    const referidores  = clientes.filter(c => c.codigo_referido && clientes.some(x => x.referido_por === c.codigo_referido))
+
+    // Mapa código → nombre del referidor
+    const mapCodigo = {}
+    clientes.forEach(c => { if (c.codigo_referido) mapCodigo[c.codigo_referido] = c.nombre })
+
+    window._referidosData = clientes
+
+    content.innerHTML = `
+      <div style="padding:1rem;max-width:960px">
+        <h2 style="margin:0 0 1rem;font-size:1.1rem">🎁 Programa de Referidos</h2>
+
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+          <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#333">${clientes.length}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Clientes menudeo</p>
+          </div>
+          <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${referidores.length}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Han referido alguien</p>
+          </div>
+          <div style="background:#e8f5e9;border-radius:12px;padding:1rem;border:1px solid #a5d6a7;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${conCredito}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Con crédito activo</p>
+          </div>
+          <div style="background:#fce4ec;border-radius:12px;padding:1rem;border:1px solid #f48fb1;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#c62828">$${totalCredito.toFixed(0)}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Crédito total emitido</p>
+          </div>
+        </div>
+
+        <!-- Buscador -->
+        <input id="ref-buscar" type="text" placeholder="Buscar cliente..." oninput="filtrarReferidos(this.value)"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;outline:none">
+
+        <!-- Tabla -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:1px solid #eee">
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Cliente</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Código</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Referido por</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:600;color:#555">Crédito</th>
+                <th style="padding:10px 12px;text-align:center;font-weight:600;color:#555">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="ref-tbody">
+              ${clientes.map(c => _rowReferido(c, mapCodigo)).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = `<p style="padding:2rem;color:red">Error cargando referidos: ${e.message}</p>`
+  }
+}
+
+function _rowReferido(c, mapCodigo) {
+  const credito = parseFloat(c.credito_disponible || 0)
+  const referidorNombre = c.referido_por ? (mapCodigo[c.referido_por] || c.referido_por) : '—'
+  const creditoColor = credito > 0 ? '#2e7d32' : '#aaa'
+  return `<tr id="ref-row-${c.id}" style="border-bottom:1px solid #f5f5f5">
+    <td style="padding:10px 12px">
+      <p style="font-weight:600;margin:0">${c.nombre || '—'}</p>
+      <p style="font-size:0.75rem;color:#888;margin:2px 0 0">${c.email || c.telefono || ''}</p>
+    </td>
+    <td style="padding:10px 12px">
+      ${c.codigo_referido
+        ? `<span style="font-family:monospace;background:#f0f0f0;padding:3px 8px;border-radius:6px;font-size:0.8rem;letter-spacing:1px">${c.codigo_referido}</span>`
+        : `<button onclick="generarCodigoReferido('${c.id}')" style="font-size:0.75rem;padding:3px 8px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#555">Generar</button>`
+      }
+    </td>
+    <td style="padding:10px 12px;color:#555">${referidorNombre}</td>
+    <td style="padding:10px 12px;text-align:right;font-weight:700;color:${creditoColor}">$${credito.toFixed(0)} MXN</td>
+    <td style="padding:10px 12px;text-align:center">
+      <button onclick="ajustarCredito('${c.id}','${(c.nombre||'').replace(/'/g,"\\'")}',${credito})"
+        style="font-size:0.75rem;padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#333">
+        Ajustar
+      </button>
+    </td>
+  </tr>`
+}
+
+window.filtrarReferidos = function(q) {
+  const rows = document.querySelectorAll('#ref-tbody tr')
+  const lq = q.toLowerCase()
+  rows.forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(lq) ? '' : 'none'
+  })
+}
+
+window.generarCodigoReferido = async function(clienteId) {
+  try {
+    const res = await fetch(API + '/referidos/mi-codigo/' + clienteId)
+    const data = await res.json()
+    if (data.codigo_referido) {
+      await cargarReferidos()
+    } else {
+      alert('Error generando código')
+    }
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.ajustarCredito = async function(clienteId, nombre, creditoActual) {
+  const nuevo = prompt(`Ajustar crédito de ${nombre}\nCrédito actual: $${creditoActual} MXN\n\nNuevo monto:`, creditoActual)
+  if (nuevo === null) return
+  const monto = parseFloat(nuevo)
+  if (isNaN(monto) || monto < 0) return alert('Monto inválido')
+  try {
+    const res = await fetch(API + '/clientes/' + clienteId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credito_disponible: monto })
+    })
+    if (res.ok) await cargarReferidos()
+    else alert('Error actualizando crédito')
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
