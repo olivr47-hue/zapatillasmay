@@ -2222,7 +2222,8 @@
   let productos = []
   let variantes = []
   let inventario = []
-  let carrito = []
+  // Restaurar carrito desde sessionStorage (persiste entre navegaciones de la sesión)
+  let carrito = (() => { try { return JSON.parse(sessionStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
   let productoSeleccionado = null
   let colorSeleccionado = null
   let tallaSeleccionada = null
@@ -3144,6 +3145,10 @@ if (window.ttq) ttq.track('AddToCart', {
     setTimeout(() => abrirCarrito(), 300)
   }
 
+  function guardarCarrito() {
+    try { sessionStorage.setItem('zm_carrito', JSON.stringify(carrito)) } catch(e) {}
+  }
+
   function recalcularCarrito() {
     // Contar pares: corrida cuenta como 6 pares por unidad
     const totalPares = carrito.reduce((s,i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0)
@@ -3177,6 +3182,7 @@ if (window.ttq) ttq.track('AddToCart', {
     document.getElementById('cart-total').textContent = '$' + total.toFixed(2) + ' MXN'
     document.getElementById('cart-tipo-label').textContent = tipoPrecio
     document.getElementById('cart-pares-label').textContent = totalPares + ' ' + (totalPares===1?'par':'pares')
+    guardarCarrito()
   }
 
   function renderCarrito() {
