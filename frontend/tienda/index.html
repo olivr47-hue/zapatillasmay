@@ -189,7 +189,11 @@
   margin-top: calc(36px + 72px);
   height: calc(100vh - 108px);
   min-height: calc(100vh - 108px);
-  background: var(--cream);
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%,  rgba(200,150,122,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 80% 70%,  rgba(181,104,122,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 55% 20%,  rgba(232,208,185,0.20) 0%, transparent 50%),
+    linear-gradient(145deg, #f7ede4 0%, #f2e4d8 35%, #ecdbd0 60%, #f5ece4 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,8 +205,20 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 30% 50%, rgba(200,150,122,0.10) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 80%, rgba(200,150,122,0.05) 0%, transparent 50%);
+  background:
+    radial-gradient(ellipse at 30% 50%, rgba(200,150,122,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, rgba(200,150,122,0.07) 0%, transparent 50%);
+}
+
+/* Líneas decorativas tipo editorial fashion */
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 8%; right: 6%;
+  width: 1px;
+  height: 140px;
+  background: linear-gradient(to bottom, transparent, rgba(200,150,122,0.35), transparent);
+  pointer-events: none;
 }
 
     .hero-content {
@@ -1291,10 +1307,72 @@
   100% { opacity: 0;   transform: translateY(-90vh) rotate(360deg) scale(1.2); }
 }
 
+/* ── ZAPATILLA 3D ── */
+.hero-shoe-wrap {
+  position: absolute;
+  right: 5%;
+  bottom: 0;
+  width: 48%;
+  max-width: 640px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  animation: shoe-levitate 5s ease-in-out infinite;
+}
+
+.hero-shoe-wrap img {
+  width: 100%;
+  max-height: 92%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 40px 60px rgba(160,100,80,0.25)) drop-shadow(0 10px 20px rgba(0,0,0,0.1));
+  transition: transform 0.12s ease-out, filter 0.3s;
+  will-change: transform;
+  transform-origin: center bottom;
+}
+
+.hero-shoe-shadow {
+  position: absolute;
+  bottom: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 55%;
+  height: 24px;
+  background: radial-gradient(ellipse, rgba(120,70,50,0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: shadow-breathe 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shoe-levitate {
+  0%, 100% { transform: translateY(0px) rotate(0.3deg); }
+  50%       { transform: translateY(-18px) rotate(-0.3deg); }
+}
+
+@keyframes shadow-breathe {
+  0%, 100% { transform: translateX(-50%) scaleX(1)   opacity: 0.8; }
+  50%       { transform: translateX(-50%) scaleX(0.75); opacity: 0.4; }
+}
+
+@media (max-width: 768px) {
+  .hero-shoe-wrap {
+    right: -5%;
+    width: 65%;
+    opacity: 0.5;
+  }
+}
+
 /* Reducir movimiento */
 @media (prefers-reduced-motion: reduce) {
   .hero-bg { animation: none !important; }
   .hp { animation: none !important; display: none; }
+  .hero-shoe-wrap { animation: none !important; }
+  .hero-shoe-shadow { animation: none !important; }
 }
 
 .hero-content > * {
@@ -2095,6 +2173,16 @@
     <span class="hp hp7"></span>
     <span class="hp hp8"></span>
   </div>
+
+  <!-- Zapatilla 3D — elemento independiente que responde al mouse -->
+  <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
+    <img id="hero-shoe-img"
+      src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
+      onerror="this.parentElement.style.display='none'"
+      alt="" draggable="false">
+    <div class="hero-shoe-shadow"></div>
+  </div>
+
   <div class="hero-content fade-in" id="hero-content">
     <p class="hero-eyebrow">Nueva coleccion 2026</p>
     <h1 class="hero-title">El estilo<br>que <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">te define</em></h1>
@@ -5129,6 +5217,22 @@ function zmRechazarCookies() {
       rafId = requestAnimationFrame(tick)
     }
     tick()
+  }
+
+  // 3D tilt en la zapatilla
+  const shoeWrap = document.getElementById('hero-shoe-wrap')
+  const shoeImg  = document.getElementById('hero-shoe-img')
+  if (shoeWrap && shoeImg && isDesktop) {
+    section.addEventListener('mousemove', function(e) {
+      const r = section.getBoundingClientRect()
+      const x = (e.clientX - r.left) / r.width  - 0.5
+      const y = (e.clientY - r.top)  / r.height - 0.5
+      shoeImg.style.transform =
+        `perspective(800px) rotateY(${x * 18}deg) rotateX(${-y * 10}deg) scale(1.04) translateY(${y * -8}px)`
+    })
+    section.addEventListener('mouseleave', function() {
+      shoeImg.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg) scale(1) translateY(0)'
+    })
   }
 
   // Scroll parallax (mantener el original pero sin pisar el mousemove)
