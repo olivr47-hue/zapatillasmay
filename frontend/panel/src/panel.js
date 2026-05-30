@@ -137,7 +137,6 @@ export function renderPanel() {
       const noLeidosDespues = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
       window._totalNoLeidos = noLeidosDespues
       chats.forEach(c => { if (window._chatsData) window._chatsData[c.telefono] = c })
-      fetch(API + '/health').catch(() => {})
       if (noLeidosDespues > noLeidosAntes) {
   document.title = `(${noLeidosDespues}) Zapatillas May`
   
@@ -196,7 +195,7 @@ export function renderPanel() {
         }
       }
     } catch(e) {}
-  }, 5000)
+  }, 30000)
 
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'

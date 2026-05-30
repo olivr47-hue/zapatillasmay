@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
+from cache import cache_get, cache_set, cache_invalidate
 import urllib.request
 import json
 import os
@@ -420,6 +421,7 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre=""):
             "respuesta": respuesta,
             "tipo": tipo
         })
+        cache_invalidate("chats_lista")  # forzar refresh en próximo poll
     except Exception as e:
         print(f"ERROR guardando: {str(e)}")
 
@@ -530,8 +532,18 @@ async def procesar_mensaje(datos: dict):
 
 @router.get("/chats")
 async def listar_chats():
+    # Caché 20s — el frontend poll cada 30s, así casi siempre lo sirve de memoria
+    cached = cache_get("chats_lista")
+    if cached is not None:
+        return cached
     try:
-        conversaciones = supabase_get("conversaciones_whatsapp?order=created_at.desc")
+        # Solo los campos necesarios para la lista + límite 300 mensajes recientes
+        conversaciones = supabase_get(
+            "conversaciones_whatsapp"
+            "?order=created_at.desc"
+            "&limit=300"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,tipo"
+        )
         chats = {}
         for m in conversaciones:
             tel = m['telefono']
@@ -556,13 +568,15 @@ async def listar_chats():
                     nombre = m['nombre_contacto']
                     break
             chat['nombre'] = nombre
-        control = supabase_get("chats_control")
+        control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
         for c in control:
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
                 chats[c['telefono']]['agente'] = c.get('agente')
                 chats[c['telefono']]['etiqueta'] = c.get('etiqueta', 'sin_etiqueta')
-        return list(chats.values())
+        result = list(chats.values())
+        cache_set("chats_lista", result, ttl=20)
+        return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -604,6 +618,7 @@ async def enviar_mensaje_manual(telefono: str, datos: dict):
             "tipo": "manual",
             "leido": True
         })
+        cache_invalidate("chats_lista")
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
