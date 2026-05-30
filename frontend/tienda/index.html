@@ -1375,6 +1375,64 @@
   .hero-shoe-shadow { animation: none !important; }
 }
 
+/* ── CURSOR ZAPATILLA ── */
+@media (hover: hover) and (pointer: fine) {
+  * { cursor: none !important; }
+}
+
+#zm-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+#zm-cursor-shoe {
+  font-size: 1.6rem;
+  display: block;
+  transform: rotate(-25deg);
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1),
+              filter 0.2s;
+  filter: drop-shadow(0 4px 10px rgba(160,80,80,0.25));
+  will-change: transform;
+  user-select: none;
+}
+
+#zm-cursor-trail {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 36px; height: 36px;
+  transform: translate(-50%,-50%);
+  border-radius: 50%;
+  background: rgba(200,150,122,0.15);
+  border: 1px solid rgba(200,150,122,0.25);
+  transition: transform 0.4s cubic-bezier(0.23,1,0.32,1),
+              opacity 0.3s;
+  pointer-events: none;
+}
+
+#zm-cursor.hovering #zm-cursor-shoe {
+  transform: rotate(-35deg) scale(1.35);
+  filter: drop-shadow(0 6px 16px rgba(200,150,122,0.45));
+}
+
+#zm-cursor.hovering #zm-cursor-trail {
+  transform: translate(-50%,-50%) scale(1.5);
+  opacity: 0.5;
+}
+
+#zm-cursor.clicking #zm-cursor-shoe {
+  transform: rotate(-15deg) scale(0.82);
+  filter: drop-shadow(0 2px 6px rgba(160,80,80,0.3));
+}
+
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  #zm-cursor { display: none !important; }
+  * { cursor: auto !important; }
+}
+
 .hero-content > * {
   opacity: 0;
   transform: translateY(30px);
@@ -5165,6 +5223,65 @@ function zmRechazarCookies() {
 }
 </script>
 
+<!-- ── CURSOR ZAPATILLA ── -->
+<div id="zm-cursor" aria-hidden="true">
+  <div id="zm-cursor-trail"></div>
+  <span id="zm-cursor-shoe">👠</span>
+</div>
+
+<script>
+;(function() {
+  const isFine = window.matchMedia('(hover:hover) and (pointer:fine)').matches
+  if (!isFine) return
+
+  const cursor = document.getElementById('zm-cursor')
+  const shoe   = document.getElementById('zm-cursor-shoe')
+  if (!cursor) return
+
+  cursor.style.display = 'block'
+
+  let mx = -200, my = -200  // start offscreen
+  let cx = -200, cy = -200
+  let raf
+
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY }, { passive: true })
+
+  document.addEventListener('mouseleave', () => { mx = -300; my = -300 })
+
+  function tick() {
+    cx += (mx - cx) * 0.18
+    cy += (my - cy) * 0.18
+    cursor.style.left = cx + 'px'
+    cursor.style.top  = cy + 'px'
+    raf = requestAnimationFrame(tick)
+  }
+  tick()
+
+  // Hover en elementos interactivos
+  function addHover(el) {
+    el.addEventListener('mouseenter', () => cursor.classList.add('hovering'))
+    el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'))
+  }
+
+  document.querySelectorAll('a, button, [onclick], .product-card, .cat-card, .nav-item, input, select, textarea')
+    .forEach(addHover)
+
+  // Observar nuevos elementos dinámicos (productos que se cargan después)
+  new MutationObserver(mutations => {
+    mutations.forEach(m => m.addedNodes.forEach(n => {
+      if (n.nodeType === 1) {
+        if (n.matches?.('a,button,[onclick],.product-card,.cat-card'))  addHover(n)
+        n.querySelectorAll?.('a,button,[onclick],.product-card,.cat-card').forEach(addHover)
+      }
+    }))
+  }).observe(document.body, { childList: true, subtree: true })
+
+  // Click
+  document.addEventListener('mousedown', () => cursor.classList.add('clicking'))
+  document.addEventListener('mouseup',   () => cursor.classList.remove('clicking'))
+})()
+</script>
+
 <!-- ── HERO 3D PARALLAX + SPOTLIGHT ─────────────────────────────── -->
 <script>
 ;(function() {
@@ -5234,6 +5351,15 @@ function zmRechazarCookies() {
       shoeImg.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg) scale(1) translateY(0)'
     })
   }
+
+  // Scroll: zapatilla se eleva y desvanece al bajar
+  const shoeWrapEl = document.getElementById('hero-shoe-wrap')
+  window.addEventListener('scroll', function() {
+    if (!shoeWrapEl) return
+    const progress = Math.min(window.scrollY / (section.offsetHeight * 0.7), 1)
+    shoeWrapEl.style.transform = `translateY(${-progress * 60}px)`
+    shoeWrapEl.style.opacity   = 1 - progress * 1.4
+  }, { passive: true })
 
   // Scroll parallax (mantener el original pero sin pisar el mousemove)
   let isHovering = false
