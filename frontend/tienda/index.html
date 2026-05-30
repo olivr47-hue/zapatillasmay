@@ -1234,15 +1234,12 @@
   z-index: 0;
   filter: contrast(1.08) brightness(0.97) saturate(1.05);
   opacity: 0;
-  transform: scale(1.08) translateY(40px);
+  transform: scale(1.1) translateY(30px);
   transition: opacity 1.2s ease;
-  animation: hero-breathe 8s ease-in-out infinite;
 }
 
 .hero.loaded .hero-bg {
   opacity: 1;
-  transform: scale(1) translateY(0);
-  animation: hero-breathe 8s ease-in-out infinite;
 }
 
 @keyframes hero-breathe {
@@ -5356,30 +5353,38 @@ function zmRechazarCookies() {
     })
   }
 
-  // Scroll: zapatilla se eleva y desvanece (usando el wrapper externo, no el animado)
+  // ── PARALLAX SCROLL ──────────────────────────────────────────────
   const shoeScrollEl = document.getElementById('hero-shoe-scroll')
-  window.addEventListener('scroll', function() {
-    if (!shoeScrollEl) return
-    const progress = Math.min(window.scrollY / (section.offsetHeight * 0.65), 1)
-    shoeScrollEl.style.transform = `translateY(${-progress * 80}px)`
-    shoeScrollEl.style.opacity   = String(Math.max(0, 1 - progress * 1.6))
-  }, { passive: true })
+  const sectionH = section.offsetHeight
+  let scrollTick = false
 
-  // Scroll parallax (mantener el original pero sin pisar el mousemove)
-  let isHovering = false
-  section.addEventListener('mouseenter', () => isHovering = true)
-  section.addEventListener('mouseleave', () => isHovering = false)
-
-  window.addEventListener('scroll', function() {
-    if (isHovering || !bg) return
+  function applyParallax() {
     const scrollY = window.scrollY
+    if (scrollY > sectionH * 1.5) { scrollTick = false; return }
+
     const isMob = window.innerWidth < 768
-    const intensity = isMob ? 0.2 : 0.35
-    const floatY   = Math.sin(scrollY * 0.01) * (isMob ? 4 : 8)
-    const rotate   = Math.sin(scrollY * 0.005) * (isMob ? 0.5 : 1.5)
-    const scale    = 1 + (Math.sin(scrollY * 0.008) * (isMob ? 0.01 : 0.015))
-    bg.style.transform =
-      `translateY(${scrollY * intensity + floatY}px) scale(${scale}) rotate(${rotate}deg)`
+    const speed  = isMob ? 0.22 : 0.38   // imagen se mueve más lento = profundidad
+
+    // Fondo: se mueve hacia abajo más despacio que la página → ilusión de profundidad
+    if (bg) {
+      bg.style.transform = `translateY(${scrollY * speed}px) scale(1.1)`
+    }
+
+    // Zapatilla decorativa: sube y se desvanece al scrollear
+    if (shoeScrollEl) {
+      const progress = Math.min(scrollY / (sectionH * 0.65), 1)
+      shoeScrollEl.style.transform = `translateY(${-progress * 80}px)`
+      shoeScrollEl.style.opacity   = String(Math.max(0, 1 - progress * 1.6))
+    }
+
+    scrollTick = false
+  }
+
+  window.addEventListener('scroll', function() {
+    if (!scrollTick) {
+      requestAnimationFrame(applyParallax)
+      scrollTick = true
+    }
   }, { passive: true })
 })()
 </script>
