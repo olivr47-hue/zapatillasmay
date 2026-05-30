@@ -72,7 +72,7 @@
     .talla-grid { display: flex; flex-wrap: wrap; gap: 8px; }
     .talla-btn { padding: 8px 14px; border: 1.5px solid #e8e8e8; border-radius: 8px; font-size: 0.82rem; font-weight: 500; cursor: pointer; background: white; font-family: var(--font-body); transition: all 0.15s; min-width: 52px; text-align: center; }
     .talla-btn:hover:not(.agotada) { border-color: var(--tan); }
-    .talla-btn.active { border-color: var(--black); background: var(--black); color: white; }
+    .talla-btn.active { border-color: #b5687a; background: linear-gradient(135deg,#C8967A,#b5687a); color: white; }
     .talla-btn.agotada { color: #ccc; border-color: #f0f0f0; cursor: not-allowed; text-decoration: line-through; }
 
     /* ── SHARE ── */
@@ -110,10 +110,10 @@
     /* ── STICKY BOTTOM BAR ── */
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); padding: 10px 16px; padding-bottom: max(10px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 10px; align-items: center; }
     .sticky-bar-info { display: none; }
-    .btn-agregar { flex: 1; background: var(--black); color: white; border: none; border-radius: 10px; padding: 14px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.5px; }
+    .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A,#b5687a); color: white; border: none; border-radius: 100px; padding: 14px; font-family: var(--font-body); font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.1s; letter-spacing: 0.5px; box-shadow: 0 4px 16px rgba(200,150,122,0.4); }
     .btn-agregar:active { transform: scale(0.98); }
-    .btn-agregar:disabled { background: #ccc; cursor: not-allowed; }
-    .btn-agregar.listo { background: var(--pink); }
+    .btn-agregar:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+    .btn-agregar.listo { background: linear-gradient(135deg,#10b981,#059669); box-shadow: 0 4px 16px rgba(16,185,129,0.3); }
 
     /* ── LIGHTBOX ── */
     #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 999; align-items: center; justify-content: center; }
