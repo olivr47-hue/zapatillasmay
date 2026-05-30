@@ -1551,9 +1551,9 @@
     color: var(--gray-400);
     pointer-events: none;
   }
-  .section { padding: 20px 16px; }
-  .section-header { margin-bottom: 20px; }
-  .section-title { font-size: 1.6rem; }
+  .section { padding: 16px 14px !important; }
+  .section-header { margin-bottom: 16px !important; }
+  .section-title { font-size: 1.5rem; }
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .modal { display: flex; flex-direction: column; height: 88vh; max-height: 88vh; overflow: hidden; }
   .modal-img { flex: 0 0 auto; border-radius: 12px 12px 0 0; max-height: clamp(240px, 46vh, 420px); overflow: hidden; padding: 0; background: white; }
@@ -1722,7 +1722,9 @@
       .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .color-selector { grid-template-columns: repeat(3, 1fr); }
       .cats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
-      .section-title { font-size: 1.8rem; }
+      .section-title { font-size: 1.4rem; }
+      .section { padding: 12px 12px !important; }
+      .section-header { margin-bottom: 12px !important; }
     }
 
   /* ── MICROINTERACCIONES ── */
@@ -5230,17 +5232,19 @@ function zmRechazarCookies() {
 <div id="zm-cursor" aria-hidden="true">
   <div id="zm-cursor-trail"></div>
   <span id="zm-cursor-shoe">
-    <svg width="52" height="38" viewBox="0 0 52 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Tacón stiletto (spike fino) -->
-      <rect x="2" y="26" width="5" height="10" rx="2.5" fill="#8a5545"/>
-      <!-- Suela plana -->
-      <rect x="2" y="23" width="46" height="4" rx="2" fill="#b07060"/>
-      <!-- Cuerpo principal del zapato (upper) -->
-      <path d="M4 23 C4 9 16 2 30 2 C40 2 50 7 50 14 C50 19 46 23 39 23 Z" fill="#C8967A"/>
-      <!-- Franja interior (inner sole hint) -->
-      <path d="M4 23 C4 21 8 20 14 20 L39 20 C43 20 47 21 48 23" stroke="rgba(255,255,255,0.15)" stroke-width="1" fill="none"/>
-      <!-- Reflejo de luz en el toe box -->
-      <path d="M42 5 C36 3 26 2 19 5" stroke="rgba(255,245,235,0.6)" stroke-width="2" stroke-linecap="round"/>
+    <svg width="56" height="44" viewBox="0 0 56 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Sombra suave -->
+      <ellipse cx="30" cy="41" rx="18" ry="3" fill="rgba(0,0,0,0.12)"/>
+      <!-- Tacón stiletto fino y alto -->
+      <path d="M4 30 C3 32 3 38 5 38 C7 38 8 32 8 30 Z" fill="#7a4535"/>
+      <!-- Suela -->
+      <rect x="4" y="28" width="42" height="3.5" rx="1.8" fill="#9a6050"/>
+      <!-- Upper del zapato — forma de tacón de punta clara -->
+      <path d="M4 28 C4 14 14 3 30 2 C42 1 54 9 54 18 C54 24 50 28 43 28 Z" fill="#C8967A"/>
+      <!-- Reflejo barniz en la parte alta -->
+      <path d="M46 5 C40 2 30 2 22 6" stroke="rgba(255,248,240,0.65)" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Segundo reflejo más pequeño -->
+      <path d="M50 12 C47 9 43 7 39 7" stroke="rgba(255,248,240,0.35)" stroke-width="1.5" stroke-linecap="round"/>
     </svg>
   </span>
 </div>
