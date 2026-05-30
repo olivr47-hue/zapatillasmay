@@ -102,14 +102,43 @@
     .detail-val { font-size: 0.82rem; font-weight: 500; }
 
     /* ── SIMILARES ── */
-    .similares-section { padding: 20px 0 0; }
-    .similares-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 0 16px 12px; color: var(--black); }
-    .similares-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 0 16px 16px; scrollbar-width: none; }
-    .similares-scroll::-webkit-scrollbar { display: none; }
-    .similar-card { flex-shrink: 0; width: 150px; cursor: pointer; text-decoration: none; color: inherit; }
-    .similar-card img { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; display: block; background: #f3f3f3; }
-    .similar-card-name { font-size: 0.78rem; font-weight: 500; margin-top: 6px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .similar-card-price { font-size: 0.75rem; color: var(--tan); font-family: var(--font-mono); margin-top: 2px; }
+    .similares-section { padding: 24px 0 100px; }
+    .similares-title {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 2px; padding: 0 16px 14px; color: var(--tan);
+    }
+    .similares-scroll {
+      display: flex; gap: 12px;
+      overflow-x: auto; overflow-y: visible;
+      padding: 4px 16px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(200,150,122,0.3) transparent;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+    }
+    .similares-scroll::-webkit-scrollbar { height: 3px; }
+    .similares-scroll::-webkit-scrollbar-track { background: transparent; }
+    .similares-scroll::-webkit-scrollbar-thumb { background: rgba(200,150,122,0.3); border-radius: 100px; }
+    .similar-card {
+      flex-shrink: 0;
+      width: 140px;
+      cursor: pointer; text-decoration: none; color: inherit;
+      scroll-snap-align: start;
+      transition: transform 0.2s;
+    }
+    .similar-card:hover { transform: translateY(-3px); }
+    .similar-card img {
+      width: 140px; height: 186px;
+      object-fit: cover; border-radius: 10px;
+      display: block; background: #f3f3f3;
+    }
+    .similar-card-name {
+      font-size: 0.78rem; font-weight: 500; margin-top: 7px;
+      line-height: 1.3; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      color: var(--black);
+    }
+    .similar-card-price { font-size: 0.75rem; color: var(--tan); font-family: var(--font-mono); margin-top: 2px; font-weight: 600; }
 
     /* ── STICKY BOTTOM BAR ── */
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(200,150,122,0.15); padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 12px; align-items: center; box-shadow: 0 -8px 32px rgba(0,0,0,0.06); }
@@ -242,6 +271,7 @@
         max-width: 100% !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
+        padding-bottom: 40px !important;
       }
 
       .similares-title {
@@ -250,8 +280,11 @@
 
       .similares-scroll {
         padding-left: 64px !important;
-        padding-right: 64px !important;
+        padding-right: 32px !important;
       }
+
+      .similar-card { width: 160px; }
+      .similar-card img { width: 160px; height: 213px; }
 
       /* Sticky bar anchored to right column */
       .sticky-bar {
