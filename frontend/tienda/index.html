@@ -1126,56 +1126,243 @@
     .search-result-info .name { font-size: 0.85rem; font-weight: 500; }
     .search-result-info .price { font-size: 0.75rem; color: var(--pink); font-family: var(--font-mono); }
 
-    /* FOOTER */
+    /* ── FOOTER ── */
     footer {
-      background: var(--black);
-      color: rgba(255,255,255,0.5);
-      padding: 60px 40px 30px;
+      background: linear-gradient(160deg, #1e0e08 0%, #2A1A0E 50%, #1a0c0a 100%);
+      color: rgba(255,255,255,0.45);
+      padding: 0 0 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Línea decorativa superior */
+    footer::before {
+      content: '';
+      display: block;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(200,150,122,0.5), #C8967A, rgba(181,104,122,0.5), transparent);
+    }
+
+    /* Motivo floral decorativo */
+    footer::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; right: -60px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(200,150,122,0.06) 0%, transparent 70%);
+      pointer-events: none;
     }
 
     .footer-inner {
       max-width: 1400px;
       margin: 0 auto;
+      padding: 64px 40px 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Tagline decorativa antes del grid */
+    .footer-eyebrow {
+      text-align: center;
+      margin-bottom: 52px;
+    }
+
+    .footer-eyebrow span {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 300;
+      font-style: italic;
+      color: rgba(200,150,122,0.7);
+      letter-spacing: 0.5px;
     }
 
     .footer-top {
       display: grid;
       grid-template-columns: 2fr 1fr 1fr 1fr;
-      gap: 40px;
-      margin-bottom: 40px;
+      gap: 48px;
+      margin-bottom: 48px;
     }
 
-    .footer-brand .logo { color: white; display: block; margin-bottom: 12px; }
-    .footer-brand p { font-size: 0.85rem; line-height: 1.6; }
+    .footer-brand .footer-logo {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 400;
+      color: white;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 14px;
+      letter-spacing: 0.3px;
+    }
 
-    .footer-col h4 {
+    .footer-brand .footer-logo span { color: #C8967A; font-style: italic; }
+
+    .footer-brand p {
+      font-size: 0.83rem;
+      line-height: 1.75;
+      color: rgba(255,255,255,0.38);
+      margin-bottom: 20px;
+    }
+
+    /* Social icons */
+    .footer-social {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .footer-social a {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(200,150,122,0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(200,150,122,0.6);
+      text-decoration: none;
       font-size: 0.72rem;
       font-weight: 700;
+      transition: all 0.2s;
+      letter-spacing: 0;
+    }
+
+    .footer-social a:hover {
+      border-color: #C8967A;
+      color: #C8967A;
+      background: rgba(200,150,122,0.08);
+      transform: translateY(-2px);
+    }
+
+    .footer-col h4 {
+      font-size: 0.62rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: white;
-      margin-bottom: 16px;
+      letter-spacing: 2px;
+      color: rgba(200,150,122,0.8);
+      margin-bottom: 18px;
     }
 
     .footer-col a {
       display: block;
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.4);
+      font-size: 0.83rem;
+      color: rgba(255,255,255,0.35);
       text-decoration: none;
-      margin-bottom: 8px;
-      transition: color 0.2s;
+      margin-bottom: 10px;
+      transition: color 0.2s, transform 0.2s;
     }
 
-    .footer-col a:hover { color: var(--pink); }
+    .footer-col a:hover {
+      color: #C8967A;
+      transform: translateX(3px);
+    }
 
     .footer-bottom {
-      border-top: 1px solid rgba(255,255,255,0.08);
+      border-top: 1px solid rgba(255,255,255,0.06);
       padding-top: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.2);
     }
+
+    .footer-bottom span:last-child {
+      color: rgba(200,150,122,0.4);
+    }
+
+    @media (max-width: 900px) {
+      .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
+      .footer-eyebrow { margin-bottom: 32px; }
+      .footer-inner { padding: 40px 20px 24px; }
+    }
+
+    @media (max-width: 480px) {
+      .footer-top { grid-template-columns: 1fr; gap: 24px; }
+    }
+
+    /* ── PÁGINAS INTERNAS ── */
+    .pg-hero {
+      background: linear-gradient(135deg, #f7ede4 0%, #f2e4d8 50%, #ecdbd0 100%);
+      padding: clamp(48px,8vw,96px) clamp(16px,5vw,48px) clamp(32px,5vw,64px);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .pg-hero::before {
+      content:'';position:absolute;inset:0;
+      background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(200,150,122,0.15) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .pg-hero-eyebrow {
+      font-size:0.68rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:3px;color:#C8967A;margin-bottom:14px;
+    }
+    .pg-hero-title {
+      font-family:var(--font-display);font-size:clamp(2.4rem,6vw,4.5rem);
+      font-weight:300;color:#2A1A0E;line-height:1.1;margin-bottom:14px;
+    }
+    .pg-hero-title em { font-style:italic; color:#b5687a; }
+    .pg-hero-sub {
+      font-size:clamp(0.9rem,2vw,1rem);color:#8B6A54;max-width:560px;
+      margin:0 auto;line-height:1.75;
+    }
+    .pg-body {
+      max-width:860px;margin:0 auto;
+      padding:clamp(32px,6vw,72px) clamp(16px,5vw,40px);
+    }
+    .pg-card {
+      background:white;border-radius:16px;padding:clamp(20px,4vw,36px);
+      margin-bottom:20px;
+      box-shadow:0 2px 16px rgba(0,0,0,0.05),0 1px 4px rgba(0,0,0,0.03);
+      border:1px solid rgba(200,150,122,0.1);
+    }
+    .pg-h2 {
+      font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);
+      font-weight:400;color:#2A1A0E;margin-bottom:16px;line-height:1.2;
+    }
+    .pg-h2 em { font-style:italic;color:#C8967A; }
+    .pg-h3 {
+      font-size:0.78rem;font-weight:700;text-transform:uppercase;
+      letter-spacing:1.5px;color:#C8967A;margin-bottom:10px;margin-top:24px;
+    }
+    .pg-p { font-size:0.9rem;color:#5a4030;line-height:1.8;margin-bottom:12px; }
+    .pg-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:20px 0; }
+    .pg-stat {
+      background:linear-gradient(135deg,#f7ede4,#f2e4d8);
+      border-radius:12px;padding:22px 18px;text-align:center;
+      border:1px solid rgba(200,150,122,0.15);
+    }
+    .pg-stat-val { font-family:var(--font-mono);font-size:1.6rem;font-weight:700;color:#C8967A;margin-bottom:4px; }
+    .pg-stat-label { font-size:0.75rem;color:#8B6A54;line-height:1.4; }
+    .pg-divider {
+      height:1px;margin:28px 0;
+      background:linear-gradient(90deg,transparent,rgba(200,150,122,0.25),transparent);
+    }
+    .pg-list { list-style:none;padding:0; }
+    .pg-list li {
+      padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1);
+      font-size:0.88rem;color:#5a4030;line-height:1.6;
+      display:flex;gap:10px;
+    }
+    .pg-list li::before { content:'›';color:#C8967A;font-weight:700;flex-shrink:0; }
+    .pg-badge {
+      display:inline-block;padding:4px 12px;border-radius:100px;
+      font-size:0.68rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+      background:rgba(200,150,122,0.12);color:#a07060;border:1px solid rgba(200,150,122,0.2);
+      margin-right:6px;margin-bottom:6px;
+    }
+    .pg-cta {
+      display:inline-flex;align-items:center;gap:8px;
+      padding:13px 28px;background:linear-gradient(135deg,#C8967A,#b5687a);
+      color:white;border-radius:100px;font-size:0.85rem;font-weight:700;
+      text-decoration:none;border:none;cursor:pointer;font-family:var(--font-body);
+      box-shadow:0 4px 16px rgba(200,150,122,0.35);transition:all 0.2s;
+    }
+    .pg-cta:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,150,122,0.45); }
+    .pg-table { width:100%;border-collapse:collapse;font-size:0.85rem; }
+    .pg-table th { background:rgba(200,150,122,0.1);color:#a07060;font-weight:700;
+      font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;padding:10px 14px;
+      text-align:left;border-bottom:1px solid rgba(200,150,122,0.2); }
+    .pg-table td { padding:10px 14px;border-bottom:1px solid rgba(200,150,122,0.08);color:#5a4030; }
+    .pg-table tr:last-child td { border-bottom:none; }
+    .pg-table tr:hover td { background:rgba(200,150,122,0.04); }
 
     /* TOAST */
     .toast {
@@ -2446,41 +2633,53 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
+
+    <div class="footer-eyebrow">
+      <span>Calzado de moda para dama · León, Guanajuato</span>
+    </div>
+
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="logo" href="#">Zapatillas <span>May</span></a>
-        <p>Calzado de moda para dama.<br>Mayoreo y menudeo.<br>Leon, Guanajuato.</p>
+        <a class="footer-logo" href="#" onclick="mostrarInicio()">Zapatillas <span>May</span></a>
+        <p>Hecho en León, Guanajuato — la capital mundial del calzado. Mayoreo y menudeo sin mínimo de registro. Enviamos a todo México, Estados Unidos y Canadá.</p>
+        <div class="footer-social">
+          <a href="https://wa.me/5214792244560" target="_blank" title="WhatsApp">WA</a>
+          <a href="https://www.instagram.com/zapatillas_may" target="_blank" title="Instagram">IG</a>
+          <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" title="Facebook">FB</a>
+          <a href="https://tiktok.com/@zapatillasmay" target="_blank" title="TikTok">TT</a>
+        </div>
       </div>
+
       <div class="footer-col">
-        <h4>Catalogo</h4>
+        <h4>Catálogo</h4>
         <a href="#" onclick="filtrarCategoria('tacones')">Tacones</a>
         <a href="#" onclick="filtrarCategoria('sandalias')">Sandalias</a>
+        <a href="#" onclick="filtrarCategoria('plataformas')">Plataformas</a>
         <a href="#" onclick="filtrarCategoria('botas')">Botas</a>
         <a href="#" onclick="filtrarCategoria('botines')">Botines</a>
-        <a href="#" onclick="filtrarCategoria('nina')">Calzado de Nina</a>
+        <a href="#" onclick="filtrarCategoria('nina')">Calzado de Niña</a>
       </div>
+
       <div class="footer-col">
-  <h4>Informacion</h4>
-  <a href="#" onclick="mostrarPagina('como-comprar')">Como comprar</a>
-  <a href="#" onclick="mostrarPagina('mayoreo')">Precios mayoreo</a>
-  <a href="#" onclick="mostrarPagina('envios')">Envios</a>
-  <a href="#" onclick="mostrarPagina('contacto')">Contacto</a>
-  <a href="#" onclick="mostrarPagina('nosotros')">Nosotros</a>
-</div>
+        <h4>Información</h4>
+        <a href="#" onclick="mostrarPagina('como-comprar')">Cómo comprar</a>
+        <a href="#" onclick="mostrarPagina('mayoreo')">Precios mayoreo</a>
+        <a href="#" onclick="mostrarPagina('envios')">Envíos</a>
+        <a href="#" onclick="mostrarPagina('tabla-tallas')">Tabla de tallas</a>
+        <a href="#" onclick="mostrarPagina('nosotros')">Nosotros</a>
+        <a href="#" onclick="mostrarPagina('contacto')">Contacto</a>
+      </div>
+
       <div class="footer-col">
-        <h4>Contacto</h4>
-        <a href="https://wa.me/5214792244560" target="_blank">WhatsApp</a>
-        <a href="https://www.instagram.com/zapatillas_may" target="_blank">Instagram</a>
-         <a href="https://www.facebook.com/MAYZapatillas/" target="_blank">Facebook</a>
-         <a href="https://tiktok.com/@zapatillasmay" target="_blank">TikTok</a>
-         <a href="#privacidad" onclick="mostrarPagina('privacidad')">Política de privacidad</a>
-         <a href="/devoluciones" onclick="event.preventDefault();mostrarPagina('devoluciones')">Política de devoluciones</a>
-         <a href="#" onclick="mostrarPagina('tabla-tallas')">Tabla de tallas</a>
+        <h4>Legal</h4>
+        <a href="#" onclick="mostrarPagina('privacidad')">Política de privacidad</a>
+        <a href="#" onclick="event.preventDefault();mostrarPagina('devoluciones')">Política de devoluciones</a>
       </div>
     </div>
+
     <div class="footer-bottom">
-      <span>© 2026 Zapatillas May. Todos los derechos reservados.</span>
-      <span>Zapatillasmay.mx · Leon, Gto.</span>
+      <span>© 2026 Zapatillas May · Todos los derechos reservados.</span>
+      <span>Zapatillasmay.mx · León, Gto.</span>
     </div>
   </div>
 </footer>
@@ -4554,6 +4753,39 @@ function _aplicarRefPendiente() {
 <script>
 const PAGINAS = {
   'nosotros': `
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Nuestra historia</p>
+    <h1 class="pg-hero-title">Zapatillas <em>May</em></h1>
+    <p class="pg-hero-sub">Calzado de moda para dama desde León, Guanajuato — la capital mundial del calzado.</p>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card">
+      <h2 class="pg-h2">Nacimos en el <em>corazón</em> del calzado mexicano</h2>
+      <p class="pg-p">León, Guanajuato es la capital mundial del calzado, y nosotros somos parte de esa tradición. Zapatillas May nació con la misión de llevar moda accesible y de calidad directamente a nuestras clientas.</p>
+      <p class="pg-p">Trabajamos directamente con fabricantes locales para ofrecerte los mejores precios tanto en menudeo como en mayoreo, sin intermediarios.</p>
+      <p class="pg-p">Cada temporada renovamos nuestro catálogo con los modelos más trendy — tacones, sandalias, botas y botines — siempre con materiales de calidad y precios justos.</p>
+    </div>
+    <div class="pg-grid">
+      <div class="pg-stat"><div class="pg-stat-val">100%</div><div class="pg-stat-label">Calzado mexicano de calidad</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">León</div><div class="pg-stat-label">Capital mundial del calzado</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">+50</div><div class="pg-stat-label">Modelos nuevos por temporada</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">MX</div><div class="pg-stat-label">Envíos a todo México</div></div>
+    </div>
+    <div class="pg-card">
+      <h2 class="pg-h2">Nuestros <em>valores</em></h2>
+      <div class="pg-grid">
+        <div><p class="pg-h3">Moda accesible</p><p class="pg-p">Precios justos sin sacrificar estilo. Mayoreo y menudeo para todos los bolsillos.</p></div>
+        <div><p class="pg-h3">Hecho en México</p><p class="pg-p">Apoyamos a los fabricantes leoneses. Todo nuestro calzado es producido localmente.</p></div>
+        <div><p class="pg-h3">Calidad garantizada</p><p class="pg-p">Seleccionamos cuidadosamente cada modelo antes de ofrecerlo a nuestras clientas.</p></div>
+        <div><p class="pg-h3">Envío rápido</p><p class="pg-p">Enviamos a todo México por Fedex, DHL o Estafeta. Entrega en 3-5 días hábiles.</p></div>
+      </div>
+    </div>
+    <div style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contáctanos por WhatsApp</a>
+    </div>
+  </div>
+`,
+  'contacto': `
   <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
     <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Nuestra historia</p>
     <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;margin-bottom:20px">Zapatillas <em style="font-style:italic;color:var(--pink)">May</em></h1>
@@ -4629,155 +4861,89 @@ const PAGINAS = {
   </div>
 `,
   'contacto': `
-  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center;position:relative;overflow:hidden">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%, rgba(233,30,140,0.12) 0%, transparent 60%);pointer-events:none"></div>
-    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px;position:relative">Estamos aqui para ti</p>
-    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;position:relative">Cont<em style="font-style:italic;color:var(--pink)">acto</em></h1>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Estamos aquí para ti</p>
+    <h1 class="pg-hero-title">Cont<em>acto</em></h1>
+    <p class="pg-hero-sub">Escríbenos por WhatsApp o visítanos en León, Guanajuato.</p>
   </div>
-
-  <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px);overflow-x:hidden">
-
-    <!-- Contacto directo -->
-    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:40px">
-      <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:16px;padding:20px;background:#25D366;border-radius:14px;text-decoration:none;transition:transform 0.2s">
-        <div style="background:rgba(255,255,255,0.2);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
-        </div>
-        <div>
-          <p style="font-weight:700;color:white;font-size:1rem;margin-bottom:2px">WhatsApp</p>
-          <p style="font-size:0.82rem;color:rgba(255,255,255,0.85)">479 2244560 · Respuesta rápida</p>
-        </div>
-        <span style="margin-left:auto;color:white;font-size:1.2rem">→</span>
-      </a>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
-          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📍 Ubicación</p>
-          <p style="font-size:0.82rem;color:var(--gray-600);line-height:1.6">Cuautla 211 Col. Killian<br>León, Guanajuato<br>CP 37260</p>
-        </div>
-        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
-          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">🕐 Horarios</p>
-          <p style="font-size:0.82rem;color:var(--gray-600);line-height:1.6">Lun y Sáb: 10:00–15:00<br>Mar–Vie: 10:00–19:00<br>Domingo: cerrado</p>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
-          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📞 Teléfono</p>
-          <p style="font-size:0.82rem;color:var(--gray-600)">477 530 8983</p>
-        </div>
-        <div style="padding:18px;background:var(--gray-100);border-radius:14px">
-          <p style="font-weight:700;margin-bottom:6px;font-size:0.9rem">📧 Email</p>
-          <p style="font-size:0.82rem;color:var(--gray-600)">zapateriasmay@gmail.com</p>
-        </div>
+  <div class="pg-body">
+    <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#25D366;border-radius:16px;text-decoration:none;margin-bottom:14px;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 4px 16px rgba(37,211,102,0.25)">
+      <div style="background:rgba(255,255,255,0.2);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem">💬</div>
+      <div><p style="font-weight:700;color:white;font-size:1rem;margin-bottom:2px">WhatsApp</p><p style="font-size:0.82rem;color:rgba(255,255,255,0.85)">479 2244560 · Respuesta rápida</p></div>
+      <span style="margin-left:auto;color:white;font-size:1.3rem">→</span>
+    </a>
+    <div class="pg-grid" style="margin-bottom:20px">
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">📍 Ubicación</p><p class="pg-p">Cuautla 211 Col. Killian<br>León, Guanajuato · CP 37260</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">🕐 Horarios</p><p class="pg-p">Lun y Sáb: 10:00–15:00<br>Mar–Vie: 10:00–19:00<br>Domingo: cerrado</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">📞 Teléfono</p><p class="pg-p">477 530 8983</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">📧 Email</p><p class="pg-p">zapateriasmay@gmail.com</p></div>
+    </div>
+    <div class="pg-card">
+      <div style="border-radius:12px;overflow:hidden;height:240px;margin-bottom:0">
+        <iframe src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBz3N1W64bMHpKPSNw-ZpiU6itvdln33G4&q=ZAPATILLAS+MAY&center=21.1227007,-101.6626636&zoom=17" width="100%" height="240" style="border:0;display:block" allowfullscreen loading="lazy"></iframe>
       </div>
     </div>
-
-    <!-- Mapa -->
-    <div style="border-radius:16px;overflow:hidden;margin-bottom:40px;height:280px">
-  <iframe
-    src="https://www.google.com/maps/embed/v1/place?key=AIzaSyBz3N1W64bMHpKPSNw-ZpiU6itvdln33G4&q=ZAPATILLAS+MAY&center=21.1227007,-101.6626636&zoom=17"
-    width="100%"
-    height="280"
-    style="border:0;display:block"
-    allowfullscreen=""
-    loading="lazy"
-    referrerpolicy="no-referrer-when-downgrade">
-  </iframe>
-</div>
-
-    <!-- Formulario -->
-    <div style="background:var(--gray-100);border-radius:20px;padding:clamp(24px,5vw,40px);margin-bottom:40px">
-      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;margin-bottom:24px">Enviar <em style="font-style:italic;color:var(--pink)">mensaje</em></h2>
-      <div style="display:flex;flex-direction:column;gap:14px">
-        <div>
-          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre</label>
-          <input type="text" id="contacto-nombre" placeholder="Tu nombre" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Teléfono / WhatsApp</label>
-          <input type="tel" id="contacto-tel" placeholder="477 123 4567" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="display:block;font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Mensaje</label>
-          <textarea id="contacto-msg" placeholder="¿En qué te podemos ayudar?" rows="4" style="width:100%;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:none;background:white;box-sizing:border-box"></textarea>
-        </div>
-        <button onclick="enviarContacto()" style="width:100%;padding:14px;background:var(--pink);color:white;border:none;border-radius:10px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Enviar por WhatsApp</button>
+    <div class="pg-card">
+      <h2 class="pg-h2">Enviar <em>mensaje</em></h2>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div><label class="form-label">Nombre</label><input type="text" id="contacto-nombre" placeholder="Tu nombre" class="form-input"></div>
+        <div><label class="form-label">Teléfono / WhatsApp</label><input type="tel" id="contacto-tel" placeholder="477 123 4567" class="form-input"></div>
+        <div><label class="form-label">Mensaje</label><textarea id="contacto-msg" placeholder="¿En qué te podemos ayudar?" rows="3" class="form-input"></textarea></div>
+        <button onclick="enviarContacto()" class="pg-cta" style="width:100%;justify-content:center">Enviar por WhatsApp</button>
       </div>
     </div>
-
-    <!-- Redes sociales -->
-    <div style="text-align:center">
-      <p style="font-size:0.82rem;color:var(--gray-600);margin-bottom:16px">Síguenos en redes sociales</p>
-      <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
-        <a href="https://www.instagram.com/zapatillas_may" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">📸 Instagram</a>
-        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">👍 Facebook</a>
-        <a href="https://tiktok.com/@zapatillasmay" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8f8f8;border-radius:10px;text-decoration:none;color:#333;font-weight:600;font-size:0.85rem">🎵 TikTok</a>
+    <div style="text-align:center;padding:8px 0 16px">
+      <p class="pg-p" style="margin-bottom:12px">Síguenos en redes sociales</p>
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" class="pg-badge" style="text-decoration:none">Instagram</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" class="pg-badge" style="text-decoration:none">Facebook</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" class="pg-badge" style="text-decoration:none">TikTok</a>
       </div>
     </div>
-
   </div>
 `,
   'como-comprar': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Facil y rapido</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Como <em style="font-style:italic;color:var(--pink)">comprar</em></h1>
-    </div>
-    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <div style="display:flex;flex-direction:column;gap:32px">
-        ${[
-          ['1', 'Explora el catalogo', 'Navega por categorias o busca el modelo que buscas. Puedes filtrar por tacones, sandalias, botas, botines y mas.'],
-          ['2', 'Selecciona color y talla', 'Cada modelo tiene diferentes colores y tallas disponibles. El sistema te muestra el stock en tiempo real.'],
-          ['3', 'Agrega al carrito', 'Puedes agregar varios modelos. El precio de mayoreo se aplica automaticamente segun la cantidad de pares.'],
-          ['4', 'Finaliza tu pedido', 'Contactanos por WhatsApp para confirmar tu pedido y coordinar el pago y envio.']
-        ].map(([num, titulo, desc]) => `
-          <div style="display:flex;gap:24px;align-items:start">
-            <div style="width:48px;height:48px;background:var(--pink);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;color:white;font-size:1.1rem">${num}</div>
-            <div>
-              <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:8px">${titulo}</h3>
-              <p style="color:var(--gray-600);line-height:1.7">${desc}</p>
-            </div>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Fácil y rápido</p>
+    <h1 class="pg-hero-title">Cómo <em>comprar</em></h1>
+    <p class="pg-hero-sub">En 4 sencillos pasos tienes tus zapatos favoritos en casa.</p>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card">
+      ${[
+        ['1','Explora el catálogo','Navega por categorías o usa el buscador. Filtra por tacones, sandalias, botas, botines y más.'],
+        ['2','Selecciona color y talla','Cada modelo tiene colores y tallas disponibles. El stock se actualiza en tiempo real.'],
+        ['3','Agrega al carrito','El precio de mayoreo se aplica automáticamente según la cantidad de pares en tu carrito.'],
+        ['4','Finaliza tu pedido','Contáctanos por WhatsApp para confirmar el pago y coordinar el envío a tu domicilio.']
+      ].map(([n,t,d],i,arr) => `
+        <div style="display:flex;gap:20px;align-items:start;padding:${i>0?'20px 0 0':'0 0 0'}">
+          <div style="width:44px;height:44px;background:linear-gradient(135deg,#C8967A,#b5687a);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;color:white;font-size:1rem;flex-shrink:0">${n}</div>
+          <div style="flex:1">
+            <p style="font-weight:700;color:#2A1A0E;margin-bottom:4px">${t}</p>
+            <p class="pg-p" style="margin-bottom:0">${d}</p>
           </div>
-        `).join('<div style="height:1px;background:var(--gray-200);margin-left:72px"></div>')}
-      </div>
-      <div style="margin-top:60px;background:var(--black);border-radius:16px;padding:40px;text-align:center">
-        <p style="font-family:var(--font-display);font-size:1.8rem;color:white;margin-bottom:16px">¿Tienes <em style="font-style:italic;color:var(--pink)">dudas</em>?</p>
-        <p style="color:rgba(255,255,255,0.5);margin-bottom:24px">Nuestro equipo esta listo para ayudarte</p>
-        <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
-      </div>
+        </div>
+        ${i<arr.length-1?'<div class="pg-divider" style="margin-left:64px"></div>':''}
+      `).join('')}
     </div>
+    <div style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
+    </div>
+  </div>
   `,
   'mayoreo': `
-  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center;position:relative;overflow:hidden">
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%, rgba(184,124,130,0.1) 0%, transparent 60%);pointer-events:none"></div>
-    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px;position:relative">Para zapaterias y revendedoras</p>
-    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1;position:relative">Precios de <em style="font-style:italic;color:var(--pink)">mayoreo</em></h1>
-    <p style="color:rgba(245,240,232,0.5);margin-top:16px;max-width:500px;margin-left:auto;margin-right:auto;position:relative">Sin registro especial, sin códigos. El descuento se aplica automáticamente según la cantidad de pares.</p>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Para zapaterías y revendedoras</p>
+    <h1 class="pg-hero-title">Precios de <em>mayoreo</em></h1>
+    <p class="pg-hero-sub">Sin registro especial ni códigos. El descuento se aplica automáticamente según la cantidad de pares.</p>
   </div>
 
-  <div style="max-width:900px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px);overflow-x:hidden">
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:48px">
-      <div style="background:var(--gray-100);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-200)">
-        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gray-600);margin-bottom:10px">1 par</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">Precio base</p>
-        <p style="font-size:0.8rem;color:var(--gray-600)">Precio menudeo del producto</p>
-      </div>
-      <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
-        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">3 — 5 pares</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$80 por par</p>
-        <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
-      </div>
-      <div style="background:var(--cream);border-radius:8px;padding:28px;text-align:center;border:1px solid var(--gray-400)">
-        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--mauve);margin-bottom:10px">6+ pares</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--black);margin-bottom:6px">-$150 por par</p>
-        <p style="font-size:0.8rem;color:var(--gray-600)">Pares variados, cualquier modelo</p>
-      </div>
-      <div style="background:var(--gray-100);border-radius:8px;padding:28px;text-align:center;border:2px solid var(--pink)">
-        <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--pink);margin-bottom:10px">Corrida completa</p>
-        <p style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--pink);margin-bottom:6px">-$180 por par</p>
-        <p style="font-size:0.8rem;color:var(--gray-600)">Mismo modelo y color, todas las tallas</p>
-      </div>
+  <div class="pg-body">
+    <div class="pg-grid">
+      <div class="pg-stat"><div class="pg-stat-val">Base</div><div class="pg-stat-label">1 par · Precio menudeo del producto</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">-$80</div><div class="pg-stat-label">3–5 pares · Pares variados</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">-$150</div><div class="pg-stat-label">6+ pares · Pares variados</div></div>
+      <div class="pg-stat" style="border:1.5px solid rgba(200,150,122,0.4)"><div class="pg-stat-val">-$180</div><div class="pg-stat-label">Corrida completa · Mismo modelo/color</div></div>
     </div>
 
     <div style="background:var(--black);border-radius:12px;padding:clamp(24px,5vw,48px);margin-bottom:48px">
@@ -4841,192 +5007,112 @@ const PAGINAS = {
       </div>
     </div>
 
-    <div style="background:var(--black);border-radius:12px;padding:clamp(32px,5vw,48px);text-align:center">
-      <p style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2.2rem);color:var(--white);margin-bottom:12px">¿Lista para <em style="font-style:italic;color:var(--pink)">empezar?</em></p>
-      <p style="color:rgba(245,240,232,0.5);margin-bottom:28px;font-size:0.9rem;max-width:400px;margin-left:auto;margin-right:auto">Contáctanos por WhatsApp y te asesoramos para armar tu pedido perfecto.</p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 WhatsApp</a>
-        <button onclick="navegarInicio()" style="display:inline-flex;align-items:center;gap:8px;padding:14px 28px;background:var(--pink);color:var(--white);border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer">👠 Ver catálogo</button>
-      </div>
+    <div style="text-align:center;padding:8px 0 16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 WhatsApp</a>
+      <button onclick="mostrarInicio()" class="pg-cta" style="background:linear-gradient(135deg,#2A1A0E,#4a2c1a)">👠 Ver catálogo</button>
     </div>
-
   </div>
 `,
   'devoluciones': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Tu satisfacción es lo primero</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Devoluc<em style="font-style:italic;color:var(--pink)">iones</em></h1>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Tu satisfacción es lo primero</p>
+    <h1 class="pg-hero-title">Devoluc<em>iones</em></h1>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card">
+      <p class="pg-h3">1. Plazo</p><p class="pg-p">Cuentas con <strong>7 días hábiles</strong> desde la recepción para solicitar una devolución.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">2. Motivos válidos sin costo</p>
+      <ul class="pg-list"><li>Producto recibido en mal estado</li><li>Producto incorrecto (diferente al solicitado)</li></ul>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">3. Condiciones del producto</p>
+      <ul class="pg-list"><li>Sin señales de uso</li><li>Empaque original conservado</li><li>Sin daños ocasionados por el cliente</li></ul>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">4. Proceso</p>
+      <ul class="pg-list"><li>WhatsApp: 477 247 2285</li><li>Email: zapateriasmay@gmail.com</li></ul>
+      <p class="pg-p">Te proporcionamos guía de retorno e indicaciones de envío.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">5. Reembolso</p>
+      <p class="pg-p">Una vez validado el producto, el reembolso se procesa en <strong>4 días hábiles</strong>.</p>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <div style="display:flex;flex-direction:column;gap:32px">
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">1. Plazo para devoluciones</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Cuentas con un plazo de <strong>7 días hábiles</strong> a partir de la recepción de tu pedido para solicitar una devolución.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">2. Motivos válidos para devolución sin costo</h2>
-          <p style="color:var(--gray-600);line-height:1.8;margin-bottom:12px">La devolución será sin costo únicamente en los siguientes casos:</p>
-          <ul style="color:var(--gray-600);line-height:2;margin-left:1.5rem">
-            <li>Producto recibido en mal estado</li>
-            <li>Producto incorrecto (diferente al solicitado)</li>
-          </ul>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">3. Condiciones del producto</h2>
-          <p style="color:var(--gray-600);line-height:1.8;margin-bottom:12px">Para que la devolución sea válida, el producto debe:</p>
-          <ul style="color:var(--gray-600);line-height:2;margin-left:1.5rem">
-            <li>Estar sin señales de uso</li>
-            <li>Conservar su empaque original</li>
-            <li>No presentar daños ocasionados por el cliente</li>
-          </ul>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">4. Proceso de devolución</h2>
-          <p style="color:var(--gray-600);line-height:1.8;margin-bottom:12px">Para iniciar tu solicitud:</p>
-          <ul style="color:var(--gray-600);line-height:2;margin-left:1.5rem">
-            <li>Envíanos un mensaje por WhatsApp al <strong>477 247 2285</strong></li>
-            <li>Escríbenos al correo <a href="mailto:zapateriasmay@gmail.com" style="color:var(--pink)">zapateriasmay@gmail.com</a></li>
-          </ul>
-          <p style="color:var(--gray-600);line-height:1.8;margin-top:12px">Nuestro equipo te proporcionará una guía de retorno e indicaciones para el envío.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">5. Reembolso</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Una vez que recibamos el producto y validemos su estado, el reembolso se procesará en un plazo de <strong>4 días hábiles</strong>.</p>
-        </div>
-      </div>
-      <div style="margin-top:60px;background:var(--black);border-radius:16px;padding:32px;text-align:center">
-        <p style="color:rgba(255,255,255,0.5);margin-bottom:16px">¿Tienes dudas sobre tu devolución?</p>
-        <a href="https://wa.me/524772472285" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
-      </div>
+    <div style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/524772472285" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
     </div>
+  </div>
   `,
   'privacidad': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Transparencia y confianza</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Privac<em style="font-style:italic;color:var(--pink)">idad</em></h1>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Transparencia y confianza</p>
+    <h1 class="pg-hero-title">Privac<em>idad</em></h1>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card">
+      <p class="pg-h3">1. Información que recopilamos</p>
+      <p class="pg-p">Nombre, correo electrónico, teléfono y dirección de envío cuando realizas un pedido o nos contactas.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">2. Uso de la información</p>
+      <p class="pg-p">Procesamos pedidos, respondemos consultas y mejoramos nuestros servicios. No vendemos ni compartimos tu información con terceros.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">3. WhatsApp y comunicaciones</p>
+      <p class="pg-p">Al contactarnos por WhatsApp aceptas recibir respuestas de nuestro asistente. No compartimos tu número con terceros.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">4. Cookies</p>
+      <p class="pg-p">Usamos cookies para mejorar tu experiencia. Puedes desactivarlas en la configuración de tu navegador.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">5. Seguridad</p>
+      <p class="pg-p">Implementamos medidas de seguridad para proteger tu información personal contra acceso no autorizado.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">6. Tus derechos</p>
+      <ul class="pg-list"><li>WhatsApp: +52 477 804 7982</li><li>León, Guanajuato, México</li></ul>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <p style="color:var(--gray-600);margin-bottom:2rem">Última actualización: ${new Date().toLocaleDateString('es-MX')}</p>
-      
-      <div style="display:flex;flex-direction:column;gap:32px">
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">1. Información que recopilamos</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Recopilamos nombre, correo electrónico, número de teléfono y dirección de envío cuando realizas un pedido o nos contactas.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">2. Uso de la información</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Usamos tu información para procesar pedidos, responder consultas y mejorar nuestros servicios. No vendemos ni compartimos tu información con terceros.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">3. WhatsApp y comunicaciones</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Al contactarnos por WhatsApp aceptas recibir respuestas de nuestro asistente virtual. Tus mensajes son procesados para brindarte mejor atención. No compartimos tu número con terceros.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">4. Cookies</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Nuestro sitio usa cookies para mejorar tu experiencia. Puedes desactivarlas en la configuración de tu navegador.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">5. Seguridad</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Implementamos medidas de seguridad para proteger tu información personal contra acceso no autorizado.</p>
-        </div>
-        <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:12px">6. Tus derechos</h2>
-          <p style="color:var(--gray-600);line-height:1.8">Tienes derecho a acceder, corregir o eliminar tu información. Contáctanos en:</p>
-          <ul style="color:var(--gray-600);line-height:2;margin-left:1.5rem;margin-top:8px">
-            <li>WhatsApp: +52 477 804 7982</li>
-            <li>Dirección: León, Guanajuato, México</li>
-          </ul>
-        </div>
-      </div>
-      
-      <div style="margin-top:60px;background:var(--black);border-radius:16px;padding:32px;text-align:center">
-        <p style="color:rgba(255,255,255,0.5);margin-bottom:16px">¿Tienes dudas sobre tu privacidad?</p>
-        <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
-      </div>
+    <div style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
     </div>
+  </div>
   `,
   'envios': `
-    <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-      <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Llegamos a todo Mexico</p>
-      <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Env<em style="font-style:italic;color:var(--pink)">ios</em></h1>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Llegamos a todo México</p>
+    <h1 class="pg-hero-title">Env<em>íos</em></h1>
+    <p class="pg-hero-sub">Enviamos a toda la República Mexicana por Fedex, DHL o Estafeta.</p>
+  </div>
+  <div class="pg-body">
+    <div class="pg-grid">
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">📦 A domicilio</p><p class="pg-p">Fedex, DHL o Estafeta a todo México. Costo según peso y destino.</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">🏪 En tienda</p><p class="pg-p">Cuautla 211 Col. Killian, León, Gto. Sin costo adicional.</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">⏱ Tiempo</p><p class="pg-p">3–5 días hábiles. León y zonas cercanas 1–2 días.</p></div>
+      <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">💳 Formas de pago</p><p class="pg-p">Transferencia SPEI, Mercado Pago, tarjeta o efectivo en tienda.</p></div>
     </div>
-    <div style="max-width:800px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:60px">
-        <div style="background:var(--gray-100);border-radius:16px;padding:32px">
-          <p style="font-size:2rem;margin-bottom:12px">📦</p>
-          <h3 style="font-weight:600;margin-bottom:8px">Envio a domicilio</h3>
-          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Enviamos por Fedex, DHL o Estafeta a todo Mexico. El costo depende del peso y destino.</p>
-        </div>
-        <div style="background:var(--gray-100);border-radius:16px;padding:32px">
-          <p style="font-size:2rem;margin-bottom:12px">🏪</p>
-          <h3 style="font-weight:600;margin-bottom:8px">Recoger en tienda</h3>
-          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Cuautla 211 Col. Killian, Leon, Gto. Sin costo adicional.</p>
-        </div>
-        <div style="background:var(--gray-100);border-radius:16px;padding:32px">
-          <p style="font-size:2rem;margin-bottom:12px">⏱️</p>
-          <h3 style="font-weight:600;margin-bottom:8px">Tiempo de entrega</h3>
-          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">3 a 5 dias habiles para envios nacionales. Leon y zonas cercanas en 1-2 dias.</p>
-        </div>
-        <div style="background:var(--gray-100);border-radius:16px;padding:32px">
-          <p style="font-size:2rem;margin-bottom:12px">💳</p>
-          <h3 style="font-weight:600;margin-bottom:8px">Formas de pago</h3>
-          <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Efectivo, transferencia SPEI, Mercado Pago, tarjeta en tienda.</p>
-        </div>
-      </div>
-      <div style="background:var(--black);border-radius:16px;padding:32px;text-align:center">
-        <p style="color:rgba(255,255,255,0.5);margin-bottom:16px">Para cotizar tu envio o coordinar tu pedido</p>
-        <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
-      </div>
+    <div style="text-align:center;padding:8px 0 16px">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Cotizar envío por WhatsApp</a>
     </div>
+  </div>
   `,
   'tabla-tallas': `
-  <div style="background:var(--black);padding:clamp(40px,8vw,80px) clamp(16px,5vw,40px);text-align:center">
-    <p style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:3px;color:var(--pink);margin-bottom:16px">Encuentra tu talla perfecta</p>
-    <h1 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,5rem);font-weight:300;color:var(--white);line-height:1.1">Tabla de <em style="font-style:italic;color:var(--pink)">tallas</em></h1>
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow">Encuentra tu talla perfecta</p>
+    <h1 class="pg-hero-title">Tabla de <em>tallas</em></h1>
+    <p class="pg-hero-sub">Usamos tallas mexicanas (MX). Esta guía te ayuda a encontrar tu medida exacta.</p>
   </div>
-  <div style="max-width:700px;margin:0 auto;padding:clamp(32px,6vw,80px) clamp(16px,5vw,40px)">
-    <p style="color:var(--gray-600);text-align:center;margin-bottom:40px;line-height:1.8">Nuestro calzado usa tallas mexicanas (MX). Usa esta guía para encontrar tu talla correcta.</p>
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
-        <thead>
-          <tr style="background:var(--black);color:white">
-            <th style="padding:14px 20px;text-align:center;font-weight:600">MX</th>
-            <th style="padding:14px 20px;text-align:center;font-weight:600">CM</th>
-            <th style="padding:14px 20px;text-align:center;font-weight:600">US</th>
-            <th style="padding:14px 20px;text-align:center;font-weight:600">EU</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${[
-            ['22','22.0','5','35'],
-            ['22.5','22.5','5.5','35.5'],
-            ['23','23.0','6','36'],
-            ['23.5','23.5','6.5','36.5'],
-            ['24','24.0','7','37'],
-            ['24.5','24.5','7.5','37.5'],
-            ['25','25.0','8','38'],
-            ['25.5','25.5','8.5','38.5'],
-            ['26','26.0','9','39'],
-            ['26.5','26.5','9.5','39.5'],
-            ['27','27.0','10','40'],
-          ].map(([mx,cm,us,eu], i) => `
-            <tr style="background:${i%2===0?'var(--gray-100)':'white'};border-bottom:1px solid var(--gray-200)">
-              <td style="padding:12px 20px;text-align:center;font-weight:700;color:var(--pink);font-family:var(--font-mono)">${mx}</td>
-              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${cm}</td>
-              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${us}</td>
-              <td style="padding:12px 20px;text-align:center;font-family:var(--font-mono)">${eu}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+  <div class="pg-body">
+    <div class="pg-card">
+      <div style="overflow-x:auto">
+        <table class="pg-table">
+          <thead><tr><th style="text-align:center">MX</th><th style="text-align:center">CM</th><th style="text-align:center">US</th><th style="text-align:center">EU</th></tr></thead>
+          <tbody>
+            ${[['22','22.0','5','35'],['22.5','22.5','5.5','35.5'],['23','23.0','6','36'],['23.5','23.5','6.5','36.5'],['24','24.0','7','37'],['24.5','24.5','7.5','37.5'],['25','25.0','8','38'],['25.5','25.5','8.5','38.5'],['26','26.0','9','39'],['26.5','26.5','9.5','39.5'],['27','27.0','10','40']].map(([mx,cm,us,eu])=>`
+              <tr><td style="text-align:center;font-weight:700;color:#C8967A;font-family:var(--font-mono)">${mx}</td><td style="text-align:center;font-family:var(--font-mono)">${cm}</td><td style="text-align:center;font-family:var(--font-mono)">${us}</td><td style="text-align:center;font-family:var(--font-mono)">${eu}</td></tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div style="margin-top:40px;background:var(--pink-light);border-left:4px solid var(--pink);border-radius:8px;padding:20px">
-      <p style="font-weight:600;margin-bottom:8px">💡 ¿Cómo medir tu pie?</p>
-      <p style="font-size:0.85rem;color:var(--gray-600);line-height:1.7">Párate sobre una hoja de papel y marca el punto más largo de tu pie. Mide esa distancia en centímetros y busca tu talla en la tabla.</p>
+    <div class="pg-card" style="background:rgba(200,150,122,0.06);border-color:rgba(200,150,122,0.2)">
+      <p class="pg-h3">💡 Cómo medir tu pie</p>
+      <p class="pg-p">Párate sobre una hoja de papel, marca el punto más largo de tu pie y mide esa distancia en centímetros. Busca ese número en la columna CM de la tabla.</p>
     </div>
-    <div style="margin-top:32px;text-align:center">
-      <p style="color:var(--gray-600);font-size:0.85rem;margin-bottom:16px">¿Tienes dudas con tu talla?</p>
-      <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Pregúntanos por WhatsApp</a>
+    <div style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Pregúntanos por WhatsApp</a>
     </div>
   </div>
 `
@@ -5358,37 +5444,7 @@ function zmRechazarCookies() {
   const sectionH = section.offsetHeight
   let scrollTick = false
 
-  function applyParallax() {
-    const scrollY = window.scrollY
-    if (scrollY > sectionH * 1.2) { scrollTick = false; return }
-
-    const progress = Math.min(scrollY / sectionH, 1)
-
-    // Efecto zoom-out + leve subida — imagen se aleja al scrollear (estilo Apple/Zara)
-    if (bg) {
-      const scale     = 1.08 - (progress * 0.08)   // 1.08 → 1.0 conforme scrolleas
-      const translateY = scrollY * 0.12              // se mueve MUY poco, casi fija
-      const brightness = 1 - progress * 0.15         // se oscurece ligeramente
-      bg.style.transform = `scale(${scale}) translateY(${translateY}px)`
-      bg.style.filter    = `contrast(1.08) saturate(1.05) brightness(${brightness})`
-    }
-
-    // Zapatilla decorativa: sube y desaparece suavemente
-    if (shoeScrollEl) {
-      const sp = Math.min(scrollY / (sectionH * 0.6), 1)
-      shoeScrollEl.style.transform = `translateY(${-sp * 70}px)`
-      shoeScrollEl.style.opacity   = String(Math.max(0, 1 - sp * 1.5))
-    }
-
-    scrollTick = false
-  }
-
-  window.addEventListener('scroll', function() {
-    if (!scrollTick) {
-      requestAnimationFrame(applyParallax)
-      scrollTick = true
-    }
-  }, { passive: true })
+  // Sin parallax en scroll — solo el mouse es interactivo
 })()
 </script>
 </body>
