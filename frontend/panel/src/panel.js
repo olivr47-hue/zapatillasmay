@@ -870,35 +870,82 @@ window.guardarOrdenCompra2 = async () => {
 
 
 function renderDashboardHTML() {
+  const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})
   return `
     <div id="dashboard-contenido">
-      <div class="stats-grid" style="margin-bottom:1.5rem">
-        ${['Ventas hoy','Pedidos hoy','Ventas 7 dias','Clientes nuevos','Stock bajo','Mejor dia','Top vendedor','Total clientes'].map(l => `
+
+      <!-- Header bienvenida -->
+      <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:400;color:var(--text-1);line-height:1.2">
+            Hola, bienvenida 👋
+          </h2>
+          <p style="font-size:0.78rem;color:var(--text-3);margin-top:3px;text-transform:capitalize">${hoy}</p>
+        </div>
+        <button onclick="cargarDashboard()" class="btn btn-secondary" style="font-size:0.78rem">↻ Actualizar</button>
+      </div>
+
+      <!-- KPIs principales -->
+      <div class="stats-grid" style="margin-bottom:16px">
+        ${[
+          {label:'Ventas hoy',        icon:'💰', id:'kpi-ventas-hoy'},
+          {label:'Pedidos hoy',       icon:'🛍️', id:'kpi-pedidos-hoy'},
+          {label:'Ventas 7 días',     icon:'📈', id:'kpi-ventas-7d'},
+          {label:'Ventas 30 días',    icon:'📊', id:'kpi-ventas-30d'},
+          {label:'Clientes nuevos',   icon:'👥', id:'kpi-clientes-nuevos'},
+          {label:'Stock bajo',        icon:'⚠️', id:'kpi-stock-bajo'},
+          {label:'Mejor día',         icon:'🏆', id:'kpi-mejor-dia'},
+          {label:'Total clientes',    icon:'🗂️', id:'kpi-total-clientes'},
+        ].map(k => `
           <div class="stat-card">
-            <div class="stat-label">${l}</div>
-            <div class="stat-value" style="font-size:1.2rem;color:var(--text-muted)">...</div>
-            <div class="stat-sub"></div>
+            <div class="stat-label">${k.label}</div>
+            <div class="stat-value" id="${k.id}" style="font-size:1.3rem;color:var(--text-3)">—</div>
+            <div class="stat-sub" id="${k.id}-sub"></div>
           </div>
         `).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div class="chart-container"><p class="chart-title">Ventas por dia de la semana</p><canvas id="chart-dias" height="200"></canvas></div>
-        <div class="chart-container"><p class="chart-title">Canal de ventas</p><canvas id="chart-canales" height="200"></canvas></div>
+
+      <!-- Gráfica principal: ventas últimos 7 días (full width) -->
+      <div class="chart-container" style="margin-bottom:14px">
+        <p class="chart-title">📈 Tendencia — Ventas últimos 7 días</p>
+        <canvas id="chart-tendencia" height="110"></canvas>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div class="chart-container"><p class="chart-title">Ventas por mes</p><canvas id="chart-meses" height="200"></canvas></div>
-        <div class="chart-container"><p class="chart-title">Metodos de pago</p><canvas id="chart-pagos" height="200"></canvas></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div class="table-card" style="padding:1.5rem">
-          <p style="font-weight:700;margin-bottom:1rem;font-size:0.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">Top clientes (30 dias)</p>
-          <div id="dash-top-clientes"><div style="color:var(--text-muted);font-size:0.85rem">Cargando...</div></div>
+
+      <!-- 2 gráficas secundarias -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="chart-container" style="margin-bottom:0">
+          <p class="chart-title">📅 Ventas por día de la semana (30 días)</p>
+          <canvas id="chart-dias" height="180"></canvas>
         </div>
-        <div class="table-card" style="padding:1.5rem">
-          <p style="font-weight:700;margin-bottom:1rem;font-size:0.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">Ultimos pedidos</p>
-          <div id="dash-ultimos-pedidos"><div style="color:var(--text-muted);font-size:0.85rem">Cargando...</div></div>
+        <div class="chart-container" style="margin-bottom:0">
+          <p class="chart-title">🛒 Canal de ventas</p>
+          <canvas id="chart-canales" height="180"></canvas>
         </div>
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="chart-container" style="margin-bottom:0">
+          <p class="chart-title">📆 Ventas por mes (últimos 6)</p>
+          <canvas id="chart-meses" height="180"></canvas>
+        </div>
+        <div class="chart-container" style="margin-bottom:0">
+          <p class="chart-title">💳 Métodos de pago</p>
+          <canvas id="chart-pagos" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Tablas inferiores -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="table-card" style="padding:18px">
+          <p class="chart-title" style="margin-bottom:14px">🏅 Top clientes — 30 días</p>
+          <div id="dash-top-clientes"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
+        </div>
+        <div class="table-card" style="padding:18px">
+          <p class="chart-title" style="margin-bottom:14px">🕐 Últimos pedidos</p>
+          <div id="dash-ultimos-pedidos"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
+        </div>
+      </div>
+
     </div>
   `
 }
@@ -9183,24 +9230,35 @@ async function cargarDashboard() {
     const dashboard = document.getElementById('dashboard-contenido')
     if (!dashboard) return
 
-    const cards = dashboard.querySelectorAll('.stat-card')
-    const vals = [
-      { val: '$'+ventasHoy.toFixed(0), sub: hoyP.length+' pedidos hoy', color: 'var(--pink)' },
-      { val: hoyP.length, sub: 'confirmados hoy' },
-      { val: '$'+ventas7.toFixed(0), sub: s7P.length+' pedidos' },
-      { val: clientesNuevos, sub: 'ultimos 30 dias' },
-      { val: alertas.length, sub: 'por reabastecer', color: alertas.length > 0 ? 'var(--amber)' : 'var(--green)' },
-      { val: diaMas ? diaMas[0] : '—', sub: diaMas ? '$'+diaMas[1].toFixed(0)+' prom.' : '' },
-      { val: topEmp ? topEmp[0] : '—', sub: topEmp ? '$'+topEmp[1].toFixed(0) : '', small: true },
-      { val: clientes.length, sub: 'registrados' },
-    ]
-    cards.forEach((card, i) => {
-      if (!vals[i]) return
-      const valEl = card.querySelector('.stat-value')
-      const subEl = card.querySelector('.stat-sub')
-      if (valEl) { valEl.textContent = vals[i].val; valEl.style.color = vals[i].color || 'var(--text-primary)'; if(vals[i].small) valEl.style.fontSize = '1rem' }
-      if (subEl) subEl.textContent = vals[i].sub || ''
-    })
+    // Ventas 30 días
+    const hace30P = conf.filter(p => new Date(p.created_at) >= hace30)
+    const ventas30 = hace30P.reduce((s,p) => s + parseFloat(p.total||0), 0)
+
+    // Últimos 7 días por día (para gráfica tendencia)
+    const ultimos7 = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(hoy); d.setDate(d.getDate() - i)
+      const ds = d.toISOString().split('T')[0]
+      const label = d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric'})
+      const total = conf.filter(p => p.created_at?.startsWith(ds)).reduce((s,p) => s + parseFloat(p.total||0), 0)
+      ultimos7.push({ label, total, ds })
+    }
+
+    // KPIs
+    const setKpi = (id, val, sub, color) => {
+      const el = document.getElementById(id)
+      const subEl = document.getElementById(id+'-sub')
+      if (el) { el.textContent = val; if (color) el.style.color = color }
+      if (subEl && sub) subEl.textContent = sub
+    }
+    setKpi('kpi-ventas-hoy',   '$'+ventasHoy.toLocaleString('es-MX',{maximumFractionDigits:0}), hoyP.length+' pedidos', '#C8967A')
+    setKpi('kpi-pedidos-hoy',  hoyP.length, 'confirmados')
+    setKpi('kpi-ventas-7d',    '$'+ventas7.toLocaleString('es-MX',{maximumFractionDigits:0}), s7P.length+' pedidos')
+    setKpi('kpi-ventas-30d',   '$'+ventas30.toLocaleString('es-MX',{maximumFractionDigits:0}), hace30P.length+' pedidos')
+    setKpi('kpi-clientes-nuevos', clientesNuevos, 'últimos 30 días')
+    setKpi('kpi-stock-bajo',   alertas.length, alertas.length > 0 ? '⚠ reabastecer' : '✓ ok', alertas.length > 0 ? '#f59e0b' : '#10b981')
+    setKpi('kpi-mejor-dia',    diaMas ? diaMas[0] : '—', diaMas ? '$'+diaMas[1].toLocaleString('es-MX',{maximumFractionDigits:0}) : '')
+    setKpi('kpi-total-clientes', clientes.length, 'registrados')
 
     const topClientesEl = document.getElementById('dash-top-clientes')
     if (topClientesEl) {
@@ -9208,47 +9266,111 @@ async function cargarDashboard() {
         ? '<p style="color:var(--text-muted);font-size:0.85rem">Sin datos aun</p>'
         : topClientes.map(([nombre, total], i) => `
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <span style="width:22px;height:22px;background:var(--pink);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0">${i+1}</span>
-            <span style="flex:1;font-size:0.875rem">${nombre}</span>
-            <strong style="color:var(--pink)">$${total.toFixed(0)}</strong>
+            <span style="width:22px;height:22px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;flex-shrink:0">${i+1}</span>
+            <span style="flex:1;font-size:0.86rem;color:var(--text-1)">${nombre}</span>
+            <strong style="color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${total.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong>
           </div>`).join('')
     }
 
     const ultimosEl = document.getElementById('dash-ultimos-pedidos')
     if (ultimosEl) {
-      ultimosEl.innerHTML = pedidos.slice(0,5).map(p => `
-        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+      ultimosEl.innerHTML = pedidos.slice(0,6).map(p => `
+        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(200,150,122,0.08);cursor:pointer;transition:background 0.12s">
           <div>
-            <p style="font-size:0.85rem;font-weight:500">${p.clientes ? p.clientes.nombre : 'General'}</p>
-            <p style="font-size:0.72rem;color:var(--text-muted)">${p.canal} · ${new Date(p.created_at).toLocaleDateString('es-MX')}</p>
+            <p style="font-size:0.84rem;font-weight:600;color:var(--text-1)">${p.clientes ? p.clientes.nombre : 'General'}</p>
+            <p style="font-size:0.7rem;color:var(--text-3);margin-top:1px">${p.canal||'sucursal'} · ${new Date(p.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</p>
           </div>
           <div style="text-align:right">
-            <p style="font-weight:700;color:var(--pink)">$${p.total||0}</p>
-            <span class="badge ${p.status==='confirmado'||p.status==='pagado'?'badge-success':'badge-warning'}">${p.status}</span>
+            <p style="font-weight:700;color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+            <span class="badge ${p.status==='confirmado'||p.status==='pagado'?'badge-success':'badge-warning'}" style="font-size:0.6rem">${p.status}</span>
           </div>
         </div>`).join('')
     }
 
     setTimeout(() => {
+      // Paleta que combina con la tienda
+      const COLOR1 = '#C8967A'
+      const COLOR2 = '#b5687a'
+      const COLOR3 = '#d4b8a8'
+      const COLOR4 = '#8B6A54'
+      const PALETTE = [
+        'rgba(200,150,122,0.75)', 'rgba(181,104,122,0.75)',
+        'rgba(139,106,84,0.75)', 'rgba(212,184,168,0.75)',
+        'rgba(160,120,96,0.75)',  'rgba(90,60,40,0.75)'
+      ]
+      const BORDERS = ['#C8967A','#b5687a','#8B6A54','#d4b8a8','#a07060','#5a3c28']
+
+      const axisStyle = { ticks: { color: '#C4A38A', font: { size: 10 } }, grid: { color: 'rgba(200,150,122,0.08)' } }
       const chartOpts = {
         responsive: true,
-        plugins: { legend: { labels: { color: '#666', font: { size: 11 } } } },
-        scales: {
-          x: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
-          y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
-        }
+        plugins: { legend: { labels: { color: '#8B6A54', font: { size: 11 } } } },
+        scales: { x: axisStyle, y: axisStyle }
       }
+
+      // Gráfica tendencia 7 días (área)
+      const elTend = document.getElementById('chart-tendencia')
+      if (elTend && window.Chart) {
+        new Chart(elTend, {
+          type: 'line',
+          data: {
+            labels: ultimos7.map(d => d.label),
+            datasets: [{
+              data: ultimos7.map(d => d.total),
+              borderColor: COLOR1,
+              backgroundColor: 'rgba(200,150,122,0.10)',
+              borderWidth: 2.5,
+              pointBackgroundColor: COLOR1,
+              pointBorderColor: 'white',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            ...chartOpts,
+            plugins: { legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ' $' + ctx.parsed.y.toLocaleString('es-MX',{maximumFractionDigits:0}) } }
+            }
+          }
+        })
+      }
+
+      // Barras: días de semana
       const elDias = document.getElementById('chart-dias')
-      if (elDias && window.Chart) new Chart(elDias, { type: 'bar', data: { labels: diasNombre, datasets: [{ data: diasNombre.map(d => porDia[d]||0), backgroundColor: 'rgba(233,30,140,0.2)', borderColor: '#E91E8C', borderWidth: 2, borderRadius: 6 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } })
+      if (elDias && window.Chart) new Chart(elDias, {
+        type: 'bar',
+        data: { labels: diasNombre, datasets: [{ data: diasNombre.map(d => porDia[d]||0), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 1.5, borderRadius: 6 }] },
+        options: { ...chartOpts, plugins: { legend: { display: false } } }
+      })
 
+      // Dona: canal
       const elCanales = document.getElementById('chart-canales')
-      if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, { type: 'doughnut', data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: ['rgba(233,30,140,0.7)','rgba(0,151,178,0.7)','rgba(124,58,237,0.7)','rgba(46,125,50,0.7)'], borderColor: ['#E91E8C','#0097b2','#7c3aed','#2e7d32'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 11 }, padding: 12 } } } } })
+      if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, {
+        type: 'doughnut',
+        data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
+        options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#8B6A54', font: { size: 11 }, padding: 10 } } } }
+      })
 
+      // Línea: meses
       const elMeses = document.getElementById('chart-meses')
-      if (elMeses && window.Chart) { const md = Object.entries(porMes).slice(-6); new Chart(elMeses, { type: 'line', data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: '#0097b2', backgroundColor: 'rgba(0,151,178,0.08)', borderWidth: 2, pointBackgroundColor: '#0097b2', pointRadius: 4, fill: true, tension: 0.4 }] }, options: { ...chartOpts, plugins: { legend: { display: false } } } }) }
+      if (elMeses && window.Chart) {
+        const md = Object.entries(porMes).slice(-6)
+        new Chart(elMeses, {
+          type: 'line',
+          data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: COLOR2, backgroundColor: 'rgba(181,104,122,0.08)', borderWidth: 2, pointBackgroundColor: COLOR2, pointBorderColor: 'white', pointBorderWidth: 2, pointRadius: 4, fill: true, tension: 0.4 }] },
+          options: { ...chartOpts, plugins: { legend: { display: false } } }
+        })
+      }
 
+      // Dona: pagos
       const elPagos = document.getElementById('chart-pagos')
-      if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, { type: 'doughnut', data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: ['rgba(46,125,50,0.7)','rgba(245,127,23,0.7)','rgba(233,30,140,0.7)','rgba(124,58,237,0.7)'], borderColor: ['#2e7d32','#f57f17','#E91E8C','#7c3aed'], borderWidth: 2 }] }, options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#666', font: { size: 11 }, padding: 12 } } } } })
+      if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, {
+        type: 'doughnut',
+        data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
+        options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#8B6A54', font: { size: 11 }, padding: 10 } } } }
+      })
     }, 300)
 
     // Tareas pendientes hoy
