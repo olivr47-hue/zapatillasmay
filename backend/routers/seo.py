@@ -187,6 +187,48 @@ def producto_ssr(sku: str):
     return HTMLResponse(content=template)
 
 
+_ENVIO_DEFAULTS = {"costo": 99, "gratis_desde": 1299}
+
+@router.get("/config/envio")
+def get_config_envio():
+    """Devuelve configuración de envío (costo y monto para envío gratis)."""
+    cached = cache_get("config_envio")
+    if cached is not None:
+        return cached
+    try:
+        rows = supabase_get("configuracion?clave=like.envio_*&select=clave,valor")
+        cfg = dict(_ENVIO_DEFAULTS)
+        for r in rows:
+            clave = r["clave"].replace("envio_", "")
+            try:
+                cfg[clave] = float(r["valor"])
+            except Exception:
+                cfg[clave] = r["valor"]
+        cache_set("config_envio", cfg, ttl=300)
+        return cfg
+    except Exception:
+        return _ENVIO_DEFAULTS
+
+@router.post("/config/envio")
+def save_config_envio(datos: dict):
+    """Guarda configuración de envío desde el panel."""
+    try:
+        for campo in ["costo", "gratis_desde"]:
+            if campo not in datos:
+                continue
+            clave = f"envio_{campo}"
+            valor = str(datos[campo])
+            existente = supabase_get(f"configuracion?clave=eq.{clave}")
+            if existente:
+                supabase_patch(f"configuracion?clave=eq.{clave}", {"valor": valor})
+            else:
+                supabase_post("configuracion", {"clave": clave, "valor": valor})
+        cache_invalidate_prefix("config_envio")
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/sitemap.xml")
 def sitemap():
     cached = cache_get("seo_sitemap")

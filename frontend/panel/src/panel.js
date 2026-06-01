@@ -73,6 +73,7 @@ const modulos = [
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
+  { id: 'envio', icon: '🚚', label: 'Envíos', section: 'Configuracion', soloAdmin: true },
   { id: 'ordenes', icon: '🛒', label: 'Órdenes de compra', section: 'Finanzas', soloAdmin: true },
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
@@ -249,6 +250,7 @@ async function cargarModulo(id) {
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
     case 'seo': await cargarSEO(); break
+    case 'envio': await cargarEnvio(); break
     case 'analisis': await cargarAnalisis(); break
     case 'crm': await cargarCRM(); break;
     case 'finanzas': await cargarFinanzas(); break;
@@ -10676,6 +10678,121 @@ window.completarTareaDashboard = async (id, checked) => {
       body: JSON.stringify({ completada: checked })
     })
   } catch(e) { console.error(e) }
+}
+
+async function cargarEnvio() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/config/envio')
+    const cfg = await res.json()
+
+    content.innerHTML = `
+      <div style="max-width:560px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">🚚 Configuración de Envíos</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Define el costo de envío y a partir de cuánto es gratis. Se aplica automáticamente en el carrito de la tienda.
+          </p>
+
+          <div style="display:grid;gap:1.2rem">
+
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.4rem">
+                Costo de envío estándar (MXN)
+              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:1rem;color:var(--text-muted)">$</span>
+                <input type="number" id="envio-costo" value="${cfg.costo || 99}"
+                  min="0" step="1"
+                  style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.95rem;width:160px;outline:none">
+                <span style="font-size:0.82rem;color:var(--text-muted)">MXN por pedido</span>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.4rem">
+                Envío gratis a partir de (MXN)
+              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:1rem;color:var(--text-muted)">$</span>
+                <input type="number" id="envio-gratis-desde" value="${cfg.gratis_desde || 1299}"
+                  min="0" step="1"
+                  style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.95rem;width:160px;outline:none">
+                <span style="font-size:0.82rem;color:var(--text-muted)">MXN de compra</span>
+              </div>
+            </div>
+
+            <div style="background:var(--bg);border-radius:10px;padding:1rem;font-size:0.82rem;color:var(--text-muted);border:1px solid var(--border)">
+              <strong style="color:var(--text);display:block;margin-bottom:4px">Cómo funciona:</strong>
+              Si el pedido es menor a <strong id="preview-desde">$${cfg.gratis_desde || 1299}</strong> MXN →
+              se cobra <strong id="preview-costo">$${cfg.costo || 99}</strong> MXN de envío.<br>
+              Si el pedido es igual o mayor → <strong style="color:#22c55e">envío gratis 🎉</strong>
+            </div>
+
+            <div id="envio-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.85rem"></div>
+
+            <div>
+              <button class="btn btn-primary" onclick="guardarEnvio()">💾 Guardar configuración</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:1.5rem">
+          <h4 style="margin-bottom:0.5rem">📦 Paqueterías que usas</h4>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">
+            Referencia para tu equipo al hacer los envíos. Actualmente no integradas con tarifas automáticas.
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="background:#e8f4fd;color:#0066cc;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">FedEx</span>
+            <span style="background:#fff3cd;color:#856404;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">DHL</span>
+            <span style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">Estafeta</span>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:10px">
+            ¿Quieres calcular tarifas automáticas por código postal? Podemos integrar la API de Estafeta o FedEx en el futuro.
+          </p>
+        </div>
+      </div>`
+
+    // Preview en vivo
+    document.getElementById('envio-costo').addEventListener('input', e => {
+      document.getElementById('preview-costo').textContent = '$' + (e.target.value || 0)
+    })
+    document.getElementById('envio-gratis-desde').addEventListener('input', e => {
+      document.getElementById('preview-desde').textContent = '$' + (e.target.value || 0)
+    })
+
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
+  }
+}
+
+window.guardarEnvio = async function() {
+  const costo = parseFloat(document.getElementById('envio-costo').value)
+  const gratis_desde = parseFloat(document.getElementById('envio-gratis-desde').value)
+  if (isNaN(costo) || isNaN(gratis_desde)) return
+  const msg = document.getElementById('envio-msg')
+  try {
+    const res = await fetch(API + '/config/envio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ costo, gratis_desde })
+    })
+    const data = await res.json()
+    msg.style.display = ''
+    if (data.ok) {
+      msg.style.background = '#e8f5e9'; msg.style.color = '#2e7d32'
+      msg.textContent = '✅ Configuración guardada correctamente'
+    } else {
+      msg.style.background = '#fdecea'; msg.style.color = '#c62828'
+      msg.textContent = '❌ Error: ' + (data.error || 'desconocido')
+    }
+    setTimeout(() => { msg.style.display = 'none' }, 3000)
+  } catch(e) {
+    msg.style.display = ''
+    msg.style.background = '#fdecea'; msg.style.color = '#c62828'
+    msg.textContent = '❌ Error al guardar'
+  }
 }
 
 async function cargarSEO() {

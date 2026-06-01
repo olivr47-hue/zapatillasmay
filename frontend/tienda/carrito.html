@@ -199,6 +199,7 @@
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
+let cfgEnvio = { costo: 99, gratis_desde: 1299 }  // defaults, se sobreescriben del backend
 
 // ── LEER CARRITO ─────────────────────────────────────────────────
 function leerCarrito() {
@@ -290,17 +291,21 @@ function render() {
       </div>`
   }).join('')
 
-  // Resumen
+  // Resumen con envío
   const resumenPrecios = carrito.map(item => {
     const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
     return calcularPrecioUnitario(item, total) * pares
   })
-  const subtotalActual = resumenPrecios.reduce((a, b) => a + b, 0)
+  const subtotalProductos = resumenPrecios.reduce((a, b) => a + b, 0)
   const subtotalSinDesc = carrito.reduce((s, item) => {
     const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
     return s + item.precio_menudeo * pares
   }, 0)
-  const ahorro = subtotalSinDesc - subtotalActual
+  const ahorro = subtotalSinDesc - subtotalProductos
+
+  // Envío
+  const costoEnvio = subtotalProductos >= cfgEnvio.gratis_desde ? 0 : cfgEnvio.costo
+  const totalFinal = subtotalProductos + costoEnvio
 
   let tipoDesc = ''
   if (total >= 6) tipoDesc = 'Precio mayoreo (6+ pares)'
@@ -311,15 +316,35 @@ function render() {
   if (ahorro > 0) {
     resumenHTML += `<div class="resumen-row" style="color:var(--tan)"><span>${tipoDesc}</span><span>−$${ahorro.toFixed(0)} MXN</span></div>`
   }
+  resumenHTML += `<div class="resumen-row"><span>Subtotal productos</span><span>$${subtotalProductos.toFixed(0)} MXN</span></div>`
+
+  if (costoEnvio === 0) {
+    resumenHTML += `<div class="resumen-row" style="color:#22c55e"><span>Envío 🚚</span><span style="font-weight:700">¡GRATIS!</span></div>`
+  } else {
+    resumenHTML += `
+      <div class="resumen-row">
+        <span>Envío 🚚
+          <span style="font-size:0.7rem;color:var(--tan);display:block">
+            Gratis a partir de $${cfgEnvio.gratis_desde.toFixed(0)} MXN
+            (faltan $${(cfgEnvio.gratis_desde - subtotalProductos).toFixed(0)})
+          </span>
+        </span>
+        <span>$${costoEnvio.toFixed(0)} MXN</span>
+      </div>`
+  }
+
   resumenHTML += `
     <div class="resumen-row total">
       <span>Total</span>
-      <span class="val">$${subtotalActual.toFixed(0)} MXN</span>
-    </div>
-    <p style="font-size:0.72rem;color:var(--gray);margin-top:8px">+ envío calculado al finalizar</p>`
+      <span class="val">$${totalFinal.toFixed(0)} MXN</span>
+    </div>`
 
   document.getElementById('resumen-box').innerHTML = resumenHTML
-  document.getElementById('modal-total').textContent = '$' + subtotalActual.toFixed(0) + ' MXN'
+  document.getElementById('modal-total').textContent = '$' + totalFinal.toFixed(0) + ' MXN'
+  // Guardar para usar en procesarPago
+  window._carritoTotal = totalFinal
+  window._costoEnvio = costoEnvio
+  window._subtotalProductos = subtotalProductos
 }
 
 function cambiarCantidad(idx, delta) {
@@ -380,13 +405,12 @@ async function procesarPago() {
   btn.textContent = 'Procesando...'
 
   try {
-    const total = totalPares(carrito)
-    const totalFinal = carrito.reduce((s, item) => {
-      const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
-      return s + calcularPrecioUnitario(item, total) * pares
-    }, 0)
+    const pTotal = totalPares(carrito)
+    const totalFinal    = window._carritoTotal    || 0
+    const costoEnvio    = window._costoEnvio      || 0
+    const subtotalProds = window._subtotalProductos || 0
 
-    // Crear pedido
+    // Crear pedido (total incluye envío)
     const resPedido = await fetch(`${API}/pedidos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -394,10 +418,11 @@ async function procesarPago() {
         items: carrito.map(i => ({
           variante_id: i.variante_id,
           cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-          precio_unitario: calcularPrecioUnitario(i, total),
+          precio_unitario: calcularPrecioUnitario(i, pTotal),
           nombre: i.nombre, color: i.color, talla: i.talla
         })),
         total: totalFinal,
+        costo_envio: costoEnvio,
         status: 'borrador',
         nombre_cliente: nombre, email_cliente: email,
         telefono_cliente: telefono,
@@ -408,17 +433,23 @@ async function procesarPago() {
     const pedido = await resPedido.json()
     if (!pedido.id) throw new Error('Error creando pedido')
 
+    // Armar items para MercadoPago (productos + envío si aplica)
+    const mpItems = carrito.map(i => ({
+      nombre: i.nombre + ' - ' + i.color + (i.talla ? ' T:' + i.talla : ''),
+      cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
+      precio: calcularPrecioUnitario(i, pTotal)
+    }))
+    if (costoEnvio > 0) {
+      mpItems.push({ nombre: 'Envío a domicilio', cantidad: 1, precio: costoEnvio })
+    }
+
     // Crear preferencia de pago
     const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pedido_id: pedido.id,
-        items: carrito.map(i => ({
-          nombre: i.nombre + ' - ' + i.color + (i.talla ? ' T:' + i.talla : ''),
-          cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-          precio: calcularPrecioUnitario(i, total)
-        })),
+        items: mpItems,
         cliente: { nombre, email },
         total: totalFinal
       })
@@ -446,7 +477,15 @@ async function procesarPago() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────
-render()
+async function init() {
+  // Cargar config de envío del backend
+  try {
+    const r = await fetch(`${API}/config/envio`)
+    if (r.ok) cfgEnvio = await r.json()
+  } catch(e) { /* usa defaults */ }
+  render()
+}
+init()
 </script>
 </body>
 </html>
