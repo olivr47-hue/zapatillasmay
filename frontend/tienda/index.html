@@ -1390,6 +1390,32 @@
     .pg-table tr:last-child td { border-bottom:none; }
     .pg-table tr:hover td { background:rgba(200,150,122,0.04); }
 
+    /* ── CHECKOUT INPUTS ── */
+    .co-input {
+      border: 1.5px solid rgba(200,150,122,0.2);
+      border-radius: 10px;
+      padding: 11px 14px;
+      width: 100%;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      outline: none;
+      box-sizing: border-box;
+      background: white;
+      color: #2A1A0E;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .co-input::placeholder { color: #C4A38A; }
+    .co-input:focus {
+      border-color: #C8967A;
+      box-shadow: 0 0 0 3px rgba(200,150,122,0.12);
+    }
+    @keyframes coSlideUp {
+      from { opacity: 0; transform: translateY(30px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    #checkout-overlay button[onclick*="procesarCheckout"]:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,150,122,0.5); }
+    #checkout-overlay button[onclick*="remove"]:hover { background: rgba(200,150,122,0.08); }
+
     /* TOAST */
     .toast {
       position: fixed;
@@ -4368,52 +4394,87 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
       return s + (pares * i.precio_unitario)
     }, 0)
 
+    // Resumen de items del carrito
+    const itemsResumen = carrito.map(i => {
+      const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
+      const sub = pares * i.precio_unitario
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1)">
+          ${i.imagen ? `<img src="${i.imagen}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
+          <div style="flex:1;min-width:0">
+            <p style="font-size:0.82rem;font-weight:600;color:#2A1A0E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.nombre}</p>
+            <p style="font-size:0.7rem;color:#C4A38A;text-transform:uppercase;letter-spacing:0.4px">${i.color} · ${i.es_corrida?'Corrida':'Talla '+i.talla} · ${pares} ${pares>1?'pares':'par'}</p>
+          </div>
+          <span style="font-family:'DM Mono',monospace;font-weight:700;color:#A07860;font-size:0.85rem">$${sub.toLocaleString('es-MX',{maximumFractionDigits:0})}</span>
+        </div>`
+    }).join('')
+
     // Mostrar modal de datos del cliente
     const overlay = document.createElement('div')
     overlay.id = 'checkout-overlay'
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)'
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(42,26,14,0.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)'
     overlay.innerHTML = `
-      <div style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;max-height:90vh;overflow-y:auto">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-         <h3 style="font-family:var(--font-display);font-size:1.6rem;font-weight:400">Datos de envío</h3>
-           <button onclick="document.getElementById('checkout-overlay').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1.1rem;color:#666;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+      <div style="background:#FAF8F6;border-radius:24px;width:100%;max-width:480px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(42,26,14,0.3);animation:coSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)">
+
+        <!-- Header con gradiente -->
+        <div style="background:linear-gradient(135deg,#C8967A,#b5687a);padding:24px 28px 20px;position:relative;flex-shrink:0">
+          <button onclick="document.getElementById('checkout-overlay').remove()" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:white;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+          <p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.7);margin-bottom:6px">Finalizar compra</p>
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:400;color:white;line-height:1">Datos de envío</h3>
+          <p style="font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:8px">Total a pagar: <strong style="font-family:'DM Mono',monospace;font-size:1.05rem">$${totalFinal.toLocaleString('es-MX',{minimumFractionDigits:2})} MXN</strong></p>
         </div>
-        <p style="font-size:0.82rem;color:#aaa;margin-bottom:24px">Total a pagar: <strong style="color:var(--pink)">$${totalFinal.toFixed(2)} MXN</strong></p>
-        <div style="background:#f5f5f5;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.82rem;color:#666;text-align:center">
-        ¿Ya tienes cuenta? 
-        <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin()" style="color:var(--pink);font-weight:600;text-decoration:none">Inicia sesión</a> 
-        para autocompletar tus datos
-        <span style="margin:0 8px;color:#ccc">|</span>
-        <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin();setTimeout(()=>mostrarTab('registro'),300)" style="color:var(--pink);font-weight:600;text-decoration:none">Crear cuenta</a>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <input id="co-nombre" placeholder="Nombre completo *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-          <input id="co-email" type="email" placeholder="Email *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-          <input id="co-telefono" type="tel" placeholder="Teléfono *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-          <input id="co-calle" placeholder="Calle y número *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <input id="co-colonia" placeholder="Colonia *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-            <input id="co-cp" placeholder="Código postal *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+
+        <!-- Cuerpo scrolleable -->
+        <div style="padding:20px 24px;overflow-y:auto;flex:1">
+
+          <!-- Resumen del pedido -->
+          <div style="background:white;border:1px solid rgba(200,150,122,0.12);border-radius:14px;padding:14px 16px;margin-bottom:18px;box-shadow:0 2px 8px rgba(90,40,10,0.04)">
+            <p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#C8967A;margin-bottom:6px">Tu pedido (${carrito.length} ${carrito.length>1?'artículos':'artículo'})</p>
+            ${itemsResumen}
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <input id="co-ciudad" placeholder="Ciudad *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-            <input id="co-estado" placeholder="Estado *" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
+
+          <!-- Login hint -->
+          <div style="background:rgba(200,150,122,0.07);border:1px solid rgba(200,150,122,0.18);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:0.8rem;color:#8B6A54;text-align:center;line-height:1.5">
+            ¿Ya tienes cuenta?
+            <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin()" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a>
+            <span style="margin:0 6px;color:#d4b8a8">·</span>
+            <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin();setTimeout(()=>mostrarTab('registro'),300)" style="color:#b5687a;font-weight:700;text-decoration:none">Crear cuenta</a>
           </div>
-          <textarea id="co-notas" placeholder="Notas adicionales (opcional)" rows="2" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;resize:none;box-sizing:border-box"></textarea>
+
+          <!-- Campos -->
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <input id="co-nombre" class="co-input" placeholder="Nombre completo *">
+            <input id="co-email" type="email" class="co-input" placeholder="Email *">
+            <input id="co-telefono" type="tel" class="co-input" placeholder="Teléfono *">
+            <input id="co-calle" class="co-input" placeholder="Calle y número *">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <input id="co-colonia" class="co-input" placeholder="Colonia *">
+              <input id="co-cp" class="co-input" placeholder="Código postal *">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <input id="co-ciudad" class="co-input" placeholder="Ciudad *">
+              <input id="co-estado" class="co-input" placeholder="Estado *">
+            </div>
+            <textarea id="co-notas" class="co-input" placeholder="Notas adicionales (opcional)" rows="2" style="resize:none"></textarea>
+          </div>
+
+          <!-- Métodos de pago -->
+          <div style="margin-top:16px;background:white;border:1px solid rgba(200,150,122,0.12);border-radius:12px;padding:14px">
+            <p style="font-size:0.62rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Métodos de pago aceptados</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">💳 Tarjeta</span>
+              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">🏦 SPEI</span>
+              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">🏪 OXXO</span>
+              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">💰 MercadoPago</span>
+            </div>
+          </div>
         </div>
-        <div style="margin-top:16px;border:1px solid #f0f0f0;border-radius:8px;padding:12px">
-       <p style="font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Métodos de pago aceptados</p>
-     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">💳 Tarjeta crédito/débito</span>
-    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">🏦 Transferencia SPEI</span>
-    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">🏪 OXXO</span>
-    <span style="background:#f5f5f5;border-radius:6px;padding:6px 10px;font-size:0.75rem;font-weight:500">💰 Saldo MercadoPago</span>
-       </div>
-       </div>
-       <div style="display:flex;gap:10px;margin-top:16px">
-        <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:13px;background:transparent;border:1.5px solid #e8e8e8;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancelar</button>
-        <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Pagar</button>
-       </div>
+
+        <!-- Footer fijo con botones -->
+        <div style="padding:14px 24px;background:white;border-top:1px solid rgba(200,150,122,0.12);display:flex;gap:10px;flex-shrink:0">
+          <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:14px;background:transparent;border:1.5px solid rgba(200,150,122,0.3);border-radius:100px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;color:#8B6A54;cursor:pointer;transition:all 0.2s">Cancelar</button>
+          <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:14px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;border-radius:100px;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(200,150,122,0.4);transition:all 0.2s">Pagar ahora</button>
+        </div>
       </div>
     `
     document.body.appendChild(overlay)
