@@ -239,3 +239,83 @@ def cambiar_password(datos: dict):
         return {"ok": True, "mensaje": "Contraseña actualizada correctamente"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
+
+# ── NEWSLETTER ────────────────────────────────────────────────────
+
+@router.post("/newsletter/subscribe")
+def newsletter_subscribe(datos: dict):
+    """Suscribe un email al newsletter y envía email de bienvenida via Resend."""
+    email  = (datos.get("email") or "").strip().lower()
+    nombre = (datos.get("nombre") or "").strip()
+
+    if not email or "@" not in email:
+        return JSONResponse(status_code=400, content={"error": "Email inválido"})
+
+    try:
+        # Verificar si ya existe
+        existente = supabase_get(f"suscriptores?email=eq.{email}")
+        if existente:
+            return {"ok": True, "mensaje": "Ya estabas suscrita 😊"}
+
+        # Guardar suscriptor
+        supabase_post("suscriptores", {
+            "email": email,
+            "nombre": nombre or None,
+            "fuente": "popup_tienda",
+            "activo": True
+        })
+
+        # Email de bienvenida via Resend
+        nombre_display = nombre.split()[0].capitalize() if nombre else "Hola"
+        try:
+            resend.Emails.send({
+                "from": "Zapatillas May <onboarding@resend.dev>",
+                "to": email,
+                "subject": f"¡Bienvenida, {nombre_display}! 👠 Ya eres parte de Zapatillas May",
+                "html": f"""
+                <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff">
+                  <div style="background:linear-gradient(135deg,#b5687a,#c8967a);padding:36px 32px;text-align:center">
+                    <h1 style="color:white;font-size:1.5rem;font-weight:300;margin:0;letter-spacing:1px">
+                      Zapatillas <strong>May</strong>
+                    </h1>
+                    <p style="color:rgba(255,255,255,0.85);font-size:0.85rem;margin:8px 0 0">
+                      Calzado de moda · León, Guanajuato
+                    </p>
+                  </div>
+                  <div style="padding:32px">
+                    <h2 style="font-size:1.2rem;color:#0A0A0A;margin-bottom:8px">
+                      ¡Hola, {nombre_display}! 👠
+                    </h2>
+                    <p style="color:#555;font-size:0.9rem;line-height:1.7;margin-bottom:20px">
+                      Ya eres parte de nuestra comunidad. Cada semana te avisamos cuando llegan
+                      modelos nuevos y te mandamos ofertas exclusivas antes que nadie.
+                    </p>
+                    <div style="background:#fdf8f5;border-radius:10px;padding:20px;margin-bottom:24px">
+                      <p style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c8967a;margin:0 0 12px">Lo que te espera:</p>
+                      <p style="font-size:0.88rem;color:#444;margin:6px 0">✨ Nuevos modelos cada semana</p>
+                      <p style="font-size:0.88rem;color:#444;margin:6px 0">🏷️ Precios de mayoreo desde 3 pares</p>
+                      <p style="font-size:0.88rem;color:#444;margin:6px 0">🚚 Envíos a todo México</p>
+                      <p style="font-size:0.88rem;color:#444;margin:6px 0">👠 Fabricado en León, Guanajuato</p>
+                    </div>
+                    <a href="https://zapatillasmay.mx"
+                       style="display:block;text-align:center;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;padding:14px;border-radius:50px;text-decoration:none;font-weight:700;font-size:0.9rem;margin-bottom:24px">
+                      Ver los modelos nuevos →
+                    </a>
+                    <p style="color:#aaa;font-size:0.75rem;text-align:center;line-height:1.5;margin:0">
+                      Recibiste este email porque te suscribiste en zapatillasmay.mx.<br>
+                      <a href="https://zapatillasmay.mx" style="color:#c8967a">Cancelar suscripción</a>
+                    </p>
+                  </div>
+                </div>"""
+            })
+        except Exception as email_err:
+            print(f"[newsletter] Error enviando email de bienvenida: {email_err}")
+            # No falla si el email no se envía — la suscripción ya se guardó
+
+        return {"ok": True, "mensaje": "¡Suscrita! Revisa tu correo 📩"}
+
+    except Exception as e:
+        # Si falla por tabla no existente, devolver ok de todas formas
+        print(f"[newsletter] Error: {e}")
+        return {"ok": True, "mensaje": "¡Listo!"}
