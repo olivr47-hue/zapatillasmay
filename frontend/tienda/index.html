@@ -2341,6 +2341,20 @@
   "paymentAccepted": "Cash, Credit Card, Debit Card"
 }
 </script>
+  <!-- Anti-flash: oculta el home de inmediato si la URL es una pagina interna -->
+  <style>
+    html.ruta-interna #hero-section,
+    html.ruta-interna .section,
+    html.ruta-interna .banner-mayoreo { display: none !important; }
+  </style>
+  <script>
+    (function(){
+      var internas = ['/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/pedido-exitoso'];
+      if (internas.indexOf(location.pathname) !== -1) {
+        document.documentElement.classList.add('ruta-interna');
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -4214,6 +4228,7 @@ if (window.ttq) ttq.track('AddToCart', {
   const hero = document.getElementById('hero-section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
+  document.documentElement.classList.remove('ruta-interna')
   pagina.style.display = 'none'
   if (hero) hero.style.display = ''
   // Re-mostrar todas las secciones del home
@@ -4231,6 +4246,7 @@ function mostrarCatalogo() {
 }
 
 function mostrarNuevos() {
+  document.documentElement.classList.remove('ruta-interna')
   const pagina = document.getElementById('pagina-interna')
   const hero = document.getElementById('hero-section')
   const productosSection = document.getElementById('productos-section')
@@ -4292,6 +4308,7 @@ function _precioDe(p) {
 }
 
 function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
+  document.documentElement.classList.remove('ruta-interna')
   const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
   const hero = document.getElementById('hero-section'); if (hero) hero.style.display='none'
   const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
@@ -5551,6 +5568,7 @@ function mostrarPagina(id) {
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
 
   // Mostrar página
+  document.documentElement.classList.add('ruta-interna')
   contenido.innerHTML = PAGINAS[id]
   setTimeout(function(){ animarPaginaInterna(contenido); }, 30)
   pagina.style.display = 'block'
