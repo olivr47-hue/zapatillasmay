@@ -3,6 +3,7 @@
     { "source": "/producto/:slug", "destination": "https://zapatillasmay-production.up.railway.app/seo/producto/:slug" },
     { "source": "/sitemap.xml",    "destination": "https://zapatillasmay-production.up.railway.app/sitemap.xml" },
     { "source": "/robots.txt",     "destination": "https://zapatillasmay-production.up.railway.app/robots.txt" },
+    { "source": "/carrito",        "destination": "/carrito.html" },
     { "source": "/pedido-exitoso", "destination": "/index.html" },
     { "source": "/checkout",       "destination": "/index.html" },
     { "source": "/politica-de-devoluciones", "destination": "/politica-de-devoluciones.html" },

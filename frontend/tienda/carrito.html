@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mi carrito — Zapatillas May</title>
+  <meta name="description" content="Tu carrito de compras en Zapatillas May. Revisa tus productos y finaliza tu pedido.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="https://zapatillasmay.mx/carrito">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pink: #E91E8C;
+      --tan: #C8967A;
+      --black: #0A0A0A;
+      --bg: #FAFAFA;
+      --border: #F0F0F0;
+      --gray: #888;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-body); background: var(--bg); color: var(--black); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    /* HEADER */
+    .header { position: sticky; top: 0; z-index: 100; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; height: 56px; }
+    .header-back { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--gray); text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--font-body); }
+    .header-back svg { flex-shrink: 0; }
+    .header-logo { font-family: var(--font-body); font-size: 1rem; font-weight: 700; letter-spacing: 0.5px; color: var(--black); text-decoration: none; }
+    .header-logo span { color: var(--pink); }
+    .header-right { width: 60px; }
+
+    /* LAYOUT */
+    .page { max-width: 720px; margin: 0 auto; padding: 24px 16px 120px; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 0.82rem; color: var(--gray); margin-bottom: 24px; }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 60px 20px; }
+    .empty-icon { font-size: 3.5rem; margin-bottom: 16px; }
+    .empty h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+    .empty p { font-size: 0.85rem; color: var(--gray); margin-bottom: 24px; }
+    .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 13px 28px; background: var(--tan); color: white; border: none; border-radius: 100px; font-family: var(--font-body); font-size: 0.88rem; font-weight: 700; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 11px 22px; background: white; color: var(--black); border: 1.5px solid var(--border); border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.15s; }
+    .btn-secondary:hover { border-color: var(--tan); }
+
+    /* ITEMS */
+    .items-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .item-card { background: white; border: 1px solid var(--border); border-radius: 14px; display: flex; gap: 12px; padding: 12px; position: relative; }
+    .item-img { width: 80px; height: 80px; flex-shrink: 0; border-radius: 10px; object-fit: cover; background: #f5f0eb; }
+    .item-img-placeholder { width: 80px; height: 80px; flex-shrink: 0; border-radius: 10px; background: #f5f0eb; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 0.9rem; font-weight: 600; line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-meta { font-size: 0.75rem; color: var(--gray); margin-bottom: 8px; }
+    .item-price { font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); color: var(--black); }
+    .item-price-each { font-size: 0.72rem; color: var(--gray); font-family: var(--font-mono); }
+    .item-corrida-badge { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; background: rgba(200,150,122,0.12); color: var(--tan); border-radius: 4px; padding: 2px 6px; margin-bottom: 6px; }
+    .item-qty { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .qty-btn { width: 28px; height: 28px; border: 1.5px solid var(--border); border-radius: 50%; background: white; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; color: var(--black); transition: border-color 0.15s; font-family: var(--font-body); }
+    .qty-btn:hover { border-color: var(--tan); }
+    .qty-val { font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); min-width: 20px; text-align: center; }
+    .item-remove { position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer; color: #ccc; font-size: 1rem; transition: color 0.15s; padding: 4px; }
+    .item-remove:hover { color: #e74c3c; }
+
+    /* MAYOREO BANNER */
+    .mayoreo-hint { background: linear-gradient(135deg, rgba(200,150,122,0.08), rgba(200,150,122,0.04)); border: 1px solid rgba(200,150,122,0.2); border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.8rem; color: #7a5a48; display: flex; align-items: center; gap: 8px; }
+    .mayoreo-hint strong { color: var(--tan); }
+
+    /* RESUMEN */
+    .resumen { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .resumen-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 0.85rem; }
+    .resumen-row.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 14px; font-weight: 700; font-size: 1rem; }
+    .resumen-row.total .val { font-family: var(--font-mono); font-size: 1.1rem; color: var(--black); }
+    .resumen-row .badge-desc { font-size: 0.7rem; color: var(--tan); font-weight: 600; margin-left: 6px; }
+    .precio-tachado { text-decoration: line-through; color: #bbb; font-size: 0.8rem; margin-right: 4px; font-family: var(--font-mono); }
+
+    /* BOTONES FINALES */
+    .actions { display: flex; flex-direction: column; gap: 10px; }
+    .btn-checkout { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 16px; background: linear-gradient(135deg, var(--pink), #c4177a); color: white; border: none; border-radius: 100px; font-family: var(--font-body); font-size: 0.95rem; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; box-shadow: 0 6px 20px rgba(233,30,140,0.3); transition: opacity 0.15s, transform 0.1s; }
+    .btn-checkout:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-checkout:active { transform: scale(0.98); }
+    .btn-checkout:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-seguir { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 13px; background: white; color: var(--black); border: 1.5px solid var(--border); border-radius: 100px; font-family: var(--font-body); font-size: 0.88rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: border-color 0.15s; }
+    .btn-seguir:hover { border-color: var(--tan); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #222; color: white; padding: 10px 20px; border-radius: 100px; font-size: 0.83rem; font-weight: 600; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* CHECKOUT OVERLAY */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+    .overlay.active { display: flex; }
+    .modal-box { background: white; border-radius: 16px; width: 100%; max-width: 480px; padding: 28px; max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+    .modal-subtitle { font-size: 0.78rem; color: var(--gray); margin-bottom: 20px; }
+    .field { margin-bottom: 12px; }
+    .field input, .field textarea { width: 100%; border: 1.5px solid #e8e8e8; border-radius: 8px; padding: 10px 12px; font-family: var(--font-body); font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+    .field input:focus, .field textarea:focus { border-color: var(--tan); }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pagos-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray); margin: 14px 0 8px; }
+    .pagos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .pago-badge { background: #f5f5f5; border-radius: 6px; padding: 6px 10px; font-size: 0.75rem; font-weight: 500; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .modal-actions .cancel { flex: 1; padding: 12px; background: transparent; border: 1.5px solid #e8e8e8; border-radius: 8px; font-family: var(--font-body); font-size: 0.85rem; cursor: pointer; }
+    .modal-actions .confirm { flex: 2; padding: 12px; background: var(--pink); color: white; border: none; border-radius: 8px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+    .modal-actions .confirm:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    @media (max-width: 600px) {
+      .item-card { padding: 10px; gap: 10px; }
+      .item-img, .item-img-placeholder { width: 68px; height: 68px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <a class="header-back" href="javascript:history.back()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    Inicio
+  </a>
+  <a class="header-logo" href="/">Zapatillas <span>May</span></a>
+  <div class="header-right"></div>
+</header>
+
+<div class="page">
+  <h1>Mi carrito</h1>
+  <p class="subtitle" id="carrito-subtitle">Cargando...</p>
+
+  <div id="carrito-vacio" class="empty" style="display:none">
+    <div class="empty-icon">🛍️</div>
+    <h2>Tu carrito está vacío</h2>
+    <p>Agrega productos para comenzar tu pedido.</p>
+    <a href="/" class="btn-primary">Ver catálogo</a>
+  </div>
+
+  <div id="carrito-contenido" style="display:none">
+    <div id="mayoreo-hint" class="mayoreo-hint" style="display:none">
+      <span>💡</span>
+      <span id="mayoreo-hint-texto"></span>
+    </div>
+
+    <div class="items-list" id="items-list"></div>
+
+    <div class="resumen" id="resumen-box"></div>
+
+    <div class="actions">
+      <button class="btn-checkout" id="btn-checkout" onclick="abrirCheckout()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Finalizar compra
+      </button>
+      <a href="/" class="btn-seguir">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        Seguir comprando
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKOUT OVERLAY -->
+<div class="overlay" id="checkout-overlay">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <p class="modal-title">Datos de envío</p>
+      <button onclick="cerrarCheckout()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem">✕</button>
+    </div>
+    <p class="modal-subtitle">Total: <strong id="modal-total" style="color:var(--tan)"></strong></p>
+    <div class="field"><input id="co-nombre" placeholder="Nombre completo *"></div>
+    <div class="field"><input id="co-email" type="email" placeholder="Email *"></div>
+    <div class="field"><input id="co-telefono" type="tel" placeholder="Teléfono *"></div>
+    <div class="field"><input id="co-calle" placeholder="Calle y número *"></div>
+    <div class="field field-row">
+      <input id="co-colonia" placeholder="Colonia *">
+      <input id="co-cp" placeholder="Código postal *">
+    </div>
+    <div class="field field-row">
+      <input id="co-ciudad" placeholder="Ciudad *">
+      <input id="co-estado" placeholder="Estado *">
+    </div>
+    <div class="field"><textarea id="co-notas" placeholder="Notas adicionales (opcional)" rows="2"></textarea></div>
+    <p class="pagos-label">Métodos de pago aceptados</p>
+    <div class="pagos-grid">
+      <span class="pago-badge">💳 Tarjeta crédito/débito</span>
+      <span class="pago-badge">🏦 Transferencia SPEI</span>
+      <span class="pago-badge">🏪 OXXO</span>
+      <span class="pago-badge">💰 MercadoPago</span>
+    </div>
+    <div class="modal-actions">
+      <button class="cancel" onclick="cerrarCheckout()">Cancelar</button>
+      <button class="confirm" id="btn-confirmar" onclick="procesarPago()">Pagar con MercadoPago</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://zapatillasmay-production.up.railway.app'
+let carrito = []
+
+// ── LEER CARRITO ─────────────────────────────────────────────────
+function leerCarrito() {
+  try {
+    return JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')
+  } catch(e) { return [] }
+}
+
+function guardarCarrito() {
+  sessionStorage.setItem('zm_carrito', JSON.stringify(carrito))
+}
+
+// ── PRECIO DINÁMICO POR VOLUMEN ──────────────────────────────────
+function calcularPrecioUnitario(item, totalPares) {
+  if (item.es_oferta) return item.precio_unitario
+  if (totalPares >= 6 || item.es_corrida) {
+    return item.precio_corrida || item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
+  }
+  if (totalPares >= 3) {
+    return item.precio_mayoreo3 || item.precio_menudeo
+  }
+  return item.precio_menudeo
+}
+
+function totalPares(carrito) {
+  return carrito.reduce((s, i) => s + (i.es_corrida ? (i.cantidad * 6) : i.cantidad), 0)
+}
+
+// ── RENDER ───────────────────────────────────────────────────────
+function render() {
+  carrito = leerCarrito()
+  const total = totalPares(carrito)
+
+  if (!carrito.length) {
+    document.getElementById('carrito-vacio').style.display = ''
+    document.getElementById('carrito-contenido').style.display = 'none'
+    document.getElementById('carrito-subtitle').textContent = 'Tu carrito está vacío'
+    return
+  }
+
+  document.getElementById('carrito-vacio').style.display = 'none'
+  document.getElementById('carrito-contenido').style.display = ''
+
+  const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0)
+  document.getElementById('carrito-subtitle').textContent =
+    `${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'} · ${total} ${total === 1 ? 'par' : 'pares'}`
+
+  // Hint mayoreo
+  const hint = document.getElementById('mayoreo-hint')
+  const hintText = document.getElementById('mayoreo-hint-texto')
+  if (total < 3) {
+    hint.style.display = 'flex'
+    hintText.innerHTML = `Agrega <strong>${3 - total} par${3 - total > 1 ? 'es' : ''} más</strong> y obtén precio de mayoreo (-$80/par)`
+  } else if (total < 6) {
+    hint.style.display = 'flex'
+    hintText.innerHTML = `Agrega <strong>${6 - total} par${6 - total > 1 ? 'es' : ''} más</strong> para mayor descuento (-$150/par)`
+  } else {
+    hint.style.display = 'none'
+  }
+
+  // Items
+  const list = document.getElementById('items-list')
+  list.innerHTML = carrito.map((item, idx) => {
+    const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
+    const precioUnit = calcularPrecioUnitario(item, total)
+    const subtotal = precioUnit * pares
+    const imgHTML = item.imagen
+      ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" onerror="this.style.display='none'">`
+      : `<div class="item-img-placeholder">👠</div>`
+    const corridaBadge = item.es_corrida ? `<div class="item-corrida-badge">Corrida completa</div>` : ''
+    return `
+      <div class="item-card">
+        ${imgHTML}
+        <div class="item-info">
+          ${corridaBadge}
+          <div class="item-name" title="${item.nombre}">${item.nombre}</div>
+          <div class="item-meta">${item.color || ''}${item.talla ? ' · Talla ' + item.talla : ''}${item.es_corrida ? ' · ' + pares + ' pares' : ''}</div>
+          <div class="item-price">$${subtotal.toFixed(0)} MXN
+            <span class="item-price-each">($${precioUnit.toFixed(0)}/par)</span>
+          </div>
+          ${!item.es_corrida ? `
+          <div class="item-qty">
+            <button class="qty-btn" onclick="cambiarCantidad(${idx}, -1)">−</button>
+            <span class="qty-val">${item.cantidad}</span>
+            <button class="qty-btn" onclick="cambiarCantidad(${idx}, 1)">+</button>
+          </div>` : ''}
+        </div>
+        <button class="item-remove" onclick="eliminarItem(${idx})" title="Eliminar">✕</button>
+      </div>`
+  }).join('')
+
+  // Resumen
+  const resumenPrecios = carrito.map(item => {
+    const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
+    return calcularPrecioUnitario(item, total) * pares
+  })
+  const subtotalActual = resumenPrecios.reduce((a, b) => a + b, 0)
+  const subtotalSinDesc = carrito.reduce((s, item) => {
+    const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
+    return s + item.precio_menudeo * pares
+  }, 0)
+  const ahorro = subtotalSinDesc - subtotalActual
+
+  let tipoDesc = ''
+  if (total >= 6) tipoDesc = 'Precio mayoreo (6+ pares)'
+  else if (total >= 3) tipoDesc = 'Precio mayoreo (3-5 pares)'
+
+  let resumenHTML = `
+    <div class="resumen-row"><span>Subtotal (${total} pares)</span><span>$${subtotalSinDesc.toFixed(0)} MXN</span></div>`
+  if (ahorro > 0) {
+    resumenHTML += `<div class="resumen-row" style="color:var(--tan)"><span>${tipoDesc}</span><span>−$${ahorro.toFixed(0)} MXN</span></div>`
+  }
+  resumenHTML += `
+    <div class="resumen-row total">
+      <span>Total</span>
+      <span class="val">$${subtotalActual.toFixed(0)} MXN</span>
+    </div>
+    <p style="font-size:0.72rem;color:var(--gray);margin-top:8px">+ envío calculado al finalizar</p>`
+
+  document.getElementById('resumen-box').innerHTML = resumenHTML
+  document.getElementById('modal-total').textContent = '$' + subtotalActual.toFixed(0) + ' MXN'
+}
+
+function cambiarCantidad(idx, delta) {
+  carrito[idx].cantidad = Math.max(1, carrito[idx].cantidad + delta)
+  // Recalcular precio_unitario con el nuevo total
+  const total = totalPares(carrito)
+  carrito.forEach(item => {
+    item.precio_unitario = calcularPrecioUnitario(item, total)
+  })
+  guardarCarrito()
+  render()
+}
+
+function eliminarItem(idx) {
+  carrito.splice(idx, 1)
+  guardarCarrito()
+  render()
+  mostrarToast('Producto eliminado')
+}
+
+// ── TOAST ────────────────────────────────────────────────────────
+function mostrarToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  clearTimeout(t._timer)
+  t._timer = setTimeout(() => t.classList.remove('show'), 2400)
+}
+
+// ── CHECKOUT ─────────────────────────────────────────────────────
+function abrirCheckout() {
+  if (!carrito.length) return
+  document.getElementById('checkout-overlay').classList.add('active')
+}
+
+function cerrarCheckout() {
+  document.getElementById('checkout-overlay').classList.remove('active')
+}
+
+async function procesarPago() {
+  const nombre   = document.getElementById('co-nombre').value.trim()
+  const email    = document.getElementById('co-email').value.trim()
+  const telefono = document.getElementById('co-telefono').value.trim()
+  const calle    = document.getElementById('co-calle').value.trim()
+  const colonia  = document.getElementById('co-colonia').value.trim()
+  const cp       = document.getElementById('co-cp').value.trim()
+  const ciudad   = document.getElementById('co-ciudad').value.trim()
+  const estado   = document.getElementById('co-estado').value.trim()
+  const notas    = document.getElementById('co-notas').value.trim()
+
+  if (!nombre || !email || !telefono || !calle || !colonia || !cp || !ciudad || !estado) {
+    mostrarToast('Completa todos los campos requeridos')
+    return
+  }
+
+  const btn = document.getElementById('btn-confirmar')
+  btn.disabled = true
+  btn.textContent = 'Procesando...'
+
+  try {
+    const total = totalPares(carrito)
+    const totalFinal = carrito.reduce((s, item) => {
+      const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
+      return s + calcularPrecioUnitario(item, total) * pares
+    }, 0)
+
+    // Crear pedido
+    const resPedido = await fetch(`${API}/pedidos/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: carrito.map(i => ({
+          variante_id: i.variante_id,
+          cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
+          precio_unitario: calcularPrecioUnitario(i, total),
+          nombre: i.nombre, color: i.color, talla: i.talla
+        })),
+        total: totalFinal,
+        status: 'borrador',
+        nombre_cliente: nombre, email_cliente: email,
+        telefono_cliente: telefono,
+        direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`,
+        notas
+      })
+    })
+    const pedido = await resPedido.json()
+    if (!pedido.id) throw new Error('Error creando pedido')
+
+    // Crear preferencia de pago
+    const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pedido_id: pedido.id,
+        items: carrito.map(i => ({
+          nombre: i.nombre + ' - ' + i.color + (i.talla ? ' T:' + i.talla : ''),
+          cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
+          precio: calcularPrecioUnitario(i, total)
+        })),
+        cliente: { nombre, email },
+        total: totalFinal
+      })
+    })
+    const pago = await resPago.json()
+    if (!pago.init_point) throw new Error('Error creando pago')
+
+    // Guardar IDs para evento Purchase
+    try {
+      const ids = carrito.map(i => i.sku_interno || i.producto_id)
+      sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(ids))
+    } catch(e) {}
+
+    // Pixels
+    if (window.fbq) fbq('track', 'InitiateCheckout', { value: totalFinal, currency: 'MXN', num_items: total })
+    if (window.ttq) ttq.track('InitiateCheckout', { value: totalFinal, currency: 'MXN' })
+    if (typeof gtag === 'function') gtag('event', 'begin_checkout', { currency: 'MXN', value: totalFinal })
+
+    window.location.href = pago.init_point
+  } catch(e) {
+    btn.disabled = false
+    btn.textContent = 'Pagar con MercadoPago'
+    mostrarToast('Error al procesar. Intenta de nuevo.')
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────
+render()
+</script>
+</body>
+</html>
