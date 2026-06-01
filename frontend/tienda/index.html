@@ -386,6 +386,30 @@
       color: var(--white);
     }
 
+    /* ── FILTROS ── */
+    .filtros-bar { display: none; margin-bottom: 24px; }
+    .filtros-bar.visible { display: block; }
+    .filtros-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filtros-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: 1.5px solid var(--cream-dark); background: white; border-radius: 100px; font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; color: var(--gray-800); cursor: pointer; transition: var(--transition); }
+    .filtros-btn:hover { border-color: var(--pink); color: var(--pink); }
+    .filtros-btn .fb-count { background: var(--pink); color: white; border-radius: 100px; font-size: 0.68rem; padding: 1px 7px; min-width: 18px; text-align: center; }
+    .filtros-resultado { font-size: 0.8rem; color: var(--gray-600); }
+    .filtros-orden { padding: 8px 14px; border: 1.5px solid var(--cream-dark); border-radius: 100px; background: white; font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-800); cursor: pointer; outline: none; }
+    .filtros-panel { display: none; background: white; border: 1px solid var(--cream-dark); border-radius: 14px; padding: 20px; margin-top: 4px; }
+    .filtros-panel.open { display: block; animation: fadeInFilter 0.2s ease; }
+    @keyframes fadeInFilter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .filtro-grupo { margin-bottom: 18px; }
+    .filtro-grupo:last-child { margin-bottom: 0; }
+    .filtro-grupo h5 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gray-600); margin-bottom: 10px; }
+    .filtro-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filtro-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1.5px solid var(--cream-dark); border-radius: 100px; background: white; font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-800); cursor: pointer; transition: var(--transition); user-select: none; }
+    .filtro-chip:hover { border-color: var(--pink); }
+    .filtro-chip.active { border-color: var(--pink); background: var(--pink); color: white; }
+    .filtro-chip .chip-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0; }
+    .filtros-acciones { display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--cream); }
+    .filtros-aplicar { flex: 1; padding: 11px; background: var(--pink); color: white; border: none; border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .filtros-limpiar { padding: 11px 20px; background: white; border: 1.5px solid var(--cream-dark); border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; color: var(--gray-600); cursor: pointer; }
+
     /* PRODUCTOS */
     .products-grid {
       display: grid;
@@ -2456,6 +2480,47 @@
     <h2 class="section-title" id="productos-titulo">Nuevos <em>modelos</em></h2>
     <a href="#" class="section-link" onclick="mostrarTodos()">Ver todos →</a>
   </div>
+
+  <!-- FILTROS -->
+  <div class="filtros-bar" id="filtros-bar">
+    <div class="filtros-toggle-row">
+      <button class="filtros-btn" onclick="toggleFiltros()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        Filtros
+        <span class="fb-count" id="fb-count" style="display:none">0</span>
+      </button>
+      <span class="filtros-resultado" id="filtros-resultado"></span>
+      <select class="filtros-orden" id="filtros-orden" onchange="aplicarFiltros()">
+        <option value="relevancia">Relevancia</option>
+        <option value="precio-asc">Precio: menor a mayor</option>
+        <option value="precio-desc">Precio: mayor a menor</option>
+        <option value="nuevos">Más nuevos</option>
+      </select>
+    </div>
+    <div class="filtros-panel" id="filtros-panel">
+      <div class="filtro-grupo" id="fg-categoria">
+        <h5>Categoría</h5>
+        <div class="filtro-chips" id="fc-categoria"></div>
+      </div>
+      <div class="filtro-grupo" id="fg-talla">
+        <h5>Talla</h5>
+        <div class="filtro-chips" id="fc-talla"></div>
+      </div>
+      <div class="filtro-grupo" id="fg-color">
+        <h5>Color</h5>
+        <div class="filtro-chips" id="fc-color"></div>
+      </div>
+      <div class="filtro-grupo" id="fg-precio">
+        <h5>Precio</h5>
+        <div class="filtro-chips" id="fc-precio"></div>
+      </div>
+      <div class="filtros-acciones">
+        <button class="filtros-aplicar" onclick="aplicarFiltros();toggleFiltros()">Ver resultados</button>
+        <button class="filtros-limpiar" onclick="limpiarFiltros()">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="products-grid" id="products-grid">
     <div class="loading">Cargando productos...</div>
   </div>
@@ -3175,27 +3240,22 @@ cargarConfigSEO()
         _cacheSave({ productos, variantes, inventario })
       }
       // inventario/slim solo tiene variante_id + cantidad, sin datos anidados
+      _construirIndicesFiltro()
       renderCategorias()
 
       // Routing directo: restaurar la vista según la URL actual
       const _hash = window.location.hash
       const _path = window.location.pathname
-      if (_hash === '#catalogo') {
+      const _CATS_VALIDAS = ['tacones','sandalias','botas','botines','flats','plataformas','tenis','nina','accesorios']
+      const _catLimpia = _path.slice(1)
+      if (_path === '/catalogo' || _hash === '#catalogo') {
         mostrarCatalogo()
       } else if (_hash === '#nuevos') {
         mostrarNuevos()
+      } else if (_CATS_VALIDAS.includes(_catLimpia)) {
+        filtrarCategoria(_catLimpia)
       } else if (_hash.startsWith('#categoria/')) {
-        const _cat = _hash.replace('#categoria/', '')
-        const _filtrados = productos.filter(p => p.categoria === _cat && p.activo)
-        document.getElementById('productos-titulo').innerHTML = _cat.charAt(0).toUpperCase() + _cat.slice(1) + ' <em>disponibles</em>'
-        const _hero = document.getElementById('hero-section')
-        if (_hero) _hero.style.display = 'none'
-        const _cats = document.querySelector('.section')
-        const _banner = document.querySelector('.banner-mayoreo')
-        if (_cats) _cats.style.display = 'none'
-        if (_banner) _banner.style.display = 'none'
-        renderProductos(_filtrados)
-        document.getElementById('productos-section').style.display = ''
+        filtrarCategoria(_hash.replace('#categoria/', ''))
       } else if (_path === '/tabla-tallas') {
         mostrarPagina('tabla-tallas')
       } else if (_hash && _hash.startsWith('#')) {
@@ -4112,30 +4172,16 @@ if (window.ttq) ttq.track('AddToCart', {
       inicializar().then(() => filtrarCategoria(categoria))
       return
     }
-    const filtrados = productos.filter(p => p.categoria === categoria && p.activo)
-    document.getElementById('productos-titulo').innerHTML = categoria.charAt(0).toUpperCase()+categoria.slice(1)+' <em>disponibles</em>'
-    const _heroEl = document.getElementById('hero-section')
-    if (_heroEl) _heroEl.style.display = 'none'
-    const _catsEl = document.querySelector('.section')
-    const _bannerEl = document.querySelector('.banner-mayoreo')
-    if (_catsEl) _catsEl.style.display = 'none'
-    if (_bannerEl) _bannerEl.style.display = 'none'
-    document.getElementById('productos-section').style.display = ''
-    renderProductos(filtrados)
-    scrollToProductos()
-    history.pushState({}, '', '/' + categoria)
+    const label = (_CAT_LABELS[categoria] || (categoria.charAt(0).toUpperCase()+categoria.slice(1)))
+    mostrarConFiltros(productos.filter(p => p.activo), label + ' <em>disponibles</em>', categoria, '/' + categoria)
   }
 
   function mostrarTodos() {
-    document.getElementById('productos-titulo').innerHTML = 'Todo el <em>catalogo</em>'
-    renderProductos(productos.filter(p => p.activo))
+    mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/catalogo')
   }
 
   function mostrarOfertas() {
-    const ofertas = productos.filter(p => p.es_oferta && p.activo)
-    document.getElementById('productos-titulo').innerHTML = '<em>Ofertas</em> especiales'
-    renderProductos(ofertas)
-    scrollToProductos()
+    mostrarConFiltros(productos.filter(p => p.es_oferta && p.activo), '<em>Ofertas</em> especiales', '', null)
   }
 
   function mostrarInicio() {
@@ -4152,27 +4198,13 @@ if (window.ttq) ttq.track('AddToCart', {
   if (bannerMayoreo) bannerMayoreo.style.display = ''
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
+  const _fb0 = document.getElementById('filtros-bar'); if (_fb0) _fb0.classList.remove('visible')
   renderProductos(productos.filter(p => p.activo))
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/')
 }
 function mostrarCatalogo() {
-  const pagina = document.getElementById('pagina-interna')
-  const hero = document.getElementById('hero-section')
-  const productosSection = document.getElementById('productos-section')
-  const cats = document.querySelector('.section')
-  const bannerMayoreo = document.querySelector('.banner-mayoreo')
-
-  pagina.style.display = 'none'
-  if (hero) hero.style.display = 'none'
-  productosSection.style.display = ''
-  if (cats) cats.style.display = 'none'
-  if (bannerMayoreo) bannerMayoreo.style.display = 'none'
-
-  document.getElementById('productos-titulo').innerHTML = 'Todo el <em>catálogo</em>'
-  renderProductos(productos.filter(p => p.activo))
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-  history.replaceState({}, '', '/#catalogo')
+  mostrarConFiltros(productos.filter(p => p.activo), 'Todo el <em>catálogo</em>', '', '/catalogo')
 }
 
 function mostrarNuevos() {
@@ -4190,10 +4222,134 @@ function mostrarNuevos() {
 
   const nuevos = productos.filter(p => p.activo && p.nuevo)
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
+  const _fb = document.getElementById('filtros-bar'); if (_fb) _fb.classList.remove('visible')
   renderProductos(nuevos)
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/#nuevos')
 }
+
+// ════════════ SISTEMA DE FILTROS ════════════
+const _ORDEN_TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica','Única']
+const _CAT_LABELS = {tacones:'Tacones',sandalias:'Sandalias',botas:'Botas',botines:'Botines',flats:'Flats',plataformas:'Plataformas',tenis:'Tenis',nina:'Niña',accesorios:'Accesorios'}
+const _RANGOS_PRECIO = [
+  { label: 'Menos de $400', min: 0, max: 400 },
+  { label: '$400 – $600', min: 400, max: 600 },
+  { label: '$600 – $800', min: 600, max: 800 },
+  { label: 'Más de $800', min: 800, max: Infinity },
+]
+let _filtroBase = []
+let _filtros = { categoria: '', tallas: [], colores: [], precioRango: null }
+let _idxTallas = {}, _idxColores = {}, _invMapF = {}
+
+function _construirIndicesFiltro() {
+  _invMapF = {}
+  inventario.forEach(i => { _invMapF[i.variante_id] = i.cantidad || 0 })
+  _idxTallas = {}; _idxColores = {}
+  variantes.forEach(v => {
+    if (v.activa === false) return
+    const pid = v.producto_id
+    const stock = _invMapF[v.id] || 0
+    if (v.talla && stock > 0) {
+      if (!_idxTallas[pid]) _idxTallas[pid] = new Set()
+      _idxTallas[pid].add(String(v.talla))
+    }
+    if (v.color) {
+      if (!_idxColores[pid]) _idxColores[pid] = {}
+      if (!_idxColores[pid][v.color]) _idxColores[pid][v.color] = v.color_hex || '#ccc'
+    }
+  })
+}
+
+function _precioDe(p) {
+  return p.es_oferta ? parseFloat(p.precio_menudeo||0) : (parseFloat(p.precio_menudeo||0) + 80)
+}
+
+function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
+  const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
+  const hero = document.getElementById('hero-section'); if (hero) hero.style.display='none'
+  const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
+  const banner = document.querySelector('.banner-mayoreo'); if (banner) banner.style.display='none'
+  document.getElementById('productos-section').style.display=''
+  _filtroBase = baseLista
+  _filtros = { categoria: catPreset || '', tallas: [], colores: [], precioRango: null }
+  document.getElementById('productos-titulo').innerHTML = titulo
+  _construirChipsFiltro()
+  document.getElementById('filtros-bar').classList.add('visible')
+  const panel = document.getElementById('filtros-panel'); if (panel) panel.classList.remove('open')
+  aplicarFiltros()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+  if (urlPath) history.pushState({}, '', urlPath)
+}
+
+function _construirChipsFiltro() {
+  // Categorías presentes en la base (sin pre-filtrar por categoría)
+  const baseCats = _filtros.categoria ? productos.filter(p=>p.activo) : _filtroBase
+  const catsPresentes = [...new Set(baseCats.map(p=>p.categoria).filter(Boolean))]
+  const fcCat = document.getElementById('fc-categoria')
+  if (fcCat) {
+    fcCat.innerHTML = catsPresentes.map(c =>
+      `<div class="filtro-chip ${_filtros.categoria===c?'active':''}" onclick="_toggleCat('${c}')">${_CAT_LABELS[c]||c}</div>`
+    ).join('')
+    document.getElementById('fg-categoria').style.display = catsPresentes.length > 1 ? '' : 'none'
+  }
+  // Tallas presentes en la base
+  const tallasSet = new Set()
+  _filtroBase.forEach(p => { if(_idxTallas[p.id]) _idxTallas[p.id].forEach(t => tallasSet.add(t)) })
+  const tallas = [...tallasSet].sort((a,b)=>{
+    const ia=_ORDEN_TALLAS.indexOf(a), ib=_ORDEN_TALLAS.indexOf(b)
+    return (ia<0?99:ia)-(ib<0?99:ib)
+  })
+  const fcTalla = document.getElementById('fc-talla')
+  fcTalla.innerHTML = tallas.map(t =>
+    `<div class="filtro-chip ${_filtros.tallas.includes(t)?'active':''}" onclick="_toggleTalla('${t}')">${t}</div>`
+  ).join('')
+  document.getElementById('fg-talla').style.display = tallas.length ? '' : 'none'
+  // Colores presentes
+  const colorMap = {}
+  _filtroBase.forEach(p => { const cs=_idxColores[p.id]||{}; Object.keys(cs).forEach(n=>{ if(!colorMap[n])colorMap[n]=cs[n] }) })
+  const colores = Object.keys(colorMap).sort()
+  const fcColor = document.getElementById('fc-color')
+  fcColor.innerHTML = colores.map(c =>
+    `<div class="filtro-chip ${_filtros.colores.includes(c)?'active':''}" onclick="_toggleColor(this.dataset.c)" data-c="${c.replace(/"/g,'&quot;')}"><span class="chip-dot" style="background:${colorMap[c]}"></span>${c}</div>`
+  ).join('')
+  document.getElementById('fg-color').style.display = colores.length ? '' : 'none'
+  // Precio
+  document.getElementById('fc-precio').innerHTML = _RANGOS_PRECIO.map((r,i) =>
+    `<div class="filtro-chip ${_filtros.precioRango===i?'active':''}" onclick="_togglePrecio(${i})">${r.label}</div>`
+  ).join('')
+}
+
+function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); _actualizarContador() }
+function _toggleTalla(t){ const i=_filtros.tallas.indexOf(t); if(i<0)_filtros.tallas.push(t); else _filtros.tallas.splice(i,1); _construirChipsFiltro(); _actualizarContador() }
+function _toggleColor(c){ const i=_filtros.colores.indexOf(c); if(i<0)_filtros.colores.push(c); else _filtros.colores.splice(i,1); _construirChipsFiltro(); _actualizarContador() }
+function _togglePrecio(i){ _filtros.precioRango = _filtros.precioRango===i?null:i; _construirChipsFiltro(); _actualizarContador() }
+
+function _actualizarContador(){
+  const n = _filtros.tallas.length + _filtros.colores.length + (_filtros.categoria?1:0) + (_filtros.precioRango!==null?1:0)
+  const badge = document.getElementById('fb-count')
+  if (!badge) return
+  if (n>0){ badge.style.display=''; badge.textContent=n } else badge.style.display='none'
+}
+
+function aplicarFiltros() {
+  let lista = _filtroBase.slice()
+  if (_filtros.categoria) lista = lista.filter(p => p.categoria === _filtros.categoria)
+  if (_filtros.tallas.length) lista = lista.filter(p => { const ts=_idxTallas[p.id]; return ts && _filtros.tallas.some(t=>ts.has(t)) })
+  if (_filtros.colores.length) lista = lista.filter(p => { const cs=_idxColores[p.id]||{}; return _filtros.colores.some(c=>cs[c]) })
+  if (_filtros.precioRango!==null){ const r=_RANGOS_PRECIO[_filtros.precioRango]; lista = lista.filter(p=>{const pr=_precioDe(p); return pr>=r.min && pr<r.max}) }
+  const ordenEl = document.getElementById('filtros-orden')
+  const orden = ordenEl ? ordenEl.value : 'relevancia'
+  if (orden==='precio-asc') lista.sort((a,b)=>_precioDe(a)-_precioDe(b))
+  else if (orden==='precio-desc') lista.sort((a,b)=>_precioDe(b)-_precioDe(a))
+  else if (orden==='nuevos') lista.sort((a,b)=>(b.nuevo?1:0)-(a.nuevo?1:0))
+  const resEl = document.getElementById('filtros-resultado')
+  if (resEl) resEl.textContent = `${lista.length} ${lista.length===1?'modelo':'modelos'}`
+  _actualizarContador()
+  renderProductos(lista)
+}
+
+function toggleFiltros(){ const p=document.getElementById('filtros-panel'); if(p) p.classList.toggle('open') }
+function limpiarFiltros(){ _filtros={categoria:'',tallas:[],colores:[],precioRango:null}; const o=document.getElementById('filtros-orden'); if(o)o.value='relevancia'; _construirChipsFiltro(); aplicarFiltros() }
 
   function scrollToProductos() {
     document.getElementById('productos-section').scrollIntoView({behavior:'smooth', block:'start'})
@@ -5116,9 +5272,9 @@ const PAGINAS = {
       <div style="display:flex;flex-direction:column;gap:10px">
         ${[
           ['1 par','$400 c/u','$400 total','rgba(245,240,232,0.05)','rgba(245,240,232,0.7)'],
-          ['3 pares','$370 c/u','$1,110 total','rgba(184,124,130,0.12)','#C4A89A'],
-          ['6 pares','$330 c/u','$1,980 total','rgba(184,124,130,0.2)','#B87C82'],
-          ['Corrida (6 tallas)','$290 c/u','$1,740 total','rgba(184,124,130,0.3)','#FAF8F6'],
+          ['3 pares','$320 c/u','$960 total','rgba(184,124,130,0.12)','#C4A89A'],
+          ['6 pares','$250 c/u','$1,500 total','rgba(184,124,130,0.2)','#B87C82'],
+          ['Corrida (6 tallas)','$220 c/u','$1,320 total','rgba(184,124,130,0.3)','#FAF8F6'],
         ].map(([c,p,t,bg,col]) => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:${bg};border-radius:8px;gap:8px">
             <span style="color:rgba(245,240,232,0.6);font-size:0.85rem;flex:1">${c}</span>
@@ -5168,6 +5324,26 @@ const PAGINAS = {
             <div style="display:none;padding:0 20px 16px;font-size:0.85rem;color:var(--gray-600);line-height:1.7;background:var(--white)">${a}</div>
           </div>
         `).join('')}
+      </div>
+    </div>
+
+    <div style="background:linear-gradient(135deg,#2A1A0E,#4a2c1a);border-radius:16px;padding:clamp(28px,5vw,44px);margin-bottom:40px">
+      <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2rem);font-weight:400;color:var(--white);text-align:center;margin-bottom:6px">Conviértete en <em style="font-style:italic;color:var(--pink)">revendedora</em></h2>
+      <p style="color:rgba(245,240,232,0.55);font-size:0.85rem;text-align:center;margin-bottom:28px;max-width:440px;margin-left:auto;margin-right:auto">Déjanos tus datos y te contactamos por WhatsApp para darte de alta y asesorarte con los modelos que mejor se venden.</p>
+      <div id="may-form" style="max-width:460px;margin:0 auto;display:grid;gap:12px">
+        <input id="may-nombre" placeholder="Tu nombre *" style="border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.06);border-radius:8px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none">
+        <input id="may-negocio" placeholder="Nombre de tu negocio (opcional)" style="border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.06);border-radius:8px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <input id="may-ciudad" placeholder="Ciudad *" style="border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.06);border-radius:8px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none">
+          <input id="may-telefono" type="tel" placeholder="WhatsApp *" style="border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.06);border-radius:8px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none">
+        </div>
+        <input id="may-email" type="email" placeholder="Email (opcional)" style="border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.06);border-radius:8px;padding:13px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none">
+        <button onclick="registrarMayorista()" id="may-btn" class="pg-cta" style="margin-top:6px;justify-content:center">Quiero ser revendedora →</button>
+      </div>
+      <div id="may-ok" style="display:none;text-align:center;color:var(--white);padding:24px 0">
+        <div style="font-size:2.5rem;margin-bottom:10px">🎉</div>
+        <p style="font-size:1.1rem;font-weight:600;margin-bottom:6px">¡Solicitud recibida!</p>
+        <p style="font-size:0.85rem;color:rgba(245,240,232,0.6)">Te contactaremos muy pronto por WhatsApp.</p>
       </div>
     </div>
 
@@ -5330,6 +5506,36 @@ function enviarContacto() {
   if (!nombre || !msg) { mostrarToast('Por favor completa nombre y mensaje'); return }
   const texto = encodeURIComponent(`Hola, mi nombre es ${nombre}${tel ? ', mi telefono es ' + tel : ''}.\n\n${msg}`)
   window.open('https://wa.me/5214792244560?text=' + texto, '_blank')
+}
+
+async function registrarMayorista() {
+  const nombre   = (document.getElementById('may-nombre').value || '').trim()
+  const negocio  = (document.getElementById('may-negocio').value || '').trim()
+  const ciudad   = (document.getElementById('may-ciudad').value || '').trim()
+  const telefono = (document.getElementById('may-telefono').value || '').trim()
+  const email    = (document.getElementById('may-email').value || '').trim()
+  if (!nombre || !ciudad || !telefono) {
+    mostrarToast('Completa nombre, ciudad y WhatsApp')
+    return
+  }
+  const btn = document.getElementById('may-btn')
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  // Eventos
+  if (typeof gtag === 'function') gtag('event', 'generate_lead', { event_category: 'mayorista' })
+  if (window.fbq) fbq('track', 'Lead', { content_name: 'mayorista' })
+  try {
+    await fetch('https://zapatillasmay-production.up.railway.app/auth/mayorista/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, negocio, ciudad, telefono, email })
+    })
+  } catch(e) {}
+  // Mostrar confirmación
+  const form = document.getElementById('may-form')
+  const ok = document.getElementById('may-ok')
+  if (form) form.style.display = 'none'
+  if (ok) ok.style.display = 'block'
 }
 window.addEventListener('scroll', () => {
   const hero = document.getElementById('hero-section')

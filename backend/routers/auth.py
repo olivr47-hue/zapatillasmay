@@ -319,3 +319,85 @@ def newsletter_subscribe(datos: dict):
         # Si falla por tabla no existente, devolver ok de todas formas
         print(f"[newsletter] Error: {e}")
         return {"ok": True, "mensaje": "¡Listo!"}
+
+
+_NOTIF_EMAIL = os.getenv("NOTIF_EMAIL", "olivr47@gmail.com")
+
+@router.post("/mayorista/registro")
+def mayorista_registro(datos: dict):
+    """Registra una revendedora interesada: guarda el lead y notifica al negocio."""
+    nombre   = (datos.get("nombre") or "").strip()
+    negocio  = (datos.get("negocio") or "").strip()
+    ciudad   = (datos.get("ciudad") or "").strip()
+    telefono = (datos.get("telefono") or "").strip()
+    email    = (datos.get("email") or "").strip().lower()
+
+    if not nombre or not telefono:
+        return JSONResponse(status_code=400, content={"error": "Nombre y teléfono son obligatorios"})
+
+    # Guardar lead en suscriptores
+    try:
+        if email and "@" in email:
+            existente = supabase_get(f"suscriptores?email=eq.{email}")
+            if not existente:
+                supabase_post("suscriptores", {
+                    "email": email,
+                    "nombre": f"{nombre} | {negocio or 's/negocio'} | {ciudad or 's/ciudad'} | {telefono}",
+                    "fuente": "mayorista",
+                    "activo": True
+                })
+    except Exception as e:
+        print(f"[mayorista] Error guardando lead: {e}")
+
+    # Notificar al negocio
+    try:
+        tel_limpio = telefono.replace(' ', '').replace('-', '').lstrip('+')
+        resend.Emails.send({
+            "from": "Zapatillas May <onboarding@resend.dev>",
+            "to": _NOTIF_EMAIL,
+            "subject": f"🛍️ Nueva revendedora interesada: {nombre}",
+            "html": f"""
+            <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+              <h2 style="color:#0A0A0A">Nueva solicitud de revendedora</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+                <tr><td style="padding:8px 0;color:#888">Nombre</td><td style="padding:8px 0;font-weight:600">{nombre}</td></tr>
+                <tr><td style="padding:8px 0;color:#888">Negocio</td><td style="padding:8px 0;font-weight:600">{negocio or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#888">Ciudad</td><td style="padding:8px 0;font-weight:600">{ciudad or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#888">Teléfono</td><td style="padding:8px 0;font-weight:600">{telefono}</td></tr>
+                <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;font-weight:600">{email or '—'}</td></tr>
+              </table>
+              <a href="https://wa.me/52{tel_limpio}"
+                 style="display:inline-block;margin-top:16px;background:#25D366;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+                Contactar por WhatsApp
+              </a>
+            </div>"""
+        })
+    except Exception as e:
+        print(f"[mayorista] Error notificando: {e}")
+
+    # Email de bienvenida a la revendedora
+    if email and "@" in email:
+        try:
+            primer_nombre = nombre.split()[0] if nombre else "Hola"
+            resend.Emails.send({
+                "from": "Zapatillas May <onboarding@resend.dev>",
+                "to": email,
+                "subject": "¡Gracias por tu interés en ser revendedora! 👠",
+                "html": f"""
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+                  <h2 style="color:#0A0A0A">¡Hola, {primer_nombre}! 👋</h2>
+                  <p style="color:#555;line-height:1.7;font-size:0.92rem">
+                    Recibimos tu solicitud para ser revendedora de Zapatillas May.
+                    Muy pronto te contactaremos por WhatsApp para darte de alta y
+                    explicarte cómo aprovechar nuestros precios de mayoreo.
+                  </p>
+                  <a href="https://zapatillasmay.mx"
+                     style="display:inline-block;margin-top:8px;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:600">
+                    Ver catálogo →
+                  </a>
+                </div>"""
+            })
+        except Exception as e:
+            print(f"[mayorista] Error email bienvenida: {e}")
+
+    return {"ok": True, "mensaje": "¡Solicitud recibida! Te contactaremos pronto 💬"}
