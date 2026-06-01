@@ -4122,13 +4122,10 @@ if (window.ttq) ttq.track('AddToCart', {
   }
   // ─────────────────────────────────────────────────────────
   function mostrarPaginaExito(paymentId) {
-  const hero = document.getElementById('hero')
-  const productosSection = document.getElementById('productos-section')
-  const cats = document.querySelector('.section')
+  const hero = document.getElementById('hero-section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
   if (hero) hero.style.display = 'none'
-  if (productosSection) productosSection.style.display = 'none'
-  if (cats) cats.style.display = 'none'
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none')
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
 
   const pagina = document.getElementById('pagina-interna')
@@ -4215,14 +4212,12 @@ if (window.ttq) ttq.track('AddToCart', {
   function mostrarInicio() {
   const pagina = document.getElementById('pagina-interna')
   const hero = document.getElementById('hero-section')
-  const productosSection = document.getElementById('productos-section')
-  const cats = document.querySelector('.section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
   pagina.style.display = 'none'
-  hero.style.display = ''
-  productosSection.style.display = ''
-  if (cats) cats.style.display = ''
+  if (hero) hero.style.display = ''
+  // Re-mostrar todas las secciones del home
+  document.querySelectorAll('.section').forEach(s => s.style.display = '')
   if (bannerMayoreo) bannerMayoreo.style.display = ''
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
@@ -5546,24 +5541,20 @@ function mostrarPagina(id) {
   const pagina = document.getElementById('pagina-interna')
   const contenido = document.getElementById('pagina-contenido')
   const hero = document.getElementById('hero-section')
-  const productosSection = document.getElementById('productos-section')
-  const cats = document.querySelector('.section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
   if (!PAGINAS[id]) return
 
-  // Ocultar secciones principales
-  hero.style.display = 'none'
-  productosSection.style.display = 'none'
-  if (cats) cats.style.display = 'none'
+  // Ocultar TODAS las secciones del home (categorías, productos, testimonios)
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none')
+  if (hero) hero.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
-
 
   // Mostrar página
   contenido.innerHTML = PAGINAS[id]
   setTimeout(function(){ animarPaginaInterna(contenido); }, 30)
   pagina.style.display = 'block'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  window.scrollTo({ top: 0, behavior: 'instant' })
   history.pushState({}, '', '/' + id)
 }
 
