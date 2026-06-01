@@ -4134,15 +4134,17 @@ if (window.ttq) ttq.track('AddToCart', {
   const pagina = document.getElementById('pagina-interna')
   const contenido = document.getElementById('pagina-contenido')
   contenido.innerHTML = `
-    <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px">
-      <div style="text-align:center;max-width:500px">
-        <div style="font-size:4rem;margin-bottom:20px">🎉</div>
-        <h1 style="font-family:var(--font-display);font-size:2.5rem;font-weight:400;margin-bottom:12px">¡Pago exitoso!</h1>
-        <p style="color:var(--gray-600);margin-bottom:8px">Tu pedido ha sido confirmado.</p>
-        <p style="font-size:0.82rem;color:#aaa;margin-bottom:32px">En breve recibirás confirmación por WhatsApp.</p>
-        <button onclick="mostrarInicio();window.history.pushState({},'','/')" class="btn-primary">Seguir comprando</button>
+    <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:linear-gradient(160deg,#f7ede4,#f2e4d8)">
+      <div style="text-align:center;max-width:480px;background:white;border-radius:24px;padding:48px 36px;box-shadow:0 16px 48px rgba(90,40,10,0.12);border:1px solid rgba(200,150,122,0.15)">
+        <div style="width:84px;height:84px;margin:0 auto 24px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-size:2.4rem;box-shadow:0 8px 24px rgba(200,150,122,0.4);animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)">🎉</div>
+        <p style="font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#C8967A;margin-bottom:10px">Pedido confirmado</p>
+        <h1 style="font-family:var(--font-display);font-size:2.6rem;font-weight:400;margin-bottom:14px;color:#2A1A0E;line-height:1.05">¡Gracias por tu <em style="font-style:italic;color:#b5687a">compra!</em></h1>
+        <p style="color:#5a4030;margin-bottom:6px;line-height:1.6">Tu pedido ha sido confirmado con éxito.</p>
+        <p style="font-size:0.84rem;color:#C4A38A;margin-bottom:32px;line-height:1.6">📱 En breve recibirás los detalles y seguimiento por WhatsApp.</p>
+        <button onclick="mostrarInicio();window.history.pushState({},'','/')" class="btn-primary" style="border-radius:100px">Seguir comprando</button>
       </div>
     </div>
+    <style>@keyframes popIn{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}</style>
   `
   pagina.style.display = 'block'
   carrito = []
