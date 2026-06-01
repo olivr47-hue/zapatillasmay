@@ -1,12 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.zapatillasmay.mx" }],
-      "destination": "https://zapatillasmay.mx/:path*",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     { "source": "/producto/:slug", "destination": "https://zapatillasmay-production.up.railway.app/seo/producto/:slug" },
     { "source": "/sitemap.xml",    "destination": "https://zapatillasmay-production.up.railway.app/sitemap.xml" },
