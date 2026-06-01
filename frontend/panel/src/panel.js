@@ -10697,37 +10697,54 @@ async function cargarEnvio() {
 
           <div style="display:grid;gap:1.2rem">
 
-            <div>
-              <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.4rem">
-                Costo de envío estándar (MXN)
-              </label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:1rem;color:var(--text-muted)">$</span>
-                <input type="number" id="envio-costo" value="${cfg.costo || 99}"
-                  min="0" step="1"
-                  style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.95rem;width:160px;outline:none">
-                <span style="font-size:0.82rem;color:var(--text-muted)">MXN por pedido</span>
+            <div style="background:var(--bg);border-radius:10px;padding:1rem;border:1px solid var(--border)">
+              <p style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.75rem">Tarifas por número de pares</p>
+              <div style="display:grid;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">1 par</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier1" value="${cfg.tier1 ?? 99}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">2 pares</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier2" value="${cfg.tier2 ?? 150}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">3+ pares</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier3" value="${cfg.tier3 ?? 199}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
               </div>
             </div>
 
             <div>
               <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.4rem">
-                Envío gratis a partir de (MXN)
+                Envío gratis a partir de
               </label>
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-size:1rem;color:var(--text-muted)">$</span>
-                <input type="number" id="envio-gratis-desde" value="${cfg.gratis_desde || 1299}"
+                <span style="color:var(--text-muted)">$</span>
+                <input type="number" id="envio-gratis-desde" value="${cfg.gratis_desde ?? 1299}"
                   min="0" step="1"
                   style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.95rem;width:160px;outline:none">
                 <span style="font-size:0.82rem;color:var(--text-muted)">MXN de compra</span>
               </div>
             </div>
 
-            <div style="background:var(--bg);border-radius:10px;padding:1rem;font-size:0.82rem;color:var(--text-muted);border:1px solid var(--border)">
-              <strong style="color:var(--text);display:block;margin-bottom:4px">Cómo funciona:</strong>
-              Si el pedido es menor a <strong id="preview-desde">$${cfg.gratis_desde || 1299}</strong> MXN →
-              se cobra <strong id="preview-costo">$${cfg.costo || 99}</strong> MXN de envío.<br>
-              Si el pedido es igual o mayor → <strong style="color:#22c55e">envío gratis 🎉</strong>
+            <div style="background:#f0fdf4;border-radius:10px;padding:1rem;font-size:0.82rem;color:#166534;border:1px solid #bbf7d0">
+              <strong style="display:block;margin-bottom:6px">📋 Resumen actual:</strong>
+              <div>1 par → <strong id="prev-t1">$${cfg.tier1 ?? 99}</strong> MXN</div>
+              <div>2 pares → <strong id="prev-t2">$${cfg.tier2 ?? 150}</strong> MXN</div>
+              <div>3+ pares → <strong id="prev-t3">$${cfg.tier3 ?? 199}</strong> MXN</div>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0">
+                Pedidos ≥ <strong id="prev-gratis">$${cfg.gratis_desde ?? 1299}</strong> MXN → <strong style="color:#15803d">Envío gratis 🎉</strong>
+              </div>
             </div>
 
             <div id="envio-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.85rem"></div>
@@ -10755,11 +10772,13 @@ async function cargarEnvio() {
       </div>`
 
     // Preview en vivo
-    document.getElementById('envio-costo').addEventListener('input', e => {
-      document.getElementById('preview-costo').textContent = '$' + (e.target.value || 0)
-    })
-    document.getElementById('envio-gratis-desde').addEventListener('input', e => {
-      document.getElementById('preview-desde').textContent = '$' + (e.target.value || 0)
+    const previewMap = { 'envio-tier1':'prev-t1', 'envio-tier2':'prev-t2', 'envio-tier3':'prev-t3', 'envio-gratis-desde':'prev-gratis' }
+    Object.entries(previewMap).forEach(([inputId, previewId]) => {
+      const el = document.getElementById(inputId)
+      if (el) el.addEventListener('input', e => {
+        const p = document.getElementById(previewId)
+        if (p) p.textContent = '$' + (e.target.value || 0)
+      })
     })
 
   } catch(e) {
@@ -10768,15 +10787,17 @@ async function cargarEnvio() {
 }
 
 window.guardarEnvio = async function() {
-  const costo = parseFloat(document.getElementById('envio-costo').value)
+  const tier1 = parseFloat(document.getElementById('envio-tier1').value)
+  const tier2 = parseFloat(document.getElementById('envio-tier2').value)
+  const tier3 = parseFloat(document.getElementById('envio-tier3').value)
   const gratis_desde = parseFloat(document.getElementById('envio-gratis-desde').value)
-  if (isNaN(costo) || isNaN(gratis_desde)) return
+  if ([tier1, tier2, tier3, gratis_desde].some(isNaN)) return
   const msg = document.getElementById('envio-msg')
   try {
     const res = await fetch(API + '/config/envio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ costo, gratis_desde })
+      body: JSON.stringify({ tier1, tier2, tier3, gratis_desde })
     })
     const data = await res.json()
     msg.style.display = ''

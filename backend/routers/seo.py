@@ -187,11 +187,11 @@ def producto_ssr(sku: str):
     return HTMLResponse(content=template)
 
 
-_ENVIO_DEFAULTS = {"costo": 99, "gratis_desde": 1299}
+_ENVIO_DEFAULTS = {"tier1": 99, "tier2": 150, "tier3": 199, "gratis_desde": 1299}
 
 @router.get("/config/envio")
 def get_config_envio():
-    """Devuelve configuración de envío (costo y monto para envío gratis)."""
+    """Devuelve configuración de envío escalonada por pares."""
     cached = cache_get("config_envio")
     if cached is not None:
         return cached
@@ -213,7 +213,7 @@ def get_config_envio():
 def save_config_envio(datos: dict):
     """Guarda configuración de envío desde el panel."""
     try:
-        for campo in ["costo", "gratis_desde"]:
+        for campo in ["tier1", "tier2", "tier3", "gratis_desde"]:
             if campo not in datos:
                 continue
             clave = f"envio_{campo}"
