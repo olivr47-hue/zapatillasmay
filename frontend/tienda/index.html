@@ -4239,12 +4239,14 @@ const _RANGOS_PRECIO = [
 ]
 let _filtroBase = []
 let _filtros = { categoria: '', tallas: [], colores: [], precioRango: null }
-let _idxTallas = {}, _idxColores = {}, _invMapF = {}
+let _idxTallas = {}, _idxColores = {}, _invMapF = {}, _colorMeta = {}
+
+function _normColor(c){ return c.trim().toLowerCase().replace(/\s+/g,' ') }
 
 function _construirIndicesFiltro() {
   _invMapF = {}
   inventario.forEach(i => { _invMapF[i.variante_id] = i.cantidad || 0 })
-  _idxTallas = {}; _idxColores = {}
+  _idxTallas = {}; _idxColores = {}; _colorMeta = {}
   variantes.forEach(v => {
     if (v.activa === false) return
     const pid = v.producto_id
@@ -4254,8 +4256,10 @@ function _construirIndicesFiltro() {
       _idxTallas[pid].add(String(v.talla))
     }
     if (v.color) {
-      if (!_idxColores[pid]) _idxColores[pid] = {}
-      if (!_idxColores[pid][v.color]) _idxColores[pid][v.color] = v.color_hex || '#ccc'
+      const key = _normColor(v.color)
+      if (!_idxColores[pid]) _idxColores[pid] = new Set()
+      _idxColores[pid].add(key)
+      if (!_colorMeta[key]) _colorMeta[key] = { display: v.color.trim(), hex: v.color_hex || '#ccc' }
     }
   })
 }
@@ -4304,14 +4308,15 @@ function _construirChipsFiltro() {
     `<div class="filtro-chip ${_filtros.tallas.includes(t)?'active':''}" onclick="_toggleTalla('${t}')">${t}</div>`
   ).join('')
   document.getElementById('fg-talla').style.display = tallas.length ? '' : 'none'
-  // Colores presentes
-  const colorMap = {}
-  _filtroBase.forEach(p => { const cs=_idxColores[p.id]||{}; Object.keys(cs).forEach(n=>{ if(!colorMap[n])colorMap[n]=cs[n] }) })
-  const colores = Object.keys(colorMap).sort()
+  // Colores presentes (deduplicados case-insensitive)
+  const keysSet = new Set()
+  _filtroBase.forEach(p => { const cs=_idxColores[p.id]; if(cs) cs.forEach(k=>keysSet.add(k)) })
+  const colores = [...keysSet].sort((a,b)=> _colorMeta[a].display.localeCompare(_colorMeta[b].display))
   const fcColor = document.getElementById('fc-color')
-  fcColor.innerHTML = colores.map(c =>
-    `<div class="filtro-chip ${_filtros.colores.includes(c)?'active':''}" onclick="_toggleColor(this.dataset.c)" data-c="${c.replace(/"/g,'&quot;')}"><span class="chip-dot" style="background:${colorMap[c]}"></span>${c}</div>`
-  ).join('')
+  fcColor.innerHTML = colores.map(k => {
+    const m = _colorMeta[k]
+    return `<div class="filtro-chip ${_filtros.colores.includes(k)?'active':''}" onclick="_toggleColor(this.dataset.c)" data-c="${k.replace(/"/g,'&quot;')}"><span class="chip-dot" style="background:${m.hex}"></span>${m.display}</div>`
+  }).join('')
   document.getElementById('fg-color').style.display = colores.length ? '' : 'none'
   // Precio
   document.getElementById('fc-precio').innerHTML = _RANGOS_PRECIO.map((r,i) =>
@@ -4319,10 +4324,10 @@ function _construirChipsFiltro() {
   ).join('')
 }
 
-function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); _actualizarContador() }
-function _toggleTalla(t){ const i=_filtros.tallas.indexOf(t); if(i<0)_filtros.tallas.push(t); else _filtros.tallas.splice(i,1); _construirChipsFiltro(); _actualizarContador() }
-function _toggleColor(c){ const i=_filtros.colores.indexOf(c); if(i<0)_filtros.colores.push(c); else _filtros.colores.splice(i,1); _construirChipsFiltro(); _actualizarContador() }
-function _togglePrecio(i){ _filtros.precioRango = _filtros.precioRango===i?null:i; _construirChipsFiltro(); _actualizarContador() }
+function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); aplicarFiltros() }
+function _toggleTalla(t){ const i=_filtros.tallas.indexOf(t); if(i<0)_filtros.tallas.push(t); else _filtros.tallas.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
+function _toggleColor(c){ const i=_filtros.colores.indexOf(c); if(i<0)_filtros.colores.push(c); else _filtros.colores.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
+function _togglePrecio(i){ _filtros.precioRango = _filtros.precioRango===i?null:i; _construirChipsFiltro(); aplicarFiltros() }
 
 function _actualizarContador(){
   const n = _filtros.tallas.length + _filtros.colores.length + (_filtros.categoria?1:0) + (_filtros.precioRango!==null?1:0)
@@ -4335,7 +4340,7 @@ function aplicarFiltros() {
   let lista = _filtroBase.slice()
   if (_filtros.categoria) lista = lista.filter(p => p.categoria === _filtros.categoria)
   if (_filtros.tallas.length) lista = lista.filter(p => { const ts=_idxTallas[p.id]; return ts && _filtros.tallas.some(t=>ts.has(t)) })
-  if (_filtros.colores.length) lista = lista.filter(p => { const cs=_idxColores[p.id]||{}; return _filtros.colores.some(c=>cs[c]) })
+  if (_filtros.colores.length) lista = lista.filter(p => { const cs=_idxColores[p.id]; return cs && _filtros.colores.some(c=>cs.has(c)) })
   if (_filtros.precioRango!==null){ const r=_RANGOS_PRECIO[_filtros.precioRango]; lista = lista.filter(p=>{const pr=_precioDe(p); return pr>=r.min && pr<r.max}) }
   const ordenEl = document.getElementById('filtros-orden')
   const orden = ordenEl ? ordenEl.value : 'relevancia'
@@ -4349,7 +4354,7 @@ function aplicarFiltros() {
 }
 
 function toggleFiltros(){ const p=document.getElementById('filtros-panel'); if(p) p.classList.toggle('open') }
-function limpiarFiltros(){ _filtros={categoria:'',tallas:[],colores:[],precioRango:null}; const o=document.getElementById('filtros-orden'); if(o)o.value='relevancia'; _construirChipsFiltro(); aplicarFiltros() }
+function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.precioRango=null; const o=document.getElementById('filtros-orden'); if(o)o.value='relevancia'; _construirChipsFiltro(); aplicarFiltros() }
 
   function scrollToProductos() {
     document.getElementById('productos-section').scrollIntoView({behavior:'smooth', block:'start'})
