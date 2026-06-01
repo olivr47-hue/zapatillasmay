@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTMLResponse
 from database import supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO
 import urllib.request
@@ -87,6 +87,106 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
     except Exception as e:
         return {"error": str(e)}
 
+@router.get("/seo/producto/{sku}")
+def producto_ssr(sku: str):
+    """Sirve producto.html con meta tags y datos del producto pre-inyectados para indexación SEO."""
+    # 1. Buscar producto
+    datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
+    if not datos:
+        datos = supabase_get(f"productos?id=eq.{sku}&activo=eq.true&limit=1")
+    if not datos:
+        return RedirectResponse(url="https://zapatillasmay.mx/", status_code=302)
+
+    p = datos[0]
+    nombre    = (p.get("nombre") or "Calzado").strip()
+    desc_raw  = (p.get("descripcion") or nombre).strip()
+    desc      = desc_raw[:155]
+    precio    = (p.get("precio_menudeo") or 0)
+    precio_display = precio if p.get("es_oferta") else precio + 80
+    imagen    = p.get("imagen_principal") or ""
+    categoria = (p.get("categoria") or "calzado").strip()
+    sku_canon = p.get("sku_interno") or sku
+    canonical = f"https://zapatillasmay.mx/producto/{sku_canon}"
+
+    # 2. Obtener template producto.html desde Vercel (cacheado)
+    cache_key = "tpl_producto_html"
+    template  = cache_get(cache_key)
+    if template is None:
+        try:
+            req = urllib.request.Request(
+                "https://zapatillasmay.mx/producto.html",
+                headers={"User-Agent": "ZapatillasSSR/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as r:
+                template = r.read().decode("utf-8")
+            cache_set(cache_key, template, ttl=3600)
+        except Exception as e:
+            # Fallback: HTML mínimo con meta tags
+            template = None
+
+    if not template:
+        # Fallback minimal HTML
+        html = f"""<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{nombre} | Zapatillas May</title>
+<meta name="description" content="{desc}">
+<link rel="canonical" href="{canonical}">
+<meta property="og:title" content="{nombre} | Zapatillas May">
+<meta property="og:image" content="{imagen}">
+<meta property="og:url" content="{canonical}">
+<script type="application/ld+json">{{"@context":"https://schema.org/","@type":"Product","name":"{nombre}","image":"{imagen}","description":"{desc_raw[:200]}","brand":{{"@type":"Brand","name":"Zapatillas May"}},"offers":{{"@type":"Offer","priceCurrency":"MXN","price":"{precio_display}","availability":"https://schema.org/InStock","url":"{canonical}"}}}}</script>
+</head><body>
+<script>window.__ZM_PRODUCT__={json.dumps(p, ensure_ascii=False)};</script>
+<script>setTimeout(()=>{{ if(!window.__ZM_LOADED__) window.location.href='{canonical}' }}, 3000)</script>
+</body></html>"""
+        return HTMLResponse(content=html)
+
+    # 3. Inyectar meta tags producto-específicos
+    template = template.replace(
+        "<title>Zapatillas May</title>",
+        f"<title>{nombre} | Zapatillas May — León, Guanajuato</title>"
+    )
+    template = template.replace(
+        'content="Calzado de moda para dama. León, Guanajuato."',
+        f'content="{desc}"'
+    )
+
+    schema = f"""
+  <link rel="canonical" href="{canonical}">
+  <meta property="og:title" content="{nombre} | Zapatillas May">
+  <meta property="og:description" content="{desc}">
+  <meta property="og:image" content="{imagen}">
+  <meta property="og:url" content="{canonical}">
+  <meta property="og:type" content="product">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{nombre} | Zapatillas May">
+  <meta name="twitter:image" content="{imagen}">
+  <script type="application/ld+json">
+  {{
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": "{nombre}",
+    "image": "{imagen}",
+    "description": "{desc_raw[:300]}",
+    "sku": "{sku_canon}",
+    "brand": {{"@type": "Brand", "name": "Zapatillas May"}},
+    "category": "{categoria}",
+    "offers": {{
+      "@type": "Offer",
+      "url": "{canonical}",
+      "priceCurrency": "MXN",
+      "price": "{precio_display}",
+      "availability": "https://schema.org/InStock",
+      "seller": {{"@type": "Organization", "name": "Zapatillas May"}}
+    }}
+  }}
+  </script>
+  <script>window.__ZM_PRODUCT__ = {json.dumps(p, ensure_ascii=False)}; window.__ZM_LOADED__ = true;</script>"""
+
+    template = template.replace("</head>", schema + "\n</head>")
+    return HTMLResponse(content=template)
+
+
 @router.get("/sitemap.xml")
 def sitemap():
     cached = cache_get("seo_sitemap")
@@ -95,9 +195,21 @@ def sitemap():
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at")
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
-        urls = ['https://zapatillasmay.mx/']
+        # Mapeo de categoría → URL limpia
+        _CAT_SLUG = {
+            "tacones": "tacones", "sandalias": "sandalias", "botas": "botas",
+            "botines": "botines", "flats": "flats", "plataformas": "plataformas",
+            "tenis": "tenis", "nina": "nina", "accesorios": "accesorios"
+        }
+        urls = [
+            'https://zapatillasmay.mx/',
+            'https://zapatillasmay.mx/mayoreo',
+            'https://zapatillasmay.mx/nosotros',
+            'https://zapatillasmay.mx/envios',
+        ]
         for cat in categorias:
-            urls.append(f'https://zapatillasmay.mx/?categoria={cat}')
+            slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
+            urls.append(f'https://zapatillasmay.mx/{slug_cat}')
         for p in productos:
             slug = p.get('sku_interno') or p.get('id','')
             if slug:
