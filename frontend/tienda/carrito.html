@@ -414,7 +414,8 @@ function mostrarToast(msg) {
 // ── CHECKOUT ─────────────────────────────────────────────────────
 function abrirCheckout() {
   if (!carrito.length) return
-  document.getElementById('checkout-overlay').classList.add('active')
+  // Navega a la página dedicada /checkout (para tracking de funnel Meta/TikTok/Google)
+  window.location.href = '/checkout'
 }
 
 function cerrarCheckout() {

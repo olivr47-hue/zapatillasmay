@@ -24,7 +24,7 @@
     { "source": "/como-comprar",   "destination": "/index.html" },
     { "source": "/privacidad",     "destination": "/index.html" },
     { "source": "/pedido-exitoso", "destination": "/index.html" },
-    { "source": "/checkout",       "destination": "/index.html" },
+    { "source": "/checkout",       "destination": "/checkout.html" },
     { "source": "/(.*)",           "destination": "/index.html" }
   ]
 }
