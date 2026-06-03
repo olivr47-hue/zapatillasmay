@@ -825,6 +825,8 @@ def publicar_producto(body: dict):
         if solo_preview:
             resultados.append({
                 "sku":     variante.get("sku"),
+                "color":   variante.get("color", ""),
+                "talla":   variante.get("talla", ""),
                 "preview": payload,
             })
             continue
