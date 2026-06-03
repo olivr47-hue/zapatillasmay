@@ -6848,7 +6848,15 @@ window.verPedido = async (id) => {
     const data = await res.json()
     if (!data || data.length === 0) { alert('Pedido no encontrado'); return }
     const p = data[0]
-    const items = p.pedido_items || []
+    let items = p.pedido_items || []
+    if (items.length === 0) {
+      try {
+        const resItems = await fetch(API + '/pedidos/' + id + '/items')
+        const itemsData = await resItems.json()
+        if (Array.isArray(itemsData)) items = itemsData
+      } catch(_) {}
+    }
+    p.pedido_items = items
     const cliente = p.clientes || {}
     window._currentPedido = p
 
