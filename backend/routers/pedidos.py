@@ -143,6 +143,84 @@ def obtener_items(id: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.patch("/{id}/items/{item_id}")
+def actualizar_item(id: str, item_id: str, datos: dict):
+    """Modifica cantidad y/o precio de un ítem. Si el pedido está confirmado ajusta inventario."""
+    try:
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        item_actual = supabase_get(f"pedido_items?id=eq.{item_id}&pedido_id=eq.{id}")
+        if not item_actual:
+            return JSONResponse(status_code=404, content={"error": "Ítem no encontrado"})
+
+        cantidad_anterior = item_actual[0].get("cantidad", 0)
+        nueva_cantidad = datos.get("cantidad", cantidad_anterior)
+        nuevo_precio = datos.get("precio_unitario", item_actual[0].get("precio_unitario", 0))
+        nuevo_subtotal = nueva_cantidad * nuevo_precio
+
+        supabase_patch(f"pedido_items?id=eq.{item_id}", {
+            "cantidad": nueva_cantidad,
+            "precio_unitario": nuevo_precio,
+            "subtotal": nuevo_subtotal
+        })
+
+        # Ajustar inventario si el pedido ya estaba confirmado
+        if pedido[0].get("status") in ("confirmado", "pagado"):
+            variante_id = item_actual[0].get("variante_id")
+            sucursal_id = pedido[0].get("sucursal_id")
+            diff = nueva_cantidad - cantidad_anterior  # positivo = más pares (descontar), negativo = devolver
+            if variante_id and sucursal_id and diff != 0:
+                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+                if inv:
+                    nueva_inv = max(0, inv[0]["cantidad"] - diff)
+                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_inv})
+                    supabase_post("movimientos_inventario", {
+                        "tipo": "ajuste",
+                        "variante_id": variante_id,
+                        "sucursal_id": sucursal_id,
+                        "cantidad": -diff,
+                        "motivo": f"Edición pedido {id}"
+                    })
+
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/{id}/items/{item_id}")
+def eliminar_item(id: str, item_id: str):
+    """Elimina un ítem del pedido. Si estaba confirmado devuelve el stock."""
+    try:
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        item_actual = supabase_get(f"pedido_items?id=eq.{item_id}&pedido_id=eq.{id}")
+        if not item_actual:
+            return JSONResponse(status_code=404, content={"error": "Ítem no encontrado"})
+
+        cantidad = item_actual[0].get("cantidad", 0)
+        supabase_delete(f"pedido_items?id=eq.{item_id}")
+
+        # Devolver stock si ya estaba confirmado
+        if pedido[0].get("status") in ("confirmado", "pagado"):
+            variante_id = item_actual[0].get("variante_id")
+            sucursal_id = pedido[0].get("sucursal_id")
+            if variante_id and sucursal_id and cantidad > 0:
+                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+                if inv:
+                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": inv[0]["cantidad"] + cantidad})
+                    supabase_post("movimientos_inventario", {
+                        "tipo": "ajuste",
+                        "variante_id": variante_id,
+                        "sucursal_id": sucursal_id,
+                        "cantidad": cantidad,
+                        "motivo": f"Eliminación ítem pedido {id}"
+                    })
+
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.post("/{id}/confirmar")
 def confirmar_pedido(id: str, datos: dict):
     try:

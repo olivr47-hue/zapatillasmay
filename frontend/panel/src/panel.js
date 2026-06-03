@@ -6471,21 +6471,65 @@ window.filtrarPedidos = () => {
   })
 }
 
-window.cargarPedidosFiltro = async (filtro) => {
-  const content = document.getElementById('content')
-  try {
-    const res = await fetch(API + '/pedidos/')
-    const data = await res.json()
-    let filtrados = data
-    if (filtro === 'pendiente_pago') {
-      filtrados = data.filter(p => p.status === 'pendiente_pago')
-    } else if (filtro === 'credito') {
-      filtrados = data.filter(p => p.forma_pago === 'credito')
-    } else if (filtro) {
-      filtrados = data.filter(p => p.canal === filtro)
-    }
-    await cargarPedidos()
-  } catch(e) {}
+window.cargarPedidosFiltro = (filtro) => {
+  const data = window._pedidosData || []
+  let filtrados = data
+  if (filtro === 'pendiente_pago') {
+    filtrados = data.filter(p => p.status === 'pendiente_pago')
+  } else if (filtro === 'credito') {
+    filtrados = data.filter(p => p.forma_pago === 'credito')
+  } else if (filtro) {
+    filtrados = data.filter(p => p.canal === filtro)
+  }
+
+  // Marcar botón activo
+  document.querySelectorAll('#content .btn[onclick^="cargarPedidosFiltro"]').forEach(btn => {
+    btn.classList.remove('btn-primary')
+    btn.classList.add('btn-secondary')
+  })
+  const btnActivo = document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('${filtro}')"]`)
+    || document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`)
+  if (btnActivo && filtro === '') {
+    const btnTodos = document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`)
+    if (btnTodos) { btnTodos.classList.add('btn-primary'); btnTodos.classList.remove('btn-secondary') }
+  } else if (btnActivo) {
+    btnActivo.classList.add('btn-primary'); btnActivo.classList.remove('btn-secondary')
+  }
+
+  const tbody = document.querySelector('#content tbody')
+  if (!tbody) return
+
+  if (filtrados.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos con ese filtro</td></tr>'
+    return
+  }
+
+  tbody.innerHTML = filtrados.map(p => {
+    const statusColor = {
+      'borrador': 'badge-warning',
+      'pendiente_pago': 'badge-warning',
+      'confirmado': 'badge-success',
+      'cancelado': 'badge-danger',
+      'pagado': 'badge-success'
+    }[p.status] || 'badge-warning'
+    return `
+      <tr>
+        <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
+        <td><strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong><br>
+        ${p.email_cliente ? `<span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
+        ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
+        </td>
+        <td>${p.canal || '—'}</td>
+        <td><strong>$${p.total || '0'}</strong></td>
+        <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
+        <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
+        <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
+        <td>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+        </td>
+      </tr>
+    `
+  }).join('')
 }
 
 window.mostrarFormPedido = async () => {
@@ -6806,6 +6850,7 @@ window.verPedido = async (id) => {
     const p = data[0]
     const items = p.pedido_items || []
     const cliente = p.clientes || {}
+    window._currentPedido = p
 
     const statusColor = {
       'borrador': '#f57f17',
@@ -6842,7 +6887,11 @@ window.verPedido = async (id) => {
         </div>
 
         <div style="margin-bottom:1.5rem">
-          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <p style="font-weight:600;color:#333;margin:0">Productos</p>
+            ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${p.id}')">✏️ Editar pedido</button>` : ''}
+          </div>
+          <div id="items-lista">
           ${items.map(item => {
             const variante = item.variantes || {}
             const producto = variante.productos || {}
@@ -6851,12 +6900,14 @@ window.verPedido = async (id) => {
                 ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
                 <div style="flex:1">
                   <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
-                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares ×$${item.precio_unitario || 0}</p>
+                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
                 </div>
                 <strong style="color:#E91E8C">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
               </div>
             `
           }).join('')}
+          </div>
+          <div id="panel-edicion" style="display:none"></div>
         </div>
 
         ${p.status === 'pendiente_pago' ? `
@@ -6886,6 +6937,155 @@ window.verPedido = async (id) => {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando pedido</p>'
   }
 }
+window.activarEdicionPedido = async (pedidoId) => {
+  const panel = document.getElementById('panel-edicion')
+  const lista = document.getElementById('items-lista')
+  if (!panel) return
+
+  // Cargar variantes y productos para el buscador (items ya los tenemos del verPedido)
+  const [resVariantes, resProductos] = await Promise.all([
+    fetch(API + '/variantes/').then(r => r.json()),
+    fetch(API + '/productos/').then(r => r.json())
+  ])
+
+  window._editPedidoId = pedidoId
+  window._editItems = (window._currentPedido?.pedido_items || []).map(i => ({...i}))
+  window._editVariantes = resVariantes
+  window._editProductos = resProductos
+
+  lista.style.display = 'none'
+  panel.style.display = 'block'
+
+  const renderEdicion = () => {
+    const items = window._editItems
+    panel.innerHTML = `
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;color:#f57f17;margin-bottom:1rem">✏️ Modo edición — los cambios ajustan inventario automáticamente</p>
+
+        ${items.map((item, idx) => {
+          const variante = item.variantes || {}
+          const producto = variante.productos || {}
+          return `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+              <div style="flex:1;min-width:140px">
+                <p style="font-weight:600;font-size:0.85rem;margin:0">${producto.nombre || '—'} ${variante.color || ''} T${variante.talla || ''}</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:0.78rem;color:#888">Cant.</label>
+                <input type="number" min="1" value="${item.cantidad}" style="width:60px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
+                  onchange="window._editItems[${idx}].cantidad = parseInt(this.value)||1; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario">
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:0.78rem;color:#888">Precio</label>
+                <input type="number" min="0" value="${item.precio_unitario}" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
+                  onchange="window._editItems[${idx}].precio_unitario = parseFloat(this.value)||0; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario">
+              </div>
+              <button onclick="eliminarItemEdicion('${item.id}', ${idx})" style="background:none;border:none;cursor:pointer;color:#c62828;font-size:1.1rem;padding:4px" title="Eliminar">🗑</button>
+            </div>
+          `
+        }).join('')}
+
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #ffe082">
+          <p style="font-weight:600;font-size:0.85rem;margin-bottom:8px;color:#333">Agregar producto</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="edit-variante-sel" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+              <option value="">— Selecciona producto / talla —</option>
+              ${window._editVariantes.map(v => {
+                const prod = window._editProductos.find(p => p.id === v.producto_id)
+                return `<option value="${v.id}">${prod ? prod.nombre : '?'} — ${v.color || ''} T${v.talla || ''}</option>`
+              }).join('')}
+            </select>
+            <input type="number" id="edit-nueva-cant" min="1" value="1" placeholder="Cant." style="width:60px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+            <input type="number" id="edit-nuevo-precio" min="0" placeholder="Precio" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+            <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px" onclick="agregarItemEdicion()">+ Agregar</button>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #ffe082;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:0.85rem;color:#333;font-weight:600">Descuento manual ($):</label>
+          <input type="number" id="edit-descuento" min="0" value="0" style="width:90px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+          <span style="font-size:0.8rem;color:#888">(se resta del total final)</span>
+        </div>
+
+        <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="guardarEdicionPedido()">💾 Guardar cambios</button>
+          <button class="btn btn-secondary" onclick="cancelarEdicionPedido('${pedidoId}')">Cancelar</button>
+        </div>
+      </div>
+    `
+  }
+
+  renderEdicion()
+  window._renderEdicion = renderEdicion
+}
+
+window.eliminarItemEdicion = async (itemId, idx) => {
+  if (!confirm('¿Eliminar este producto del pedido?')) return
+  const pedidoId = window._editPedidoId
+  const res = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId, { method: 'DELETE' })
+  const data = await res.json()
+  if (data.ok) {
+    window._editItems.splice(idx, 1)
+    window._renderEdicion()
+  } else {
+    alert('Error eliminando ítem: ' + JSON.stringify(data))
+  }
+}
+
+window.agregarItemEdicion = async () => {
+  const varianteId = document.getElementById('edit-variante-sel').value
+  const cantidad = parseInt(document.getElementById('edit-nueva-cant').value) || 1
+  const precio = parseFloat(document.getElementById('edit-nuevo-precio').value) || 0
+  if (!varianteId) { alert('Selecciona un producto'); return }
+  if (!precio) { alert('Ingresa el precio'); return }
+  const pedidoId = window._editPedidoId
+
+  const res = await fetch(API + '/pedidos/' + pedidoId + '/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ variante_id: varianteId, cantidad, precio_unitario: precio, subtotal: cantidad * precio })
+  })
+  const data = await res.json()
+  if (data && data[0] && data[0].id) {
+    // Recargar items con join completo
+    const resItems = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json())
+    window._editItems = resItems.map(i => ({...i}))
+    window._renderEdicion()
+  } else {
+    alert('Error agregando ítem')
+  }
+}
+
+window.guardarEdicionPedido = async () => {
+  const pedidoId = window._editPedidoId
+  const items = window._editItems
+  const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0
+
+  // Actualizar cada ítem
+  for (const item of items) {
+    await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: item.cantidad, precio_unitario: item.precio_unitario })
+    })
+  }
+
+  // Recalcular total con descuento
+  const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento)
+  await fetch(API + '/pedidos/' + pedidoId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ total: nuevoTotal })
+  })
+
+  alert('Pedido actualizado correctamente')
+  verPedido(pedidoId)
+}
+
+window.cancelarEdicionPedido = (pedidoId) => {
+  verPedido(pedidoId)
+}
+
 window.cancelarPedido = async (id) => {
   if (!confirm('¿Cancelar este pedido? Si ya estaba confirmado se devolverá el stock automáticamente.')) return
   try {
