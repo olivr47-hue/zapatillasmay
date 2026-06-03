@@ -6900,17 +6900,27 @@ window.verPedido = async (id) => {
             ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${p.id}')">✏️ Editar pedido</button>` : ''}
           </div>
           <div id="items-lista">
+          ${items.length === 0 ? '<p style="color:#aaa;font-size:0.85rem;padding:8px 0">Sin productos registrados en este pedido</p>' : ''}
           ${items.map(item => {
             const variante = item.variantes || {}
             const producto = variante.productos || {}
+            const nombre = producto.nombre || item.nombre || '—'
+            const color = variante.color || item.color || ''
+            const talla = variante.talla || item.talla || ''
+            // imagen: del join si existe, si no busca en caché de productos por variante_id
+            let imagen = producto.imagen_principal || null
+            if (!imagen && item.variante_id && window._productosCache && window._variantesCache) {
+              const v = window._variantesCache.find(x => x.id === item.variante_id)
+              if (v) { const pr = window._productosCache.find(x => x.id === v.producto_id); if (pr) imagen = pr.imagen_principal || null }
+            }
             return `
               <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
-                ${producto.imagen_principal ? '<img src="' + producto.imagen_principal + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+                ${imagen ? '<img src="' + imagen + '" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #eee">' : '<div style="width:56px;height:56px;background:#f0f0f0;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem">👟</div>'}
                 <div style="flex:1">
-                  <p style="font-weight:600;font-size:0.85rem">${producto.nombre || '—'} - ${variante.color || ''} - T${variante.talla || ''}</p>
-                  <p style="font-size:0.8rem;color:#888">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
+                  <p style="font-weight:600;font-size:0.85rem;margin:0 0 2px">${nombre}${color ? ' · ' + color : ''}${talla ? ' · T' + talla : ''}</p>
+                  <p style="font-size:0.8rem;color:#888;margin:0">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
                 </div>
-                <strong style="color:#E91E8C">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
+                <strong style="color:#E91E8C;font-size:1rem">$${item.subtotal != null ? item.subtotal : ((item.cantidad || 0) * (item.precio_unitario || 0)).toFixed(2)}</strong>
               </div>
             `
           }).join('')}
@@ -6973,10 +6983,19 @@ window.activarEdicionPedido = async (pedidoId) => {
         ${items.map((item, idx) => {
           const variante = item.variantes || {}
           const producto = variante.productos || {}
+          const nombre = producto.nombre || item.nombre || '—'
+          const color = variante.color || item.color || ''
+          const talla = variante.talla || item.talla || ''
+          let imagen = producto.imagen_principal || null
+          if (!imagen && item.variante_id && window._editVariantes && window._editProductos) {
+            const v = window._editVariantes.find(x => x.id === item.variante_id)
+            if (v) { const pr = window._editProductos.find(x => x.id === v.producto_id); if (pr) imagen = pr.imagen_principal || null }
+          }
           return `
             <div style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
-              <div style="flex:1;min-width:140px">
-                <p style="font-weight:600;font-size:0.85rem;margin:0">${producto.nombre || '—'} ${variante.color || ''} T${variante.talla || ''}</p>
+              ${imagen ? '<img src="' + imagen + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #eee">' : '<div style="width:48px;height:48px;background:#f0f0f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem">👟</div>'}
+              <div style="flex:1;min-width:120px">
+                <p style="font-weight:600;font-size:0.85rem;margin:0">${nombre}${color ? ' · ' + color : ''}${talla ? ' T' + talla : ''}</p>
               </div>
               <div style="display:flex;align-items:center;gap:6px">
                 <label style="font-size:0.78rem;color:#888">Cant.</label>
@@ -12770,50 +12789,87 @@ async function cargarMercadoLibre() {
       const descTexto = resultados[0]?.preview?.description?.plain_text || ''
       if (!descEl.value.trim()) descEl.value = descTexto
 
-      // Recolectar TODAS las fotos únicas de TODAS las variantes
-      // → así cada variante muestra el catálogo completo de imágenes del producto
-      const urlsVistos = new Set()
+      // Agrupar fotos por color — cada color tiene su propio selector de portada
+      const fotosPorColor = {}  // { color: [{ source, ...}] }
       const todasFotos = []
+      const urlsVistos = new Set()
       for (const r of resultados) {
+        const color = r.color || 'Sin color'
+        if (!fotosPorColor[color]) fotosPorColor[color] = []
         for (const pic of (r.preview?.pictures || [])) {
-          if (pic.source && !urlsVistos.has(pic.source)) {
-            urlsVistos.add(pic.source)
-            todasFotos.push(pic)
+          if (pic.source) {
+            if (!fotosPorColor[color].find(p => p.source === pic.source))
+              fotosPorColor[color].push(pic)
+            if (!urlsVistos.has(pic.source)) { urlsVistos.add(pic.source); todasFotos.push(pic) }
           }
         }
       }
 
-      if (todasFotos.length >= 1) {
+      // portadaByColor: { color: índice } — coloresActivos: Set de colores seleccionados
+      const portadaByColor = {}
+      const coloresActivos = new Set()
+      for (const color of Object.keys(fotosPorColor)) {
+        portadaByColor[color] = 0
+        coloresActivos.add(color)
+      }
+
+      const colores = Object.keys(fotosPorColor)
+      if (colores.length > 0) {
         const fotosWrap = document.getElementById('ml-fotos-wrap')
         const fotosGrid = document.getElementById('ml-fotos-grid')
-        fotosGrid.innerHTML = todasFotos.map((p, i) => `
-          <div onclick="mlSeleccionarPortada(${i})" id="ml-foto-thumb-${i}"
-               style="cursor:pointer;border:3px solid ${i===0?'#3483fa':'#ddd'};border-radius:8px;overflow:hidden;width:90px;height:90px;position:relative">
-            <img src="${p.source}" style="width:100%;height:100%;object-fit:cover">
-            ${i===0 ? '<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.6rem;text-align:center;padding:2px">PORTADA</div>' : ''}
-          </div>
-        `).join('')
+
+        const rerenderTodo = () => {
+          renderFotoGrid()
+          const resultadosFiltrados = resultados.filter(r => coloresActivos.has(r.color || 'Sin color'))
+          _mlRenderVariantes(resultadosFiltrados, titulo, precio, portadaByColor, descEl.value.trim(), fotosPorColor)
+        }
+
+        const renderFotoGrid = () => {
+          fotosGrid.innerHTML = colores.map(color => {
+            const fotos = fotosPorColor[color]
+            if (!fotos.length) return ''
+            const activo = coloresActivos.has(color)
+            const colorKey = color.replace(/'/g, "\\'")
+            const colorId  = color.replace(/[^a-zA-Z0-9]/g, '_')
+            return `
+              <div style="margin-bottom:1rem;width:100%;opacity:${activo ? 1 : 0.4}">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px">
+                  <input type="checkbox" id="ml-chk-${colorId}" ${activo ? 'checked' : ''}
+                    onchange="mlToggleColor('${colorKey}')"
+                    style="width:16px;height:16px;cursor:pointer;accent-color:#3483fa">
+                  <span style="font-size:0.82rem;font-weight:700;color:#333">${color}</span>
+                  <span style="font-size:0.72rem;color:#888">(${resultados.filter(r=>(r.color||'Sin color')===color).length} tallas)</span>
+                </label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;padding-left:24px">
+                  ${fotos.map((p, i) => `
+                    <div onclick="${activo ? `mlSeleccionarPortadaColor('${colorKey}',${i})` : ''}"
+                         id="ml-foto-${colorId}-${i}"
+                         style="cursor:${activo?'pointer':'default'};border:3px solid ${i===portadaByColor[color]&&activo?'#3483fa':'#ddd'};border-radius:8px;overflow:hidden;width:80px;height:80px;position:relative;flex-shrink:0">
+                      <img src="${p.source}" style="width:100%;height:100%;object-fit:cover">
+                      ${i===portadaByColor[color]&&activo ? '<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.55rem;text-align:center;padding:2px;font-weight:700">PORTADA</div>' : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>`
+          }).join('')
+        }
+
+        renderFotoGrid()
         fotosWrap.style.display = 'block'
-        window.mlSeleccionarPortada = (idx) => {
-          portadaIdx = idx
-          todasFotos.forEach((_, i) => {
-            const el = document.getElementById(`ml-foto-thumb-${i}`)
-            if (!el) return
-            el.style.border = i === idx ? '3px solid #3483fa' : '3px solid #ddd'
-            el.querySelector('div')?.remove()
-            if (i === idx) {
-              const badge = document.createElement('div')
-              badge.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.6rem;text-align:center;padding:2px'
-              badge.textContent = 'PORTADA'
-              el.appendChild(badge)
-            }
-          })
-          // Regenerar JSONs con la nueva portada
-          _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim(), todasFotos)
+
+        window.mlToggleColor = (color) => {
+          if (coloresActivos.has(color)) coloresActivos.delete(color)
+          else coloresActivos.add(color)
+          rerenderTodo()
+        }
+        window.mlSeleccionarPortadaColor = (color, idx) => {
+          portadaByColor[color] = idx
+          rerenderTodo()
         }
       }
 
-      _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descEl.value.trim())
+      const resultadosFiltrados = resultados.filter(r => coloresActivos.has(r.color || 'Sin color'))
+      _mlRenderVariantes(resultadosFiltrados, titulo, precio, portadaByColor, descEl.value.trim(), fotosPorColor)
 
       const wrap = document.getElementById('ml-variantes-wrap')
       wrap.style.display = 'block'
@@ -12827,7 +12883,7 @@ async function cargarMercadoLibre() {
     }
   }
 
-  function _mlRenderVariantes(resultados, titulo, precio, portadaIdx, descripcion, todasFotos) {
+  function _mlRenderVariantes(resultados, titulo, precio, portadaByColor, descripcion, fotosPorColor) {
     const tit  = document.getElementById('ml-variantes-titulo')
     const list = document.getElementById('ml-variantes-list')
     tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
@@ -12842,13 +12898,26 @@ async function cargarMercadoLibre() {
       // Descripción personalizada
       if (descripcion) payload.description = { plain_text: descripcion }
 
-      // Todas las fotos del producto en cada variante (no solo las de esa talla/color)
-      if (todasFotos && todasFotos.length > 0) {
-        let fotos = [...todasFotos]
-        // Portada seleccionada va primero
-        if (portadaIdx > 0 && portadaIdx < fotos.length) {
-          const [portada] = fotos.splice(portadaIdx, 1)
+      // Fotos: portada del color de esta variante va primero
+      if (fotosPorColor) {
+        const color = r.color || 'Sin color'
+        const fotosColor = fotosPorColor[color] || []
+        const idx = (portadaByColor && portadaByColor[color]) || 0
+        let fotos = [...fotosColor]
+        if (idx > 0 && idx < fotos.length) {
+          const [portada] = fotos.splice(idx, 1)
           fotos.unshift(portada)
+        }
+        // Completar con fotos de otros colores si hay menos de 3
+        if (fotos.length < 3 && fotosPorColor) {
+          for (const [c, pics] of Object.entries(fotosPorColor)) {
+            if (c === color) continue
+            for (const p of pics) {
+              if (!fotos.find(f => f.source === p.source)) fotos.push(p)
+              if (fotos.length >= 12) break
+            }
+            if (fotos.length >= 12) break
+          }
         }
         payload.pictures = fotos.slice(0, 12)
       }

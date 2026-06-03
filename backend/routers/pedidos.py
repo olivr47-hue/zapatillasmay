@@ -102,12 +102,12 @@ def obtener_pedido(id: str):
 @router.post("/")
 def crear_pedido(pedido: dict):
     try:
-        print(f"DATOS RECIBIDOS: {pedido}")
         items = pedido.pop("items", [])
-        print(f"ITEMS: {items}")
-        print(f"PEDIDO SIN ITEMS: {pedido}")
+        canal = pedido.get("canal", "")
+        # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
+        if not items and canal not in ("sucursal", "whatsapp"):
+            return JSONResponse(status_code=400, content={"error": "El pedido no tiene productos"})
         resultado = supabase_post("pedidos", pedido)
-        print(f"RESULTADO SUPABASE: {resultado}")
         if resultado and len(resultado) > 0:
             pedido_id = resultado[0]["id"]
             for item in items:
@@ -116,7 +116,7 @@ def crear_pedido(pedido: dict):
             return resultado[0]
         return JSONResponse(status_code=500, content={"error": "Error creando pedido"})
     except Exception as e:
-        print(f"ERROR: {str(e)}")
+        print(f"ERROR crear_pedido: {str(e)}")
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
