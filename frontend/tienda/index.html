@@ -2550,13 +2550,22 @@
 <style>
   #zm-chips { display: none; }
   @media (max-width: 768px) {
+    /* Solo visible flotante sobre el hero al hacer scroll un poco */
     #zm-chips {
       display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-      padding: 10px 14px; background: var(--white);
-      border-bottom: 1px solid var(--cream-dark);
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(200,150,122,0.18);
       scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
-      position: sticky; top: calc(36px + 56px); z-index: 90;
+      position: fixed; left: 0; right: 0;
+      top: calc(36px + 56px + 52px); /* debajo del search */
+      z-index: 90;
+      transform: translateY(-110%);
+      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+      box-shadow: 0 4px 16px rgba(90,40,10,0.06);
     }
+    #zm-chips.visible { transform: translateY(0); }
     #zm-chips::-webkit-scrollbar { display: none; }
     .zm-chip {
       flex-shrink: 0; scroll-snap-align: start;
@@ -2568,8 +2577,7 @@
     }
     .zm-chip:active { transform: scale(0.92); background: linear-gradient(135deg,#C8967A,#b5687a); color: white; border-color: transparent; }
     .zm-chip-ofertas { border-color: rgba(181,104,122,0.4); color: #b5687a; }
-    /* Ocultar chips cuando se ve una página interna */
-    html.ruta-interna #zm-chips { display: none; }
+    html.ruta-interna #zm-chips { display: none !important; }
   }
 </style>
 
@@ -6084,6 +6092,26 @@ function zmRechazarCookies() {
       if (i) { i.focus(); }
     }, 350)
   }
+  // Chips de categoría: mostrar al hacer scroll, ocultar arriba (solo móvil)
+  (function(){
+    if (window.innerWidth > 768) return
+    var chips = document.getElementById('zm-chips')
+    if (!chips) return
+    var lastY = 0, ticking = false
+    function update() {
+      var y = window.scrollY
+      // Mostrar cuando hayas scrolleado más de 200px y no estés en una página interna
+      if (!document.documentElement.classList.contains('ruta-interna') && y > 200) {
+        chips.classList.add('visible')
+      } else {
+        chips.classList.remove('visible')
+      }
+      ticking = false
+    }
+    window.addEventListener('scroll', function(){
+      if (!ticking) { requestAnimationFrame(update); ticking = true }
+    }, { passive: true })
+  })()
 </script>
 
 <!-- ═══ MEJORAS TÁCTILES MÓVIL ═══ -->
