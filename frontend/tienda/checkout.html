@@ -468,6 +468,29 @@ async function init() {
       setTimeout(dispararInitiateCheckout, 800)
     }
   } catch(e) {}
+
+  // ── Captura de carrito abandonado: al escribir un email válido, guardar el carrito ──
+  _wireCarritoAbandonado()
+}
+
+function _wireCarritoAbandonado() {
+  const emailEl = document.getElementById('co-email')
+  if (!emailEl) return
+  let _timer = null
+  const guardar = () => {
+    const email = (emailEl.value || '').trim().toLowerCase()
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    const items = leerCarrito()
+    if (!items.length) return
+    const total = items.reduce((s,i)=>{ const p=i.es_corrida?i.cantidad*6:i.cantidad; return s + calcularPrecioUnitario(i, totalPares(items))*p }, 0)
+    const nombre = (document.getElementById('co-nombre')?.value || '').trim()
+    fetch(`${API}/carrito-abandonado/guardar`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, nombre, items, total })
+    }).catch(()=>{})
+  }
+  emailEl.addEventListener('blur', guardar)
+  emailEl.addEventListener('input', () => { clearTimeout(_timer); _timer = setTimeout(guardar, 1200) })
 }
 init()
 </script>

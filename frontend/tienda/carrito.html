@@ -550,6 +550,19 @@ function _dispararViewCart() {
 
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
+  // Restaurar carrito desde un email de recordatorio (?recover=<id>)
+  const _recoverId = new URLSearchParams(location.search).get('recover')
+  if (_recoverId) {
+    try {
+      const r = await fetch(`${API}/carrito-abandonado/recuperar/${_recoverId}`)
+      const d = await r.json()
+      if (d.ok && d.items && d.items.length) {
+        sessionStorage.setItem('zm_carrito', JSON.stringify(d.items))
+      }
+    } catch(e) {}
+    history.replaceState(null, '', '/carrito')
+  }
+
   // Cargar config de envío del backend
   try {
     const r = await fetch(`${API}/config/envio`)

@@ -12,6 +12,7 @@ from routers import catalogos
 from routers import mercadolibre
 from routers import analytics
 from routers import referidos
+from routers import carrito_abandonado
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -64,6 +65,28 @@ app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)
 app.include_router(analytics.router)
 app.include_router(referidos.router)
+app.include_router(carrito_abandonado.router)
+
+# ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
+import threading, time as _time
+
+def _loop_carritos_abandonados():
+    # Espera inicial para no correr justo al arrancar
+    _time.sleep(120)
+    while True:
+        try:
+            res = carrito_abandonado.procesar_recordatorios()
+            if res.get("enviados"):
+                print(f"[carrito-abandonado] Recordatorios enviados: {res['enviados']}")
+        except Exception as e:
+            print(f"[carrito-abandonado] Error en loop: {e}")
+        _time.sleep(15 * 60)  # cada 15 minutos
+
+@app.on_event("startup")
+def _iniciar_hilo_carritos():
+    t = threading.Thread(target=_loop_carritos_abandonados, daemon=True)
+    t.start()
+    print("[carrito-abandonado] Hilo de recordatorios iniciado (cada 15 min)")
 
 @app.get("/")
 def inicio():

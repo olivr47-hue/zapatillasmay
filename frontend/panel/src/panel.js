@@ -82,6 +82,7 @@ const modulos = [
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
+  { id: 'carritos-abandonados', icon: '🛒', label: 'Carritos abandonados', section: 'Ventas', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -262,6 +263,7 @@ async function cargarModulo(id) {
     case 'analytics':    await cargarAnalyticsGA(); break;
     case 'orden-home':   await cargarOrdenHome(); break;
     case 'referidos':    await cargarReferidos(); break;
+    case 'carritos-abandonados': await cargarCarritosAbandonados(); break;
   }
 }
 
@@ -10905,6 +10907,112 @@ window.completarTareaDashboard = async (id, checked) => {
       body: JSON.stringify({ completada: checked })
     })
   } catch(e) { console.error(e) }
+}
+
+async function cargarCarritosAbandonados() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
+  try {
+    const res = await fetch(API + '/carrito-abandonado/listar')
+    const data = await res.json()
+    const st = data.stats || {}
+    const carritos = data.carritos || []
+
+    const estadoBadge = (c) => {
+      if (c.convertido) return '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">✓ Compró</span>'
+      if (c.recordatorio_enviado) return '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">📧 Recordatorio enviado</span>'
+      return '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">⏳ Pendiente</span>'
+    }
+    const fmtFecha = (f) => { try { return new Date(f).toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) } catch(e){ return f } }
+
+    content.innerHTML = `
+      <div style="max-width:920px">
+        <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">🛒 Carritos abandonados</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+            Clientes que llegaron al checkout, dejaron su email pero no completaron la compra.
+            El sistema les envía un recordatorio automático <strong>1 hora después</strong> (revisa cada 15 min).
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem">
+            <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)">
+              <div style="font-size:1.6rem;font-weight:700">${st.total||0}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted)">Total</div>
+            </div>
+            <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a">
+              <div style="font-size:1.6rem;font-weight:700;color:#856404">${st.pendientes||0}</div>
+              <div style="font-size:0.72rem;color:#856404">Pendientes</div>
+            </div>
+            <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;border:1px solid #bfdbfe">
+              <div style="font-size:1.6rem;font-weight:700;color:#1565c0">${st.enviados||0}</div>
+              <div style="font-size:0.72rem;color:#1565c0">Recordatorios enviados</div>
+            </div>
+            <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:1px solid #bbf7d0">
+              <div style="font-size:1.6rem;font-weight:700;color:#15803d">${st.convertidos||0}</div>
+              <div style="font-size:0.72rem;color:#15803d">Convertidos</div>
+            </div>
+          </div>
+
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:1.25rem;font-size:0.82rem;color:#0369a1">
+            <strong>¿Cómo verificar que se envían?</strong><br>
+            1. Cada recordatorio llega con copia (BCC) a <strong>${'olivr47@gmail.com'}</strong> — lo verás en tu bandeja.<br>
+            2. En <a href="https://resend.com/emails" target="_blank" style="color:#0369a1;font-weight:600">resend.com/emails</a> ves todos los correos enviados.<br>
+            3. Aquí abajo: la columna "Estado" cambia a "📧 Recordatorio enviado".
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input id="ca-test-email" type="email" placeholder="tu-correo@ejemplo.com"
+                style="border:1.5px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.82rem;flex:1;min-width:200px;outline:none">
+              <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Enviar correo de prueba</button>
+            </div>
+            <div id="ca-test-msg" style="margin-top:8px;font-size:0.8rem"></div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+              <thead>
+                <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                  <th style="padding:8px">Email</th>
+                  <th style="padding:8px">Total</th>
+                  <th style="padding:8px">Última actividad</th>
+                  <th style="padding:8px">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${carritos.length ? carritos.map(c => `
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:8px">${c.email}${c.nombre?`<br><span style="color:var(--text-muted);font-size:0.75rem">${c.nombre}</span>`:''}</td>
+                    <td style="padding:8px;font-weight:600">$${parseFloat(c.total||0).toFixed(0)}</td>
+                    <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
+                    <td style="padding:8px">${estadoBadge(c)}</td>
+                  </tr>`).join('') : '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>`
+  } catch(e) {
+    document.getElementById('content').innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
+  }
+}
+
+window.probarRecordatorio = async function() {
+  const email = (document.getElementById('ca-test-email').value || '').trim()
+  const msg = document.getElementById('ca-test-msg')
+  msg.textContent = 'Enviando...'
+  try {
+    const res = await fetch(API + '/carrito-abandonado/test', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    })
+    const d = await res.json()
+    if (d.ok) {
+      msg.style.color = '#15803d'
+      msg.innerHTML = `✅ Correo de prueba enviado a <strong>${d.enviado_a}</strong>. Revisa tu bandeja (y spam).`
+    } else {
+      msg.style.color = '#c62828'
+      msg.textContent = d.resend_configurado === false ? '❌ Falta configurar RESEND_API_KEY en Railway' : '❌ No se pudo enviar'
+    }
+  } catch(e) {
+    msg.style.color = '#c62828'; msg.textContent = '❌ Error: ' + e.message
+  }
 }
 
 async function cargarEnvio() {

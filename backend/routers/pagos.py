@@ -267,6 +267,12 @@ async def webhook_mercadopago(request: Request):
                             )
                             enviar_evento_meta("Purchase", pedido[0], payment)
                             _confirmar_pago_whatsapp(pedido[0])
+                            # Marcar carrito abandonado como convertido (ya no enviar recordatorio)
+                            try:
+                                from routers.carrito_abandonado import marcar_convertido
+                                marcar_convertido(pedido[0].get("email_cliente", ""))
+                            except Exception:
+                                pass
 
                     elif status in ["rejected", "cancelled"]:
                         supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado"})
