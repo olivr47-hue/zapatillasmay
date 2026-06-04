@@ -236,21 +236,22 @@ def listar():
 
 # ── 7. PRUEBA: enviar un recordatorio de ejemplo ahora mismo ──────
 @router.get("/diagnostico")
-def diagnostico(email: str = ""):
+def diagnostico(email: str = "", frm: str = ""):
     """Envía un correo simple y devuelve la respuesta CRUDA de Resend (id o error) para depurar."""
     if not _RESEND_OK or not resend.api_key:
         return {"resend_configurado": False, "motivo": "Falta RESEND_API_KEY o el paquete resend"}
     destino = (email or _NOTIF_EMAIL).strip().lower()
+    remitente = frm or _FROM
     try:
         r = resend.Emails.send({
-            "from": _FROM,
+            "from": remitente,
             "to": destino,
             "subject": "Prueba de diagnóstico — Zapatillas May",
             "html": "<p>Esto es una prueba de envío de Resend. Si lo recibes, el envío funciona.</p>",
         })
-        return {"ok": True, "respuesta_resend": r, "enviado_a": destino, "from": _FROM}
+        return {"ok": True, "respuesta_resend": r, "enviado_a": destino, "from": remitente}
     except Exception as e:
-        return {"ok": False, "error": str(e), "enviado_a": destino, "from": _FROM}
+        return {"ok": False, "error": str(e), "enviado_a": destino, "from": remitente}
 
 
 @router.post("/test")
