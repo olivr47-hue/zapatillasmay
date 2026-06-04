@@ -3074,7 +3074,7 @@ window.addEventListener('load', () => {
           else { carrito.push(item) }
           // Pixels
           if (window.fbq) fbq('track', 'AddToCart', { content_ids: [item.sku_interno || item.producto_id], content_type: 'product', content_name: item.nombre, value: item.precio_unitario, currency: 'MXN' })
-          if (window.ttq) ttq.track('AddToCart', { content_id: item.sku_interno || item.producto_id, content_type: 'product', content_name: item.nombre, price: item.precio_unitario, currency: 'MXN' })
+          if (window.ttq) ttq.track('AddToCart', { content_id: item.sku_interno || item.producto_id, content_type: 'product', content_name: item.nombre, value: item.precio_unitario, price: item.precio_unitario, currency: 'MXN' })
           recalcularCarrito()
           renderCarrito()
           mostrarToast('Producto agregado al carrito')
@@ -3086,28 +3086,16 @@ window.addEventListener('load', () => {
 
   if (path === '/pedido-exitoso' || params.get('status') === 'approved') {
     const paymentId = params.get('payment_id')
-    const valor = parseFloat(params.get('merchant_order_id') || 0)
-    if (window.fbq) {
-      // Recuperar IDs del carrito guardados antes de redirigir a MercadoPago
-      let _purchaseIds = []
-      try { _purchaseIds = JSON.parse(sessionStorage.getItem('fbq_checkout_ids') || '[]') } catch(e){}
-      fbq('track', 'Purchase', {
-        value: valor,
-        currency: 'MXN',
-        content_type: 'product',
-        content_ids: _purchaseIds
-      })
-    }
-    if (window.ttq) ttq.track('CompletePayment', {
-      value: valor,
-      currency: 'MXN'
-    })
-    // GA4: purchase
-    if (typeof gtag === 'function') gtag('event', 'purchase', {
-      transaction_id: paymentId || Date.now().toString(),
-      currency: 'MXN',
-      value: valor
-    })
+    // Valor real guardado en checkout antes de ir a MercadoPago (merchant_order_id NO es el monto)
+    let _valor = 0, _ids = []
+    try { _valor = parseFloat(sessionStorage.getItem('zm_purchase_value') || '0') } catch(e){}
+    try { _ids = JSON.parse(sessionStorage.getItem('fbq_checkout_ids') || '[]') } catch(e){}
+    window._pendingPurchase = { valor: _valor, ids: _ids, paymentId }
+    _intentarPurchase()  // intenta ya (si los pixeles cargaron); si no, cargarConfigSEO reintenta
+    // Vaciar carrito tras compra exitosa
+    try { sessionStorage.removeItem('zm_carrito') } catch(e){}
+    carrito = []
+    try { recalcularCarrito(); renderCarrito() } catch(e){}
     setTimeout(() => mostrarPaginaExito(paymentId), 500)
   } else if (pSlug) {
     const colorParam = params.get('color')
@@ -3270,6 +3258,22 @@ window.addEventListener('load', () => {
     }
   }
 
+  // Dispara el evento Purchase una sola vez, esperando a que los pixeles esten listos
+  function _intentarPurchase() {
+    const pp = window._pendingPurchase
+    if (!pp) return
+    if (pp.paymentId && localStorage.getItem('zm_last_purchase') === pp.paymentId) { window._pendingPurchase = null; return }
+    const consent = localStorage.getItem('zm_consent') === 'accepted'
+    // Si hay consentimiento pero los pixeles aun no cargan, esperar (cargarConfigSEO reintenta)
+    if (consent && !window.fbq && !window.ttq) return
+    if (pp.paymentId) localStorage.setItem('zm_last_purchase', pp.paymentId)
+    if (window.fbq) fbq('track', 'Purchase', { value: pp.valor, currency: 'MXN', content_type: 'product', content_ids: pp.ids })
+    if (window.ttq) ttq.track('CompletePayment', { value: pp.valor, currency: 'MXN', contents: (pp.ids||[]).map(id=>({content_id:id})) })
+    if (typeof gtag === 'function') gtag('event', 'purchase', { transaction_id: pp.paymentId || String(Date.now()), currency: 'MXN', value: pp.valor })
+    try { sessionStorage.removeItem('fbq_checkout_ids'); sessionStorage.removeItem('zm_purchase_value') } catch(e){}
+    window._pendingPurchase = null
+  }
+
   async function cargarConfigSEO() {
   try {
     const res = await fetch('https://zapatillasmay-production.up.railway.app/seo/config')
@@ -3320,6 +3324,16 @@ window.addEventListener('load', () => {
     } else if (!localStorage.getItem('zm_consent')) {
       // Primera visita — mostrar banner
       setTimeout(() => { const b = document.getElementById('cookie-banner'); if(b) b.style.display = 'flex' }, 800)
+    }
+
+    // En la pagina de exito: reintentar Purchase hasta que los pixeles esten listos
+    if (window.location.pathname === '/pedido-exitoso' || new URLSearchParams(location.search).get('status') === 'approved') {
+      let _ppTries = 0
+      const _ppPoll = () => {
+        if (window._pendingPurchase) _intentarPurchase()
+        if (_ppTries++ < 20 && window._pendingPurchase !== null) setTimeout(_ppPoll, 400)
+      }
+      setTimeout(_ppPoll, 500)
     }
 
     // WhatsApp flotante
@@ -3568,6 +3582,7 @@ if (window.ttq) ttq.track('ViewContent', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
   content_name: p.nombre,
+  value: p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80,
   price: p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80,
   currency: 'MXN'
 })
@@ -3875,6 +3890,7 @@ if (window.ttq) ttq.track('AddToCart', {
   content_id: p.sku_interno || p.id,
   content_type: 'product',
   content_name: p.nombre,
+  value: p.precio_menudeo + 80,
   price: p.precio_menudeo + 80,
   currency: 'MXN'
 })
@@ -5862,6 +5878,8 @@ function zmAceptarCookies() {
     gtag('consent', 'update', { analytics_storage:'granted', ad_storage:'granted', ad_user_data:'granted', ad_personalization:'granted' })
   }
   if (window._zmSeoConfig) _cargarPixelesMarketing(window._zmSeoConfig)
+  // Si hay una compra pendiente (llegó a /pedido-exitoso sin consentimiento previo), dispararla
+  if (window._pendingPurchase && typeof _intentarPurchase === 'function') setTimeout(_intentarPurchase, 700)
   document.getElementById('cookie-banner').style.display = 'none'
 }
 

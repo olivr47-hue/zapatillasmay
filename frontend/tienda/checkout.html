@@ -323,10 +323,11 @@ async function procesarPago() {
     })
     const pago = await resPago.json()
     if (!pago.init_point) throw new Error('Error creando pago')
-    // Guardar IDs para el evento Purchase tras volver de MercadoPago
+    // Guardar IDs y valor para el evento Purchase tras volver de MercadoPago
     try {
       const ids = carrito.map(i => i.sku_interno || i.producto_id).filter(Boolean)
       sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(ids))
+      sessionStorage.setItem('zm_purchase_value', String(totalFinal))
     } catch(e) {}
     // Evento: AddPaymentInfo (intención de pago confirmada)
     if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
@@ -456,7 +457,11 @@ async function init() {
   // Cargar pixeles SOLO con consentimiento, luego disparar InitiateCheckout
   try {
     const res = await fetch(`${API}/seo/config`)
-    const config = await res.json()
+    const data = await res.json()
+    // /seo/config devuelve un array [{clave,valor}] — convertir a objeto
+    const config = {}
+    if (Array.isArray(data)) data.forEach(item => config[item.clave] = item.valor || '')
+    else Object.assign(config, data)
     if (localStorage.getItem('zm_consent') === 'accepted') {
       cargarPixeles(config)
       // Esperar a que los pixeles se inicialicen antes de disparar

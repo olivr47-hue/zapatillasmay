@@ -514,6 +514,40 @@ async function procesarPago() {
   }
 }
 
+// ── PIXELES ──────────────────────────────────────────────────────
+function cargarPixeles(config) {
+  if (config.facebook_pixel_id && !window.fbq) {
+    const s = document.createElement('script')
+    s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}');fbq('track','PageView');`
+    document.head.appendChild(s)
+  }
+  if (config.tiktok_pixel_id && !window.ttq) {
+    const s = document.createElement('script')
+    s.textContent = `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript";o.async=!0;o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${config.tiktok_pixel_id}');ttq.page();}(window,document,'ttq');`
+    document.head.appendChild(s)
+  }
+  if (config.google_analytics_id && !window.gtagLoaded) {
+    window.gtagLoaded = true
+    const g = document.createElement('script'); g.async = true
+    g.src = `https://www.googletagmanager.com/gtag/js?id=${config.google_analytics_id}`
+    document.head.appendChild(g)
+    const gc = document.createElement('script')
+    gc.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${config.google_analytics_id}');`
+    document.head.appendChild(gc)
+  }
+}
+
+function _dispararViewCart() {
+  if (!carrito.length) return
+  const total = totalPares(carrito)
+  const valor = carrito.reduce((s,i)=>{ const pares=i.es_corrida?i.cantidad*6:i.cantidad; return s + calcularPrecioUnitario(i,total)*pares }, 0)
+  const ids = carrito.map(i => i.sku_interno || i.producto_id)
+  // Evento personalizado "ViewCart" — NO usar ViewContent (ese es solo para vista de producto)
+  if (window.fbq) fbq('trackCustom', 'ViewCart', { content_ids: ids, value: valor, currency:'MXN', num_items: total })
+  if (window.ttq) ttq.track('ViewCart', { value: valor, currency:'MXN', contents: ids.map(id=>({content_id:id})) })
+  if (typeof gtag === 'function') gtag('event', 'view_cart', { currency:'MXN', value: valor })
+}
+
 // ── INIT ─────────────────────────────────────────────────────────
 async function init() {
   // Cargar config de envío del backend
@@ -522,6 +556,19 @@ async function init() {
     if (r.ok) cfgEnvio = await r.json()
   } catch(e) { /* usa defaults */ }
   render()
+
+  // Cargar pixeles SOLO con consentimiento
+  try {
+    const res = await fetch(`${API}/seo/config`)
+    const data = await res.json()
+    const config = {}
+    if (Array.isArray(data)) data.forEach(item => config[item.clave] = item.valor || '')
+    else Object.assign(config, data)
+    if (localStorage.getItem('zm_consent') === 'accepted') {
+      cargarPixeles(config)
+      setTimeout(_dispararViewCart, 800)
+    }
+  } catch(e) {}
 }
 init()
 </script>
