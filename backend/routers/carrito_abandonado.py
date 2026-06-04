@@ -254,6 +254,49 @@ def diagnostico(email: str = "", frm: str = ""):
         return {"ok": False, "error": str(e), "enviado_a": destino, "from": remitente}
 
 
+@router.get("/estado-email")
+def estado_email(id: str = ""):
+    """Consulta el estado de entrega de un email en Resend (delivered/bounced/etc)."""
+    if not id:
+        return {"error": "falta id"}
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://api.resend.com/emails/{id}",
+            headers={"Authorization": f"Bearer {resend.api_key}"}
+        )
+        with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+        return {
+            "to": data.get("to"),
+            "from": data.get("from"),
+            "subject": data.get("subject"),
+            "last_event": data.get("last_event"),
+            "created_at": data.get("created_at"),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/enviar-y-revisar")
+def enviar_y_revisar(email: str = ""):
+    """Envía un correo de prueba y devuelve el id para consultar su estado después."""
+    destino = (email or "").strip().lower()
+    if not destino:
+        return {"error": "falta email"}
+    try:
+        r = resend.Emails.send({
+            "from": _FROM,
+            "to": destino,
+            "subject": "Prueba de entrega — Zapatillas May",
+            "html": "<p>Prueba de entrega. Si lo recibes (revisa spam también), el correo llega bien.</p>",
+        })
+        return {"ok": True, "id": r.get("id"), "enviado_a": destino,
+                "siguiente_paso": f"/carrito-abandonado/estado-email?id={r.get('id')}"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
 @router.post("/test")
 def test_envio(datos: dict):
     """Envía un recordatorio de prueba al email indicado (o al del negocio) para verificar Resend."""
