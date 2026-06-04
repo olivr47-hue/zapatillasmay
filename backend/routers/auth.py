@@ -178,7 +178,7 @@ async def recuperar_password(request: Request, datos: dict):
         reset_url = f"https://zapatillasmay.mx/restablecer?token={reset_token}&uid={u['id']}"
 
         resend.Emails.send({
-            "from": "Zapatillas May <onboarding@resend.dev>",
+            "from": "Zapatillas May <noreply@zapatillasmay.mx>",
             "to": email,
             "subject": "Restablecer contraseña — Zapatillas May",
             "html": f"""
@@ -270,7 +270,7 @@ def newsletter_subscribe(datos: dict):
         nombre_display = nombre.split()[0].capitalize() if nombre else "Hola"
         try:
             resend.Emails.send({
-                "from": "Zapatillas May <onboarding@resend.dev>",
+                "from": "Zapatillas May <noreply@zapatillasmay.mx>",
                 "to": email,
                 "subject": f"¡Bienvenida, {nombre_display}! 👠 Ya eres parte de Zapatillas May",
                 "html": f"""
@@ -353,7 +353,7 @@ def mayorista_registro(datos: dict):
     try:
         tel_limpio = telefono.replace(' ', '').replace('-', '').lstrip('+')
         resend.Emails.send({
-            "from": "Zapatillas May <onboarding@resend.dev>",
+            "from": "Zapatillas May <noreply@zapatillasmay.mx>",
             "to": _NOTIF_EMAIL,
             "subject": f"🛍️ Nueva revendedora interesada: {nombre}",
             "html": f"""
@@ -380,7 +380,7 @@ def mayorista_registro(datos: dict):
         try:
             primer_nombre = nombre.split()[0] if nombre else "Hola"
             resend.Emails.send({
-                "from": "Zapatillas May <onboarding@resend.dev>",
+                "from": "Zapatillas May <noreply@zapatillasmay.mx>",
                 "to": email,
                 "subject": "¡Gracias por tu interés en ser revendedora! 👠",
                 "html": f"""
