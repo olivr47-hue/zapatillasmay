@@ -542,10 +542,9 @@ function _dispararViewCart() {
   const total = totalPares(carrito)
   const valor = carrito.reduce((s,i)=>{ const pares=i.es_corrida?i.cantidad*6:i.cantidad; return s + calcularPrecioUnitario(i,total)*pares }, 0)
   const ids = carrito.map(i => i.sku_interno || i.producto_id)
-  // Meta: evento personalizado "ViewCart" (Meta acepta custom sin error)
+  // Evento "ViewCart" en Meta (custom), TikTok y GA4 (view_cart)
   if (window.fbq) fbq('trackCustom', 'ViewCart', { content_ids: ids, value: valor, currency:'MXN', num_items: total })
-  // TikTok NO tiene "ViewCart" estándar — la vista de página (ttq.page) ya se dispara sola al cargar.
-  // GA4: view_cart es un evento recomendado válido
+  if (window.ttq) ttq.track('ViewCart', { value: valor, currency:'MXN', contents: ids.map(id=>({content_id:id})) })
   if (typeof gtag === 'function') gtag('event', 'view_cart', { currency:'MXN', value: valor })
 }
 
