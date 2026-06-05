@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Zapatillas May — Enlaces</title>
+  <meta name="description" content="Calzado de moda para dama. Catálogo, precios de mayoreo, ofertas y contacto. León, Guanajuato. Envíos a todo México.">
+  <link rel="canonical" href="https://zapatillasmay.mx/links">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Zapatillas May — Calzado de moda para dama">
+  <meta property="og:description" content="Catálogo, mayoreo, ofertas y contacto. Envíos a todo México.">
+  <meta property="og:image" content="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <meta property="og:url" content="https://zapatillasmay.mx/links">
+  <meta property="og:type" content="website">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --black: #2A1A0E;
+      --white: #FBF7F3;
+      --tan: #C8967A;
+      --tan-dark: #a6795f;
+      --mauve: #b5687a;
+      --cream: #F5ECE2;
+      --cream-dark: #EDE0D2;
+      --gray: #8B6A54;
+      --font-display: 'Cormorant Garamond', serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-body);
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(200,150,122,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(181,104,122,0.12) 0%, transparent 55%),
+        var(--white);
+      color: var(--black);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      justify-content: center;
+      padding: 32px 20px 48px;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* HEADER */
+    .logo {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: white;
+      border: 3px solid rgba(200,150,122,0.4);
+      box-shadow: 0 8px 28px rgba(200,150,122,0.3);
+      margin-bottom: 18px;
+    }
+    .brand {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .brand em { font-style: italic; color: var(--tan); }
+    .tagline {
+      font-size: 0.82rem;
+      color: var(--gray);
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+    .badges {
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      margin-bottom: 28px;
+    }
+    .badge {
+      font-size: 0.66rem;
+      font-weight: 600;
+      color: var(--tan-dark);
+      background: rgba(200,150,122,0.12);
+      border: 1px solid rgba(200,150,122,0.25);
+      border-radius: 100px;
+      padding: 4px 11px;
+      letter-spacing: 0.3px;
+    }
+
+    /* LINKS */
+    .links { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .link {
+      display: flex; align-items: center; gap: 14px;
+      width: 100%;
+      padding: 16px 20px;
+      background: white;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 16px;
+      text-decoration: none;
+      color: var(--black);
+      font-size: 0.95rem;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(42,26,14,0.05);
+      transition: transform 0.18s cubic-bezier(0.23,1,0.32,1), box-shadow 0.18s, border-color 0.18s;
+      position: relative;
+    }
+    .link:hover, .link:active {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(200,150,122,0.25);
+      border-color: var(--tan);
+    }
+    .link .emoji { font-size: 1.3rem; width: 28px; text-align: center; flex-shrink: 0; }
+    .link .txt { flex: 1; }
+    .link .txt small { display: block; font-weight: 400; font-size: 0.72rem; color: var(--gray); margin-top: 1px; }
+    .link .arrow { color: var(--tan); font-size: 1.1rem; flex-shrink: 0; opacity: 0.7; }
+
+    /* Botón destacado (primario) */
+    .link.primary {
+      background: linear-gradient(135deg, var(--mauve), var(--tan));
+      border: none;
+      color: white;
+    }
+    .link.primary .txt small { color: rgba(255,255,255,0.8); }
+    .link.primary .arrow { color: white; opacity: 0.9; }
+
+    /* WhatsApp */
+    .link.whatsapp { border-color: rgba(37,211,102,0.4); }
+    .link.whatsapp:hover { border-color: #25D366; box-shadow: 0 10px 24px rgba(37,211,102,0.25); }
+    .link.whatsapp .emoji { color: #25D366; }
+
+    /* CATEGORÍAS rápidas */
+    .cats-label {
+      width: 100%;
+      font-size: 0.66rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--gray);
+      margin: 22px 0 10px 4px;
+    }
+    .cats { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+    .cat {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 13px 6px;
+      background: white;
+      border: 1.5px solid var(--cream-dark);
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--black);
+      font-size: 0.74rem; font-weight: 600;
+      transition: transform 0.18s, border-color 0.18s;
+    }
+    .cat:hover { transform: translateY(-2px); border-color: var(--tan); }
+    .cat .ce { font-size: 1.25rem; }
+
+    /* REDES */
+    .social { display: flex; gap: 14px; margin-top: 30px; }
+    .social a {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      background: white;
+      border: 1.5px solid var(--cream-dark);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.18s, border-color 0.18s, background 0.18s;
+    }
+    .social a:hover { transform: translateY(-3px); border-color: var(--tan); }
+    .social svg { width: 22px; height: 22px; }
+
+    .footer {
+      margin-top: 26px;
+      font-size: 0.7rem;
+      color: var(--gray);
+      text-align: center;
+      line-height: 1.6;
+    }
+    .footer a { color: var(--tan-dark); text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <img class="logo" src="https://res.cloudinary.com/dybdtehhs/image/upload/w_200,h_200,c_fill,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May">
+    <h1 class="brand">Zapatillas <em>May</em></h1>
+    <p class="tagline">Calzado de moda para dama · León, Guanajuato</p>
+    <div class="badges">
+      <span class="badge">🚚 Envíos a todo México</span>
+      <span class="badge">🏷️ Mayoreo desde 3 pares</span>
+    </div>
+
+    <div class="links">
+      <a class="link primary" href="/?utm_source=bio&utm_medium=links">
+        <span class="emoji">👠</span>
+        <span class="txt">Ver catálogo completo<small>Todos los modelos nuevos</small></span>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="/mayoreo?utm_source=bio&utm_medium=links">
+        <span class="emoji">💰</span>
+        <span class="txt">Precios de mayoreo<small>Desde 3 pares · sin registro</small></span>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link whatsapp" href="https://wa.me/5214792244560?text=Hola%2C%20vengo%20de%20sus%20redes%20y%20quiero%20m%C3%A1s%20informaci%C3%B3n%20%F0%9F%91%A0" target="_blank" rel="noopener">
+        <span class="emoji">💬</span>
+        <span class="txt">Comprar por WhatsApp<small>Atención directa · 477 224 4560</small></span>
+        <span class="arrow">→</span>
+      </a>
+
+      <a class="link" href="/?utm_source=bio&utm_medium=links#ofertas" onclick="sessionStorage.setItem('_goOfertas','1')">
+        <span class="emoji">🏷️</span>
+        <span class="txt">Ofertas especiales<small>Modelos con descuento</small></span>
+        <span class="arrow">→</span>
+      </a>
+    </div>
+
+    <p class="cats-label">Explora por categoría</p>
+    <div class="cats">
+      <a class="cat" href="/tacones?utm_source=bio&utm_medium=links"><span class="ce">👠</span>Tacones</a>
+      <a class="cat" href="/sandalias?utm_source=bio&utm_medium=links"><span class="ce">🩴</span>Sandalias</a>
+      <a class="cat" href="/botas?utm_source=bio&utm_medium=links"><span class="ce">🥾</span>Botas</a>
+      <a class="cat" href="/botines?utm_source=bio&utm_medium=links"><span class="ce">👢</span>Botines</a>
+      <a class="cat" href="/plataformas?utm_source=bio&utm_medium=links"><span class="ce">👡</span>Plataformas</a>
+      <a class="cat" href="/nina?utm_source=bio&utm_medium=links"><span class="ce">🎀</span>Niña</a>
+    </div>
+
+    <div class="social">
+      <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" aria-label="Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#C8967A" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#C8967A" stroke="none"/></svg>
+      </a>
+      <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" aria-label="TikTok">
+        <svg viewBox="0 0 24 24" fill="#C8967A"><path d="M16.6 5.82A4.28 4.28 0 0 1 15.54 3h-3.09v12.4a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.77.12V9.4a5.99 5.99 0 0 0-.77-.05A5.69 5.69 0 1 0 15.54 15V8.79a7.32 7.32 0 0 0 4.28 1.37V7.07a4.28 4.28 0 0 1-3.22-1.25z"/></svg>
+      </a>
+      <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" aria-label="Facebook">
+        <svg viewBox="0 0 24 24" fill="#C8967A"><path d="M14 9h3V6h-3c-1.66 0-3 1.34-3 3v2H9v3h2v6h3v-6h2.5l.5-3H14V9z"/></svg>
+      </a>
+    </div>
+
+    <p class="footer">
+      Cuautla 211, Col. Killian · León, Gto.<br>
+      <a href="/">zapatillasmay.mx</a>
+    </p>
+  </main>
+</body>
+</html>

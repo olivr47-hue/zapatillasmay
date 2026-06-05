@@ -25,6 +25,7 @@
     { "source": "/privacidad",     "destination": "/index.html" },
     { "source": "/pedido-exitoso", "destination": "/index.html" },
     { "source": "/checkout",       "destination": "/checkout.html" },
+    { "source": "/links",          "destination": "/links.html" },
     { "source": "/(.*)",           "destination": "/index.html" }
   ]
 }
