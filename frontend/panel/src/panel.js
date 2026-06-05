@@ -1564,30 +1564,39 @@ async function cargarAnalisis() {
   try {
     const [resProductos, resVariantes, resMovimientos, resInventario] = await Promise.all([
       fetch(API + '/productos/'),
-      fetch(API + '/variantes/'),
+      fetch(API + '/variantes/?activa=eq.true'),
       fetch(API + '/movimientos/'),
-      fetch(API + '/inventario/')
+      fetch(API + '/inventario/slim')   // versión ligera
     ])
     const productos = await resProductos.json()
     const variantes = await resVariantes.json()
     const movimientos = await resMovimientos.json()
     const inventario = await resInventario.json()
 
-    // Calcular rotacion por producto
+    // Mapas de lookup para evitar bucles O(n²)
+    const varianteMap = {}  // variante_id → variante
+    const prodVariantes = {}  // producto_id → [variante_id, ...]
+    variantes.forEach(v => {
+      varianteMap[v.id] = v
+      if (!prodVariantes[v.producto_id]) prodVariantes[v.producto_id] = []
+      prodVariantes[v.producto_id].push(v.id)
+    })
+    const stockPorVariante = {}  // variante_id → cantidad total
+    inventario.forEach(i => {
+      stockPorVariante[i.variante_id] = (stockPorVariante[i.variante_id] || 0) + i.cantidad
+    })
+
     const hoy = new Date()
     const hace30 = new Date(hoy - 30 * 24 * 60 * 60 * 1000)
     const hace60 = new Date(hoy - 60 * 24 * 60 * 60 * 1000)
     const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
 
     const ventasPorProducto = {}
-
     movimientos.filter(m => m.tipo === 'venta').forEach(m => {
-      const variante = variantes.find(v => v.id === m.variante_id)
+      const variante = varianteMap[m.variante_id]
       if (!variante) return
       const productoId = variante.producto_id
-      if (!ventasPorProducto[productoId]) {
-        ventasPorProducto[productoId] = { d30: 0, d60: 0, d90: 0 }
-      }
+      if (!ventasPorProducto[productoId]) ventasPorProducto[productoId] = { d30: 0, d60: 0, d90: 0 }
       const fecha = new Date(m.created_at)
       const cantidad = Math.abs(m.cantidad)
       if (fecha >= hace30) ventasPorProducto[productoId].d30 += cantidad
@@ -1597,9 +1606,8 @@ async function cargarAnalisis() {
 
     const productosConRotacion = productos.map(p => {
       const ventas = ventasPorProducto[p.id] || { d30: 0, d60: 0, d90: 0 }
-      const stockTotal = inventario
-        .filter(i => variantes.find(v => v.id === i.variante_id && v.producto_id === p.id))
-        .reduce((s, i) => s + i.cantidad, 0)
+      const varIds = prodVariantes[p.id] || []
+      const stockTotal = varIds.reduce((s, vid) => s + (stockPorVariante[vid] || 0), 0)
       const ventasSemana = ventas.d30 / 4
       const diasInventario = ventasSemana > 0 ? Math.round(stockTotal / ventasSemana * 7) : null
 
@@ -13506,14 +13514,40 @@ async function cargarAnalyticsGA() {
   }, 30000)
 }
 
+async function _gaFetchConTimeout(url, ms = 8000) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), ms)
+  try {
+    const r = await fetch(url, { signal: ctrl.signal })
+    clearTimeout(timer)
+    return r
+  } catch(e) {
+    clearTimeout(timer)
+    if (e.name === 'AbortError') throw new Error('timeout')
+    throw e
+  }
+}
+
 async function _gaCargarTodo() {
-  await Promise.all([_gaActualizarRealtime(), _gaCargarHoy(), _gaCargarSemana()])
-  document.getElementById('ga-ultima-act').textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  // Cargar las 3 secciones independientemente — si una falla no bloquea las demás
+  const tareas = [
+    _gaActualizarRealtime().catch(() => _gaSeccionError('ga-activos', '—')),
+    _gaCargarHoy().catch(() => _gaSeccionError('ga-sesiones', '—')),
+    _gaCargarSemana().catch(() => _gaSeccionError('ga-chart', null))
+  ]
+  await Promise.allSettled(tareas)
+  const el = document.getElementById('ga-ultima-act')
+  if (el) el.textContent = 'Actualizado: ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit',second:'2-digit'})
+}
+
+function _gaSeccionError(elId, val) {
+  const el = document.getElementById(elId)
+  if (el && val !== null) el.textContent = val
 }
 
 async function _gaActualizarRealtime() {
   try {
-    const r = await fetch(`${API}/analytics/tiempo-real`)
+    const r = await _gaFetchConTimeout(`${API}/analytics/tiempo-real`)
     const d = await r.json()
     if (!d.configurado) { _gaMostrarSetup(d); return }
     const el = document.getElementById('ga-activos')
@@ -13545,7 +13579,7 @@ async function _gaActualizarRealtime() {
 
 async function _gaCargarHoy() {
   try {
-    const r = await fetch(`${API}/analytics/hoy`)
+    const r = await _gaFetchConTimeout(`${API}/analytics/hoy`)
     const d = await r.json()
     if (!d.configurado) return
     if (d.error) { console.warn('GA hoy error:', d.error); return }
@@ -13581,7 +13615,7 @@ async function _gaCargarHoy() {
 
 async function _gaCargarSemana() {
   try {
-    const r = await fetch(`${API}/analytics/semana`)
+    const r = await _gaFetchConTimeout(`${API}/analytics/semana`)
     const d = await r.json()
     if (!d.configurado || !d.dias?.length) return
 
