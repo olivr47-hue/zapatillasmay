@@ -14022,40 +14022,118 @@ function renderCarritoAbierto(p) {
       <!-- Lista de productos en el carrito -->
       <div class="table-card" style="padding:1.2rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <p style="font-weight:600;color:#333;margin:0">Productos en carrito (${totalPares} pares)</p>
-          <p style="font-weight:700;font-size:1.2rem;color:#E91E8C;margin:0">Total: $${total.toFixed(2)}</p>
+          <p style="font-weight:600;color:#333;margin:0">Productos en carrito (<span id="carrito-total-pares">${totalPares}</span> pares)</p>
+          <p style="font-weight:700;font-size:1.2rem;color:#E91E8C;margin:0">Total: $<span id="carrito-total-monto">${total.toFixed(2)}</span></p>
         </div>
 
         <div id="carrito-items-lista">
           ${items.length === 0 ? '<p style="color:#aaa;text-align:center;padding:2rem">Carrito vacío — agrega productos arriba</p>' : ''}
-          ${items.map((item, idx) => {
-            const v = item.variantes || {}
-            const pr = v.productos || {}
-            const nombre = pr.nombre || item.nombre || '—'
-            const color = v.color || item.color || ''
-            const talla = v.talla || item.talla || ''
-            const imagen = pr.imagen_principal || null
-            const invItem = inventario.find(i => i.variante_id === item.variante_id && i.sucursal_id === sucursalId)
-            const stock = invItem ? invItem.cantidad : '?'
-            return `
-              <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
-                ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
-                <div style="flex:1;min-width:140px">
-                  <p style="font-weight:600;font-size:0.85rem;margin:0">${nombre}${color ? ' · '+color : ''}${talla ? ' T'+talla : ''}</p>
-                  <p style="font-size:0.75rem;color:#888;margin:2px 0 0">Stock disponible: ${stock} pares</p>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <button onclick="cambiarCantidadCarrito(${idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
-                  <span style="font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
-                  <button onclick="cambiarCantidadCarrito(${idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
-                </div>
-                <input type="number" value="${item.precio_unitario}" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
-                  onchange="actualizarPrecioCarrito(${idx}, this.value)" placeholder="Precio">
-                <strong style="color:#E91E8C;min-width:70px;text-align:right">$${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
-                <button onclick="eliminarDeCarrito('${item.id}',${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem">🗑</button>
-              </div>
-            `
-          }).join('')}
+          ${(() => {
+            // Agrupar: es_corrida viene directo de la BD
+            const grupos = {}
+            items.forEach((item, idx) => {
+              const v = item.variantes || {}
+              const pr = v.productos || {}
+              const nombre = pr.nombre || item.nombre || '—'
+              const color = v.color || item.color || ''
+              const esCorrida = !!item.es_corrida
+              // Corridas agrupan por nombre+color; pares sueltos van solos por su ID
+              const key = esCorrida ? ('c|' + nombre + '|' + color) : ('s|' + item.id)
+              if (!grupos[key]) grupos[key] = { nombre, color, esCorrida, items: [], imagen: v.foto_url || pr.imagen_principal || null }
+              grupos[key].items.push({ ...item, _idx: idx })
+            })
+
+            return Object.values(grupos).map(g => {
+              const esCorrida = g.esCorrida
+              const imagen = g.imagen
+
+              if (!esCorrida) {
+                // Par suelto — fila normal
+                const item = g.items[0]
+                const v = item.variantes || {}
+                const pr = v.productos || {}
+                const talla = v.talla || item.talla || ''
+                const invItem = inventario.find(i => i.variante_id === item.variante_id && (sucursalId ? i.sucursal_id === sucursalId : true))
+                const stock = invItem ? invItem.cantidad : null
+                return `
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+                    ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
+                    <div style="flex:1;min-width:120px">
+                      <p style="font-weight:600;font-size:0.85rem;margin:0">${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
+                      ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <button onclick="cambiarCantidadCarrito(${item._idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
+                      <span style="font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
+                      <button onclick="cambiarCantidadCarrito(${item._idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
+                    </div>
+                    <input type="number" value="${item.precio_unitario}" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
+                      onchange="actualizarPrecioCarrito(${item._idx}, this.value)">
+                    <strong style="color:#E91E8C;min-width:70px;text-align:right">$${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
+                    <button onclick="eliminarDeCarrito('${item.id}',${item._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                  </div>`
+              } else {
+                // Corrida agrupada
+                const totalParesCorrida = g.items.reduce((s,i) => s+i.cantidad, 0)
+                const subtotalCorrida = g.items.reduce((s,i) => s+(i.cantidad*i.precio_unitario), 0)
+                const precioPorPar = (subtotalCorrida / totalParesCorrida).toFixed(2)
+                const ids = g.items.map(i => i.id).join(',')
+                return `
+                  <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
+                    <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
+                      ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
+                      <div style="flex:1">
+                        <p style="font-weight:700;font-size:0.88rem;margin:0">${g.nombre}</p>
+                        <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600;margin:2px 0 4px">📦 Corrida · ${g.color}</p>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                          ${g.items.map(i => {
+                            const vt = i.variantes || {}
+                            const talla = vt.talla || i.talla || '?'
+                            return `<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${talla}</span>`
+                          }).join('')}
+                        </div>
+                      </div>
+                      <button onclick="eliminarCorridaCarrito('${ids}')" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                      <span id="corrida-header-${ids.replace(/,/g,'_').substring(0,20)}" style="font-size:0.85rem;color:#888">${totalParesCorrida} pares · <strong style="color:#6a1b9a">$${subtotalCorrida.toFixed(2)}</strong></span>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:0.72rem;color:#888">$</span>
+                        <input type="number" value="${precioPorPar}"
+                          onchange="actualizarPrecioCorridaCarrito('${ids}', this.value)"
+                          style="width:70px;text-align:center;border:1px solid #6a1b9a;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#6a1b9a">
+                        <span style="font-size:0.72rem;color:#888">/par</span>
+                      </div>
+                      <strong style="color:#6a1b9a">$${subtotalCorrida.toFixed(2)}</strong>
+                    </div>
+                    <!-- Detalle editable por talla (toggle) -->
+                    <div id="corrida-detalle-${ids.replace(/,/g,'_').substring(0,20)}" style="display:none;margin-top:10px;border-top:1px solid #e8d5f5;padding-top:10px">
+                      ${g.items.map(i => {
+                        const vt = i.variantes || {}
+                        const talla = vt.talla || i.talla || '?'
+                        const invItem = inventario.find(x => x.variante_id === i.variante_id && (sucursalId ? x.sucursal_id === sucursalId : true))
+                        const stockMax = invItem ? invItem.cantidad : 999
+                        return `
+                          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"
+                               data-item-id="${i.id}" data-item-idx="${i._idx}" data-stock="${stockMax}" data-precio="${i.precio_unitario}">
+                            <span style="background:#f3e5f5;border-radius:100px;padding:3px 10px;font-size:0.8rem;font-weight:700;color:#6a1b9a;min-width:44px;text-align:center">T${talla}</span>
+                            <button onclick="cambiarCantCorridaDOM(this.parentElement,-1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">−</button>
+                            <span class="ccd-cant" style="font-weight:700;min-width:20px;text-align:center;font-size:0.9rem">${i.cantidad}</span>
+                            <button onclick="cambiarCantCorridaDOM(this.parentElement,1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">+</button>
+                            <span style="font-size:0.8rem;color:#888;flex:1">× $${i.precio_unitario}</span>
+                            <strong class="ccd-sub" style="color:#6a1b9a;font-size:0.82rem">$${(i.cantidad*i.precio_unitario).toFixed(2)}</strong>
+                            <button onclick="eliminarDeCarrito('${i.id}',${i._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem;padding:2px">🗑</button>
+                          </div>`
+                      }).join('')}
+                    </div>
+                    <button onclick="toggleCorridaDetalle('${ids.replace(/,/g,'_').substring(0,20)}')"
+                      style="margin-top:8px;background:none;border:1px solid #d8b4fe;border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#6a1b9a;cursor:pointer;width:100%">
+                      ✏️ Editar tallas individualmente
+                    </button>
+                  </div>`
+              }
+            }).join('')
+          })()}
         </div>
 
         ${items.length > 0 ? `
@@ -14071,7 +14149,7 @@ function renderCarritoAbierto(p) {
               </select>
             </div>
             <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
-              ✅ Confirmar venta — $${total.toFixed(2)}
+              ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
             </button>
           </div>
         ` : ''}
@@ -14313,6 +14391,119 @@ window.eliminarDeCarrito = async (itemId, idx) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
+window.cambiarCantCorridaDOM = async (row, delta) => {
+  const itemId  = row.dataset.itemId
+  const idx     = parseInt(row.dataset.itemIdx)
+  const stockMax = parseInt(row.dataset.stock) || 999
+  const precio  = parseFloat(row.dataset.precio) || 0
+  const cantSpan = row.querySelector('.ccd-cant')
+  const subSpan  = row.querySelector('.ccd-sub')
+  if (!itemId || !cantSpan) return
+
+  const cantActual = parseInt(cantSpan.textContent) || 1
+  const nuevaCantidad = Math.max(1, cantActual + delta)
+
+  if (delta > 0 && nuevaCantidad > stockMax) {
+    mostrarToastPanel(`⚠️ Solo hay ${stockMax} pares en stock`)
+    return
+  }
+
+  try {
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: nuevaCantidad, precio_unitario: precio })
+    })
+    // Actualizar DOM inmediatamente
+    cantSpan.textContent = nuevaCantidad
+    if (subSpan) subSpan.textContent = '$' + (nuevaCantidad * precio).toFixed(2)
+    // Actualizar item en memoria
+    if (window._carritoActivo.items[idx]) window._carritoActivo.items[idx].cantidad = nuevaCantidad
+    // Actualizar header del grupo (pares + total)
+    const detalle = row.closest('[id^="corrida-detalle-"]')
+    if (detalle) {
+      const allRows = detalle.querySelectorAll('[data-item-id]')
+      let totalP = 0, totalS = 0
+      allRows.forEach(r => {
+        const c = parseInt(r.querySelector('.ccd-cant')?.textContent || 0)
+        const p = parseFloat(r.dataset.precio || 0)
+        totalP += c; totalS += c * p
+      })
+      const headerId = detalle.id.replace('corrida-detalle-', 'corrida-header-')
+      const hEl = document.getElementById(headerId)
+      if (hEl) hEl.innerHTML = `${totalP} pares · <strong style="color:#6a1b9a">$${totalS.toFixed(2)}</strong>`
+      // Actualizar también el total grande a la derecha
+      const contenedorCorrida = detalle.parentElement
+      if (contenedorCorrida) {
+        const strongs = contenedorCorrida.querySelectorAll('strong[style*="6a1b9a"]')
+        strongs.forEach(s => { if (!s.closest('[id^="corrida-header"]')) s.textContent = '$' + totalS.toFixed(2) })
+      }
+    }
+    // Actualizar total del pedido en pantalla y en servidor
+    const nuevoTotal = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    const totalPares = window._carritoActivo.items.reduce((s, i) => s + i.cantidad, 0)
+    const elMonto = document.getElementById('carrito-total-monto')
+    const elPares = document.getElementById('carrito-total-pares')
+    const elBtn   = document.getElementById('carrito-total-btn')
+    if (elMonto) elMonto.textContent = nuevoTotal.toFixed(2)
+    if (elPares) elPares.textContent = totalPares
+    if (elBtn)   elBtn.textContent   = nuevoTotal.toFixed(2)
+    fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.toggleCorridaDetalle = (key) => {
+  const el = document.getElementById('corrida-detalle-' + key)
+  if (!el) return
+  const visible = el.style.display !== 'none'
+  el.style.display = visible ? 'none' : 'block'
+  const btn = el.nextElementSibling
+  if (btn) btn.textContent = visible ? '✏️ Editar tallas individualmente' : '▲ Cerrar edición'
+}
+
+window.eliminarCorridaCarrito = async (idsStr) => {
+  const ids = idsStr.split(',').filter(Boolean)
+  try {
+    for (const id of ids) {
+      await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + id, { method: 'DELETE' })
+    }
+    const nuevoTotal = window._carritoActivo.items
+      .filter(i => !ids.includes(i.id))
+      .reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.actualizarPrecioCorridaCarrito = async (idsStr, nuevoPrecio) => {
+  const ids = idsStr.split(',').filter(Boolean)
+  const precio = parseFloat(nuevoPrecio) || 0
+  if (!precio) return
+  try {
+    for (const id of ids) {
+      const item = window._carritoActivo.items.find(i => i.id === id)
+      if (!item) continue
+      item._precio_manual = true
+      item.precio_unitario = precio
+      await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + id, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: item.cantidad, precio_unitario: precio })
+      })
+    }
+    const nuevoTotal = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
 window.confirmarVentaCarrito = async (pedidoId) => {
   const formaPagoEl = document.getElementById('c-forma-pago')
   const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
@@ -14400,16 +14591,23 @@ window.seleccionarModeloCorrida = (productoId, color) => {
   grid.innerHTML = varsColor.map(v => {
     // Buscar stock: intentar con sucursalId, si no hay datos mostrar sin deshabilitar
     const inv = inventario.find(i => i.variante_id === v.id && (sucursalId ? i.sucursal_id === sucursalId : true))
-    const stock = inv ? inv.cantidad : null  // null = sin datos (no deshabilitado)
+    const stock = inv ? inv.cantidad : null
     const agotada = stock !== null && stock === 0
     return `
-      <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px 12px;border:2px solid ${agotada ? '#fde' : '#ddd'};border-radius:8px;background:${agotada ? '#fff5f5' : 'white'};min-width:60px;opacity:${agotada ? 0.5 : 1}">
-        <input type="checkbox" ${!agotada ? 'checked' : ''} value="${v.id}" style="width:16px;height:16px;cursor:pointer;accent-color:#E91E8C" ${agotada ? 'disabled' : ''}>
-        <span style="font-weight:700;font-size:0.9rem">T${v.talla}</span>
-        <span style="font-size:0.65rem;color:${stock === null ? '#aaa' : stock > 0 ? '#2e7d32' : '#c62828'}">
-          ${stock === null ? '?' : stock + ' pares'}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 10px;border:2px solid ${agotada ? '#fde' : '#ddd'};border-radius:8px;background:${agotada ? '#fff5f5' : 'white'};min-width:64px;opacity:${agotada ? 0.5 : 1}">
+        <span style="font-weight:700;font-size:0.88rem;color:#333">T${v.talla}</span>
+        <div style="display:flex;align-items:center;gap:3px">
+          <button type="button" onclick="this.nextElementSibling.value=Math.max(0,parseInt(this.nextElementSibling.value||0)-1);this.nextElementSibling.dispatchEvent(new Event('input'))"
+            style="background:#eee;border:none;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:0.85rem;line-height:1" ${agotada?'disabled':''}>−</button>
+          <input type="number" value="${agotada ? 0 : 1}" min="0" max="${stock !== null ? stock : 999}" data-variante="${v.id}"
+            style="width:32px;text-align:center;border:1px solid ${agotada?'#fdd':'#ddd'};border-radius:4px;padding:2px;font-size:0.85rem;font-weight:700" ${agotada?'disabled':''}>
+          <button type="button" onclick="const inp=this.previousElementSibling;const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max)inp.value=cur+1;else{inp.style.borderColor='#c62828';setTimeout(()=>inp.style.borderColor='',800)}"
+            style="background:#eee;border:none;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:0.85rem;line-height:1" ${agotada?'disabled':''}>+</button>
+        </div>
+        <span style="font-size:0.62rem;color:${stock === null ? '#aaa' : stock > 0 ? '#2e7d32' : '#c62828'}">
+          ${stock === null ? 'stock ?' : 'stock: '+stock}
         </span>
-      </label>
+      </div>
     `
   }).join('')
 
@@ -14422,29 +14620,32 @@ window.agregarCorridaAlCarritoActivo = async () => {
   const precio = parseFloat(document.getElementById('c-precio-corrida').value) || window._corridaSeleccionada?.precioCorrida || 0
   if (!precio) { alert('No se encontró precio para este producto. Ingrésalo manualmente.'); return }
 
-  const checkboxes = document.querySelectorAll('#c-corrida-tallas-grid input[type=checkbox]:checked')
-  if (checkboxes.length === 0) { alert('Selecciona al menos una talla'); return }
+  const inputs = document.querySelectorAll('#c-corrida-tallas-grid input[type=number][data-variante]')
+  const seleccionados = Array.from(inputs).filter(inp => parseInt(inp.value) > 0)
+  if (seleccionados.length === 0) { alert('Ingresa al menos 1 par en alguna talla'); return }
 
   const pedidoId = window._carritoActivo.pedidoId
   let totalAgregado = 0
 
-  for (const cb of checkboxes) {
-    const varianteId = cb.value
+  for (const inp of seleccionados) {
+    const varianteId = inp.dataset.variante
+    const cantidad = parseInt(inp.value) || 1
     const v = varsColor.find(x => x.id === varianteId)
     await fetch(API + '/pedidos/' + pedidoId + '/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         variante_id: varianteId,
-        cantidad: 1,
+        cantidad,
         precio_unitario: precio,
-        subtotal: precio,
+        subtotal: cantidad * precio,
         nombre: prod.nombre,
         color: color,
-        talla: v?.talla || ''
+        talla: v?.talla || '',
+        es_corrida: true
       })
     })
-    totalAgregado += precio
+    totalAgregado += cantidad * precio
   }
 
   // Actualizar total
