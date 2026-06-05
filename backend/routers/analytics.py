@@ -115,10 +115,14 @@ def _access_token() -> str | None:
     return _access_token_oauth2() or _access_token_jwt()
 
 
+_last_ga4_error = ""
+
 def _ga4_post(endpoint: str, body: dict) -> dict | None:
     """POST a GA4 Data API."""
+    global _last_ga4_error
     token = _access_token()
     if not token:
+        _last_ga4_error = "No se pudo obtener access token (JWT/OAuth2 falló)"
         return None
     url      = f"{GA4_BASE}/properties/{GA4_PROPERTY_ID}:{endpoint}"
     req_body = json.dumps(body).encode()
@@ -129,13 +133,32 @@ def _ga4_post(endpoint: str, body: dict) -> dict | None:
     )
     try:
         with urllib.request.urlopen(req) as r:
+            _last_ga4_error = ""
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        print(f"[analytics] GA4 error {e.code}: {e.read().decode(errors='replace')[:300]}")
+        detalle = e.read().decode(errors='replace')[:500]
+        _last_ga4_error = f"HTTP {e.code}: {detalle}"
+        print(f"[analytics] GA4 error {e.code}: {detalle}")
         return None
     except Exception as e:
+        _last_ga4_error = str(e)
         print(f"[analytics] GA4 error: {e}")
         return None
+
+
+@router.get("/diagnostico")
+def diagnostico():
+    """Diagnóstico de configuración de GA4."""
+    token = _access_token()
+    return {
+        "jwt_ok": JWT_OK,
+        "tiene_property_id": bool(GA4_PROPERTY_ID),
+        "property_id": GA4_PROPERTY_ID,
+        "tiene_credentials_json": bool(GA4_CREDENTIALS),
+        "tiene_oauth2": bool(GA4_CLIENT_ID and GA4_CLIENT_SECRET and GA4_REFRESH_TOKEN),
+        "token_obtenido": bool(token),
+        "ultimo_error": _last_ga4_error,
+    }
 
 
 def _esta_configurado() -> bool:
