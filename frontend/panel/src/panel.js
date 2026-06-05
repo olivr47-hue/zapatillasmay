@@ -14236,13 +14236,14 @@ window.recalcularPreciosCarrito = async () => {
     const prod = v ? productos.find(p => p.id === v.producto_id) : null
     if (!prod) continue
 
+    const base = parseFloat(prod.precio_menudeo) || 0
     let nuevoPrecio
     if (tier === 'mayoreo6') {
-      nuevoPrecio = parseFloat(prod.precio_mayoreo6) || parseFloat(prod.precio_menudeo)
+      nuevoPrecio = parseFloat(prod.precio_mayoreo6) || (base > 0 ? Math.round(base - 70) : base)
     } else if (tier === 'mayoreo3') {
-      nuevoPrecio = parseFloat(prod.precio_mayoreo3) || parseFloat(prod.precio_menudeo)
+      nuevoPrecio = parseFloat(prod.precio_mayoreo3) || (base > 0 ? Math.round(base - 30) : base)
     } else {
-      nuevoPrecio = parseFloat(prod.precio_menudeo)
+      nuevoPrecio = base
     }
 
     if (nuevoPrecio && nuevoPrecio !== item.precio_unitario) {
@@ -14290,11 +14291,20 @@ window.actualizarPrecioCarrito = async (idx, nuevoPrecio) => {
 }
 
 window.eliminarDeCarrito = async (itemId, idx) => {
-  if (!confirm('¿Quitar este producto del carrito?')) return
+  if (!itemId || itemId === 'undefined') {
+    alert('Error: el ítem no tiene ID válido')
+    return
+  }
   try {
-    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, { method: 'DELETE' })
-    window._carritoActivo.items.splice(idx, 1)
-    const nuevoTotal = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    const res = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('Error eliminando: ' + (err.error || res.status))
+      return
+    }
+    const nuevoTotal = window._carritoActivo.items
+      .filter((_, i) => i !== idx)
+      .reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
     await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ total: nuevoTotal })
@@ -14380,7 +14390,7 @@ window.seleccionarModeloCorrida = (productoId, color) => {
 
   // Auto-precio: precio_corrida → mayoreo6 → (menudeo-70 automático)
   const base = parseFloat(prod?.precio_menudeo) || 0
-  const precioCorrida = parseFloat(prod?.precio_corrida) || parseFloat(prod?.precio_mayoreo6) || (base > 0 ? Math.round(base - 70) : 0)
+  const precioCorrida = parseFloat(prod?.precio_corrida) || (base > 0 ? Math.round(base - 100) : 0)
   document.getElementById('c-precio-corrida').value = precioCorrida || ''
 
   // Guardar selección con precio incluido
