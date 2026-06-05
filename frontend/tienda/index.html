@@ -4329,7 +4329,7 @@ if (window.ttq) ttq.track('AddToCart', {
     }).slice(0, 6)
     if (!filtrados.length) { containers.forEach(c => c.classList.remove('show')); return }
     const html = filtrados.map(p => `
-      <div class="search-result-item" onclick="abrirProducto('${p.id}');_cerrarBusqueda()">
+      <div class="search-result-item" onclick="window.location.href='/producto/${p.sku_interno||p.id}'" ontouchend="event.preventDefault();window.location.href='/producto/${p.sku_interno||p.id}'">
         ${p.imagen_principal ? `<img class="search-result-img" src="${p.imagen_principal}" alt="${p.nombre}">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
         <div class="search-result-info">
           <p class="name">${p.nombre}</p>
