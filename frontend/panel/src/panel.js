@@ -6450,7 +6450,7 @@ async function cargarPedidos() {
                     <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
                     <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
                     <td>
-                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="abrirPreviewPedido('${p.id}')">Ver ▾</button>
                     </td>
                   </tr>
                 `
@@ -6458,6 +6458,7 @@ async function cargarPedidos() {
           </tbody>
         </table>
       </div>
+      <div id="pedido-preview-panel" style="display:none;margin-top:1rem"></div>
     `
     window._pedidosData = data
   } catch(e) {
@@ -6527,7 +6528,7 @@ window.cargarPedidosFiltro = (filtro) => {
         <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
         <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
         <td>
-          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="abrirPreviewPedido('${p.id}')">Ver ▾</button>
         </td>
       </tr>
     `
@@ -6771,6 +6772,7 @@ window.cambiarCantidadItem = async (idx, delta) => {
 }
 
 window.guardarPedido = async () => {
+  if (window._creandoPedido) return  // evita doble click
   const cliente_id = document.getElementById('ped-cliente').value
   const canal = document.getElementById('ped-canal').value
   const sucursal_id = document.getElementById('ped-sucursal').value
@@ -6780,6 +6782,7 @@ window.guardarPedido = async () => {
   if (!cliente_id) { alert('Selecciona un cliente'); return }
   if (window._pedidoItems.length === 0) { alert('Agrega al menos un producto'); return }
 
+  window._creandoPedido = true
   const btn = document.getElementById('btn-ped-guardar')
   if (btn) { btn.textContent = 'Guardando...'; btn.disabled = true }
 
@@ -6805,11 +6808,18 @@ window.guardarPedido = async () => {
     if (!resPedido.ok) {
       alert('Error creando pedido')
       if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+      window._creandoPedido = false
       return
     }
 
     const pedidoData = await resPedido.json()
-    const pedidoId = pedidoData[0].id
+    const pedidoId = pedidoData.id || pedidoData[0]?.id
+    if (!pedidoId) {
+      alert('Error: no se obtuvo ID del pedido')
+      if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+      window._creandoPedido = false
+      return
+    }
 
     for (const item of window._pedidoItems) {
       await fetch(API + '/pedidos/' + pedidoId + '/items', {
@@ -6834,11 +6844,98 @@ window.guardarPedido = async () => {
 
     alert('Pedido creado correctamente')
     window._pedidoItems = []
+    window._creandoPedido = false
     verPedido(pedidoId)
 
   } catch(e) {
     alert('Error conectando con el servidor')
     if (btn) { btn.textContent = 'Crear pedido'; btn.disabled = false }
+    window._creandoPedido = false
+  }
+}
+
+window.abrirPreviewPedido = async (id) => {
+  // Si ya estaba abierto este pedido, lo cierra (toggle)
+  const panel = document.getElementById('pedido-preview-panel')
+  if (!panel) { verPedido(id); return }
+  if (panel.dataset.pedidoId === id && panel.style.display !== 'none') {
+    panel.style.display = 'none'; panel.dataset.pedidoId = ''; return
+  }
+  panel.dataset.pedidoId = id
+  panel.style.display = 'block'
+  panel.innerHTML = '<p style="padding:1.5rem;color:#888;text-align:center">Cargando...</p>'
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+
+  try {
+    const [resPedido, resItems] = await Promise.all([
+      fetch(API + '/pedidos/' + id).then(r => r.json()),
+      fetch(API + '/pedidos/' + id + '/items').then(r => r.json())
+    ])
+    const p = Array.isArray(resPedido) ? resPedido[0] : resPedido
+    const items = Array.isArray(resItems) ? resItems : []
+    const cliente = p.clientes || {}
+    const statusColor = { confirmado:'#2e7d32', pagado:'#2e7d32', cancelado:'#c62828', pendiente_pago:'#f57f17', borrador:'#f57f17' }[p.status] || '#888'
+
+    panel.innerHTML = `
+      <div class="table-card" style="padding:1.5rem;border:2px solid #f0f0f0">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1.2rem">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
+            <span style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600">${p.status}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" style="font-size:0.8rem" onclick="verPedido('${p.id}')">✏️ Editar pedido</button>
+            ${p.status !== 'cancelado' && p.status !== 'confirmado' && p.status !== 'pagado' ? `<button class="btn btn-primary" style="font-size:0.8rem" onclick="confirmarPedidoAdmin('${p.id}')">✅ Confirmar</button>` : ''}
+            ${p.status !== 'cancelado' ? `<button class="btn btn-secondary" style="font-size:0.8rem;color:#c62828;border-color:#c62828" onclick="cancelarPedido('${p.id}')">❌ Cancelar</button>` : ''}
+            <button class="btn btn-secondary" style="font-size:0.8rem" onclick="generarPDFPedido('${p.id}')">PDF</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.2rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Cliente</p>
+            <p style="font-weight:600;font-size:0.88rem">${cliente.nombre || 'Mostrador'}</p>
+            <p style="font-size:0.78rem;color:#888">${cliente.telefono || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Canal / Pago</p>
+            <p style="font-weight:600;font-size:0.88rem">${p.canal || '—'}</p>
+            <p style="font-size:0.78rem;color:#888">${p.forma_pago || ''}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Total</p>
+            <p style="font-weight:700;font-size:1.1rem;color:#E91E8C">$${p.total || '0'}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Fecha</p>
+            <p style="font-weight:600;font-size:0.82rem">${p.created_at ? new Date(new Date(p.created_at).getTime()-6*60*60*1000).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</p>
+          </div>
+        </div>
+
+        <p style="font-weight:600;font-size:0.85rem;color:#333;margin-bottom:10px">Productos (${items.length})</p>
+        ${items.length === 0 ? '<p style="color:#aaa;font-size:0.85rem">Sin productos registrados</p>' : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          ${items.map(item => {
+            const v = item.variantes || {}
+            const pr = v.productos || {}
+            const nombre = pr.nombre || item.nombre || '—'
+            const color = v.color || item.color || ''
+            const talla = v.talla || item.talla || ''
+            const imagen = pr.imagen_principal || null
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;min-width:220px;flex:1">
+                ${imagen ? `<img src="${imagen}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:56px;height:56px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem">👟</div>`}
+                <div>
+                  <p style="font-weight:600;font-size:0.83rem;margin:0 0 2px">${nombre}${color ? ' · '+color : ''}${talla ? ' T'+talla : ''}</p>
+                  <p style="font-size:0.78rem;color:#888;margin:0">${item.cantidad} pares × $${item.precio_unitario || 0}</p>
+                  <p style="font-weight:700;color:#E91E8C;font-size:0.85rem;margin:2px 0 0">$${item.subtotal ?? (item.cantidad * item.precio_unitario).toFixed(2)}</p>
+                </div>
+              </div>`
+          }).join('')}
+        </div>
+      </div>`
+  } catch(e) {
+    panel.innerHTML = '<p style="padding:1rem;color:red">Error cargando pedido</p>'
   }
 }
 
@@ -8661,7 +8758,11 @@ window.renderCarritoPOS = () => {
 }
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
   if (!window._posCarrito[idx]) return
-  const precio = parseFloat(nuevoPrecio) || 0
+  const precio = parseFloat(nuevoPrecio)
+  if (!precio || precio <= 0) {
+    alert('El precio debe ser mayor a $0')
+    return
+  }
   window._posCarrito[idx].precio_unitario = precio
   window._posCarrito[idx].precio_manual = true
 
@@ -8678,7 +8779,11 @@ window.editarPrecioPOS = (idx, nuevoPrecio) => {
 
 window.editarPrecioCorridaPOS = (key, nuevoPrecioPorPar) => {
   const [producto_id, color] = key.split('|')
-  const precio = parseFloat(nuevoPrecioPorPar) || 0
+  const precio = parseFloat(nuevoPrecioPorPar)
+  if (!precio || precio <= 0) {
+    alert('El precio debe ser mayor a $0')
+    return
+  }
 
   window._posCarrito.forEach(i => {
     if (i.producto_id === producto_id && i.color === color && i.es_corrida) {
@@ -8846,13 +8951,14 @@ window.limpiarCarritoPOS = () => {
 window.cobrarPOS = async () => {
   if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
 
-  // Evitar doble click
+  // Guard global — bloquea cualquier doble click sin importar desde qué botón
+  if (window._cobrando) return
+  window._cobrando = true
+
+  // Deshabilitar todos los botones de cobrar
   const btnCobrar = document.querySelector('button[onclick="cobrarPOS()"]')
-  if (btnCobrar) {
-    if (btnCobrar.disabled) return
-    btnCobrar.disabled = true
-    btnCobrar.textContent = 'Procesando...'
-  }
+  const btnCobrarM = document.querySelector('button[onclick="cobrarPOSM()"]')
+  ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = true; b.textContent = 'Procesando...' } })
 
   const clienteId = document.getElementById('pos-cliente').value || null
   const sucursalId = document.getElementById('pos-sucursal').value
@@ -8938,6 +9044,7 @@ window.cobrarPOS = async () => {
     // 4. Éxito — limpiar carrito e imprimir
     const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
     window._posCarrito = []
+    window._cobrando = false
     renderCarritoPOS()
     imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
 
@@ -8948,6 +9055,7 @@ window.cobrarPOS = async () => {
 
   } catch(e) {
     console.error('Error procesando la venta:', e)
+    window._cobrando = false
     // Si el pedido ya se creó, cancelarlo automáticamente para no dejar basura
     if (pedidoId) {
       try {
@@ -8956,7 +9064,7 @@ window.cobrarPOS = async () => {
       } catch(e2) {}
     }
     alert('Error al procesar la venta:\n' + (e?.message || e))
-    if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
+    ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
   }
 }
 window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
