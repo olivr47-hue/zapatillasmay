@@ -26,6 +26,7 @@
     { "source": "/pedido-exitoso", "destination": "/index.html" },
     { "source": "/checkout",       "destination": "/checkout.html" },
     { "source": "/links",          "destination": "/links.html" },
+    { "source": "/ofertas",        "destination": "/index.html" },
     { "source": "/(.*)",           "destination": "/index.html" }
   ]
 }

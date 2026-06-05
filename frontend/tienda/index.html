@@ -323,6 +323,8 @@
 
     /* CATEGORIAS */
     .section { max-width: 1400px; margin: 0 auto; padding: 80px 40px; }
+    /* En vista de categoría/catálogo (hero oculto) los productos quedan debajo del header fijo */
+    html.ruta-categoria #productos-section { padding-top: 132px; }
 
     .section-header {
       display: flex;
@@ -1784,6 +1786,7 @@
     pointer-events: none;
   }
   .section { padding: 16px 14px !important; }
+  html.ruta-categoria #productos-section { padding-top: 120px !important; }
   .section-header { margin-bottom: 16px !important; }
   .section-title { font-size: 1.5rem; }
   .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -3185,6 +3188,8 @@ window.addEventListener('load', () => {
   } else if (['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios'].includes(path)) {
     const cat = path.slice(1)
     ;(window._initPromise || Promise.resolve()).then(() => filtrarCategoria(cat))
+  } else if (path === '/ofertas') {
+    ;(window._initPromise || Promise.resolve()).then(() => mostrarOfertas())
   } else if (hash === '#catalogo') {
     (window._initPromise || Promise.resolve()).then(() => mostrarCatalogo())
   } else if (hash === '#nuevos') {
@@ -3422,6 +3427,8 @@ cargarConfigSEO()
         mostrarNuevos()
       } else if (_CATS_VALIDAS.includes(_catLimpia)) {
         filtrarCategoria(_catLimpia)
+      } else if (_path === '/ofertas') {
+        mostrarOfertas()
       } else if (_hash.startsWith('#categoria/')) {
         filtrarCategoria(_hash.replace('#categoria/', ''))
       } else if (_path === '/tabla-tallas') {
@@ -4353,7 +4360,7 @@ if (window.ttq) ttq.track('AddToCart', {
   }
 
   function mostrarOfertas() {
-    mostrarConFiltros(productos.filter(p => p.es_oferta && p.activo), '<em>Ofertas</em> especiales', '', null)
+    mostrarConFiltros(productos.filter(p => p.es_oferta && p.activo), '<em>Ofertas</em> especiales', '', '/ofertas')
   }
 
   function mostrarInicio() {
@@ -4370,6 +4377,7 @@ if (window.ttq) ttq.track('AddToCart', {
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   const _fb0 = document.getElementById('filtros-bar'); if (_fb0) _fb0.classList.remove('visible')
+  document.documentElement.classList.remove('ruta-categoria')
   renderProductos(productos.filter(p => p.activo))
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/')
@@ -4395,6 +4403,7 @@ function mostrarNuevos() {
   const nuevos = productos.filter(p => p.activo && p.nuevo)
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   const _fb = document.getElementById('filtros-bar'); if (_fb) _fb.classList.remove('visible')
+  document.documentElement.classList.remove('ruta-categoria')
   renderProductos(nuevos)
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/#nuevos')
@@ -4442,6 +4451,7 @@ function _precioDe(p) {
 
 function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   document.documentElement.classList.remove('ruta-interna')
+  document.documentElement.classList.add('ruta-categoria')
   const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
   const hero = document.getElementById('hero-section'); if (hero) hero.style.display='none'
   const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
