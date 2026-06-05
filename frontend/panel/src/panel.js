@@ -63,6 +63,7 @@ const modulos = [
   { id: 'pos', icon: '🛒', label: 'Punto de venta', section: 'Principal' },
   { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
   { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
+  { id: 'carritos', icon: '🛒', label: 'Carritos', section: 'Ventas' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
@@ -244,6 +245,7 @@ async function cargarModulo(id) {
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'clientes': await cargarClientes(); break
+    case 'carritos': await cargarCarritos(); break
     case 'pedidos': await cargarPedidos(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
@@ -13766,6 +13768,695 @@ window.ajustarCredito = async function(clienteId, nombre, creditoActual) {
     })
     if (res.ok) await cargarReferidos()
     else alert('Error actualizando crédito')
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+// ─── CARRITOS MAYOREO ──────────────────────────────────────────────────────────
+
+async function cargarCarritos() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
+  try {
+    const [resBorradores, resClientes, resSucursales] = await Promise.all([
+      fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
+      fetch(API + '/clientes/').then(r => r.json()),
+      fetch(API + '/sucursales/').then(r => r.json())
+    ])
+    // Filtrar solo borradores del canal sucursal o sin canal (mayoreo manual)
+    const borradores = Array.isArray(resBorradores)
+      ? resBorradores.filter(p => p.status === 'borrador' && (!p.canal || p.canal === 'sucursal' || p.canal === 'mayoreo'))
+      : []
+
+    content.innerHTML = `
+      <div style="padding:0 0 1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px">
+          <div>
+            <h2 style="margin:0">🛒 Carritos activos</h2>
+            <p style="color:#888;font-size:0.85rem;margin:4px 0 0">Pedidos en proceso — el stock se descuenta solo al confirmar la venta</p>
+          </div>
+          <button class="btn btn-primary" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+        </div>
+
+        ${borradores.length === 0 ? `
+          <div class="table-card" style="padding:3rem;text-align:center;color:#888">
+            <p style="font-size:2rem;margin-bottom:0.5rem">🛒</p>
+            <p style="font-weight:600">No hay carritos abiertos</p>
+            <p style="font-size:0.85rem">Crea uno para empezar a agregar productos a un cliente</p>
+            <button class="btn btn-primary" style="margin-top:1rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+          </div>
+        ` : `
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
+            ${borradores.map(p => {
+              const cliente = p.clientes || {}
+              const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+              return `
+                <div class="table-card" style="padding:1.2rem;cursor:pointer;transition:box-shadow 0.2s" onclick="abrirCarrito('${p.id}')"
+                     onmouseenter="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'" onmouseleave="this.style.boxShadow=''">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                    <div>
+                      <p style="font-weight:700;font-size:1rem;margin:0">${cliente.nombre || 'Sin cliente'}</p>
+                      <p style="font-size:0.78rem;color:#888;margin:2px 0 0">${cliente.telefono || ''}</p>
+                    </div>
+                    <span style="background:#fff8e1;color:#f57f17;border:1px solid #ffe082;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap">
+                      ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
+                    </span>
+                  </div>
+                  <div style="background:#f9f9f9;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px">
+                    <p style="font-size:0.72rem;color:#888;margin:0">Total del carrito</p>
+                    <p style="font-weight:700;font-size:1.3rem;margin:2px 0 0;color:#E91E8C">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
+                  </div>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${p.id}')">Abrir</button>
+                    <button class="btn btn-secondary" style="font-size:0.8rem;color:#c62828;border-color:#c62828" onclick="event.stopPropagation();liberarCarrito('${p.id}')">Liberar</button>
+                  </div>
+                </div>
+              `
+            }).join('')}
+          </div>
+        `}
+      </div>
+    `
+    window._carritoClientes = resClientes
+    window._carritoSucursales = resSucursales
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando carritos</p>'
+  }
+}
+
+window.nuevoCarrito = async () => {
+  const clientes = window._carritoClientes || []
+  const sucursales = window._carritoSucursales || []
+
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:500px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="cargarCarritos()">← Volver</button>
+        <h3 style="margin:0">Nuevo carrito</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Cliente</label>
+          <select id="nc-cliente" class="form-input">
+            <option value="">— Selecciona cliente —</option>
+            ${clientes.map(c => `<option value="${c.id}">${c.nombre}${c.telefono ? ' · ' + c.telefono : ''}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Sucursal</label>
+          <select id="nc-sucursal" class="form-input">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Comentario (opcional)</label>
+          <input class="form-input" id="nc-comentario" placeholder="Ej: Anticipo $500, entrega el viernes...">
+        </div>
+        <button class="btn btn-primary" onclick="crearNuevoCarrito()">Crear carrito</button>
+      </div>
+    </div>
+  `
+}
+
+window.crearNuevoCarrito = async () => {
+  const clienteId = document.getElementById('nc-cliente').value
+  const sucursalId = document.getElementById('nc-sucursal').value
+  const comentario = document.getElementById('nc-comentario').value
+  if (!clienteId) { alert('Selecciona un cliente'); return }
+
+  try {
+    const res = await fetch(API + '/pedidos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: clienteId,
+        sucursal_id: sucursalId,
+        canal: 'sucursal',
+        forma_pago: 'efectivo',
+        status: 'borrador',
+        total: 0,
+        subtotal: 0,
+        comentarios: comentario || null,
+        items: []
+      })
+    })
+    const data = await res.json()
+    const pedidoId = data.id || data[0]?.id
+    if (!pedidoId) { alert('Error creando carrito'); return }
+    abrirCarrito(pedidoId)
+  } catch(e) {
+    alert('Error: ' + e.message)
+  }
+}
+
+window.abrirCarrito = async (pedidoId) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carrito...</p>'
+  try {
+    const [resPedido, resItems, resVariantes, resProductos, resInv] = await Promise.all([
+      fetch(API + '/pedidos/' + pedidoId).then(r => r.json()),
+      fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()),
+      fetch(API + '/variantes/?activa=eq.true').then(r => r.json()),
+      fetch(API + '/productos/').then(r => r.json()),
+      fetch(API + '/inventario/').then(r => r.json()).catch(() => [])
+    ])
+
+    const p = Array.isArray(resPedido) ? resPedido[0] : resPedido
+    const cliente = p.clientes || {}
+
+    window._carritoActivo = {
+      pedidoId,
+      items: Array.isArray(resItems) ? resItems : [],
+      variantes: resVariantes,
+      productos: resProductos,
+      inventario: resInv,
+      sucursalId: p.sucursal_id
+    }
+
+    renderCarritoAbierto(p)
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando carrito</p>'
+  }
+}
+
+function renderCarritoAbierto(p) {
+  const content = document.getElementById('content')
+  const { pedidoId, items, variantes, productos, inventario, sucursalId } = window._carritoActivo
+  const cliente = p.clientes || {}
+  const total = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+  const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+  const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+
+  content.innerHTML = `
+    <div style="max-width:860px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="cargarCarritos()">← Carritos</button>
+        <div style="flex:1">
+          <h3 style="margin:0">${cliente.nombre || 'Sin cliente'}</h3>
+          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${cliente.telefono || ''} · Abierto hace ${dias === 0 ? 'hoy' : dias + ' día(s)'}</p>
+        </div>
+        <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
+          ✅ Confirmar venta
+        </button>
+        <button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="liberarCarrito('${pedidoId}')">
+          🗑 Liberar
+        </button>
+      </div>
+
+      <!-- Buscador para agregar productos -->
+      <div class="table-card" style="padding:1.2rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <p style="font-weight:600;color:#333;margin:0">Agregar producto</p>
+          <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+            <button id="c-modo-par" onclick="carritoModo('par')"
+              style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">Par suelto</button>
+            <button id="c-modo-corrida" onclick="carritoModo('corrida')"
+              style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:white;color:#888">Corrida completa</button>
+          </div>
+        </div>
+
+        <!-- Modo par suelto -->
+        <div id="c-panel-par">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:2;min-width:200px;position:relative">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Producto / talla</label>
+              <input class="form-input" id="c-buscar-prod" placeholder="Escribe nombre o SKU..." oninput="buscarProductoCarrito(this.value)" autocomplete="off" style="font-size:0.9rem"
+                onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('c-prod-resultados');if(el)el.style.display='none'},200)">
+              <div id="c-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:280px;overflow-y:auto;min-width:320px"></div>
+            </div>
+            <div style="width:70px">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Cantidad</label>
+              <input type="number" class="form-input" id="c-cantidad" value="1" min="1" style="font-size:0.9rem">
+            </div>
+            <div style="width:90px">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Precio/par</label>
+              <input type="number" class="form-input" id="c-precio" placeholder="$" style="font-size:0.9rem">
+            </div>
+            <button class="btn btn-primary" onclick="agregarAlCarritoActivo()">+ Agregar</button>
+          </div>
+          <p id="c-prod-seleccionado" style="font-size:0.8rem;color:#2e7d32;margin:6px 0 0;display:none"></p>
+        </div>
+
+        <!-- Modo corrida -->
+        <div id="c-panel-corrida" style="display:none">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div style="flex:2;min-width:200px;position:relative">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Modelo (busca sin talla)</label>
+              <input class="form-input" id="c-buscar-corrida" placeholder="Ej: M-TAC-0033 o nombre..." oninput="buscarModeloCarrito(this.value)" autocomplete="off" style="font-size:0.9rem"
+                onfocus="posicionarDropdownCarrito('c-corrida-resultados','c-buscar-corrida')" onblur="setTimeout(()=>{const el=document.getElementById('c-corrida-resultados');if(el)el.style.display='none'},200)">
+              <div id="c-corrida-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;min-width:320px"></div>
+            </div>
+            <div style="width:90px">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Precio/par</label>
+              <input type="number" class="form-input" id="c-precio-corrida" placeholder="$" style="font-size:0.9rem">
+            </div>
+          </div>
+          <div id="c-corrida-tallas" style="display:none;background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px">
+            <p style="font-size:0.8rem;font-weight:600;color:#333;margin-bottom:8px">Selecciona tallas a agregar:</p>
+            <div id="c-corrida-tallas-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+            <button class="btn btn-primary" style="background:#6a1b9a;border-color:#6a1b9a" onclick="agregarCorridaAlCarritoActivo()">📦 Agregar corrida</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de productos en el carrito -->
+      <div class="table-card" style="padding:1.2rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <p style="font-weight:600;color:#333;margin:0">Productos en carrito (${totalPares} pares)</p>
+          <p style="font-weight:700;font-size:1.2rem;color:#E91E8C;margin:0">Total: $${total.toFixed(2)}</p>
+        </div>
+
+        <div id="carrito-items-lista">
+          ${items.length === 0 ? '<p style="color:#aaa;text-align:center;padding:2rem">Carrito vacío — agrega productos arriba</p>' : ''}
+          ${items.map((item, idx) => {
+            const v = item.variantes || {}
+            const pr = v.productos || {}
+            const nombre = pr.nombre || item.nombre || '—'
+            const color = v.color || item.color || ''
+            const talla = v.talla || item.talla || ''
+            const imagen = pr.imagen_principal || null
+            const invItem = inventario.find(i => i.variante_id === item.variante_id && i.sucursal_id === sucursalId)
+            const stock = invItem ? invItem.cantidad : '?'
+            return `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+                ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
+                <div style="flex:1;min-width:140px">
+                  <p style="font-weight:600;font-size:0.85rem;margin:0">${nombre}${color ? ' · '+color : ''}${talla ? ' T'+talla : ''}</p>
+                  <p style="font-size:0.75rem;color:#888;margin:2px 0 0">Stock disponible: ${stock} pares</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button onclick="cambiarCantidadCarrito(${idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
+                  <span style="font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
+                  <button onclick="cambiarCantidadCarrito(${idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
+                </div>
+                <input type="number" value="${item.precio_unitario}" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
+                  onchange="actualizarPrecioCarrito(${idx}, this.value)" placeholder="Precio">
+                <strong style="color:#E91E8C;min-width:70px;text-align:right">$${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
+                <button onclick="eliminarDeCarrito('${item.id}',${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem">🗑</button>
+              </div>
+            `
+          }).join('')}
+        </div>
+
+        ${items.length > 0 ? `
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
+              <select id="c-forma-pago" class="form-input" style="width:140px">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="spei">SPEI</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
+              ✅ Confirmar venta — $${total.toFixed(2)}
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `
+  window._carritoActivo.pedidoData = p
+  window._carritoActivo.varianteSeleccionada = null
+}
+
+window.mostrarToastPanel = (msg) => {
+  let t = document.getElementById('panel-toast')
+  if (!t) {
+    t = document.createElement('div')
+    t.id = 'panel-toast'
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:10px 20px;border-radius:8px;font-size:0.9rem;z-index:99999;transition:opacity 0.3s'
+    document.body.appendChild(t)
+  }
+  t.textContent = msg
+  t.style.opacity = '1'
+  clearTimeout(t._timer)
+  t._timer = setTimeout(() => { t.style.opacity = '0' }, 3000)
+}
+
+window.posicionarDropdownCarrito = (dropId, inputId) => {
+  const input = document.getElementById(inputId)
+  const drop = document.getElementById(dropId)
+  if (!input || !drop) return
+  const rect = input.getBoundingClientRect()
+  drop.style.top = (rect.bottom + 4) + 'px'
+  drop.style.left = rect.left + 'px'
+  drop.style.width = Math.max(rect.width, 320) + 'px'
+}
+
+window.buscarProductoCarrito = (texto) => {
+  const { variantes, productos } = window._carritoActivo
+  const res = document.getElementById('c-prod-resultados')
+  posicionarDropdownCarrito('c-prod-resultados', 'c-buscar-prod')
+  if (!texto || texto.length < 2) { res.style.display = 'none'; return }
+  const terminos = texto.toLowerCase().split(' ')
+  const filtrados = variantes.filter(v => {
+    const prod = productos.find(p => p.id === v.producto_id)
+    const txt = ((prod?.nombre || '') + ' ' + (v.color || '') + ' ' + (v.talla || '') + ' ' + (prod?.sku_interno || '')).toLowerCase()
+    return terminos.every(t => txt.includes(t))
+  }).slice(0, 8)
+
+  if (!filtrados.length) { res.style.display = 'none'; return }
+  res.style.display = 'block'
+  res.innerHTML = filtrados.map(v => {
+    const prod = productos.find(p => p.id === v.producto_id)
+    const inv = window._carritoActivo.inventario.find(i => i.variante_id === v.id && i.sucursal_id === window._carritoActivo.sucursalId)
+    const stock = inv ? inv.cantidad : 0
+    return `
+      <div onclick="seleccionarVarianteCarrito('${v.id}')"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+           onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
+        ${prod?.imagen_principal ? `<img src="${prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">` : '<div style="width:36px;height:36px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+        <div style="flex:1">
+          <p style="font-size:0.85rem;font-weight:600;margin:0">${prod?.nombre || '—'} · ${v.color || ''} T${v.talla || ''}</p>
+          <p style="font-size:0.72rem;color:${stock > 0 ? '#2e7d32' : '#c62828'};margin:0">Stock: ${stock} pares</p>
+        </div>
+        <span style="font-size:0.8rem;color:#E91E8C;font-weight:600">$${prod?.precio_menudeo || ''}</span>
+      </div>
+    `
+  }).join('')
+}
+
+window.seleccionarVarianteCarrito = (varianteId) => {
+  const { variantes, productos } = window._carritoActivo
+  const v = variantes.find(x => x.id === varianteId)
+  const prod = productos.find(x => x.id === v?.producto_id)
+  window._carritoActivo.varianteSeleccionada = varianteId
+  document.getElementById('c-buscar-prod').value = `${prod?.nombre || ''} · ${v?.color || ''} T${v?.talla || ''}`
+  document.getElementById('c-prod-resultados').style.display = 'none'
+  // Auto-llenar precio mayoreo6 por default
+  const precioSugerido = prod?.precio_mayoreo6 || prod?.precio_mayoreo3 || prod?.precio_menudeo || ''
+  document.getElementById('c-precio').value = precioSugerido
+  const sel = document.getElementById('c-prod-seleccionado')
+  sel.style.display = 'block'
+  sel.textContent = `✓ Seleccionado: ${prod?.nombre} — ${v?.color} T${v?.talla}`
+}
+
+window.agregarAlCarritoActivo = async () => {
+  const varianteId = window._carritoActivo?.varianteSeleccionada
+  const cantidad = parseInt(document.getElementById('c-cantidad').value) || 1
+  const precio = parseFloat(document.getElementById('c-precio').value) || 0
+  if (!varianteId) { alert('Selecciona un producto primero'); return }
+  if (!precio) { alert('Ingresa el precio por par'); return }
+
+  const { variantes, productos } = window._carritoActivo
+  const v = variantes.find(x => x.id === varianteId)
+  const prod = productos.find(x => x.id === v?.producto_id)
+
+  try {
+    const res = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id: varianteId,
+        cantidad,
+        precio_unitario: precio,
+        subtotal: cantidad * precio,
+        nombre: prod?.nombre || '',
+        color: v?.color || '',
+        talla: v?.talla || ''
+      })
+    })
+    if (!res.ok) { alert('Error agregando producto'); return }
+
+    // Recargar items y recalcular precios por tier
+    const resItemsActualizados = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items').then(r => r.json())
+    window._carritoActivo.items = Array.isArray(resItemsActualizados) ? resItemsActualizados : []
+    window._carritoActivo._tier = null  // forzar recálculo
+    await recalcularPreciosCarrito()
+
+    // Limpiar y recargar
+    document.getElementById('c-buscar-prod').value = ''
+    document.getElementById('c-cantidad').value = '1'
+    document.getElementById('c-precio').value = ''
+    document.getElementById('c-prod-seleccionado').style.display = 'none'
+    window._carritoActivo.varianteSeleccionada = null
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) {
+    alert('Error: ' + e.message)
+  }
+}
+
+window.cambiarCantidadCarrito = async (idx, delta) => {
+  const item = window._carritoActivo.items[idx]
+  if (!item) return
+  const nuevaCantidad = Math.max(1, item.cantidad + delta)
+  window._carritoActivo.items[idx].cantidad = nuevaCantidad
+  try {
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + item.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: nuevaCantidad, precio_unitario: item.precio_unitario })
+    })
+    await recalcularPreciosCarrito()
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.recalcularPreciosCarrito = async () => {
+  const { pedidoId, items, variantes, productos } = window._carritoActivo
+  const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+
+  // Determinar tier
+  const tier = totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo'
+  const tierAnterior = window._carritoActivo._tier || 'menudeo'
+  if (tier === tierAnterior) return  // no cambió, nada que hacer
+
+  window._carritoActivo._tier = tier
+
+  const tierLabel = tier === 'mayoreo6' ? 'Mayoreo 6+ pares' : tier === 'mayoreo3' ? 'Mayoreo 3-5 pares' : 'Menudeo'
+
+  // Actualizar precio de cada ítem con el precio del tier correspondiente
+  let algoActualizado = false
+  for (const item of items) {
+    if (item._precio_manual) continue  // no tocar precios que el usuario modificó a mano
+    const v = variantes.find(x => x.id === item.variante_id)
+    const prod = v ? productos.find(p => p.id === v.producto_id) : null
+    if (!prod) continue
+
+    let nuevoPrecio
+    if (tier === 'mayoreo6') {
+      nuevoPrecio = parseFloat(prod.precio_mayoreo6) || parseFloat(prod.precio_menudeo)
+    } else if (tier === 'mayoreo3') {
+      nuevoPrecio = parseFloat(prod.precio_mayoreo3) || parseFloat(prod.precio_menudeo)
+    } else {
+      nuevoPrecio = parseFloat(prod.precio_menudeo)
+    }
+
+    if (nuevoPrecio && nuevoPrecio !== item.precio_unitario) {
+      item.precio_unitario = nuevoPrecio
+      await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: item.cantidad, precio_unitario: nuevoPrecio })
+      })
+      algoActualizado = true
+    }
+  }
+
+  // Actualizar total
+  const nuevoTotal = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+  await fetch(API + '/pedidos/' + pedidoId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ total: nuevoTotal })
+  })
+
+  if (algoActualizado) {
+    mostrarToastPanel(`📦 Precios actualizados a ${tierLabel}`)
+  }
+}
+
+window.actualizarPrecioCarrito = async (idx, nuevoPrecio) => {
+  const item = window._carritoActivo.items[idx]
+  const precio = parseFloat(nuevoPrecio) || 0
+  if (!precio || !item) return
+  item._precio_manual = true  // no sobreescribir con tier automático
+  try {
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + item.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cantidad: item.cantidad, precio_unitario: precio })
+    })
+    const nuevoTotal = window._carritoActivo.items.map((i, ix) => (ix === idx ? precio : i.precio_unitario) * i.cantidad).reduce((a, b) => a + b, 0)
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.eliminarDeCarrito = async (itemId, idx) => {
+  if (!confirm('¿Quitar este producto del carrito?')) return
+  try {
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, { method: 'DELETE' })
+    window._carritoActivo.items.splice(idx, 1)
+    const nuevoTotal = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    await abrirCarrito(window._carritoActivo.pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.confirmarVentaCarrito = async (pedidoId) => {
+  const formaPagoEl = document.getElementById('c-forma-pago')
+  const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
+  if (!confirm(`¿Confirmar la venta? Se descontará el stock del inventario.`)) return
+  try {
+    const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: formaPago })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('✅ Venta confirmada. Stock descontado.')
+      cargarCarritos()
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.carritoModo = (modo) => {
+  document.getElementById('c-panel-par').style.display = modo === 'par' ? 'block' : 'none'
+  document.getElementById('c-panel-corrida').style.display = modo === 'corrida' ? 'block' : 'none'
+  document.getElementById('c-modo-par').style.background = modo === 'par' ? '#E91E8C' : 'white'
+  document.getElementById('c-modo-par').style.color = modo === 'par' ? 'white' : '#888'
+  document.getElementById('c-modo-corrida').style.background = modo === 'corrida' ? '#6a1b9a' : 'white'
+  document.getElementById('c-modo-corrida').style.color = modo === 'corrida' ? 'white' : '#888'
+}
+
+window.buscarModeloCarrito = (texto) => {
+  const { variantes, productos } = window._carritoActivo
+  const res = document.getElementById('c-corrida-resultados')
+  const tallasPanel = document.getElementById('c-corrida-tallas')
+  posicionarDropdownCarrito('c-corrida-resultados', 'c-buscar-corrida')
+  if (!texto || texto.length < 2) { res.style.display = 'none'; tallasPanel.style.display = 'none'; return }
+
+  // Agrupar por producto+color (no por talla)
+  const grupos = {}
+  variantes.forEach(v => {
+    const prod = productos.find(p => p.id === v.producto_id)
+    if (!prod) return
+    const txt = ((prod.nombre || '') + ' ' + (v.color || '') + ' ' + (prod.sku_interno || '')).toLowerCase()
+    if (!texto.toLowerCase().split(' ').every(t => txt.includes(t))) return
+    const key = prod.id + '|' + (v.color || '')
+    if (!grupos[key]) grupos[key] = { prod, color: v.color || '', variantes: [] }
+    grupos[key].variantes.push(v)
+  })
+
+  const entradas = Object.values(grupos).slice(0, 6)
+  if (!entradas.length) { res.style.display = 'none'; return }
+  res.style.display = 'block'
+  res.innerHTML = entradas.map(g => `
+    <div onclick="seleccionarModeloCorrida('${g.prod.id}','${g.color.replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+         onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
+      ${g.prod.imagen_principal ? `<img src="${g.prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">` : '<div style="width:36px;height:36px;background:#eee;border-radius:6px"></div>'}
+      <div>
+        <p style="font-size:0.85rem;font-weight:600;margin:0">${g.prod.nombre} · ${g.color}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${g.variantes.length} tallas disponibles</p>
+      </div>
+    </div>
+  `).join('')
+}
+
+window.seleccionarModeloCorrida = (productoId, color) => {
+  const { variantes, productos, inventario, sucursalId } = window._carritoActivo
+  const prod = productos.find(p => p.id === productoId)
+  document.getElementById('c-buscar-corrida').value = `${prod?.nombre || ''} · ${color}`
+  document.getElementById('c-corrida-resultados').style.display = 'none'
+
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  // Auto-precio: precio_corrida → mayoreo6 → (menudeo-70 automático)
+  const base = parseFloat(prod?.precio_menudeo) || 0
+  const precioCorrida = parseFloat(prod?.precio_corrida) || parseFloat(prod?.precio_mayoreo6) || (base > 0 ? Math.round(base - 70) : 0)
+  document.getElementById('c-precio-corrida').value = precioCorrida || ''
+
+  // Guardar selección con precio incluido
+  window._corridaSeleccionada = { productoId, color, variantes: varsColor, prod, precioCorrida }
+
+  const grid = document.getElementById('c-corrida-tallas-grid')
+  grid.innerHTML = varsColor.map(v => {
+    // Buscar stock: intentar con sucursalId, si no hay datos mostrar sin deshabilitar
+    const inv = inventario.find(i => i.variante_id === v.id && (sucursalId ? i.sucursal_id === sucursalId : true))
+    const stock = inv ? inv.cantidad : null  // null = sin datos (no deshabilitado)
+    const agotada = stock !== null && stock === 0
+    return `
+      <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px 12px;border:2px solid ${agotada ? '#fde' : '#ddd'};border-radius:8px;background:${agotada ? '#fff5f5' : 'white'};min-width:60px;opacity:${agotada ? 0.5 : 1}">
+        <input type="checkbox" ${!agotada ? 'checked' : ''} value="${v.id}" style="width:16px;height:16px;cursor:pointer;accent-color:#E91E8C" ${agotada ? 'disabled' : ''}>
+        <span style="font-weight:700;font-size:0.9rem">T${v.talla}</span>
+        <span style="font-size:0.65rem;color:${stock === null ? '#aaa' : stock > 0 ? '#2e7d32' : '#c62828'}">
+          ${stock === null ? '?' : stock + ' pares'}
+        </span>
+      </label>
+    `
+  }).join('')
+
+  document.getElementById('c-corrida-tallas').style.display = 'block'
+}
+
+window.agregarCorridaAlCarritoActivo = async () => {
+  const { productoId, color, variantes: varsColor, prod } = window._corridaSeleccionada || {}
+  if (!prod) { alert('Selecciona un modelo primero'); return }
+  const precio = parseFloat(document.getElementById('c-precio-corrida').value) || window._corridaSeleccionada?.precioCorrida || 0
+  if (!precio) { alert('No se encontró precio para este producto. Ingrésalo manualmente.'); return }
+
+  const checkboxes = document.querySelectorAll('#c-corrida-tallas-grid input[type=checkbox]:checked')
+  if (checkboxes.length === 0) { alert('Selecciona al menos una talla'); return }
+
+  const pedidoId = window._carritoActivo.pedidoId
+  let totalAgregado = 0
+
+  for (const cb of checkboxes) {
+    const varianteId = cb.value
+    const v = varsColor.find(x => x.id === varianteId)
+    await fetch(API + '/pedidos/' + pedidoId + '/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id: varianteId,
+        cantidad: 1,
+        precio_unitario: precio,
+        subtotal: precio,
+        nombre: prod.nombre,
+        color: color,
+        talla: v?.talla || ''
+      })
+    })
+    totalAgregado += precio
+  }
+
+  // Actualizar total
+  const totalActual = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+  await fetch(API + '/pedidos/' + pedidoId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ total: totalActual + totalAgregado })
+  })
+
+  await abrirCarrito(pedidoId)
+}
+
+window.liberarCarrito = async (pedidoId) => {
+  if (!confirm('¿Liberar este carrito? Los productos quedan disponibles para otros clientes.')) return
+  try {
+    const res = await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      alert('Carrito liberado.')
+      cargarCarritos()
+    }
   } catch(e) { alert('Error: ' + e.message) }
 }
 

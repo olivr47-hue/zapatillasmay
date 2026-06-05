@@ -72,9 +72,50 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
 
 
 @router.get("/")
-def listar_pedidos():
+def listar_pedidos(status: str = None):
     try:
-        return supabase_get("pedidos?order=created_at.desc&select=*,clientes(nombre,telefono),sucursales(nombre)")
+        filtro = f"&status=eq.{status}" if status else ""
+        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/apartados")
+def listar_apartados():
+    try:
+        return supabase_get("pedidos?status=eq.apartado&order=created_at.desc&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/{id}/confirmar-deposito")
+def confirmar_deposito(id: str, datos: dict):
+    """Convierte un apartado en pedido confirmado y descuenta inventario."""
+    try:
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        if pedido[0].get("status") != "apartado":
+            return JSONResponse(status_code=400, content={"error": "Solo se pueden confirmar apartados"})
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre))")
+        sucursal_id = pedido[0].get("sucursal_id")
+        for item in items:
+            variante_id = item.get("variante_id")
+            cantidad = item.get("cantidad", 1)
+            if variante_id and sucursal_id:
+                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+                if inv:
+                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
+                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_cantidad})
+                    supabase_post("movimientos_inventario", {
+                        "tipo": "venta",
+                        "variante_id": variante_id,
+                        "sucursal_id": sucursal_id,
+                        "cantidad": -cantidad,
+                        "motivo": f"Confirmación apartado {id}"
+                    })
+        forma_pago = datos.get("forma_pago", pedido[0].get("forma_pago", "efectivo"))
+        supabase_patch(f"pedidos?id=eq.{id}", {"status": "confirmado", "forma_pago": forma_pago})
+        _enviar_confirmacion_wa(pedido[0], items)
+        return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
