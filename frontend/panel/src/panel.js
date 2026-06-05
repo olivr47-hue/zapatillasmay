@@ -6450,7 +6450,7 @@ async function cargarPedidos() {
                     <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
                     <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
                     <td>
-                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="abrirPreviewPedido('${p.id}')">Ver ▾</button>
+                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
                     </td>
                   </tr>
                 `
@@ -6458,7 +6458,6 @@ async function cargarPedidos() {
           </tbody>
         </table>
       </div>
-      <div id="pedido-preview-panel" style="display:none;margin-top:1rem"></div>
     `
     window._pedidosData = data
   } catch(e) {
@@ -6528,7 +6527,7 @@ window.cargarPedidosFiltro = (filtro) => {
         <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
         <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
         <td>
-          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="abrirPreviewPedido('${p.id}')">Ver ▾</button>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
         </td>
       </tr>
     `
