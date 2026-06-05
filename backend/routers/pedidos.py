@@ -3,7 +3,7 @@ import json
 import urllib.request
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_post, supabase_patch, supabase_delete
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
