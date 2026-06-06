@@ -189,48 +189,59 @@ def reporte_financiero(sucursal_id: str):
         ids_pedidos = [p['id'] for p in pedidos]
         cmv = 0.0
         if ids_pedidos:
-            # 1. Traer todos los items de los pedidos
+            # 1. Traer todos los items con el precio real de venta
             ids_str = ','.join(ids_pedidos)
             items = supabase_get(
-                f"pedido_items?pedido_id=in.({ids_str})&select=cantidad,variante_id"
+                f"pedido_items?pedido_id=in.({ids_str})"
+                f"&select=cantidad,variante_id,precio_unitario,nombre"
             ) or []
 
-            # 2. Obtener variante_ids únicos con cantidad total vendida
-            variante_cantidades = {}
-            for item in items:
-                vid = item.get('variante_id')
-                if vid:
-                    variante_cantidades[vid] = variante_cantidades.get(vid, 0) + int(item.get('cantidad') or 0)
+            # 2. Caché de productos para no consultar el mismo dos veces
+            _cache_variante = {}
+            _cache_producto = {}
 
-            # 3. Por cada variante, buscar el costo del producto
             desglose_cmv = []
-            for variante_id, cantidad in variante_cantidades.items():
+            for item in items:
+                variante_id   = item.get('variante_id')
+                cantidad      = int(item.get('cantidad') or 0)
+                precio_venta  = float(item.get('precio_unitario') or 0)  # precio real cobrado
+                nombre_item   = item.get('nombre', '')
+                if not variante_id or cantidad == 0:
+                    continue
                 try:
-                    v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id,color,talla")
-                    if not v:
-                        continue
-                    producto_id = v[0].get('producto_id')
-                    color = v[0].get('color', '')
-                    talla = v[0].get('talla', '')
-                    if not producto_id:
-                        continue
-                    prod = supabase_get(f"productos?id=eq.{producto_id}&select=nombre,costo,precio_menudeo,sku_interno")
-                    if not prod:
-                        continue
-                    costo = float(prod[0].get('costo') or 0)
-                    precio_venta = float(prod[0].get('precio_menudeo') or 0)
+                    if variante_id not in _cache_variante:
+                        v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id,color,talla")
+                        _cache_variante[variante_id] = v[0] if v else {}
+                    var = _cache_variante[variante_id]
+                    producto_id = var.get('producto_id')
+                    color = var.get('color', '')
+                    talla = var.get('talla', '')
+
+                    costo = 0.0
+                    nombre = nombre_item
+                    sku = ''
+                    if producto_id:
+                        if producto_id not in _cache_producto:
+                            p = supabase_get(f"productos?id=eq.{producto_id}&select=nombre,costo,sku_interno")
+                            _cache_producto[producto_id] = p[0] if p else {}
+                        prod = _cache_producto[producto_id]
+                        costo  = float(prod.get('costo') or 0)
+                        nombre = prod.get('nombre') or nombre_item
+                        sku    = prod.get('sku_interno', '')
+
                     subtotal_costo = costo * cantidad
+                    subtotal_venta = precio_venta * cantidad
                     cmv += subtotal_costo
                     desglose_cmv.append({
-                        'nombre':        prod[0].get('nombre', ''),
-                        'sku':           prod[0].get('sku_interno', ''),
-                        'color':         color,
-                        'talla':         talla,
-                        'cantidad':      cantidad,
+                        'nombre':         nombre,
+                        'sku':            sku,
+                        'color':          color,
+                        'talla':          talla,
+                        'cantidad':       cantidad,
                         'costo_unitario': costo,
-                        'precio_venta':  precio_venta,
+                        'precio_venta':   precio_venta,   # precio real cobrado al cliente
                         'subtotal_costo': subtotal_costo,
-                        'subtotal_venta': precio_venta * cantidad,
+                        'subtotal_venta': subtotal_venta,
                     })
                 except Exception:
                     pass
