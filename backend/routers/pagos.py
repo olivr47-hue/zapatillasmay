@@ -79,7 +79,19 @@ def enviar_evento_meta(event_name, pedido, payment):
         telefono = pedido.get("telefono_cliente", "")
         nombre = pedido.get("nombre_cliente", "")
         pedido_id = pedido.get("id", "")
+        cliente_id = str(pedido.get("cliente_id", ""))
         items = pedido.get("pedido_items", [])
+
+        # Datos de ubicación del cliente
+        ciudad = pedido.get("ciudad_cliente", "")
+        estado = pedido.get("estado_cliente", "")
+        cp = pedido.get("cp_cliente", "")
+
+        # Parámetros de rastreo del navegador (enviados por el frontend al crear el pedido)
+        fbc = pedido.get("fbc", "")   # cookie _fbc de Meta
+        fbp = pedido.get("fbp", "")   # cookie _fbp de Meta
+        client_ip = pedido.get("client_ip_address", "")
+        user_agent = pedido.get("client_user_agent", "")
 
         nombre_parts = nombre.strip().split(" ", 1)
         fn = nombre_parts[0] if nombre_parts else ""
@@ -94,6 +106,31 @@ def enviar_evento_meta(event_name, pedido, payment):
             for item in items
         ]
 
+        user_data = {
+            "em": [hash_data(email)] if email else [],
+            "ph": [hash_data(telefono)] if telefono else [],
+            "fn": [hash_data(fn)] if fn else [],
+            "ln": [hash_data(ln)] if ln else [],
+            "country": [hash_data("mx")],  # siempre México
+        }
+        # Parámetros opcionales que suben el match quality score
+        if cliente_id:
+            user_data["external_id"] = [hash_data(cliente_id)]
+        if ciudad:
+            user_data["ct"] = [hash_data(ciudad.lower().strip())]
+        if estado:
+            user_data["st"] = [hash_data(estado.lower().strip())]
+        if cp:
+            user_data["zp"] = [hash_data(cp.strip())]
+        if fbc:
+            user_data["fbc"] = fbc        # NO se hashea
+        if fbp:
+            user_data["fbp"] = fbp        # NO se hashea
+        if client_ip:
+            user_data["client_ip_address"] = client_ip   # NO se hashea
+        if user_agent:
+            user_data["client_user_agent"] = user_agent  # NO se hashea
+
         payload = {
             "data": [
                 {
@@ -101,12 +138,7 @@ def enviar_evento_meta(event_name, pedido, payment):
                     "event_time": int(time.time()),
                     "event_id": f"{pedido_id}-{event_name}",
                     "action_source": "website",
-                    "user_data": {
-                        "em": [hash_data(email)] if email else [],
-                        "ph": [hash_data(telefono)] if telefono else [],
-                        "fn": [hash_data(fn)] if fn else [],
-                        "ln": [hash_data(ln)] if ln else [],
-                    },
+                    "user_data": user_data,
                     "custom_data": {
                         "currency": "MXN",
                         "value": total,

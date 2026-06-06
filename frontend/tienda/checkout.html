@@ -308,7 +308,11 @@ async function procesarPago() {
         items: carrito.map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
         total: totalFinal, status:'borrador',
         nombre_cliente:nombre, email_cliente:email, telefono_cliente:telefono,
-        direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`, notas
+        ciudad_cliente: ciudad, estado_cliente: estado, cp_cliente: cp,
+        direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`, notas,
+        fbc: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
+        fbp: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
+        client_user_agent: navigator.userAgent || ''
       })
     })
     const pedido = await resPedido.json()

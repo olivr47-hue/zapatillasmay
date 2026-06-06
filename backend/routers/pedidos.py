@@ -1,7 +1,7 @@
 import os
 import json
 import urllib.request
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
 
@@ -141,9 +141,17 @@ def obtener_pedido(id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/")
-def crear_pedido(pedido: dict):
+async def crear_pedido(pedido: dict, request: Request):
     try:
         items = pedido.pop("items", [])
+        # Capturar IP real del cliente para CAPI de Meta
+        ip = (
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or request.headers.get("x-real-ip", "")
+            or (request.client.host if request.client else "")
+        )
+        if ip and not pedido.get("client_ip_address"):
+            pedido["client_ip_address"] = ip
         canal = pedido.get("canal", "")
         # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
         if not items and canal not in ("sucursal", "whatsapp"):
