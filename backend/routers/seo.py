@@ -272,7 +272,7 @@ def robots():
         "User-agent: *\n"
         "Allow: /\n"
         "\n"
-        "# Agentes de IA — permitidos explícitamente\n"
+        "# Agentes de IA permitidos\n"
         "User-agent: GPTBot\nAllow: /\n"
         "User-agent: OAI-SearchBot\nAllow: /\n"
         "User-agent: ChatGPT-User\nAllow: /\n"
@@ -285,10 +285,9 @@ def robots():
         "User-agent: Bytespider\nAllow: /\n"
         "\n"
         "Sitemap: https://zapatillasmay.mx/sitemap.xml\n"
-        "# Índice para agentes de IA:\n"
-        "# https://zapatillasmay.mx/llms.txt\n"
+        "# Indice IA: https://zapatillasmay.mx/llms.txt\n"
     )
-    return Response(content=content, media_type="text/plain")
+    return Response(content=content, media_type="text/plain; charset=utf-8")
 
 
 @router.get("/llms.txt")
@@ -355,7 +354,7 @@ def feed_json():
     try:
         productos = supabase_get(
             "productos?activo=eq.true&select=id,nombre,sku_interno,descripcion,categoria,"
-            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,color,material,tallas_disponibles"
+            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,material,tallas_disponibles"
         )
         items = []
         for p in productos:
@@ -382,7 +381,6 @@ def feed_json():
                 "nombre": (p.get("nombre") or "").strip(),
                 "descripcion": (p.get("descripcion") or "").strip(),
                 "categoria": p.get("categoria"),
-                "color": p.get("color"),
                 "material": p.get("material"),
                 "tallas": p.get("tallas_disponibles"),
                 "precios_mxn": precios,
