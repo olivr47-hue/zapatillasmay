@@ -2975,6 +2975,15 @@
   </div>
 </div>
 
+<!-- CUENTA MODAL -->
+<div id="cuenta-overlay" onclick="cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
+    <button onclick="cerrarCuentaBtn()" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
+    <h3 style="font-family:var(--font-display);font-size:1.4rem;font-weight:400;margin-bottom:24px;padding-right:32px">Mi cuenta</h3>
+    <div id="cuenta-contenido"><p style="color:#aaa;text-align:center;padding:24px">Cargando...</p></div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <div id="pagina-interna" style="display:none;margin-top:64px;min-height:calc(100vh - 64px);padding-bottom:60px">
@@ -3062,6 +3071,11 @@ window.addEventListener('load', () => {
   // Renderizar carrito restaurado desde sessionStorage
   recalcularCarrito()
   renderCarrito()
+
+  // Abrir login automáticamente si viene de checkout con ?login=1
+  if (params.get('login') === '1' && !usuarioActual) {
+    setTimeout(() => abrirLogin(), 300)
+  }
 
   // Abrir carrito automáticamente si viene de "Ver carrito" en página de producto
   if (params.get('opencart') === '1') {
@@ -4872,6 +4886,8 @@ async function hacerLogin() {
       localStorage.setItem('usuario', JSON.stringify(data))
       cerrarAuthBtn()
       actualizarBtnCuenta()
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
+      if (redirectUrl) { window.location.href = redirectUrl; return }
       mostrarToast('Bienvenido, ' + data.nombre)
     } else {
       mostrarToast(data.error || 'Error al iniciar sesion')

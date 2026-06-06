@@ -306,13 +306,13 @@ async function procesarPago() {
       body: JSON.stringify({
         cliente_id: usuarioActual?.cliente_id || null,
         items: carrito.map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
-        total: totalFinal, costo_envio: costoEnvio, status:'borrador',
+        total: totalFinal, status:'borrador',
         nombre_cliente:nombre, email_cliente:email, telefono_cliente:telefono,
         direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`, notas
       })
     })
     const pedido = await resPedido.json()
-    if (!pedido.id) throw new Error('Error creando pedido')
+    if (!pedido.id) throw new Error(pedido.error || pedido.detail || 'Error creando pedido')
     // Guardar dirección en la cuenta del cliente si está logueado
     guardarDatosEnCuenta({ nombre, telefono, calle, colonia, cp, ciudad, estado })
     const mpItems = carrito.map(i => ({ nombre: i.nombre+' - '+i.color+(i.talla?' T:'+i.talla:''), cantidad: i.es_corrida?i.cantidad*6:i.cantidad, precio: calcularPrecioUnitario(i,pTotal) }))
@@ -321,8 +321,10 @@ async function procesarPago() {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pedido_id:pedido.id, items:mpItems, cliente:{nombre,email}, total:totalFinal })
     })
-    const pago = await resPago.json()
-    if (!pago.init_point) throw new Error('Error creando pago')
+    const pagoRaw = await resPago.text()
+    console.log('Respuesta /pagos/crear-preferencia:', resPago.status, pagoRaw)
+    const pago = JSON.parse(pagoRaw)
+    if (!pago.init_point) throw new Error(pago.error || pago.detail || pago.message || JSON.stringify(pago))
     // Guardar IDs y valor para el evento Purchase tras volver de MercadoPago
     try {
       const ids = carrito.map(i => i.sku_interno || i.producto_id).filter(Boolean)
@@ -336,7 +338,8 @@ async function procesarPago() {
     window.location.href = pago.init_point
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Pagar ahora'
-    mostrarToast('Error al procesar. Intenta de nuevo.')
+    mostrarToast(e.message || 'Error al procesar. Intenta de nuevo.')
+    console.error('Error pago:', e)
   }
 }
 
@@ -419,7 +422,7 @@ async function cargarSesion() {
     banner.style.border = '1px solid rgba(200,150,122,0.16)'
     banner.style.color = '#8B6A54'
     banner.innerHTML = `<span style="font-size:1.05rem">🔑</span>
-      <span>¿Ya tienes cuenta? <a href="/" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a> para autocompletar tus datos y guardar tu dirección.</span>`
+      <span>¿Ya tienes cuenta? <a href="/?login=1&redirect=/checkout" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a> para autocompletar tus datos y guardar tu dirección.</span>`
   }
 }
 

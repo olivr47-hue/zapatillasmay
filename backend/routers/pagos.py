@@ -176,11 +176,14 @@ def crear_preferencia(datos: dict):
         items = datos.get("items", [])
         cliente = datos.get("cliente", {})
 
+        webhook_url = os.getenv("MP_WEBHOOK_URL", "")
+        frontend_url = os.getenv("FRONTEND_URL", "https://zapatillasmay.mx")
+
         preference_data = {
             "items": [
                 {
-                    "title": item.get("nombre", "Producto"),
-                    "quantity": item.get("cantidad", 1),
+                    "title": item.get("nombre", "Producto")[:255],
+                    "quantity": int(item.get("cantidad", 1)),
                     "unit_price": float(item.get("precio", 0)),
                     "currency_id": "MXN"
                 }
@@ -190,19 +193,16 @@ def crear_preferencia(datos: dict):
                 "name": cliente.get("nombre", ""),
                 "email": cliente.get("email", "cliente@zapatillasmay.mx")
             },
-            "external_reference": pedido_id,
-            "notification_url": os.getenv("MP_WEBHOOK_URL", ""),
+            "external_reference": str(pedido_id),
             "back_urls": {
-                "success": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-exitoso",
-                "failure": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-fallido",
-                "pending": os.getenv("FRONTEND_URL", "https://zapatillasmay.mx") + "/pedido-pendiente"
+                "success": frontend_url + "/pedido-exitoso",
+                "failure": frontend_url + "/pedido-fallido",
+                "pending": frontend_url + "/pedido-pendiente"
             },
             "auto_return": "approved",
-            "payment_methods": {
-                "excluded_payment_types": [],
-                "installments": 12
-            }
         }
+        if webhook_url:
+            preference_data["notification_url"] = webhook_url
 
         result = sdk.preference().create(preference_data)
         preference = result["response"]
@@ -218,10 +218,13 @@ def crear_preferencia(datos: dict):
                 "sandbox_init_point": preference["sandbox_init_point"]
             }
         else:
-            return JSONResponse(status_code=500, content={"error": "Error creando preferencia"})
+            print(f"MP error response: {preference}")
+            return JSONResponse(status_code=500, content={"error": str(preference.get("message", preference))})
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+        import traceback
+        print(f"crear_preferencia exception: {traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.post("/webhook")
