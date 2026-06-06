@@ -9,6 +9,13 @@ import time
 import urllib.request
 import json
 from dotenv import load_dotenv
+from email_utils import (
+    enviar_email,
+    email_pedido_confirmado,
+    email_pedido_pendiente_spei,
+    email_nuevo_pedido_negocio,
+    NEGOCIO_EMAIL,
+)
 
 load_dotenv()
 
@@ -251,8 +258,9 @@ async def webhook_mercadopago(request: Request):
                     if status == "approved":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
                         if pedido:
-                            items = pedido[0].get("pedido_items", [])
-                            sucursal_id = pedido[0].get("sucursal_id")
+                            p = pedido[0]
+                            items = p.get("pedido_items", [])
+                            sucursal_id = p.get("sucursal_id")
                             for item in items:
                                 variante_id = item.get("variante_id")
                                 cantidad = item.get("cantidad", 1)
@@ -268,19 +276,45 @@ async def webhook_mercadopago(request: Request):
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id)}
                             )
-                            enviar_evento_meta("Purchase", pedido[0], payment)
-                            _confirmar_pago_whatsapp(pedido[0])
-                            # Marcar carrito abandonado como convertido (ya no enviar recordatorio)
+                            enviar_evento_meta("Purchase", p, payment)
+                            _confirmar_pago_whatsapp(p)
+                            # Email de confirmación al cliente
+                            email_cliente = p.get("email_cliente", "")
+                            if email_cliente:
+                                try:
+                                    subj, html = email_pedido_confirmado(p)
+                                    enviar_email(email_cliente, subj, html)
+                                except Exception as e:
+                                    print(f"[pagos] Error email confirmación cliente: {e}")
+                            # Email de notificación al negocio
+                            try:
+                                subj_neg, html_neg = email_nuevo_pedido_negocio(p)
+                                enviar_email(NEGOCIO_EMAIL, subj_neg, html_neg)
+                            except Exception as e:
+                                print(f"[pagos] Error email negocio: {e}")
+                            # Marcar carrito abandonado como convertido
                             try:
                                 from routers.carrito_abandonado import marcar_convertido
-                                marcar_convertido(pedido[0].get("email_cliente", ""))
+                                marcar_convertido(email_cliente)
                             except Exception:
                                 pass
 
                     elif status in ["rejected", "cancelled"]:
                         supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado"})
+
                     elif status == "pending":
+                        pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
                         supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago"})
+                        # Email SPEI pendiente al cliente (solo si no se había enviado ya)
+                        if pedido:
+                            p = pedido[0]
+                            email_cliente = p.get("email_cliente", "")
+                            if email_cliente and p.get("status") != "pendiente_pago":
+                                try:
+                                    subj, html = email_pedido_pendiente_spei(p)
+                                    enviar_email(email_cliente, subj, html)
+                                except Exception as e:
+                                    print(f"[pagos] Error email SPEI pendiente: {e}")
 
         return {"ok": True}
     except Exception:
