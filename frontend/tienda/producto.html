@@ -14,6 +14,12 @@
       wait_for_update: 500
     });
   </script>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
+  <script>
+    gtag('js', new Date());
+    gtag('config', 'G-QX8MK3D4RY');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Zapatillas May</title>
@@ -569,7 +575,11 @@ function renderProducto() {
     document.getElementById('details-body').innerHTML = `<div class="details-grid">${detalles.map(([l,v]) => `<div class="detail-item"><div class="detail-label">${l}</div><div class="detail-val">${v}</div></div>`).join('')}</div>`
   }
 
-  // Meta / TikTok ViewContent
+  // GA4: view_item  +  Meta / TikTok ViewContent
+  if (typeof gtag === 'function') gtag('event', 'view_item', {
+    currency: 'MXN', value: precioDisplay,
+    items: [{ item_id: p.sku_interno||p.id, item_name: p.nombre, item_category: p.categoria, price: precioDisplay }]
+  })
   if (window.fbq) fbq('track', 'ViewContent', { content_ids:[p.sku_interno||p.id], content_type:'product_group', content_name:p.nombre, value:precioDisplay, currency:'MXN' })
   if (window.ttq) ttq.track('ViewContent', { content_id:p.sku_interno||p.id, content_type:'product', content_name:p.nombre, value:precioDisplay, price:precioDisplay, currency:'MXN' })
 }
