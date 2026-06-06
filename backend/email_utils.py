@@ -63,7 +63,7 @@ def _enviar_gmail(to: str, subject: str, html: str, bcc: str = None) -> bool:
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=6) as server:
         server.login(GMAIL_USER, GMAIL_PASSWORD)
         recipients = [to] + ([bcc] if bcc else [])
         server.sendmail(GMAIL_USER, recipients, msg.as_string())

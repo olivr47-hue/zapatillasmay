@@ -259,6 +259,10 @@ async def webhook_mercadopago(request: Request):
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
                         if pedido:
                             p = pedido[0]
+                            # Evitar procesar el mismo pago dos veces
+                            if p.get("status") in ("pagado", "enviado", "confirmado"):
+                                print(f"[webhook] Pedido {pedido_id} ya procesado (status={p.get('status')}), ignorando.")
+                                return {"ok": True}
                             items = p.get("pedido_items", [])
                             sucursal_id = p.get("sucursal_id")
                             for item in items:
@@ -278,7 +282,6 @@ async def webhook_mercadopago(request: Request):
                             )
                             enviar_evento_meta("Purchase", p, payment)
                             _confirmar_pago_whatsapp(p)
-                            # Email de confirmación al cliente
                             email_cliente = p.get("email_cliente", "")
                             if email_cliente:
                                 try:
@@ -286,13 +289,11 @@ async def webhook_mercadopago(request: Request):
                                     enviar_email(email_cliente, subj, html)
                                 except Exception as e:
                                     print(f"[pagos] Error email confirmación cliente: {e}")
-                            # Email de notificación al negocio
                             try:
                                 subj_neg, html_neg = email_nuevo_pedido_negocio(p)
                                 enviar_email(NEGOCIO_EMAIL, subj_neg, html_neg)
                             except Exception as e:
                                 print(f"[pagos] Error email negocio: {e}")
-                            # Marcar carrito abandonado como convertido
                             try:
                                 from routers.carrito_abandonado import marcar_convertido
                                 marcar_convertido(email_cliente)

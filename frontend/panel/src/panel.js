@@ -263,10 +263,9 @@ function _mostrarNotifPedido(msg) {
   } catch(e) {}
 }
 
-function _limpiarBadgePedidos() {
+window._limpiarBadgePedidos = function() {
   const badge = document.getElementById('badge-pedidos-enviar')
   if (badge) badge.style.display = 'none'
-  // Marcar los pedidos actuales como "vistos" para que el poll no los cuente de nuevo como nuevos
   _ultimosPedidosPorEnviar = new Set([..._ultimosPedidosPorEnviar])
 }
 
@@ -321,7 +320,7 @@ async function cargarModulo(id) {
     case 'productos': await cargarProductos(); break
     case 'clientes': await cargarClientes(); break
     case 'carritos': await cargarCarritos(); break
-    case 'pedidos': await cargarPedidos(); _limpiarBadgePedidos(); break
+    case 'pedidos': await cargarPedidos(); window._limpiarBadgePedidos?.(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
     case 'pos': await cargarPOS(); break

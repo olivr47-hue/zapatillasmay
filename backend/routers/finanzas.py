@@ -189,62 +189,74 @@ def reporte_financiero(sucursal_id: str):
         ids_pedidos = [p['id'] for p in pedidos]
         cmv = 0.0
         if ids_pedidos:
-            # 1. Traer todos los items con el precio real de venta
+            # 1. Todos los items en una sola consulta
             ids_str = ','.join(ids_pedidos)
             items = supabase_get(
                 f"pedido_items?pedido_id=in.({ids_str})"
                 f"&select=cantidad,variante_id,precio_unitario,nombre"
             ) or []
 
-            # 2. Caché de productos para no consultar el mismo dos veces
-            _cache_variante = {}
-            _cache_producto = {}
+            items_validos = [
+                i for i in items
+                if i.get('variante_id') and int(i.get('cantidad') or 0) > 0
+            ]
 
+            # 2. Todas las variantes necesarias en una sola consulta
+            variante_ids_unicos = list({i['variante_id'] for i in items_validos})
+            variantes_map = {}
+            if variante_ids_unicos:
+                vids_str = ','.join(variante_ids_unicos)
+                vs = supabase_get(
+                    f"variantes?id=in.({vids_str})&select=id,producto_id,color,talla"
+                ) or []
+                variantes_map = {v['id']: v for v in vs}
+
+            # 3. Todos los productos necesarios en una sola consulta
+            producto_ids_unicos = list({
+                variantes_map[i['variante_id']].get('producto_id')
+                for i in items_validos
+                if variantes_map.get(i['variante_id'], {}).get('producto_id')
+            })
+            productos_map = {}
+            if producto_ids_unicos:
+                pids_str = ','.join(producto_ids_unicos)
+                ps = supabase_get(
+                    f"productos?id=in.({pids_str})&select=id,nombre,costo,sku_interno"
+                ) or []
+                productos_map = {p['id']: p for p in ps}
+
+            # 4. Construir desglose
             desglose_cmv = []
-            for item in items:
-                variante_id   = item.get('variante_id')
-                cantidad      = int(item.get('cantidad') or 0)
-                precio_venta  = float(item.get('precio_unitario') or 0)  # precio real cobrado
-                nombre_item   = item.get('nombre', '')
-                if not variante_id or cantidad == 0:
-                    continue
-                try:
-                    if variante_id not in _cache_variante:
-                        v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id,color,talla")
-                        _cache_variante[variante_id] = v[0] if v else {}
-                    var = _cache_variante[variante_id]
-                    producto_id = var.get('producto_id')
-                    color = var.get('color', '')
-                    talla = var.get('talla', '')
+            for item in items_validos:
+                variante_id  = item['variante_id']
+                cantidad     = int(item.get('cantidad') or 0)
+                precio_venta = float(item.get('precio_unitario') or 0)
+                nombre_item  = item.get('nombre', '')
 
-                    costo = 0.0
-                    nombre = nombre_item
-                    sku = ''
-                    if producto_id:
-                        if producto_id not in _cache_producto:
-                            p = supabase_get(f"productos?id=eq.{producto_id}&select=nombre,costo,sku_interno")
-                            _cache_producto[producto_id] = p[0] if p else {}
-                        prod = _cache_producto[producto_id]
-                        costo  = float(prod.get('costo') or 0)
-                        nombre = prod.get('nombre') or nombre_item
-                        sku    = prod.get('sku_interno', '')
+                var         = variantes_map.get(variante_id, {})
+                producto_id = var.get('producto_id')
+                prod        = productos_map.get(producto_id, {}) if producto_id else {}
 
-                    subtotal_costo = costo * cantidad
-                    subtotal_venta = precio_venta * cantidad
-                    cmv += subtotal_costo
-                    desglose_cmv.append({
-                        'nombre':         nombre,
-                        'sku':            sku,
-                        'color':          color,
-                        'talla':          talla,
-                        'cantidad':       cantidad,
-                        'costo_unitario': costo,
-                        'precio_venta':   precio_venta,   # precio real cobrado al cliente
-                        'subtotal_costo': subtotal_costo,
-                        'subtotal_venta': subtotal_venta,
-                    })
-                except Exception:
-                    pass
+                costo  = float(prod.get('costo') or 0)
+                nombre = prod.get('nombre') or nombre_item
+                sku    = prod.get('sku_interno', '')
+                color  = var.get('color', '')
+                talla  = var.get('talla', '')
+
+                subtotal_costo = costo * cantidad
+                subtotal_venta = precio_venta * cantidad
+                cmv += subtotal_costo
+                desglose_cmv.append({
+                    'nombre':         nombre,
+                    'sku':            sku,
+                    'color':          color,
+                    'talla':          talla,
+                    'cantidad':       cantidad,
+                    'costo_unitario': costo,
+                    'precio_venta':   precio_venta,
+                    'subtotal_costo': subtotal_costo,
+                    'subtotal_venta': subtotal_venta,
+                })
 
         utilidad_bruta = total_ventas - cmv
         utilidad_neta  = utilidad_bruta - total_gastos
