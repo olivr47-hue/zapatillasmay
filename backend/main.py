@@ -13,6 +13,7 @@ from routers import mercadolibre
 from routers import analytics
 from routers import referidos
 from routers import carrito_abandonado
+from routers import mcp_server
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -66,6 +67,7 @@ app.include_router(mercadolibre.router)
 app.include_router(analytics.router)
 app.include_router(referidos.router)
 app.include_router(carrito_abandonado.router)
+app.include_router(mcp_server.router)
 
 # ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
 import threading, time as _time
