@@ -152,6 +152,10 @@ async def crear_pedido(pedido: dict, request: Request):
         )
         if ip and not pedido.get("client_ip_address"):
             pedido["client_ip_address"] = ip
+        # Extraer campos extra para CAPI que NO van a Supabase
+        _CAMPOS_CAPI = ("ciudad_cliente", "estado_cliente", "cp_cliente",
+                        "fbc", "fbp", "client_ip_address", "client_user_agent")
+        capi_extra = {k: pedido.pop(k, "") for k in _CAMPOS_CAPI}
         canal = pedido.get("canal", "")
         # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
         if not items and canal not in ("sucursal", "whatsapp"):
@@ -162,7 +166,10 @@ async def crear_pedido(pedido: dict, request: Request):
             for item in items:
                 item["pedido_id"] = pedido_id
                 supabase_post("pedido_items", item)
-            return resultado[0]
+            # Devolver también los campos CAPI para que pagos.py los tenga al confirmar
+            respuesta = dict(resultado[0])
+            respuesta.update({k: v for k, v in capi_extra.items() if v})
+            return respuesta
         return JSONResponse(status_code=500, content={"error": "Error creando pedido"})
     except Exception as e:
         print(f"ERROR crear_pedido: {str(e)}")
