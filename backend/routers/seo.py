@@ -287,7 +287,11 @@ def robots():
         "Sitemap: https://zapatillasmay.mx/sitemap.xml\n"
         "# Indice IA: https://zapatillasmay.mx/llms.txt\n"
     )
-    return Response(content=content, media_type="text/plain; charset=utf-8")
+    return Response(
+        content=content,
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "public, max-age=300, s-maxage=300"}
+    )
 
 
 @router.get("/llms.txt")
@@ -340,7 +344,8 @@ def llms_txt():
         ]
         contenido = "\n".join(lineas) + "\n"
         cache_set("seo_llms", contenido, ttl=TTL_ESTATICO)
-        return Response(content=contenido, media_type="text/plain; charset=utf-8")
+        return Response(content=contenido, media_type="text/plain; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=600, s-maxage=600"})
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
@@ -401,7 +406,8 @@ def feed_json():
         }
         contenido = json.dumps(salida, ensure_ascii=False)
         cache_set("seo_feed", contenido, ttl=TTL_ESTATICO)
-        return Response(content=contenido, media_type="application/json; charset=utf-8")
+        return Response(content=contenido, media_type="application/json; charset=utf-8",
+                        headers={"Cache-Control": "public, max-age=600, s-maxage=600"})
     except Exception as e:
         return Response(content=json.dumps({"error": str(e)}), status_code=500, media_type="application/json")
 
