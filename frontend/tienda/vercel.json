@@ -3,6 +3,8 @@
     { "source": "/producto/:slug", "destination": "https://zapatillasmay-production.up.railway.app/seo/producto/:slug" },
     { "source": "/sitemap.xml",    "destination": "https://zapatillasmay-production.up.railway.app/sitemap.xml" },
     { "source": "/robots.txt",     "destination": "https://zapatillasmay-production.up.railway.app/robots.txt" },
+    { "source": "/llms.txt",       "destination": "https://zapatillasmay-production.up.railway.app/llms.txt" },
+    { "source": "/feed.json",      "destination": "https://zapatillasmay-production.up.railway.app/feed.json" },
     { "source": "/carrito",        "destination": "/carrito.html" },
     { "source": "/catalogo",       "destination": "/catalogo.html" },
     { "source": "/catalogo/:id",   "destination": "/catalogo.html" },

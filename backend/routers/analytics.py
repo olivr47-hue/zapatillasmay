@@ -149,15 +149,42 @@ def _ga4_post(endpoint: str, body: dict) -> dict | None:
 @router.get("/diagnostico")
 def diagnostico():
     """Diagnóstico de configuración de GA4."""
-    token = _access_token()
+    # Intentar OAuth2 manualmente y capturar error exacto
+    oauth2_error = ""
+    oauth2_token = None
+    if GA4_CLIENT_ID and GA4_CLIENT_SECRET and GA4_REFRESH_TOKEN:
+        try:
+            data = urllib.parse.urlencode({
+                "client_id":     GA4_CLIENT_ID,
+                "client_secret": GA4_CLIENT_SECRET,
+                "refresh_token": GA4_REFRESH_TOKEN,
+                "grant_type":    "refresh_token",
+            }).encode()
+            req = urllib.request.Request(
+                "https://oauth2.googleapis.com/token",
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req) as r:
+                resp = json.loads(r.read())
+            oauth2_token = resp.get("access_token")
+            if not oauth2_token:
+                oauth2_error = f"Respuesta sin access_token: {resp}"
+        except urllib.error.HTTPError as e:
+            oauth2_error = f"HTTP {e.code}: {e.read().decode(errors='replace')[:300]}"
+        except Exception as e:
+            oauth2_error = str(e)
+
     return {
         "jwt_ok": JWT_OK,
         "tiene_property_id": bool(GA4_PROPERTY_ID),
         "property_id": GA4_PROPERTY_ID,
         "tiene_credentials_json": bool(GA4_CREDENTIALS),
         "tiene_oauth2": bool(GA4_CLIENT_ID and GA4_CLIENT_SECRET and GA4_REFRESH_TOKEN),
-        "token_obtenido": bool(token),
-        "ultimo_error": _last_ga4_error,
+        "oauth2_token_ok": bool(oauth2_token),
+        "oauth2_error": oauth2_error,
+        "ultimo_error_ga4": _last_ga4_error,
     }
 
 

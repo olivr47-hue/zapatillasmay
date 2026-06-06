@@ -17,6 +17,12 @@
       wait_for_update: 500
     });
   </script>
+  <!-- Google Analytics 4 — carga estática garantizada -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
+  <script>
+    gtag('js', new Date());
+    gtag('config', 'G-QX8MK3D4RY');
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato</title>
   <link rel="canonical" href="https://zapatillasmay.mx/">
@@ -3309,16 +3315,8 @@ window.addEventListener('load', () => {
       document.head.appendChild(gtmScript)
     }
 
-    // Google Analytics
-    if (config.google_analytics_id) {
-      const gaScript = document.createElement('script')
-      gaScript.async = true
-      gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${config.google_analytics_id}`
-      document.head.appendChild(gaScript)
-      const gaConfig = document.createElement('script')
-      gaConfig.textContent = `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${config.google_analytics_id}');`
-      document.head.appendChild(gaConfig)
-    }
+    // Google Analytics ya se carga estáticamente en el <head> (G-QX8MK3D4RY)
+    // No se vuelve a cargar aquí para evitar duplicar vistas.
 
     // Guardar config para uso posterior (si el usuario acepta cookies después)
     window._zmSeoConfig = config

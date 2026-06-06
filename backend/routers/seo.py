@@ -268,8 +268,144 @@ def sitemap():
 
 @router.get("/robots.txt")
 def robots():
-    content = "User-agent: *\nAllow: /\nSitemap: https://zapatillasmay.mx/sitemap.xml\n"
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "\n"
+        "# Agentes de IA — permitidos explícitamente\n"
+        "User-agent: GPTBot\nAllow: /\n"
+        "User-agent: OAI-SearchBot\nAllow: /\n"
+        "User-agent: ChatGPT-User\nAllow: /\n"
+        "User-agent: PerplexityBot\nAllow: /\n"
+        "User-agent: ClaudeBot\nAllow: /\n"
+        "User-agent: Claude-Web\nAllow: /\n"
+        "User-agent: Google-Extended\nAllow: /\n"
+        "User-agent: Applebot-Extended\nAllow: /\n"
+        "User-agent: Amazonbot\nAllow: /\n"
+        "User-agent: Bytespider\nAllow: /\n"
+        "\n"
+        "Sitemap: https://zapatillasmay.mx/sitemap.xml\n"
+        "# Índice para agentes de IA:\n"
+        "# https://zapatillasmay.mx/llms.txt\n"
+    )
     return Response(content=content, media_type="text/plain")
+
+
+@router.get("/llms.txt")
+def llms_txt():
+    """Índice para agentes de IA (estándar llms.txt)."""
+    cached = cache_get("seo_llms")
+    if cached is not None:
+        return Response(content=cached, media_type="text/plain; charset=utf-8")
+    try:
+        categorias = sorted(set(
+            p.get("categoria", "") for p in supabase_get("productos?activo=eq.true&select=categoria")
+            if p.get("categoria")
+        ))
+        total = supabase_get("productos?activo=eq.true&select=id")
+        n = len(total) if isinstance(total, list) else 0
+
+        lineas = [
+            "# Zapatillas May",
+            "",
+            "> Tienda de calzado femenino de moda fabricado en León, Guanajuato, México. "
+            "Venta a mayoreo (desde 3 pares, sin registro especial) y menudeo. "
+            "Tacones, sandalias, botas, botines, flats, plataformas y más. Envíos a todo México.",
+            "",
+            f"Catálogo con {n} modelos activos. Precios de mayoreo automáticos: a más pares, mejor precio por par.",
+            "",
+            "## Catálogo y datos",
+            "- [Feed de productos (JSON)](https://zapatillasmay.mx/feed.json): catálogo completo actualizado con nombre, precio, categoría, tallas, stock e imágenes.",
+            "- [Sitemap](https://zapatillasmay.mx/sitemap.xml): todas las URLs del sitio.",
+            "",
+            "## Categorías",
+        ]
+        _CAT_SLUG = {
+            "tacones": "tacones", "sandalias": "sandalias", "botas": "botas",
+            "botines": "botines", "flats": "flats", "plataformas": "plataformas",
+            "tenis": "tenis", "nina": "nina", "accesorios": "accesorios"
+        }
+        for cat in categorias:
+            slug = _CAT_SLUG.get(cat.lower(), cat.lower())
+            lineas.append(f"- [{cat.capitalize()}](https://zapatillasmay.mx/{slug})")
+        lineas += [
+            "",
+            "## Información",
+            "- [Cómo comprar a mayoreo](https://zapatillasmay.mx/mayoreo)",
+            "- [Envíos](https://zapatillasmay.mx/envios)",
+            "- [Nosotros](https://zapatillasmay.mx/nosotros)",
+            "",
+            "## Contacto",
+            "- Sitio: https://zapatillasmay.mx",
+            "- WhatsApp y pedidos en línea disponibles en el sitio.",
+        ]
+        contenido = "\n".join(lineas) + "\n"
+        cache_set("seo_llms", contenido, ttl=TTL_ESTATICO)
+        return Response(content=contenido, media_type="text/plain; charset=utf-8")
+    except Exception as e:
+        return Response(content=str(e), status_code=500)
+
+
+@router.get("/feed.json")
+def feed_json():
+    """Feed de productos para agentes de IA y motores de compra."""
+    cached = cache_get("seo_feed")
+    if cached is not None:
+        return Response(content=cached, media_type="application/json; charset=utf-8")
+    try:
+        productos = supabase_get(
+            "productos?activo=eq.true&select=id,nombre,sku_interno,descripcion,categoria,"
+            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,color,material,tallas_disponibles"
+        )
+        items = []
+        for p in productos:
+            slug = p.get("sku_interno") or p.get("id", "")
+            base = p.get("precio_menudeo")
+            try:
+                base_f = float(base) if base is not None else None
+            except Exception:
+                base_f = None
+            precios = {"menudeo": base_f}
+            for campo, etiqueta, desc in [
+                ("precio_mayoreo3", "mayoreo_3a5_pares", 30),
+                ("precio_mayoreo6", "mayoreo_6mas_pares", 70),
+            ]:
+                v = p.get(campo)
+                try:
+                    precios[etiqueta] = float(v) if v is not None else (round(base_f - desc) if base_f else None)
+                except Exception:
+                    precios[etiqueta] = None
+
+            items.append({
+                "id": p.get("id"),
+                "sku": p.get("sku_interno"),
+                "nombre": (p.get("nombre") or "").strip(),
+                "descripcion": (p.get("descripcion") or "").strip(),
+                "categoria": p.get("categoria"),
+                "color": p.get("color"),
+                "material": p.get("material"),
+                "tallas": p.get("tallas_disponibles"),
+                "precios_mxn": precios,
+                "moneda": "MXN",
+                "imagen": p.get("imagen_principal"),
+                "url": f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
+                "disponibilidad": "in_stock",
+            })
+
+        salida = {
+            "tienda": "Zapatillas May",
+            "descripcion": "Calzado femenino de moda fabricado en León, Guanajuato. Mayoreo y menudeo.",
+            "url": "https://zapatillasmay.mx",
+            "moneda": "MXN",
+            "total_productos": len(items),
+            "nota_precios": "Los precios bajan automáticamente al comprar más pares (3+ y 6+).",
+            "productos": items,
+        }
+        contenido = json.dumps(salida, ensure_ascii=False)
+        cache_set("seo_feed", contenido, ttl=TTL_ESTATICO)
+        return Response(content=contenido, media_type="application/json; charset=utf-8")
+    except Exception as e:
+        return Response(content=json.dumps({"error": str(e)}), status_code=500, media_type="application/json")
 
 @router.get("/seo/config")
 def get_config():
