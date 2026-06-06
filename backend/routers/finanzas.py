@@ -185,15 +185,16 @@ def reporte_financiero(sucursal_id: str):
         total_ventas = sum(float(p['total'] or 0) for p in pedidos)
         total_gastos = sum(float(g['monto'] or 0) for g in gastos)
 
-        # Costo de mercancía vendida (CMV): precio de costo × cantidad de cada ítem vendido
+        # Diagnóstico: cuántos pedidos no tienen items registrados
         ids_pedidos = [p['id'] for p in pedidos]
+        pedidos_sin_items = []
         cmv = 0.0
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
             ids_str = ','.join(ids_pedidos)
             items = supabase_get(
                 f"pedido_items?pedido_id=in.({ids_str})"
-                f"&select=cantidad,variante_id,precio_unitario,nombre"
+                f"&select=pedido_id,cantidad,variante_id,precio_unitario,nombre"
             ) or []
 
             items_validos = [
@@ -258,20 +259,34 @@ def reporte_financiero(sucursal_id: str):
                     'subtotal_venta': subtotal_venta,
                 })
 
-        utilidad_bruta = total_ventas - cmv
+        # Detectar pedidos sin items (ventas que no se pueden desglosar por producto)
+        ids_con_items = {i.get('pedido_id') for i in (items or []) if i.get('pedido_id')}
+        pedidos_sin_items_lista = [p for p in pedidos if p['id'] not in ids_con_items]
+        total_sin_desglose = sum(float(p['total'] or 0) for p in pedidos_sin_items_lista)
+
+        # Ventas solo de productos (sin envío): suma real de precio_unitario × cantidad
+        total_ventas_productos = sum(r['subtotal_venta'] for r in desglose_cmv)
+        total_envio_cobrado    = total_ventas - total_ventas_productos
+
+        # Utilidad basada en ingresos de productos (sin distorsionar con el envío)
+        utilidad_bruta = total_ventas_productos - cmv
         utilidad_neta  = utilidad_bruta - total_gastos
 
         desglose_cmv_sorted = sorted(desglose_cmv, key=lambda x: x['subtotal_costo'], reverse=True)
 
         return {
-            "total_ventas":    total_ventas,
-            "total_gastos":    total_gastos,
-            "cmv":             cmv,
-            "utilidad_bruta":  utilidad_bruta,
-            "utilidad":        utilidad_neta,
-            "num_pedidos":     len(pedidos),
-            "ticket_promedio": total_ventas / len(pedidos) if pedidos else 0,
-            "desglose_cmv":    desglose_cmv_sorted,
+            "total_ventas":           total_ventas,            # ingresos totales (productos + envío)
+            "total_ventas_productos": total_ventas_productos,  # solo productos
+            "total_envio_cobrado":    total_envio_cobrado,     # envío cobrado al cliente
+            "total_gastos":           total_gastos,
+            "cmv":                    cmv,
+            "utilidad_bruta":         utilidad_bruta,          # ventas productos − CMV
+            "utilidad":               utilidad_neta,           # utilidad_bruta − gastos operativos
+            "num_pedidos":            len(pedidos),
+            "ticket_promedio":        total_ventas / len(pedidos) if pedidos else 0,
+            "desglose_cmv":           desglose_cmv_sorted,
+            "num_pedidos_sin_desglose": len(pedidos_sin_items_lista),
+            "total_sin_desglose":     total_sin_desglose,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

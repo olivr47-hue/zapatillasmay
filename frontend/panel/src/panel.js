@@ -1178,10 +1178,13 @@ window.mostrarTabFinanzas = (tab) => {
   if (!container) return
 
   if (tab === 'cmv') {
-    const desglose = window._finanzasData.reporte?.desglose_cmv || []
-    const totalCmv  = desglose.reduce((s, r) => s + r.subtotal_costo, 0)
-    const totalVtas = desglose.reduce((s, r) => s + r.subtotal_venta, 0)
-    const margen    = totalVtas > 0 ? ((totalVtas - totalCmv) / totalVtas * 100) : 0
+    const desglose       = window._finanzasData.reporte?.desglose_cmv || []
+    const rep            = window._finanzasData.reporte || {}
+    const totalCmv       = desglose.reduce((s, r) => s + r.subtotal_costo, 0)
+    const totalVtas      = desglose.reduce((s, r) => s + r.subtotal_venta, 0)
+    const margen         = totalVtas > 0 ? ((totalVtas - totalCmv) / totalVtas * 100) : 0
+    const sinDesglose    = rep.num_pedidos_sin_desglose || 0
+    const totalSinDesc   = rep.total_sin_desglose || 0
     container.innerHTML = `
       <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
         <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1192,6 +1195,11 @@ window.mostrarTabFinanzas = (tab) => {
             <span>Margen bruto: <strong style="color:${margen>=0?'#2e7d32':'#c62828'}">${margen.toFixed(1)}%</strong></span>
           </div>
         </div>
+        ${sinDesglose > 0 ? `
+        <div style="background:#fff8e1;border-bottom:1px solid #ffe082;padding:12px 20px;font-size:0.83rem;color:#6d4c00;display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">⚠️</span>
+          <span><strong>${sinDesglose} pedido${sinDesglose>1?'s':''} ($${totalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN)</strong> no tienen productos desglosados — por eso "Ventas 30 días" es mayor que "Venta total" aquí. Son ventas registradas sin items individuales (POS antiguo o pedidos manuales sin productos).</span>
+        </div>` : ''}
         ${desglose.length === 0
           ? '<p style="padding:2rem;text-align:center;color:#888">Sin ventas con costo registrado en los últimos 30 días</p>'
           : `<div style="overflow-x:auto">

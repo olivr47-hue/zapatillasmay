@@ -120,7 +120,7 @@ def enviar_evento_meta(event_name, pedido, payment):
         }
 
         # Token como header Authorization, no en la URL
-        url = f"https://graph.facebook.com/v18.0/{META_PIXEL_ID}/events"
+        url = f"https://graph.facebook.com/v21.0/{META_PIXEL_ID}/events"
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             url, data=data,
@@ -131,9 +131,10 @@ def enviar_evento_meta(event_name, pedido, payment):
             method="POST"
         )
         urllib.request.urlopen(req)
+        print(f"[CAPI] Evento {event_name} enviado OK para pedido {pedido.get('id')}")
 
-    except Exception:
-        pass  # No exponer detalles de error en logs
+    except Exception as e:
+        print(f"[CAPI] Error enviando evento {event_name}: {e}")
 
 
 def _confirmar_pago_whatsapp(pedido: dict):
