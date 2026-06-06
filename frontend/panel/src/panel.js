@@ -1148,6 +1148,7 @@ async function cargarFinanzas() {
       <!-- TABS -->
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-primary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('gastos')">💸 Gastos</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cmv')">📦 Costo mercancía</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('estado')">📊 Estado de resultados</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('flujo')">💧 Flujo de efectivo</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('caja')">📋 Historial caja</button>
@@ -1157,7 +1158,7 @@ async function cargarFinanzas() {
       <div id="fin-tab-contenido"></div>
     `
 
-    window._finanzasData = { sucursalId, gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial: [] }
+    window._finanzasData = { sucursalId, gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial: [], reporte }
     window._finanzasSucursalId = sucursalId
 
     // Cargar historial
@@ -1177,7 +1178,70 @@ window.mostrarTabFinanzas = (tab) => {
   const container = document.getElementById('fin-tab-contenido')
   if (!container) return
 
-  if (tab === 'gastos') {
+  if (tab === 'cmv') {
+    const desglose = window._finanzasData.reporte?.desglose_cmv || []
+    const totalCmv  = desglose.reduce((s, r) => s + r.subtotal_costo, 0)
+    const totalVtas = desglose.reduce((s, r) => s + r.subtotal_venta, 0)
+    const margen    = totalVtas > 0 ? ((totalVtas - totalCmv) / totalVtas * 100) : 0
+    container.innerHTML = `
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <p style="font-weight:700;font-size:0.9rem">📦 Desglose de costo de mercancía — 30 días</p>
+          <div style="display:flex;gap:16px;font-size:0.82rem">
+            <span>Total vendido: <strong style="color:#E91E8C">$${totalVtas.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></span>
+            <span>Costo total: <strong style="color:#b5651d">$${totalCmv.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></span>
+            <span>Margen bruto: <strong style="color:${margen>=0?'#2e7d32':'#c62828'}">${margen.toFixed(1)}%</strong></span>
+          </div>
+        </div>
+        ${desglose.length === 0
+          ? '<p style="padding:2rem;text-align:center;color:#888">Sin ventas con costo registrado en los últimos 30 días</p>'
+          : `<div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+              <thead>
+                <tr style="background:#fafafa;border-bottom:2px solid #eee">
+                  <th style="padding:10px 14px;text-align:left;font-weight:600;color:#555">Producto</th>
+                  <th style="padding:10px 14px;text-align:left;font-weight:600;color:#555">Color / Talla</th>
+                  <th style="padding:10px 8px;text-align:center;font-weight:600;color:#555">Pares</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Costo/par</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Costo total</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Precio venta</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Venta total</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Margen</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${desglose.map(r => {
+                  const margenR = r.subtotal_venta > 0 ? ((r.subtotal_venta - r.subtotal_costo) / r.subtotal_venta * 100) : 0
+                  const margenColor = margenR >= 30 ? '#2e7d32' : margenR >= 15 ? '#f57f17' : '#c62828'
+                  return `<tr style="border-bottom:1px solid #f5f5f5">
+                    <td style="padding:10px 14px">
+                      <p style="font-weight:600">${r.nombre}</p>
+                      <p style="font-size:0.72rem;color:#aaa;font-family:monospace">${r.sku}</p>
+                    </td>
+                    <td style="padding:10px 14px;color:#666">${[r.color, r.talla ? 'T'+r.talla : ''].filter(Boolean).join(' · ') || '—'}</td>
+                    <td style="padding:10px 8px;text-align:center;font-weight:700">${r.cantidad}</td>
+                    <td style="padding:10px 8px;text-align:right;color:#b5651d">$${r.costo_unitario.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:#b5651d">$${r.subtotal_costo.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;color:#555">$${r.precio_venta.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:#E91E8C">$${r.subtotal_venta.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:${margenColor}">${margenR.toFixed(1)}%</td>
+                  </tr>`
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background:#f9f9f9;border-top:2px solid #eee;font-weight:700">
+                  <td colspan="4" style="padding:10px 14px">TOTAL</td>
+                  <td style="padding:10px 8px;text-align:right;color:#b5651d">$${totalCmv.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td></td>
+                  <td style="padding:10px 8px;text-align:right;color:#E91E8C">$${totalVtas.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:10px 8px;text-align:right;color:${margen>=0?'#2e7d32':'#c62828'}">${margen.toFixed(1)}%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`}
+      </div>
+    `
+  } else if (tab === 'gastos') {
     const totalCategorias = categorias.reduce((s, c) => s + c.total, 0)
     container.innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">

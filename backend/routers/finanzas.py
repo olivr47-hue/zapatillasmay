@@ -203,33 +203,52 @@ def reporte_financiero(sucursal_id: str):
                     variante_cantidades[vid] = variante_cantidades.get(vid, 0) + int(item.get('cantidad') or 0)
 
             # 3. Por cada variante, buscar el costo del producto
+            desglose_cmv = []
             for variante_id, cantidad in variante_cantidades.items():
                 try:
-                    v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id")
+                    v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id,color,talla")
                     if not v:
                         continue
                     producto_id = v[0].get('producto_id')
+                    color = v[0].get('color', '')
+                    talla = v[0].get('talla', '')
                     if not producto_id:
                         continue
-                    prod = supabase_get(f"productos?id=eq.{producto_id}&select=costo")
+                    prod = supabase_get(f"productos?id=eq.{producto_id}&select=nombre,costo,precio_menudeo,sku_interno")
                     if not prod:
                         continue
                     costo = float(prod[0].get('costo') or 0)
-                    cmv += costo * cantidad
+                    precio_venta = float(prod[0].get('precio_menudeo') or 0)
+                    subtotal_costo = costo * cantidad
+                    cmv += subtotal_costo
+                    desglose_cmv.append({
+                        'nombre':        prod[0].get('nombre', ''),
+                        'sku':           prod[0].get('sku_interno', ''),
+                        'color':         color,
+                        'talla':         talla,
+                        'cantidad':      cantidad,
+                        'costo_unitario': costo,
+                        'precio_venta':  precio_venta,
+                        'subtotal_costo': subtotal_costo,
+                        'subtotal_venta': precio_venta * cantidad,
+                    })
                 except Exception:
                     pass
 
         utilidad_bruta = total_ventas - cmv
         utilidad_neta  = utilidad_bruta - total_gastos
 
+        desglose_cmv_sorted = sorted(desglose_cmv, key=lambda x: x['subtotal_costo'], reverse=True)
+
         return {
             "total_ventas":    total_ventas,
             "total_gastos":    total_gastos,
             "cmv":             cmv,
             "utilidad_bruta":  utilidad_bruta,
-            "utilidad":        utilidad_neta,   # neta (ventas - costo - gastos)
+            "utilidad":        utilidad_neta,
             "num_pedidos":     len(pedidos),
-            "ticket_promedio": total_ventas / len(pedidos) if pedidos else 0
+            "ticket_promedio": total_ventas / len(pedidos) if pedidos else 0,
+            "desglose_cmv":    desglose_cmv_sorted,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
