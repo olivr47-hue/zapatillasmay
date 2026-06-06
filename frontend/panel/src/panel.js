@@ -200,6 +200,80 @@ export function renderPanel() {
     } catch(e) {}
   }, 30000)
 
+ // ── Polling: pedidos por enviar ───────────────────────────────────
+let _ultimosPedidosPorEnviar = new Set()
+async function _pollPedidosPorEnviar() {
+  try {
+    const res = await fetch(API + '/pedidos/?status=pagado')
+    if (!res.ok) return
+    const pedidos = await res.json()
+    // Solo los que vienen de MercadoPago (online)
+    const porEnviar = pedidos.filter(p => p.mp_preference_id)
+    const count = porEnviar.length
+
+    // Actualizar badge en sidebar
+    const badge = document.getElementById('badge-pedidos-enviar')
+    if (badge) {
+      badge.textContent = count
+      badge.style.display = count > 0 ? 'inline' : 'none'
+    }
+
+    // Detectar pedidos nuevos (que no estaban en el poll anterior)
+    const idsActuales = new Set(porEnviar.map(p => p.id))
+    const nuevos = porEnviar.filter(p => !_ultimosPedidosPorEnviar.has(p.id))
+    if (nuevos.length > 0 && _ultimosPedidosPorEnviar.size > 0) {
+      // Solo notificar si no es la primera carga
+      nuevos.forEach(p => {
+        const nombre = p.nombre_cliente || 'Cliente'
+        const total = parseFloat(p.total || 0).toLocaleString('es-MX', {maximumFractionDigits: 0})
+        _mostrarNotifPedido(`🛍️ Nuevo pedido de ${nombre} — $${total} MXN`)
+      })
+    }
+    _ultimosPedidosPorEnviar = idsActuales
+  } catch(e) {}
+}
+
+function _mostrarNotifPedido(msg) {
+  // Toast persistente en panel
+  const div = document.createElement('div')
+  div.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:white;padding:14px 20px;border-radius:12px;font-size:0.85rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;cursor:pointer;max-width:320px;line-height:1.4;border-left:4px solid #e53935'
+  div.textContent = msg
+  div.onclick = () => { navegarA('pedidos'); div.remove() }
+  document.body.appendChild(div)
+  setTimeout(() => div.remove(), 8000)
+
+  // Notificación del navegador si tiene permiso
+  if (Notification.permission === 'granted') {
+    new Notification('Zapatillas May — Panel', { body: msg, icon: '/favicon.ico' })
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+
+  // Sonido sutil
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain); gain.connect(ctx.destination)
+    osc.frequency.setValueAtTime(880, ctx.currentTime)
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1)
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
+    osc.start(); osc.stop(ctx.currentTime + 0.4)
+  } catch(e) {}
+}
+
+function _limpiarBadgePedidos() {
+  const badge = document.getElementById('badge-pedidos-enviar')
+  if (badge) badge.style.display = 'none'
+  // Marcar los pedidos actuales como "vistos" para que el poll no los cuente de nuevo como nuevos
+  _ultimosPedidosPorEnviar = new Set([..._ultimosPedidosPorEnviar])
+}
+
+// Correr al cargar y luego cada 60 segundos
+_pollPedidosPorEnviar()
+setInterval(_pollPedidosPorEnviar, 60000)
+
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
@@ -233,6 +307,7 @@ function renderNav() {
            onclick="navegarA('${m.id}')">
         <span class="nav-icon">${m.icon}</span>
         ${m.label}
+        ${m.id === 'pedidos' ? '<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
       </div>
     `).join('')}
   `).join('')}
@@ -246,7 +321,7 @@ async function cargarModulo(id) {
     case 'productos': await cargarProductos(); break
     case 'clientes': await cargarClientes(); break
     case 'carritos': await cargarCarritos(); break
-    case 'pedidos': await cargarPedidos(); break
+    case 'pedidos': await cargarPedidos(); _limpiarBadgePedidos(); break
     case 'sucursales': await cargarSucursales(); break
     case 'inventario': await cargarInventario(); break
     case 'pos': await cargarPOS(); break
@@ -1035,16 +1110,26 @@ async function cargarFinanzas() {
       <!-- KPIs -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.5rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toFixed(0)}</p>
+          <p style="font-size:1.5rem;font-weight:700;color:#E91E8C">$${(reporte.total_ventas||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:1.5rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toFixed(0)}</p>
-          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos 30 días</p>
+          <p style="font-size:1.5rem;font-weight:700;color:#b5651d">$${(reporte.cmv||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo mercancía</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#c62828">$${(reporte.total_gastos||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos operativos</p>
+        </div>
+        <div style="background:${(reporte.utilidad_bruta||0) >= 0 ? '#e3f2fd' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${(reporte.utilidad_bruta||0) >= 0 ? '#90caf9' : '#ffcdd2'};text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#1565c0">$${(reporte.utilidad_bruta||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad bruta</p>
+          <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo</p>
         </div>
         <div style="background:${(reporte.utilidad||0) >= 0 ? '#e8f5e9' : '#ffebee'};border-radius:12px;padding:1.25rem;border:1px solid ${(reporte.utilidad||0) >= 0 ? '#a5d6a7' : '#ffcdd2'};text-align:center">
-          <p style="font-size:1.5rem;font-weight:700;color:${(reporte.utilidad||0) >= 0 ? '#2e7d32' : '#c62828'}">$${(reporte.utilidad||0).toFixed(0)}</p>
-          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad 30 días</p>
+          <p style="font-size:1.5rem;font-weight:700;color:${(reporte.utilidad||0) >= 0 ? '#2e7d32' : '#c62828'}">$${(reporte.utilidad||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad neta</p>
+          <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo − gastos</p>
         </div>
         <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
           <p style="font-size:1.5rem;font-weight:700;color:#333">$${(flujo.semana?.ingresos||0).toFixed(0)}</p>
@@ -6405,6 +6490,139 @@ window.guardarTraspaso = async () => {
     alert('Error conectando con el servidor')
   }
 }
+function _renderFilaPedido(p) {
+  const statusColor = {
+    'borrador':        'badge-warning',
+    'pendiente_pago':  'badge-warning',
+    'confirmado':      'badge-success',
+    'cancelado':       'badge-danger',
+    'pagado':          'badge-success',
+    'por_enviar':      'badge-info',
+    'enviado':         'badge-success',
+  }[p.status] || 'badge-warning'
+
+  const statusLabel = {
+    'borrador':       'Borrador',
+    'pendiente_pago': 'Pend. pago',
+    'confirmado':     'Confirmado',
+    'cancelado':      'Cancelado',
+    'pagado':         'Pagado',
+    'por_enviar':     '📦 Por enviar',
+    'enviado':        '✅ Enviado',
+  }[p.status] || p.status
+
+  // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
+  const esPagadoOnline = (p.status === 'pagado') && p.mp_preference_id
+  const esEnviado = p.status === 'enviado'
+
+  let accionEnvio = ''
+  if (esPagadoOnline) {
+    accionEnvio = `<button class="btn btn-primary" style="padding:4px 8px;font-size:0.72rem;background:#1565c0;border-color:#1565c0;margin-top:4px" onclick="abrirModalEnvio('${p.id}')">🚚 Enviar</button>`
+  } else if (esEnviado && p.tracking_url) {
+    accionEnvio = `<a href="${p.tracking_url}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;margin-top:4px">📍 Rastrear</a>`
+  }
+
+  const guiaInfo = esEnviado && p.numero_guia
+    ? `<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${p.paqueteria || ''} ${p.numero_guia}</span>`
+    : ''
+
+  return `
+    <tr style="${esPagadoOnline ? 'background:#f0f7ff' : ''}">
+      <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
+      <td>
+        <strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong>
+        ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
+        ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
+      </td>
+      <td>${p.canal || (p.mp_preference_id ? 'online' : '—')}</td>
+      <td><strong>$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></td>
+      <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
+      <td>
+        <span class="badge ${statusColor}">${statusLabel}</span>
+        ${guiaInfo}
+      </td>
+      <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+        ${accionEnvio}
+      </td>
+    </tr>
+  `
+}
+
+window.abrirModalEnvio = function(pedidoId) {
+  const existing = document.getElementById('modal-envio')
+  if (existing) existing.remove()
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-envio'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h3 style="font-size:1.1rem;margin:0">🚚 Registrar envío</h3>
+        <button onclick="document.getElementById('modal-envio').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem">✕</button>
+      </div>
+
+      <label class="form-label">Paquetería *</label>
+      <select id="env-paqueteria" class="form-input" style="margin-bottom:14px">
+        <option value="">Selecciona...</option>
+        <option value="FedEx">FedEx</option>
+        <option value="Estafeta">Estafeta</option>
+        <option value="DHL">DHL</option>
+        <option value="otra">Otra</option>
+      </select>
+
+      <label class="form-label">Número de guía *</label>
+      <input id="env-guia" class="form-input" placeholder="Ej. 772812345678" style="margin-bottom:6px;font-family:monospace;letter-spacing:1px">
+      <p style="font-size:0.72rem;color:#aaa;margin-bottom:20px">El cliente recibirá un email con el link de rastreo automáticamente.</p>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-envio').remove()" class="btn btn-secondary" style="flex:1">Cancelar</button>
+        <button onclick="confirmarEnvio('${pedidoId}')" class="btn btn-primary" style="flex:2" id="btn-confirmar-envio">Confirmar envío ✓</button>
+      </div>
+      <p id="env-error" style="color:red;font-size:0.8rem;margin-top:10px;display:none"></p>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.confirmarEnvio = async function(pedidoId) {
+  const paqueteria = document.getElementById('env-paqueteria').value
+  const numeroGuia = document.getElementById('env-guia').value.trim()
+  const errEl = document.getElementById('env-error')
+  const btn = document.getElementById('btn-confirmar-envio')
+
+  if (!paqueteria || !numeroGuia) {
+    errEl.textContent = 'Selecciona paquetería e ingresa el número de guía.'
+    errEl.style.display = 'block'
+    return
+  }
+  btn.disabled = true
+  btn.textContent = 'Guardando...'
+  errEl.style.display = 'none'
+
+  try {
+    const res = await fetch(API + `/pedidos/${pedidoId}/marcar-enviado`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paqueteria, numero_guia: numeroGuia })
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Error al guardar')
+
+    document.getElementById('modal-envio').remove()
+    mostrarToast('✅ Pedido marcado como enviado — email de tracking enviado al cliente')
+    await cargarPedidos()
+  } catch(e) {
+    errEl.textContent = e.message
+    errEl.style.display = 'block'
+    btn.disabled = false
+    btn.textContent = 'Confirmar envío ✓'
+  }
+}
+
 async function cargarPedidos() {
   const content = document.getElementById('content')
   try {
@@ -6419,6 +6637,7 @@ async function cargarPedidos() {
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
         <button class="btn btn-secondary" onclick="cargarPedidosFiltro('online')">Online</button>
         <button class="btn btn-secondary" style="background:#fff8e1;border-color:#f57f17;color:#f57f17" onclick="cargarPedidosFiltro('pendiente_pago')">Pendientes SPEI</button>
+        <button class="btn btn-secondary" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0" onclick="cargarPedidosFiltro('por_enviar')">🚚 Por enviar</button>
         <button class="btn btn-secondary" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="cargarPedidosFiltro('credito')">Creditos</button>
         <button class="btn btn-primary" style="margin-left:auto" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
       </div>
@@ -6439,32 +6658,7 @@ async function cargarPedidos() {
           <tbody>
             ${data.length === 0
               ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
-              : data.map(p => {
-                const statusColor = {
-                  'borrador': 'badge-warning',
-                  'pendiente_pago': 'badge-warning',
-                  'confirmado': 'badge-success',
-                  'cancelado': 'badge-danger',
-                  'pagado': 'badge-success'
-                }[p.status] || 'badge-warning'
-                return `
-                  <tr>
-                    <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
-                    <td><strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong><br>
-                    ${p.email_cliente ? `<span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
-                    ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
-                    </td>
-                    <td>${p.canal || '—'}</td>
-                    <td><strong>$${p.total || '0'}</strong></td>
-                    <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
-                    <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
-                    <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
-                    <td>
-                      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
-                    </td>
-                  </tr>
-                `
-              }).join('')}
+              : data.map(p => _renderFilaPedido(p)).join('')}
           </tbody>
         </table>
       </div>
@@ -6490,6 +6684,8 @@ window.cargarPedidosFiltro = (filtro) => {
     filtrados = data.filter(p => p.status === 'pendiente_pago')
   } else if (filtro === 'credito') {
     filtrados = data.filter(p => p.forma_pago === 'credito')
+  } else if (filtro === 'por_enviar') {
+    filtrados = data.filter(p => p.status === 'pagado' && p.mp_preference_id)
   } else if (filtro) {
     filtrados = data.filter(p => p.canal === filtro)
   }
@@ -6516,32 +6712,7 @@ window.cargarPedidosFiltro = (filtro) => {
     return
   }
 
-  tbody.innerHTML = filtrados.map(p => {
-    const statusColor = {
-      'borrador': 'badge-warning',
-      'pendiente_pago': 'badge-warning',
-      'confirmado': 'badge-success',
-      'cancelado': 'badge-danger',
-      'pagado': 'badge-success'
-    }[p.status] || 'badge-warning'
-    return `
-      <tr>
-        <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
-        <td><strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong><br>
-        ${p.email_cliente ? `<span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
-        ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
-        </td>
-        <td>${p.canal || '—'}</td>
-        <td><strong>$${p.total || '0'}</strong></td>
-        <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
-        <td><span class="badge ${statusColor}">${p.status || 'borrador'}</span></td>
-        <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
-        <td>
-          <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
-        </td>
-      </tr>
-    `
-  }).join('')
+  tbody.innerHTML = filtrados.map(p => _renderFilaPedido(p)).join('')
 }
 
 window.mostrarFormPedido = async () => {
@@ -9541,7 +9712,7 @@ async function cargarDashboard() {
     const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
     const hace30 = new Date(hoy); hace30.setDate(hace30.getDate()-30)
 
-    const conf = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
+    const conf = pedidos.filter(p => ['confirmado','pagado','enviado'].includes(p.status))
     const hoyP = conf.filter(p => new Date(p.created_at) >= hoy)
     const s7P = conf.filter(p => new Date(p.created_at) >= hace7)
 
@@ -9625,8 +9796,8 @@ async function cargarDashboard() {
       ultimosEl.innerHTML = pedidos.slice(0,6).map(p => `
         <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(200,150,122,0.08);cursor:pointer;transition:background 0.12s">
           <div>
-            <p style="font-size:0.84rem;font-weight:600;color:var(--text-1)">${p.clientes ? p.clientes.nombre : 'General'}</p>
-            <p style="font-size:0.7rem;color:var(--text-3);margin-top:1px">${p.canal||'sucursal'} · ${new Date(p.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</p>
+            <p style="font-size:0.84rem;font-weight:600;color:var(--text-1)">${p.clientes?.nombre || p.nombre_cliente || 'General'}</p>
+            <p style="font-size:0.7rem;color:var(--text-3);margin-top:1px">${p.mp_preference_id ? '🌐 online' : (p.canal||'sucursal')} · ${new Date(p.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</p>
           </div>
           <div style="text-align:right">
             <p style="font-weight:700;color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>

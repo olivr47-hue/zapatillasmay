@@ -75,7 +75,7 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
 def listar_pedidos(status: str = None):
     try:
         filtro = f"&status=eq.{status}" if status else ""
-        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
+        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*)")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -300,6 +300,56 @@ def confirmar_pedido(id: str, datos: dict):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/{id}/marcar-enviado")
+def marcar_enviado(id: str, datos: dict):
+    """Marca el pedido como enviado y manda email de tracking al cliente."""
+    try:
+        paqueteria   = datos.get("paqueteria", "").strip()
+        numero_guia  = datos.get("numero_guia", "").strip()
+        if not paqueteria or not numero_guia:
+            return JSONResponse(status_code=400, content={"error": "Faltan paqueteria y numero_guia"})
+
+        pedido = supabase_get(f"pedidos?id=eq.{id}&select=*,pedido_items(*)")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        p = pedido[0]
+
+        # Generar URL de tracking según paquetería
+        pak = paqueteria.lower()
+        if "fedex" in pak:
+            tracking_url = f"https://www.fedex.com/fedextrack/?trknbr={numero_guia}"
+        elif "estafeta" in pak:
+            tracking_url = f"https://www.estafeta.com/herramientas/rastreo?wayBillType=1&wayBill={numero_guia}"
+        elif "dhl" in pak:
+            tracking_url = f"https://www.dhl.com/mx-es/home/rastreo.html?tracking-id={numero_guia}"
+        else:
+            tracking_url = datos.get("tracking_url", "")
+
+        import datetime as _dt
+        supabase_patch(f"pedidos?id=eq.{id}", {
+            "status": "enviado",
+            "paqueteria": paqueteria,
+            "numero_guia": numero_guia,
+            "tracking_url": tracking_url,
+            "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()
+        })
+
+        # Email de tracking al cliente
+        email_cliente = p.get("email_cliente", "")
+        if email_cliente:
+            try:
+                from email_utils import enviar_email, email_envio_realizado
+                subj, html = email_envio_realizado(p, paqueteria, numero_guia, tracking_url)
+                enviar_email(email_cliente, subj, html)
+            except Exception as e:
+                print(f"[pedidos] Error email tracking: {e}")
+
+        return {"ok": True, "tracking_url": tracking_url}
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @router.post("/{id}/cancelar")
 def cancelar_pedido(id: str):

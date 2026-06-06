@@ -109,7 +109,7 @@ def _base_html(contenido: str) -> str:
     </div>"""
 
 
-def email_pedido_confirmado(pedido: dict) -> tuple[str, str]:
+def email_pedido_confirmado(pedido: dict):
     """Retorna (subject, html) para email de pago confirmado al cliente."""
     nombre   = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
     total    = float(pedido.get("total") or 0)
@@ -179,7 +179,7 @@ def email_pedido_confirmado(pedido: dict) -> tuple[str, str]:
     return subject, _base_html(contenido)
 
 
-def email_pedido_pendiente_spei(pedido: dict) -> tuple[str, str]:
+def email_pedido_pendiente_spei(pedido: dict):
     """Retorna (subject, html) para email de SPEI pendiente al cliente."""
     nombre    = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
     total     = float(pedido.get("total") or 0)
@@ -224,7 +224,66 @@ def email_pedido_pendiente_spei(pedido: dict) -> tuple[str, str]:
     return subject, _base_html(contenido)
 
 
-def email_nuevo_pedido_negocio(pedido: dict) -> tuple[str, str]:
+def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, tracking_url: str):
+    """Retorna (subject, html) para notificar al cliente que su pedido fue enviado."""
+    nombre    = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
+    pedido_id = str(pedido.get("id") or "")[:8].upper()
+    total     = float(pedido.get("total") or 0)
+    direccion = pedido.get("direccion_envio") or "—"
+
+    logo_paqueteria = {"fedex": "📦 FedEx", "estafeta": "📦 Estafeta", "dhl": "📦 DHL"}.get(
+        paqueteria.lower(), f"📦 {paqueteria}"
+    )
+
+    contenido = f"""
+      <h2 style="color:#2A1A0E;font-size:1.3rem;margin-bottom:4px">¡Tu pedido va en camino, {nombre}! 🚚</h2>
+      <p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:24px">
+        Ya enviamos tu paquete. Puedes rastrear tu envío en cualquier momento con el botón de abajo.
+      </p>
+
+      <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:18px 20px;margin-bottom:20px">
+        <p style="font-size:0.7rem;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 0 8px">
+          {logo_paqueteria}
+        </p>
+        <p style="font-size:0.75rem;color:#555;margin:0 0 4px">Número de guía</p>
+        <p style="font-size:1.2rem;font-weight:700;color:#2A1A0E;font-family:monospace;margin:0 0 14px;letter-spacing:2px">
+          {numero_guia}
+        </p>
+        <a href="{tracking_url}"
+           style="display:inline-block;background:#2e7d32;color:#fff;padding:11px 24px;
+                  border-radius:50px;text-decoration:none;font-weight:700;font-size:0.88rem">
+          Rastrear mi paquete →
+        </a>
+      </div>
+
+      <div style="background:#fdf8f5;border-radius:10px;padding:14px 20px;margin-bottom:20px">
+        <table style="width:100%;font-size:0.85rem">
+          <tr>
+            <td style="color:#aaa;padding:3px 0;width:120px">Pedido</td>
+            <td style="font-family:monospace;font-weight:700">#{pedido_id}</td>
+          </tr>
+          <tr>
+            <td style="color:#aaa;padding:3px 0">Total pagado</td>
+            <td style="font-weight:700;color:#b5687a">${total:,.0f} MXN</td>
+          </tr>
+          <tr>
+            <td style="color:#aaa;padding:3px 0;vertical-align:top">Dirección</td>
+            <td style="line-height:1.5">{direccion}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="color:#888;font-size:0.83rem;text-align:center;line-height:1.6">
+        ¿Algo no está bien con tu pedido?<br>
+        <a href="https://wa.me/5214792244560?text=Hola%2C+tengo+una+pregunta+sobre+mi+pedido+%23{pedido_id}"
+           style="color:#c8967a;font-weight:700">Escríbenos por WhatsApp →</a>
+      </p>"""
+
+    subject = f"🚚 Tu pedido #{pedido_id} ya fue enviado — Zapatillas May"
+    return subject, _base_html(contenido)
+
+
+def email_nuevo_pedido_negocio(pedido: dict):
     """Retorna (subject, html) para notificar al negocio de un pedido pagado."""
     pedido_id = str(pedido.get("id") or "")[:8].upper()
     nombre    = pedido.get("nombre_cliente") or "—"

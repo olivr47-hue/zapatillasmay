@@ -164,19 +164,71 @@ def reporte_financiero(sucursal_id: str):
         from datetime import datetime, timedelta
         hoy = date.today()
         hace30 = (hoy - timedelta(days=30)).isoformat()
-        
-        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace30}")
-        gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
-        
+
+        # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días
+        pedidos_sucursal = supabase_get(
+            f"pedidos?sucursal_id=eq.{sucursal_id}"
+            f"&status=in.(confirmado,pagado,entregado,enviado)&created_at=gte.{hace30}"
+            f"&select=id,total"
+        ) or []
+        pedidos_online = supabase_get(
+            f"pedidos?sucursal_id=is.null"
+            f"&status=in.(pagado,enviado)&created_at=gte.{hace30}"
+            f"&select=id,total"
+        ) or []
+        pedidos = pedidos_sucursal + pedidos_online
+
+        gastos = supabase_get(
+            f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00"
+        ) or []
+
         total_ventas = sum(float(p['total'] or 0) for p in pedidos)
         total_gastos = sum(float(g['monto'] or 0) for g in gastos)
-        utilidad = total_ventas - total_gastos
-        
+
+        # Costo de mercancía vendida (CMV): precio de costo × cantidad de cada ítem vendido
+        ids_pedidos = [p['id'] for p in pedidos]
+        cmv = 0.0
+        if ids_pedidos:
+            # 1. Traer todos los items de los pedidos
+            ids_str = ','.join(ids_pedidos)
+            items = supabase_get(
+                f"pedido_items?pedido_id=in.({ids_str})&select=cantidad,variante_id"
+            ) or []
+
+            # 2. Obtener variante_ids únicos con cantidad total vendida
+            variante_cantidades = {}
+            for item in items:
+                vid = item.get('variante_id')
+                if vid:
+                    variante_cantidades[vid] = variante_cantidades.get(vid, 0) + int(item.get('cantidad') or 0)
+
+            # 3. Por cada variante, buscar el costo del producto
+            for variante_id, cantidad in variante_cantidades.items():
+                try:
+                    v = supabase_get(f"variantes?id=eq.{variante_id}&select=producto_id")
+                    if not v:
+                        continue
+                    producto_id = v[0].get('producto_id')
+                    if not producto_id:
+                        continue
+                    prod = supabase_get(f"productos?id=eq.{producto_id}&select=costo")
+                    if not prod:
+                        continue
+                    costo = float(prod[0].get('costo') or 0)
+                    cmv += costo * cantidad
+                except Exception:
+                    pass
+
+        utilidad_bruta = total_ventas - cmv
+        utilidad_neta  = utilidad_bruta - total_gastos
+
         return {
-            "total_ventas": total_ventas,
-            "total_gastos": total_gastos,
-            "utilidad": utilidad,
-            "num_pedidos": len(pedidos),
+            "total_ventas":    total_ventas,
+            "total_gastos":    total_gastos,
+            "cmv":             cmv,
+            "utilidad_bruta":  utilidad_bruta,
+            "utilidad":        utilidad_neta,   # neta (ventas - costo - gastos)
+            "num_pedidos":     len(pedidos),
             "ticket_promedio": total_ventas / len(pedidos) if pedidos else 0
         }
     except Exception as e:
