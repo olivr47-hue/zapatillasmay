@@ -604,7 +604,7 @@ function renderTallas(color, varsProd) {
   const tallas = [...new Set(vars.map(v => v.talla).filter(Boolean))].sort((a,b) => parseFloat(a)-parseFloat(b))
   grid.innerHTML = tallas.map(t => {
     const v = vars.find(vv => vv.talla === t)
-    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 1) : 0
+    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
     const agotada = stock <= 0
     return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}</button>`
   }).join('')
@@ -673,7 +673,7 @@ function actualizarCTA() {
     btn.classList.remove('listo')
   } else {
     const v = varsProd.find(vv => vv.color === colorSeleccionado && vv.talla === tallaSeleccionada)
-    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 1) : 0
+    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
     if (stock <= 0) {
       btn.textContent = 'Agotado'
       btn.disabled = true
