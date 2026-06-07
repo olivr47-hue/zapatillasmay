@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_patch, supabase_post
+from cache import cache_get, cache_set, TTL_PUBLICO
 import mercadopago
 import os
 import hashlib
@@ -209,6 +210,103 @@ def _confirmar_pago_whatsapp(pedido: dict):
         pass
 
 
+def _precio_piso_producto(producto_id):
+    """
+    Devuelve el precio MÁS BAJO legítimo del catálogo para un producto
+    (el menor entre menudeo/mayoreo/corrida). Sirve como piso anti-fraude:
+    nadie debería pagar menos que el precio más barato real del producto.
+    Devuelve None si no se puede determinar (en ese caso NO se aplica clamp).
+    """
+    if not producto_id:
+        return None
+    ck = f"piso_{producto_id}"
+    cached = cache_get(ck)
+    if cached is not None:
+        return cached
+    try:
+        prod = supabase_get(
+            f"productos?id=eq.{producto_id}"
+            "&select=precio_menudeo,precio_mayoreo,precio_mayoreo3,precio_mayoreo6,precio_corrida"
+        )
+        if not prod:
+            return None
+        p = prod[0]
+        precios = []
+        for k in ("precio_menudeo", "precio_mayoreo", "precio_mayoreo3", "precio_mayoreo6", "precio_corrida"):
+            v = p.get(k)
+            if v is not None:
+                try:
+                    fv = float(v)
+                    if fv > 0:
+                        precios.append(fv)
+                except (TypeError, ValueError):
+                    pass
+        piso = min(precios) if precios else None
+        if piso is not None:
+            cache_set(ck, piso, TTL_PUBLICO)
+        return piso
+    except Exception:
+        return None
+
+
+def _construir_items_validados(pedido_id, items_cliente):
+    """
+    Construye la lista de ítems para Mercado Pago usando los precios REALES
+    del pedido guardado en la BD, validados contra el catálogo. Si un precio
+    viene por debajo del piso legítimo (manipulación), lo corrige al piso.
+
+    A prueba de fallos: si algo no se puede leer/validar, devuelve None para
+    que el llamador use el comportamiento original (nunca rompe el checkout).
+    """
+    try:
+        db_items = supabase_get(
+            f"pedido_items?pedido_id=eq.{pedido_id}"
+            "&select=cantidad,precio_unitario,variante_id,variantes(producto_id,productos(nombre))"
+        )
+        if not db_items:
+            return None
+
+        construidos = []
+        for it in db_items:
+            cant = int(it.get("cantidad", 1) or 1)
+            precio = float(it.get("precio_unitario", 0) or 0)
+            var = it.get("variantes") or {}
+            prod_id = var.get("producto_id") if isinstance(var, dict) else None
+            piso = _precio_piso_producto(prod_id)
+            if piso and precio < piso:
+                print(f"[seguridad] Precio bajo el piso en pedido {pedido_id}: ${precio} < ${piso}. Corregido a ${piso}.")
+                precio = piso
+            nombre = "Producto"
+            prod = var.get("productos") if isinstance(var, dict) else None
+            if isinstance(prod, dict) and prod.get("nombre"):
+                nombre = str(prod["nombre"]).strip() or "Producto"
+            construidos.append({
+                "title": nombre[:255],
+                "quantity": cant,
+                "unit_price": precio,
+                "currency_id": "MXN",
+            })
+
+        # Envío: tomar lo que mandó el cliente (no es vector de fraude), acotado.
+        for it in (items_cliente or []):
+            nom = (it.get("nombre") or "").lower()
+            if "env" in nom:
+                envio = float(it.get("precio", 0) or 0)
+                if 0 < envio <= 1000:
+                    construidos.append({
+                        "title": "Envío a domicilio",
+                        "quantity": 1,
+                        "unit_price": envio,
+                        "currency_id": "MXN",
+                    })
+                break
+
+        return construidos or None
+    except Exception as e:
+        print(f"[crear_preferencia] No se pudieron validar precios desde BD ({e}); uso items del cliente.")
+        return None
+
+
 @router.post("/crear-preferencia")
 def crear_preferencia(datos: dict):
     try:
@@ -219,8 +317,11 @@ def crear_preferencia(datos: dict):
         webhook_url = os.getenv("MP_WEBHOOK_URL", "")
         frontend_url = os.getenv("FRONTEND_URL", "https://zapatillasmay.mx")
 
-        preference_data = {
-            "items": [
+        # Precios validados contra el catálogo (anti-manipulación de precio).
+        # Si no se puede validar, se usan los items del cliente (igual que antes).
+        mp_items = _construir_items_validados(pedido_id, items)
+        if not mp_items:
+            mp_items = [
                 {
                     "title": item.get("nombre", "Producto")[:255],
                     "quantity": int(item.get("cantidad", 1)),
@@ -228,7 +329,10 @@ def crear_preferencia(datos: dict):
                     "currency_id": "MXN"
                 }
                 for item in items
-            ],
+            ]
+
+        preference_data = {
+            "items": mp_items,
             "payer": {
                 "name": cliente.get("nombre", ""),
                 "email": cliente.get("email", "cliente@zapatillasmay.mx")
