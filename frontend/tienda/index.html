@@ -96,12 +96,22 @@
   --transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+    *, *::before, *::after {
+  box-sizing: border-box;
+}
+    html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
     body {
   font-family: var(--font-body);
   background: var(--white);
   color: var(--black);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  max-width: 100%;
+  position: relative;
 }
 
     /* HEADER */
@@ -476,13 +486,13 @@
     }
 
     @media (max-width: 768px) {
-      .cro-trust-strip { padding: 20px 16px; }
-      .cro-trust-inner { gap: 16px; }
+      .cro-trust-strip { padding: 20px 16px; overflow-x: hidden; width: 100%; box-sizing: border-box; }
+      .cro-trust-inner { gap: 16px; flex-direction: column; align-items: stretch; width: 100%; box-sizing: border-box; }
       .cro-divider { display: none; }
       .cro-social-proof { width: 100%; justify-content: center; border-bottom: 1px solid var(--cream-dark); padding-bottom: 16px; }
-      .cro-mayoreo-tiers { justify-content: center; gap: 8px; }
-      .cro-tier { padding: 6px 10px; }
-      .cro-garantias { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
+      .cro-mayoreo-tiers { justify-content: center; gap: 8px; flex-wrap: wrap; width: 100%; }
+      .cro-tier { padding: 6px 10px; flex-shrink: 0; max-width: 100%; box-sizing: border-box; }
+      .cro-garantias { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px 16px; width: 100%; }
     }
 
     /* CATEGORIAS */
@@ -2947,7 +2957,7 @@
 </div>
 
 <!-- TESTIMONIOS -->
-<div class="section" id="testimonios-section" style="background:var(--cream);padding:60px 40px">
+<div class="section" id="testimonios-section" style="background:var(--cream);padding:clamp(32px,6vw,60px) clamp(16px,5vw,40px)">
   <div class="section-header" style="text-align:center;margin-bottom:2rem">
     <h2 class="section-title">Lo que dicen <em>nuestras clientas</em></h2>
   </div>
@@ -4731,6 +4741,12 @@ if (window.ttq) ttq.track('AddToCart', {
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   const _fb0 = document.getElementById('filtros-bar'); if (_fb0) _fb0.classList.remove('visible')
   document.documentElement.classList.remove('ruta-categoria')
+  // Restaurar strip mayoreo al volver al home
+  const _strip = document.querySelector('.cro-trust-strip'); if (_strip) _strip.style.display = ''
+  // Restaurar título SEO del home
+  document.title = 'Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato'
+  const _md = document.querySelector('meta[name="description"]')
+  if (_md) _md.setAttribute('content', 'Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.')
   renderProductos(productos.filter(p => p.activo))
   window.scrollTo({ top: 0, behavior: 'smooth' })
   history.replaceState({}, '', '/')
@@ -4802,6 +4818,30 @@ function _precioDe(p) {
   return p.es_oferta ? parseFloat(p.precio_menudeo||0) : (parseFloat(p.precio_menudeo||0) + 80)
 }
 
+// Títulos SEO por categoría
+const _SEO_TITLES = {
+  tacones:     'Tacones Mayoreo León Guanajuato | Zapatillas May',
+  sandalias:   'Sandalias Mayoreo para Dama | Zapatillas May — León, Gto.',
+  botas:       'Botas para Dama Mayoreo | Zapatillas May — León, Guanajuato',
+  botines:     'Botines Mayoreo Moda Dama | Zapatillas May — León, Gto.',
+  flats:       'Flats y Zapatos Bajos Mayoreo | Zapatillas May',
+  plataformas: 'Plataformas Mayoreo León Guanajuato | Zapatillas May',
+  tenis:       'Tenis para Dama Mayoreo | Zapatillas May — León, Gto.',
+  nina:        'Calzado para Niña Mayoreo | Zapatillas May — León, Guanajuato',
+  accesorios:  'Accesorios de Moda Mayoreo | Zapatillas May',
+}
+const _SEO_DESCRIPTIONS = {
+  tacones:     'Tacones de moda para dama al mayoreo desde 3 pares. Directo de fábrica en León, Guanajuato. Sin registro, sin mínimo especial. Envíos a todo México.',
+  sandalias:   'Sandalias de moda al mayoreo desde 3 pares. Nuevos modelos cada semana. Directo del fabricante en León, Guanajuato. Envíos a todo México.',
+  botas:       'Botas para dama al mayoreo directo de León, Guanajuato. Modelos actuales, precio por volumen automático. Envíos a toda la República.',
+  botines:     'Botines de moda mayoreo sin registro. Directo del fabricante en León, Guanajuato. 3+ pares: precio mayoreo automático. Envíos a todo México.',
+  flats:       'Flats y zapatos bajos para dama al mayoreo. Nuevos estilos cada semana desde León, Guanajuato. Sin mínimo especial. Envíos a todo México.',
+  plataformas: 'Plataformas de moda para dama al mayoreo. Directo de fábrica en León, Guanajuato. Precio por volumen automático. Envíos a toda la República.',
+  tenis:       'Tenis para dama al mayoreo desde León, Guanajuato. Modelos actuales sin registro ni mínimo. Envíos a todo México.',
+  nina:        'Calzado para niña al mayoreo directo del fabricante en León, Guanajuato. Sin registro, precio automático por volumen. Envíos a todo México.',
+  accesorios:  'Accesorios de moda al mayoreo. Bolsas, cinturones y más desde León, Guanajuato. Sin mínimo especial. Envíos a todo México.',
+}
+
 function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   document.documentElement.classList.remove('ruta-interna')
   document.documentElement.classList.add('ruta-categoria')
@@ -4809,6 +4849,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   const hero = document.getElementById('hero-section'); if (hero) hero.style.display='none'
   const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
   const banner = document.querySelector('.banner-mayoreo'); if (banner) banner.style.display='none'
+  const strip = document.querySelector('.cro-trust-strip'); if (strip) strip.style.display='none'
   document.getElementById('productos-section').style.display=''
   _filtroBase = baseLista
   _filtros = { categoria: catPreset || '', tallas: [], colores: [], precioRango: null }
@@ -4819,6 +4860,24 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   aplicarFiltros()
   window.scrollTo({ top: 0, behavior: 'smooth' })
   if (urlPath) history.pushState({}, '', urlPath)
+
+  // ── SEO dinámico por categoría ──────────────────────────────────────────
+  const _cat = catPreset?.toLowerCase() || ''
+  if (_SEO_TITLES[_cat]) {
+    document.title = _SEO_TITLES[_cat]
+    let _metaDesc = document.querySelector('meta[name="description"]')
+    if (_metaDesc) _metaDesc.setAttribute('content', _SEO_DESCRIPTIONS[_cat] || '')
+  } else if (urlPath === '/ofertas') {
+    document.title = 'Ofertas de Calzado para Dama | Zapatillas May — León, Guanajuato'
+    let _metaDesc = document.querySelector('meta[name="description"]')
+    if (_metaDesc) _metaDesc.setAttribute('content', 'Zapatos de moda para dama en oferta. Directo del fabricante en León, Guanajuato. Mayoreo y menudeo sin registro. Envíos a todo México.')
+  } else if (urlPath === '/catalogo') {
+    document.title = 'Catálogo Completo Calzado Mayoreo | Zapatillas May — León, Gto.'
+    let _metaDesc = document.querySelector('meta[name="description"]')
+    if (_metaDesc) _metaDesc.setAttribute('content', 'Todo el catálogo de calzado femenino de moda al mayoreo. Directo del fabricante en León, Guanajuato. Sin registro, precio automático por volumen.')
+  } else {
+    document.title = 'Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato'
+  }
 }
 
 function _construirChipsFiltro() {
