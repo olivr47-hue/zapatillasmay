@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta name="facebook-domain-verification" content="gqlzwwupwb78hyzm4cbjboo43041zj" />
   <meta charset="UTF-8">
+  <meta name="facebook-domain-verification" content="gqlzwwupwb78hyzm4cbjboo43041zj" />
   <!-- Google Consent Mode v2 — defaults ANTES de cualquier tag -->
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -26,12 +26,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato</title>
   <link rel="canonical" href="https://zapatillasmay.mx/">
-  <meta name="description" content="Calzado femenino de moda fabricado en León, Guanajuato. Mayoreo automático desde 3 pares sin registro especial. Tacones, sandalias, botas y botines. Envíos a todo México.">
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <meta name="description" content="Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.">
   <meta name="keywords" content="zapatillas mayoreo, calzado León Guanajuato, zapatos moda dama, mayoreo calzado sin mínimo, tacones mayoreo México, sandalias mayoreo, calzado femenino mayoreo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 1000; background: #2A1A0E; color: #fff; padding: 10px 16px; border-radius: 0 0 8px 0; text-decoration: none; font-size: 0.85rem; }
+    .skip-link:focus { left: 0; }
     @keyframes bannerSlide {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -2374,6 +2377,7 @@
   </script>
 </head>
 <body>
+<a href="#productos-section" class="skip-link">Saltar al contenido</a>
 
 <!-- ═══ SPLASH / PANTALLA DE BIENVENIDA ═══ -->
 <div id="zm-splash">
@@ -2381,7 +2385,7 @@
     <div class="zm-splash-shoe">
       <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" alt="" onerror="this.style.display='none'">
     </div>
-    <h1 class="zm-splash-logo">Zapatillas <span>May</span></h1>
+    <div class="zm-splash-logo">Zapatillas <span>May</span></div>
     <div class="zm-splash-bar"><span></span></div>
   </div>
 </div>
@@ -2473,15 +2477,15 @@
     </ul>
     <div class="header-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" placeholder="Buscar modelos..." id="search-input" oninput="buscarProductos(this.value)" autocomplete="off">
+      <input type="text" placeholder="Buscar modelos..." id="search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" autocomplete="off">
       <div class="search-results" id="search-results"></div>
     </div>
     <div class="header-actions">
-  <a class="btn-icon" href="/carrito" title="Carrito" style="text-decoration:none">
+  <a class="btn-icon" href="/carrito" title="Carrito" aria-label="Carrito" style="text-decoration:none">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
     <span class="cart-badge" id="cart-count" style="display:none">0</span>
   </a>
-  <button class="btn-icon" onclick="abrirLogin()" title="Mi cuenta" id="btn-cuenta">
+  <button class="btn-icon" onclick="abrirLogin()" title="Mi cuenta" aria-label="Mi cuenta" id="btn-cuenta">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
   </button>
   <button class="btn-icon btn-hamburger" onclick="toggleMenu()" title="Menu" id="btn-hamburger" aria-label="Abrir menu">
@@ -2529,14 +2533,14 @@
 
     <!-- Redes y WhatsApp -->
     <div style="padding:12px 12px 200px">
-      <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;background:#25D366;color:white;text-decoration:none;font-weight:600;font-size:0.88rem;margin-bottom:10px">
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;background:#25D366;color:white;text-decoration:none;font-weight:600;font-size:0.88rem;margin-bottom:10px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.526 5.845L.057 23.448l5.787-1.517A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.006-1.37l-.36-.214-3.733.979 1.001-3.638-.235-.374A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182S21.818 6.58 21.818 12 17.42 21.818 12 21.818z"/></svg>
         WhatsApp
       </a>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <a href="https://www.instagram.com/zapatillas_may" target="_blank" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">📸 IG</a>
-        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">👍 FB</a>
-        <a href="https://tiktok.com/@zapatillasmay" target="_blank" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">🎵 TT</a>
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">📸 IG</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">👍 FB</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" style="text-align:center;padding:10px 4px;border-radius:10px;background:#f8f8f8;color:#333;text-decoration:none;font-size:0.78rem;font-weight:600">🎵 TT</a>
       </div>
     </div>
 
@@ -2548,7 +2552,7 @@
 <div class="mobile-search-bar" id="mobile-search-bar">
   <div class="msb-inner">
     <svg class="msb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="text" placeholder="Buscar modelos..." id="mobile-search-input" oninput="buscarProductos(this.value)" autocomplete="off" inputmode="search">
+    <input type="text" placeholder="Buscar modelos..." id="mobile-search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" autocomplete="off" inputmode="search">
     <div class="search-results" id="mobile-search-results" style="max-height:55vh"></div>
   </div>
 </div>
@@ -2646,7 +2650,7 @@
 </div>
 
 <!-- PRODUCTOS -->
-<div class="section" id="productos-section">
+<div class="section" id="productos-section" role="main">
   <div class="section-header">
     <h2 class="section-title" id="productos-titulo">Nuevos <em>modelos</em></h2>
     <a href="#" class="section-link" onclick="mostrarTodos()">Ver todos →</a>
@@ -2661,7 +2665,7 @@
         <span class="fb-count" id="fb-count" style="display:none">0</span>
       </button>
       <span class="filtros-resultado" id="filtros-resultado"></span>
-      <select class="filtros-orden" id="filtros-orden" onchange="aplicarFiltros()">
+      <select class="filtros-orden" id="filtros-orden" aria-label="Ordenar productos" onchange="aplicarFiltros()">
         <option value="relevancia">Relevancia</option>
         <option value="precio-asc">Precio: menor a mayor</option>
         <option value="precio-desc">Precio: mayor a menor</option>
@@ -2751,7 +2755,7 @@
       <p style="font-size:0.78rem;font-weight:600;color:#888">— Fernanda L. · Monterrey</p>
     </div>
   </div>
-  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#aaa">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" style="color:var(--pink);font-weight:600;text-decoration:none">Déjanos tu reseña por WhatsApp →</a></p>
+  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#aaa">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" rel="noopener" style="color:var(--pink);font-weight:600;text-decoration:none">Déjanos tu reseña por WhatsApp →</a></p>
 </div>
 
 <!-- POPUP CAPTURA DE EMAIL -->
@@ -2764,8 +2768,8 @@
       <p style="font-size:0.85rem;opacity:0.9">Recibe cada semana los modelos nuevos y accede a ofertas exclusivas antes que nadie.</p>
     </div>
     <div style="padding:24px 28px 28px">
-      <input id="zm-popup-email" type="email" placeholder="Tu correo electrónico" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:10px">
-      <input id="zm-popup-nombre" type="text" placeholder="Tu nombre (opcional)" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:14px">
+      <input id="zm-popup-email" type="email" aria-label="Correo electrónico" autocomplete="email" placeholder="Tu correo electrónico" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:10px">
+      <input id="zm-popup-nombre" type="text" aria-label="Tu nombre" autocomplete="name" placeholder="Tu nombre (opcional)" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:14px">
       <button onclick="zmSuscribir()" style="width:100%;padding:13px;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer">Quiero recibir los nuevos modelos →</button>
       <p style="text-align:center;font-size:0.72rem;color:#bbb;margin-top:10px">Sin spam. Solo modelos nuevos y ofertas. Cancela cuando quieras.</p>
     </div>
@@ -2888,7 +2892,7 @@
 <div class="cart-drawer" id="cart-drawer">
   <div class="cart-header">
     <h3>Tu carrito</h3>
-    <button class="btn-icon" onclick="cerrarCarrito()">
+    <button class="btn-icon" onclick="cerrarCarrito()" aria-label="Cerrar carrito">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
@@ -2957,7 +2961,7 @@
       </div>
       <div style="margin-bottom:16px">
         <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
-        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
+        <select id="reg-tipo" aria-label="Tipo de cuenta" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
           <option value="menudeo">Menudeo y mayoreo variado</option>
           <option value="zapateria">Zapateria (corrida completa)</option>
         </select>
@@ -3011,10 +3015,10 @@
         <a class="footer-logo" href="#" onclick="mostrarInicio()">Zapatillas <span>May</span></a>
         <p>Hecho en León, Guanajuato — la capital mundial del calzado. Mayoreo y menudeo sin mínimo de registro. Enviamos a todo México, Estados Unidos y Canadá.</p>
         <div class="footer-social">
-          <a href="https://wa.me/5214792244560" target="_blank" title="WhatsApp">WA</a>
-          <a href="https://www.instagram.com/zapatillas_may" target="_blank" title="Instagram">IG</a>
-          <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" title="Facebook">FB</a>
-          <a href="https://tiktok.com/@zapatillasmay" target="_blank" title="TikTok">TT</a>
+          <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" title="WhatsApp">WA</a>
+          <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" title="Instagram">IG</a>
+          <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" title="Facebook">FB</a>
+          <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" title="TikTok">TT</a>
         </div>
       </div>
 
@@ -5434,7 +5438,7 @@ const PAGINAS = {
       </div>
     </div>
     <div style="text-align:center;padding-bottom:16px">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contáctanos por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Contáctanos por WhatsApp</a>
     </div>
   </div>
 `,
@@ -5509,7 +5513,7 @@ const PAGINAS = {
     </div>
 
     <div style="text-align:center">
-      <a href="https://wa.me/5214792244560" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:#25D366;color:white;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.85rem">💬 Contactar por WhatsApp</a>
     </div>
   </div>
 `,
@@ -5520,7 +5524,7 @@ const PAGINAS = {
     <p class="pg-hero-sub">Escríbenos por WhatsApp o visítanos en León, Guanajuato.</p>
   </div>
   <div class="pg-body">
-    <a href="https://wa.me/5214792244560" target="_blank" style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#25D366;border-radius:16px;text-decoration:none;margin-bottom:14px;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 4px 16px rgba(37,211,102,0.25)">
+    <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:16px;padding:20px 24px;background:#25D366;border-radius:16px;text-decoration:none;margin-bottom:14px;transition:transform 0.2s,box-shadow 0.2s;box-shadow:0 4px 16px rgba(37,211,102,0.25)">
       <div style="background:rgba(255,255,255,0.2);border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.4rem">💬</div>
       <div><p style="font-weight:700;color:white;font-size:1rem;margin-bottom:2px">WhatsApp</p><p style="font-size:0.82rem;color:rgba(255,255,255,0.85)">479 2244560 · Respuesta rápida</p></div>
       <span style="margin-left:auto;color:white;font-size:1.3rem">→</span>
@@ -5548,9 +5552,9 @@ const PAGINAS = {
     <div style="text-align:center;padding:8px 0 16px">
       <p class="pg-p" style="margin-bottom:12px">Síguenos en redes sociales</p>
       <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
-        <a href="https://www.instagram.com/zapatillas_may" target="_blank" class="pg-badge" style="text-decoration:none">Instagram</a>
-        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" class="pg-badge" style="text-decoration:none">Facebook</a>
-        <a href="https://tiktok.com/@zapatillasmay" target="_blank" class="pg-badge" style="text-decoration:none">TikTok</a>
+        <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" class="pg-badge" style="text-decoration:none">Instagram</a>
+        <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" class="pg-badge" style="text-decoration:none">Facebook</a>
+        <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" class="pg-badge" style="text-decoration:none">TikTok</a>
       </div>
     </div>
   </div>
@@ -5580,7 +5584,7 @@ const PAGINAS = {
       `).join('')}
     </div>
     <div style="text-align:center;padding-bottom:16px">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Contactar por WhatsApp</a>
     </div>
   </div>
   `,
@@ -5681,7 +5685,7 @@ const PAGINAS = {
     </div>
 
     <div style="text-align:center;padding:8px 0 16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 WhatsApp</a>
       <button onclick="mostrarInicio()" class="pg-cta" style="background:linear-gradient(135deg,#2A1A0E,#4a2c1a)">👠 Ver catálogo</button>
     </div>
   </div>
@@ -5709,7 +5713,7 @@ const PAGINAS = {
       <p class="pg-p">Una vez validado el producto, el reembolso se procesa en <strong>4 días hábiles</strong>.</p>
     </div>
     <div style="text-align:center;padding-bottom:16px">
-      <a href="https://wa.me/524772472285" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
+      <a href="https://wa.me/524772472285" target="_blank" rel="noopener" class="pg-cta">💬 Contactar por WhatsApp</a>
     </div>
   </div>
   `,
@@ -5739,7 +5743,7 @@ const PAGINAS = {
       <ul class="pg-list"><li>WhatsApp: +52 477 804 7982</li><li>León, Guanajuato, México</li></ul>
     </div>
     <div style="text-align:center;padding-bottom:16px">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Contactar por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Contactar por WhatsApp</a>
     </div>
   </div>
   `,
@@ -5757,7 +5761,7 @@ const PAGINAS = {
       <div class="pg-card" style="margin-bottom:0"><p class="pg-h3">💳 Formas de pago</p><p class="pg-p">Transferencia SPEI, Mercado Pago, tarjeta o efectivo en tienda.</p></div>
     </div>
     <div style="text-align:center;padding:8px 0 16px">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Cotizar envío por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Cotizar envío por WhatsApp</a>
     </div>
   </div>
   `,
@@ -5785,7 +5789,7 @@ const PAGINAS = {
       <p class="pg-p">Párate sobre una hoja de papel, marca el punto más largo de tu pie y mide esa distancia en centímetros. Busca ese número en la columna CM de la tabla.</p>
     </div>
     <div style="text-align:center;padding-bottom:16px">
-      <a href="https://wa.me/5214792244560" target="_blank" class="pg-cta">💬 Pregúntanos por WhatsApp</a>
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Pregúntanos por WhatsApp</a>
     </div>
   </div>
 `
@@ -5947,7 +5951,7 @@ window.addEventListener('scroll', () => {
 })();
 </script>
 <!-- WHATSAPP FLOTANTE -->
-<a id="whatsapp-flotante" href="https://wa.me/5214792244560" target="_blank"
+<a id="whatsapp-flotante" href="https://wa.me/5214792244560" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp"
    style="position:fixed;bottom:16px;right:16px;z-index:999;background:#25D366;color:white;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,0.15),0 0 0 1px rgba(37,211,102,0.2);text-decoration:none;transition:transform 0.2s,box-shadow 0.2s"
    onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 4px 18px rgba(0,0,0,0.18),0 0 0 2px rgba(37,211,102,0.3)'"
    onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 2px 10px rgba(0,0,0,0.15),0 0 0 1px rgba(37,211,102,0.2)'">
