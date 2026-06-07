@@ -360,6 +360,131 @@
   color: white;
 }
 
+    /* ── CRO: TRUST STRIP ── */
+    .cro-trust-strip {
+      background: var(--cream);
+      border-top: 1px solid var(--cream-dark);
+      border-bottom: 1px solid var(--cream-dark);
+      padding: 28px 40px;
+    }
+    .cro-trust-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .cro-social-proof {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .cro-sp-num {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      font-weight: 600;
+      color: var(--pink);
+      line-height: 1;
+    }
+    .cro-sp-label {
+      font-size: 0.75rem;
+      color: var(--gray-600);
+      line-height: 1.4;
+    }
+    .cro-divider {
+      width: 1px;
+      height: 48px;
+      background: var(--cream-dark);
+      flex-shrink: 0;
+    }
+    .cro-mayoreo-tiers {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .cro-tier {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: white;
+      border: 1px solid var(--cream-dark);
+    }
+    .cro-tier-highlight {
+      border-color: rgba(156,90,82,0.25);
+      background: rgba(200,150,122,0.06);
+    }
+    .cro-tier-best {
+      border-color: var(--pink);
+      background: rgba(156,90,82,0.08);
+    }
+    .cro-tier-icon { font-size: 1.2rem; }
+    .cro-tier-qty {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--black);
+    }
+    .cro-tier-label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--pink);
+      font-weight: 600;
+    }
+    .cro-garantias {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .cro-garantia {
+      font-size: 0.73rem;
+      color: var(--gray-600);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── CRO: BADGE STOCK BAJO ── */
+    .badge-stock {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(42,26,14,0.85);
+      color: #FBF7F3;
+      font-size: 0.58rem;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 100px;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* ── CRO: PRECIO MAYOREO EN CARD ── */
+    .price-mayoreo-hint {
+      font-size: 0.68rem;
+      color: var(--pink);
+      font-weight: 600;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    @media (max-width: 768px) {
+      .cro-trust-strip { padding: 20px 16px; }
+      .cro-trust-inner { gap: 16px; }
+      .cro-divider { display: none; }
+      .cro-social-proof { width: 100%; justify-content: center; border-bottom: 1px solid var(--cream-dark); padding-bottom: 16px; }
+      .cro-mayoreo-tiers { justify-content: center; gap: 8px; }
+      .cro-tier { padding: 6px 10px; }
+      .cro-garantias { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
+    }
+
     /* CATEGORIAS */
     .section { max-width: 1400px; margin: 0 auto; padding: 80px 40px; }
     /* En vista de categoría/catálogo (hero oculto) los productos quedan debajo del header fijo */
@@ -2661,12 +2786,12 @@
   </div>
 
   <div class="hero-content fade-in" id="hero-content">
-    <p class="hero-eyebrow">Nueva coleccion 2026</p>
-    <h1 class="hero-title">El estilo<br>que <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">te define</em></h1>
-    <p class="hero-subtitle">Calzado de moda para dama · León, Guanajuato · Mayoreo desde 3 pares</p>
+    <p class="hero-eyebrow">Directo del fabricante · León, Guanajuato</p>
+    <h1 class="hero-title">Modelos nuevos<br>cada <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">semana</em></h1>
+    <p class="hero-subtitle">Mayoreo automático desde 3 pares · Sin registro · Sin código · Envíos a todo México</p>
     <div class="hero-cta">
-      <button class="btn-primary" onclick="scrollToProductos()">Ver coleccion</button>
-      <button class="btn-outline" onclick="mostrarOfertas()">Ver ofertas</button>
+      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver colección nueva</button>
+      <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()">Ver ofertas</button>
     </div>
   </div>
 </section>
@@ -2679,6 +2804,53 @@
     else document.addEventListener('DOMContentLoaded', function(){ h.classList.add('loaded'); });
   })();
 </script>
+
+<!-- STRIP MAYOREO + PRUEBA SOCIAL -->
+<div class="cro-trust-strip">
+  <div class="cro-trust-inner">
+    <div class="cro-social-proof">
+      <span class="cro-sp-num" id="cro-pedidos">+2,400</span>
+      <span class="cro-sp-label">pedidos enviados<br>a toda la República</span>
+    </div>
+    <div class="cro-divider"></div>
+    <div class="cro-mayoreo-tiers">
+      <div class="cro-tier">
+        <span class="cro-tier-icon">👜</span>
+        <div>
+          <span class="cro-tier-qty">1–2 pares</span>
+          <span class="cro-tier-label">Precio menudeo</span>
+        </div>
+      </div>
+      <div class="cro-tier cro-tier-highlight">
+        <span class="cro-tier-icon">🛍️</span>
+        <div>
+          <span class="cro-tier-qty">3–5 pares</span>
+          <span class="cro-tier-label">-$80 por par</span>
+        </div>
+      </div>
+      <div class="cro-tier cro-tier-highlight">
+        <span class="cro-tier-icon">📦</span>
+        <div>
+          <span class="cro-tier-qty">6+ pares</span>
+          <span class="cro-tier-label">-$150 por par</span>
+        </div>
+      </div>
+      <div class="cro-tier cro-tier-best">
+        <span class="cro-tier-icon">🏭</span>
+        <div>
+          <span class="cro-tier-qty">Corrida completa</span>
+          <span class="cro-tier-label">-$180 por par</span>
+        </div>
+      </div>
+    </div>
+    <div class="cro-divider"></div>
+    <div class="cro-garantias">
+      <div class="cro-garantia"><span>✅</span> Sin registro especial</div>
+      <div class="cro-garantia"><span>✅</span> Sin código ni mínimo</div>
+      <div class="cro-garantia"><span>✅</span> El precio baja solo en el carrito</div>
+    </div>
+  </div>
+</div>
 
 <!-- CATEGORIAS -->
 <div class="section">
@@ -3569,6 +3741,23 @@ cargarConfigSEO()
   function _cardHTML(p) {
     const varsProd = variantes.filter(v => v.producto_id === p.id)
     const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+
+    // Stock bajo (urgencia)
+    const _stockTotal = varsProd.reduce((sum, v) => {
+      const inv = inventario.find(i => i.variante_id === v.id)
+      return sum + (inv ? (inv.cantidad || 0) : 0)
+    }, 0)
+    const _stockBajo = _stockTotal > 0 && _stockTotal <= 5
+
+    // Precio mayoreo + ahorro
+    // precio_menudeo en BD es el precio base; display menudeo = base+80
+    // mayoreo 3+ = base (sin el +80), salvo que precio_mayoreo3 esté explícito
+    const _precioMenu = p.precio_menudeo ? (p.es_oferta ? parseFloat(p.precio_menudeo) : parseFloat(p.precio_menudeo) + 80) : null
+    const _precioMay3 = p.precio_mayoreo3
+      ? parseFloat(p.precio_mayoreo3)
+      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) : null)
+    const _ahorro = _precioMay3 && _precioMenu ? Math.round(_precioMenu - _precioMay3) : 0
+
     return `
       <a class="product-card fade-in" href="/producto/${p.sku_interno||p.id}">
         <div class="product-img-wrap">
@@ -3577,6 +3766,7 @@ cargarConfigSEO()
             : `<div class="product-placeholder">👠</div>`}
           ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
+          ${_stockBajo ? `<span class="badge-stock">¡Últimos ${_stockTotal} pares!</span>` : ''}
           <div class="product-actions">
             <span class="btn-add-cart">Seleccionar talla</span>
           </div>
@@ -3590,8 +3780,8 @@ cargarConfigSEO()
         </div>
         <p class="product-name">${p.nombre}</p>
         <div class="product-prices">
-          ${p.precio_menudeo ? `<span class="price-main">$${p.es_oferta ? parseFloat(p.precio_menudeo).toLocaleString('es-MX') : (parseFloat(p.precio_menudeo)+80).toLocaleString('es-MX')} MXN</span>` : ''}
-          ${p.precio_mayoreo3 ? `<span class="price-mayoreo">Mayoreo 3+: <span>$${parseFloat(p.precio_mayoreo3).toLocaleString('es-MX')}</span></span>` : ''}
+          ${_precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
+          ${_precioMay3 ? `<div class="price-mayoreo-hint">🛍️ 3+ pares: $${_precioMay3.toLocaleString('es-MX')}${_ahorro > 0 ? ` <span style="opacity:.65;font-weight:400">(ahorra $${_ahorro})</span>` : ''}</div>` : ''}
         </div>
       </a>`
   }
