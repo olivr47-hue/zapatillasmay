@@ -2549,7 +2549,7 @@
 <div id="zm-splash">
   <div class="zm-splash-inner">
     <div class="zm-splash-shoe">
-      <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" alt="" onerror="this.style.display='none'">
+      <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" alt="Zapatillas May — Calzado de moda León Guanajuato" onerror="this.style.display='none'">
     </div>
     <div class="zm-splash-logo">Zapatillas <span>May</span></div>
     <div class="zm-splash-bar"><span></span></div>
@@ -2790,7 +2790,7 @@
         src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
         fetchpriority="high"
         onerror="this.parentElement.parentElement.style.display='none'"
-        alt="" draggable="false">
+        alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
       <div class="hero-shoe-shadow"></div>
     </div>
   </div>
@@ -4092,7 +4092,7 @@ if (window.ttq) ttq.track('ViewContent', {
           thumbRow.innerHTML = fotos.map((f, i) => `
             <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)"
               style="width:44px;height:44px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===idx?'#E91E8C':'#ddd'};transition:border 0.2s">
-              <img src="${f}" style="width:100%;height:100%;object-fit:cover">
+              <img src="${f}" alt="${color} — ${p.nombre}" style="width:100%;height:100%;object-fit:cover">
             </div>`).join('')
         } else {
           thumbRow.style.display = 'none'
@@ -4969,7 +4969,7 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
       const sub = pares * i.precio_unitario
       return `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1)">
-          ${i.imagen ? `<img src="${zmImg(i.imagen, 120)}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
+          ${i.imagen ? `<img src="${zmImg(i.imagen, 120)}" alt="${i.nombre}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
           <div style="flex:1;min-width:0">
             <p style="font-size:0.82rem;font-weight:600;color:#2A1A0E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.nombre}</p>
             <p style="font-size:0.7rem;color:#C4A38A;text-transform:uppercase;letter-spacing:0.4px">${i.color} · ${i.es_corrida?'Corrida':'Talla '+i.talla} · ${pares} ${pares>1?'pares':'par'}</p>
