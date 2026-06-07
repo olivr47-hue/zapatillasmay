@@ -46,6 +46,26 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Request-Id"],
 )
 
+_CSP = (
+    "default-src 'self' https: data: blob:; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+    "style-src 'self' 'unsafe-inline' https:; "
+    "img-src 'self' data: blob: https:; "
+    "font-src 'self' https: data:; "
+    "connect-src 'self' https:; "
+    "frame-src 'self' https:; "
+    "frame-ancestors 'self'; object-src 'none'; base-uri 'self'"
+)
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = _CSP
+    return response
+
 app.include_router(productos.router)
 app.include_router(sucursales.router)
 app.include_router(inventario.router)
