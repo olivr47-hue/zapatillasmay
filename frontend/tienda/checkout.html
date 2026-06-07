@@ -157,21 +157,21 @@
           <input type="checkbox" id="guardar-datos" checked style="width:16px;height:16px;accent-color:#b5687a;cursor:pointer">
           Guardar esta dirección en mi cuenta para la próxima
         </label>
-        <div class="field"><label>Nombre completo *</label><input id="co-nombre" placeholder="Tu nombre"></div>
-        <div class="field"><label>Email *</label><input id="co-email" type="email" placeholder="correo@ejemplo.com"></div>
-        <div class="field"><label>Teléfono / WhatsApp *</label><input id="co-telefono" type="tel" placeholder="477 123 4567"></div>
+        <div class="field"><label>Nombre completo *</label><input id="co-nombre" autocomplete="name" placeholder="Tu nombre"></div>
+        <div class="field"><label>Email *</label><input id="co-email" type="email" autocomplete="email" placeholder="correo@ejemplo.com"></div>
+        <div class="field"><label>Teléfono / WhatsApp *</label><input id="co-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="477 123 4567"></div>
       </div>
 
       <div class="card">
         <p class="card-title">Dirección de <em>envío</em></p>
-        <div class="field"><label>Calle y número *</label><input id="co-calle" placeholder="Av. Principal 123"></div>
+        <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
-          <div><label>Colonia *</label><input id="co-colonia" placeholder="Centro"></div>
-          <div><label>Código postal *</label><input id="co-cp" placeholder="37000"></div>
+          <div><label>Colonia *</label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro"></div>
+          <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
         </div>
         <div class="field field-row">
-          <div><label>Ciudad *</label><input id="co-ciudad" placeholder="León"></div>
-          <div><label>Estado *</label><input id="co-estado" placeholder="Guanajuato"></div>
+          <div><label>Ciudad *</label><input id="co-ciudad" autocomplete="address-level2" placeholder="León"></div>
+          <div><label>Estado *</label><input id="co-estado" autocomplete="address-level1" placeholder="Guanajuato"></div>
         </div>
         <div class="field"><label>Notas (opcional)</label><textarea id="co-notas" placeholder="Referencias, indicaciones de entrega..." rows="2"></textarea></div>
       </div>

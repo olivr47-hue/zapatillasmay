@@ -490,7 +490,7 @@ function renderProducto() {
   const imgPrincipal = p.imagen_principal || ''
   fotosActuales = imgPrincipal ? [imgPrincipal] : []
   imgMain.src = imgPrincipal
-  imgMain.alt = p.nombre
+  imgMain.alt = `${p.nombre} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()
   renderThumbs()
 
   // Info section
@@ -631,6 +631,7 @@ function seleccionarColor(color) {
     if (!fotosActuales.length && producto.imagen_principal) fotosActuales.push(producto.imagen_principal)
     const imgMain = document.getElementById('gallery-main')
     imgMain.src = fotosActuales[0] || ''
+    imgMain.alt = `${producto.nombre} ${color} ${producto.categoria || ''} — Zapatillas May`.replace(/\s+/g, ' ').trim()
     renderThumbs()
   }
 
@@ -651,7 +652,7 @@ function renderThumbs() {
   const row = document.getElementById('gallery-thumbs')
   if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
   row.style.display = 'flex'
-  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${url}" alt="foto ${i+1}" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
+  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${url}" alt="${(producto?.nombre||'Calzado')} ${producto?.categoria||''} — foto ${i+1}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
 }
 
 function cambiarFoto(idx) {
@@ -764,7 +765,7 @@ async function cargarSimilares() {
       const dest = p.sku_interno || p.slug
       if (!dest) return ''
       return `<a class="similar-card" href="/producto/${dest}">
-        <img src="${p.imagen_principal || ''}" alt="${p.nombre}" loading="lazy">
+        <img src="${p.imagen_principal || ''}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" loading="lazy">
         <p class="similar-card-name">${p.nombre}</p>
         <p class="similar-card-price">$${precio} MXN</p>
       </a>`
