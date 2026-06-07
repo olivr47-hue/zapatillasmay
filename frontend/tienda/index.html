@@ -3099,6 +3099,14 @@
 
 <script>
   const API = 'https://zapatillasmay-production.up.railway.app'
+  // Redimensiona/optimiza imágenes de Cloudinary al vuelo (WebP/AVIF + ancho objetivo).
+  // Evita servir el original 1536x2048 cuando se muestra a ~440px.
+  function zmImg(url, w){
+    if (!url || typeof url !== 'string') return url || ''
+    if (url.indexOf('/image/upload/') === -1) return url      // no es Cloudinary
+    if (url.indexOf('/upload/f_auto') !== -1 || url.indexOf(',f_auto') !== -1) return url // ya optimizada
+    return url.replace('/image/upload/', `/image/upload/w_${w},f_auto,q_auto/`)
+  }
   let productos = []
   let variantes = []
   let inventario = []
@@ -3565,7 +3573,7 @@ cargarConfigSEO()
       <a class="product-card fade-in" href="/producto/${p.sku_interno||p.id}">
         <div class="product-img-wrap">
           ${p.imagen_principal
-            ? `<img src="${p.imagen_principal}" alt="${p.nombre} ${p.categoria||''} de moda — Zapatillas May" width="600" height="800" loading="lazy">`
+            ? `<img src="${zmImg(p.imagen_principal, 600)}" alt="${p.nombre} ${p.categoria||''} de moda — Zapatillas May" width="600" height="800" loading="lazy">`
             : `<div class="product-placeholder">👠</div>`}
           ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
@@ -3728,7 +3736,7 @@ if (window.ttq) ttq.track('ViewContent', {
       imgWrap.innerHTML = `<div class="color-foto-grid">
         ${colorFotos.map(cf => `
           <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-            <img src="${cf.foto}" alt="${cf.color}" loading="lazy">
+            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy">
             <div class="color-foto-label">
               <span class="color-foto-dot" style="background:${cf.hex}"></span>
               ${cf.color}
@@ -3736,7 +3744,7 @@ if (window.ttq) ttq.track('ViewContent', {
           </div>`).join('')}
       </div>`
     } else if (p.imagen_principal) {
-      imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
+      imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
     } else {
       imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
     }
@@ -3867,7 +3875,7 @@ if (window.ttq) ttq.track('ViewContent', {
           <div style="position:relative"
                ontouchstart="event.stopPropagation();window._swipeStartX=event.touches[0].clientX"
                ontouchend="event.stopPropagation();if(Math.abs(event.changedTouches[0].clientX-window._swipeStartX)>40)window.cambiarFoto(event.changedTouches[0].clientX<window._swipeStartX?1:-1)">
-            <img src="${fotos[idx]}" alt="${color}"
+            <img src="${zmImg(fotos[idx], 800)}" alt="${color}"
               class="modal-foto-clickeable"
               onclick="abrirLightbox(window._fotosActuales, ${idx})"
               style="width:calc(100% - 24px);max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:10px;margin:12px auto 0;">
@@ -4144,7 +4152,7 @@ if (window.ttq) ttq.track('AddToCart', {
 
     container.innerHTML = carrito.map((item, idx) => `
       <div class="cart-item">
-        ${item.imagen ? `<img class="cart-item-img" src="${item.imagen}" alt="${item.nombre}">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
+        ${item.imagen ? `<img class="cart-item-img" src="${zmImg(item.imagen, 120)}" alt="${item.nombre}">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
         <div class="cart-item-info">
           <p class="cart-item-name">${item.nombre}</p>
           ${item.es_corrida
@@ -4296,11 +4304,11 @@ if (window.ttq) ttq.track('AddToCart', {
       if (colorFotos.length > 1) {
         imgWrap.innerHTML = `<div class="color-foto-grid">${colorFotos.map(cf => `
           <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-            <img src="${cf.foto}" alt="${cf.color}" loading="lazy">
+            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy">
             <div class="color-foto-label"><span class="color-foto-dot" style="background:${cf.hex}"></span>${cf.color}</div>
           </div>`).join('')}</div>`
       } else if (p.imagen_principal) {
-        imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${p.imagen_principal}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
+        imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
       } else {
         imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
       }
@@ -4485,7 +4493,7 @@ if (window.ttq) ttq.track('AddToCart', {
     if (!filtrados.length) { containers.forEach(c => c.classList.remove('show')); return }
     const html = filtrados.map(p => `
       <a class="search-result-item" href="/producto/${p.sku_interno||p.id}">
-        ${p.imagen_principal ? `<img class="search-result-img" src="${p.imagen_principal}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" width="48" height="48">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
+        ${p.imagen_principal ? `<img class="search-result-img" src="${zmImg(p.imagen_principal, 96)}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" width="48" height="48">` : `<div class="search-result-img" style="display:flex;align-items:center;justify-content:center;font-size:1.2rem">👠</div>`}
         <div class="search-result-info">
           <p class="name">${p.nombre}</p>
           <p class="price">$${p.es_oferta ? p.precio_menudeo : p.precio_menudeo + 80} MXN</p>
@@ -4712,7 +4720,7 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
       const sub = pares * i.precio_unitario
       return `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1)">
-          ${i.imagen ? `<img src="${i.imagen}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
+          ${i.imagen ? `<img src="${zmImg(i.imagen, 120)}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
           <div style="flex:1;min-width:0">
             <p style="font-size:0.82rem;font-weight:600;color:#2A1A0E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.nombre}</p>
             <p style="font-size:0.7rem;color:#C4A38A;text-transform:uppercase;letter-spacing:0.4px">${i.color} · ${i.es_corrida?'Corrida':'Talla '+i.talla} · ${pares} ${pares>1?'pares':'par'}</p>

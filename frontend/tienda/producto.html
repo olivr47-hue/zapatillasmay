@@ -333,7 +333,7 @@
     Atrás
   </button>
   <a href="/" style="display:flex;align-items:center;text-decoration:none">
-    <img src="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" style="height:104px;object-fit:contain">
+    <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_300,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" width="150" height="104" style="height:104px;width:auto;object-fit:contain">
   </a>
   <div style="width:60px;text-align:right">
     <a id="header-cart-btn" href="/carrito" style="display:none;align-items:center;gap:5px;text-decoration:none;font-size:0.82rem;font-weight:700;color:var(--black);background:#f5f0ea;border-radius:100px;padding:7px 13px;white-space:nowrap">
@@ -400,6 +400,14 @@
 
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
+// Redimensiona/optimiza imágenes de Cloudinary al vuelo (WebP/AVIF + ancho objetivo).
+// No altera el original en Cloudinary ni lo que se manda a MercadoLibre.
+function zmImg(url, w){
+  if (!url || typeof url !== 'string') return url || ''
+  if (url.indexOf('/image/upload/') === -1) return url
+  if (url.indexOf('/upload/f_auto') !== -1 || url.indexOf(',f_auto') !== -1) return url
+  return url.replace('/image/upload/', `/image/upload/w_${w},f_auto,q_auto/`)
+}
 let producto = null
 let variantes = []
 let inventario = []
@@ -491,7 +499,7 @@ function renderProducto() {
   const imgMain = document.getElementById('gallery-main')
   const imgPrincipal = p.imagen_principal || ''
   fotosActuales = imgPrincipal ? [imgPrincipal] : []
-  imgMain.src = imgPrincipal
+  imgMain.src = zmImg(imgPrincipal, 900)
   imgMain.alt = `${p.nombre} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()
   renderThumbs()
 
@@ -632,7 +640,7 @@ function seleccionarColor(color) {
     if (Array.isArray(v.imagenes)) v.imagenes.forEach(u => { if (u && u !== v.foto_url) fotosActuales.push(u) })
     if (!fotosActuales.length && producto.imagen_principal) fotosActuales.push(producto.imagen_principal)
     const imgMain = document.getElementById('gallery-main')
-    imgMain.src = fotosActuales[0] || ''
+    imgMain.src = zmImg(fotosActuales[0] || '', 900)
     imgMain.alt = `${producto.nombre} ${color} ${producto.categoria || ''} — Zapatillas May`.replace(/\s+/g, ' ').trim()
     renderThumbs()
   }
@@ -654,12 +662,12 @@ function renderThumbs() {
   const row = document.getElementById('gallery-thumbs')
   if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
   row.style.display = 'flex'
-  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${url}" alt="${(producto?.nombre||'Calzado')} ${producto?.categoria||''} — foto ${i+1}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
+  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${zmImg(url, 128)}" alt="${(producto?.nombre||'Calzado')} ${producto?.categoria||''} — foto ${i+1}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
 }
 
 function cambiarFoto(idx) {
   const imgMain = document.getElementById('gallery-main')
-  imgMain.src = fotosActuales[idx]
+  imgMain.src = zmImg(fotosActuales[idx], 900)
   document.querySelectorAll('.gallery-thumb').forEach((t,i) => t.classList.toggle('active', i===idx))
 }
 
@@ -767,7 +775,7 @@ async function cargarSimilares() {
       const dest = p.sku_interno || p.slug
       if (!dest) return ''
       return `<a class="similar-card" href="/producto/${dest}">
-        <img src="${p.imagen_principal || ''}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" loading="lazy">
+        <img src="${zmImg(p.imagen_principal || '', 600)}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" loading="lazy">
         <p class="similar-card-name">${p.nombre}</p>
         <p class="similar-card-price">$${precio} MXN</p>
       </a>`
