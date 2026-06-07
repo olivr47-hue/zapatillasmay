@@ -7,6 +7,7 @@ import json
 import os
 import re
 import io
+import html as _html
 
 router = APIRouter(tags=["SEO"])
 
@@ -99,14 +100,42 @@ def producto_ssr(sku: str):
 
     p = datos[0]
     nombre    = (p.get("nombre") or "Calzado").strip()
+    # SEO generado en el panel (si existe) tiene prioridad sobre los datos crudos
+    meta_titulo = (p.get("meta_titulo") or "").strip()
+    meta_desc   = (p.get("meta_descripcion") or "").strip()
+    palabras    = (p.get("palabras_clave") or "").strip()
     desc_raw  = (p.get("descripcion") or nombre).strip()
-    desc      = desc_raw[:155]
+    desc      = (meta_desc or desc_raw)[:160]
+    titulo_seo = meta_titulo or f"{nombre} | Zapatillas May — León, Guanajuato"
     precio    = (p.get("precio_menudeo") or 0)
     precio_display = precio if p.get("es_oferta") else precio + 80
     imagen    = p.get("imagen_principal") or ""
     categoria = (p.get("categoria") or "calzado").strip()
     sku_canon = p.get("sku_interno") or sku
     canonical = f"https://zapatillasmay.mx/producto/{sku_canon}"
+
+    # Imágenes para SEO de imágenes (Google Images / Shopping): principal + variantes
+    imagenes_seo = []
+    if imagen:
+        imagenes_seo.append(imagen)
+    try:
+        variantes = supabase_get(
+            f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=foto_url,imagenes"
+        )
+        for v in (variantes or []):
+            if v.get("foto_url"):
+                imagenes_seo.append(v["foto_url"])
+            extra = v.get("imagenes")
+            if isinstance(extra, list):
+                imagenes_seo.extend([u for u in extra if u])
+    except Exception:
+        pass
+    # Quitar duplicados conservando el orden
+    _seen = set()
+    imagenes_seo = [u for u in imagenes_seo if u and not (u in _seen or _seen.add(u))]
+
+    def _esc(s):
+        return _html.escape(str(s or ""), quote=True)
 
     # 2. Obtener template producto.html desde Vercel (cacheado)
     cache_key = "tpl_producto_html"
@@ -124,17 +153,39 @@ def producto_ssr(sku: str):
             # Fallback: HTML mínimo con meta tags
             template = None
 
+    # JSON-LD del producto (con todas las imágenes) — generado de forma segura
+    ld = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": nombre,
+        "image": imagenes_seo or ([imagen] if imagen else []),
+        "description": (meta_desc or desc_raw)[:300],
+        "sku": sku_canon,
+        "brand": {"@type": "Brand", "name": "Zapatillas May"},
+        "category": categoria,
+        "offers": {
+            "@type": "Offer",
+            "url": canonical,
+            "priceCurrency": "MXN",
+            "price": str(precio_display),
+            "availability": "https://schema.org/InStock",
+            "seller": {"@type": "Organization", "name": "Zapatillas May"},
+        },
+    }
+    ld_json = json.dumps(ld, ensure_ascii=False)
+
     if not template:
         # Fallback minimal HTML
         html = f"""<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{nombre} | Zapatillas May</title>
-<meta name="description" content="{desc}">
+<title>{_esc(titulo_seo)}</title>
+<meta name="description" content="{_esc(desc)}">
+<meta name="keywords" content="{_esc(palabras)}">
 <link rel="canonical" href="{canonical}">
-<meta property="og:title" content="{nombre} | Zapatillas May">
-<meta property="og:image" content="{imagen}">
+<meta property="og:title" content="{_esc(titulo_seo)}">
+<meta property="og:image" content="{_esc(imagen)}">
 <meta property="og:url" content="{canonical}">
-<script type="application/ld+json">{{"@context":"https://schema.org/","@type":"Product","name":"{nombre}","image":"{imagen}","description":"{desc_raw[:200]}","brand":{{"@type":"Brand","name":"Zapatillas May"}},"offers":{{"@type":"Offer","priceCurrency":"MXN","price":"{precio_display}","availability":"https://schema.org/InStock","url":"{canonical}"}}}}</script>
+<script type="application/ld+json">{ld_json}</script>
 </head><body>
 <script>window.__ZM_PRODUCT__={json.dumps(p, ensure_ascii=False)};</script>
 <script>setTimeout(()=>{{ if(!window.__ZM_LOADED__) window.location.href='{canonical}' }}, 3000)</script>
@@ -144,43 +195,25 @@ def producto_ssr(sku: str):
     # 3. Inyectar meta tags producto-específicos
     template = template.replace(
         "<title>Zapatillas May</title>",
-        f"<title>{nombre} | Zapatillas May — León, Guanajuato</title>"
+        f"<title>{_esc(titulo_seo)}</title>"
     )
     template = template.replace(
         'content="Calzado de moda para dama. León, Guanajuato."',
-        f'content="{desc}"'
+        f'content="{_esc(desc)}"'
     )
 
     schema = f"""
   <link rel="canonical" href="{canonical}">
-  <meta property="og:title" content="{nombre} | Zapatillas May">
-  <meta property="og:description" content="{desc}">
-  <meta property="og:image" content="{imagen}">
+  <meta name="keywords" content="{_esc(palabras)}">
+  <meta property="og:title" content="{_esc(titulo_seo)}">
+  <meta property="og:description" content="{_esc(desc)}">
+  <meta property="og:image" content="{_esc(imagen)}">
   <meta property="og:url" content="{canonical}">
   <meta property="og:type" content="product">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{nombre} | Zapatillas May">
-  <meta name="twitter:image" content="{imagen}">
-  <script type="application/ld+json">
-  {{
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    "name": "{nombre}",
-    "image": "{imagen}",
-    "description": "{desc_raw[:300]}",
-    "sku": "{sku_canon}",
-    "brand": {{"@type": "Brand", "name": "Zapatillas May"}},
-    "category": "{categoria}",
-    "offers": {{
-      "@type": "Offer",
-      "url": "{canonical}",
-      "priceCurrency": "MXN",
-      "price": "{precio_display}",
-      "availability": "https://schema.org/InStock",
-      "seller": {{"@type": "Organization", "name": "Zapatillas May"}}
-    }}
-  }}
-  </script>
+  <meta name="twitter:title" content="{_esc(titulo_seo)}">
+  <meta name="twitter:image" content="{_esc(imagen)}">
+  <script type="application/ld+json">{ld_json}</script>
   <script>window.__ZM_PRODUCT__ = {json.dumps(p, ensure_ascii=False)}; window.__ZM_LOADED__ = true;</script>"""
 
     template = template.replace("</head>", schema + "\n</head>")
@@ -235,7 +268,7 @@ def sitemap():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at")
+        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre")
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
         # Mapeo de categoría → URL limpia
         _CAT_SLUG = {
@@ -252,14 +285,26 @@ def sitemap():
         for cat in categorias:
             slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
             urls.append(f'https://zapatillasmay.mx/{slug_cat}')
-        for p in productos:
-            slug = p.get('sku_interno') or p.get('id','')
-            if slug:
-                urls.append(f'https://zapatillasmay.mx/producto/{slug}')
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-        xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        xml += ('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+                'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n')
+        # URLs sin imagen (home, categorías, páginas fijas)
         for url in urls:
             xml += f'  <url>\n    <loc>{url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+        # URLs de producto, cada una con su imagen (SEO de imágenes para Google)
+        for p in productos:
+            slug = p.get('sku_interno') or p.get('id', '')
+            if not slug:
+                continue
+            loc = f'https://zapatillasmay.mx/producto/{slug}'
+            xml += f'  <url>\n    <loc>{loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n'
+            img = (p.get('imagen_principal') or '').strip()
+            if img:
+                img_esc = _html.escape(img, quote=True)
+                titulo_img = _html.escape((p.get('nombre') or 'Zapatillas May').strip(), quote=True)
+                xml += (f'    <image:image>\n      <image:loc>{img_esc}</image:loc>\n'
+                        f'      <image:title>{titulo_img}</image:title>\n    </image:image>\n')
+            xml += '  </url>\n'
         xml += '</urlset>'
         cache_set("seo_sitemap", xml, ttl=TTL_ESTATICO)
         return Response(content=xml, media_type="application/xml")
