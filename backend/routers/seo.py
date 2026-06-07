@@ -268,7 +268,7 @@ def sitemap():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre")
+        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre,meta_titulo,categoria")
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
         # Mapeo de categoría → URL limpia
         _CAT_SLUG = {
@@ -301,7 +301,12 @@ def sitemap():
             img = (p.get('imagen_principal') or '').strip()
             if img:
                 img_esc = _html.escape(img, quote=True)
-                titulo_img = _html.escape((p.get('nombre') or 'Zapatillas May').strip(), quote=True)
+                # Título de imagen descriptivo: usa el SEO generado; si no, nombre + categoría
+                titulo_base = (p.get('meta_titulo') or '').strip()
+                if not titulo_base:
+                    titulo_base = f"{(p.get('nombre') or '').strip()} {(p.get('categoria') or '').strip()}".strip()
+                titulo_base = (titulo_base or 'Zapatillas May')[:200]
+                titulo_img = _html.escape(titulo_base, quote=True)
                 xml += (f'    <image:image>\n      <image:loc>{img_esc}</image:loc>\n'
                         f'      <image:title>{titulo_img}</image:title>\n    </image:image>\n')
             xml += '  </url>\n'
