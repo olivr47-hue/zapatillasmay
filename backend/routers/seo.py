@@ -281,6 +281,11 @@ def sitemap():
             'https://zapatillasmay.mx/mayoreo',
             'https://zapatillasmay.mx/nosotros',
             'https://zapatillasmay.mx/envios',
+            'https://zapatillasmay.mx/contacto',
+            'https://zapatillasmay.mx/privacidad',
+            'https://zapatillasmay.mx/politica-de-devoluciones',
+            'https://zapatillasmay.mx/tabla-tallas',
+            'https://zapatillasmay.mx/como-comprar',
         ]
         for cat in categorias:
             slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
