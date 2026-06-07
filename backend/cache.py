@@ -10,7 +10,8 @@ _cache: dict = {}
 
 TTL_PUBLICO  = 1800  # 30 min — productos, variantes (cambian poco)
 TTL_STOCK    = 600   # 10 min — inventario
-TTL_ESTATICO = 86400 # 24 h  — config SEO, sucursales, feeds (casi nunca cambian)
+TTL_ESTATICO = 86400 # 24 h  — config SEO, sucursales (casi nunca cambian)
+TTL_FEEDS    = 3600  #  1 h  — feeds SEO (feed.json, llms.txt, sitemap) — balance frescura/rendimiento
 
 
 def cache_get(key: str) -> Optional[Any]:

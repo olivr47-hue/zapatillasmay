@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTMLResponse
 from database import supabase_get, supabase_post, supabase_patch
-from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO
+from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
 import urllib.request
 import json
 import os
@@ -515,7 +515,7 @@ def sitemap():
                         f'      <image:title>{titulo_img}</image:title>\n    </image:image>\n')
             xml += '  </url>\n'
         xml += '</urlset>'
-        cache_set("seo_sitemap", xml, ttl=TTL_ESTATICO)
+        cache_set("seo_sitemap", xml, ttl=TTL_FEEDS)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
@@ -626,7 +626,7 @@ def llms_txt():
             "- WhatsApp y pedidos en línea disponibles en el sitio.",
         ]
         contenido = "\n".join(lineas) + "\n"
-        cache_set("seo_llms", contenido, ttl=TTL_ESTATICO)
+        cache_set("seo_llms", contenido, ttl=TTL_FEEDS)
         return Response(content=contenido, media_type="text/plain; charset=utf-8",
                         headers={"Cache-Control": "public, max-age=600, s-maxage=600"})
     except Exception as e:
@@ -646,24 +646,39 @@ def feed_json():
             "imagen_principal,material,tallas_disponibles,tipo_tacon,altura_tacon"
         )
 
-        # Fetch all active variants in one call, group by producto_id
+        # Fetch all active variants + inventory in one call each, group by producto_id
         variantes_raw = supabase_get(
-            "variantes?activa=eq.true&select=producto_id,color,color_hex,foto_url,talla"
+            "variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla"
         )
-        # Agrupar por producto_id
+        inventario_raw = supabase_get(
+            "inventario?select=variante_id,cantidad"
+        )
+        # Mapa inventario: variante_id -> cantidad
+        inv_map: dict = {i["variante_id"]: (i.get("cantidad") or 0) for i in (inventario_raw or []) if i.get("variante_id")}
+
+        # Agrupar variantes por producto_id
         variantes_map: dict = {}
         for v in (variantes_raw or []):
             pid = v.get("producto_id")
             if pid is None:
                 continue
             if pid not in variantes_map:
-                variantes_map[pid] = {"colores": [], "tallas": set()}
+                variantes_map[pid] = {"colores": {}, "tallas": set()}
             color = (v.get("color") or "").strip()
             talla = (v.get("talla") or "").strip()
-            foto  = v.get("foto_url") or ""
-            # Add color entry (avoid duplicates per color)
-            if color and not any(c["color"] == color for c in variantes_map[pid]["colores"]):
-                variantes_map[pid]["colores"].append({"color": color, "hex": v.get("color_hex"), "foto": foto})
+            vid   = v.get("id")
+            stock = inv_map.get(vid, 0)
+
+            # Agrupar por color: {"negro": {"foto": ..., "hex": ..., "tallas": {"23": 5, "24": 3}}}
+            if color:
+                if color not in variantes_map[pid]["colores"]:
+                    variantes_map[pid]["colores"][color] = {
+                        "hex": v.get("color_hex"),
+                        "foto": v.get("foto_url") or "",
+                        "tallas": {}
+                    }
+                if talla and stock > 0:
+                    variantes_map[pid]["colores"][color]["tallas"][talla] = stock
             if talla:
                 variantes_map[pid]["tallas"].add(talla)
 
@@ -695,12 +710,24 @@ def feed_json():
                 "corrida_completa":   _precio("precio_corrida",  100), # base - 100 = menudeo - 180
             }
 
-            vdata = variantes_map.get(pid, {})
-            colores = vdata.get("colores", [])
-            tallas_var = sorted(vdata.get("tallas", set()))
+            vdata  = variantes_map.get(pid, {})
+            colores_dict = vdata.get("colores", {})
+            tallas_var   = sorted(vdata.get("tallas", set()))
 
             # Tallas: preferir las de variantes activas sobre el campo texto del producto
             tallas_final = tallas_var if tallas_var else (p.get("tallas_disponibles") or [])
+
+            # Formato colores legible para LLMs:
+            # [{"color": "negro", "hex": "#000", "foto": "...", "tallas_con_stock": {"23": 5, "24": 2}}]
+            colores_list = [
+                {
+                    "color": c,
+                    "hex":   d.get("hex"),
+                    "foto":  d.get("foto"),
+                    "tallas_con_stock": d.get("tallas", {}),
+                }
+                for c, d in colores_dict.items()
+            ]
 
             items.append({
                 "id":        pid,
@@ -709,13 +736,13 @@ def feed_json():
                 "descripcion": (p.get("descripcion") or "").strip(),
                 "categoria": p.get("categoria"),
                 "material":  p.get("material"),
-                "tallas":    tallas_final,
-                "colores":   colores,             # ← NUEVO: lista de colores disponibles
+                "tallas_disponibles": tallas_final,
+                "colores":   colores_list,
                 "precios_mxn": precios,
                 "moneda":    "MXN",
                 "imagen":    p.get("imagen_principal"),
                 "url":       f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
-                "disponibilidad": "in_stock",
+                "disponibilidad": "in_stock" if colores_list else "available",
             })
 
         salida = {
@@ -732,7 +759,7 @@ def feed_json():
             "productos": items,
         }
         contenido = json.dumps(salida, ensure_ascii=False)
-        cache_set("seo_feed", contenido, ttl=TTL_ESTATICO)
+        cache_set("seo_feed", contenido, ttl=TTL_FEEDS)
         return Response(content=contenido, media_type="application/json; charset=utf-8",
                         headers={"Cache-Control": "public, max-age=600, s-maxage=600"})
     except Exception as e:
