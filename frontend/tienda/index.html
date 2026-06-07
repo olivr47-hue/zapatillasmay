@@ -29,7 +29,12 @@
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato">
+  <!-- Preload del LCP: fondo del hero (descubrible desde el HTML y optimizado con Cloudinary) -->
+  <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png">
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato">
+  <!-- Preload de las fuentes del título/cuerpo: llegan antes del primer pintado → el swap no provoca CLS -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K4.woff2">
   <meta name="description" content="Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.">
   <meta name="keywords" content="zapatillas mayoreo, calzado León Guanajuato, zapatos moda dama, mayoreo calzado sin mínimo, tacones mayoreo México, sandalias mayoreo, calzado femenino mayoreo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1511,6 +1516,9 @@
   left: 0;
   width: 100%;
   height: 140%;
+  /* Fondo por defecto = imagen del hero, para que el navegador la descubra en el HTML
+     y la cargue de inmediato (el JS la re-confirma desde la config). */
+  background-image: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
   background-size: cover;
   background-position: center center;
   will-change: transform;
@@ -1518,7 +1526,7 @@
   filter: contrast(1.08) brightness(0.97) saturate(1.05);
   opacity: 0;
   transform: scale(1.1) translateY(30px);
-  transition: opacity 1.2s ease;
+  transition: opacity 0.5s ease;
 }
 
 .hero.loaded .hero-bg {
@@ -2662,6 +2670,15 @@
     </div>
   </div>
 </section>
+<script>
+  /* Revela el hero apenas el DOM está listo (no espera a window.load) → el fondo (LCP) pinta antes. */
+  (function(){
+    var h = document.getElementById('hero-section');
+    if (!h) return;
+    if (document.readyState !== 'loading') h.classList.add('loaded');
+    else document.addEventListener('DOMContentLoaded', function(){ h.classList.add('loaded'); });
+  })();
+</script>
 
 <!-- CATEGORIAS -->
 <div class="section">
@@ -3411,7 +3428,9 @@ window.addEventListener('load', () => {
     if (config.hero_imagen) {
   const bg = document.getElementById('hero-bg')
   if (bg) {
-    bg.style.backgroundImage = `url('${config.hero_imagen}')`
+    // Optimiza la imagen del hero (mismo transform que el preload → sin doble descarga)
+    const heroUrl = config.hero_imagen.replace('/image/upload/', '/image/upload/w_1400,f_auto,q_auto/')
+    bg.style.backgroundImage = `url('${heroUrl}')`
   }
 }
 // Scroll parallax manejado por el bloque 3D al final del body
