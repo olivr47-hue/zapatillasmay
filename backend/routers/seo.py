@@ -587,7 +587,7 @@ def llms_txt():
             "- `info_negocio`: datos del negocio, ubicación, envíos y cómo comprar.",
             "",
             "## Catálogo y datos",
-            "- [Feed de productos (JSON)](https://zapatillasmay.mx/feed.json): catálogo completo con nombre, precios (menudeo y mayoreo), categoría, tallas e imágenes.",
+            "- [Feed de productos (JSON)](https://zapatillasmay.mx/feed.json): catálogo completo con nombre, precios (menudeo y mayoreo), categoría, tallas, **colores disponibles** e imágenes por color.",
             "- [Sitemap](https://zapatillasmay.mx/sitemap.xml): todas las URLs del sitio.",
             "",
             "## Categorías",
@@ -603,10 +603,12 @@ def llms_txt():
         lineas += [
             "",
             "## Precios de mayoreo",
-            "- 1-2 pares: precio de menudeo.",
-            "- 3-5 pares: precio de mayoreo (aprox. $30 menos por par).",
-            "- 6+ pares: mejor precio de mayoreo (aprox. $70 menos por par).",
-            "- El descuento se aplica automáticamente al agregar pares, sin registro ni mínimo especial.",
+            "- 1-2 pares: precio de menudeo (precio normal al público).",
+            "- 3-5 pares: precio de mayoreo — $80 MXN menos por par vs. menudeo.",
+            "- 6-11 pares: mejor precio de mayoreo — $150 MXN menos por par vs. menudeo.",
+            "- 12+ pares (corrida completa): precio máximo mayoreo — $180 MXN menos por par vs. menudeo.",
+            "- El descuento se aplica automáticamente al agregar pares al carrito, sin registro ni código especial.",
+            "- Ejemplo: si un modelo vale $650 menudeo, a 3 pares cuesta $570/par, a 6+ cuesta $500/par.",
             "",
             "## Qué pueden hacer los agentes de IA",
             "- Buscar y recomendar modelos del catálogo.",
@@ -633,46 +635,86 @@ def llms_txt():
 
 @router.get("/feed.json")
 def feed_json():
-    """Feed de productos para agentes de IA y motores de compra."""
+    """Feed de productos para agentes de IA y motores de compra. Incluye variantes (colores, tallas, fotos)."""
     cached = cache_get("seo_feed")
     if cached is not None:
         return Response(content=cached, media_type="application/json; charset=utf-8")
     try:
         productos = supabase_get(
             "productos?activo=eq.true&select=id,nombre,sku_interno,descripcion,categoria,"
-            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,material,tallas_disponibles,tipo_tacon,altura_tacon"
+            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,"
+            "imagen_principal,material,tallas_disponibles,tipo_tacon,altura_tacon"
         )
+
+        # Fetch all active variants in one call, group by producto_id
+        variantes_raw = supabase_get(
+            "variantes?activa=eq.true&select=producto_id,color,color_hex,foto_url,talla"
+        )
+        # Agrupar por producto_id
+        variantes_map: dict = {}
+        for v in (variantes_raw or []):
+            pid = v.get("producto_id")
+            if pid is None:
+                continue
+            if pid not in variantes_map:
+                variantes_map[pid] = {"colores": [], "tallas": set()}
+            color = (v.get("color") or "").strip()
+            talla = (v.get("talla") or "").strip()
+            foto  = v.get("foto_url") or ""
+            # Add color entry (avoid duplicates per color)
+            if color and not any(c["color"] == color for c in variantes_map[pid]["colores"]):
+                variantes_map[pid]["colores"].append({"color": color, "hex": v.get("color_hex"), "foto": foto})
+            if talla:
+                variantes_map[pid]["tallas"].add(talla)
+
         items = []
         for p in productos:
-            slug = p.get("sku_interno") or p.get("id", "")
-            base = p.get("precio_menudeo")
+            slug   = p.get("sku_interno") or p.get("id", "")
+            pid    = p.get("id")
+            es_oferta = p.get("es_oferta", False)
+            base   = p.get("precio_menudeo")
             try:
                 base_f = float(base) if base is not None else None
             except Exception:
                 base_f = None
-            precios = {"menudeo": base_f}
-            for campo, etiqueta, desc in [
-                ("precio_mayoreo3", "mayoreo_3a5_pares", 30),
-                ("precio_mayoreo6", "mayoreo_6mas_pares", 70),
-            ]:
+
+            # Precios correctos:
+            # DB precio_menudeo = precio base (= mayoreo3). Menudeo display = base + 80 (salvo ofertas)
+            menudeo_display = base_f if (es_oferta or base_f is None) else round(base_f + 80)
+            def _precio(campo, descuento_vs_base):
                 v = p.get(campo)
                 try:
-                    precios[etiqueta] = float(v) if v is not None else (round(base_f - desc) if base_f else None)
+                    return float(v) if v is not None else (round(base_f - descuento_vs_base) if base_f else None)
                 except Exception:
-                    precios[etiqueta] = None
+                    return None
+
+            precios = {
+                "menudeo":            menudeo_display,
+                "mayoreo_3a5_pares":  _precio("precio_mayoreo3", 0),   # = base (ya es el precio mayoreo)
+                "mayoreo_6mas_pares": _precio("precio_mayoreo6", 70),  # base - 70 = menudeo - 150
+                "corrida_completa":   _precio("precio_corrida",  100), # base - 100 = menudeo - 180
+            }
+
+            vdata = variantes_map.get(pid, {})
+            colores = vdata.get("colores", [])
+            tallas_var = sorted(vdata.get("tallas", set()))
+
+            # Tallas: preferir las de variantes activas sobre el campo texto del producto
+            tallas_final = tallas_var if tallas_var else (p.get("tallas_disponibles") or [])
 
             items.append({
-                "id": p.get("id"),
-                "sku": p.get("sku_interno"),
-                "nombre": _titulo_feed(p),
+                "id":        pid,
+                "sku":       p.get("sku_interno"),
+                "nombre":    _titulo_feed(p),
                 "descripcion": (p.get("descripcion") or "").strip(),
                 "categoria": p.get("categoria"),
-                "material": p.get("material"),
-                "tallas": p.get("tallas_disponibles"),
+                "material":  p.get("material"),
+                "tallas":    tallas_final,
+                "colores":   colores,             # ← NUEVO: lista de colores disponibles
                 "precios_mxn": precios,
-                "moneda": "MXN",
-                "imagen": p.get("imagen_principal"),
-                "url": f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
+                "moneda":    "MXN",
+                "imagen":    p.get("imagen_principal"),
+                "url":       f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
                 "disponibilidad": "in_stock",
             })
 
@@ -682,7 +724,11 @@ def feed_json():
             "url": "https://zapatillasmay.mx",
             "moneda": "MXN",
             "total_productos": len(items),
-            "nota_precios": "Los precios bajan automáticamente al comprar más pares (3+ y 6+).",
+            "nota_mayoreo": (
+                "El precio baja automáticamente según cuántos pares hay en el carrito: "
+                "1-2 pares = menudeo; 3-5 pares = $80 menos/par; "
+                "6-11 pares = $150 menos/par; 12+ pares (corrida) = $180 menos/par."
+            ),
             "productos": items,
         }
         contenido = json.dumps(salida, ensure_ascii=False)
