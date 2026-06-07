@@ -190,7 +190,7 @@
 <div class="overlay" id="checkout-overlay">
   <div class="modal-box">
     <div class="modal-head">
-      <button class="close" onclick="cerrarCheckout()">✕</button>
+      <button class="close" onclick="cerrarCheckout()" aria-label="Cerrar">✕</button>
       <p class="modal-eyebrow">Finalizar compra</p>
       <p class="modal-title">Datos de envío</p>
       <p class="modal-subtitle">Total a pagar: <strong id="modal-total"></strong></p>
@@ -312,12 +312,12 @@ function render() {
           </div>
           ${!item.es_corrida ? `
           <div class="item-qty">
-            <button class="qty-btn" onclick="cambiarCantidad(${idx}, -1)">−</button>
+            <button class="qty-btn" onclick="cambiarCantidad(${idx}, -1)" aria-label="Quitar uno">−</button>
             <span class="qty-val">${item.cantidad}</span>
-            <button class="qty-btn" onclick="cambiarCantidad(${idx}, 1)">+</button>
+            <button class="qty-btn" onclick="cambiarCantidad(${idx}, 1)" aria-label="Agregar uno">+</button>
           </div>` : ''}
         </div>
-        <button class="item-remove" onclick="eliminarItem(${idx})" title="Eliminar">✕</button>
+        <button class="item-remove" onclick="eliminarItem(${idx})" title="Eliminar" aria-label="Eliminar producto">✕</button>
       </div>`
   }).join('')
 
