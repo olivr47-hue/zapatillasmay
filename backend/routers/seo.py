@@ -91,6 +91,12 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
 @router.get("/seo/producto/{sku}")
 def producto_ssr(sku: str):
     """Sirve producto.html con meta tags y datos del producto pre-inyectados para indexación SEO."""
+    # 0. Caché del HTML ya armado (baja el TTFB). El JS del navegador re-carga
+    #    stock/precio en vivo, así que cachear el SSR no muestra datos viejos al cliente.
+    _ck_ssr = f"ssr_prod_{sku}"
+    _cached = cache_get(_ck_ssr)
+    if _cached is not None:
+        return HTMLResponse(content=_cached)
     # 1. Buscar producto
     datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
     if not datos:
@@ -267,6 +273,7 @@ def producto_ssr(sku: str):
     except Exception as _e:
         print(f"[seo] No se pudo inyectar contenido server-side: {_e}")
 
+    cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
 
 
@@ -317,6 +324,11 @@ _PAGINAS_SEO = {
 def pagina_ssr(slug: str):
     """Sirve index.html con título/descripción/canónica propios por ruta (categorías
     y páginas fijas). A prueba de fallos: si algo falla, cae al index.html normal."""
+    _ck_ssr = f"ssr_pagina_{slug}"
+    _cached = cache_get(_ck_ssr)
+    if _cached is not None:
+        return HTMLResponse(content=_cached)
+
     titulo, desc = _PAGINAS_SEO.get(slug, (_HOME_TITLE, _HOME_DESC))
 
     template = cache_get("tpl_index_html")
@@ -351,6 +363,7 @@ def pagina_ssr(slug: str):
     except Exception as e:
         print(f"[seo] pagina_ssr replace error ({slug}): {e}")
 
+    cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
 
 

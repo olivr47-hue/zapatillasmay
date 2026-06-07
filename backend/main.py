@@ -160,6 +160,6 @@ def cache_estado():
 @app.post("/cache/limpiar")
 def cache_limpiar():
     """Limpiar todo el caché manualmente (fuerza recarga desde Supabase)."""
-    for prefijo in ("productos", "variantes", "inventario", "tpl_", "seo_"):
+    for prefijo in ("productos", "variantes", "inventario", "tpl_", "seo_", "ssr_"):
         cache_invalidate_prefix(prefijo)
     return {"ok": True, "mensaje": "Caché limpiado"}
