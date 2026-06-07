@@ -223,6 +223,11 @@ def producto_ssr(sku: str):
     # El JS de producto.html re-llena estos contenedores en el navegador (mismo
     # contenido), así que no hay cambio visual para la clienta.
     try:
+        # H1 del producto renderizado en servidor (el JS lo re-pinta igual al cargar)
+        template = template.replace(
+            '<div class="product-section" id="product-section">',
+            f'<div class="product-section" id="product-section">\n  <h1 class="product-name">{_esc(nombre)}</h1>'
+        )
         desc_visible = _esc(desc_raw)
         if desc_visible:
             template = template.replace(
