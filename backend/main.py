@@ -14,6 +14,7 @@ from routers import analytics
 from routers import referidos
 from routers import carrito_abandonado
 from routers import mcp_server
+from routers import tiktok as tiktok_router
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -84,11 +85,32 @@ def _loop_carritos_abandonados():
             print(f"[carrito-abandonado] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_tiktok_sync():
+    """Sincroniza inventario con TikTok Shop cada 30 minutos si hay token activo."""
+    _time.sleep(180)  # espera 3 min al arrancar
+    while True:
+        try:
+            estado = tiktok_router.status()
+            if isinstance(estado, dict) and estado.get("connected"):
+                res = tiktok_router.sync_stock()
+                if isinstance(res, dict) and res.get("ok"):
+                    print(f"[tiktok-sync] Stock actualizado — OK:{res.get('actualizados')} ERR:{res.get('errores')} SIN_MATCH:{res.get('sin_match')}")
+                else:
+                    print(f"[tiktok-sync] Respuesta inesperada: {res}")
+        except Exception as e:
+            print(f"[tiktok-sync] Error en loop: {e}")
+        _time.sleep(30 * 60)  # cada 30 minutos
+
 @app.on_event("startup")
-def _iniciar_hilo_carritos():
-    t = threading.Thread(target=_loop_carritos_abandonados, daemon=True)
-    t.start()
+def _iniciar_hilos():
+    # Carrito abandonado
+    t1 = threading.Thread(target=_loop_carritos_abandonados, daemon=True)
+    t1.start()
     print("[carrito-abandonado] Hilo de recordatorios iniciado (cada 15 min)")
+    # TikTok Shop sync
+    t2 = threading.Thread(target=_loop_tiktok_sync, daemon=True)
+    t2.start()
+    print("[tiktok-sync] Hilo de sincronización de inventario iniciado (cada 30 min)")
 
 @app.get("/")
 def inicio():
