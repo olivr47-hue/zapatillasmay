@@ -217,7 +217,140 @@ def producto_ssr(sku: str):
   <script>window.__ZM_PRODUCT__ = {json.dumps(p, ensure_ascii=False)}; window.__ZM_LOADED__ = true;</script>"""
 
     template = template.replace("</head>", schema + "\n</head>")
+
+    # #4 — Contenido visible renderizado en servidor (descripción + ficha técnica),
+    # para que cuente en SEO sin depender de que el robot ejecute JavaScript.
+    # El JS de producto.html re-llena estos contenedores en el navegador (mismo
+    # contenido), así que no hay cambio visual para la clienta.
+    try:
+        desc_visible = _esc(desc_raw)
+        if desc_visible:
+            template = template.replace(
+                '<div id="desc-card" style="display:none" class="info-card">',
+                '<div id="desc-card" class="info-card">'
+            )
+            template = template.replace(
+                '<div class="info-card-body open" id="desc-body"></div>',
+                f'<div class="info-card-body open" id="desc-body"><p>{desc_visible}</p></div>'
+            )
+        specs = []
+        def _add(label, val):
+            v = ("" if val is None else str(val)).strip()
+            if v:
+                specs.append(f"{label}: {_esc(v)}")
+        _add("Categoría", categoria)
+        _add("Material", p.get("material"))
+        _add("Forro", p.get("forro"))
+        _add("Suela", p.get("material_suela"))
+        _add("Horma", p.get("horma"))
+        if p.get("altura_tacon"):
+            _add("Altura de tacón", f"{p.get('altura_tacon')} cm")
+        _add("Tipo de tacón", p.get("tipo_tacon"))
+        tallas = p.get("tallas_disponibles")
+        if isinstance(tallas, list) and tallas:
+            _add("Tallas disponibles", ", ".join(str(t) for t in tallas))
+        if specs:
+            details_html = "".join(f"<p>{s}</p>" for s in specs)
+            template = template.replace(
+                '<div id="details-card" style="display:none" class="info-card">',
+                '<div id="details-card" class="info-card">'
+            )
+            template = template.replace(
+                '<div class="info-card-body" id="details-body"></div>',
+                f'<div class="info-card-body" id="details-body">{details_html}</div>'
+            )
+    except Exception as _e:
+        print(f"[seo] No se pudo inyectar contenido server-side: {_e}")
+
     return HTMLResponse(content=template)
+
+
+# ── #3 — Títulos/descripciones únicos por categoría y páginas fijas (SSR) ──────
+_HOME_TITLE = "Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato"
+_HOME_DESC = ("Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares "
+              "sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.")
+
+_PAGINAS_SEO = {
+    "tacones": ("Tacones de Dama — Mayoreo y Menudeo | Zapatillas May León",
+                "Tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México."),
+    "sandalias": ("Sandalias de Dama — Mayoreo y Menudeo | Zapatillas May",
+                  "Sandalias de moda para dama hechas en León, Guanajuato. Precios de mayoreo desde 3 pares, casuales y de fiesta. Envíos a todo México."),
+    "botas": ("Botas de Dama — Mayoreo y Menudeo | Zapatillas May León",
+              "Botas de moda para dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México."),
+    "botines": ("Botines de Dama — Mayoreo y Menudeo | Zapatillas May",
+                "Botines de moda para dama hechos en León, Guanajuato. Precios de mayoreo desde 3 pares. Envíos a todo México."),
+    "flats": ("Flats y Zapatos Bajos de Dama — Mayoreo | Zapatillas May",
+              "Flats y zapatos bajos de dama, cómodos y de moda, fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México."),
+    "plataformas": ("Plataformas de Dama — Mayoreo y Menudeo | Zapatillas May",
+                    "Plataformas de moda para dama hechas en León, Guanajuato. Altura con comodidad, mayoreo desde 3 pares. Envíos a todo México."),
+    "tenis": ("Tenis de Dama — Mayoreo y Menudeo | Zapatillas May",
+              "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México."),
+    "nina": ("Calzado para Niña — Mayoreo y Menudeo | Zapatillas May",
+             "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, mayoreo desde 3 pares. Envíos a todo México."),
+    "accesorios": ("Accesorios — Zapatillas May León, Guanajuato",
+                   "Accesorios para complementar tu look en Zapatillas May. Fabricado en León, Guanajuato. Mayoreo y menudeo con envíos a todo México."),
+    "mayoreo": ("Mayoreo de Calzado sin Mínimo — desde 3 Pares | Zapatillas May",
+                "Compra calzado de dama a precio de mayoreo desde 3 pares, sin registro especial. Fabricado en León, Guanajuato. Envíos a todo México."),
+    "ofertas": ("Ofertas de Calzado de Dama | Zapatillas May",
+                "Aprovecha las ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México."),
+    "nosotros": ("Sobre Nosotras — Fábrica de Calzado en León | Zapatillas May",
+                 "Conoce Zapatillas May, fabricante de calzado femenino de moda en León, Guanajuato. Calidad artesanal a precio de mayoreo y menudeo."),
+    "envios": ("Envíos a todo México | Zapatillas May",
+               "Información de envíos de Zapatillas May: cobertura nacional, tiempos y costos, con envío gratis desde cierto monto. León, Guanajuato."),
+    "contacto": ("Contacto | Zapatillas May — León, Guanajuato",
+                 "Contáctanos por WhatsApp y redes sociales. Zapatillas May, calzado de dama de mayoreo y menudeo en León, Guanajuato."),
+    "tabla-tallas": ("Tabla de Tallas | Zapatillas May",
+                     "Consulta la tabla de tallas de Zapatillas May para elegir tu medida correcta. Calzado de dama fabricado en León, Guanajuato."),
+    "como-comprar": ("Cómo Comprar — Menudeo y Mayoreo | Zapatillas May",
+                     "Guía paso a paso para comprar en Zapatillas May: menudeo y mayoreo desde 3 pares, formas de pago y envíos a todo México."),
+    "privacidad": ("Aviso de Privacidad | Zapatillas May",
+                   "Aviso de privacidad de Zapatillas May. Conoce cómo protegemos y usamos tus datos personales."),
+}
+
+
+@router.get("/seo/pagina/{slug}")
+def pagina_ssr(slug: str):
+    """Sirve index.html con título/descripción/canónica propios por ruta (categorías
+    y páginas fijas). A prueba de fallos: si algo falla, cae al index.html normal."""
+    titulo, desc = _PAGINAS_SEO.get(slug, (_HOME_TITLE, _HOME_DESC))
+
+    template = cache_get("tpl_index_html")
+    if template is None:
+        try:
+            req = urllib.request.Request(
+                "https://zapatillasmay.mx/index.html",
+                headers={"User-Agent": "ZapatillasSSR/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as r:
+                template = r.read().decode("utf-8")
+            cache_set("tpl_index_html", template, ttl=3600)
+        except Exception:
+            template = None
+
+    if not template:
+        # No se pudo obtener la plantilla: caer al archivo estático (no genera bucle)
+        return RedirectResponse(url="https://zapatillasmay.mx/index.html", status_code=302)
+
+    try:
+        canonical = f"https://zapatillasmay.mx/{slug}"
+        template = template.replace(f"<title>{_HOME_TITLE}</title>", f"<title>{_esc_pagina(titulo)}</title>")
+        template = template.replace(f'content="{_HOME_DESC}"', f'content="{_esc_pagina(desc)}"')
+        template = template.replace(
+            '<link rel="canonical" href="https://zapatillasmay.mx/">',
+            f'<link rel="canonical" href="{canonical}">'
+        )
+        template = template.replace(
+            'content="Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato"',
+            f'content="{_esc_pagina(titulo)}"'
+        )  # og:title si comparte el texto del title
+    except Exception as e:
+        print(f"[seo] pagina_ssr replace error ({slug}): {e}")
+
+    return HTMLResponse(content=template)
+
+
+def _esc_pagina(s):
+    return _html.escape(str(s or ""), quote=True)
 
 
 _ENVIO_DEFAULTS = {"tier1": 99, "tier2": 150, "tier3": 199, "gratis_desde": 1299}
