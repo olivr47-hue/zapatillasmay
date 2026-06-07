@@ -37,6 +37,12 @@
       "skillPath": "skills/aso/SKILL.md",
       "computedHash": "0af2a8b30637f2693e7f790be64754021b6fa387f075afffb97787b1c61c1b3f"
     },
+    "audit-website": {
+      "source": "squirrelscan/skills",
+      "sourceType": "github",
+      "skillPath": "audit-website/SKILL.md",
+      "computedHash": "82588484b29316f3106185374cc6aedf409c38a0698d49f7034c9b5ec07a1aa7"
+    },
     "churn-prevention": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",

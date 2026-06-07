@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audit version="0.0.38">
+<site url="https://zapatillasmay.mx" crawled="100" date="2026-06-07T03:26:42.077Z"/>
+<score overall="63" grade="D">
+ <cat name="Accessibility" score="88"/>
+ <cat name="Images" score="90"/>
+ <cat name="Performance" score="84"/>
+ <cat name="Crawlability" score="93"/>
+ <cat name="Content" score="84"/>
+ <cat name="Security" score="91"/>
+ <cat name="URL Structure" score="91"/>
+ <cat name="Core SEO" score="93"/>
+ <cat name="Social Media" score="98"/>
+ <cat name="E-E-A-T" score="94"/>
+ <cat name="Links" score="94"/>
+ <cat name="Analytics" score="100"/>
+ <cat name="Internationalization" score="100"/>
+ <cat name="Legal Compliance" score="100"/>
+ <cat name="Local SEO" score="100"/>
+ <cat name="Mobile" score="100"/>
+ <cat name="Structured Data" score="100"/>
+</score>
+<summary passed="8928" warnings="1304" failed="129"/>
+<issues>
+ <category name="Crawlability" errors="1" warnings="1">
+  <rule id="crawl/sitemap-valid" severity="error" status="fail" docs="https://docs.squirrelscan.com/rules/crawl/sitemap-valid">
+   7 error(s) in 7 sitemap(s)
+   Items (5/7):
+    - /sitemap_index.xml (Unknown sitemap format) [errorCount: 1, errors: [&quot;Unknown sitemap format&quot;]]
+    - /sitemap-index.xml (Unknown sitemap format) [errorCount: 1, errors: [&quot;Unknown sitemap format&quot;]]
+    - /sitemaps.xml (Unknown sitemap format) [errorCount: 1, errors: [&quot;Unknown sitemap format&quot;]]
+    - /sitemap1.xml (Unknown sitemap format) [errorCount: 1, errors: [&quot;Unknown sitemap format&quot;]]
+    - /post-sitemap.xml (Unknown sitemap format) [errorCount: 1, errors: [&quot;Unknown sitemap format&quot;]]
+  </rule>
+  <rule id="crawl/sitemap-coverage" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/crawl/sitemap-coverage">
+   89 sitemap URL(s) were not crawled
+   Items (5/89):
+    - /producto/J-BTN-0142
+    - /producto/M-TAC-0098
+    - /producto/M-TAC-0145
+    - /producto/M-TAC-0146
+    - /producto/M-TAC-0121
+  </rule>
+ </category>
+ <category name="Core SEO" errors="0" warnings="43">
+  <rule id="core/meta-title" severity="error" status="warn" docs="https://docs.squirrelscan.com/rules/core/meta-title">
+   Title too long; Title too short
+   Pages (5/22): /, /mayoreo, /producto/C-TAC-0012, /producto/C-TAC-0013, /producto/C-TAC-0049
+   Items (5/22):
+    - / (Zapatillas May | Calzado de Moda Mayoreo y Menudeo (69 chars))
+    - /mayoreo (Mayoreo de Calzado sin Mínimo — desde 3 Pares | Za (62 chars))
+    - /producto/C-TAC-0013 (ZAPATILLAS DE DAMA PARA FIESTA CON TACON BAJITO MU (61 chars))
+    - /producto/M-TAC-0166 (Corte Piel Forro piel Suela sintética Alto 4 cm Pe (229 chars))
+    - /producto/C-TAC-0012 (ZAPATILLA DE DAMA PARA FIESTA (29 chars))
+  </rule>
+  <rule id="core/meta-description" severity="error" status="warn" docs="https://docs.squirrelscan.com/rules/core/meta-description">
+   Description too short
+   Pages (5/14): /botas, /botines, /contacto, /politica-de-devoluciones, /privacidad
+   Items (5/14):
+    - /contacto (Contáctanos por WhatsApp y redes sociales. Zapatil (116 chars))
+    - /politica-de-devoluciones (Conoce nuestra política de devoluciones y cambios. (113 chars))
+    - /privacidad (Aviso de privacidad de Zapatillas May. Conoce cómo (92 chars))
+    - /botas (Botas de moda para dama fabricadas en León, Guanaj (113 chars))
+    - /botines (Botines de moda para dama hechos en León, Guanajua (109 chars))
+  </rule>
+  <rule id="core/canonical" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/core/canonical">
+   Missing canonical URL
+   Pages (1): /politica-de-devoluciones
+  </rule>
+  <rule id="core/og-tags" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/core/og-tags">
+   Missing og:title; Missing og:description; Missing og:image - social shares will lack imagery
+   Pages (1): /politica-de-devoluciones
+  </rule>
+  <rule id="core/title-unique" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/core/title-unique">
+   8 duplicate title(s) affecting 24 pages
+   Items (5/8):
+    - tacones sintéticos 10cm | zapatillas may (&quot;tacones sintéticos 10cm | zapatillas may...&quot; (3 pages)) [pageCount: 3] (from: /producto/M-TAC-0039, /producto/C-TAC-0050, /producto/J-TAC-0062)
+    - sandalia sintética cómoda | zapatillas may (&quot;sandalia sintética cómoda | zapatillas m...&quot; (2 pages)) [pageCount: 2] (from: /producto/M-TAC-0034, /producto/M-TAC-0102)
+    - sandalia sintética cómoda primavera | zapatillas may (&quot;sandalia sintética cómoda primavera | za...&quot; (2 pages)) [pageCount: 2] (from: /producto/M-TAC-0035, /producto/M-TAC-0019)
+    - sandalia cómoda sintética | zapatillas may (&quot;sandalia cómoda sintética | zapatillas m...&quot; (3 pages)) [pageCount: 3] (from: /producto/M-SAN-0037, /producto/M-TAC-0127, /producto/M-TAC-0126)
+    - c | zapatillas may (&quot;c | zapatillas may...&quot; (2 pages)) [pageCount: 2] (from: /producto/C-TAC-0054, /producto/C-TAC-0049)
+  </rule>
+  <rule id="core/favicon" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/core/favicon">
+   No favicon found
+   Pages (1): /politica-de-devoluciones
+  </rule>
+  <rule id="core/twitter-cards" severity="info" status="warn" docs="https://docs.squirrelscan.com/rules/core/twitter-cards">
+   No Twitter card or Open Graph tags for Twitter sharing
+   Pages (1): /politica-de-devoluciones
+  </rule>
+ </category>
+ <category name="Security" errors="0" warnings="102">
+  <rule id="security/csp" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/security/csp">
+   CSP allows &apos;unsafe-inline&apos; and &apos;unsafe-eval&apos;
+  </rule>
+  <rule id="security/new-tab" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/security/new-tab">
+   1 external link(s) missing rel=&quot;noopener&quot;
+   Pages (1): /politica-de-devoluciones
+   Items (1):
+    - https://wa.me/524792244560
+  </rule>
+  <rule id="security/http-to-https" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/security/http-to-https">
+   20 HTTP URL(s) redirect to HTTPS
+   Items (5/20):
+    - http://zapatillasmay.mx/ (http://zapatillasmay.mx/ → https://zapatillasmay.mx/ (308)) [statusCode: 308, chain: {&quot;sourceUrl&quot;:&quot;http://zapatillasmay.mx/&quot;,&quot;finalUrl&quot;:&quot;https://zapatillasmay.mx/&quot;,&quot;hops&quot;:[{&quot;url&quot;:&quot;http://zapatillasmay.mx/&quot;,&quot;statusCode&quot;:308,&quot;type&quot;:&quot;http&quot;},{&quot;url&quot;:&quot;https://zapatillasmay.mx/&quot;,&quot;statusCode…]
+    - http://zapatillasmay.mx/mayoreo (http://zapatillasmay.mx/mayoreo → https://zapatillasmay.mx/mayoreo (308)) [statusCode: 308, chain: {&quot;sourceUrl&quot;:&quot;http://zapatillasmay.mx/mayoreo&quot;,&quot;finalUrl&quot;:&quot;https://zapatillasmay.mx/mayoreo&quot;,&quot;hops&quot;:[{&quot;url&quot;:&quot;http://zapatillasmay.mx/mayoreo&quot;,&quot;statusCode&quot;:308,&quot;type&quot;:&quot;http&quot;},{&quot;url&quot;:&quot;https://zapatilla…]
+    - http://zapatillasmay.mx/nosotros (http://zapatillasmay.mx/nosotros → https://zapatillasmay.mx/nosotros (308)) [statusCode: 308, chain: {&quot;sourceUrl&quot;:&quot;http://zapatillasmay.mx/nosotros&quot;,&quot;finalUrl&quot;:&quot;https://zapatillasmay.mx/nosotros&quot;,&quot;hops&quot;:[{&quot;url&quot;:&quot;http://zapatillasmay.mx/nosotros&quot;,&quot;statusCode&quot;:308,&quot;type&quot;:&quot;http&quot;},{&quot;url&quot;:&quot;https://zapati…]
+    - http://zapatillasmay.mx/contacto (http://zapatillasmay.mx/contacto → https://zapatillasmay.mx/contacto (308)) [statusCode: 308, chain: {&quot;sourceUrl&quot;:&quot;http://zapatillasmay.mx/contacto&quot;,&quot;finalUrl&quot;:&quot;https://zapatillasmay.mx/contacto&quot;,&quot;hops&quot;:[{&quot;url&quot;:&quot;http://zapatillasmay.mx/contacto&quot;,&quot;statusCode&quot;:308,&quot;type&quot;:&quot;http&quot;},{&quot;url&quot;:&quot;https://zapati…]
+    - http://zapatillasmay.mx/envios (http://zapatillasmay.mx/envios → https://zapatillasmay.mx/envios (308)) [statusCode: 308, chain: {&quot;sourceUrl&quot;:&quot;http://zapatillasmay.mx/envios&quot;,&quot;finalUrl&quot;:&quot;https://zapatillasmay.mx/envios&quot;,&quot;hops&quot;:[{&quot;url&quot;:&quot;http://zapatillasmay.mx/envios&quot;,&quot;statusCode&quot;:308,&quot;type&quot;:&quot;http&quot;},{&quot;url&quot;:&quot;https://zapatillasma…]
+  </rule>
+  <rule id="security/third-party-cookies" severity="info" status="warn" docs="https://docs.squirrelscan.com/rules/security/third-party-cookies">
+   1 known tracking domain(s) detected
+   Pages (5/99): /, /botas, /botines, /como-comprar, /contacto
+   Items (1):
+    - www.googletagmanager.com (script)
+  </rule>
+ </category>
+ <category name="Links" errors="0" warnings="1">
+  <rule id="links/orphan-pages" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/links/orphan-pages">
+   86 orphan page(s) with &lt;2 incoming links
+   Items (5/86):
+    - /flats
+    - /producto/C-TAC-0003-B
+    - /producto/C-TAC-0009
+    - /producto/M-TAC-0039
+    - /producto/C-TAC-0012
+  </rule>
+ </category>
+ <category name="Content" errors="0" warnings="114">
+  <rule id="content/duplicate-title" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/content/duplicate-title">
+   8 duplicate title(s) found across 24 pages
+   Items (5/8):
+    - tacones sintéticos 10cm | zapatillas may (&quot;tacones sintéticos 10cm | zapatillas may...&quot; (3 pages)) [pageCount: 3] (from: /producto/M-TAC-0039, /producto/C-TAC-0050, /producto/J-TAC-0062)
+    - sandalia sintética cómoda | zapatillas may (&quot;sandalia sintética cómoda | zapatillas m...&quot; (2 pages)) [pageCount: 2] (from: /producto/M-TAC-0034, /producto/M-TAC-0102)
+    - sandalia sintética cómoda primavera | zapatillas may (&quot;sandalia sintética cómoda primavera | za...&quot; (2 pages)) [pageCount: 2] (from: /producto/M-TAC-0035, /producto/M-TAC-0019)
+    - sandalia cómoda sintética | zapatillas may (&quot;sandalia cómoda sintética | zapatillas m...&quot; (3 pages)) [pageCount: 3] (from: /producto/M-SAN-0037, /producto/M-TAC-0127, /producto/M-TAC-0126)
+    - c | zapatillas may (&quot;c | zapatillas may...&quot; (2 pages)) [pageCount: 2] (from: /producto/C-TAC-0054, /producto/C-TAC-0049)
+  </rule>
+  <rule id="content/heading-hierarchy" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/content/heading-hierarchy">
+   1 empty heading(s) found
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (5/14):
+    - / (1 empty heading(s) found)
+    - /mayoreo (1 empty heading(s) found)
+    - /nosotros (1 empty heading(s) found)
+    - /contacto (1 empty heading(s) found)
+    - /envios (1 empty heading(s) found)
+  </rule>
+  <rule id="content/keyword-stuffing" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/content/keyword-stuffing">
+   N word(s) may be overused
+   Pages (5/14): /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/D-TAC-0082, /producto/E-TAC-0055, /producto/J-TAC-0064
+   Items (2):
+    - con (&quot;con&quot; (5.5%)) [count: 6, density: 5.454545454545454]
+    - sint (&quot;sint&quot; (5.5%)) [count: 6, density: 5.454545454545454]
+  </rule>
+  <rule id="content/word-count" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/content/word-count">
+   Thin content: N words (min N)
+   Pages (5/85): /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/C-TAC-0005, /producto/C-TAC-0009, /producto/C-TAC-0011
+   Items (5/85):
+    - /producto/C-TAC-0003-B (Thin content: 144 words (min 300))
+    - /producto/C-TAC-0009 (Thin content: 166 words (min 300))
+    - /producto/M-TAC-0039 (Thin content: 159 words (min 300))
+    - /producto/C-TAC-0012 (Thin content: 166 words (min 300))
+    - /producto/C-TAC-0014 (Thin content: 131 words (min 300))
+  </rule>
+ </category>
+ <category name="Images" errors="14" warnings="113">
+  <rule id="images/alt-text" severity="warning" status="fail" docs="https://docs.squirrelscan.com/rules/images/alt-text">
+   3 image(s) missing alt text
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (3):
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_72,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png
+  </rule>
+  <rule id="images/offscreen-lazy" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/images/offscreen-lazy">
+   2 below-fold image(s) without lazy loading
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (2):
+    - 
+    - Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png
+  </rule>
+  <rule id="images/dimensions" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/images/dimensions">
+   N image(s) missing width/height (causes CLS)
+   Pages (5/99): /, /botas, /botines, /como-comprar, /contacto
+   Items (4):
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png | &lt;img src=&quot;https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png&quot; alt=&quot;&quot;&gt;
+    - https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png | &lt;img src=&quot;https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png&quot; alt=&quot;Zapatillas May&quot;&gt;
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato | &lt;img src=&quot;https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato&quot; alt=&quot;&quot;&gt;
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_72,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png | &lt;img src=&quot;https://res.cloudinary.com/dybdtehhs/image/upload/w_72,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png&quot; alt=&quot;&quot;&gt;
+  </rule>
+ </category>
+ <category name="Performance" errors="1" warnings="417">
+  <rule id="perf/lcp-hints" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/perf/lcp-hints">
+   N potential LCP image(s) without preload
+   Pages (5/99): /, /botas, /botines, /como-comprar, /contacto
+   Items (3):
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png
+    - https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato
+  </rule>
+  <rule id="perf/ttfb" severity="warning" status="fail" docs="https://docs.squirrelscan.com/rules/perf/ttfb">
+   Slow server response (Nms); Very slow server response (1017ms)
+   Pages (5/19): /mayoreo, /producto/C-TAC-0005, /producto/C-TAC-0011, /producto/C-TAC-0012, /producto/C-TAC-0049
+   Items (5/19):
+    - /mayoreo (Slow server response (768ms))
+    - /producto/C-TAC-0012 (Slow server response (641ms))
+    - /producto/C-TAC-0011 (Slow server response (606ms))
+    - /producto/M-TAC-0023 (Slow server response (639ms))
+    - /producto/C-TAC-0005 (Slow server response (608ms))
+  </rule>
+  <rule id="perf/cls-hints" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/perf/cls-hints">
+   N image(s) without width/height (CLS risk)
+   Pages (5/99): /, /botas, /botines, /como-comprar, /contacto
+   Items (3):
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png
+    - https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png
+    - https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato
+  </rule>
+  <rule id="perf/total-byte-weight" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/perf/total-byte-weight">
+   Total tracked resources: 2539KB (heavy page)
+  </rule>
+  <rule id="perf/critical-request-chains" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/perf/critical-request-chains">
+   1 critical request chain(s) found
+   Pages (5/100): /, /botas, /botines, /como-comprar, /contacto
+   Items (3):
+    - CSS: https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&amp;family=DM+Sans:wght@300;400;500;600&amp;family=DM+Mono:wght@400;500&amp;display=swap
+    - CSS: https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&amp;family=DM+Sans:wght@300;400;500;600&amp;display=swap
+    - CSS: https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&amp;family=DM+Mono:wght@400;500&amp;display=swap
+  </rule>
+  <rule id="perf/unminified-css" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/perf/unminified-css">
+   1 CSS file(s) appear unminified
+   Pages (5/100): /, /botas, /botines, /como-comprar, /contacto
+   Items (1):
+    - inline style (65.3KB, ~14.6KB savings) [reason: high newlines (3.3%), 57 comments, excessive whitespace (25.5%), formatted code blocks]
+  </rule>
+ </category>
+ <category name="Social Media" errors="0" warnings="13">
+  <rule id="social/og-url-match" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/social/og-url-match">
+   og:url does not match canonical URL
+   Pages (5/13): /botas, /botines, /como-comprar, /contacto, /envios
+  </rule>
+ </category>
+ <category name="Accessibility" errors="113" warnings="414">
+  <rule id="a11y/label-content-name-mismatch" severity="error" status="fail" docs="https://docs.squirrelscan.com/rules/a11y/label-content-name-mismatch">
+   N element(s) where visible text doesn&apos;t match accessible name
+   Pages (5/99): /, /botas, /botines, /como-comprar, /contacto
+   Items (5):
+    - a: visible=&quot;0&quot; vs aria-label=&quot;carrito&quot;
+    - select: visible=&quot;relevancia precio: m&quot; vs aria-label=&quot;ordenar productos&quot;
+    - select: visible=&quot;menudeo y mayoreo va&quot; vs aria-label=&quot;tipo de cuenta&quot;
+    - a: visible=&quot;0 carrito&quot; vs aria-label=&quot;carrito&quot;
+    - button: visible=&quot;✕&quot; vs aria-label=&quot;cerrar&quot;
+  </rule>
+  <rule id="a11y/form-labels" severity="error" status="fail" docs="https://docs.squirrelscan.com/rules/a11y/form-labels">
+   8 form input(s) without labels
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (5/8):
+    - login-email
+    - login-password
+    - reg-nombre
+    - reg-email
+    - reg-password
+  </rule>
+  <rule id="a11y/color-contrast" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/color-contrast">
+   N potential color contrast issue(s)
+   Pages (5/100): /, /botas, /botines, /como-comprar, /contacto
+   Items (5/12):
+    - a: #C8967A on #F5ECE2 (2.22:1)
+    - a: white on #25D366 (1.98:1)
+    - Light gray text: 21 instance(s)
+    - White text (verify background): 55 instance(s)
+    - Very light text color: 3 instance(s)
+  </rule>
+  <rule id="a11y/empty-heading" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/empty-heading">
+   1 empty heading(s) found
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (1):
+    - h2#modal-name
+  </rule>
+  <rule id="a11y/landmark-one-main" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/landmark-one-main">
+   Page has no main landmark
+   Pages (5/86): /politica-de-devoluciones, /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/C-TAC-0005, /producto/C-TAC-0009
+  </rule>
+  <rule id="a11y/heading-order" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/heading-order">
+   1 heading level skip(s) detected
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (1):
+    - H5 after H2
+  </rule>
+  <rule id="a11y/link-in-text-block" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/link-in-text-block">
+   3 link(s) in text may lack underlines
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (3):
+    - &quot;Déjanos tu reseña por WhatsApp...&quot;
+    - &quot;¿Olvidaste tu contraseña?&quot;
+    - &quot;invitado&quot;
+  </rule>
+  <rule id="a11y/skip-link" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/skip-link">
+   No bypass mechanism for repetitive content
+   Pages (5/86): /politica-de-devoluciones, /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/C-TAC-0005, /producto/C-TAC-0009
+  </rule>
+  <rule id="a11y/touch-targets" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/touch-targets">
+   8 element(s) with potentially small touch targets
+   Pages (5/14): /, /botas, /botines, /como-comprar, /contacto
+   Items (5/14):
+    - / (8 element(s) with potentially small touch targets)
+    - /mayoreo (8 element(s) with potentially small touch targets)
+    - /nosotros (8 element(s) with potentially small touch targets)
+    - /contacto (8 element(s) with potentially small touch targets)
+    - /envios (8 element(s) with potentially small touch targets)
+  </rule>
+  <rule id="a11y/landmark-regions" severity="info" status="warn" docs="https://docs.squirrelscan.com/rules/a11y/landmark-regions">
+   No &lt;main&gt; landmark found
+   Pages (5/86): /politica-de-devoluciones, /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/C-TAC-0005, /producto/C-TAC-0009
+  </rule>
+ </category>
+ <category name="URL Structure" errors="0" warnings="85">
+  <rule id="url/lowercase" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/url/lowercase">
+   URL contains uppercase characters
+   Pages (5/85): /producto/A-TAC-0094, /producto/C-TAC-0003-B, /producto/C-TAC-0005, /producto/C-TAC-0009, /producto/C-TAC-0011
+  </rule>
+ </category>
+ <category name="E-E-A-T" errors="0" warnings="1">
+  <rule id="eeat/privacy-policy" severity="warning" status="warn" docs="https://docs.squirrelscan.com/rules/eeat/privacy-policy">
+   Privacy policy only linked from 14% of pages
+  </rule>
+ </category>
+</issues>
+</audit>

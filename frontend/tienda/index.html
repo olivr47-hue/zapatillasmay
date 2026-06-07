@@ -33,7 +33,9 @@
   <meta name="description" content="Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.">
   <meta name="keywords" content="zapatillas mayoreo, calzado León Guanajuato, zapatos moda dama, mayoreo calzado sin mínimo, tacones mayoreo México, sandalias mayoreo, calzado femenino mayoreo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Fuentes cargadas sin bloquear el render (media=print → all al cargar). Con display=swap el texto se ve de inmediato. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"></noscript>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     .skip-link { position: absolute; left: -9999px; top: 0; z-index: 1000; background: #2A1A0E; color: #fff; padding: 10px 16px; border-radius: 0 0 8px 0; text-decoration: none; font-size: 0.85rem; }
@@ -2278,7 +2280,6 @@
 <meta name="geo.placename" content="León, Guanajuato">
 <meta name="theme-color" content="#FBF7F3">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="canonical" href="https://zapatillasmay.mx/">
 <meta property="og:url" content="https://zapatillasmay.mx/">
 <meta property="og:title" content="Zapatillas May — Calzado de Moda para Dama | León, Guanajuato">
 <meta property="og:description" content="Calzado de moda para dama. Tacones, sandalias, botas y botines. Mayoreo y menudeo sin mínimo. Hecho en León, Guanajuato.">
@@ -2289,7 +2290,6 @@
 <meta name="twitter:description" content="Calzado de moda para dama. Mayoreo y menudeo. León, Guanajuato.">
 <meta name="twitter:image" content="https://zapatillasmay.mx/og-image.jpg">
 <link rel="preconnect" href="https://zapatillasmay-production.up.railway.app">
-<link rel="preconnect" href="https://res.cloudinary.com">
 <link rel="dns-prefetch" href="https://connect.facebook.net">
 <link rel="dns-prefetch" href="https://analytics.tiktok.com">
 <meta name="language" content="es">
@@ -2469,7 +2469,7 @@
 <header>
   <div class="header-inner">
     <a class="logo" href="#" onclick="mostrarInicio()">
-  <img src="https://res.cloudinary.com/dybdtehhs/image/upload/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" style="height:250px;object-fit:contain">
+  <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" fetchpriority="high" width="240" height="120" style="height:250px;width:auto;object-fit:contain">
 </a>
     <ul class="nav-cats">
       <li><a href="/tacones">Tacones</a></li>

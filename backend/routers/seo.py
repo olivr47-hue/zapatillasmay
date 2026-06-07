@@ -371,6 +371,54 @@ def _esc_pagina(s):
     return _html.escape(str(s or ""), quote=True)
 
 
+# ── Título descriptivo para los feeds de Shopping (Google/Meta/TikTok) ─────────
+# Mantiene el CÓDIGO interno al inicio (así se sigue localizando el modelo en el
+# panel) y le añade tipo, tacón, altura y material a partir de los datos del alta.
+# No modifica el campo `nombre` en la base de datos.
+_TIPO_SINGULAR = {
+    "tacones": "Tacón", "sandalias": "Sandalia", "botas": "Bota",
+    "botines": "Botín", "flats": "Flat", "plataformas": "Plataforma",
+    "tenis": "Tenis", "nina": "Calzado niña", "accesorios": "Accesorio",
+}
+
+
+def _cap(s):
+    """Primera letra mayúscula, resto minúsculas (normaliza 'SINTETICO ' → 'Sintetico')."""
+    s = (s or "").strip()
+    return (s[:1].upper() + s[1:].lower()) if s else ""
+
+
+def _titulo_feed(p):
+    codigo = (p.get("nombre") or p.get("sku_interno") or "").strip()
+    cat = (p.get("categoria") or "").strip().lower()
+    tipo = _TIPO_SINGULAR.get(cat) or (_cap(p.get("categoria")) or "Calzado")
+    partes = [codigo, tipo, "de dama"]
+
+    # Tacón: tipo (aguja, bloque, …) + altura en cm
+    heel = []
+    tt = (p.get("tipo_tacon") or "").strip()
+    if tt:
+        heel.append(tt)
+    alt = p.get("altura_tacon")
+    try:
+        if alt and float(alt) > 0:
+            f = float(alt)
+            heel.append(f"{int(f) if f == int(f) else f} cm")
+    except Exception:
+        pass
+    if heel:
+        hs = " ".join(heel).lower()
+        # Evita repetir la palabra "tacón" cuando la categoría ya es Tacón
+        partes.append(hs if cat == "tacones" else f"tacón {hs}")
+
+    mat = (p.get("material") or "").strip()
+    if mat:
+        partes.append(mat.lower())
+
+    titulo = re.sub(r"\s+", " ", " ".join(partes)).strip()
+    return titulo[:150]
+
+
 _ENVIO_DEFAULTS = {"tier1": 99, "tier2": 150, "tier3": 199, "gratis_desde": 1299}
 
 @router.get("/config/envio")
@@ -592,7 +640,7 @@ def feed_json():
     try:
         productos = supabase_get(
             "productos?activo=eq.true&select=id,nombre,sku_interno,descripcion,categoria,"
-            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,material,tallas_disponibles"
+            "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,imagen_principal,material,tallas_disponibles,tipo_tacon,altura_tacon"
         )
         items = []
         for p in productos:
@@ -616,7 +664,7 @@ def feed_json():
             items.append({
                 "id": p.get("id"),
                 "sku": p.get("sku_interno"),
-                "nombre": (p.get("nombre") or "").strip(),
+                "nombre": _titulo_feed(p),
                 "descripcion": (p.get("descripcion") or "").strip(),
                 "categoria": p.get("categoria"),
                 "material": p.get("material"),
@@ -676,7 +724,7 @@ def feed_meta():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
         variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
 
@@ -727,7 +775,7 @@ def feed_meta():
                     else:
                         imagenes_extra = []
 
-                    nombre = p.get("nombre", "").title()
+                    titulo_base = _titulo_feed(p)
                     color_title = color.title()
                     # Limpiar color: quitar underscores sobrantes al inicio/fin
                     color_norm = color.replace(' ', '_').replace('/', '_').replace('-', '_').strip('_')
@@ -746,7 +794,7 @@ def feed_meta():
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
                     xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
-                    xml += f'  <g:title>{nombre} - {color_title}</g:title>\n'
+                    xml += f'  <g:title>{_html.escape(titulo_base + (" - " + color_title if color_title else ""), quote=True)}</g:title>\n'
                     xml += f'  <g:description>{desc}</g:description>\n'
                     xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
@@ -775,7 +823,7 @@ def feed_meta():
                 precio = (p.get("precio_menudeo") or 0) + 80
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
-                xml += f'  <g:title>{p.get("nombre","").title()}</g:title>\n'
+                xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
                 xml += f'  <g:description>{desc2}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{imagen_p}</g:image_link>\n'
@@ -926,7 +974,7 @@ def feed_google():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
         for p in productos:
@@ -934,7 +982,7 @@ def feed_google():
             url = f"https://zapatillasmay.mx/producto/{sku}"
             xml += '<entry>\n'
             xml += f'  <g:id>{sku}</g:id>\n'
-            xml += f'  <g:title>{p.get("nombre","")}</g:title>\n'
+            xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
             xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
             xml += f'  <g:link>{url}</g:link>\n'
             xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
@@ -960,13 +1008,13 @@ def feed_google():
 @router.get("/feed/tiktok.json")
 def feed_tiktok():
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug")
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
         items = []
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
             items.append({
                 "sku_id": sku,
-                "title": p.get("nombre",""),
+                "title": _titulo_feed(p),
                 "description": p.get("descripcion","") or p.get("nombre",""),
                 "availability": "in stock",
                 "condition": "new",
