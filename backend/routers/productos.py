@@ -109,6 +109,17 @@ def activar_producto(id: str):
     cache_invalidate_prefix(_CK)
     return resultado
 
+@router.get("/catalog-version")
+def catalog_version():
+    """Versión del catálogo — la tienda lo usa para invalidar su caché local."""
+    cached = cache_get(_CK + "_version")
+    if cached is not None:
+        return cached
+    import time
+    v = {"v": int(time.time())}
+    cache_set(_CK + "_version", v, ttl=3600)
+    return v
+
 @router.post("/orden-home")
 def guardar_orden_home(ordenes: List[dict] = Body(...)):
     """Guarda el orden de aparición en la home. Recibe [{id, orden_home}]."""
@@ -118,5 +129,8 @@ def guardar_orden_home(ordenes: List[dict] = Body(...)):
             supabase_patch(f"productos?id=eq.{item['id']}", {"orden_home": item["orden_home"]})
         except Exception as e:
             errores.append({"id": item["id"], "error": str(e)})
+    import time
     cache_invalidate_prefix(_CK)
+    # Actualizar versión del catálogo para que la tienda invalide su caché
+    cache_set(_CK + "_version", {"v": int(time.time())}, ttl=3600)
     return {"ok": True, "actualizados": len(ordenes) - len(errores), "errores": errores}

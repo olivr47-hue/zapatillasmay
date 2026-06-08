@@ -3644,32 +3644,41 @@ if (config.favicon_url) {
 cargarConfigSEO()
 
   // ── Caché local de productos (TTL: 5 minutos) ──────────────────────────────
-  const CACHE_KEY = 'zm_catalog_v1'
-  const CACHE_TTL = 5 * 60 * 1000 // 5 minutos en ms
+  const CACHE_KEY = 'zm_catalog_v2'
+  const CACHE_TTL = 10 * 60 * 1000 // 10 minutos en ms
 
-  function _cacheSave(data) {
+  function _cacheSave(data, version) {
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }))
-    } catch(e) {} // ignora si localStorage está lleno
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), v: version, data }))
+    } catch(e) {}
   }
 
-  function _cacheLoad() {
+  function _cacheLoad(serverVersion) {
     try {
       const raw = localStorage.getItem(CACHE_KEY)
       if (!raw) return null
-      const { ts, data } = JSON.parse(raw)
+      const { ts, v, data } = JSON.parse(raw)
+      // Invalidar si el servidor tiene versión más nueva
+      if (serverVersion && v && serverVersion > v) { localStorage.removeItem(CACHE_KEY); return null }
       if (Date.now() - ts > CACHE_TTL) { localStorage.removeItem(CACHE_KEY); return null }
       return data
     } catch(e) { return null }
   }
 
-  // Llama esto desde el panel o desde la consola para forzar recarga
   window.zmRefreshCatalog = () => { localStorage.removeItem(CACHE_KEY); location.reload() }
 
   async function inicializar() {
     try {
-      // Intentar cargar desde caché primero
-      const cached = _cacheLoad()
+      // Verificar versión del catálogo en el servidor
+      let serverVersion = 0
+      try {
+        const vRes = await fetch(API + '/productos/catalog-version')
+        const vData = await vRes.json()
+        serverVersion = vData.v || 0
+      } catch(e) {}
+
+      // Intentar cargar desde caché (invalidando si hay versión nueva)
+      const cached = _cacheLoad(serverVersion)
       if (cached) {
         productos = cached.productos
         variantes = cached.variantes
@@ -3683,7 +3692,7 @@ cargarConfigSEO()
         productos = await resP.json()
         variantes = await resV.json()
         inventario = await resI.json()
-        _cacheSave({ productos, variantes, inventario })
+        _cacheSave({ productos, variantes, inventario }, serverVersion)
       }
       // inventario/slim solo tiene variante_id + cantidad, sin datos anidados
       _construirIndicesFiltro()
