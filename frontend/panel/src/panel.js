@@ -11090,9 +11090,15 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   burbuja.textContent = partes.join('\n\n') || '(sin contenido)'
   box.style.display = 'block'
 
-  // Mostrar/ocultar sección de foto según si es MPM o no
+  // Actualizar etiqueta de la sección foto según tipo
   const secFoto = document.getElementById('envio-seccion-foto')
-  if (secFoto) secFoto.style.display = esMPM ? 'none' : 'block'
+  if (secFoto) {
+    secFoto.style.display = 'block'
+    const lbl = secFoto.querySelector('p')
+    if (lbl) lbl.innerHTML = esMPM
+      ? '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto de portada del catálogo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(imagen principal que verá el cliente)</span>'
+      : '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto del modelo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional — para plantillas con imagen)</span>'
+  }
 
   // Mostrar aviso MPM en el catálogo
   const mpmAviso = document.getElementById('envio-mpm-aviso')
@@ -11464,13 +11470,21 @@ window.seleccionarModeloEnvio = async (productoId, nombre) => {
   }
 }
 
+// Convierte URL de Cloudinary a JPEG de alta calidad para WhatsApp (evita WebP pixelado)
+function _waCloudinaryUrl(url) {
+  if (!url?.includes('res.cloudinary.com')) return url
+  // Reemplaza transformaciones existentes (q_auto, f_auto, etc.) por f_jpg,q_95,w_1200
+  return url.replace(/\/upload\/(?:[a-z]+_[^/,]+(?:,[a-z]+_[^/,]+)*\/)*/, '/upload/f_jpg,q_95,w_1200/')
+}
+
 window.elegirVarianteEnvio = (fotoUrl, label) => {
+  const cleanUrl = _waCloudinaryUrl(fotoUrl)
   const input = document.getElementById('envio-imagen')
   const contenedor = document.getElementById('envio-foto-seleccionada')
   const img = document.getElementById('envio-foto-img')
   const lbl = document.getElementById('envio-foto-label')
-  if (input) input.value = fotoUrl
-  if (img) img.src = fotoUrl
+  if (input) input.value = cleanUrl
+  if (img) img.src = cleanUrl
   if (lbl) lbl.textContent = label
   if (contenedor) contenedor.style.display = 'block'
   // actualizar preview de la plantilla con la imagen real
