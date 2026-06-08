@@ -11370,7 +11370,12 @@ window.mostrarModalCarrusel = async (telefono) => {
     <input id="mcr-cuerpo" placeholder="Mensaje intro (ej: Mira estos modelos 👠)" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:10px">
     <div id="mcr-loading" style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">Cargando variantes...</div>
     <div id="mcr-lista" style="max-height:260px;overflow-y:auto;display:none"></div>
-    <div style="display:flex;gap:8px;margin-top:14px">
+
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#475569;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="mcr-incluir-precios" style="width:13px;height:13px">
+      Incluir todos los precios en el caption (menudeo, mayoreo y corrida)
+    </label>
+    <div style="display:flex;gap:8px;margin-top:10px">
       <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
       <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar fotos</button>
     </div>`)
@@ -11394,11 +11399,11 @@ window.mostrarModalCarrusel = async (telefono) => {
         if (coloresSeen.has(key)) return
         coloresSeen.add(key)
         const img = v.foto_url || (v.imagenes && v.imagenes[0]) || p.imagen_principal || ''
-        if (img) grupos.push({ img, nombre: p.nombre, color: v.color, precio: p.precio_menudeo, color_hex: v.color_hex || '' })
+        if (img) grupos.push({ img, nombre: p.nombre, color: v.color, precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida, corrida_activa: p.corrida_activa, color_hex: v.color_hex || '' })
       })
       // Si no tiene variantes con foto, usar imagen_principal
       if (coloresSeen.size === 0 && p.imagen_principal) {
-        grupos.push({ img: p.imagen_principal, nombre: p.nombre, color: '', precio: p.precio_menudeo, color_hex: '' })
+        grupos.push({ img: p.imagen_principal, nombre: p.nombre, color: '', precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida, corrida_activa: p.corrida_activa, color_hex: '' })
       }
     })
 
@@ -11410,13 +11415,25 @@ window.mostrarModalCarrusel = async (telefono) => {
 
     if (!grupos.length) { lista.innerHTML = '<p style="color:#94a3b8;font-size:0.8rem;padding:8px">Sin variantes con foto</p>'; return }
 
-    lista.innerHTML = grupos.map((g, i) => `
+    lista.innerHTML = grupos.map((g, i) => {
+      // Caption: nombre + color, sin precio (se maneja en conversación)
+      const textoCaption = `${g.nombre}${g.color ? ' · ' + g.color : ''}`
+      // Precios para el caption opcional
+      const lineasPrecio = []
+      if (g.precio_menudeo)  lineasPrecio.push(`Par suelto: $${g.precio_menudeo}`)
+      if (g.precio_mayoreo3) lineasPrecio.push(`3+ pares: $${g.precio_mayoreo3} c/u`)
+      if (g.precio_mayoreo6) lineasPrecio.push(`6+ pares: $${g.precio_mayoreo6} c/u`)
+      if (g.corrida_activa && g.precio_corrida) lineasPrecio.push(`Corrida: $${g.precio_corrida}`)
+      const preciosStr = lineasPrecio.join(' · ')
+      const precioRef = `$${g.precio_menudeo}`
+      return `
       <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;padding:5px 4px;cursor:pointer;border-bottom:1px solid #f8fafc">
-        <input type="checkbox" data-img="${g.img}" data-texto="${g.nombre}${g.color ? ' · ' + g.color : ''} — $${g.precio} MXN" style="width:14px;height:14px;flex-shrink:0">
+        <input type="checkbox" data-img="${g.img}" data-texto="${textoCaption}" data-precios="${preciosStr}" style="width:14px;height:14px;flex-shrink:0">
         <img src="${g.img}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
         <span style="flex:1;line-height:1.3">${g.nombre}<br><span style="color:#94a3b8;font-size:0.72rem">${g.color || 'Color único'}</span></span>
-        <span style="color:#E91E8C;font-weight:600;font-size:0.8rem">$${g.precio}</span>
-      </label>`).join('')
+        <span style="color:#94a3b8;font-size:0.75rem" title="Solo referencia — no se envía">${precioRef}</span>
+      </label>`
+    }).join('')
   } catch(e) {
     const loading = document.getElementById('mcr-loading')
     if (loading) loading.textContent = 'Error cargando variantes'
@@ -11429,10 +11446,14 @@ window._enviarCarruselWA = async (telefono) => {
   if (!checked.length) { alert('Selecciona al menos una foto'); return }
   if (checked.length > 10) { alert('Máximo 10 fotos a la vez'); return }
   const agente = window._empleadoActual?.nombre || 'Admin'
-  const tarjetas = checked.map(cb => ({
-    imagen_url: cb.dataset.img,
-    texto: cb.dataset.texto || ''
-  }))
+  const incluirPrecios = document.getElementById('mcr-incluir-precios')?.checked || false
+  const tarjetas = checked.map(cb => {
+    let texto = cb.dataset.texto || ''
+    if (incluirPrecios && cb.dataset.precios) {
+      texto += '\n' + cb.dataset.precios
+    }
+    return { imagen_url: cb.dataset.img, texto }
+  })
   document.getElementById('modal-carrusel-wa')?.remove()
   try {
     await fetch(API + '/chatbot/chats/' + telefono + '/carrusel', {
