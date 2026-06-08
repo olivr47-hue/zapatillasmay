@@ -282,6 +282,21 @@ _HOME_TITLE = "Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Gua
 _HOME_DESC = ("Calzado femenino de moda hecho en León, Guanajuato. Mayoreo desde 3 pares "
               "sin registro. Tacones, sandalias, botas y botines. Envíos a todo México.")
 
+# H1 SEO visibles para crawlers por categoría (el hero genérico no tiene keywords de categoría)
+_PAGINAS_H1 = {
+    "tacones":     "Tacones de Dama Mayoreo León Guanajuato — Aguja, Bloque y Plataforma | Zapatillas May",
+    "sandalias":   "Sandalias de Dama Mayoreo León Guanajuato — Casuales y de Fiesta | Zapatillas May",
+    "botas":       "Botas de Dama Mayoreo León Guanajuato — Moda y Calidad | Zapatillas May",
+    "botines":     "Botines de Dama Mayoreo León Guanajuato — Botines de Moda | Zapatillas May",
+    "flats":       "Flats y Zapatos Bajos de Dama Mayoreo León Guanajuato | Zapatillas May",
+    "plataformas": "Plataformas de Dama Mayoreo León Guanajuato — Altura y Comodidad | Zapatillas May",
+    "tenis":       "Tenis de Dama Mayoreo León Guanajuato — Moda Deportiva | Zapatillas May",
+    "nina":        "Calzado para Niña Mayoreo León Guanajuato — Cómodo y Resistente | Zapatillas May",
+    "accesorios":  "Accesorios de Moda Mayoreo León Guanajuato | Zapatillas May",
+    "mayoreo":     "Mayoreo de Calzado Dama sin Mínimo desde 3 Pares — León Guanajuato | Zapatillas May",
+    "ofertas":     "Ofertas de Calzado de Dama León Guanajuato — Precios Especiales | Zapatillas May",
+}
+
 _PAGINAS_SEO = {
     "tacones": ("Tacones de Dama — Mayoreo y Menudeo | Zapatillas May León",
                 "Tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México."),
@@ -360,6 +375,19 @@ def pagina_ssr(slug: str):
             'content="Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato"',
             f'content="{_esc_pagina(titulo)}"'
         )  # og:title si comparte el texto del title
+
+        # Inyectar H1 visible con keywords de categoría para ranking local (igual que Wix)
+        # Se muestra como breadcrumb sutil arriba de los productos — visible para Google y usuarios
+        h1_seo = _PAGINAS_H1.get(slug)
+        if h1_seo:
+            h1_tag = (
+                f'<h1 style="font-size:0.78rem;font-weight:500;color:#9c7c6e;letter-spacing:0.3px;'
+                f'padding:8px 20px 0;margin:0;font-family:DM Sans,sans-serif;opacity:0.85">'
+                f'{_esc_pagina(h1_seo)}</h1>'
+            )
+            # Insertar antes del cierre del header o al inicio del main content
+            template = template.replace('<div id="productos-section"',
+                                        h1_tag + '<div id="productos-section"', 1)
     except Exception as e:
         print(f"[seo] pagina_ssr replace error ({slug}): {e}")
 
