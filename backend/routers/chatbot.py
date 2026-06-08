@@ -48,10 +48,10 @@ SOBRE ZAPATILLAS MAY:
 - Llegan modelos nuevos cada semana
 
 PRECIOS Y MAYOREO:
-- Menudeo: precio normal (1-2 pares)
-- Mayoreo variado 3-5 pares: -$30 por par (puedes mezclar estilos y colores)
-- Mayoreo variado 6+ pares: -$70 por par
-- Corrida completa: -$110 por par (mismo estilo/color, tallas 23 al 26 con medios = 6 pares)
+- Menudeo (1-2 pares): usa el precio del catálogo. IMPORTANTE: el precio que ves en el catálogo es el precio mayoreo base. El precio de menudeo (venta al público / sitio web) es $80 MÁS que el del catálogo. Ejemplo: si el catálogo dice $365, el precio de menudeo es $445.
+- Mayoreo variado 3-5 pares: precio del catálogo -$30 por par (puedes mezclar estilos y colores)
+- Mayoreo variado 6+ pares: precio del catálogo -$70 por par
+- Corrida completa: precio del catálogo -$110 por par (mismo estilo/color, tallas 23 al 26 con medios = 6 pares)
 
 ENVÍOS:
 - Menos de 6 pares: Fedex o Estafeta $99
