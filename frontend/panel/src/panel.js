@@ -6672,8 +6672,26 @@ window.confirmarEnvio = async function(pedidoId) {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Error al guardar')
 
+    // Enviar template de aviso de envío por WhatsApp
+    try {
+      const resPed = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
+      const tel = resPed.telefono_cliente
+      const nombre = (resPed.nombre_cliente || 'Cliente').split(' ')[0]
+      if (tel) {
+        await fetch(API + '/chatbot/templates/enviar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telefono: tel,
+            template: 'aviso_envio',
+            params: [nombre, String(pedidoId).slice(-6), numeroGuia, paqueteria]
+          })
+        })
+      }
+    } catch(_) {}
+
     document.getElementById('modal-envio').remove()
-    mostrarToast('✅ Pedido marcado como enviado — email de tracking enviado al cliente')
+    mostrarToast('✅ Pedido enviado — WhatsApp de tracking enviado al cliente')
     await cargarPedidos()
   } catch(e) {
     errEl.textContent = e.message
@@ -7528,6 +7546,24 @@ window.confirmarPedidoAdmin = async (id) => {
     })
     const data = await res.json()
     if (data.ok) {
+      // Enviar template de confirmación vía WhatsApp si hay teléfono
+      try {
+        const resPed = await fetch(API + '/pedidos/' + id).then(r => r.json())
+        const tel = resPed.telefono_cliente
+        const nombre = (resPed.nombre_cliente || 'Cliente').split(' ')[0]
+        const total = resPed.total ? '$' + parseFloat(resPed.total).toFixed(0) : ''
+        if (tel) {
+          await fetch(API + '/chatbot/templates/enviar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telefono: tel,
+              template: 'confirmacion_pedido',
+              params: [nombre, String(id).slice(-6), total]
+            })
+          })
+        }
+      } catch(_) {}
       alert('Pedido confirmado correctamente.')
       verPedido(id)
     } else {
@@ -10147,36 +10183,31 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
     content.innerHTML = `
-  <div style="background:linear-gradient(135deg,#0c0c17 0%,#1a0a14 100%);border-radius:14px;padding:20px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:relative;overflow:hidden">
-    <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(233,30,140,0.18) 0%,transparent 70%);pointer-events:none"></div>
-    <div style="position:relative">
-      <p style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:#E91E8C;text-transform:uppercase;margin:0 0 4px">WhatsApp Cloud API</p>
-      <h2 style="font-size:1.3rem;font-weight:800;color:white;margin:0;letter-spacing:-0.01em">Conversaciones</h2>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      ${totalNoLeidos > 0 ? `<span style="background:#E91E8C;color:white;border-radius:100px;padding:4px 12px;font-size:0.75rem;font-weight:700">${totalNoLeidos} sin leer</span>` : ''}
-      <div style="display:flex;gap:4px">
-        <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit;transition:all 0.15s">Mensajes</button>
-        <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.7);font-family:inherit;transition:all 0.15s">Configuración</button>
-      </div>
-    </div>
-  </div>
   <div id="wa-tab-content">
     <div id="wa-container">
       <div id="wa-sidebar">
         <div class="wa-sidebar-header">
-          <div class="wa-sidebar-title">
-            <span style="font-weight:700;color:#0f172a">WhatsApp</span>
-            ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos} nuevo${totalNoLeidos !== 1 ? 's' : ''}</span>` : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp Cloud API</p>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-weight:800;color:white;font-size:1rem;letter-spacing:-0.01em">Conversaciones</span>
+                ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos}</span>` : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
+              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.55);font-family:inherit">Config</button>
+            </div>
           </div>
-          <input class="wa-search-input" placeholder="🔍 Buscar contacto..." oninput="filtrarChats(this.value)">
+          <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
           <div class="wa-filters">
             <button onclick="filtrarEtiqueta('')" class="wa-pill activa">Todos</button>
-            <button onclick="filtrarEtiqueta('solo_pregunta')" class="wa-pill">🔵 Pregunta</button>
-            <button onclick="filtrarEtiqueta('posible_comprador')" class="wa-pill">🟡 Posible</button>
-            <button onclick="filtrarEtiqueta('comprador')" class="wa-pill">🟢 Comprador</button>
-            <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill">🔴 Seguim.</button>
-            <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill">⭐ Frecuente</button>
+            <button onclick="filtrarEtiqueta('solo_pregunta')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0"></span> Pregunta</button>
+            <button onclick="filtrarEtiqueta('posible_comprador')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0"></span> Posible</button>
+            <button onclick="filtrarEtiqueta('comprador')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0"></span> Comprador</button>
+            <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span> Seguim.</button>
+            <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span> Frecuente</button>
           </div>
         </div>
         <div class="wa-chat-list">
@@ -10203,10 +10234,12 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
       </div>
 
       <div id="chat-area">
-        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);flex-direction:column;gap:14px">
-          <p style="font-size:3rem;line-height:1">💬</p>
-          <p style="font-weight:700;color:var(--text-2);font-size:1rem">Selecciona una conversación</p>
-          <p style="font-size:0.83rem">para ver los mensajes</p>
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(233,30,140,0.08);border:1.5px solid rgba(233,30,140,0.15);display:flex;align-items:center;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <p style="font-weight:700;color:#0f172a;font-size:0.95rem;margin:0">Selecciona una conversación</p>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:0">para ver los mensajes</p>
         </div>
       </div>
     </div>
@@ -10224,14 +10257,14 @@ window.mostrarTabWA = async (tab) => {
   const btnConfig = document.getElementById('tab-config')
   if (btnChats) {
     const active = tab === 'chats'
-    btnChats.style.background = active ? '#E91E8C' : 'rgba(255,255,255,0.07)'
-    btnChats.style.color = active ? 'white' : 'rgba(255,255,255,0.7)'
+    btnChats.style.background = active ? '#E91E8C' : 'transparent'
+    btnChats.style.color = active ? 'white' : 'rgba(255,255,255,0.55)'
     btnChats.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
   }
   if (btnConfig) {
     const active = tab === 'config'
-    btnConfig.style.background = active ? '#E91E8C' : 'rgba(255,255,255,0.07)'
-    btnConfig.style.color = active ? 'white' : 'rgba(255,255,255,0.7)'
+    btnConfig.style.background = active ? '#E91E8C' : 'transparent'
+    btnConfig.style.color = active ? 'white' : 'rgba(255,255,255,0.55)'
     btnConfig.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
   }
   if (tab === 'chats') {
@@ -10323,9 +10356,92 @@ window.mostrarConfigWA = async () => {
         </div>
 
       </div>
+
+      <!-- PLANTILLAS DE UTILIDAD -->
+      <div style="margin-top:1.5rem;max-width:1000px">
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+            <div>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp Cloud API</p>
+              <h3 style="font-weight:700;font-size:1rem;margin:0">Plantillas de mensaje</h3>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="cargarPlantillas()" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer">↺ Actualizar</button>
+              <button onclick="crearPlantillasPredefinidas()" style="background:#E91E8C;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer">+ Crear plantillas</button>
+            </div>
+          </div>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 1.5rem">Las plantillas UTILITY se envían automaticamente al confirmar pedidos y envíos. La de MARKETING para carritos abandonados. Meta las aprueba en 1–24 h.</p>
+          <div id="plantillas-lista">
+            <p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando plantillas...</p>
+          </div>
+        </div>
+      </div>
     `
+
+    cargarPlantillas()
+
   } catch(e) {
     console.error(e)
+  }
+}
+
+
+window.cargarPlantillas = async () => {
+  const el = document.getElementById('plantillas-lista')
+  if (!el) return
+  try {
+    const res = await fetch(API + '/chatbot/templates')
+    const data = await res.json()
+    const templates = data.templates || []
+    if (!templates.length) {
+      el.innerHTML = `<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:16px">Sin plantillas aún. Crea las predefinidas o agrega una desde Meta Business Manager.</p>`
+      return
+    }
+    const statusColor = { APPROVED: '#059669', PENDING: '#f59e0b', REJECTED: '#ef4444', PAUSED: '#94a3b8' }
+    const statusLabel = { APPROVED: 'Aprobada', PENDING: 'Pendiente', REJECTED: 'Rechazada', PAUSED: 'Pausada' }
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        ${templates.map(t => {
+          const body = (t.components || []).find(c => c.type === 'BODY')
+          const color = statusColor[t.status] || '#94a3b8'
+          const label = statusLabel[t.status] || t.status
+          return `
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;position:relative">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <code style="font-size:0.74rem;background:#f1f5f9;padding:3px 8px;border-radius:4px;color:#1e293b">${t.name}</code>
+                <span style="font-size:0.67rem;font-weight:700;color:${color};background:${color}18;padding:2px 8px;border-radius:100px">${label}</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:8px">
+                <span style="font-size:0.65rem;background:#f1f5f9;padding:2px 7px;border-radius:4px;color:#64748b">${t.category}</span>
+                <span style="font-size:0.65rem;background:#f1f5f9;padding:2px 7px;border-radius:4px;color:#64748b">${t.language}</span>
+              </div>
+              ${body ? `<p style="font-size:0.78rem;color:#475569;line-height:1.5;margin:0">${(body.text||'').substring(0,100)}${(body.text||'').length>100?'...':''}</p>` : ''}
+            </div>`
+        }).join('')}
+      </div>`
+  } catch(e) {
+    el.innerHTML = `<p style="color:#ef4444;font-size:0.82rem;padding:12px">Error cargando plantillas: ${e.message}</p>`
+  }
+}
+
+
+window.crearPlantillasPredefinidas = async () => {
+  const btn = event.target
+  btn.textContent = 'Creando...'
+  btn.disabled = true
+  try {
+    const res = await fetch(API + '/chatbot/templates/crear-predefinidas', { method: 'POST' })
+    const data = await res.json()
+    const resumen = (data.resultados || []).map(r =>
+      `${r.ok ? '✓' : '✗'} ${r.nombre}${r.error ? ': ' + JSON.parse(r.error||'{}')?.error?.message || r.error : ''}`
+    ).join('\n')
+    alert('Resultado:\n' + resumen)
+    cargarPlantillas()
+  } catch(e) {
+    alert('Error: ' + e.message)
+  } finally {
+    btn.textContent = '+ Crear plantillas'
+    btn.disabled = false
   }
 }
 
@@ -10406,29 +10522,85 @@ window.renderMensaje = (m, esManual, nombreContacto) => {
 
 // Función compartida de render de burbujas — usada por abrirChat y el polling
 window._renderBurbujas = (chat) => {
-  return [...chat.mensajes].reverse().map(m => {
-    const esManual = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
-    const senderName = esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
-    const _imgUrl = m.tipo === 'imagen_saliente' ? m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() : ''
-    const msgBody = (m.tipo === 'imagen_saliente' && _imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i))
-      ? `<img src="${_imgUrl}" style="max-width:200px;border-radius:8px;display:block">`
-      : `<p>${m.mensaje.replace(/\[.+?\]:\s*/, '')}</p>`
+  const mensajesOrden = [...chat.mensajes].reverse()
+  // Encontrar el índice del último mensaje saliente para poner el read receipt
+  const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
+    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente'
+    return esSal ? i : acc
+  }, -1)
+
+  return mensajesOrden.map((m, idx) => {
+    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente'
+    const senderName = esSaliente ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
     const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
-    return `
-      ${m.mensaje ? `
-        <div class="wa-msg-row ${esManual ? 'saliente' : 'entrante'}">
-          <span class="wa-msg-sender">${esManual ? senderName : senderName}</span>
-          <div class="wa-bubble ${esManual ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}</div></div>
-        </div>` : ''}
-      ${m.respuesta ? `
-        <div class="wa-msg-row saliente">
-          <span class="wa-msg-sender" style="color:#7c3aed;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Bot</span>
+    const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
+
+    // Construir body de la burbuja según tipo
+    let msgBody = ''
+    if (m.tipo === 'imagen_saliente') {
+      const imgUrl = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
+      msgBody = imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)
+        ? `<img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer" onclick="window.open('${imgUrl}')">`
+        : `<p>${textoLimpio}</p>`
+    } else if (m.tipo === 'documento_saliente') {
+      const parts = textoLimpio.replace('[Documento] ', '').split(' ')
+      const fname = parts[0] || 'documento'
+      const furl  = parts[1] || ''
+      msgBody = `<a href="${furl}" target="_blank" class="wa-doc-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        ${fname}</a>`
+    } else if (m.tipo === 'video_saliente') {
+      const vurl = textoLimpio.replace('[Video] ', '')
+      msgBody = `<video src="${vurl}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
+    } else if (m.tipo === 'imagen') {
+      msgBody = `<p style="color:#64748b;font-size:0.8rem">[Imagen recibida]</p>`
+    } else {
+      msgBody = `<p>${textoLimpio}</p>`
+    }
+
+    // Read receipt solo en el último saliente
+    let readReceipt = ''
+    if (esSaliente && idx === idxUltimoSaliente) {
+      const leyoAt = chat.cliente_leyo_at ? new Date(chat.cliente_leyo_at) : null
+      const entregAt = chat.cliente_entrego_at ? new Date(chat.cliente_entrego_at) : null
+      const msgAt = new Date(m.created_at)
+      if (leyoAt && leyoAt >= msgAt) {
+        readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
+      } else if (entregAt && entregAt >= msgAt) {
+        readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
+      } else {
+        readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
+      }
+    }
+
+    // Botón reply en hover
+    const replyBtn = `<button class="wa-reply-btn" onclick="iniciarReply('${chat.telefono}','${(m.wa_message_id||'').replace(/'/g,'')}')" title="Responder">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+    </button>`
+
+    const rendered = m.mensaje ? `
+      <div class="wa-msg-row ${esSaliente ? 'saliente' : 'entrante'}" data-idx="${idx}">
+        ${!esSaliente ? replyBtn : ''}
+        <div style="display:flex;flex-direction:column;${esSaliente ? 'align-items:flex-end' : ''}">
+          <span class="wa-msg-sender">${senderName}</span>
+          <div class="wa-bubble ${esSaliente ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}${readReceipt}</div></div>
+        </div>
+        ${esSaliente ? replyBtn : ''}
+      </div>` : ''
+
+    const botRendered = m.respuesta ? `
+      <div class="wa-msg-row saliente">
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
           <div class="wa-bubble bot">
             <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>
             ${(m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('')}
             <div class="wa-bubble-time">${ts}</div>
           </div>
-        </div>` : ''}`
+        </div>
+      </div>` : ''
+
+    return rendered + botRendered
   }).join('')
 }
 
@@ -10470,6 +10642,9 @@ area.style.minHeight = '0'
           : `<button onclick="toggleControl('${telefono}', true)" class="wa-btn wa-btn-off" title="Tomar control manual">Manual</button>`}
         <button onclick="mostrarCatalogoWA('${telefono}')" class="wa-btn wa-btn-prod" title="Enviar producto">Catálogo</button>
         <button onclick="mostrarRespuestasRapidas('${telefono}')" class="wa-btn wa-btn-quick" title="Respuestas rápidas">Rápidas</button>
+        <button onclick="marcarNoLeido('${telefono}')" class="wa-btn" style="background:rgba(245,127,23,0.08);color:#f57f17;border-color:rgba(245,127,23,0.25)" title="Marcar pendiente de revisión">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </button>
         <button onclick="window.cargarConversaciones()" class="wa-btn wa-btn-reload" title="Recargar">↺</button>
       </div>
     </div>
@@ -10480,12 +10655,12 @@ area.style.minHeight = '0'
         ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
       <select onchange="cambiarEtiqueta('${telefono}', this.value)" class="wa-label-select-sm">
-        <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>⚪ Sin etiqueta</option>
-        <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>🔵 Solo pregunta</option>
-        <option value="posible_comprador" ${chat.etiqueta==='posible_comprador' ? 'selected' : ''}>🟡 Posible comprador</option>
-        <option value="comprador" ${chat.etiqueta==='comprador' ? 'selected' : ''}>🟢 Comprador</option>
-        <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>🔴 Seguimiento</option>
-        <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>⭐ Frecuente</option>
+        <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>Sin etiqueta</option>
+        <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>Pregunta</option>
+        <option value="posible_comprador" ${chat.etiqueta==='posible_comprador' ? 'selected' : ''}>Posible comprador</option>
+        <option value="comprador" ${chat.etiqueta==='comprador' ? 'selected' : ''}>Comprador</option>
+        <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>Seguimiento</option>
+        <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>Frecuente</option>
       </select>
     </div>
 
@@ -10496,16 +10671,42 @@ area.style.minHeight = '0'
 
     <!-- Input -->
     <div class="wa-input-bar">
+      <div class="wa-input-toolbar">
+        <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${telefono}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+        <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${telefono}',this)">
+        <button class="wa-tool-btn" title="Adjuntar documento o PDF" onclick="document.getElementById('doc-file-${telefono}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        </button>
+        <input type="file" id="doc-file-${telefono}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${telefono}',this)">
+        <button class="wa-tool-btn" title="Adjuntar video" onclick="document.getElementById('vid-file-${telefono}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </button>
+        <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${telefono}',this)">
+        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </button>
+        <div style="flex:1"></div>
+        <span id="reply-context-${telefono}" class="wa-reply-context" style="display:none"></span>
+        <span id="char-count-${telefono}" class="wa-char-count"></span>
+      </div>
       <div class="wa-input-row">
         <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="2"
+                  oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''}"
                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${telefono}')}"></textarea>
-        <button onclick="enviarMensajeWA('${telefono}')" class="wa-send-btn">➤</button>
+        <button onclick="enviarMensajeWA('${telefono}')" class="wa-send-btn" title="Enviar (Enter)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
       </div>
     </div>
 
     <!-- Toggle notas/tareas -->
     <button class="wa-nt-toggle" onclick="toggleNotasTareas()">
-      <span>📋 Notas y tareas</span>
+      <span style="display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Notas y tareas
+      </span>
       <span id="wa-nt-arrow" style="font-size:0.7rem">${esMobil ? '▲' : '▼'}</span>
     </button>
     <div id="notas-tareas-panel" class="${esMobil ? 'nt-collapsed' : ''}">
@@ -10712,11 +10913,15 @@ window.enviarMensajeWA = async (telefono) => {
   if (!mensaje) return
   input.value = ''
   const agente = window._empleadoActual?.nombre || 'Admin'
+  const reply_to_wa_id = window._replyContext?.[telefono] || null
+  cancelarReply(telefono)
+  const cc = document.getElementById('char-count-' + telefono)
+  if (cc) cc.textContent = ''
   try {
     await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensaje, agente })
+      body: JSON.stringify({ mensaje, agente, reply_to_wa_id })
     })
     const resChats = await fetch(API + '/chatbot/chats')
     const chats = await resChats.json()
@@ -10725,6 +10930,123 @@ window.enviarMensajeWA = async (telefono) => {
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando mensaje')
+  }
+}
+
+// Reply context
+window._replyContext = {}
+window.iniciarReply = (telefono, waId) => {
+  window._replyContext[telefono] = waId
+  const ctx = document.getElementById('reply-context-' + telefono)
+  if (ctx) {
+    ctx.style.display = 'inline-flex'
+    ctx.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Respondiendo &nbsp;<button onclick="cancelarReply('${telefono}')" style="border:none;background:none;cursor:pointer;color:#94a3b8;padding:0;font-size:0.75rem">✕</button>`
+  }
+  document.getElementById('msg-input-' + telefono)?.focus()
+}
+window.cancelarReply = (telefono) => {
+  delete window._replyContext[telefono]
+  const ctx = document.getElementById('reply-context-' + telefono)
+  if (ctx) ctx.style.display = 'none'
+}
+
+window.marcarNoLeido = async (telefono) => {
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/no-leido', { method: 'PATCH' })
+    // Reflejar visualmente en sidebar
+    const item = document.querySelector(`[data-tel="${telefono}"]`)
+    if (item && !item.querySelector('.wa-unread')) {
+      const badge = document.createElement('span')
+      badge.className = 'wa-unread'
+      badge.textContent = '!'
+      item.appendChild(badge)
+    }
+  } catch(e) {}
+}
+
+window.subirImagenWA = async (telefono, input) => {
+  const file = input.files[0]
+  if (!file) return
+  input.value = ''
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  const btn = document.querySelector('.wa-send-btn')
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5' }
+  try {
+    // Subir a Supabase storage via endpoint existente
+    const formData = new FormData()
+    formData.append('file', file)
+    const uploadRes = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: formData })
+    const uploadData = await uploadRes.json()
+    const imagen_url = uploadData.url || uploadData.public_url
+    if (!imagen_url) throw new Error('No se obtuvo URL')
+    await fetch(API + '/chatbot/chats/' + telefono + '/imagen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imagen_url, caption: '', agente })
+    })
+    const resChats = await fetch(API + '/chatbot/chats')
+    const chats = await resChats.json()
+    window._chatsData = {}
+    chats.forEach(c => window._chatsData[c.telefono] = c)
+    abrirChat(telefono)
+  } catch(e) {
+    alert('Error subiendo imagen: ' + e.message)
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1' }
+  }
+}
+
+window.subirDocumentoWA = async (telefono, input) => {
+  const file = input.files[0]
+  if (!file) return
+  input.value = ''
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const uploadRes = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: formData })
+    const uploadData = await uploadRes.json()
+    const doc_url = uploadData.url || uploadData.public_url
+    if (!doc_url) throw new Error('No se obtuvo URL')
+    await fetch(API + '/chatbot/chats/' + telefono + '/documento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doc_url, filename: file.name, caption: '', agente })
+    })
+    const resChats = await fetch(API + '/chatbot/chats')
+    const chats = await resChats.json()
+    window._chatsData = {}
+    chats.forEach(c => window._chatsData[c.telefono] = c)
+    abrirChat(telefono)
+  } catch(e) {
+    alert('Error enviando documento: ' + e.message)
+  }
+}
+
+window.subirVideoWA = async (telefono, input) => {
+  const file = input.files[0]
+  if (!file) return
+  input.value = ''
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const uploadRes = await fetch(API + '/imagenes/upload-temp', { method: 'POST', body: formData })
+    const uploadData = await uploadRes.json()
+    const video_url = uploadData.url || uploadData.public_url
+    if (!video_url) throw new Error('No se obtuvo URL')
+    await fetch(API + '/chatbot/chats/' + telefono + '/video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ video_url, caption: '', agente })
+    })
+    const resChats = await fetch(API + '/chatbot/chats')
+    const chats = await resChats.json()
+    window._chatsData = {}
+    chats.forEach(c => window._chatsData[c.telefono] = c)
+    abrirChat(telefono)
+  } catch(e) {
+    alert('Error enviando video: ' + e.message)
   }
 }
 

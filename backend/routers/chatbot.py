@@ -166,44 +166,66 @@ def llamar_claude_con_imagen(img_b64, sistema, historial=[]):
         error = e.read().decode()
         raise Exception(f"Claude API error: {error}")
 
-def enviar_whatsapp_texto(to, texto):
+def _wa_send(payload: dict) -> str:
+    """Envía payload a la API de WhatsApp y devuelve el message_id (wamid)."""
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
     if not wa_token or not phone_id:
-        return
+        return ""
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
-    body = json.dumps({
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req) as r:
+            data = json.loads(r.read())
+            return data.get("messages", [{}])[0].get("id", "")
+    except Exception as e:
+        print(f"Error WA send: {e}")
+        return ""
+
+def enviar_whatsapp_texto(to, texto, reply_to_id=None):
+    payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "text",
         "text": {"body": texto}
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        urllib.request.urlopen(req)
-    except Exception as e:
-        print(f"Error texto WA: {e}")
+    }
+    if reply_to_id:
+        payload["context"] = {"message_id": reply_to_id}
+    return _wa_send(payload)
 
 def enviar_whatsapp_imagen(to, url_img, caption=""):
     print(f"ENVIANDO IMAGEN: {url_img}")
-    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
-    phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
-    if not wa_token or not phone_id:
-        return
-    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
-    headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
-    body = json.dumps({
+    return _wa_send({
         "messaging_product": "whatsapp",
         "to": to,
         "type": "image",
         "image": {"link": url_img, "caption": caption}
-    }).encode("utf-8")
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    try:
-        urllib.request.urlopen(req)
-    except Exception as e:
-        print(f"Error imagen WA: {e}")
+    })
+
+def enviar_whatsapp_documento(to, url_doc, filename="documento.pdf", caption=""):
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "document",
+        "document": {"link": url_doc, "filename": filename, "caption": caption}
+    })
+
+def enviar_whatsapp_video(to, url_vid, caption=""):
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "video",
+        "video": {"link": url_vid, "caption": caption}
+    })
+
+def enviar_whatsapp_reaccion(to, message_id, emoji):
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "reaction",
+        "reaction": {"message_id": message_id, "emoji": emoji}
+    })
 
 def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
     """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id)."""
@@ -439,6 +461,25 @@ async def recibir_mensaje_whatsapp(datos: dict):
         entry = datos.get("entry", [{}])[0]
         changes = entry.get("changes", [{}])[0]
         value = changes.get("value", {})
+
+        # ── Recibos de entrega y lectura ──────────────────────────────────────
+        statuses = value.get("statuses", [])
+        for st in statuses:
+            status_type = st.get("status")   # sent | delivered | read | failed
+            recipient   = st.get("recipient_id", "")
+            if status_type in ("delivered", "read") and recipient:
+                try:
+                    existing = supabase_get(f"chats_control?telefono=eq.{recipient}")
+                    campo = "cliente_entrego_at" if status_type == "delivered" else "cliente_leyo_at"
+                    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                    if existing:
+                        supabase_patch(f"chats_control?telefono=eq.{recipient}", {campo: now_iso})
+                    else:
+                        supabase_post("chats_control", {"telefono": recipient, campo: now_iso})
+                    cache_invalidate("chats_lista")
+                except Exception as e:
+                    print(f"Error guardando status {status_type}: {e}")
+
         messages = value.get("messages", [])
         if not messages:
             return {"status": "ok"}
@@ -542,8 +583,8 @@ async def listar_chats():
         conversaciones = supabase_get(
             "conversaciones_whatsapp"
             "?order=created_at.desc"
-            "&limit=300"
-            "&select=telefono,nombre_contacto,created_at,leido,mensaje,tipo"
+            "&limit=400"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo"
         )
         chats = {}
         for m in conversaciones:
@@ -569,12 +610,15 @@ async def listar_chats():
                     nombre = m['nombre_contacto']
                     break
             chat['nombre'] = nombre
-        control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
+        control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
         for c in control:
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
                 chats[c['telefono']]['agente'] = c.get('agente')
                 chats[c['telefono']]['etiqueta'] = c.get('etiqueta', 'sin_etiqueta')
+                chats[c['telefono']]['cliente_leyo_at'] = c.get('cliente_leyo_at')
+                chats[c['telefono']]['cliente_entrego_at'] = c.get('cliente_entrego_at')
+                chats[c['telefono']]['pendiente_revision'] = c.get('pendiente_revision', False)
         result = list(chats.values())
         cache_set("chats_lista", result, ttl=20)
         return result
@@ -609,16 +653,23 @@ async def enviar_mensaje_manual(telefono: str, datos: dict):
         from database import supabase_post
         mensaje = datos.get("mensaje", "")
         agente = datos.get("agente", "Admin")
+        reply_to = datos.get("reply_to_wa_id")
         if not mensaje:
             return JSONResponse(status_code=400, content={"error": "Mensaje vacio"})
-        enviar_whatsapp_texto(telefono, mensaje)
-        supabase_post("conversaciones_whatsapp", {
+        wa_id = enviar_whatsapp_texto(telefono, mensaje, reply_to_id=reply_to)
+        row = {
             "telefono": telefono,
             "mensaje": f"[{agente}]: {mensaje}",
             "respuesta": None,
             "tipo": "manual",
             "leido": True
-        })
+        }
+        if wa_id:
+            try:
+                row["wa_message_id"] = wa_id
+            except Exception:
+                pass
+        supabase_post("conversaciones_whatsapp", row)
         cache_invalidate("chats_lista")
         return {"ok": True}
     except Exception as e:
@@ -1277,3 +1328,279 @@ async def envio_productos(datos: dict):
         return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ─── Nuevos endpoints WhatsApp Cloud API ──────────────────────────────────────
+
+@router.post("/chats/{telefono}/documento")
+async def enviar_documento_manual(telefono: str, datos: dict):
+    try:
+        doc_url  = datos.get("doc_url", "")
+        filename = datos.get("filename", "documento.pdf")
+        caption  = datos.get("caption", "")
+        agente   = datos.get("agente", "Admin")
+        if not doc_url:
+            return JSONResponse(status_code=400, content={"error": "doc_url requerido"})
+        enviar_whatsapp_documento(telefono, doc_url, filename, caption)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Documento] {filename} {doc_url}",
+            "respuesta": None,
+            "tipo": "documento_saliente",
+            "leido": True
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/video")
+async def enviar_video_manual(telefono: str, datos: dict):
+    try:
+        video_url = datos.get("video_url", "")
+        caption   = datos.get("caption", "")
+        agente    = datos.get("agente", "Admin")
+        if not video_url:
+            return JSONResponse(status_code=400, content={"error": "video_url requerido"})
+        enviar_whatsapp_video(telefono, video_url, caption)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Video] {video_url}",
+            "respuesta": None,
+            "tipo": "video_saliente",
+            "leido": True
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/reaccion")
+async def enviar_reaccion(telefono: str, datos: dict):
+    try:
+        message_id = datos.get("message_id", "")
+        emoji      = datos.get("emoji", "👍")
+        if not message_id:
+            return JSONResponse(status_code=400, content={"error": "message_id requerido"})
+        enviar_whatsapp_reaccion(telefono, message_id, emoji)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.patch("/chats/{telefono}/no-leido")
+async def marcar_no_leido(telefono: str):
+    try:
+        existing = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existing:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"pendiente_revision": True})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "pendiente_revision": True})
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ─── Gestión de plantillas de WhatsApp ────────────────────────────────────────
+
+def _wa_graph(path: str, method: str = "GET", body: dict = None) -> dict:
+    """Llamada genérica a la Graph API de Meta."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    headers  = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    url = f"https://graph.facebook.com/v25.0/{path}"
+    data = json.dumps(body).encode() if body else None
+    req  = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req) as r:
+        return json.loads(r.read())
+
+def _get_waba_id() -> str:
+    """Obtiene el WABA_ID a partir del Phone ID configurado."""
+    phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+    data = _wa_graph(f"{phone_id}?fields=whatsapp_business_account")
+    return data.get("whatsapp_business_account", {}).get("id", "")
+
+@router.get("/templates")
+async def listar_templates():
+    try:
+        waba_id = _get_waba_id()
+        if not waba_id:
+            return JSONResponse(status_code=400, content={"error": "No se pudo obtener WABA_ID"})
+        data = _wa_graph(f"{waba_id}/message_templates?fields=name,status,category,language,components&limit=50")
+        return {"waba_id": waba_id, "templates": data.get("data", [])}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/templates")
+async def crear_template(datos: dict):
+    """Crea una plantilla en Meta. datos = {name, category, language, components}"""
+    try:
+        waba_id = _get_waba_id()
+        if not waba_id:
+            return JSONResponse(status_code=400, content={"error": "No se pudo obtener WABA_ID"})
+        result = _wa_graph(f"{waba_id}/message_templates", method="POST", body=datos)
+        return result
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=e.code, content={"error": body})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/templates/{template_name}")
+async def eliminar_template(template_name: str):
+    try:
+        waba_id = _get_waba_id()
+        result = _wa_graph(f"{waba_id}/message_templates?name={template_name}", method="DELETE")
+        return result
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/templates/enviar")
+async def enviar_template(datos: dict):
+    """Envía una plantilla aprobada a un teléfono con parámetros posicionales."""
+    try:
+        telefono  = datos.get("telefono", "")
+        template  = datos.get("template", "")
+        params    = datos.get("params", [])   # lista de strings posicionales
+        language  = datos.get("language", "es_MX")
+        if not telefono or not template:
+            return JSONResponse(status_code=400, content={"error": "telefono y template requeridos"})
+
+        components = []
+        if params:
+            components.append({
+                "type": "body",
+                "parameters": [{"type": "text", "text": str(p)} for p in params]
+            })
+            # Si la plantilla tiene botones con variable (aviso_envio → URL con {{1}})
+            if template == "aviso_envio" and len(params) >= 3:
+                components.append({
+                    "type": "button",
+                    "sub_type": "url",
+                    "index": "0",
+                    "parameters": [{"type": "text", "text": str(params[2])}]
+                })
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": telefono,
+            "type": "template",
+            "template": {
+                "name": template,
+                "language": {"code": language},
+                "components": components
+            }
+        }
+        wa_id = _wa_send(payload)
+        return {"ok": True, "wa_id": wa_id}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=e.code, content={"error": body})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/templates/crear-predefinidas")
+async def crear_templates_predefinidos():
+    """Crea las 3 plantillas de utilidad para Zapatillas May."""
+    waba_id = _get_waba_id()
+    if not waba_id:
+        return JSONResponse(status_code=400, content={"error": "No se pudo obtener WABA_ID"})
+
+    plantillas = [
+        {
+            "name": "confirmacion_pedido",
+            "category": "UTILITY",
+            "language": "es_MX",
+            "components": [
+                {
+                    "type": "HEADER",
+                    "format": "TEXT",
+                    "text": "Pedido confirmado"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hola {{1}}, tu pedido #{{2}} por ${{3}} MXN ha sido confirmado. En breve te enviamos la guía de rastreo. Cualquier duda estamos aquí.",
+                    "example": {
+                        "body_text": [["Ana", "1042", "980"]]
+                    }
+                },
+                {
+                    "type": "FOOTER",
+                    "text": "Zapatillas May · León, Gto."
+                }
+            ]
+        },
+        {
+            "name": "aviso_envio",
+            "category": "UTILITY",
+            "language": "es_MX",
+            "components": [
+                {
+                    "type": "HEADER",
+                    "format": "TEXT",
+                    "text": "Tu pedido va en camino"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hola {{1}}, tu pedido #{{2}} fue enviado. Tu número de guía es {{3}} con {{4}}. Tiempo estimado: 2 a 4 días hábiles.",
+                    "example": {
+                        "body_text": [["Ana", "1042", "1Z999AA10123456784", "DHL"]]
+                    }
+                },
+                {
+                    "type": "FOOTER",
+                    "text": "Zapatillas May · León, Gto."
+                },
+                {
+                    "type": "BUTTONS",
+                    "buttons": [
+                        {
+                            "type": "URL",
+                            "text": "Rastrear pedido",
+                            "url": "https://www.dhl.com.mx/es/express/rastreo.html?AWB={{1}}",
+                            "example": ["1Z999AA10123456784"]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "recordatorio_carrito",
+            "category": "MARKETING",
+            "language": "es_MX",
+            "components": [
+                {
+                    "type": "HEADER",
+                    "format": "TEXT",
+                    "text": "Olvidaste algo"
+                },
+                {
+                    "type": "BODY",
+                    "text": "Hola {{1}}, vimos que dejaste {{2}} en tu carrito. Aún lo tenemos disponible en talla {{3}}. Escríbenos y te lo apartamos antes de que se agote.",
+                    "example": {
+                        "body_text": [["Ana", "tacones stiletto negro", "25"]]
+                    }
+                },
+                {
+                    "type": "FOOTER",
+                    "text": "Zapatillas May · León, Gto."
+                }
+            ]
+        }
+    ]
+
+    resultados = []
+    for p in plantillas:
+        try:
+            r = _wa_graph(f"{waba_id}/message_templates", method="POST", body=p)
+            resultados.append({"nombre": p["name"], "ok": True, "id": r.get("id"), "status": r.get("status")})
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()
+            resultados.append({"nombre": p["name"], "ok": False, "error": err})
+        except Exception as ex:
+            resultados.append({"nombre": p["name"], "ok": False, "error": str(ex)})
+
+    return {"waba_id": waba_id, "resultados": resultados}
