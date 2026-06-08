@@ -20,54 +20,57 @@ function animStagger(els, frames, opts) {
 }
 
 // ─── scroll reveal con IntersectionObserver ───────────
+let _revealIO = null
+const _seen = new WeakSet()
+
+function _observeEl(el, frames, dur) {
+  if (_seen.has(el)) return
+  _seen.add(el)
+  el.style.opacity = '0'
+  el.style.transform = frames[0].transform || ''
+  _revealIO.observe(el)
+  el._animFrames = frames
+  el._animDur    = dur
+}
+
 function setupScrollReveals() {
   if (noMotion) return
 
-  const configs = [
-    { sel: '.product-card',       frames: [{ opacity:0, transform:'translateY(32px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
-    { sel: '.cat-card',           frames: [{ opacity:0, transform:'translateY(24px) scale(0.94)' }, { opacity:1, transform:'translateY(0) scale(1)' }], dur: 420 },
-    { sel: '.section-title',      frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 480 },
-    { sel: '.testimonio-card',    frames: [{ opacity:0, transform:'translateY(20px)' }, { opacity:1, transform:'translateY(0)' }], dur: 420 },
-    { sel: '.banner-mayoreo',     frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
-    { sel: '.catalogo-card',      frames: [{ opacity:0, transform:'scale(0.93)' },      { opacity:1, transform:'scale(1)' }],      dur: 380 },
-    { sel: '.info-card',          frames: [{ opacity:0, transform:'translateY(12px)' }, { opacity:1, transform:'translateY(0)' }], dur: 320 },
-  ]
-
-  const seen = new WeakSet()
-  const io = new IntersectionObserver((entries) => {
+  _revealIO = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      if (!entry.isIntersecting || seen.has(entry.target)) return
-      seen.add(entry.target)
-      io.unobserve(entry.target)
-      const cfg = entry.target._animCfg
-      if (!cfg) return
-      entry.target.animate(cfg.frames, { fill: 'forwards', easing: ease, duration: cfg.dur })
+      if (!entry.isIntersecting) return
+      _revealIO.unobserve(entry.target)
+      const el = entry.target
+      el.animate(el._animFrames, { duration: el._animDur, easing: ease, fill: 'forwards' })
     })
-  }, { threshold: 0.1 })
+  }, { threshold: 0.08 })
 
-  configs.forEach(({ sel, frames, dur }) => {
-    document.querySelectorAll(sel).forEach(el => {
-      if (seen.has(el)) return
-      el._animCfg = { frames, dur }
-      // Estado inicial
-      el.style.opacity = '0'
-      io.observe(el)
-    })
+  // Estáticos: títulos, banners, testimonios, cat-cards, info-cards
+  const staticCfgs = [
+    { sel: '.section-title',   frames: [{ opacity:0, transform:'translateY(18px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
+    { sel: '.cat-card',        frames: [{ opacity:0, transform:'translateY(22px) scale(0.94)' }, { opacity:1, transform:'translateY(0) scale(1)' }], dur: 420 },
+    { sel: '.testimonio-card', frames: [{ opacity:0, transform:'translateY(20px)' }, { opacity:1, transform:'translateY(0)' }], dur: 420 },
+    { sel: '.banner-mayoreo',  frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 480 },
+    { sel: '.catalogo-card',   frames: [{ opacity:0, transform:'scale(0.93)' },     { opacity:1, transform:'scale(1)' }],     dur: 380 },
+    { sel: '.info-card',       frames: [{ opacity:0, transform:'translateY(12px)' }, { opacity:1, transform:'translateY(0)' }], dur: 320 },
+  ]
+  staticCfgs.forEach(({ sel, frames, dur }) => {
+    document.querySelectorAll(sel).forEach(el => _observeEl(el, frames, dur))
   })
+}
 
-  // Re-observar cards que se agreguen después (productos que carga el JS)
-  const gridObs = new MutationObserver(() => {
-    configs.forEach(({ sel, frames, dur }) => {
-      document.querySelectorAll(sel).forEach(el => {
-        if (seen.has(el) || el._animCfg) return
-        el._animCfg = { frames, dur }
-        el.style.opacity = '0'
-        io.observe(el)
-      })
-    })
+// Llamado desde _agregarLote() en index.html cuando llegan cards nuevas
+window.zmObserveCards = function() {
+  if (noMotion || !_revealIO) return
+  const frames = [{ opacity:0, transform:'translateY(30px)' }, { opacity:1, transform:'translateY(0)' }]
+  document.querySelectorAll('.product-card').forEach((el, i) => {
+    if (_seen.has(el)) return
+    el._animFrames = frames
+    el._animDur    = 480 + (i % 4) * 40  // pequeño stagger por posición
+    _seen.add(el)
+    el.style.opacity = '0'
+    _revealIO.observe(el)
   })
-  const grids = document.querySelectorAll('.products-grid, .cats-grid, #products-grid, #catalogo-grid')
-  grids.forEach(g => gridObs.observe(g, { childList: true }))
 }
 
 // ─── page enter ───────────────────────────────────────
