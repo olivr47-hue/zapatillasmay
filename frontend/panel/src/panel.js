@@ -11107,9 +11107,10 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   window._envioEsMPM = esMPM
   // Tipo de header: IMAGE | TEXT | NONE
   window._envioHeaderTipo = header?.format || (header?.text ? 'TEXT' : 'NONE')
-  // Contar variables {{N}} en el body para saber cuántos params enviar
-  const bodyVars = (body?.text || '').match(/\{\{\d+\}\}/g) || []
-  window._envioBodyVarsCount = bodyVars.length
+  // Contar variables {{N}} o {{}} en el body — Meta a veces omite el número
+  const bodyText = body?.text || ''
+  const bodyVars = bodyText.match(/\{\{[\d]*\}\}/g) || []
+  window._envioBodyVarsCount = bodyVars.length || (bodyText.includes('{{') ? 1 : 0)
 
   // Mostrar/ocultar selector de foto según si el header admite imagen
   const secFotoEl = document.getElementById('envio-seccion-foto')

@@ -874,7 +874,11 @@ async def envio_masivo(datos: dict):
                 pass
 
             body_params = []
-            if body_vars_count > 0:
+            # Enviar parámetro de nombre si la plantilla tiene variables (body_vars_count > 0)
+            # o si el nombre es real (no default "Cliente") como fallback por si el frontend
+            # no detectó bien el número de variables
+            tiene_vars = body_vars_count > 0 or (nombre and nombre != "Cliente")
+            if tiene_vars:
                 if variables_body:
                     body_params = [{"type": "text", "text": v.get("text", "")} for v in variables_body]
                 elif nombre:
