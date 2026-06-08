@@ -2037,20 +2037,7 @@
     }
     .btn-primary:hover::after { transform: translateX(100%); }
 
-    /* Aparición en scroll */
-    .product-card, .cat-card, .section-title {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .product-card.in-view, .cat-card.in-view, .section-title.in-view {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .products-grid .product-card:nth-child(1).in-view { transition-delay: 0.05s; }
-    .products-grid .product-card:nth-child(2).in-view { transition-delay: 0.10s; }
-    .products-grid .product-card:nth-child(3).in-view { transition-delay: 0.15s; }
-    .products-grid .product-card:nth-child(4).in-view { transition-delay: 0.20s; }
+    /* Aparición en scroll — manejado por animations.js (.zm-reveal / .zm-in) */
 
     /* === BREAKPOINTS INTERMEDIOS === */
 
@@ -6220,20 +6207,7 @@ window.addEventListener('scroll', () => {
     setTimeout(function(){bd.classList.remove('bounce');},500);
   }).observe(bd,{childList:true,characterData:true,subtree:true});
 
-  /* SCROLL IN-VIEW */
-  var _io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in-view');_io.unobserve(e.target);}});
-  },{threshold:.12});
-  function initSA(){
-    document.querySelectorAll('.product-card,.cat-card,.section-title').forEach(function(el){
-      if(!el.classList.contains('in-view'))_io.observe(el);
-    });
-  }
-  var _pg=document.getElementById('products-grid');
-  var _cg=document.getElementById('cats-grid');
-  if(_pg)new MutationObserver(initSA).observe(_pg,{childList:true});
-  if(_cg)new MutationObserver(initSA).observe(_cg,{childList:true});
-  initSA();
+  /* SCROLL reveal — manejado por animations.js */
 })();
 </script>
 <!-- WHATSAPP FLOTANTE -->

@@ -148,22 +148,7 @@ function setupCounters() {
   io.observe(el)
 }
 
-// ─── Hero shoe parallax (solo desktop) ────────────────
-function setupHeroShoe() {
-  if (noMotion || 'ontouchstart' in window) return
-  const shoe = document.getElementById('hero-shoe-wrap')
-  if (!shoe) return
-  let raf
-  document.addEventListener('mousemove', (e) => {
-    cancelAnimationFrame(raf)
-    raf = requestAnimationFrame(() => {
-      const dx = (e.clientX / window.innerWidth  - 0.5) * 16
-      const dy = (e.clientY / window.innerHeight - 0.5) * 9
-      shoe.style.transform = `translate(${dx}px,${dy}px) rotate(${dx * 0.1}deg)`
-      shoe.style.transition = 'transform 0.5s cubic-bezier(0.23,1,0.32,1)'
-    })
-  }, { passive: true })
-}
+// Hero shoe parallax eliminado — el hero en index.html maneja el fondo
 
 // ─── Add to cart ──────────────────────────────────────
 window.animateAddToCart = function(btnEl) {
@@ -242,7 +227,6 @@ function init() {
 
   if (isHome) {
     animateHero()
-    setupHeroShoe()
   }
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
