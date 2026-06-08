@@ -1870,14 +1870,13 @@ async def enviar_botones_interactivos(telefono: str, datos: dict):
 
         wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "interactive", "interactive": interactive})
         btns_txt = " | ".join(b["reply"]["title"] for b in botones)
-        supabase_post("conversaciones_whatsapp", {
-            "telefono": telefono,
-            "mensaje": f"[{agente}]: [Botones] {cuerpo} -> {btns_txt}",
-            "respuesta": None,
-            "tipo": "botones_saliente",
-            "leido": True,
-            "wa_message_id": wamid
-        })
+        row_botones = {"telefono": telefono, "mensaje": f"[{agente}]: [Botones] {cuerpo} -> {btns_txt}",
+                       "respuesta": None, "tipo": "botones_saliente", "leido": True}
+        if wamid:
+            try: row_botones["wa_message_id"] = wamid
+            except Exception: pass
+        try: supabase_post("conversaciones_whatsapp", row_botones)
+        except Exception: pass
         cache_invalidate("chats_lista")
         return {"ok": True, "wamid": wamid}
     except Exception as e:
@@ -1912,14 +1911,13 @@ async def enviar_lista_interactiva(telefono: str, datos: dict):
                             "action": {"button": titulo_boton, "sections": secciones}}
         })
         opciones_txt = ", ".join(op.get("titulo","") for sec in secciones_raw for op in sec.get("opciones",[]))
-        supabase_post("conversaciones_whatsapp", {
-            "telefono": telefono,
-            "mensaje": f"[{agente}]: [Lista] {cuerpo} -> {opciones_txt}",
-            "respuesta": None,
-            "tipo": "lista_saliente",
-            "leido": True,
-            "wa_message_id": wamid
-        })
+        row_lista = {"telefono": telefono, "mensaje": f"[{agente}]: [Lista] {cuerpo} -> {opciones_txt}",
+                     "respuesta": None, "tipo": "lista_saliente", "leido": True}
+        if wamid:
+            try: row_lista["wa_message_id"] = wamid
+            except Exception: pass
+        try: supabase_post("conversaciones_whatsapp", row_lista)
+        except Exception: pass
         cache_invalidate("chats_lista")
         return {"ok": True, "wamid": wamid}
     except Exception as e:
@@ -1969,15 +1967,24 @@ async def enviar_carrusel(telefono: str, datos: dict):
             }
         })
 
-        supabase_post("conversaciones_whatsapp", {
-            "telefono": telefono,
-            "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({enviadas} fotos)",
-            "respuesta": None,
-            "tipo": "carrusel_saliente",
-            "leido": True
-        })
+        # Poner en control manual para que Maya no responda mientras el cliente ve las fotos
+        existing_ctrl = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existing_ctrl:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"en_control": True})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "en_control": True})
+
+        try:
+            supabase_post("conversaciones_whatsapp", {
+                "telefono": telefono,
+                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({enviadas} fotos)",
+                "tipo": "carrusel_saliente",
+                "leido": True
+            })
+        except Exception:
+            pass  # no bloquear si falla el registro
         cache_invalidate("chats_lista")
-        return {"ok": True, "wamid": wamid}
+        return {"ok": True, "enviadas": enviadas}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -2011,11 +2018,13 @@ async def broadcast_masivo(datos: dict):
                     "template": {"name": template_name, "language": {"code": idioma}, "components": components}
                 })
                 resultados.append({"tel": tel, "ok": bool(wamid), "wamid": wamid})
-                supabase_post("conversaciones_whatsapp", {
-                    "telefono": tel,
-                    "mensaje": f"[Broadcast]: [Template] {template_name}",
-                    "respuesta": None, "tipo": "template_saliente", "leido": True, "wa_message_id": wamid
-                })
+                row_bc = {"telefono": tel, "mensaje": f"[Broadcast]: [Template] {template_name}",
+                          "respuesta": None, "tipo": "template_saliente", "leido": True}
+                if wamid:
+                    try: row_bc["wa_message_id"] = wamid
+                    except Exception: pass
+                try: supabase_post("conversaciones_whatsapp", row_bc)
+                except Exception: pass
             except Exception as e:
                 resultados.append({"tel": tel, "ok": False, "error": str(e)})
 
