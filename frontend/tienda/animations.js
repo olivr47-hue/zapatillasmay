@@ -156,20 +156,19 @@ function animateHero() {
   const selectors = ['.hero-eyebrow','.hero-title','.hero-subtitle','.hero-cta','.hero-garantias']
   const els = selectors.map(s => content.querySelector(s)).filter(Boolean)
 
-  els.forEach((el, i) => {
-    // Web Animations API — más fiable que CSS transitions en Android
-    const anim = el.animate(
-      [{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'translateY(0)' }],
-      { duration: noMotion ? 1 : 700, delay: noMotion ? 0 : 150 + i * 130,
-        easing: 'cubic-bezier(0.23,1,0.32,1)', fill: 'forwards' }
-    )
-    // Mantener estado final visible cuando termina
-    anim.onfinish = () => {
-      el.style.opacity = '1'
-      el.style.transform = 'none'
-      anim.cancel()
-    }
-  })
+  // Fijar estado inicial via inline (elimina dependencia del CSS externo)
+  els.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translateY(28px)' })
+
+  // Doble rAF: garantiza que el browser pintó opacity:0 antes de arrancar la transición
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    els.forEach((el, i) => {
+      setTimeout(() => {
+        el.style.transition = 'opacity 0.72s cubic-bezier(0.23,1,0.32,1), transform 0.72s cubic-bezier(0.23,1,0.32,1)'
+        el.style.opacity = '1'
+        el.style.transform = 'translateY(0)'
+      }, noMotion ? 0 : i * 140)
+    })
+  }))
 }
 
 // ─── Contador numérico ─────────────────────────────────
