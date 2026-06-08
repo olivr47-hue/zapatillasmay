@@ -11362,98 +11362,121 @@ window._enviarListaWA = async (telefono) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
-// ── Modal: Carrusel de productos (por variante/color) ─────────────
+// ── Modal: Carrusel — búsqueda + expand por modelo ─────────────────
 window.mostrarModalCarrusel = async (telefono) => {
   const m = _crearModalWA('modal-carrusel-wa', `
     <h3 style="margin:0 0 4px;font-size:1rem;color:#0f172a">Enviar fotos de productos</h3>
-    <p style="margin:0 0 10px;font-size:0.75rem;color:#94a3b8">Selecciona los colores que quieres enviar (máx 10)</p>
-    <input id="mcr-cuerpo" placeholder="Mensaje intro (ej: Mira estos modelos 👠)" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:10px">
-    <div id="mcr-loading" style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">Cargando variantes...</div>
-    <div id="mcr-lista" style="max-height:260px;overflow-y:auto;display:none"></div>
-
-    <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#475569;margin-top:10px;cursor:pointer">
-      <input type="checkbox" id="mcr-incluir-precios" style="width:13px;height:13px">
-      Incluir todos los precios en el caption (menudeo, mayoreo y corrida)
-    </label>
-    <div style="display:flex;gap:8px;margin-top:10px">
+    <p style="margin:0 0 8px;font-size:0.75rem;color:#94a3b8">Busca un modelo y tócalo para ver sus colores</p>
+    <input id="mcr-cuerpo" placeholder="Mensaje intro" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:6px">
+    <input id="mcr-search" placeholder="🔍 Buscar modelo..." oninput="window._mcrFiltrar()" style="${_inputStyle()};margin-bottom:6px">
+    <div id="mcr-loading" style="text-align:center;padding:16px;color:#94a3b8;font-size:0.82rem">Cargando...</div>
+    <div id="mcr-modelos" style="max-height:270px;overflow-y:auto;display:none;border:1px solid #e2e8f0;border-radius:8px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;color:#475569;cursor:pointer">
+        <input type="checkbox" id="mcr-incluir-precios" style="width:12px;height:12px">
+        Incluir precios en las fotos
+      </label>
+      <span id="mcr-contador" style="font-size:0.72rem;color:#94a3b8">0/10 fotos</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
       <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar fotos</button>
     </div>`)
   document.body.appendChild(m)
 
-  // Cargar variantes agrupadas por producto
   try {
-    const prods = (window._productosWA || [])
-    // Cargar variantes de todos los productos activos
+    const prods = window._productosWA || []
     const varsRes = await fetch(API + '/variantes/?activa=eq.true&select=id,producto_id,color,foto_url,imagenes,color_hex')
     const vars = await varsRes.json()
 
-    // Agrupar: producto → colores únicos con foto
-    const grupos = []
-    prods.forEach(p => {
+    // Construir mapa producto → variantes únicas con foto
+    window._mcrDatos = prods.map(p => {
       const varsP = vars.filter(v => v.producto_id === p.id)
-      // Colores únicos de este producto
       const coloresSeen = new Set()
+      const variantes = []
       varsP.forEach(v => {
-        const key = `${p.id}__${v.color}`
-        if (coloresSeen.has(key)) return
-        coloresSeen.add(key)
+        if (coloresSeen.has(v.color)) return
+        coloresSeen.add(v.color)
         const img = v.foto_url || (v.imagenes && v.imagenes[0]) || p.imagen_principal || ''
-        if (img) grupos.push({ img, nombre: p.nombre, color: v.color, precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida, corrida_activa: p.corrida_activa, color_hex: v.color_hex || '' })
+        if (img) variantes.push({ img, color: v.color || 'Sin color', color_hex: v.color_hex || '' })
       })
-      // Si no tiene variantes con foto, usar imagen_principal
-      if (coloresSeen.size === 0 && p.imagen_principal) {
-        grupos.push({ img: p.imagen_principal, nombre: p.nombre, color: '', precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida, corrida_activa: p.corrida_activa, color_hex: '' })
-      }
-    })
+      if (!variantes.length && p.imagen_principal)
+        variantes.push({ img: p.imagen_principal, color: 'Color único', color_hex: '' })
 
-    const lista = document.getElementById('mcr-lista')
-    const loading = document.getElementById('mcr-loading')
-    if (!lista) return
-    loading.style.display = 'none'
-    lista.style.display = 'block'
-
-    if (!grupos.length) { lista.innerHTML = '<p style="color:#94a3b8;font-size:0.8rem;padding:8px">Sin variantes con foto</p>'; return }
-
-    lista.innerHTML = grupos.map((g, i) => {
-      // Caption: nombre + color, sin precio (se maneja en conversación)
-      const textoCaption = `${g.nombre}${g.color ? ' · ' + g.color : ''}`
-      // Precios para el caption opcional
       const lineasPrecio = []
-      if (g.precio_menudeo)  lineasPrecio.push(`Par suelto: $${g.precio_menudeo}`)
-      if (g.precio_mayoreo3) lineasPrecio.push(`3+ pares: $${g.precio_mayoreo3} c/u`)
-      if (g.precio_mayoreo6) lineasPrecio.push(`6+ pares: $${g.precio_mayoreo6} c/u`)
-      if (g.corrida_activa && g.precio_corrida) lineasPrecio.push(`Corrida: $${g.precio_corrida}`)
-      const preciosStr = lineasPrecio.join(' · ')
-      const precioRef = `$${g.precio_menudeo}`
-      return `
-      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;padding:5px 4px;cursor:pointer;border-bottom:1px solid #f8fafc">
-        <input type="checkbox" data-img="${g.img}" data-texto="${textoCaption}" data-precios="${preciosStr}" style="width:14px;height:14px;flex-shrink:0">
-        <img src="${g.img}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
-        <span style="flex:1;line-height:1.3">${g.nombre}<br><span style="color:#94a3b8;font-size:0.72rem">${g.color || 'Color único'}</span></span>
-        <span style="color:#94a3b8;font-size:0.75rem" title="Solo referencia — no se envía">${precioRef}</span>
-      </label>`
-    }).join('')
+      if (p.precio_menudeo)  lineasPrecio.push('Par: $' + p.precio_menudeo)
+      if (p.precio_mayoreo3) lineasPrecio.push('3+: $' + p.precio_mayoreo3)
+      if (p.precio_mayoreo6) lineasPrecio.push('6+: $' + p.precio_mayoreo6)
+      if (p.corrida_activa && p.precio_corrida) lineasPrecio.push('Corrida: $' + p.precio_corrida)
+
+      return { id: p.id, nombre: p.nombre, preciosStr: lineasPrecio.join(' · '), variantes }
+    }).filter(p => p.variantes.length)
+
+    document.getElementById('mcr-loading').style.display = 'none'
+    document.getElementById('mcr-modelos').style.display = 'block'
+    window._mcrFiltrar()
+    setTimeout(() => document.getElementById('mcr-search')?.focus(), 50)
   } catch(e) {
-    const loading = document.getElementById('mcr-loading')
-    if (loading) loading.textContent = 'Error cargando variantes'
+    const el = document.getElementById('mcr-loading')
+    if (el) el.textContent = 'Error: ' + e.message
   }
+}
+
+window._mcrFiltrar = () => {
+  const q = (document.getElementById('mcr-search')?.value || '').toLowerCase().trim()
+  const datos = (window._mcrDatos || []).filter(p => !q || p.nombre.toLowerCase().includes(q))
+  const cont = document.getElementById('mcr-modelos')
+  if (!cont) return
+  if (!datos.length) { cont.innerHTML = '<p style="padding:12px;color:#94a3b8;font-size:0.82rem;text-align:center">Sin resultados</p>'; return }
+  cont.innerHTML = datos.map(p => `
+    <div style="border-bottom:1px solid #f1f5f9">
+      <div onclick="window._mcrToggle('${p.id}')" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+        <span id="mcr-arrow-${p.id}" style="font-size:0.65rem;color:#94a3b8;transition:transform 0.15s;display:inline-block">▶</span>
+        <span style="flex:1;font-size:0.85rem;font-weight:600;color:#0f172a">${p.nombre}</span>
+        <span style="font-size:0.7rem;color:#94a3b8">${p.variantes.length} color${p.variantes.length !== 1 ? 'es' : ''}</span>
+      </div>
+      <div id="mcr-vars-${p.id}" style="display:none;padding:0 10px 10px 28px">
+        ${p.variantes.map(v => `
+          <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:0.82rem">
+            <input type="checkbox" class="mcr-check"
+              data-img="${v.img}"
+              data-texto="${p.nombre} · ${v.color}"
+              data-precios="${p.preciosStr}"
+              onchange="window._mcrContador()"
+              style="width:14px;height:14px;flex-shrink:0">
+            <img src="${v.img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
+            <span>${v.color}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('')
+}
+
+window._mcrToggle = (id) => {
+  const panel = document.getElementById('mcr-vars-' + id)
+  const arrow = document.getElementById('mcr-arrow-' + id)
+  if (!panel) return
+  const open = panel.style.display === 'block'
+  panel.style.display = open ? 'none' : 'block'
+  if (arrow) arrow.style.transform = open ? '' : 'rotate(90deg)'
+}
+
+window._mcrContador = () => {
+  const n = document.querySelectorAll('#modal-carrusel-wa .mcr-check:checked').length
+  const el = document.getElementById('mcr-contador')
+  if (el) { el.textContent = n + '/10 fotos'; el.style.color = n >= 10 ? '#ef4444' : '#94a3b8' }
 }
 
 window._enviarCarruselWA = async (telefono) => {
   const cuerpo = document.getElementById('mcr-cuerpo')?.value.trim() || 'Mira estos modelos'
-  const checked = [...document.querySelectorAll('#modal-carrusel-wa input[type=checkbox]:checked')]
+  const checked = [...document.querySelectorAll('#modal-carrusel-wa .mcr-check:checked')]
   if (!checked.length) { alert('Selecciona al menos una foto'); return }
-  if (checked.length > 10) { alert('Máximo 10 fotos a la vez'); return }
+  if (checked.length > 10) { alert('Máximo 10 fotos'); return }
   const agente = window._empleadoActual?.nombre || 'Admin'
   const incluirPrecios = document.getElementById('mcr-incluir-precios')?.checked || false
-  const tarjetas = checked.map(cb => {
-    let texto = cb.dataset.texto || ''
-    if (incluirPrecios && cb.dataset.precios) {
-      texto += '\n' + cb.dataset.precios
-    }
-    return { imagen_url: cb.dataset.img, texto }
-  })
+  const tarjetas = checked.map(cb => ({
+    imagen_url: cb.dataset.img,
+    texto: cb.dataset.texto + (incluirPrecios && cb.dataset.precios ? '\n' + cb.dataset.precios : '')
+  }))
   document.getElementById('modal-carrusel-wa')?.remove()
   try {
     await fetch(API + '/chatbot/chats/' + telefono + '/carrusel', {
