@@ -10200,6 +10200,12 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             </div>
           </div>
           <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          <div class="wa-estado-tabs">
+            <button class="wa-estado-tab activa" onclick="filtrarEstado('',this)">Todos</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('espera',this)"><span class="wa-estado-dot espera"></span>Espera</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('cerrado',this)"><span class="wa-estado-dot cerrado"></span>Cerrado</button>
+          </div>
           <div class="wa-filters">
             <button onclick="filtrarEtiqueta('')" class="wa-pill activa">Todos</button>
             <button onclick="filtrarEtiqueta('solo_pregunta')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0"></span> Pregunta</button>
@@ -10213,14 +10219,16 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
           ${chats.length === 0
             ? '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
             : chats.sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}"
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
                    onclick="abrirChat('${c.telefono}')">
                 <div class="wa-avatar">
                   ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
                   ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
                 </div>
                 <div class="wa-chat-info">
-                  <div class="wa-chat-name">${c.nombre || c.telefono}</div>
+                  <div class="wa-chat-name">${c.nombre || c.telefono}
+                    ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
+                  </div>
                   <div class="wa-chat-preview">${(c.mensajes[0]?.mensaje||'').substring(0,40)}…</div>
                 </div>
                 <div class="wa-chat-meta">
@@ -10280,6 +10288,27 @@ window.filtrarEtiqueta = (etiqueta) => {
     const etiq = el.dataset.etiqueta || ''
     el.style.display = !etiqueta || etiq === etiqueta ? '' : 'none'
   })
+}
+
+window.filtrarEstado = (estado, btn) => {
+  document.querySelectorAll('.wa-estado-tab').forEach(b => b.classList.remove('activa'))
+  if (btn) btn.classList.add('activa')
+  document.querySelectorAll('.wa-chat-item').forEach(el => {
+    const est = el.dataset.estado || 'abierto'
+    el.style.display = !estado || est === estado ? '' : 'none'
+  })
+}
+
+window.cambiarEstadoChat = async (telefono, estado) => {
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/estado', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado })
+    })
+    await window._recargarChats()
+    abrirChat(telefono)
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 
@@ -10374,16 +10403,97 @@ window.mostrarConfigWA = async () => {
             <p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando plantillas...</p>
           </div>
         </div>
+
+        <!-- ── Broadcast / Campaña masiva ── -->
+        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:20px;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem">📢 Campaña masiva</p>
+              <p style="margin:2px 0 0;font-size:0.75rem;color:#94a3b8">Envía una plantilla aprobada a todos tus contactos de WhatsApp</p>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Plantilla</label>
+              <select id="broadcast-template" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="">Cargando plantillas...</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Parámetro 1 (si la plantilla lo requiere)</label>
+              <input id="broadcast-param1" placeholder="ej: nombre del cliente (se usará igual para todos)" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;box-sizing:border-box;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Destinatarios</label>
+              <select id="broadcast-dest" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="todos">Todos los contactos de WhatsApp</option>
+                <option value="compradores">Solo compradores</option>
+                <option value="posibles">Posibles compradores</option>
+              </select>
+            </div>
+            <button onclick="ejecutarBroadcast()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">
+              Enviar campaña →
+            </button>
+            <div id="broadcast-resultado" style="font-size:0.8rem;color:#64748b;text-align:center"></div>
+          </div>
+        </div>
       </div>
     `
 
     cargarPlantillas()
+    // Poblar select de broadcast con plantillas aprobadas
+    fetch(API + '/chatbot/templates').then(r => r.json()).then(data => {
+      const sel = document.getElementById('broadcast-template')
+      if (!sel) return
+      const aprobadas = (data.data || []).filter(t => t.status === 'APPROVED')
+      sel.innerHTML = aprobadas.length
+        ? aprobadas.map(t => `<option value="${t.name}">${t.name}</option>`).join('')
+        : '<option value="">Sin plantillas aprobadas</option>'
+    }).catch(() => {})
 
   } catch(e) {
     console.error(e)
   }
 }
 
+
+window.ejecutarBroadcast = async () => {
+  const template = document.getElementById('broadcast-template')?.value
+  const param1   = document.getElementById('broadcast-param1')?.value.trim() || ''
+  const destOpt  = document.getElementById('broadcast-dest')?.value || 'todos'
+  const resEl    = document.getElementById('broadcast-resultado')
+
+  if (!template) { alert('Selecciona una plantilla'); return }
+
+  // Obtener teléfonos según filtro
+  const chats = Object.values(window._chatsData || {})
+  let telefonos = []
+  if (destOpt === 'todos') {
+    telefonos = chats.map(c => c.telefono)
+  } else if (destOpt === 'compradores') {
+    telefonos = chats.filter(c => c.etiqueta === 'comprador' || c.etiqueta === 'frecuente').map(c => c.telefono)
+  } else if (destOpt === 'posibles') {
+    telefonos = chats.filter(c => c.etiqueta === 'posible_comprador').map(c => c.telefono)
+  }
+
+  if (!telefonos.length) { alert('No hay contactos en ese grupo'); return }
+
+  const confirmMsg = `¿Enviar "${template}" a ${telefonos.length} contacto${telefonos.length!==1?'s':''}?`
+  if (!confirm(confirmMsg)) return
+
+  if (resEl) resEl.textContent = 'Enviando...'
+  try {
+    const params = param1 ? [param1] : []
+    const r = await fetch(API + '/chatbot/broadcast', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template, params, telefonos })
+    })
+    const data = await r.json()
+    if (resEl) resEl.textContent = `✓ Enviados: ${data.enviados}/${data.total} — Errores: ${data.errores}`
+  } catch(e) {
+    if (resEl) resEl.textContent = 'Error: ' + e.message
+  }
+}
 
 window.cargarPlantillas = async () => {
   const el = document.getElementById('plantillas-lista')
@@ -10535,12 +10645,12 @@ window._renderBurbujas = (chat) => {
   const mensajesOrden = [...chat.mensajes].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
-    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente'
+    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
     return esSal ? i : acc
   }, -1)
 
   return mensajesOrden.map((m, idx) => {
-    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente'
+    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
     const senderName = esSaliente ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
     const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
     const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
@@ -10562,6 +10672,31 @@ window._renderBurbujas = (chat) => {
     } else if (m.tipo === 'video_saliente') {
       const vurl = textoLimpio.replace('[Video] ', '')
       msgBody = `<video src="${vurl}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
+    } else if (m.tipo === 'botones_saliente') {
+      const partes = textoLimpio.replace('[Botones] ', '').split(' -> ')
+      const msg = partes[0] || textoLimpio
+      const btns = (partes[1] || '').split(' | ')
+      msgBody = `<p style="margin:0 0 8px">${msg}</p>
+        <div style="display:flex;flex-direction:column;gap:4px">${btns.map(b=>`<span style="border:1px solid rgba(8,145,178,0.3);border-radius:6px;padding:4px 10px;font-size:0.78rem;color:#0891b2;text-align:center">${b}</span>`).join('')}</div>`
+    } else if (m.tipo === 'lista_saliente') {
+      const partes = textoLimpio.replace('[Lista] ', '').split(' -> ')
+      const msg = partes[0] || textoLimpio
+      const ops = (partes[1] || '').split(', ').slice(0, 5)
+      msgBody = `<p style="margin:0 0 6px">${msg}</p>
+        <div style="border:1px solid rgba(8,145,178,0.25);border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#0891b2">
+          ${ops.map(o=>`<div>• ${o}</div>`).join('')}
+          ${ops.length < (partes[1]||'').split(', ').length ? '<div style="color:#94a3b8">…</div>' : ''}
+        </div>`
+    } else if (m.tipo === 'carrusel_saliente') {
+      msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Carrusel] ','')}</p>
+        <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>`
+    } else if (m.tipo === 'template_saliente') {
+      msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Template] ','')}</p>
+        <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`
+    } else if (m.tipo === 'button_reply') {
+      msgBody = `<p style="margin:0;color:#0891b2;font-size:0.85rem">👆 ${textoLimpio.replace('[Botón] ','')}</p>`
+    } else if (m.tipo === 'list_reply') {
+      msgBody = `<p style="margin:0;color:#0891b2;font-size:0.85rem">☰ ${textoLimpio.replace('[Lista] ','')}</p>`
     } else if (m.tipo === 'ubicacion_saliente') {
       const mapsUrl = textoLimpio.match(/https:\/\/maps\.google\.com\/\?q=[\d.,]+/)?.[0] || ''
       const locName = textoLimpio.replace('[Ubicación] ', '').replace(/ https:.*/,'')
@@ -10684,6 +10819,11 @@ area.style.minHeight = '0'
         <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>Seguimiento</option>
         <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>Frecuente</option>
       </select>
+      <select onchange="cambiarEstadoChat('${telefono}', this.value)" class="wa-label-select-sm" style="border-color:${(chat.estado||'abierto')==='espera'?'#f59e0b':(chat.estado==='cerrado'?'#64748b':'#10b981')}">
+        <option value="abierto" ${(!chat.estado||chat.estado==='abierto') ? 'selected' : ''}>🟢 Abierto</option>
+        <option value="espera" ${chat.estado==='espera' ? 'selected' : ''}>🟡 En espera</option>
+        <option value="cerrado" ${chat.estado==='cerrado' ? 'selected' : ''}>⚫ Cerrado</option>
+      </select>
     </div>
 
     <!-- Mensajes -->
@@ -10706,6 +10846,15 @@ area.style.minHeight = '0'
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         </button>
         <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${telefono}',this)">
+        <button class="wa-tool-btn" title="Enviar botones interactivos" onclick="mostrarModalBotones('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="4" rx="2"/><rect x="2" y="13" width="20" height="4" rx="2"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar lista interactiva" onclick="mostrarModalLista('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg>
+        </button>
         <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${telefono}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </button>
@@ -11140,6 +11289,139 @@ window.enviarContactoWA = async (telefono) => {
     alert('Error enviando contacto: ' + e.message)
   }
 }
+
+// ── Modal: Botones interactivos ────────────────────────────────────
+window.mostrarModalBotones = (telefono) => {
+  const m = _crearModalWA('modal-botones-wa', `
+    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar botones interactivos</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <input id="mbt-encabezado" placeholder="Encabezado (opcional)" style="${_inputStyle()}">
+      <textarea id="mbt-cuerpo" placeholder="Mensaje principal *" rows="2" style="${_inputStyle()};resize:none"></textarea>
+      <input id="mbt-btn1" placeholder="Botón 1 (opcional, máx 20 chars)" style="${_inputStyle()}">
+      <input id="mbt-btn2" placeholder="Botón 2 (opcional, máx 20 chars)" style="${_inputStyle()}">
+      <p style="font-size:0.75rem;color:#94a3b8;margin:0">Se agrega automáticamente: <strong>Hablar con asesor</strong></p>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="document.getElementById('modal-botones-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
+      <button onclick="_enviarBotonesWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+    </div>`)
+  document.body.appendChild(m)
+  setTimeout(() => document.getElementById('mbt-cuerpo')?.focus(), 50)
+}
+
+window._enviarBotonesWA = async (telefono) => {
+  const cuerpo = document.getElementById('mbt-cuerpo')?.value.trim()
+  if (!cuerpo) { alert('Escribe el mensaje principal'); return }
+  const encabezado = document.getElementById('mbt-encabezado')?.value.trim() || ''
+  const btn1 = document.getElementById('mbt-btn1')?.value.trim() || ''
+  const btn2 = document.getElementById('mbt-btn2')?.value.trim() || ''
+  const botones = [btn1, btn2].filter(Boolean)
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  document.getElementById('modal-botones-wa')?.remove()
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/botones', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cuerpo, encabezado, botones, agente })
+    })
+    await window._recargarChats(); abrirChat(telefono)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+// ── Modal: Lista interactiva ───────────────────────────────────────
+window.mostrarModalLista = (telefono) => {
+  const m = _crearModalWA('modal-lista-wa', `
+    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar lista interactiva</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <textarea id="mlt-cuerpo" placeholder="Mensaje principal *" rows="2" style="${_inputStyle()};resize:none"></textarea>
+      <input id="mlt-boton" placeholder="Texto del botón (ej: Ver opciones)" style="${_inputStyle()}">
+      <textarea id="mlt-opciones" placeholder="Opciones (una por línea, máx 10)&#10;ej:&#10;Tenis&#10;Sandalias&#10;Tacones" rows="5" style="${_inputStyle()};resize:none"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="document.getElementById('modal-lista-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
+      <button onclick="_enviarListaWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+    </div>`)
+  document.body.appendChild(m)
+  setTimeout(() => document.getElementById('mlt-cuerpo')?.focus(), 50)
+}
+
+window._enviarListaWA = async (telefono) => {
+  const cuerpo = document.getElementById('mlt-cuerpo')?.value.trim()
+  if (!cuerpo) { alert('Escribe el mensaje'); return }
+  const titulo_boton = document.getElementById('mlt-boton')?.value.trim() || 'Ver opciones'
+  const lineas = (document.getElementById('mlt-opciones')?.value || '').split('\n').map(l=>l.trim()).filter(Boolean).slice(0,10)
+  if (!lineas.length) { alert('Agrega al menos una opción'); return }
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  document.getElementById('modal-lista-wa')?.remove()
+  const secciones = [{ titulo: 'Opciones', opciones: lineas.map((l,i) => ({ id: `op_${i}`, titulo: l })) }]
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/lista', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cuerpo, titulo_boton, secciones, agente })
+    })
+    await window._recargarChats(); abrirChat(telefono)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+// ── Modal: Carrusel de productos ───────────────────────────────────
+window.mostrarModalCarrusel = (telefono) => {
+  const prods = (window._productosWA || []).slice(0, 10)
+  const filas = prods.map((p, i) => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;padding:4px 0;cursor:pointer">
+      <input type="checkbox" data-idx="${i}" value="${i}" style="width:14px;height:14px">
+      ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;border-radius:6px;object-fit:cover">` : '<div style="width:32px;height:32px;border-radius:6px;background:#f1f5f9"></div>'}
+      <span style="flex:1">${p.nombre}</span>
+      <span style="color:#E91E8C;font-weight:600">$${p.precio_menudeo}</span>
+    </label>`).join('')
+
+  const m = _crearModalWA('modal-carrusel-wa', `
+    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar carrusel de productos</h3>
+    <input id="mcr-cuerpo" placeholder="Mensaje (ej: Mira estos modelos 👠)" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:10px">
+    <p style="font-size:0.75rem;color:#64748b;margin:0 0 8px">Selecciona hasta 10 productos:</p>
+    <div style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px">${filas || '<p style="color:#94a3b8;font-size:0.8rem">Sin productos en catálogo</p>'}</div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
+      <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+    </div>`)
+  document.body.appendChild(m)
+}
+
+window._enviarCarruselWA = async (telefono) => {
+  const cuerpo = document.getElementById('mcr-cuerpo')?.value.trim() || 'Mira estos modelos'
+  const checked = [...document.querySelectorAll('#modal-carrusel-wa input[type=checkbox]:checked')]
+  if (!checked.length) { alert('Selecciona al menos un producto'); return }
+  const prods = window._productosWA || []
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  const tarjetas = checked.map(cb => {
+    const p = prods[parseInt(cb.value)]
+    return {
+      imagen_url: p.imagen_principal || '',
+      texto: `${p.nombre} — $${p.precio_menudeo} MXN`,
+      botones: [{ id: `comprar_${p.id}`, titulo: 'Me interesa' }]
+    }
+  })
+  document.getElementById('modal-carrusel-wa')?.remove()
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/carrusel', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cuerpo, tarjetas, agente })
+    })
+    await window._recargarChats(); abrirChat(telefono)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+// ── Helpers de estilo para modales ─────────────────────────────────
+function _crearModalWA(id, contenido) {
+  const existente = document.getElementById(id); if (existente) existente.remove()
+  const m = document.createElement('div')
+  m.id = id
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2)">${contenido}</div>`
+  m.addEventListener('click', e => { if (e.target === m) m.remove() })
+  return m
+}
+function _inputStyle() { return 'border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;outline:none;width:100%;box-sizing:border-box;font-family:inherit' }
+function _btnSecStyle() { return 'flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b;font-family:inherit' }
+function _btnPrimStyle() { return 'flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;font-family:inherit' }
 
 window.cambiarEtiqueta = async (telefono, etiqueta) => {
   try {

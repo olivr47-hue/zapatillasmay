@@ -648,6 +648,47 @@ async def recibir_mensaje_whatsapp(datos: dict):
         elif tipo == "audio":
             # ── Transcripción con Whisper ────────────────────────────
             mensaje = _transcribir_audio_wa(mensaje_data, from_number)
+        elif tipo == "interactive":
+            # ── Respuesta a botón o lista interactiva ────────────────
+            inter = mensaje_data.get("interactive", {})
+            inter_tipo = inter.get("type", "")
+            if inter_tipo == "button_reply":
+                btn = inter.get("button_reply", {})
+                btn_id = btn.get("id", "")
+                btn_title = btn.get("title", "")
+                mensaje = f"[Botón] {btn_title}"
+                guardar_conversacion(from_number, mensaje, None, "button_reply", nombre_contacto)
+                # Si tocó "Hablar con asesor" → poner en control
+                if btn_id == "asesor" or "asesor" in btn_title.lower():
+                    existente = supabase_get(f"chats_control?telefono=eq.{from_number}")
+                    if existente:
+                        supabase_patch(f"chats_control?telefono=eq.{from_number}", {"en_control": True, "estado": "abierto"})
+                    else:
+                        supabase_post("chats_control", {"telefono": from_number, "en_control": True, "estado": "abierto"})
+                    enviar_whatsapp_texto(from_number, "¡Hola! Un asesor te atenderá en breve 😊")
+                else:
+                    # Pasar a Maya como si fuera texto
+                    mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": btn_title}]
+                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo())))
+                    texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
+                    guardar_conversacion(from_number, btn_title, respuesta_claude, "texto", nombre_contacto)
+                cache_invalidate("chats_lista")
+                return {"status": "ok"}
+            elif inter_tipo == "list_reply":
+                row = inter.get("list_reply", {})
+                row_title = row.get("title", "")
+                mensaje = f"[Lista] {row_title}"
+                guardar_conversacion(from_number, mensaje, None, "list_reply", nombre_contacto)
+                if not control:
+                    mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": row_title}]
+                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo())))
+                    texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
+                    guardar_conversacion(from_number, row_title, respuesta_claude, "texto", nombre_contacto)
+                cache_invalidate("chats_lista")
+                return {"status": "ok"}
+            else:
+                guardar_conversacion(from_number, f"[Interactive:{inter_tipo}]", None, "interactive", nombre_contacto)
+                return {"status": "ok"}
         elif tipo in ("sticker", "location"):
             return {"status": "ok"}   # ya manejados arriba
         else:
@@ -737,9 +778,12 @@ async def listar_chats():
             chat['nombre'] = nombre
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
-            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado")
         except Exception:
-            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
+            try:
+                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+            except Exception:
+                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
         for c in control:
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
@@ -748,6 +792,7 @@ async def listar_chats():
                 chats[c['telefono']]['cliente_leyo_at'] = c.get('cliente_leyo_at')
                 chats[c['telefono']]['cliente_entrego_at'] = c.get('cliente_entrego_at')
                 chats[c['telefono']]['pendiente_revision'] = c.get('pendiente_revision', False)
+                chats[c['telefono']]['estado'] = c.get('estado', 'abierto')
         result = list(chats.values())
         cache_set("chats_lista", result, ttl=20)
         return result
@@ -1794,3 +1839,196 @@ async def crear_templates_predefinidos():
             resultados.append({"nombre": p["name"], "ok": False, "error": str(ex)})
 
     return {"waba_id": waba_id, "resultados": resultados}
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  MENSAJES INTERACTIVOS — BOTONES, LISTA, CARRUSEL
+# ═══════════════════════════════════════════════════════════════════
+
+@router.post("/chats/{telefono}/botones")
+async def enviar_botones_interactivos(telefono: str, datos: dict):
+    """Envía mensaje con hasta 3 botones. Siempre incluye 'Hablar con asesor'."""
+    try:
+        cuerpo      = datos.get("cuerpo", "¿En qué te puedo ayudar?")
+        encabezado  = datos.get("encabezado", "")
+        pie         = datos.get("pie", "")
+        botones_raw = datos.get("botones", [])
+        agente      = datos.get("agente", "Admin")
+
+        botones = []
+        for i, b in enumerate(botones_raw[:2]):
+            titulo = str(b).strip()[:20]
+            if titulo:
+                botones.append({"type": "reply", "reply": {"id": f"btn_{i}", "title": titulo}})
+        botones.append({"type": "reply", "reply": {"id": "asesor", "title": "Hablar con asesor"}})
+
+        interactive = {"type": "button", "body": {"text": cuerpo}, "action": {"buttons": botones}}
+        if encabezado:
+            interactive["header"] = {"type": "text", "text": encabezado[:60]}
+        if pie:
+            interactive["footer"] = {"text": pie[:60]}
+
+        wamid = _wa_send({"messaging_product": "whatsapp", "to": telefono, "type": "interactive", "interactive": interactive})
+        btns_txt = " | ".join(b["reply"]["title"] for b in botones)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Botones] {cuerpo} -> {btns_txt}",
+            "respuesta": None,
+            "tipo": "botones_saliente",
+            "leido": True,
+            "wa_message_id": wamid
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True, "wamid": wamid}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/lista")
+async def enviar_lista_interactiva(telefono: str, datos: dict):
+    """Envía menu desplegable con secciones y opciones (hasta 10)."""
+    try:
+        cuerpo        = datos.get("cuerpo", "Selecciona una opcion:")
+        titulo_boton  = datos.get("titulo_boton", "Ver opciones")[:20]
+        secciones_raw = datos.get("secciones", [])
+        agente        = datos.get("agente", "Admin")
+
+        if not secciones_raw:
+            return JSONResponse(status_code=400, content={"error": "secciones requeridas"})
+
+        secciones = []
+        for sec in secciones_raw[:10]:
+            rows = []
+            for i, op in enumerate(sec.get("opciones", [])[:10]):
+                row = {"id": str(op.get("id", f"op_{i}"))[:200], "title": str(op.get("titulo", ""))[:24]}
+                if op.get("descripcion"):
+                    row["description"] = str(op["descripcion"])[:72]
+                rows.append(row)
+            secciones.append({"title": str(sec.get("titulo", "Opciones"))[:24], "rows": rows})
+
+        wamid = _wa_send({
+            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
+            "interactive": {"type": "list", "body": {"text": cuerpo},
+                            "action": {"button": titulo_boton, "sections": secciones}}
+        })
+        opciones_txt = ", ".join(op.get("titulo","") for sec in secciones_raw for op in sec.get("opciones",[]))
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Lista] {cuerpo} -> {opciones_txt}",
+            "respuesta": None,
+            "tipo": "lista_saliente",
+            "leido": True,
+            "wa_message_id": wamid
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True, "wamid": wamid}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/carrusel")
+async def enviar_carrusel(telefono: str, datos: dict):
+    """Envia carrusel de imagenes con botones (hasta 10 tarjetas)."""
+    try:
+        cuerpo       = datos.get("cuerpo", "Mira estos modelos:")
+        tarjetas_raw = datos.get("tarjetas", [])
+        agente       = datos.get("agente", "Admin")
+
+        if not tarjetas_raw:
+            return JSONResponse(status_code=400, content={"error": "tarjetas requeridas"})
+
+        cards = []
+        for idx, t in enumerate(tarjetas_raw[:10]):
+            comp = []
+            if t.get("imagen_url"):
+                comp.append({"type": "header", "parameters": [{"type": "image", "image": {"link": t["imagen_url"]}}]})
+            if t.get("texto"):
+                comp.append({"type": "body", "parameters": [{"type": "text", "text": str(t["texto"])[:1024]}]})
+            for bi, btn in enumerate(t.get("botones", [])[:2]):
+                comp.append({"type": "button", "sub_type": "quick_reply", "index": str(bi),
+                             "parameters": [{"type": "payload", "payload": str(btn.get("id", f"c{idx}b{bi}"))}]})
+            cards.append({"card_index": idx, "components": comp})
+
+        wamid = _wa_send({
+            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
+            "interactive": {"type": "carousel", "body": {"text": cuerpo}, "action": {"cards": cards}}
+        })
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({len(cards)} tarjetas)",
+            "respuesta": None,
+            "tipo": "carrusel_saliente",
+            "leido": True,
+            "wa_message_id": wamid
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True, "wamid": wamid}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  BROADCAST MASIVO
+# ═══════════════════════════════════════════════════════════════════
+
+@router.post("/broadcast")
+async def broadcast_masivo(datos: dict):
+    """Envia un template aprobado a multiples telefonos."""
+    try:
+        template_name = datos.get("template", "")
+        params        = datos.get("params", [])
+        telefonos     = datos.get("telefonos", [])
+        idioma        = datos.get("idioma", "es_MX")
+
+        if not template_name:
+            return JSONResponse(status_code=400, content={"error": "template requerido"})
+        if not telefonos:
+            return JSONResponse(status_code=400, content={"error": "telefonos requeridos"})
+
+        resultados = []
+        for tel in telefonos:
+            try:
+                components = []
+                if params:
+                    components.append({"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in params]})
+                wamid = _wa_send({
+                    "messaging_product": "whatsapp", "to": tel, "type": "template",
+                    "template": {"name": template_name, "language": {"code": idioma}, "components": components}
+                })
+                resultados.append({"tel": tel, "ok": bool(wamid), "wamid": wamid})
+                supabase_post("conversaciones_whatsapp", {
+                    "telefono": tel,
+                    "mensaje": f"[Broadcast]: [Template] {template_name}",
+                    "respuesta": None, "tipo": "template_saliente", "leido": True, "wa_message_id": wamid
+                })
+            except Exception as e:
+                resultados.append({"tel": tel, "ok": False, "error": str(e)})
+
+        cache_invalidate("chats_lista")
+        enviados = sum(1 for r in resultados if r.get("ok"))
+        return {"ok": True, "total": len(telefonos), "enviados": enviados,
+                "errores": len(telefonos) - enviados, "resultados": resultados}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  ESTADO DE BANDEJA (abierto / espera / cerrado)
+# ═══════════════════════════════════════════════════════════════════
+
+@router.patch("/chats/{telefono}/estado")
+async def cambiar_estado_chat(telefono: str, datos: dict):
+    """Cambia el estado del chat: abierto | espera | cerrado."""
+    try:
+        estado = datos.get("estado", "abierto")
+        if estado not in ("abierto", "espera", "cerrado"):
+            return JSONResponse(status_code=400, content={"error": "estado invalido"})
+        existente = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existente:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"estado": estado})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "estado": estado})
+        cache_invalidate("chats_lista")
+        return {"ok": True, "estado": estado}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
