@@ -1,88 +1,107 @@
-// Zapatillas May — animaciones usando Web Animations API nativa (sin CDN)
+// Zapatillas May — animaciones CSS + IntersectionObserver (sin dependencias)
 
 const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const ease  = 'cubic-bezier(0.23, 1, 0.32, 1)'
-const spring = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 
-// ─── utilidades ───────────────────────────────────────
-function anim(el, frames, opts) {
-  if (!el || noMotion) return null
-  return el.animate(frames, { fill: 'forwards', easing: ease, ...opts })
-}
+// ─── Inyectar CSS de animaciones ──────────────────────
+;(function injectCSS() {
+  if (noMotion) return
+  const s = document.createElement('style')
+  s.textContent = `
+    /* Reveal base: elementos esperan invisible */
+    .zm-reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.55s cubic-bezier(0.23,1,0.32,1),
+                  transform 0.55s cubic-bezier(0.23,1,0.32,1);
+    }
+    .zm-reveal.zm-scale {
+      transform: translateY(0) scale(0.94);
+      transition: opacity 0.45s cubic-bezier(0.23,1,0.32,1),
+                  transform 0.45s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    /* Visible: dispara la transición */
+    .zm-reveal.zm-in {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    /* Stagger por posición */
+    .zm-reveal:nth-child(1) { transition-delay: 0.00s; }
+    .zm-reveal:nth-child(2) { transition-delay: 0.06s; }
+    .zm-reveal:nth-child(3) { transition-delay: 0.12s; }
+    .zm-reveal:nth-child(4) { transition-delay: 0.18s; }
+    .zm-reveal:nth-child(5) { transition-delay: 0.24s; }
+    .zm-reveal:nth-child(6) { transition-delay: 0.30s; }
+    .zm-reveal:nth-child(n+7) { transition-delay: 0.30s; }
 
-function animStagger(els, frames, opts) {
-  const list = [...(els instanceof NodeList ? els : els)]
-  const base = opts.delay || 0
-  const step = opts.stagger || 60
-  list.forEach((el, i) => {
-    if (el) el.animate(frames, { fill: 'forwards', easing: ease, ...opts, delay: base + i * step })
-  })
-}
+    /* Hero */
+    .zm-hero-el {
+      opacity: 0;
+      transform: translateY(36px);
+      transition: opacity 0.7s cubic-bezier(0.23,1,0.32,1),
+                  transform 0.7s cubic-bezier(0.23,1,0.32,1);
+    }
+    .zm-hero-el.zm-in { opacity: 1; transform: none; }
 
-// ─── scroll reveal con IntersectionObserver ───────────
-let _revealIO = null
+    /* Hover suave en cards — sin mousemove */
+    .product-card {
+      transition: transform 0.22s cubic-bezier(0.23,1,0.32,1),
+                  box-shadow 0.22s cubic-bezier(0.23,1,0.32,1) !important;
+    }
+    .product-card:hover {
+      transform: translateY(-5px) !important;
+      box-shadow: 0 16px 36px rgba(90,40,10,0.13) !important;
+    }
+
+    /* Page enter */
+    @keyframes zmFadeIn { from { opacity:0 } to { opacity:1 } }
+    body { animation: zmFadeIn 0.35s ease forwards; }
+  `
+  document.head.appendChild(s)
+})()
+
+// ─── IntersectionObserver central ─────────────────────
 const _seen = new WeakSet()
+let _io = null
 
-function _observeEl(el, frames, dur) {
+function getIO() {
+  if (_io) return _io
+  _io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return
+      e.target.classList.add('zm-in')
+      _io.unobserve(e.target)
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -20px 0px' })
+  return _io
+}
+
+function markReveal(el, scale) {
   if (_seen.has(el)) return
   _seen.add(el)
-  el.style.opacity = '0'
-  el.style.transform = frames[0].transform || ''
-  _revealIO.observe(el)
-  el._animFrames = frames
-  el._animDur    = dur
+  el.classList.add('zm-reveal')
+  if (scale) el.classList.add('zm-scale')
+  getIO().observe(el)
 }
 
-function setupScrollReveals() {
+// ─── Observar elementos estáticos ─────────────────────
+function setupStaticReveals() {
   if (noMotion) return
-
-  _revealIO = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return
-      _revealIO.unobserve(entry.target)
-      const el = entry.target
-      el.animate(el._animFrames, { duration: el._animDur, easing: ease, fill: 'forwards' })
-    })
-  }, { threshold: 0.08 })
-
-  // Estáticos: títulos, banners, testimonios, cat-cards, info-cards
-  const staticCfgs = [
-    { sel: '.section-title',   frames: [{ opacity:0, transform:'translateY(18px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
-    { sel: '.cat-card',        frames: [{ opacity:0, transform:'translateY(22px) scale(0.94)' }, { opacity:1, transform:'translateY(0) scale(1)' }], dur: 420 },
-    { sel: '.testimonio-card', frames: [{ opacity:0, transform:'translateY(20px)' }, { opacity:1, transform:'translateY(0)' }], dur: 420 },
-    { sel: '.banner-mayoreo',  frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 480 },
-    { sel: '.catalogo-card',   frames: [{ opacity:0, transform:'scale(0.93)' },     { opacity:1, transform:'scale(1)' }],     dur: 380 },
-    { sel: '.info-card',       frames: [{ opacity:0, transform:'translateY(12px)' }, { opacity:1, transform:'translateY(0)' }], dur: 320 },
-  ]
-  staticCfgs.forEach(({ sel, frames, dur }) => {
-    document.querySelectorAll(sel).forEach(el => _observeEl(el, frames, dur))
-  })
+  document.querySelectorAll('.section-title').forEach(el => markReveal(el))
+  document.querySelectorAll('.testimonio-card').forEach(el => markReveal(el))
+  document.querySelectorAll('.banner-mayoreo').forEach(el => markReveal(el))
+  document.querySelectorAll('.catalogo-card').forEach(el => markReveal(el, true))
+  document.querySelectorAll('.cat-card').forEach(el => markReveal(el, true))
+  document.querySelectorAll('.info-card').forEach(el => markReveal(el))
+  document.querySelectorAll('.cro-tier').forEach(el => markReveal(el))
 }
 
-// Llamado desde _agregarLote() en index.html cuando llegan cards nuevas
+// ─── Cards dinámicas: llamado desde _agregarLote() ────
 window.zmObserveCards = function() {
-  if (noMotion || !_revealIO) return
-  const frames = [{ opacity:0, transform:'translateY(30px)' }, { opacity:1, transform:'translateY(0)' }]
-  document.querySelectorAll('.product-card').forEach((el, i) => {
-    if (_seen.has(el)) return
-    el._animFrames = frames
-    el._animDur    = 480 + (i % 4) * 40  // pequeño stagger por posición
-    _seen.add(el)
-    el.style.opacity = '0'
-    _revealIO.observe(el)
-  })
-}
-
-// ─── page enter ───────────────────────────────────────
-function pageEnter() {
   if (noMotion) return
-  document.body.animate(
-    [{ opacity: 0 }, { opacity: 1 }],
-    { duration: 300, easing: ease, fill: 'forwards' }
-  )
+  document.querySelectorAll('.product-card').forEach(el => markReveal(el))
 }
 
-// ─── hero ─────────────────────────────────────────────
+// ─── Hero ──────────────────────────────────────────────
 function animateHero() {
   if (noMotion) return
   const content = document.getElementById('hero-content')
@@ -95,214 +114,147 @@ function animateHero() {
     content.querySelector('.hero-garantias'),
   ].filter(Boolean)
 
-  els.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translateY(40px)' })
-
   els.forEach((el, i) => {
-    el.animate(
-      [{ opacity:0, transform:'translateY(40px)' }, { opacity:1, transform:'translateY(0)' }],
-      { duration: 700, delay: 150 + i * 120, easing: ease, fill: 'forwards' }
-    )
+    el.classList.add('zm-hero-el')
+    setTimeout(() => el.classList.add('zm-in'), 120 + i * 110)
   })
 }
 
-// ─── hero shoe parallax (solo desktop) ────────────────
+// ─── Contador numérico ─────────────────────────────────
+function setupCounters() {
+  const el = document.getElementById('cro-pedidos')
+  if (!el) return
+
+  const target = 2400
+  const duration = 1800
+
+  const io = new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting) return
+    io.disconnect()
+    if (noMotion) { el.textContent = '+' + target.toLocaleString('es-MX'); return }
+
+    const start = performance.now()
+    const tick = (now) => {
+      const p = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - p, 3)
+      const val = Math.round(eased * target)
+      el.textContent = '+' + val.toLocaleString('es-MX')
+      if (p < 1) requestAnimationFrame(tick)
+    }
+    el.textContent = '+0'
+    requestAnimationFrame(tick)
+  }, { threshold: 0.5 })
+
+  io.observe(el)
+}
+
+// ─── Hero shoe parallax (solo desktop) ────────────────
 function setupHeroShoe() {
-  if (noMotion) return
+  if (noMotion || 'ontouchstart' in window) return
   const shoe = document.getElementById('hero-shoe-wrap')
   if (!shoe) return
   let raf
   document.addEventListener('mousemove', (e) => {
     cancelAnimationFrame(raf)
     raf = requestAnimationFrame(() => {
-      const dx = (e.clientX / window.innerWidth  - 0.5) * 18
-      const dy = (e.clientY / window.innerHeight - 0.5) * 10
-      shoe.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.12}deg)`
-      shoe.style.transition = 'transform 0.4s cubic-bezier(0.23,1,0.32,1)'
+      const dx = (e.clientX / window.innerWidth  - 0.5) * 16
+      const dy = (e.clientY / window.innerHeight - 0.5) * 9
+      shoe.style.transform = `translate(${dx}px,${dy}px) rotate(${dx * 0.1}deg)`
+      shoe.style.transition = 'transform 0.5s cubic-bezier(0.23,1,0.32,1)'
     })
   }, { passive: true })
 }
 
-// ─── navbar ───────────────────────────────────────────
-function setupNavAnimations() {
-  if (noMotion) return
-  const nav = document.querySelector('nav, .nav, header')
-  if (nav) anim(nav, [{ opacity:0, transform:'translateY(-8px)' }, { opacity:1, transform:'translateY(0)' }], { duration: 400 })
-
-  document.querySelectorAll('.nav-cats a').forEach(link => {
-    link.addEventListener('mouseenter', () => {
-      link.animate([{ transform:'translateY(0)' }, { transform:'translateY(-2px)' }], { duration: 140, easing: ease, fill: 'forwards' })
-    }, { passive: true })
-    link.addEventListener('mouseleave', () => {
-      link.animate([{ transform:'translateY(-2px)' }, { transform:'translateY(0)' }], { duration: 140, easing: ease, fill: 'forwards' })
-    }, { passive: true })
-  })
-}
-
-// ─── product card hover ───────────────────────────────
-function setupCardHover() {
-  if (noMotion) return
-  document.addEventListener('mouseover', (e) => {
-    const card = e.target.closest('.product-card')
-    if (!card || card._hoverReady) return
-    card._hoverReady = true
-    card.addEventListener('mouseenter', () => {
-      card.animate([{ transform:'translateY(0)' }, { transform:'translateY(-4px)' }], { duration: 180, easing: ease, fill: 'forwards' })
-    }, { passive: true })
-    card.addEventListener('mouseleave', () => {
-      card.animate([{ transform:'translateY(-4px)' }, { transform:'translateY(0)' }], { duration: 180, easing: ease, fill: 'forwards' })
-    }, { passive: true })
-  }, { passive: true })
-}
-
-// ─── filtro chips ─────────────────────────────────────
-function setupFiltrosAnim() {
-  if (noMotion) return
-  document.addEventListener('click', (e) => {
-    const chip = e.target.closest('.filtro-chip, .pill-filter')
-    if (!chip) return
-    chip.animate(
-      [{ transform:'scale(1)' }, { transform:'scale(0.91)' }, { transform:'scale(1.07)' }, { transform:'scale(1)' }],
-      { duration: 280, easing: spring }
-    )
-  }, { passive: true })
-}
-
-// ─── producto page ────────────────────────────────────
-function animateProductoPage() {
-  if (noMotion) return
-  const gallery = document.getElementById('gallery-main')
-  if (gallery) anim(gallery, [{ opacity:0, transform:'scale(0.96)' }, { opacity:1, transform:'scale(1)' }], { duration: 500 })
-
-  const section = document.getElementById('product-section')
-  if (section) {
-    animStagger([...section.children],
-      [{ opacity:0, transform:'translateX(20px)' }, { opacity:1, transform:'translateX(0)' }],
-      { duration: 420, stagger: 60, delay: 180 }
-    )
-  }
-}
-
-// ─── carrito page ─────────────────────────────────────
-function animateCarritoPage() {
-  if (noMotion) return
-  function revelarItems() {
-    const items = document.querySelectorAll('.cart-item, [class*="carrito-item"]')
-    if (items.length === 0) return
-    animStagger(items,
-      [{ opacity:0, transform:'translateX(28px)' }, { opacity:1, transform:'translateX(0)' }],
-      { duration: 360, stagger: 55 }
-    )
-  }
-  // Observar si los items se renderizan después
-  const container = document.getElementById('cart-list') || document.getElementById('carrito-items') || document.body
-  const mo = new MutationObserver(() => { revelarItems(); mo.disconnect() })
-  mo.observe(container, { childList: true, subtree: true })
-  setTimeout(() => mo.disconnect(), 4000)
-  revelarItems()
-}
-
-// ─── checkout page ────────────────────────────────────
-function animateCheckoutPage() {
-  if (noMotion) return
-  const steps = document.querySelectorAll('.step, .dot')
-  if (steps.length) animStagger(steps, [{ opacity:0, transform:'scale(0.75)' }, { opacity:1, transform:'scale(1)' }], { duration: 300, easing: spring, stagger: 70, delay: 100 })
-
-  const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], select, .campo')
-  if (inputs.length) animStagger(inputs, [{ opacity:0, transform:'translateY(10px)' }, { opacity:1, transform:'translateY(0)' }], { duration: 280, stagger: 35, delay: 280 })
-}
-
-// ─── ADD TO CART ──────────────────────────────────────
+// ─── Add to cart ──────────────────────────────────────
 window.animateAddToCart = function(btnEl) {
   if (noMotion) return
   btnEl = btnEl || document.getElementById('btn-agregar')
 
-  // Bounce del botón
+  // Bounce botón
   if (btnEl) {
     btnEl.animate(
-      [{ transform:'scale(1)' }, { transform:'scale(0.87)' }, { transform:'scale(1.09)' }, { transform:'scale(1)' }],
-      { duration: 420, easing: spring }
+      [{ transform:'scale(1)' },{ transform:'scale(0.87)' },{ transform:'scale(1.1)' },{ transform:'scale(1)' }],
+      { duration: 400, easing: 'cubic-bezier(0.34,1.56,0.64,1)' }
     )
   }
 
-  // Cart icon + badge pop
+  // Pop carrito + badge
   const cartLink = document.querySelector('a.btn-icon[href="/carrito"]')
   const badge    = document.getElementById('cart-count')
-  if (cartLink) cartLink.animate([{ transform:'scale(1)' }, { transform:'scale(1.5)' }, { transform:'scale(1)' }], { duration: 350, easing: spring })
-  if (badge)    badge.animate(   [{ transform:'scale(0.5)' }, { transform:'scale(1.7)' }, { transform:'scale(1)' }], { duration: 380, easing: spring })
+  if (cartLink) cartLink.animate([{ transform:'scale(1)' },{ transform:'scale(1.5)' },{ transform:'scale(1)' }], { duration: 380, easing: 'cubic-bezier(0.34,1.56,0.64,1)' })
+  if (badge)    badge.animate(   [{ transform:'scale(0.5)' },{ transform:'scale(1.8)' },{ transform:'scale(1)' }], { duration: 400, easing: 'cubic-bezier(0.34,1.56,0.64,1)' })
 
-  // Partículas que vuelan al carrito
+  // Partículas
   if (!btnEl || !cartLink) return
-  const bRect = btnEl.getBoundingClientRect()
-  const cRect = cartLink.getBoundingClientRect()
-  const sx = bRect.left + bRect.width  / 2
-  const sy = bRect.top  + bRect.height / 2
-  const ex = cRect.left + cRect.width  / 2
-  const ey = cRect.top  + cRect.height / 2
+  const b = btnEl.getBoundingClientRect()
+  const c = cartLink.getBoundingClientRect()
+  const sx = b.left + b.width / 2,  sy = b.top + b.height / 2
+  const ex = c.left + c.width / 2,  ey = c.top + c.height / 2
 
   for (let i = 0; i < 6; i++) {
     const dot = document.createElement('div')
     const angle = (i / 6) * Math.PI * 2
-    const burst = 20
+    const burst = 18
     Object.assign(dot.style, {
-      position: 'fixed',
-      width: '9px', height: '9px',
-      borderRadius: '50%',
-      background: i % 2 === 0 ? '#9c5a52' : '#b5687a',
-      left: (sx - 4.5) + 'px',
-      top:  (sy - 4.5) + 'px',
-      pointerEvents: 'none',
-      zIndex: '9999',
+      position:'fixed', width:'9px', height:'9px', borderRadius:'50%',
+      background: i % 2 ? '#9c5a52' : '#b5687a',
+      left:(sx-4.5)+'px', top:(sy-4.5)+'px',
+      pointerEvents:'none', zIndex:'9999',
     })
     document.body.appendChild(dot)
-
-    const bx = Math.cos(angle) * burst
-    const by = Math.sin(angle) * burst
-    const tx = ex - sx
-    const ty = ey - sy
-
-    // fase 1 — burst
-    const a1 = dot.animate(
+    const bx = Math.cos(angle)*burst, by = Math.sin(angle)*burst
+    dot.animate(
       [{ transform:'translate(0,0) scale(1)', opacity:1 },
-       { transform:`translate(${bx}px,${by}px) scale(0.7)`, opacity:1 }],
-      { duration: 160, easing: ease, fill: 'forwards' }
-    )
-    a1.onfinish = () => {
-      // fase 2 — vuela al carrito
-      dot.animate(
-        [{ transform:`translate(${bx}px,${by}px) scale(0.7)`, opacity:1 },
-         { transform:`translate(${tx}px,${ty}px) scale(0.15)`, opacity:0 }],
-        { duration: 380, delay: i * 25, easing: ease, fill: 'forwards' }
-      ).onfinish = () => dot.remove()
-    }
+       { transform:`translate(${bx}px,${by}px) scale(0.7)`, opacity:1, offset: 0.25 },
+       { transform:`translate(${ex-sx}px,${ey-sy}px) scale(0.1)`, opacity:0 }],
+      { duration: 560, delay: i * 28, easing:'cubic-bezier(0.23,1,0.32,1)', fill:'forwards' }
+    ).onfinish = () => dot.remove()
   }
+}
+
+// ─── Carrito: revelar items ────────────────────────────
+function animateCarritoPage() {
+  if (noMotion) return
+  function revelar() {
+    document.querySelectorAll('.cart-item, [class*="carrito-item"]').forEach(el => markReveal(el))
+  }
+  revelar()
+  const container = document.getElementById('cart-list') || document.getElementById('carrito-items') || document.body
+  const mo = new MutationObserver(() => { revelar(); mo.disconnect() })
+  mo.observe(container, { childList: true, subtree: true })
+  setTimeout(() => mo.disconnect(), 5000)
+}
+
+// ─── Checkout ─────────────────────────────────────────
+function animateCheckoutPage() {
+  if (noMotion) return
+  document.querySelectorAll('.step').forEach(el => markReveal(el, true))
+  document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],select,.campo').forEach(el => markReveal(el))
 }
 
 // ─── INIT ─────────────────────────────────────────────
 function init() {
-  pageEnter()
-  setupScrollReveals()
-  setupCardHover()
-  setupFiltrosAnim()
-  setupNavAnimations()
+  setupStaticReveals()
+  setupCounters()
 
   const path = location.pathname
+  const isHome = path === '/' || path === '' || path.endsWith('index.html')
 
-  if (path === '/' || path.endsWith('index.html') || path === '') {
+  if (isHome) {
     animateHero()
     setupHeroShoe()
   }
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
-    animateProductoPage()
+    // revelar galería y sección
+    setTimeout(() => {
+      document.querySelectorAll('.gallery-main, #gallery-main').forEach(el => markReveal(el))
+      document.querySelectorAll('#product-section > *').forEach(el => markReveal(el))
+    }, 100)
   }
 
-  if (path === '/carrito' || path.endsWith('carrito.html')) {
-    animateCarritoPage()
-  }
-
-  if (path === '/checkout' || path.endsWith('checkout.html')) {
-    animateCheckoutPage()
-  }
+  if (path === '/carrito' || path.endsWith('carrito.html')) animateCarritoPage()
+  if (path === '/checkout' || path.endsWith('checkout.html')) animateCheckoutPage()
 }
 
 if (document.readyState === 'loading') {
