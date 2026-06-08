@@ -346,8 +346,10 @@ function setupFiltrosAnim() {
 
 // ─────────────────────────────────────────
 // INIT — detecta la página y arranca lo que corresponde
+// Los módulos ES son diferidos: DOMContentLoaded ya disparó.
+// Usamos readyState para cubrir ambos casos.
 // ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+function init() {
   pageEnter()
   setupScrollReveals()
   setupCardHover()
@@ -378,7 +380,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (path === '/checkout' || path.endsWith('checkout.html')) {
     animateCheckoutPage()
   }
-})
+}
+
+// Módulos ES son siempre diferidos — el DOM ya está listo cuando corren
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init)
+} else {
+  init()
+}
 
 // Para páginas SPA que cambian contenido dinámicamente (index.html carga secciones)
 window.addEventListener('zm:sectionChanged', () => {
