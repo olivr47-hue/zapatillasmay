@@ -18,12 +18,16 @@ async def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "
     return resultado
 
 @router.post("/upload-temp")
-async def upload_temp(archivo: UploadFile = File(...)):
+async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None)):
     """Sube cualquier archivo (imagen, video, PDF) a Cloudinary para enviar por WhatsApp.
     Devuelve { url, public_id } compatible con el panel."""
     try:
-        contenido = await archivo.read()
-        content_type = archivo.content_type or ""
+        upload = archivo or file
+        if not upload:
+            return JSONResponse(status_code=422, content={"error": "Se requiere un archivo (campo 'archivo' o 'file')"})
+        contenido = await upload.read()
+        content_type = upload.content_type or ""
+        archivo = upload  # normalizar nombre para las líneas siguientes
 
         if content_type.startswith("video/"):
             resultado = cloudinary.uploader.upload(

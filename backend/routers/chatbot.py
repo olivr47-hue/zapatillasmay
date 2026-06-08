@@ -788,13 +788,21 @@ async def listar_chats():
     if cached is not None:
         return cached
     try:
-        # Solo los campos necesarios para la lista + límite 300 mensajes recientes
-        conversaciones = supabase_get(
-            "conversaciones_whatsapp"
-            "?order=created_at.desc"
-            "&limit=400"
-            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
-        )
+        # Solo los campos necesarios para la lista + límite 400 mensajes recientes
+        try:
+            conversaciones = supabase_get(
+                "conversaciones_whatsapp"
+                "?order=created_at.desc"
+                "&limit=400"
+                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
+            )
+        except Exception:
+            conversaciones = supabase_get(
+                "conversaciones_whatsapp"
+                "?order=created_at.desc"
+                "&limit=400"
+                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo"
+            )
         chats = {}
         for m in conversaciones:
             tel = m['telefono']
