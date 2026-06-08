@@ -11422,18 +11422,23 @@ window.mostrarModalCarrusel = async (telefono) => {
   }
 }
 
+// _mcrSel: Set de claves "img|||texto|||precios" para persistir selección entre búsquedas
+window._mcrSel = new Map() // key=img -> { img, texto, precios }
+
 window._mcrFiltrar = () => {
   const q = (document.getElementById('mcr-search')?.value || '').toLowerCase().trim()
   const datos = (window._mcrDatos || []).filter(p => !q || p.nombre.toLowerCase().includes(q))
   const cont = document.getElementById('mcr-modelos')
   if (!cont) return
   if (!datos.length) { cont.innerHTML = '<p style="padding:12px;color:#94a3b8;font-size:0.82rem;text-align:center">Sin resultados</p>'; return }
-  cont.innerHTML = datos.map(p => `
+  cont.innerHTML = datos.map(p => {
+    const selCount = p.variantes.filter(v => window._mcrSel.has(v.img)).length
+    return `
     <div style="border-bottom:1px solid #f1f5f9">
       <div onclick="window._mcrToggle('${p.id}')" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
         <span id="mcr-arrow-${p.id}" style="font-size:0.65rem;color:#94a3b8;transition:transform 0.15s;display:inline-block">▶</span>
         <span style="flex:1;font-size:0.85rem;font-weight:600;color:#0f172a">${p.nombre}</span>
-        <span style="font-size:0.7rem;color:#94a3b8">${p.variantes.length} color${p.variantes.length !== 1 ? 'es' : ''}</span>
+        <span style="font-size:0.7rem;color:${selCount ? '#E91E8C' : '#94a3b8'}">${selCount ? selCount + ' sel · ' : ''}${p.variantes.length} color${p.variantes.length !== 1 ? 'es' : ''}</span>
       </div>
       <div id="mcr-vars-${p.id}" style="display:none;padding:0 10px 10px 28px">
         ${p.variantes.map(v => `
@@ -11442,13 +11447,35 @@ window._mcrFiltrar = () => {
               data-img="${v.img}"
               data-texto="${p.nombre} · ${v.color}"
               data-precios="${p.preciosStr}"
-              onchange="window._mcrContador()"
+              ${window._mcrSel.has(v.img) ? 'checked' : ''}
+              onchange="window._mcrCambio(this)"
               style="width:14px;height:14px;flex-shrink:0">
             <img src="${v.img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
             <span>${v.color}</span>
           </label>`).join('')}
       </div>
-    </div>`).join('')
+    </div>`
+  }).join('')
+}
+
+window._mcrCambio = (cb) => {
+  if (cb.checked) {
+    window._mcrSel.set(cb.dataset.img, { img: cb.dataset.img, texto: cb.dataset.texto, precios: cb.dataset.precios })
+  } else {
+    window._mcrSel.delete(cb.dataset.img)
+  }
+  window._mcrContador()
+  // Actualizar badge del modelo sin re-renderizar todo
+  const vars = cb.closest('[id^="mcr-vars-"]')
+  if (vars) {
+    const prodId = vars.id.replace('mcr-vars-', '')
+    const prod = (window._mcrDatos || []).find(p => String(p.id) === prodId)
+    if (prod) {
+      const selCount = prod.variantes.filter(v => window._mcrSel.has(v.img)).length
+      const badge = vars.previousElementSibling?.querySelector('span:last-child')
+      if (badge) { badge.textContent = (selCount ? selCount + ' sel · ' : '') + prod.variantes.length + ' color' + (prod.variantes.length !== 1 ? 'es' : ''); badge.style.color = selCount ? '#E91E8C' : '#94a3b8' }
+    }
+  }
 }
 
 window._mcrToggle = (id) => {
@@ -11461,21 +11488,21 @@ window._mcrToggle = (id) => {
 }
 
 window._mcrContador = () => {
-  const n = document.querySelectorAll('#modal-carrusel-wa .mcr-check:checked').length
+  const n = window._mcrSel.size
   const el = document.getElementById('mcr-contador')
   if (el) { el.textContent = n + '/10 fotos'; el.style.color = n >= 10 ? '#ef4444' : '#94a3b8' }
 }
 
 window._enviarCarruselWA = async (telefono) => {
   const cuerpo = document.getElementById('mcr-cuerpo')?.value.trim() || 'Mira estos modelos'
-  const checked = [...document.querySelectorAll('#modal-carrusel-wa .mcr-check:checked')]
-  if (!checked.length) { alert('Selecciona al menos una foto'); return }
-  if (checked.length > 10) { alert('Máximo 10 fotos'); return }
+  const seleccionados = [...window._mcrSel.values()]
+  if (!seleccionados.length) { alert('Selecciona al menos una foto'); return }
+  if (seleccionados.length > 10) { alert('Máximo 10 fotos'); return }
   const agente = window._empleadoActual?.nombre || 'Admin'
   const incluirPrecios = document.getElementById('mcr-incluir-precios')?.checked || false
-  const tarjetas = checked.map(cb => ({
-    imagen_url: cb.dataset.img,
-    texto: cb.dataset.texto + (incluirPrecios && cb.dataset.precios ? '\n' + cb.dataset.precios : '')
+  const tarjetas = seleccionados.map(s => ({
+    imagen_url: s.img,
+    texto: s.texto + (incluirPrecios && s.precios ? '\n' + s.precios : '')
   }))
   document.getElementById('modal-carrusel-wa')?.remove()
   try {
