@@ -150,45 +150,69 @@ def generar_nombres(datos: dict = Body(default={})):
             # Ya tiene nombre descriptivo, saltar
             continue
 
-        cat_label = CATEGORIA_LABEL.get(categoria, categoria.capitalize() if categoria else "")
+        # Plantillas base por categoría — suenan naturales en tienda
+        PLANTILLAS = {
+            "tacones":    "Tacones {estilo}de {tacon}",
+            "sandalias":  "Sandalias {estilo}para dama",
+            "botas":      "Botas {estilo}para dama",
+            "botines":    "Botines {estilo}para dama",
+            "flats":      "Flats {estilo}para dama",
+            "plataformas":"Plataformas {estilo}de {tacon}",
+            "tenis":      "Tenis {estilo}para dama",
+            "nina":       "Calzado niña {estilo}",
+            "accesorios": "Accesorios {estilo}de moda",
+        }
 
-        # Extraer palabras clave del campo más rico disponible
+        # Extraer palabra de estilo/ocasión de la fuente más rica
         fuente = desc or meta_d or meta_t or ""
-
-        # Detectar palabras descriptivas útiles de la fuente
-        palabras_clave = []
-
-        # Buscar palabras de estilo / ocasión en la descripción
-        estilos = ["fiesta", "casual", "oficina", "boda", "moda", "elegante",
-                   "cómodo", "comodo", "sexy", "clasico", "clásico", "moderno",
-                   "verano", "primavera", "fashion", "trendy", "diario", "paseo",
-                   "graduación", "graduacion", "quinceañera", "quinceanera",
-                   "plataforma", "stiletto", "kitten", "peep toe", "strappy",
-                   "destalonado", "cerrado", "abierto", "ankle", "mule", "pump"]
         fuente_lower = fuente.lower()
-        for e in estilos:
-            if e in fuente_lower and e not in [p.lower() for p in palabras_clave]:
-                palabras_clave.append(e.capitalize())
-            if len(palabras_clave) >= 2:
+
+        OCASIONES = [
+            ("fiesta",        "para fiesta "),
+            ("boda",          "para boda "),
+            ("graduacion",    "para graduación "),
+            ("graduación",    "para graduación "),
+            ("quinceanera",   "para quinceañera "),
+            ("quinceañera",   "para quinceañera "),
+            ("oficina",       "de oficina "),
+            ("casual",        "casual "),
+            ("diario",        "casual "),
+            ("elegante",      "elegantes "),
+            ("comodo",        "cómodas "),
+            ("cómodo",        "cómodas "),
+            ("verano",        "de verano "),
+            ("moda",          "de moda "),
+        ]
+        estilo_str = ""
+        for kw, label in OCASIONES:
+            if kw in fuente_lower:
+                estilo_str = label
                 break
 
-        # Agregar altura del tacón si existe
+        # Altura del tacón
         tacon_str = ""
         if tacon:
             try:
-                tacon_str = f"{float(tacon):.0f} cm"
+                h = float(tacon)
+                if h >= 9:
+                    tacon_str = f"alto {h:.0f} cm"
+                elif h >= 6:
+                    tacon_str = f"medianos {h:.0f} cm"
+                else:
+                    tacon_str = f"bajo {h:.0f} cm"
             except Exception:
                 pass
 
-        # Construir nombre nuevo
-        partes = [sku] if sku else [nombre]
-        if cat_label:
-            partes.append(cat_label)
-        partes.extend(palabras_clave)
-        if tacon_str:
-            partes.append(tacon_str)
+        plantilla = PLANTILLAS.get(categoria, "{estilo}calzado de moda")
+        descripcion_base = plantilla.format(
+            estilo=estilo_str,
+            tacon=tacon_str + " " if tacon_str else ""
+        ).strip()
 
-        nombre_nuevo = " · ".join(partes)
+        # Nombre final: SKU original + descripción natural
+        # El SKU siempre se preserva al inicio
+        codigo = sku if sku else nombre.split()[0] if nombre else ""
+        nombre_nuevo = f"{codigo} {descripcion_base}".strip() if codigo else descripcion_base
 
         resultados.append({
             "id":          p["id"],
