@@ -3291,6 +3291,7 @@ window.addEventListener('load', () => {
           recalcularCarrito()
           renderCarrito()
           mostrarToast('Producto agregado al carrito')
+          window.animateAddToCart?.()
           setTimeout(() => abrirCarrito(), 200)
         } catch(e) {}
       })
@@ -4168,6 +4169,7 @@ if (window.ttq) ttq.track('AddToCart', {
     recalcularCarrito()
     renderCarrito()
     mostrarToast('Producto agregado al carrito')
+    window.animateAddToCart?.(document.getElementById('btn-agregar'))
     setTimeout(() => abrirCarrito(), 300)
   }
 
@@ -4259,6 +4261,7 @@ if (window.ttq) ttq.track('AddToCart', {
     recalcularCarrito()
     renderCarrito()
     mostrarToast('Corrida agregada al carrito')
+    window.animateAddToCart?.(document.getElementById('btn-agregar'))
     setTimeout(() => abrirCarrito(), 300)
   }
 
@@ -6529,5 +6532,6 @@ function zmRechazarCookies() {
     .product-badge { animation: none !important; }
   }
 </style>
+<script type="module" src="/animations.js"></script>
 </body>
 </html>

@@ -1703,29 +1703,38 @@ window.editarProveedor = async (id) => {
 
 async function cargarAnalisis() {
   const content = document.getElementById('content')
-  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando análisis...</p>'
+  content.innerHTML = `
+    <div style="margin-bottom:1.5rem">
+      <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
+      <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0 0 4px;letter-spacing:-0.3px">Análisis</h2>
+      <p style="color:#94a3b8;font-size:0.82rem">Cargando datos...</p>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:1.5rem">
+      ${['rotacion','tallas','variantes'].map(t => `<div style="height:36px;width:110px;background:#f1f5f9;border-radius:8px;animation:pulse 1.5s infinite"></div>`).join('')}
+    </div>
+    <div style="background:#f8fafc;border-radius:14px;height:300px;animation:pulse 1.5s infinite"></div>
+    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}</style>`
 
   try {
     const [resProductos, resVariantes, resMovimientos, resInventario] = await Promise.all([
       fetch(API + '/productos/'),
       fetch(API + '/variantes/?activa=eq.true'),
       fetch(API + '/movimientos/'),
-      fetch(API + '/inventario/slim')   // versión ligera
+      fetch(API + '/inventario/slim')
     ])
     const productos = await resProductos.json()
     const variantes = await resVariantes.json()
     const movimientos = await resMovimientos.json()
     const inventario = await resInventario.json()
 
-    // Mapas de lookup para evitar bucles O(n²)
-    const varianteMap = {}  // variante_id → variante
-    const prodVariantes = {}  // producto_id → [variante_id, ...]
+    const varianteMap = {}
+    const prodVariantes = {}
     variantes.forEach(v => {
       varianteMap[v.id] = v
       if (!prodVariantes[v.producto_id]) prodVariantes[v.producto_id] = []
       prodVariantes[v.producto_id].push(v.id)
     })
-    const stockPorVariante = {}  // variante_id → cantidad total
+    const stockPorVariante = {}
     inventario.forEach(i => {
       stockPorVariante[i.variante_id] = (stockPorVariante[i.variante_id] || 0) + i.cantidad
     })
@@ -1735,21 +1744,52 @@ async function cargarAnalisis() {
     const hace60 = new Date(hoy - 60 * 24 * 60 * 60 * 1000)
     const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
 
+    // Ventas por producto (unidades)
     const ventasPorProducto = {}
-    movimientos.filter(m => m.tipo === 'venta').forEach(m => {
+    // Ventas por variante_id
+    const ventasPorVariante = {}
+    // Ventas por (producto_id, talla)
+    const ventasPorTalla = {}
+    // Ventas por (producto_id, color, talla)
+    const ventasPorColorTalla = {}
+
+    const ventasMovs = movimientos.filter(m => m.tipo === 'venta')
+    ventasMovs.forEach(m => {
       const variante = varianteMap[m.variante_id]
       if (!variante) return
-      const productoId = variante.producto_id
-      if (!ventasPorProducto[productoId]) ventasPorProducto[productoId] = { d30: 0, d60: 0, d90: 0 }
-      const fecha = new Date(m.created_at)
+      const pid = variante.producto_id
       const cantidad = Math.abs(m.cantidad)
-      if (fecha >= hace30) ventasPorProducto[productoId].d30 += cantidad
-      if (fecha >= hace60) ventasPorProducto[productoId].d60 += cantidad
-      if (fecha >= hace90) ventasPorProducto[productoId].d90 += cantidad
+      const fecha = new Date(m.created_at)
+
+      if (!ventasPorProducto[pid]) ventasPorProducto[pid] = { d30: 0, d60: 0, d90: 0, total: 0 }
+      ventasPorProducto[pid].total += cantidad
+      if (fecha >= hace30) ventasPorProducto[pid].d30 += cantidad
+      if (fecha >= hace60) ventasPorProducto[pid].d60 += cantidad
+      if (fecha >= hace90) ventasPorProducto[pid].d90 += cantidad
+
+      if (!ventasPorVariante[m.variante_id]) ventasPorVariante[m.variante_id] = { d30: 0, d90: 0, total: 0 }
+      ventasPorVariante[m.variante_id].total += cantidad
+      if (fecha >= hace30) ventasPorVariante[m.variante_id].d30 += cantidad
+      if (fecha >= hace90) ventasPorVariante[m.variante_id].d90 += cantidad
+
+      const talla = variante.talla || 'S/T'
+      const key = `${pid}|${talla}`
+      if (!ventasPorTalla[key]) ventasPorTalla[key] = { talla, d30: 0, d90: 0, total: 0 }
+      ventasPorTalla[key].total += cantidad
+      if (fecha >= hace30) ventasPorTalla[key].d30 += cantidad
+      if (fecha >= hace90) ventasPorTalla[key].d90 += cantidad
+
+      // por color+talla
+      const color = variante.color || 'Sin color'
+      const keyC = `${pid}|${color}|${talla}`
+      if (!ventasPorColorTalla[keyC]) ventasPorColorTalla[keyC] = { talla, color, d30: 0, d90: 0, total: 0 }
+      ventasPorColorTalla[keyC].total += cantidad
+      if (fecha >= hace30) ventasPorColorTalla[keyC].d30 += cantidad
+      if (fecha >= hace90) ventasPorColorTalla[keyC].d90 += cantidad
     })
 
     const productosConRotacion = productos.map(p => {
-      const ventas = ventasPorProducto[p.id] || { d30: 0, d60: 0, d90: 0 }
+      const ventas = ventasPorProducto[p.id] || { d30: 0, d60: 0, d90: 0, total: 0 }
       const varIds = prodVariantes[p.id] || []
       const stockTotal = varIds.reduce((s, vid) => s + (stockPorVariante[vid] || 0), 0)
       const ventasSemana = ventas.d30 / 4
@@ -1758,107 +1798,343 @@ async function cargarAnalisis() {
       let semaforo = 'gris'
       let recomendacion = 'Sin ventas recientes'
       if (ventas.d30 >= 6) { semaforo = 'verde'; recomendacion = 'Rota bien — considerar resurtido' }
-      else if (ventas.d30 >= 2) { semaforo = 'amarillo'; recomendacion = 'Rotacion moderada' }
-      else if (ventas.d90 === 0 && stockTotal > 0) { semaforo = 'rojo'; recomendacion = 'Sin movimiento en 90 dias — revisar' }
-      else if (ventas.d30 > 0) { semaforo = 'amarillo'; recomendacion = 'Rotacion lenta' }
+      else if (ventas.d30 >= 2) { semaforo = 'amarillo'; recomendacion = 'Rotación moderada' }
+      else if (ventas.d90 === 0 && stockTotal > 0) { semaforo = 'rojo'; recomendacion = 'Sin movimiento en 90 días — revisar' }
+      else if (ventas.d30 > 0) { semaforo = 'amarillo'; recomendacion = 'Rotación lenta' }
 
-      return { ...p, ventas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion }
+      // Tallas más vendidas (global del producto)
+      const tallasData = varIds
+        .map(vid => varianteMap[vid]?.talla).filter(Boolean)
+        .filter((t, i, a) => a.indexOf(t) === i)
+        .map(talla => ({ talla, ...(ventasPorTalla[`${p.id}|${talla}`] || { d30:0, d90:0, total:0 }) }))
+        .sort((a, b) => b.total - a.total)
+
+      // Tallas por color: { color → [{ talla, total, d30 }] }
+      const coloresDelProd = [...new Set(varIds.map(vid => varianteMap[vid]?.color).filter(Boolean))]
+      const tallasDesglosadas = coloresDelProd.map(color => {
+        const tallasDeEsteColor = varIds
+          .filter(vid => varianteMap[vid]?.color === color)
+          .map(vid => varianteMap[vid]?.talla).filter(Boolean)
+          .filter((t, i, a) => a.indexOf(t) === i)
+          .map(talla => ({ talla, ...(ventasPorColorTalla[`${p.id}|${color}|${talla}`] || { d30:0, d90:0, total:0 }) }))
+          .sort((a, b) => parseFloat(a.talla) - parseFloat(b.talla))
+        const totalColor = tallasDeEsteColor.reduce((s, t) => s + t.total, 0)
+        return { color, tallas: tallasDeEsteColor, total: totalColor }
+      }).filter(c => c.total > 0).sort((a, b) => b.total - a.total)
+
+      // Variantes más vendidas
+      const variantesData = varIds.map(vid => {
+        const v = varianteMap[vid]
+        if (!v) return null
+        const vventas = ventasPorVariante[vid] || { d30:0, d90:0, total:0 }
+        const stock = stockPorVariante[vid] || 0
+        return { id: vid, label: [v.talla, v.color].filter(Boolean).join(' / ') || vid, stock, ...vventas }
+      }).filter(Boolean).sort((a, b) => b.total - a.total)
+
+      return { ...p, ventas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion, tallasData, tallasDesglosadas, variantesData }
     }).sort((a, b) => b.ventas.d30 - a.ventas.d30)
 
-    const coloresSemaforo = {
-      verde: { bg: '#e8f5e9', color: '#2e7d32', texto: '🟢 Rota bien' },
-      amarillo: { bg: '#fff8e1', color: '#f57f17', texto: '🟡 Rotacion lenta' },
-      rojo: { bg: '#ffebee', color: '#c62828', texto: '🔴 Sin movimiento' },
-      gris: { bg: '#f5f5f5', color: '#888', texto: '⚪ Sin datos' }
+    window._analisisData = { productosConRotacion, ventasPorTalla }
+
+    const total30 = productosConRotacion.reduce((s,p) => s+p.ventas.d30, 0)
+    const total90 = productosConRotacion.reduce((s,p) => s+p.ventas.d90, 0)
+    const rotan = productosConRotacion.filter(p=>p.semaforo==='verde').length
+    const muertos = productosConRotacion.filter(p=>p.semaforo==='rojo').length
+
+    const badgeSemaforo = {
+      verde:   { bg:'#dcfce7', color:'#166534', dot:'#16a34a', txt:'Rota bien' },
+      amarillo:{ bg:'#fef9c3', color:'#854d0e', dot:'#ca8a04', txt:'Rotación lenta' },
+      rojo:    { bg:'#fee2e2', color:'#991b1b', dot:'#dc2626', txt:'Sin movimiento' },
+      gris:    { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8', txt:'Sin datos' }
     }
 
-    content.innerHTML = `
-      <div style="margin-bottom:1.5rem">
-        <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📊 Analisis de rotacion</h2>
-        <p style="color:#888;font-size:0.85rem">Velocidad de venta y recomendaciones de resurtido por modelo</p>
-      </div>
+    function miniBar(val, max, color) {
+      const pct = max > 0 ? Math.round(val / max * 100) : 0
+      return `<div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s ease"></div>
+        </div>
+        <span style="font-size:0.7rem;font-weight:700;color:#334155;min-width:22px;text-align:right">${val}</span>
+      </div>`
+    }
 
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:2rem">
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Vendidos 30 días</p>
-          <p style="font-size:1.8rem;font-weight:700;color:#E91E8C">${productosConRotacion.reduce((s,p) => s+p.ventas.d30, 0)}</p>
-          <p style="font-size:0.75rem;color:#aaa">pares</p>
+    function renderTabRotacion() {
+      return `
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="pill-filter pill-active" onclick="filtrarRotacion('todos')">Todos</button>
+          <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Rotan bien</button>
+          <button class="pill-filter pill-warning" onclick="filtrarRotacion('amarillo')">Lentos</button>
+          <button class="pill-filter pill-danger" onclick="filtrarRotacion('rojo')">Sin movimiento</button>
         </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Vendidos 90 días</p>
-          <p style="font-size:1.8rem;font-weight:700;color:#E91E8C">${productosConRotacion.reduce((s,p) => s+p.ventas.d90, 0)}</p>
-          <p style="font-size:0.75rem;color:#aaa">pares</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Rotan bien</p>
-          <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${productosConRotacion.filter(p=>p.semaforo==='verde').length}</p>
-          <p style="font-size:0.75rem;color:#aaa">modelos</p>
-        </div>
-        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
-          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Sin movimiento</p>
-          <p style="font-size:1.8rem;font-weight:700;color:#c62828">${productosConRotacion.filter(p=>p.semaforo==='rojo').length}</p>
-          <p style="font-size:0.75rem;color:#aaa">modelos</p>
-        </div>
-      </div>
-
-      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
-        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <h3 style="font-size:0.95rem;font-weight:700">Rotacion por modelo</h3>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-  <button class="btn btn-primary" style="padding:4px 10px;font-size:0.75rem" onclick="filtrarRotacion('todos')">Todos</button>
-  <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="filtrarRotacion('verde')">🟢 Rotan bien</button>
-  <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.75rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarRotacion('rojo')">🔴 Sin movimiento</button>
-</div>
-        </div>
-        <div id="rotacion-lista">
+        <div id="rotacion-lista" style="display:flex;flex-direction:column;gap:8px">
           ${productosConRotacion.map(p => {
-            const s = coloresSemaforo[p.semaforo]
+            const s = badgeSemaforo[p.semaforo]
+            const maxD30 = Math.max(...productosConRotacion.map(x=>x.ventas.d30), 1)
             return `
-              <div class="rotacion-item" data-semaforo="${p.semaforo}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-                ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:8px;background:#f5f5f5;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">👠</div>`}
-                <div style="flex:1;min-width:140px">
-                  <p style="font-weight:600;font-size:0.9rem;margin-bottom:2px">${p.nombre}</p>
-                  <p style="font-size:0.75rem;color:#888">${p.sku_interno || ''} · Stock: ${p.stockTotal} pares</p>
-                  <span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${s.bg};color:${s.color}">${s.texto}</span>
-                </div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;min-width:200px">
-                  <div>
-                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d30}</p>
-                    <p style="font-size:0.65rem;color:#aaa">30 días</p>
-                  </div>
-                  <div>
-                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d60}</p>
-                    <p style="font-size:0.65rem;color:#aaa">60 días</p>
-                  </div>
-                  <div>
-                    <p style="font-size:1.1rem;font-weight:700;color:#333">${p.ventas.d90}</p>
-                    <p style="font-size:0.65rem;color:#aaa">90 días</p>
-                  </div>
-                </div>
-                <div style="text-align:right;min-width:120px">
-                  <p style="font-size:0.82rem;font-weight:600;color:#333">${p.ventasSemana.toFixed(1)} pares/sem</p>
-                  <p style="font-size:0.75rem;color:${p.diasInventario ? (p.diasInventario < 14 ? '#c62828' : p.diasInventario < 30 ? '#f57f17' : '#2e7d32') : '#aaa'}">${p.diasInventario ? `~${p.diasInventario} días stock` : 'Sin ventas'}</p>
-                  <p style="font-size:0.72rem;color:#888;margin-top:2px">${p.recomendacion}</p>
+            <div class="rotacion-item" data-semaforo="${p.semaforo}"
+                 style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:box-shadow 0.15s"
+                 onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.07)'" onmouseout="this.style.boxShadow=''">
+              ${p.imagen_principal
+                ? `<img src="${p.imagen_principal}" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">`
+                : `<div style="width:48px;height:48px;background:#f8fafc;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;color:#cbd5e1">👠</div>`}
+              <div style="flex:1;min-width:130px">
+                <p style="font-weight:700;font-size:0.88rem;color:#0f172a;margin-bottom:2px">${p.nombre}</p>
+                <p style="font-size:0.72rem;color:#94a3b8;margin-bottom:6px">${p.sku_interno || ''} · ${p.stockTotal} pares en stock</p>
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:${s.bg};color:${s.color}">
+                  <span style="width:6px;height:6px;border-radius:50%;background:${s.dot};flex-shrink:0"></span>${s.txt}
+                </span>
+              </div>
+              <div style="min-width:160px;flex:1">
+                <p style="font-size:0.67rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Ventas últimos 30 días</p>
+                ${miniBar(p.ventas.d30, maxD30, '#E91E8C')}
+                <div style="display:flex;gap:12px;margin-top:6px">
+                  <span style="font-size:0.7rem;color:#64748b">60d: <strong>${p.ventas.d60}</strong></span>
+                  <span style="font-size:0.7rem;color:#64748b">90d: <strong>${p.ventas.d90}</strong></span>
+                  <span style="font-size:0.7rem;color:#64748b">${p.ventasSemana.toFixed(1)} /sem</span>
                 </div>
               </div>
-            `
+              <div style="text-align:right;min-width:100px">
+                ${p.diasInventario
+                  ? `<p style="font-size:1rem;font-weight:800;color:${p.diasInventario<14?'#dc2626':p.diasInventario<30?'#ca8a04':'#16a34a'}">${p.diasInventario}d</p>
+                     <p style="font-size:0.67rem;color:#94a3b8">stock restante</p>`
+                  : `<p style="font-size:0.72rem;color:#94a3b8">Sin ventas</p>`}
+                <p style="font-size:0.67rem;color:#64748b;margin-top:3px">${p.recomendacion}</p>
+              </div>
+            </div>`
           }).join('')}
+        </div>`
+    }
+
+    function renderTabTallas(filtro) {
+      filtro = (filtro || '').toLowerCase()
+      const productosConVentas = productosConRotacion.filter(p =>
+        (p.tallasDesglosadas.length > 0 || p.tallasData.some(t => t.total > 0)) &&
+        (!filtro || p.nombre.toLowerCase().includes(filtro) || (p.sku_interno||'').toLowerCase().includes(filtro))
+      )
+      const totalProductos = productosConRotacion.filter(p => p.tallasData.some(t => t.total > 0)).length
+
+      const leyenda = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;flex-wrap:wrap">
+          <span style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0">Intensidad:</span>
+          ${[
+            { bg:'#f8fafc', txt:'Sin ventas' },
+            { bg:'#fce7f3', txt:'1–2 pares' },
+            { bg:'#fbcfe8', txt:'Moderado' },
+            { bg:'#f472b6', txt:'Buenas' },
+            { bg:'#E91E8C', txt:'Muy buenas' }
+          ].map(l => `
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:16px;height:16px;border-radius:3px;background:${l.bg};border:1px solid rgba(0,0,0,0.08);flex-shrink:0"></div>
+              <span style="font-size:0.68rem;color:#475569">${l.txt}</span>
+            </div>`).join('')}
+          <span style="font-size:0.68rem;color:#94a3b8;margin-left:2px">— Número = pares totales · (+X) = últimos 30 días</span>
+        </div>`
+
+      function heatmapCeldas(tallasArr) {
+        const maxV = Math.max(...tallasArr.map(t => t.total), 1)
+        return tallasArr.map(t => {
+          const pct = Math.round(t.total / maxV * 100)
+          const bg = pct === 0 ? '#f8fafc' : pct < 20 ? '#fce7f3' : pct < 50 ? '#fbcfe8' : pct < 80 ? '#f472b6' : '#E91E8C'
+          const tc = pct >= 50 ? 'white' : pct === 0 ? '#cbd5e1' : '#be185d'
+          const sub = pct >= 50 ? 'rgba(255,255,255,0.75)' : '#db2777'
+          return `
+          <div style="background:${bg};border-radius:7px;padding:8px 5px;text-align:center;transition:transform 0.15s;min-width:58px;${pct===0?'border:1px solid #e2e8f0':''}"
+               title="T${t.talla}: ${t.total} pares totales (${t.d30} en 30d)"
+               onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform=''">
+            <p style="font-size:0.9rem;font-weight:800;color:${tc};line-height:1;margin-bottom:2px">${t.total}</p>
+            <p style="font-size:0.65rem;font-weight:700;color:${tc}">T${t.talla}</p>
+            <p style="font-size:0.58rem;color:${t.d30>0?sub:'transparent'};margin-top:1px">${t.d30>0?'+'+t.d30:'·'}</p>
+          </div>`
+        }).join('')
+      }
+
+      return `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input id="tallas-buscar" class="form-input" placeholder="Filtrar por modelo o SKU..."
+            style="max-width:260px;font-size:0.82rem" value="${filtro}"
+            oninput="document.getElementById('analisis-tab-content').innerHTML=window._renderTabTallas(this.value)">
+          <span style="font-size:0.75rem;color:#94a3b8">${productosConVentas.length} de ${totalProductos} modelos</span>
         </div>
+        ${leyenda}
+        ${productosConVentas.length === 0
+          ? `<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No se encontraron modelos</div>`
+          : productosConVentas.map(p => {
+            const tallaGlobalTop = p.tallasData.find(t => t.total > 0)
+            const tieneColores = p.tallasDesglosadas.length > 0
+
+            return `
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+              <!-- cabecera del producto -->
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">` : ''}
+                <div style="flex:1">
+                  <p style="font-weight:700;font-size:0.88rem;color:#0f172a">${p.nombre}</p>
+                  <p style="font-size:0.7rem;color:#94a3b8">${p.ventas.d90} pares en 90d · ${tieneColores ? p.tallasDesglosadas.length + ' colores con ventas' : p.tallasData.filter(t=>t.total>0).length + ' tallas con movimiento'}</p>
+                </div>
+                ${tallaGlobalTop ? `
+                  <div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:5px 12px;text-align:center;flex-shrink:0">
+                    <p style="font-size:0.6rem;color:#9d174d;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Talla global top</p>
+                    <p style="font-size:1.05rem;font-weight:800;color:#be185d;line-height:1.2">T${tallaGlobalTop.talla}</p>
+                    <p style="font-size:0.62rem;color:#9d174d">${tallaGlobalTop.total} pares</p>
+                  </div>` : ''}
+              </div>
+
+              ${tieneColores
+                ? p.tallasDesglosadas.map(c => `
+                  <div style="margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+                      <span style="font-size:0.72rem;font-weight:700;color:#334155;min-width:0">${c.color}</span>
+                      <span style="font-size:0.65rem;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:100px">${c.total} pares totales</span>
+                      ${c.tallas.find(t=>t.total===Math.max(...c.tallas.map(x=>x.total)))
+                        ? `<span style="font-size:0.65rem;color:#be185d;background:#fdf2f8;padding:1px 7px;border-radius:100px">
+                            top: T${c.tallas.find(t=>t.total===Math.max(...c.tallas.map(x=>x.total))).talla}
+                          </span>` : ''}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      ${heatmapCeldas(c.tallas)}
+                    </div>
+                  </div>`).join('<hr style="border:none;border-top:1px solid #f1f5f9;margin:4px 0 12px">')
+                : `<div style="display:flex;gap:6px;flex-wrap:wrap">${heatmapCeldas(p.tallasData)}</div>`
+              }
+            </div>`
+          }).join('')}
+      `
+    }
+
+    function renderTabVariantes() {
+      const productosConVentas = productosConRotacion.filter(p => p.variantesData.some(v => v.total > 0))
+      if (productosConVentas.length === 0) return `<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No hay datos de ventas por variante aún</div>`
+
+      return productosConVentas.map(p => {
+        const varTop5 = p.variantesData.slice(0, 8)
+        const maxVar = Math.max(...varTop5.map(v => v.total), 1)
+        const winner = varTop5[0]
+
+        return `
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8fafc">` : ''}
+            <div style="flex:1">
+              <p style="font-weight:700;font-size:0.88rem;color:#0f172a">${p.nombre}</p>
+              <p style="font-size:0.7rem;color:#94a3b8">${p.variantesData.filter(v=>v.total>0).length} de ${p.variantesData.length} variantes con ventas</p>
+            </div>
+            ${winner && winner.total > 0 ? `<span style="background:#eff6ff;color:#1d4ed8;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700">⭐ ${winner.label} — ${winner.total} vendidos</span>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${varTop5.map((v, i) => {
+              const colors = ['#E91E8C','#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#6366f1','#14b8a6']
+              const c = colors[i % colors.length]
+              return `
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.72rem;font-weight:600;color:#64748b;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.label}</span>
+                <div style="flex:1;height:20px;background:#f1f5f9;border-radius:4px;overflow:hidden;position:relative">
+                  <div style="width:${Math.round(v.total/maxVar*100)}%;height:100%;background:${c};border-radius:4px;transition:width 0.5s ease;display:flex;align-items:center;padding-left:6px;box-sizing:border-box">
+                    ${v.total/maxVar > 0.18 ? `<span style="font-size:0.65rem;font-weight:700;color:white">${v.total}</span>` : ''}
+                  </div>
+                  ${v.total/maxVar <= 0.18 ? `<span style="position:absolute;left:${Math.round(v.total/maxVar*100)+1}%;top:50%;transform:translateY(-50%);font-size:0.65rem;font-weight:700;color:#334155">${v.total}</span>` : ''}
+                </div>
+                <span style="font-size:0.67rem;color:#94a3b8;min-width:52px;text-align:right">Stock: ${v.stock}</span>
+              </div>`
+            }).join('')}
+          </div>
+        </div>`
+      }).join('')
+    }
+
+    window._renderTabRotacion = renderTabRotacion
+    window._renderTabTallas = renderTabTallas
+    window._renderTabVariantes = renderTabVariantes
+
+    content.innerHTML = `
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
+          <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Análisis</h2>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem">
+        <div style="background:linear-gradient(135deg,#fff0f8,#ffe4f2);border:1px solid #f9a8d4;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#be185d;line-height:1;margin-bottom:3px">${total30}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:0.06em">Pares 30 días</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#6d28d9;line-height:1;margin-bottom:3px">${total90}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em">Pares 90 días</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#15803d;line-height:1;margin-bottom:3px">${rotan}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em">Rotan bien</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#fff1f2,#fee2e2);border:1px solid #fca5a5;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#b91c1c;line-height:1;margin-bottom:3px">${muertos}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em">Sin movimiento</p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0;margin-bottom:1.25rem;background:#f1f5f9;border-radius:10px;padding:3px;width:fit-content">
+        <button id="tab-rotacion" onclick="switchTabAnalisis('rotacion')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:white;color:#E91E8C;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+          Rotación
+        </button>
+        <button id="tab-tallas" onclick="switchTabAnalisis('tallas')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+          Tallas
+        </button>
+        <button id="tab-variantes" onclick="switchTabAnalisis('variantes')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+          Variantes
+        </button>
+      </div>
+
+      <div id="analisis-tab-content">
+        ${renderTabRotacion()}
       </div>
     `
 
-    window._rotacionData = productosConRotacion
+    window._analisisTabActivo = 'rotacion'
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando análisis</p>'
+    console.error(e)
   }
 }
 
+window.switchTabAnalisis = (tab) => {
+  const tabs = ['rotacion','tallas','variantes']
+  tabs.forEach(t => {
+    const btn = document.getElementById('tab-' + t)
+    if (!btn) return
+    if (t === tab) {
+      btn.style.background = 'white'
+      btn.style.color = '#E91E8C'
+      btn.style.boxShadow = '0 1px 4px rgba(0,0,0,0.1)'
+    } else {
+      btn.style.background = 'transparent'
+      btn.style.color = '#64748b'
+      btn.style.boxShadow = 'none'
+    }
+  })
+  const container = document.getElementById('analisis-tab-content')
+  if (!container) return
+  window._analisisTabActivo = tab
+  if (tab === 'rotacion') container.innerHTML = window._renderTabRotacion()
+  else if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
+  else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
+}
 
 window.filtrarRotacion = (semaforo) => {
   document.querySelectorAll('.rotacion-item').forEach(item => {
     item.style.display = semaforo === 'todos' || item.dataset.semaforo === semaforo ? '' : 'none'
   })
+  document.querySelectorAll('#analisis-tab-content .pill-filter').forEach(btn => {
+    btn.classList.remove('pill-active')
+  })
+  const btnClicked = [...document.querySelectorAll('#analisis-tab-content .pill-filter')]
+    .find(b => b.textContent.trim().toLowerCase().includes(
+      semaforo === 'todos' ? 'todos' : semaforo === 'verde' ? 'bien' : semaforo === 'amarillo' ? 'lento' : 'movimiento'
+    ))
+  if (btnClicked) btnClicked.classList.add('pill-active')
 }
 async function cargarCRM() {
   const content = document.getElementById('content')
@@ -6705,26 +6981,60 @@ async function cargarPedidos() {
   try {
     const res = await fetch(API + '/pedidos/')
     const data = await res.json()
+
+    const hoy = new Date()
+    const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
+    const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
+
+    const pedidosActivos = data.filter(p => p.status !== 'cancelado' && p.status !== 'borrador')
+    const pedidosHoy = pedidosActivos.filter(p => new Date(p.created_at) >= inicioHoy)
+    const totalHoy = pedidosHoy.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
+    const porEnviar = data.filter(p => p.status === 'pagado' && p.mp_preference_id).length
+    const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
+
+    const kpiCard = (valor, label, sub, color, bg, border, onclick) => `
+      <div style="background:${bg};border-radius:14px;padding:1.1rem 1.25rem;border:1px solid ${border};cursor:${onclick ? 'pointer' : 'default'};transition:transform 0.15s,box-shadow 0.15s"
+           ${onclick ? `onclick="${onclick}" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''"` : ''}>
+        <p style="font-size:1.55rem;font-weight:800;color:${color};line-height:1;margin-bottom:3px;letter-spacing:-0.5px">${valor}</p>
+        <p style="font-size:0.7rem;font-weight:600;color:${color};opacity:0.85;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1px">${label}</p>
+        ${sub ? `<p style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${sub}</p>` : ''}
+      </div>`
+
     content.innerHTML = `
       <div style="margin-bottom:1.25rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
           <div>
-            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
-            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Pedidos</h2>
+            <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
+            <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Pedidos</h2>
           </div>
           <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
         </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+          ${kpiCard(pedidosHoy.length, 'Pedidos hoy', `$${totalHoy.toLocaleString('es-MX',{maximumFractionDigits:0})} vendidos`, '#E91E8C', 'linear-gradient(135deg,#fff0f8,#ffe4f2)', '#f9a8d4', '')}
+          ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p=>new Date(p.created_at)>=hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
+          ${pendienteSPEI > 0
+            ? kpiCard(pendienteSPEI, 'SPEI pendiente', 'Esperando confirmación', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
+            : kpiCard('0', 'SPEI pendiente', 'Todo al corriente', '#16a34a', '#f0fdf4', '#86efac', '')}
+          ${porEnviar > 0
+            ? kpiCard(porEnviar, 'Por enviar', 'Pagados online', '#1d4ed8', '#eff6ff', '#93c5fd', "cargarPedidosFiltro('por_enviar')")
+            : kpiCard('0', 'Por enviar', 'Sin pendientes', '#16a34a', '#f0fdf4', '#86efac', '')}
+          ${kpiCard(enCredito, 'En crédito', 'Pedidos activos', '#0f766e', '#f0fdfa', '#99f6e4', "cargarPedidosFiltro('credito')")}
+        </div>
+
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <input class="form-input" id="ped-buscar" placeholder="Buscar por # pedido o cliente..."
                  style="max-width:240px;font-size:0.82rem" oninput="filtrarPedidos()">
-          <div style="display:flex;gap:4px;flex-wrap:wrap">
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #E91E8C;background:#E91E8C;color:white;transition:all 0.15s" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.8;font-weight:400">${data.length}</span></button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('online')">Online</button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;transition:all 0.15s" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI pendiente</button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #3b82f6;background:#eff6ff;color:#1d4ed8;transition:all 0.15s" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
-            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #10b981;background:#f0fdf4;color:#065f46;transition:all 0.15s" onclick="cargarPedidosFiltro('credito')">Crédito</button>
+          <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
+            <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${data.length}</span></button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('online')">Online</button>
+            <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI pendiente</button>
+            <button class="pill-filter pill-info" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
+            <button class="pill-filter pill-success" onclick="cargarPedidosFiltro('credito')">Crédito</button>
           </div>
         </div>
       </div>

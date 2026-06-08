@@ -741,6 +741,7 @@ function irACarrito() {
 
   // Toast + reset talla para agregar otro par fácil
   mostrarToast('✓ Agregado al carrito')
+  window.animateAddToCart?.(document.getElementById('btn-agregar'))
   tallaSeleccionada = null
   document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('selected'))
   const btn = document.getElementById('btn-agregar')
@@ -932,5 +933,6 @@ function zmRechazarCookies() {
   <p>&copy; 2026 Zapatillas May · León, Guanajuato · <a href="/" style="color:#9c5a52;text-decoration:none">zapatillasmay.mx</a></p>
   <p style="margin-top:0.4rem"><a href="/privacidad" style="color:#9c5a52;text-decoration:none">Política de privacidad</a> · <a href="/politica-de-devoluciones" style="color:#9c5a52;text-decoration:none">Devoluciones</a></p>
 </footer>
+<script type="module" src="/animations.js"></script>
 </body>
 </html>
