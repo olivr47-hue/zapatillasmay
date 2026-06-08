@@ -42,15 +42,47 @@ const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     }
     .zm-hero-el.zm-in { opacity: 1; transform: none; }
 
-    /* Hover suave en cards — sin mousemove */
+    /* Hover suave en cards */
     .product-card {
-      transition: transform 0.22s cubic-bezier(0.23,1,0.32,1),
-                  box-shadow 0.22s cubic-bezier(0.23,1,0.32,1) !important;
+      transition: opacity 0.55s cubic-bezier(0.23,1,0.32,1),
+                  transform 0.55s cubic-bezier(0.23,1,0.32,1),
+                  box-shadow 0.22s cubic-bezier(0.23,1,0.32,1);
     }
     .product-card:hover {
-      transform: translateY(-5px) !important;
-      box-shadow: 0 16px 36px rgba(90,40,10,0.13) !important;
+      transform: translateY(-5px);
+      box-shadow: 0 16px 36px rgba(90,40,10,0.13);
     }
+
+    /* Selección color/talla — pulso al activarse */
+    @keyframes zmSelect {
+      0%   { transform: scale(1); }
+      45%  { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    .color-btn, .talla-btn, .talla-opt {
+      transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1),
+                  box-shadow 0.18s ease,
+                  background 0.18s ease,
+                  border-color 0.18s ease;
+    }
+    .color-btn.zm-selected, .talla-btn.zm-selected, .talla-opt.zm-selected {
+      animation: zmSelect 0.28s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    /* Botón agregar — bounce cuando se habilita */
+    @keyframes zmBtnReady {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+    .btn-agregar.zm-ready { animation: zmBtnReady 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+
+    /* Toast feedback */
+    @keyframes zmToastIn {
+      from { opacity:0; transform: translateY(12px) scale(0.95); }
+      to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    .zm-toast { animation: zmToastIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 
     /* Page enter */
     @keyframes zmFadeIn { from { opacity:0 } to { opacity:1 } }
@@ -217,10 +249,50 @@ function animateCheckoutPage() {
   document.querySelectorAll('input[type="text"],input[type="email"],input[type="tel"],select,.campo').forEach(el => markReveal(el))
 }
 
+// ─── Selección color / talla ──────────────────────────
+function setupSelectionAnimations() {
+  if (noMotion) return
+
+  // Pulso al seleccionar color o talla (event delegation)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.color-btn, .talla-btn, .talla-opt, .color-opt')
+    if (!btn || btn.disabled) return
+
+    // Quitar clase anterior para poder re-animarla
+    btn.classList.remove('zm-selected')
+    void btn.offsetWidth // reflow para reiniciar animación
+    btn.classList.add('zm-selected')
+
+    // Bounce del botón agregar cuando ambos están listos
+    setTimeout(() => {
+      const btnAgregar = document.getElementById('btn-agregar')
+      if (btnAgregar && !btnAgregar.disabled) {
+        btnAgregar.classList.remove('zm-ready')
+        void btnAgregar.offsetWidth
+        btnAgregar.classList.add('zm-ready')
+      }
+    }, 50)
+  })
+
+  // Animar cambio de imagen en galería de producto
+  document.addEventListener('click', (e) => {
+    const thumb = e.target.closest('.gallery-thumb')
+    if (!thumb) return
+    const main = document.querySelector('.gallery-main img, #gallery-main img')
+    if (main) {
+      main.animate(
+        [{ opacity: 0.6, transform: 'scale(0.97)' }, { opacity: 1, transform: 'scale(1)' }],
+        { duration: 220, easing: 'cubic-bezier(0.23,1,0.32,1)' }
+      )
+    }
+  })
+}
+
 // ─── INIT ─────────────────────────────────────────────
 function init() {
   setupStaticReveals()
   setupCounters()
+  setupSelectionAnimations()
 
   const path = location.pathname
   const isHome = path === '/' || path === '' || path.endsWith('index.html')
@@ -230,7 +302,6 @@ function init() {
   }
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
-    // revelar galería y sección
     setTimeout(() => {
       document.querySelectorAll('.gallery-main, #gallery-main').forEach(el => markReveal(el))
       document.querySelectorAll('#product-section > *').forEach(el => markReveal(el))
