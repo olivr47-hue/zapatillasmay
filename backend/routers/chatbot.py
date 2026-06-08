@@ -816,6 +816,7 @@ async def envio_masivo(datos: dict):
         imagen_url = (datos.get("imagen_url") or "").strip()
         variables_body = datos.get("variables_body", [])  # [{"text": "valor"}]
         body_vars_count = datos.get("body_vars_count", 1)  # 0 = template has no {{N}} vars
+        header_tipo = (datos.get("header_tipo") or "NONE").upper()  # IMAGE | TEXT | NONE
         if not plantilla:
             return JSONResponse(status_code=400, content={"error": "Selecciona una plantilla"})
         if not contactos:
@@ -866,8 +867,11 @@ async def envio_masivo(datos: dict):
                 tel = "52" + tel
 
             components = []
-            if imagen_url:
+            if header_tipo == "IMAGE" and imagen_url:
                 components.append({"type": "header", "parameters": [{"type": "image", "image": {"link": imagen_url}}]})
+            elif header_tipo == "TEXT":
+                # Header de texto sin variables (nombre en body es suficiente)
+                pass
 
             body_params = []
             if body_vars_count > 0:

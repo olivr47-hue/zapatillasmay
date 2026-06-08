@@ -11105,9 +11105,15 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   if (mpmAviso) mpmAviso.style.display = esMPM ? 'block' : 'none'
 
   window._envioEsMPM = esMPM
+  // Tipo de header: IMAGE | TEXT | NONE
+  window._envioHeaderTipo = header?.format || (header?.text ? 'TEXT' : 'NONE')
   // Contar variables {{N}} en el body para saber cuántos params enviar
   const bodyVars = (body?.text || '').match(/\{\{\d+\}\}/g) || []
   window._envioBodyVarsCount = bodyVars.length
+
+  // Mostrar/ocultar selector de foto según si el header admite imagen
+  const secFotoEl = document.getElementById('envio-seccion-foto')
+  if (secFotoEl) secFotoEl.style.display = window._envioHeaderTipo === 'IMAGE' ? 'block' : 'none'
 
   // resaltar el label seleccionado
   document.querySelectorAll('input[name="envio-plantilla-radio"]').forEach(r => {
@@ -11239,7 +11245,7 @@ window.iniciarEnvioMasivo = async () => {
     const res = await fetch(API + '/chatbot/envio-masivo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM, body_vars_count: window._envioBodyVarsCount || 0 })
+      body: JSON.stringify({ plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM, body_vars_count: window._envioBodyVarsCount || 0, header_tipo: window._envioHeaderTipo || 'NONE' })
     })
     const data = await res.json()
 
