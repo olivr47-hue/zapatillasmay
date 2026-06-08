@@ -10591,7 +10591,7 @@ window._renderBurbujas = (chat) => {
     const rendered = m.mensaje ? `
       <div class="wa-msg-row ${esSaliente ? 'saliente' : 'entrante'}" data-idx="${idx}">
         ${!esSaliente ? replyBtn : ''}
-        <div style="display:flex;flex-direction:column;${esSaliente ? 'align-items:flex-end' : ''}">
+        <div class="wa-msg-row-inner">
           <span class="wa-msg-sender">${senderName}</span>
           <div class="wa-bubble ${esSaliente ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}${readReceipt}</div></div>
         </div>
@@ -10600,7 +10600,8 @@ window._renderBurbujas = (chat) => {
 
     const botRendered = m.respuesta ? `
       <div class="wa-msg-row saliente">
-        <div style="display:flex;flex-direction:column;align-items:flex-end">
+        ${replyBtn}
+        <div class="wa-msg-row-inner">
           <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
           <div class="wa-bubble bot">
             <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>

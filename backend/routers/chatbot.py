@@ -1509,9 +1509,15 @@ async def enviar_template(datos: dict):
 @router.post("/templates/crear-predefinidas")
 async def crear_templates_predefinidos():
     """Crea las 3 plantillas de utilidad para Zapatillas May."""
-    waba_id = _get_waba_id()
+    try:
+        waba_id = _get_waba_id()
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        return JSONResponse(status_code=e.code, content={"error": f"Error obteniendo WABA_ID: {err}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Error obteniendo WABA_ID: {str(e)}"})
     if not waba_id:
-        return JSONResponse(status_code=400, content={"error": "No se pudo obtener WABA_ID"})
+        return JSONResponse(status_code=400, content={"error": "No se pudo obtener WABA_ID — verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID en Railway"})
 
     plantillas = [
         {

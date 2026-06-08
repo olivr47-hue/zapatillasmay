@@ -4120,14 +4120,15 @@ ${o.telefono?'<a href="https://wa.me/'+(o.lada||"52")+o.telefono.replace(/\D/g,"
     </button>`,m=a.mensaje?`
       <div class="wa-msg-row ${i?"saliente":"entrante"}" data-idx="${n}">
         ${i?"":p}
-        <div style="display:flex;flex-direction:column;${i?"align-items:flex-end":""}">
+        <div class="wa-msg-row-inner">
           <span class="wa-msg-sender">${s}</span>
           <div class="wa-bubble ${i?"saliente":"entrante"}">${l}<div class="wa-bubble-time">${r}${c}</div></div>
         </div>
         ${i?p:""}
       </div>`:"",u=a.respuesta?`
       <div class="wa-msg-row saliente">
-        <div style="display:flex;flex-direction:column;align-items:flex-end">
+        ${p}
+        <div class="wa-msg-row-inner">
           <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
           <div class="wa-bubble bot">
             <p>${a.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi,"")}</p>
