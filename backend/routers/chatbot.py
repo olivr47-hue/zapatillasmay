@@ -917,6 +917,90 @@ async def envio_masivo(datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
+@router.post("/envio-fotos")
+async def envio_fotos(datos: dict):
+    """
+    Envía imágenes de variantes directamente (texto + fotos).
+    Solo funciona dentro de la ventana de 24 h (el cliente escribió primero).
+    """
+    try:
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if not wa_token or not phone_id:
+            return JSONResponse(status_code=500, content={"error": "Faltan variables WHATSAPP_TOKEN / WHATSAPP_PHONE_ID"})
+
+        contactos = datos.get("contactos", [])
+        texto    = (datos.get("texto") or "").strip()
+        fotos    = datos.get("fotos", [])   # [{url, caption}]
+        delay    = float(datos.get("delay_segundos", 3))
+
+        if not contactos:
+            return JSONResponse(status_code=400, content={"error": "No hay destinatarios"})
+        if not fotos:
+            return JSONResponse(status_code=400, content={"error": "No hay fotos seleccionadas"})
+
+        url_api = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+        hdrs = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+
+        enviados = 0
+        fallidos = 0
+        errores  = []
+
+        def _tel(t):
+            t = str(t).replace("+","").replace(" ","").replace("-","").replace("(","").replace(")","")
+            return t if t.startswith("52") else "52" + t
+
+        def _post(payload):
+            req = urllib.request.Request(url_api,
+                data=json.dumps(payload).encode(), headers=hdrs, method="POST")
+            with urllib.request.urlopen(req, timeout=12) as r:
+                r.read()
+
+        for contacto in contactos:
+            tel    = _tel(contacto.get("telefono",""))
+            nombre = (contacto.get("nombre") or "Cliente").strip() or "Cliente"
+            ok = True
+            err = ""
+            try:
+                # 1. Mensaje de texto de saludo (si hay)
+                if texto:
+                    saludo = texto.replace("{{nombre}}", nombre).replace("{{1}}", nombre)
+                    _post({"messaging_product":"whatsapp","to":tel,"type":"text","text":{"body":saludo}})
+                    time.sleep(1)
+
+                # 2. Una imagen por variante seleccionada
+                for i, foto in enumerate(fotos):
+                    img_url = (foto.get("url") or "").strip()
+                    caption = (foto.get("caption") or "").strip()
+                    if not img_url:
+                        continue
+                    _post({"messaging_product":"whatsapp","to":tel,"type":"image",
+                           "image":{"link":img_url,"caption":caption}})
+                    if i < len(fotos) - 1:
+                        time.sleep(1.2)
+
+                enviados += 1
+            except urllib.error.HTTPError as e:
+                ok = False
+                body_err = e.read().decode()
+                err = f"HTTP {e.code} - {body_err[:200]}"
+                fallidos += 1
+                errores.append(f"{tel}: {err}")
+            except Exception as e:
+                ok = False
+                err = str(e)
+                fallidos += 1
+                errores.append(f"{tel}: {err}")
+
+            if contacto != contactos[-1] and ok:
+                time.sleep(delay)
+
+        return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/plantillas")
 async def listar_plantillas():
     try:

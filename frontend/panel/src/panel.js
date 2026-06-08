@@ -10879,6 +10879,10 @@ window.cargarEnviosMasivos = async function() {
 
           <!-- COLUMNA IZQUIERDA: configuración -->
           <div>
+            <div style="background:#fff8e1;border-radius:10px;border:1px solid #ffe082;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#5d4037;line-height:1.5">
+              <strong>📣 Columna izquierda → botón "Enviar campaña"</strong><br>
+              Elige plantilla + audiencia y envía a todos tus contactos. Funciona siempre (plantilla aprobada por Meta).
+            </div>
             <!-- Plantilla -->
             <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
               <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">1️⃣ Selecciona la plantilla</p>
@@ -10970,8 +10974,15 @@ window.cargarEnviosMasivos = async function() {
             </div>
           </div>
 
-          <!-- COLUMNA DERECHA: lista de contactos + catálogo interactivo -->
+          <!-- COLUMNA DERECHA: destinatarios + opciones de envío alternativas -->
           <div>
+            <div style="background:#e8f5e9;border-radius:10px;border:1px solid #a5d6a7;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#2e7d32;line-height:1.5">
+              <strong>👥 Columna derecha → selecciona destinatarios</strong><br>
+              Marca los contactos aquí y luego usa el botón que necesites:<br>
+              <span style="font-size:0.73rem">• <strong>"Enviar campaña"</strong> (izq.) — plantilla para cualquier contacto<br>
+              • <strong>"Enviar catálogo"</strong> — muestra productos del catálogo Meta (solo si plantilla es MPM)<br>
+              • <strong>"Enviar fotos · 24 h"</strong> — manda fotos de variantes a quienes te escribieron hoy</span>
+            </div>
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
               <h3 style="font-size:0.95rem;font-weight:700">👥 Destinatarios</h3>
@@ -11010,6 +11021,49 @@ window.cargarEnviosMasivos = async function() {
               <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0"></p>
               <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="border-color:#E91E8C;color:#E91E8C;font-size:0.82rem;white-space:nowrap">
                 🛍️ Enviar catálogo
+              </button>
+            </div>
+          </div>
+
+          <!-- Envío de fotos de variantes (24 h) -->
+          <div style="background:white;border-radius:12px;border:1.5px solid #ffe0b2;padding:1.5rem;margin-top:1rem">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <p style="font-weight:700;font-size:0.95rem;margin:0">📸 Enviar fotos de variantes</p>
+              <span style="background:#fff3e0;color:#e65100;border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700;white-space:nowrap">⏱ Solo 24 h</span>
+            </div>
+            <p style="font-size:0.75rem;color:#888;margin-bottom:10px;line-height:1.4">
+              Disponible <strong>solo si el cliente te escribió en las últimas 24 horas</strong>. Envía las fotos de los colores que elijas directamente al chat, igual que en la sección CRM.
+            </p>
+
+            <!-- Mensaje de saludo -->
+            <textarea id="fotos-texto" rows="2" placeholder="Mensaje de saludo (opcional) — usa {{nombre}} para personalizar. Ej: Hola {{nombre}}, llegaron nuevos modelos 🎉"
+              style="width:100%;padding:8px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:10px"></textarea>
+
+            <!-- Buscador de modelo -->
+            <input type="text" id="fotos-modelo-buscar" placeholder="🔍 Buscar modelo por nombre o SKU..."
+              oninput="filtrarModelosFotos(this.value)"
+              style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+            <div id="fotos-modelos-lista" style="max-height:130px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
+              <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>
+            </div>
+
+            <!-- Variantes del modelo -->
+            <div id="fotos-variantes-panel" style="display:none;margin-bottom:10px">
+              <p id="fotos-variantes-titulo" style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px"></p>
+              <div id="fotos-variantes-grid" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Fotos seleccionadas -->
+            <div id="fotos-seleccionadas-wrap" style="display:none;margin-bottom:12px">
+              <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Fotos seleccionadas</p>
+              <div id="fotos-seleccionadas-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
+              <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
+                style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
+                📸 Enviar fotos · solo 24 h
               </button>
             </div>
           </div>
@@ -11386,6 +11440,175 @@ window.iniciarEnvioInteractivo = async () => {
       ${data.errores?.length ? `<p style="font-size:0.72rem;color:#aaa;margin-bottom:1rem">${data.errores[0]}</p>` : ''}
       <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
         style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`
+  } catch(e) {
+    overlay.remove()
+    alert('Error: ' + e.message)
+  }
+}
+
+// ── Envío de fotos de variantes (24 h) ───────────────────────────
+
+window._fotosSeleccionadas = [] // [{url, caption, modelo}]
+
+window.filtrarModelosFotos = (q) => {
+  const todos = window._envioModelosList || []
+  const lista = document.getElementById('fotos-modelos-lista')
+  if (!lista) return
+  if (!q.trim()) {
+    lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>'
+    return
+  }
+  const filtrados = todos.filter(p =>
+    (p.nombre||'').toLowerCase().includes(q.toLowerCase()) ||
+    (p.sku_interno||'').toLowerCase().includes(q.toLowerCase())
+  )
+  if (!filtrados.length) {
+    lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>'
+    return
+  }
+  lista.innerHTML = filtrados.map(p => `
+    <div onclick="seleccionarModeloFotos('${p.id}','${(p.nombre||p.sku_interno).replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
+         onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+      ${p.imagen_principal
+        ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0">`
+        : `<div style="width:32px;height:32px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
+      <span style="font-size:0.83rem;font-weight:500">${p.nombre || p.sku_interno}</span>
+    </div>`).join('')
+}
+
+window.seleccionarModeloFotos = async (productoId, nombre) => {
+  const panel = document.getElementById('fotos-variantes-panel')
+  const titulo = document.getElementById('fotos-variantes-titulo')
+  const grid = document.getElementById('fotos-variantes-grid')
+  const buscar = document.getElementById('fotos-modelo-buscar')
+  if (!panel || !grid) return
+  if (buscar) buscar.value = nombre
+  document.getElementById('fotos-modelos-lista').innerHTML =
+    '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar otro modelo...</p>'
+  panel.style.display = 'block'
+  if (titulo) titulo.textContent = nombre + ' — elige colores a enviar'
+  grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando colores...</p>'
+
+  try {
+    const res = await fetch(API + '/variantes/producto/' + productoId)
+    const variantes = await res.json()
+    const mapa = {}
+    for (const v of variantes) {
+      if (!v.color) continue
+      if (!mapa[v.color]) mapa[v.color] = { color: v.color, color_hex: v.color_hex||null, foto_url: v.foto_url||null }
+      if (!mapa[v.color].foto_url && v.foto_url) mapa[v.color].foto_url = v.foto_url
+    }
+    const colores = Object.values(mapa)
+    if (!colores.length) { grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin colores registrados</p>'; return }
+
+    grid.innerHTML = colores.map(c => {
+      const yaSelec = window._fotosSeleccionadas.some(f => f.url === c.foto_url)
+      return `
+      <div id="fotovar-${encodeURIComponent(c.color)}"
+           onclick="${c.foto_url ? `toggleFotoVariante('${c.foto_url}','${c.color.replace(/'/g,"\\'")}','${nombre.replace(/'/g,"\\'")}',this)` : ''}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid ${yaSelec?'#25D366':'#eee'};background:${yaSelec?'#f0faf4':''};cursor:${c.foto_url?'pointer':'default'};opacity:${c.foto_url?'1':'0.4'};transition:all 0.15s">
+        <div style="width:22px;height:22px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.83rem;font-weight:600">${c.color}</span>
+        ${c.foto_url
+          ? `<img src="${c.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`
+          : `<span style="font-size:0.7rem;color:#bbb">sin foto</span>`}
+        <span style="font-size:1.1rem">${yaSelec ? '✅' : '⬜'}</span>
+      </div>`
+    }).join('')
+  } catch(e) {
+    grid.innerHTML = '<p style="font-size:0.8rem;color:red;padding:4px">Error cargando variantes</p>'
+  }
+}
+
+window.toggleFotoVariante = (url, color, modelo, el) => {
+  const cleanUrl = _waCloudinaryUrl(url)
+  const idx = window._fotosSeleccionadas.findIndex(f => f.url === cleanUrl)
+  if (idx >= 0) {
+    window._fotosSeleccionadas.splice(idx, 1)
+    el.style.borderColor = '#eee'; el.style.background = ''
+    el.querySelector('span:last-child').textContent = '⬜'
+  } else {
+    window._fotosSeleccionadas.push({ url: cleanUrl, caption: `${modelo} · ${color}`, modelo, color })
+    el.style.borderColor = '#25D366'; el.style.background = '#f0faf4'
+    el.querySelector('span:last-child').textContent = '✅'
+  }
+  _renderFotosSeleccionadas()
+}
+
+function _renderFotosSeleccionadas() {
+  const wrap = document.getElementById('fotos-seleccionadas-wrap')
+  const grid = document.getElementById('fotos-seleccionadas-grid')
+  const count = document.getElementById('fotos-count')
+  const n = window._fotosSeleccionadas.length
+  if (count) count.textContent = n > 0 ? `${n} foto${n>1?'s':''} seleccionada${n>1?'s':''}` : ''
+  if (!wrap || !grid) return
+  if (n === 0) { wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+  grid.innerHTML = window._fotosSeleccionadas.map((f, i) => `
+    <div style="position:relative;width:64px">
+      <img src="${f.url}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid #25D366">
+      <button onclick="quitarFotoSeleccionada(${i})"
+        style="position:absolute;top:-6px;right:-6px;background:#e53e3e;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:0.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      <p style="font-size:0.6rem;color:#666;margin:2px 0 0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:64px">${f.color}</p>
+    </div>`).join('')
+}
+
+window.quitarFotoSeleccionada = (i) => {
+  window._fotosSeleccionadas.splice(i, 1)
+  _renderFotosSeleccionadas()
+}
+
+window.iniciarEnvioFotos = async () => {
+  const seleccionados = window._envioSeleccionados || new Set()
+  const contactos = (window._envioClientes || [])
+    .filter(c => seleccionados.has(c.telefono))
+    .map(c => ({ telefono: c.telefono, nombre: c.nombre }))
+  if (!contactos.length) { alert('Selecciona al menos un destinatario'); return }
+  if (!window._fotosSeleccionadas.length) { alert('Selecciona al menos una variante en la sección de fotos'); return }
+
+  const texto = (document.getElementById('fotos-texto')?.value || '').trim()
+  const n = contactos.length
+  const nFotos = window._fotosSeleccionadas.length
+
+  if (!confirm(`¿Enviar ${nFotos} foto${nFotos>1?'s':''} a ${n} contacto${n>1?'s':''} seleccionado${n>1?'s':''}?\n\n⚠️ Solo llegará a quienes te hayan escrito en las últimas 24 horas.`)) return
+
+  const overlay = document.createElement('div')
+  overlay.id = 'fotos-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">📸</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando fotos…</h3>
+    <p style="font-size:0.82rem;color:#888">${n} contacto${n>1?'s':''} · ${nFotos} foto${nFotos>1?'s':''} por contacto</p>
+    <p style="font-size:0.72rem;color:#e65100;margin-top:6px">⏱ Solo clientes activos (24 h)</p>
+  </div>`
+  document.body.appendChild(overlay)
+
+  try {
+    const res = await fetch(API + '/chatbot/envio-fotos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contactos, texto, fotos: window._fotosSeleccionadas.map(f=>({url:f.url,caption:f.caption})), delay_segundos: 3 })
+    })
+    const data = await res.json()
+    if (data.error) {
+      overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1.5rem">${data.error}</p>
+        <button onclick="document.getElementById('fotos-overlay').remove()"
+          style="background:#e65100;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`
+      return
+    }
+    overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${!data.fallidos?'🎉':'✅'}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${data.enviados||0} enviados</p>
+      ${data.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:6px">${data.fallidos} fallidos — probablemente fuera de ventana 24 h</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:6px">Sin errores</p>'}
+      <button onclick="document.getElementById('fotos-overlay').remove()"
+        style="background:#e65100;color:white;border:none;border-radius:10px;padding:10px 28px;margin-top:8px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
     </div>`
   } catch(e) {
     overlay.remove()
