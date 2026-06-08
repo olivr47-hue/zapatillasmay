@@ -793,7 +793,7 @@ async def listar_chats():
             "conversaciones_whatsapp"
             "?order=created_at.desc"
             "&limit=400"
-            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
         )
         chats = {}
         for m in conversaciones:

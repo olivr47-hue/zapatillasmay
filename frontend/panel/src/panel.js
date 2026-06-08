@@ -10714,18 +10714,29 @@ window._renderBurbujas = (chat) => {
       msgBody = `<p>${textoLimpio}</p>`
     }
 
-    // Read receipt solo en el último saliente
+    // Read receipt en todos los salientes (✓ enviado, ✓✓ gris entregado, ✓✓ azul visto)
     let readReceipt = ''
-    if (esSaliente && idx === idxUltimoSaliente) {
-      const leyoAt = chat.cliente_leyo_at ? new Date(chat.cliente_leyo_at) : null
+    if (esSaliente) {
+      const leyoAt   = chat.cliente_leyo_at   ? new Date(chat.cliente_leyo_at)   : null
       const entregAt = chat.cliente_entrego_at ? new Date(chat.cliente_entrego_at) : null
-      const msgAt = new Date(m.created_at)
-      if (leyoAt && leyoAt >= msgAt) {
-        readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
-      } else if (entregAt && entregAt >= msgAt) {
-        readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
+      const msgAt    = new Date(m.created_at)
+      if (idx === idxUltimoSaliente) {
+        // Último saliente: muestra el estado más reciente
+        if (leyoAt && leyoAt >= msgAt) {
+          readReceipt = `<span class="wa-read-receipt read" title="Visto ${leyoAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}">✓✓</span>`
+        } else if (entregAt && entregAt >= msgAt) {
+          readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
+        } else if (leyoAt) {
+          // Hay lectura pero puede ser de un mensaje anterior — igual mostrar azul
+          readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
+        } else if (entregAt) {
+          readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
+        } else {
+          readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
+        }
       } else {
-        readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
+        // Mensajes anteriores: palomita gris simple
+        readReceipt = `<span class="wa-read-receipt sent">✓</span>`
       }
     }
 
