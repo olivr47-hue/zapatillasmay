@@ -129,8 +129,23 @@ function setupStaticReveals() {
 
 // ─── Cards dinámicas: llamado desde _agregarLote() ────
 window.zmObserveCards = function() {
-  if (noMotion) return
-  document.querySelectorAll('.product-card').forEach(el => markReveal(el))
+  // Recoger solo tarjetas nuevas (no procesadas aún)
+  const nuevas = Array.from(document.querySelectorAll('.product-card'))
+    .filter(el => !_seen.has(el))
+  if (!nuevas.length) return
+
+  nuevas.forEach(el => {
+    _seen.add(el)
+    el.classList.add('zm-reveal')
+  })
+
+  // Stagger directo: más fiable que IO para contenido dinámico
+  // En reduce-motion: solo fade (sin transform) via corta duración
+  requestAnimationFrame(() => {
+    nuevas.forEach((el, i) => {
+      setTimeout(() => el.classList.add('zm-in'), 30 + i * 55)
+    })
+  })
 }
 
 // Hero entrance — manejado por .hero.loaded en index.html (fadeUp CSS animation)
