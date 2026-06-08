@@ -1928,7 +1928,7 @@ async def enviar_lista_interactiva(telefono: str, datos: dict):
 
 @router.post("/chats/{telefono}/carrusel")
 async def enviar_carrusel(telefono: str, datos: dict):
-    """Envia carrusel de imagenes con botones (hasta 10 tarjetas)."""
+    """Envia multiples imagenes seguidas con caption (nombre + precio)."""
     try:
         cuerpo       = datos.get("cuerpo", "Mira estos modelos:")
         tarjetas_raw = datos.get("tarjetas", [])
@@ -1937,29 +1937,44 @@ async def enviar_carrusel(telefono: str, datos: dict):
         if not tarjetas_raw:
             return JSONResponse(status_code=400, content={"error": "tarjetas requeridas"})
 
-        cards = []
-        for idx, t in enumerate(tarjetas_raw[:10]):
-            comp = []
-            if t.get("imagen_url"):
-                comp.append({"type": "header", "parameters": [{"type": "image", "image": {"link": t["imagen_url"]}}]})
-            if t.get("texto"):
-                comp.append({"type": "body", "parameters": [{"type": "text", "text": str(t["texto"])[:1024]}]})
-            for bi, btn in enumerate(t.get("botones", [])[:2]):
-                comp.append({"type": "button", "sub_type": "quick_reply", "index": str(bi),
-                             "parameters": [{"type": "payload", "payload": str(btn.get("id", f"c{idx}b{bi}"))}]})
-            cards.append({"card_index": idx, "components": comp})
-
-        wamid = _wa_send({
-            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
-            "interactive": {"type": "carousel", "body": {"text": cuerpo}, "action": {"cards": cards}}
+        # Primer mensaje: texto de introduccion
+        _wa_send({
+            "messaging_product": "whatsapp", "to": telefono, "type": "text",
+            "text": {"body": cuerpo}
         })
+
+        # Una imagen por tarjeta con caption
+        enviadas = 0
+        for t in tarjetas_raw[:10]:
+            img_url = t.get("imagen_url", "")
+            caption = t.get("texto", "")
+            if not img_url:
+                continue
+            _wa_send({
+                "messaging_product": "whatsapp", "to": telefono, "type": "image",
+                "image": {"link": img_url, "caption": caption}
+            })
+            enviadas += 1
+
+        # Mensaje final con botones de accion
+        _wa_send({
+            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
+            "interactive": {
+                "type": "button",
+                "body": {"text": "¿Alguno te llama la atención? 😊"},
+                "action": {"buttons": [
+                    {"type": "reply", "reply": {"id": "me_interesa", "title": "Me interesa"}},
+                    {"type": "reply", "reply": {"id": "asesor", "title": "Hablar con asesor"}}
+                ]}
+            }
+        })
+
         supabase_post("conversaciones_whatsapp", {
             "telefono": telefono,
-            "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({len(cards)} tarjetas)",
+            "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({enviadas} fotos)",
             "respuesta": None,
             "tipo": "carrusel_saliente",
-            "leido": True,
-            "wa_message_id": wamid
+            "leido": True
         })
         cache_invalidate("chats_lista")
         return {"ok": True, "wamid": wamid}
