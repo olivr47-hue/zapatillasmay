@@ -6355,21 +6355,7 @@ function zmRechazarCookies() {
     tick()
   }
 
-  // 3D tilt en la zapatilla
-  const shoeWrap = document.getElementById('hero-shoe-wrap')
-  const shoeImg  = document.getElementById('hero-shoe-img')
-  if (shoeWrap && shoeImg && isDesktop) {
-    section.addEventListener('mousemove', function(e) {
-      const r = section.getBoundingClientRect()
-      const x = (e.clientX - r.left) / r.width  - 0.5
-      const y = (e.clientY - r.top)  / r.height - 0.5
-      shoeImg.style.transform =
-        `perspective(800px) rotateY(${x * 18}deg) rotateX(${-y * 10}deg) scale(1.04) translateY(${y * -8}px)`
-    })
-    section.addEventListener('mouseleave', function() {
-      shoeImg.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg) scale(1) translateY(0)'
-    })
-  }
+  // Tilt 3D hero eliminado — el parallax está en animations.js
 
   // ── PARALLAX SCROLL ──────────────────────────────────────────────
   const shoeScrollEl = document.getElementById('hero-shoe-scroll')
@@ -6521,6 +6507,6 @@ function zmRechazarCookies() {
     .product-badge { animation: none !important; }
   }
 </style>
-<script type="module" src="/animations.js"></script>
+<script defer src="/animations.js"></script>
 </body>
 </html>
