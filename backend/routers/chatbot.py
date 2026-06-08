@@ -1949,7 +1949,7 @@ async def enviar_carrusel(telefono: str, datos: dict):
                 caption = f"{cuerpo}\n\n{caption}" if caption else cuerpo
             # El CTA va en el caption de la última imagen
             if i == len(tarjetas_validas) - 1:
-                caption = f"{caption}\n\n¿Alguno te llama la atención? Respóndeme 😊" if caption else "¿Alguno te llama la atención? Respóndeme 😊"
+                caption = f"{caption}\n\n¿Alguno te llama la atención? 👀" if caption else "¿Alguno te llama la atención? 👀"
             _wa_send({
                 "messaging_product": "whatsapp", "to": telefono, "type": "image",
                 "image": {"link": img_url, "caption": caption[:1024]}
