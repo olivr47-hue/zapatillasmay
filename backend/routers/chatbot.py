@@ -227,6 +227,41 @@ def enviar_whatsapp_reaccion(to, message_id, emoji):
         "reaction": {"message_id": message_id, "emoji": emoji}
     })
 
+def enviar_whatsapp_ubicacion(to, lat, lng, nombre="", direccion=""):
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "location",
+        "location": {"latitude": lat, "longitude": lng, "name": nombre, "address": direccion}
+    })
+
+def enviar_whatsapp_contacto(to, nombre, telefono, empresa=""):
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "contacts",
+        "contacts": [{
+            "name": {"formatted_name": nombre, "first_name": nombre.split()[0]},
+            "phones": [{"phone": telefono, "type": "CELL", "wa_id": telefono}],
+            "org": {"company": empresa} if empresa else {}
+        }]
+    })
+
+def mark_as_read_wa(message_id: str):
+    """Envía el visto (✓✓ azul) al cliente en WhatsApp."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+    if not wa_token or not phone_id or not message_id:
+        return
+    try:
+        _wa_send({
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": message_id
+        })
+    except Exception:
+        pass
+
 def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
     """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id)."""
     try:
@@ -454,6 +489,65 @@ def enviar_whatsapp(from_number, respuesta):
 def cargar_catalogo():
     return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
 
+def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
+    """Descarga el audio de WhatsApp y lo transcribe con Whisper (OpenAI)."""
+    try:
+        audio_id = mensaje_data.get("audio", {}).get("id", "")
+        if not audio_id:
+            return "[Audio no procesable]"
+        wa_token  = os.environ.get("WHATSAPP_TOKEN", "")
+        openai_key = os.environ.get("OPENAI_API_KEY", "")
+
+        # Obtener URL del audio
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v25.0/{audio_id}",
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(req) as r:
+            media_data = json.loads(r.read())
+        audio_url = media_data.get("url", "")
+        if not audio_url:
+            return "[Audio recibido — no se pudo obtener URL]"
+
+        # Descargar el archivo de audio
+        audio_req = urllib.request.Request(audio_url, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(audio_req) as r:
+            audio_bytes = r.read()
+
+        # Si no hay OpenAI key, solo registrar
+        if not openai_key:
+            print(f"[audio] sin OPENAI_API_KEY, audio de {from_number} no transcrito")
+            return "[Audio de voz recibido]"
+
+        # Transcribir con Whisper
+        import io
+        boundary = "----WhisperBoundary"
+        body_parts = [
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1".encode(),
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nes".encode(),
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.ogg\"\r\nContent-Type: audio/ogg\r\n\r\n".encode() + audio_bytes,
+            f"--{boundary}--".encode(),
+        ]
+        body = b"\r\n".join(body_parts)
+        whisper_req = urllib.request.Request(
+            "https://api.openai.com/v1/audio/transcriptions",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {openai_key}",
+                "Content-Type": f"multipart/form-data; boundary={boundary}"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(whisper_req) as r:
+            result = json.loads(r.read())
+        texto = result.get("text", "").strip()
+        return texto if texto else "[Audio sin contenido detectado]"
+
+    except Exception as e:
+        print(f"[audio-transcripcion] Error: {e}")
+        return "[Audio de voz recibido — no se pudo transcribir]"
+
+
 @router.post("/whatsapp")
 async def recibir_mensaje_whatsapp(datos: dict):
     try:
@@ -485,12 +579,38 @@ async def recibir_mensaje_whatsapp(datos: dict):
             return {"status": "ok"}
 
         mensaje_data = messages[0]
-        tipo = mensaje_data.get("type", "text")
-        from_number = mensaje_data.get("from", "")
-        contacts = value.get("contacts", [])
+        tipo         = mensaje_data.get("type", "text")
+        from_number  = mensaje_data.get("from", "")
+        wa_msg_id    = mensaje_data.get("id", "")   # wamid del mensaje entrante
+        contacts     = value.get("contacts", [])
         nombre_contacto = contacts[0].get("profile", {}).get("name", "") if contacts else ""
 
+        # ── Mark as read automático al recibir ──────────────────────
+        if wa_msg_id:
+            mark_as_read_wa(wa_msg_id)
+
         control = supabase_get(f"chats_control?telefono=eq.{from_number}&en_control=eq.true")
+
+        # ── Sticker ─────────────────────────────────────────────────
+        if tipo == "sticker":
+            guardar_conversacion(from_number, "[Sticker]", None, "sticker", nombre_contacto)
+            return {"status": "ok"}
+
+        # ── Ubicación entrante ───────────────────────────────────────
+        if tipo == "location":
+            loc  = mensaje_data.get("location", {})
+            lat  = loc.get("latitude", "")
+            lng  = loc.get("longitude", "")
+            nom  = loc.get("name", "")
+            addr = loc.get("address", "")
+            maps = f"https://maps.google.com/?q={lat},{lng}"
+            texto_loc = f"[Ubicación] {nom} {addr} {maps}".strip()
+            guardar_conversacion(from_number, texto_loc, None, "ubicacion", nombre_contacto)
+            if not control:
+                respuesta = f"Recibí tu ubicación 📍 ¿Es para envío a domicilio o para recoger en tienda?"
+                enviar_whatsapp_texto(from_number, respuesta)
+                guardar_conversacion(from_number, texto_loc, respuesta, "ubicacion", nombre_contacto)
+            return {"status": "ok"}
 
         productos = cargar_catalogo()
         catalogo = construir_catalogo(productos)
@@ -526,8 +646,13 @@ async def recibir_mensaje_whatsapp(datos: dict):
         if tipo == "text":
             mensaje = mensaje_data.get("text", {}).get("body", "")
         elif tipo == "audio":
-            mensaje = "La cliente mandó un audio, pídele amablemente que escriba su mensaje"
+            # ── Transcripción con Whisper ────────────────────────────
+            mensaje = _transcribir_audio_wa(mensaje_data, from_number)
+        elif tipo in ("sticker", "location"):
+            return {"status": "ok"}   # ya manejados arriba
         else:
+            # Tipos no soportados: ignorar silenciosamente pero registrar
+            guardar_conversacion(from_number, f"[{tipo}]", None, tipo, nombre_contacto)
             return {"status": "ok"}
 
         if not mensaje:
@@ -1402,6 +1527,53 @@ async def marcar_no_leido(telefono: str):
             supabase_patch(f"chats_control?telefono=eq.{telefono}", {"pendiente_revision": True})
         else:
             supabase_post("chats_control", {"telefono": telefono, "pendiente_revision": True})
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/ubicacion")
+async def enviar_ubicacion_manual(telefono: str, datos: dict):
+    try:
+        lat    = datos.get("lat", "")
+        lng    = datos.get("lng", "")
+        nombre = datos.get("nombre", "Zapatillas May")
+        dir_   = datos.get("direccion", "León, Guanajuato")
+        agente = datos.get("agente", "Admin")
+        if not lat or not lng:
+            return JSONResponse(status_code=400, content={"error": "lat y lng requeridos"})
+        enviar_whatsapp_ubicacion(telefono, lat, lng, nombre, dir_)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Ubicación] {nombre} https://maps.google.com/?q={lat},{lng}",
+            "respuesta": None,
+            "tipo": "ubicacion_saliente",
+            "leido": True
+        })
+        cache_invalidate("chats_lista")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/chats/{telefono}/contacto")
+async def enviar_contacto_manual(telefono: str, datos: dict):
+    try:
+        nombre_c = datos.get("nombre", "Zapatillas May")
+        tel_c    = datos.get("telefono_contacto", "")
+        empresa  = datos.get("empresa", "Zapatillas May")
+        agente   = datos.get("agente", "Admin")
+        if not tel_c:
+            return JSONResponse(status_code=400, content={"error": "telefono_contacto requerido"})
+        enviar_whatsapp_contacto(telefono, nombre_c, tel_c, empresa)
+        supabase_post("conversaciones_whatsapp", {
+            "telefono": telefono,
+            "mensaje": f"[{agente}]: [Contacto] {nombre_c} {tel_c}",
+            "respuesta": None,
+            "tipo": "contacto_saliente",
+            "leido": True
+        })
         cache_invalidate("chats_lista")
         return {"ok": True}
     except Exception as e:

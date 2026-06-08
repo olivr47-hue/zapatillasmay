@@ -10535,12 +10535,12 @@ window._renderBurbujas = (chat) => {
   const mensajesOrden = [...chat.mensajes].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
-    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente'
+    const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente'
     return esSal ? i : acc
   }, -1)
 
   return mensajesOrden.map((m, idx) => {
-    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente'
+    const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente'
     const senderName = esSaliente ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
     const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
     const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
@@ -10562,6 +10562,17 @@ window._renderBurbujas = (chat) => {
     } else if (m.tipo === 'video_saliente') {
       const vurl = textoLimpio.replace('[Video] ', '')
       msgBody = `<video src="${vurl}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
+    } else if (m.tipo === 'ubicacion_saliente') {
+      const mapsUrl = textoLimpio.match(/https:\/\/maps\.google\.com\/\?q=[\d.,]+/)?.[0] || ''
+      const locName = textoLimpio.replace('[Ubicación] ', '').replace(/ https:.*/,'')
+      msgBody = `<a href="${mapsUrl}" target="_blank" class="wa-doc-link" style="color:#0891b2;text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        ${locName || 'Ubicación'}</a>`
+    } else if (m.tipo === 'contacto_saliente') {
+      const ctxt = textoLimpio.replace('[Contacto] ', '')
+      msgBody = `<span class="wa-doc-link" style="color:#0f172a">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ${ctxt}</span>`
     } else if (m.tipo === 'imagen') {
       msgBody = `<p style="color:#64748b;font-size:0.8rem">[Imagen recibida]</p>`
     } else {
@@ -10695,6 +10706,12 @@ area.style.minHeight = '0'
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         </button>
         <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${telefono}',this)">
+        <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
@@ -11046,6 +11063,81 @@ window.subirVideoWA = async (telefono, input) => {
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando video: ' + e.message)
+  }
+}
+
+window.enviarUbicacionWA = async (telefono) => {
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  // Coordenadas de Zapatillas May en León, Guanajuato
+  const lat = '21.1250'
+  const lng = '-101.6860'
+  const nombre = 'Zapatillas May'
+  const direccion = 'León, Guanajuato, México'
+  try {
+    const r = await fetch(API + '/chatbot/chats/' + telefono + '/ubicacion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng, nombre, direccion, agente })
+    })
+    if (!r.ok) throw new Error('Error ' + r.status)
+    await window._recargarChats()
+    abrirChat(telefono)
+  } catch(e) {
+    alert('Error enviando ubicación: ' + e.message)
+  }
+}
+
+window.mostrarEnviarContactoWA = (telefono) => {
+  const existente = document.getElementById('modal-contacto-wa')
+  if (existente) existente.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-contacto-wa'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center'
+  m.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:340px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <h3 style="margin:0 0 16px;font-size:1rem;color:#0f172a">Enviar contacto por WhatsApp</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input id="cwa-nombre" placeholder="Nombre" value="Zapatillas May"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+        <input id="cwa-tel" placeholder="Teléfono (ej: 4771234567)"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+        <input id="cwa-empresa" placeholder="Empresa (opcional)" value="Zapatillas May"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button onclick="document.getElementById('modal-contacto-wa').remove()"
+                style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b">
+          Cancelar
+        </button>
+        <button onclick="enviarContactoWA('${telefono}')"
+                style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600">
+          Enviar
+        </button>
+      </div>
+    </div>`
+  document.body.appendChild(m)
+  m.addEventListener('click', e => { if(e.target===m) m.remove() })
+  setTimeout(() => document.getElementById('cwa-tel')?.focus(), 50)
+}
+
+window.enviarContactoWA = async (telefono) => {
+  const nombre = document.getElementById('cwa-nombre')?.value.trim() || 'Zapatillas May'
+  const tel_c  = document.getElementById('cwa-tel')?.value.trim() || ''
+  const empresa= document.getElementById('cwa-empresa')?.value.trim() || ''
+  const agente = window._empleadoActual?.nombre || 'Admin'
+  if (!tel_c) { alert('Ingresa el número de teléfono del contacto'); return }
+  document.getElementById('modal-contacto-wa')?.remove()
+  try {
+    const r = await fetch(API + '/chatbot/chats/' + telefono + '/contacto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, telefono_contacto: tel_c, empresa, agente })
+    })
+    if (!r.ok) throw new Error('Error ' + r.status)
+    await window._recargarChats()
+    abrirChat(telefono)
+  } catch(e) {
+    alert('Error enviando contacto: ' + e.message)
   }
 }
 
