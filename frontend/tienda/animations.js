@@ -133,24 +133,7 @@ window.zmObserveCards = function() {
   document.querySelectorAll('.product-card').forEach(el => markReveal(el))
 }
 
-// ─── Hero ──────────────────────────────────────────────
-function animateHero() {
-  if (noMotion) return
-  const content = document.getElementById('hero-content')
-  if (!content) return
-  const els = [
-    content.querySelector('.hero-eyebrow'),
-    content.querySelector('.hero-title'),
-    content.querySelector('.hero-subtitle'),
-    content.querySelector('.hero-cta'),
-    content.querySelector('.hero-garantias'),
-  ].filter(Boolean)
-
-  els.forEach((el, i) => {
-    el.classList.add('zm-hero-el')
-    setTimeout(() => el.classList.add('zm-in'), 120 + i * 110)
-  })
-}
+// Hero entrance — manejado por .hero.loaded en index.html (fadeUp CSS animation)
 
 // ─── Contador numérico ─────────────────────────────────
 function setupCounters() {
@@ -297,9 +280,7 @@ function init() {
   const path = location.pathname
   const isHome = path === '/' || path === '' || path.endsWith('index.html')
 
-  if (isHome) {
-    animateHero()
-  }
+  // Hero entrance: manejado por .hero.loaded en index.html
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
     setTimeout(() => {
