@@ -11072,6 +11072,7 @@ window.cargarEnviosMasivos = async function() {
         </div>
       </div>
     `
+    window._fotosSeleccionadas = [] // resetear al recargar la sección
     cargarProductosEnvio()
     cargarProductosEnvioInteractivo()
     // seleccionar primera plantilla por defecto y mostrar su preview
@@ -11504,7 +11505,8 @@ window.seleccionarModeloFotos = async (productoId, nombre) => {
     if (!colores.length) { grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin colores registrados</p>'; return }
 
     grid.innerHTML = colores.map(c => {
-      const yaSelec = window._fotosSeleccionadas.some(f => f.url === c.foto_url)
+      const cleanFotoUrl = _waCloudinaryUrl(c.foto_url)
+      const yaSelec = window._fotosSeleccionadas.some(f => f.url === cleanFotoUrl)
       return `
       <div id="fotovar-${encodeURIComponent(c.color)}"
            onclick="${c.foto_url ? `toggleFotoVariante('${c.foto_url}','${c.color.replace(/'/g,"\\'")}','${nombre.replace(/'/g,"\\'")}',this)` : ''}"

@@ -5,6 +5,7 @@ from cache import cache_get, cache_set, cache_invalidate
 import urllib.request
 import json
 import os
+import time
 import base64
 import re
 import mercadopago
