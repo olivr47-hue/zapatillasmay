@@ -147,7 +147,7 @@ def llamar_claude_con_imagen(img_b64, sistema, historial=[]):
             },
             {
                 "type": "text",
-                "text": "La clienta mandó esta foto de calzado. Identifica el estilo y recomienda modelos similares del catálogo con precio. Si tienen [IMG:url] inclúyela como ENVIAR_FOTO:[url]"
+                "text": "La clienta me mandó esta foto de calzado. SÍ PUEDO VER LA IMAGEN. Analiza el estilo exacto (taco, sandalia, bota, plataforma), el color y los detalles. Luego busca en el catálogo el modelo MÁS parecido por estilo y color, menciona el precio y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas. NO digas que no recibiste la imagen."
             }
         ]
     }]
@@ -449,20 +449,39 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
         enviar_whatsapp_imagen(from_number, url)
     return texto_final or respuesta_claude
 
-def obtener_historial(telefono, limite=6):
+def obtener_historial(telefono, limite=10):
     try:
         convs = supabase_get(f"conversaciones_whatsapp?telefono=eq.{telefono}&order=created_at.desc&limit={limite}")
         convs = list(reversed(convs))
         mensajes = []
         for c in convs:
-            msg = c.get('mensaje', '')
-            resp = c.get('respuesta', '')
-            if msg and not msg.startswith('['):
+            msg  = c.get('mensaje', '') or ''
+            resp = c.get('respuesta', '') or ''
+            tipo = c.get('tipo', '')
+
+            # ── Mensaje del cliente ──────────────────────────────────
+            if tipo == 'carrusel_saliente':
+                # Del carrusel solo guardamos el contexto como asistente
+                pass
+            elif msg.startswith('[') and not msg.startswith('[Botón]') and not msg.startswith('[Lista]'):
+                pass  # sticker, ubicacion, etc — no aportan al historial de venta
+            elif msg:
                 mensajes.append({"role": "user", "content": msg})
-            if resp:
-                # Quitar marcadores FOTO del historial para no confundir al modelo
-                resp_limpia = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', resp).strip()
-                resp_limpia = re.sub(r'ENVIAR_FOTO:\S+', '', resp_limpia).strip()
+
+            # ── Respuesta del asistente ──────────────────────────────
+            if tipo == 'carrusel_saliente':
+                # Extraer productos del mensaje guardado para que Maya sepa qué se mostró
+                productos_mostrados = re.sub(r'\[.*?\]:\s*\[Carrusel\]\s*', '', msg).strip()
+                mensajes.append({"role": "assistant", "content": f"[Envié un carrusel de fotos al cliente: {productos_mostrados}]"})
+            elif tipo == 'imagen_saliente':
+                # Foto individual enviada al cliente
+                producto_info = re.sub(r'\[.*?\]:\s*', '', msg).strip()
+                mensajes.append({"role": "assistant", "content": f"[Envié una foto al cliente: {producto_info}]"})
+            elif resp:
+                resp_limpia = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', resp)
+                resp_limpia = re.sub(r'ENVIAR_FOTO:\S+', '', resp_limpia)
+                resp_limpia = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', resp_limpia)
+                resp_limpia = re.sub(r'GENERAR_PAGO:\{[^}]+\}', '', resp_limpia).strip()
                 if resp_limpia:
                     mensajes.append({"role": "assistant", "content": resp_limpia})
         return mensajes
@@ -640,11 +659,34 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 guardar_conversacion(from_number, "[Imagen]", texto_guardado, "imagen", nombre_contacto)
             except Exception as e:
                 print(f"ERROR IMAGEN: {str(e)}")
-                enviar_whatsapp_texto(from_number, "Vi que mandaste una foto 📸 ¿Qué tipo de calzado buscas? Cuéntame y te muestro opciones 😊")
+                fb = "Vi tu foto 📸 Dime qué estilo buscas y te muestro opciones similares 😊"
+                enviar_whatsapp_texto(from_number, fb)
+                guardar_conversacion(from_number, "[Imagen]", fb, "imagen", nombre_contacto)
             return {"status": "ok"}
 
         if tipo == "text":
             mensaje = mensaje_data.get("text", {}).get("body", "")
+            # ── Contexto: el cliente respondió a un mensaje específico ────────
+            ctx = mensaje_data.get("context", {})
+            ctx_wamid = ctx.get("id", "")
+            if ctx_wamid:
+                try:
+                    # Buscar a qué mensaje se estaba respondiendo (carrusel, foto)
+                    ref_rows = supabase_get(f"conversaciones_whatsapp?telefono=eq.{from_number}&order=created_at.desc&limit=20")
+                    ctx_info = None
+                    for row in ref_rows:
+                        if row.get("wa_message_id") == ctx_wamid:
+                            ctx_info = row.get("mensaje", "")
+                            break
+                        # Si no encontramos por wa_message_id, buscar en carrusel reciente
+                        if row.get("tipo") == "carrusel_saliente":
+                            ctx_info = row.get("mensaje", "")
+                            break
+                    if ctx_info:
+                        producto_ref = re.sub(r'\[.*?\]:\s*', '', ctx_info).strip()
+                        mensaje = f"{mensaje}\n[El cliente está respondiendo sobre: {producto_ref}]"
+                except Exception:
+                    pass
         elif tipo == "audio":
             # ── Transcripción con Whisper ────────────────────────────
             mensaje = _transcribir_audio_wa(mensaje_data, from_number)
@@ -706,7 +748,8 @@ async def recibir_mensaje_whatsapp(datos: dict):
         mensajes = historial + [{"role": "user", "content": mensaje}]
         respuesta_claude = llamar_claude(mensajes, sistema)
         texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-        guardar_conversacion(from_number, mensaje, respuesta_claude, "texto", nombre_contacto)
+        # Guardar texto limpio (sin marcadores) para que el panel lo muestre correctamente
+        guardar_conversacion(from_number, mensaje, texto_guardado or respuesta_claude, "texto", nombre_contacto)
         return {"status": "ok"}
 
     except Exception:
@@ -1964,9 +2007,11 @@ async def enviar_carrusel(telefono: str, datos: dict):
             supabase_post("chats_control", {"telefono": telefono, "en_control": True})
 
         try:
+            # Guardar nombres de los productos para que Maya tenga contexto
+            nombres_productos = ", ".join([t.get("texto", "").split("\n")[0] for t in tarjetas_validas if t.get("texto")])
             supabase_post("conversaciones_whatsapp", {
                 "telefono": telefono,
-                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} ({enviadas} fotos)",
+                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} — Productos: {nombres_productos} ({enviadas} fotos)",
                 "tipo": "carrusel_saliente",
                 "leido": True
             })
