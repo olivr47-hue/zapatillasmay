@@ -11364,7 +11364,7 @@ window._enviarListaWA = async (telefono) => {
 
 // ── Modal: Carrusel de productos ───────────────────────────────────
 window.mostrarModalCarrusel = (telefono) => {
-  const prods = (window._productosWA || []).slice(0, 10)
+  const prods = (window._productosWA || []).filter(p => p.imagen_principal).slice(0, 10)
   const filas = prods.map((p, i) => `
     <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;padding:4px 0;cursor:pointer">
       <input type="checkbox" data-idx="${i}" value="${i}" style="width:14px;height:14px">

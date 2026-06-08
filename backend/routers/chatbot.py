@@ -1935,37 +1935,26 @@ async def enviar_carrusel(telefono: str, datos: dict):
         if not tarjetas_raw:
             return JSONResponse(status_code=400, content={"error": "tarjetas requeridas"})
 
-        # Primer mensaje: texto de introduccion
-        _wa_send({
-            "messaging_product": "whatsapp", "to": telefono, "type": "text",
-            "text": {"body": cuerpo}
-        })
+        tarjetas_validas = [t for t in tarjetas_raw[:10] if t.get("imagen_url")]
+        if not tarjetas_validas:
+            return JSONResponse(status_code=400, content={"error": "ninguna tarjeta tiene imagen_url"})
 
-        # Una imagen por tarjeta con caption
+        # Solo imágenes con caption — sin mensajes de texto separados para evitar desorden
         enviadas = 0
-        for t in tarjetas_raw[:10]:
-            img_url = t.get("imagen_url", "")
+        for i, t in enumerate(tarjetas_validas):
+            img_url = t["imagen_url"]
             caption = t.get("texto", "")
-            if not img_url:
-                continue
+            # El intro va en el caption de la primera imagen
+            if i == 0 and cuerpo:
+                caption = f"{cuerpo}\n\n{caption}" if caption else cuerpo
+            # El CTA va en el caption de la última imagen
+            if i == len(tarjetas_validas) - 1:
+                caption = f"{caption}\n\n¿Alguno te llama la atención? Respóndeme 😊" if caption else "¿Alguno te llama la atención? Respóndeme 😊"
             _wa_send({
                 "messaging_product": "whatsapp", "to": telefono, "type": "image",
-                "image": {"link": img_url, "caption": caption}
+                "image": {"link": img_url, "caption": caption[:1024]}
             })
             enviadas += 1
-
-        # Mensaje final con botones de accion
-        _wa_send({
-            "messaging_product": "whatsapp", "to": telefono, "type": "interactive",
-            "interactive": {
-                "type": "button",
-                "body": {"text": "¿Alguno te llama la atención? 😊"},
-                "action": {"buttons": [
-                    {"type": "reply", "reply": {"id": "me_interesa", "title": "Me interesa"}},
-                    {"type": "reply", "reply": {"id": "asesor", "title": "Hablar con asesor"}}
-                ]}
-            }
-        })
 
         # Poner en control manual para que Maya no responda mientras el cliente ve las fotos
         existing_ctrl = supabase_get(f"chats_control?telefono=eq.{telefono}")
