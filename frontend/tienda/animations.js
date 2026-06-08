@@ -1,354 +1,280 @@
-import { animate, inView, stagger } from 'https://cdn.jsdelivr.net/npm/motion@latest/dist/motion.js'
+// Zapatillas May — animaciones usando Web Animations API nativa (sin CDN)
 
-// Respeta la preferencia del sistema de reducir movimiento
 const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-if (noMotion) { /* nada */ }
+const ease  = 'cubic-bezier(0.23, 1, 0.32, 1)'
+const spring = 'cubic-bezier(0.34, 1.56, 0.64, 1)'
 
-const ease = [0.23, 1, 0.32, 1]       // suave
-const spring = [0.34, 1.56, 0.64, 1]  // rebote
+// ─── utilidades ───────────────────────────────────────
+function anim(el, frames, opts) {
+  if (!el || noMotion) return null
+  return el.animate(frames, { fill: 'forwards', easing: ease, ...opts })
+}
 
-// ─────────────────────────────────────────
-// REVEAL SCROLL — funciona en todas las páginas
-// ─────────────────────────────────────────
+function animStagger(els, frames, opts) {
+  const list = [...(els instanceof NodeList ? els : els)]
+  const base = opts.delay || 0
+  const step = opts.stagger || 60
+  list.forEach((el, i) => {
+    if (el) el.animate(frames, { fill: 'forwards', easing: ease, ...opts, delay: base + i * step })
+  })
+}
+
+// ─── scroll reveal con IntersectionObserver ───────────
 function setupScrollReveals() {
   if (noMotion) return
 
-  // Product cards — stagger por fila
-  inView('.product-card', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [36, 0] }, { duration: 0.55, easing: ease })
-  }, { amount: 0.15 })
+  const configs = [
+    { sel: '.product-card',       frames: [{ opacity:0, transform:'translateY(32px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
+    { sel: '.cat-card',           frames: [{ opacity:0, transform:'translateY(24px) scale(0.94)' }, { opacity:1, transform:'translateY(0) scale(1)' }], dur: 420 },
+    { sel: '.section-title',      frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 480 },
+    { sel: '.testimonio-card',    frames: [{ opacity:0, transform:'translateY(20px)' }, { opacity:1, transform:'translateY(0)' }], dur: 420 },
+    { sel: '.banner-mayoreo',     frames: [{ opacity:0, transform:'translateY(16px)' }, { opacity:1, transform:'translateY(0)' }], dur: 500 },
+    { sel: '.catalogo-card',      frames: [{ opacity:0, transform:'scale(0.93)' },      { opacity:1, transform:'scale(1)' }],      dur: 380 },
+    { sel: '.info-card',          frames: [{ opacity:0, transform:'translateY(12px)' }, { opacity:1, transform:'translateY(0)' }], dur: 320 },
+  ]
 
-  // Category cards
-  inView('.cat-card', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [28, 0], scale: [0.94, 1] }, { duration: 0.45, easing: ease })
-  }, { amount: 0.2 })
+  const seen = new WeakSet()
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting || seen.has(entry.target)) return
+      seen.add(entry.target)
+      io.unobserve(entry.target)
+      const cfg = entry.target._animCfg
+      if (!cfg) return
+      entry.target.animate(cfg.frames, { fill: 'forwards', easing: ease, duration: cfg.dur })
+    })
+  }, { threshold: 0.1 })
 
-  // Títulos de secciones
-  inView('.section-title', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [18, 0] }, { duration: 0.5, easing: ease })
-  }, { amount: 0.5 })
+  configs.forEach(({ sel, frames, dur }) => {
+    document.querySelectorAll(sel).forEach(el => {
+      if (seen.has(el)) return
+      el._animCfg = { frames, dur }
+      // Estado inicial
+      el.style.opacity = '0'
+      io.observe(el)
+    })
+  })
 
-  // Testimonios
-  inView('.testimonio-card', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [24, 0] }, { duration: 0.45, easing: ease })
-  }, { amount: 0.2 })
-
-  // Banner mayoreo
-  inView('.banner-mayoreo', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [20, 0] }, { duration: 0.5, easing: ease })
-  }, { amount: 0.3 })
-
-  // Tarjetas de catálogo (catálogos page)
-  inView('.catalogo-card', ({ target }) => {
-    animate(target, { opacity: [0, 1], scale: [0.93, 1] }, { duration: 0.4, easing: spring })
-  }, { amount: 0.2 })
-
-  // Info cards (producto page)
-  inView('.info-card', ({ target }) => {
-    animate(target, { opacity: [0, 1], y: [14, 0] }, { duration: 0.35, easing: ease })
-  }, { amount: 0.3 })
+  // Re-observar cards que se agreguen después (productos que carga el JS)
+  const gridObs = new MutationObserver(() => {
+    configs.forEach(({ sel, frames, dur }) => {
+      document.querySelectorAll(sel).forEach(el => {
+        if (seen.has(el) || el._animCfg) return
+        el._animCfg = { frames, dur }
+        el.style.opacity = '0'
+        io.observe(el)
+      })
+    })
+  })
+  const grids = document.querySelectorAll('.products-grid, .cats-grid, #products-grid, #catalogo-grid')
+  grids.forEach(g => gridObs.observe(g, { childList: true }))
 }
 
-// ─────────────────────────────────────────
-// HERO — index.html
-// ─────────────────────────────────────────
+// ─── page enter ───────────────────────────────────────
+function pageEnter() {
+  if (noMotion) return
+  document.body.animate(
+    [{ opacity: 0 }, { opacity: 1 }],
+    { duration: 300, easing: ease, fill: 'forwards' }
+  )
+}
+
+// ─── hero ─────────────────────────────────────────────
 function animateHero() {
   if (noMotion) return
   const content = document.getElementById('hero-content')
   if (!content) return
+  const els = [
+    content.querySelector('.hero-eyebrow'),
+    content.querySelector('.hero-title'),
+    content.querySelector('.hero-subtitle'),
+    content.querySelector('.hero-cta'),
+    content.querySelector('.hero-garantias'),
+  ].filter(Boolean)
 
-  const eyebrow  = content.querySelector('.hero-eyebrow')
-  const title    = content.querySelector('.hero-title')
-  const subtitle = content.querySelector('.hero-subtitle')
-  const cta      = content.querySelector('.hero-cta')
-  const garantia = content.querySelector('.hero-garantias, .cro-garantia')
-
-  const els = [eyebrow, title, subtitle, cta, garantia].filter(Boolean)
-
-  // Estado inicial inmediato antes de que arranque el CSS fade-in
   els.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translateY(40px)' })
 
-  animate(els, { opacity: [0, 1], y: [40, 0] }, {
-    duration: 0.75,
-    delay: stagger(0.13, { start: 0.15 }),
-    easing: ease
+  els.forEach((el, i) => {
+    el.animate(
+      [{ opacity:0, transform:'translateY(40px)' }, { opacity:1, transform:'translateY(0)' }],
+      { duration: 700, delay: 150 + i * 120, easing: ease, fill: 'forwards' }
+    )
   })
 }
 
-// ─────────────────────────────────────────
-// HERO SHOE — paralaje sutil al mover el ratón
-// ─────────────────────────────────────────
+// ─── hero shoe parallax (solo desktop) ────────────────
 function setupHeroShoe() {
   if (noMotion) return
   const shoe = document.getElementById('hero-shoe-wrap')
   if (!shoe) return
-  let rafId
+  let raf
   document.addEventListener('mousemove', (e) => {
-    cancelAnimationFrame(rafId)
-    rafId = requestAnimationFrame(() => {
-      const cx = window.innerWidth / 2
-      const cy = window.innerHeight / 2
-      const dx = (e.clientX - cx) / cx   // -1 a 1
-      const dy = (e.clientY - cy) / cy
-      shoe.style.transform = `translate(${dx * 10}px, ${dy * 6}px) rotate(${dx * 1.5}deg)`
-    })
-  })
-}
-
-// ─────────────────────────────────────────
-// PÁGINA DE ENTRADA — fade in suave al navegar
-// ─────────────────────────────────────────
-function pageEnter() {
-  if (noMotion) return
-  animate(document.body, { opacity: [0, 1] }, { duration: 0.35, easing: ease })
-}
-
-// ─────────────────────────────────────────
-// PRODUCTO — animar sección de producto al cargar
-// ─────────────────────────────────────────
-function animateProductoPage() {
-  if (noMotion) return
-
-  // Imagen principal
-  const gallery = document.querySelector('.gallery-main, #gallery-main')
-  if (gallery) animate(gallery, { opacity: [0, 1], scale: [0.96, 1] }, { duration: 0.55, easing: ease })
-
-  // Nombre, precio, descripción — stagger
-  const productSection = document.getElementById('product-section')
-  if (productSection) {
-    const children = [...productSection.children]
-    animate(children, { opacity: [0, 1], x: [20, 0] }, {
-      duration: 0.45,
-      delay: stagger(0.07, { start: 0.2 }),
-      easing: ease
-    })
-  }
-
-  // Sticky bar
-  const sb = document.getElementById('sticky-bar')
-  if (sb) {
-    setTimeout(() => {
-      animate(sb, { y: [60, 0], opacity: [0, 1] }, { duration: 0.4, easing: spring })
-    }, 600)
-  }
-}
-
-// ─────────────────────────────────────────
-// CARRITO — animar items al cargar
-// ─────────────────────────────────────────
-function animateCarritoPage() {
-  if (noMotion) return
-
-  // Esperamos a que el carrito se renderice (es dinámico)
-  const observer = new MutationObserver((_, obs) => {
-    const items = document.querySelectorAll('.cart-item, [class*="carrito-item"]')
-    if (items.length > 0) {
-      obs.disconnect()
-      animate(items, { opacity: [0, 1], x: [30, 0] }, {
-        duration: 0.4,
-        delay: stagger(0.06),
-        easing: ease
-      })
-    }
-  })
-  const container = document.getElementById('cart-list') || document.getElementById('carrito-items') || document.body
-  observer.observe(container, { childList: true, subtree: true })
-  setTimeout(() => observer.disconnect(), 4000)
-}
-
-// ─────────────────────────────────────────
-// CHECKOUT — form fields stagger
-// ─────────────────────────────────────────
-function animateCheckoutPage() {
-  if (noMotion) return
-  const fields = document.querySelectorAll('.campo, .form-group, input[type="text"], input[type="email"], input[type="tel"], select')
-  if (fields.length > 0) {
-    animate(fields, { opacity: [0, 1], y: [12, 0] }, {
-      duration: 0.3,
-      delay: stagger(0.04, { start: 0.3 }),
-      easing: ease
-    })
-  }
-
-  // Stepper steps pop
-  const steps = document.querySelectorAll('.step')
-  if (steps.length > 0) {
-    animate(steps, { opacity: [0, 1], scale: [0.8, 1] }, {
-      duration: 0.35,
-      delay: stagger(0.08, { start: 0.1 }),
-      easing: spring
-    })
-  }
-}
-
-// ─────────────────────────────────────────
-// ADD TO CART — animación del botón + vuelo al carrito
-// ─────────────────────────────────────────
-window.animateAddToCart = function(btnEl) {
-  if (noMotion) return
-
-  btnEl = btnEl || document.getElementById('btn-agregar')
-
-  // 1. Bounce del botón
-  if (btnEl) {
-    animate(btnEl, { scale: [1, 0.86, 1.08, 1] }, { duration: 0.45, easing: spring })
-    // Ripple de color
-    animate(btnEl, { boxShadow: [
-      '0 6px 24px rgba(200,150,122,0.45)',
-      '0 0 0 12px rgba(200,150,122,0)',
-      '0 6px 24px rgba(200,150,122,0.45)'
-    ] }, { duration: 0.6, easing: ease })
-  }
-
-  // 2. Ícono del carrito — pop
-  const cartLink = document.querySelector('a.btn-icon[href="/carrito"], a[href="/carrito"].btn-icon')
-  const cartBadge = document.getElementById('cart-count')
-
-  if (cartLink) {
-    animate(cartLink, { scale: [1, 1.45, 1] }, { duration: 0.35, easing: spring })
-  }
-  if (cartBadge) {
-    animate(cartBadge, { scale: [0.6, 1.6, 1] }, { duration: 0.4, easing: spring })
-  }
-
-  // 3. Partícula que vuela al carrito
-  if (!btnEl || !cartLink) return
-  const btnRect  = btnEl.getBoundingClientRect()
-  const cartRect = cartLink.getBoundingClientRect()
-
-  const startX = btnRect.left + btnRect.width / 2
-  const startY = btnRect.top  + btnRect.height / 2
-  const endX   = cartRect.left + cartRect.width / 2
-  const endY   = cartRect.top  + cartRect.height / 2
-
-  for (let i = 0; i < 5; i++) {
-    const dot = document.createElement('div')
-    const angle = (i / 5) * Math.PI * 2
-    const burst = 18
-    dot.style.cssText = [
-      'position:fixed',
-      `left:${startX - 5}px`,
-      `top:${startY - 5}px`,
-      'width:10px',
-      'height:10px',
-      'border-radius:50%',
-      'background:#9c5a52',
-      'pointer-events:none',
-      'z-index:9999',
-      'opacity:1'
-    ].join(';')
-    document.body.appendChild(dot)
-
-    // Primera fase: burst desde el botón
-    animate(dot, {
-      transform: [
-        'translate(0,0) scale(1)',
-        `translate(${Math.cos(angle)*burst}px,${Math.sin(angle)*burst}px) scale(0.7)`
-      ]
-    }, { duration: 0.18, easing: ease }).finished.then(() => {
-      // Segunda fase: vuela al carrito
-      const dx = endX - startX - Math.cos(angle)*burst
-      const dy = endY - startY - Math.sin(angle)*burst
-      animate(dot, {
-        transform: [
-          `translate(${Math.cos(angle)*burst}px,${Math.sin(angle)*burst}px) scale(0.7)`,
-          `translate(${dx + Math.cos(angle)*burst}px,${dy + Math.sin(angle)*burst}px) scale(0.2)`
-        ],
-        opacity: [1, 0]
-      }, { duration: 0.38, delay: i * 0.03, easing: ease }).finished.then(() => dot.remove())
-    })
-  }
-}
-
-// ─────────────────────────────────────────
-// HOVER en product cards — realzar con motion
-// ─────────────────────────────────────────
-function setupCardHover() {
-  if (noMotion) return
-  // Solo añade el listener una vez cuando los cards aparecen
-  document.addEventListener('mouseover', (e) => {
-    const card = e.target.closest('.product-card')
-    if (!card || card._motionHover) return
-    card._motionHover = true
-    card.addEventListener('mouseenter', () => {
-      animate(card, { y: -4, boxShadow: '0 16px 40px rgba(90,40,10,0.14)' }, { duration: 0.2, easing: ease })
-    })
-    card.addEventListener('mouseleave', () => {
-      animate(card, { y: 0, boxShadow: '0 2px 8px rgba(90,40,10,0.06)' }, { duration: 0.2, easing: ease })
+    cancelAnimationFrame(raf)
+    raf = requestAnimationFrame(() => {
+      const dx = (e.clientX / window.innerWidth  - 0.5) * 18
+      const dy = (e.clientY / window.innerHeight - 0.5) * 10
+      shoe.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.12}deg)`
+      shoe.style.transition = 'transform 0.4s cubic-bezier(0.23,1,0.32,1)'
     })
   }, { passive: true })
 }
 
-// ─────────────────────────────────────────
-// TOAST — animación de entrada/salida
-// ─────────────────────────────────────────
-function patchToast() {
-  if (noMotion) return
-  const originalMostrarToast = window.mostrarToast
-  if (!originalMostrarToast) return
-  window.mostrarToast = function(msg) {
-    originalMostrarToast(msg)
-    const toast = document.getElementById('toast')
-    if (toast) {
-      animate(toast, { y: [40, 0], opacity: [0, 1], scale: [0.9, 1] }, { duration: 0.35, easing: spring })
-    }
-  }
-}
-
-// ─────────────────────────────────────────
-// NAVEGACIÓN — highlight activo animado
-// ─────────────────────────────────────────
+// ─── navbar ───────────────────────────────────────────
 function setupNavAnimations() {
   if (noMotion) return
-  // Navbar slide down en primera carga
   const nav = document.querySelector('nav, .nav, header')
-  if (nav) {
-    animate(nav, { y: [-10, 0], opacity: [0, 1] }, { duration: 0.45, easing: ease })
-  }
-  // Links de nav: underline animado al hover
-  document.querySelectorAll('.nav-cats a, .nav-link').forEach(link => {
+  if (nav) anim(nav, [{ opacity:0, transform:'translateY(-8px)' }, { opacity:1, transform:'translateY(0)' }], { duration: 400 })
+
+  document.querySelectorAll('.nav-cats a').forEach(link => {
     link.addEventListener('mouseenter', () => {
-      animate(link, { y: -2 }, { duration: 0.15, easing: ease })
-    })
+      link.animate([{ transform:'translateY(0)' }, { transform:'translateY(-2px)' }], { duration: 140, easing: ease, fill: 'forwards' })
+    }, { passive: true })
     link.addEventListener('mouseleave', () => {
-      animate(link, { y: 0 }, { duration: 0.15, easing: ease })
-    })
+      link.animate([{ transform:'translateY(-2px)' }, { transform:'translateY(0)' }], { duration: 140, easing: ease, fill: 'forwards' })
+    }, { passive: true })
   })
 }
 
-// ─────────────────────────────────────────
-// NÚMEROS QUE CUENTAN (para badges/totales)
-// ─────────────────────────────────────────
-window.animateCount = function(el, from, to, duration = 800) {
-  if (noMotion || !el) { el && (el.textContent = to); return }
-  const start = performance.now()
-  const update = (now) => {
-    const progress = Math.min((now - start) / duration, 1)
-    const easedProgress = 1 - Math.pow(1 - progress, 3) // ease-out cubic
-    const current = Math.round(from + (to - from) * easedProgress)
-    el.textContent = current
-    if (progress < 1) requestAnimationFrame(update)
-  }
-  requestAnimationFrame(update)
+// ─── product card hover ───────────────────────────────
+function setupCardHover() {
+  if (noMotion) return
+  document.addEventListener('mouseover', (e) => {
+    const card = e.target.closest('.product-card')
+    if (!card || card._hoverReady) return
+    card._hoverReady = true
+    card.addEventListener('mouseenter', () => {
+      card.animate([{ transform:'translateY(0)' }, { transform:'translateY(-4px)' }], { duration: 180, easing: ease, fill: 'forwards' })
+    }, { passive: true })
+    card.addEventListener('mouseleave', () => {
+      card.animate([{ transform:'translateY(-4px)' }, { transform:'translateY(0)' }], { duration: 180, easing: ease, fill: 'forwards' })
+    }, { passive: true })
+  }, { passive: true })
 }
 
-// ─────────────────────────────────────────
-// FILTROS — pop al activar chip
-// ─────────────────────────────────────────
+// ─── filtro chips ─────────────────────────────────────
 function setupFiltrosAnim() {
   if (noMotion) return
   document.addEventListener('click', (e) => {
     const chip = e.target.closest('.filtro-chip, .pill-filter')
     if (!chip) return
-    animate(chip, { scale: [0.92, 1.06, 1] }, { duration: 0.25, easing: spring })
-  })
+    chip.animate(
+      [{ transform:'scale(1)' }, { transform:'scale(0.91)' }, { transform:'scale(1.07)' }, { transform:'scale(1)' }],
+      { duration: 280, easing: spring }
+    )
+  }, { passive: true })
 }
 
-// ─────────────────────────────────────────
-// INIT — detecta la página y arranca lo que corresponde
-// Los módulos ES son diferidos: DOMContentLoaded ya disparó.
-// Usamos readyState para cubrir ambos casos.
-// ─────────────────────────────────────────
+// ─── producto page ────────────────────────────────────
+function animateProductoPage() {
+  if (noMotion) return
+  const gallery = document.getElementById('gallery-main')
+  if (gallery) anim(gallery, [{ opacity:0, transform:'scale(0.96)' }, { opacity:1, transform:'scale(1)' }], { duration: 500 })
+
+  const section = document.getElementById('product-section')
+  if (section) {
+    animStagger([...section.children],
+      [{ opacity:0, transform:'translateX(20px)' }, { opacity:1, transform:'translateX(0)' }],
+      { duration: 420, stagger: 60, delay: 180 }
+    )
+  }
+}
+
+// ─── carrito page ─────────────────────────────────────
+function animateCarritoPage() {
+  if (noMotion) return
+  function revelarItems() {
+    const items = document.querySelectorAll('.cart-item, [class*="carrito-item"]')
+    if (items.length === 0) return
+    animStagger(items,
+      [{ opacity:0, transform:'translateX(28px)' }, { opacity:1, transform:'translateX(0)' }],
+      { duration: 360, stagger: 55 }
+    )
+  }
+  // Observar si los items se renderizan después
+  const container = document.getElementById('cart-list') || document.getElementById('carrito-items') || document.body
+  const mo = new MutationObserver(() => { revelarItems(); mo.disconnect() })
+  mo.observe(container, { childList: true, subtree: true })
+  setTimeout(() => mo.disconnect(), 4000)
+  revelarItems()
+}
+
+// ─── checkout page ────────────────────────────────────
+function animateCheckoutPage() {
+  if (noMotion) return
+  const steps = document.querySelectorAll('.step, .dot')
+  if (steps.length) animStagger(steps, [{ opacity:0, transform:'scale(0.75)' }, { opacity:1, transform:'scale(1)' }], { duration: 300, easing: spring, stagger: 70, delay: 100 })
+
+  const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], select, .campo')
+  if (inputs.length) animStagger(inputs, [{ opacity:0, transform:'translateY(10px)' }, { opacity:1, transform:'translateY(0)' }], { duration: 280, stagger: 35, delay: 280 })
+}
+
+// ─── ADD TO CART ──────────────────────────────────────
+window.animateAddToCart = function(btnEl) {
+  if (noMotion) return
+  btnEl = btnEl || document.getElementById('btn-agregar')
+
+  // Bounce del botón
+  if (btnEl) {
+    btnEl.animate(
+      [{ transform:'scale(1)' }, { transform:'scale(0.87)' }, { transform:'scale(1.09)' }, { transform:'scale(1)' }],
+      { duration: 420, easing: spring }
+    )
+  }
+
+  // Cart icon + badge pop
+  const cartLink = document.querySelector('a.btn-icon[href="/carrito"]')
+  const badge    = document.getElementById('cart-count')
+  if (cartLink) cartLink.animate([{ transform:'scale(1)' }, { transform:'scale(1.5)' }, { transform:'scale(1)' }], { duration: 350, easing: spring })
+  if (badge)    badge.animate(   [{ transform:'scale(0.5)' }, { transform:'scale(1.7)' }, { transform:'scale(1)' }], { duration: 380, easing: spring })
+
+  // Partículas que vuelan al carrito
+  if (!btnEl || !cartLink) return
+  const bRect = btnEl.getBoundingClientRect()
+  const cRect = cartLink.getBoundingClientRect()
+  const sx = bRect.left + bRect.width  / 2
+  const sy = bRect.top  + bRect.height / 2
+  const ex = cRect.left + cRect.width  / 2
+  const ey = cRect.top  + cRect.height / 2
+
+  for (let i = 0; i < 6; i++) {
+    const dot = document.createElement('div')
+    const angle = (i / 6) * Math.PI * 2
+    const burst = 20
+    Object.assign(dot.style, {
+      position: 'fixed',
+      width: '9px', height: '9px',
+      borderRadius: '50%',
+      background: i % 2 === 0 ? '#9c5a52' : '#b5687a',
+      left: (sx - 4.5) + 'px',
+      top:  (sy - 4.5) + 'px',
+      pointerEvents: 'none',
+      zIndex: '9999',
+    })
+    document.body.appendChild(dot)
+
+    const bx = Math.cos(angle) * burst
+    const by = Math.sin(angle) * burst
+    const tx = ex - sx
+    const ty = ey - sy
+
+    // fase 1 — burst
+    const a1 = dot.animate(
+      [{ transform:'translate(0,0) scale(1)', opacity:1 },
+       { transform:`translate(${bx}px,${by}px) scale(0.7)`, opacity:1 }],
+      { duration: 160, easing: ease, fill: 'forwards' }
+    )
+    a1.onfinish = () => {
+      // fase 2 — vuela al carrito
+      dot.animate(
+        [{ transform:`translate(${bx}px,${by}px) scale(0.7)`, opacity:1 },
+         { transform:`translate(${tx}px,${ty}px) scale(0.15)`, opacity:0 }],
+        { duration: 380, delay: i * 25, easing: ease, fill: 'forwards' }
+      ).onfinish = () => dot.remove()
+    }
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────
 function init() {
   pageEnter()
   setupScrollReveals()
@@ -358,38 +284,26 @@ function init() {
 
   const path = location.pathname
 
-  // index / home
-  if (path === '/' || path === '/index.html' || path.endsWith('index.html')) {
+  if (path === '/' || path.endsWith('index.html') || path === '') {
     animateHero()
     setupHeroShoe()
-    setTimeout(patchToast, 200)
   }
 
-  // producto
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
     animateProductoPage()
-    setTimeout(patchToast, 200)
   }
 
-  // carrito
   if (path === '/carrito' || path.endsWith('carrito.html')) {
     animateCarritoPage()
   }
 
-  // checkout
   if (path === '/checkout' || path.endsWith('checkout.html')) {
     animateCheckoutPage()
   }
 }
 
-// Módulos ES son siempre diferidos — el DOM ya está listo cuando corren
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init)
 } else {
   init()
 }
-
-// Para páginas SPA que cambian contenido dinámicamente (index.html carga secciones)
-window.addEventListener('zm:sectionChanged', () => {
-  setTimeout(setupScrollReveals, 100)
-})
