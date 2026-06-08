@@ -951,77 +951,72 @@ window.guardarOrdenCompra2 = async () => {
 
 function renderDashboardHTML() {
   const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})
+  const kpis = [
+    {label:'Ventas hoy',      id:'kpi-ventas-hoy',      accent:'#E91E8C'},
+    {label:'Pedidos hoy',     id:'kpi-pedidos-hoy',      accent:'#7c3aed'},
+    {label:'Ventas 7 días',   id:'kpi-ventas-7d',        accent:'#0891b2'},
+    {label:'Ventas 30 días',  id:'kpi-ventas-30d',       accent:'#059669'},
+    {label:'Clientes nuevos', id:'kpi-clientes-nuevos',  accent:'#d97706'},
+    {label:'Stock bajo',      id:'kpi-stock-bajo',       accent:'#dc2626'},
+    {label:'Mejor día',       id:'kpi-mejor-dia',        accent:'#E91E8C'},
+    {label:'Total clientes',  id:'kpi-total-clientes',   accent:'#475569'},
+  ]
   return `
     <div id="dashboard-contenido">
 
-      <!-- Header bienvenida -->
-      <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="margin-bottom:22px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
-          <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;font-weight:400;color:var(--text-1);line-height:1.2">
-            Hola, bienvenida 👋
-          </h2>
-          <p style="font-size:0.78rem;color:var(--text-3);margin-top:3px;text-transform:capitalize">${hoy}</p>
+          <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 4px">Panel de control</p>
+          <h2 style="font-size:1.45rem;font-weight:700;color:#0f172a;line-height:1.15;margin:0">Resumen del negocio</h2>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0;text-transform:capitalize">${hoy}</p>
         </div>
-        <button onclick="cargarDashboard()" class="btn btn-secondary" style="font-size:0.78rem">↻ Actualizar</button>
+        <button onclick="cargarDashboard()" class="btn btn-secondary" style="font-size:0.78rem;gap:5px">↻ Actualizar</button>
       </div>
 
-      <!-- KPIs principales -->
-      <div class="stats-grid" style="margin-bottom:16px">
-        ${[
-          {label:'Ventas hoy',        icon:'💰', id:'kpi-ventas-hoy'},
-          {label:'Pedidos hoy',       icon:'🛍️', id:'kpi-pedidos-hoy'},
-          {label:'Ventas 7 días',     icon:'📈', id:'kpi-ventas-7d'},
-          {label:'Ventas 30 días',    icon:'📊', id:'kpi-ventas-30d'},
-          {label:'Clientes nuevos',   icon:'👥', id:'kpi-clientes-nuevos'},
-          {label:'Stock bajo',        icon:'⚠️', id:'kpi-stock-bajo'},
-          {label:'Mejor día',         icon:'🏆', id:'kpi-mejor-dia'},
-          {label:'Total clientes',    icon:'🗂️', id:'kpi-total-clientes'},
-        ].map(k => `
-          <div class="stat-card">
-            <div class="stat-label">${k.label}</div>
-            <div class="stat-value" id="${k.id}" style="font-size:1.3rem;color:var(--text-3)">—</div>
-            <div class="stat-sub" id="${k.id}-sub"></div>
+      <div class="stats-grid" style="margin-bottom:18px">
+        ${kpis.map(k => `
+          <div class="stat-card" style="border-top:3px solid ${k.accent};padding-top:14px">
+            <div class="stat-label" style="font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px">${k.label}</div>
+            <div class="stat-value" id="${k.id}" style="font-size:1.4rem;font-weight:700;color:#0f172a;line-height:1">—</div>
+            <div class="stat-sub" id="${k.id}-sub" style="font-size:0.7rem;color:#94a3b8;margin-top:4px"></div>
           </div>
         `).join('')}
       </div>
 
-      <!-- Gráfica principal: ventas últimos 7 días (full width) -->
       <div class="chart-container" style="margin-bottom:14px">
-        <p class="chart-title">📈 Tendencia — Ventas últimos 7 días</p>
+        <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Ventas — últimos 7 días</p>
         <canvas id="chart-tendencia" height="110"></canvas>
       </div>
 
-      <!-- 2 gráficas secundarias -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title">📅 Ventas por día de la semana (30 días)</p>
+          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Por día de semana (30 días)</p>
           <canvas id="chart-dias" height="180"></canvas>
         </div>
         <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title">🛒 Canal de ventas</p>
+          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Canal de ventas</p>
           <canvas id="chart-canales" height="180"></canvas>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title">📆 Ventas por mes (últimos 6)</p>
+          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Ventas por mes (últimos 6)</p>
           <canvas id="chart-meses" height="180"></canvas>
         </div>
         <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title">💳 Métodos de pago</p>
+          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Métodos de pago</p>
           <canvas id="chart-pagos" height="180"></canvas>
         </div>
       </div>
 
-      <!-- Tablas inferiores -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         <div class="table-card" style="padding:18px">
-          <p class="chart-title" style="margin-bottom:14px">🏅 Top clientes — 30 días</p>
+          <p style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px">Top clientes — 30 días</p>
           <div id="dash-top-clientes"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
         </div>
         <div class="table-card" style="padding:18px">
-          <p class="chart-title" style="margin-bottom:14px">🕐 Últimos pedidos</p>
+          <p style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px">Últimos pedidos</p>
           <div id="dash-ultimos-pedidos"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
         </div>
       </div>
@@ -6700,17 +6695,27 @@ async function cargarPedidos() {
     const res = await fetch(API + '/pedidos/')
     const data = await res.json()
     content.innerHTML = `
-      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input class="form-input" id="ped-buscar" placeholder="🔍 Buscar por # pedido o cliente..." 
-               style="max-width:280px" oninput="filtrarPedidos()">
-        <button class="btn btn-primary" onclick="cargarPedidosFiltro('')">Todos (${data.length})</button>
-        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
-        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
-        <button class="btn btn-secondary" onclick="cargarPedidosFiltro('online')">Online</button>
-        <button class="btn btn-secondary" style="background:#fff8e1;border-color:#f57f17;color:#f57f17" onclick="cargarPedidosFiltro('pendiente_pago')">Pendientes SPEI</button>
-        <button class="btn btn-secondary" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0" onclick="cargarPedidosFiltro('por_enviar')">🚚 Por enviar</button>
-        <button class="btn btn-secondary" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32" onclick="cargarPedidosFiltro('credito')">Creditos</button>
-        <button class="btn btn-primary" style="margin-left:auto" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+      <div style="margin-bottom:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <div>
+            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
+            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Pedidos</h2>
+          </div>
+          <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <input class="form-input" id="ped-buscar" placeholder="Buscar por # pedido o cliente..."
+                 style="max-width:240px;font-size:0.82rem" oninput="filtrarPedidos()">
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #E91E8C;background:#E91E8C;color:white;transition:all 0.15s" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.8;font-weight:400">${data.length}</span></button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #e2e8f0;background:white;color:#475569;transition:all 0.15s" onclick="cargarPedidosFiltro('online')">Online</button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #f59e0b;background:#fffbeb;color:#b45309;transition:all 0.15s" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI pendiente</button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #3b82f6;background:#eff6ff;color:#1d4ed8;transition:all 0.15s" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
+            <button style="padding:5px 12px;border-radius:100px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1.5px solid #10b981;background:#f0fdf4;color:#065f46;transition:all 0.15s" onclick="cargarPedidosFiltro('credito')">Crédito</button>
+          </div>
+        </div>
       </div>
       <div class="table-card">
         <table>
@@ -10147,17 +10152,17 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
     content.innerHTML = `
-  <div style="display:flex;gap:8px;margin-bottom:1rem">
-    <button id="tab-chats" onclick="mostrarTabWA('chats')" class="wa-tab-btn activo">💬 Conversaciones</button>
-    <button id="tab-config" onclick="mostrarTabWA('config')" class="wa-tab-btn">⚙️ Configuración</button>
+  <div style="display:flex;gap:6px;margin-bottom:1rem">
+    <button id="tab-chats" onclick="mostrarTabWA('chats')" class="wa-tab-btn activo">Conversaciones</button>
+    <button id="tab-config" onclick="mostrarTabWA('config')" class="wa-tab-btn">Configuración</button>
   </div>
   <div id="wa-tab-content">
     <div id="wa-container">
       <div id="wa-sidebar">
         <div class="wa-sidebar-header">
           <div class="wa-sidebar-title">
-            <span>💬 WhatsApp</span>
-            <span class="wa-new-badge">${totalNoLeidos} nuevo${totalNoLeidos !== 1 ? 's' : ''}</span>
+            <span style="font-weight:700;color:#0f172a">WhatsApp</span>
+            ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos} nuevo${totalNoLeidos !== 1 ? 's' : ''}</span>` : ''}
           </div>
           <input class="wa-search-input" placeholder="🔍 Buscar contacto..." oninput="filtrarChats(this.value)">
           <div class="wa-filters">
@@ -10867,12 +10872,13 @@ window.cargarEnviosMasivos = async function() {
 
     content.innerHTML = `
       <div style="max-width:960px">
-        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="margin-bottom:1.5rem;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
-            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos — WhatsApp API</h2>
-            <p style="color:#888;font-size:0.85rem">Plantillas aprobadas por Meta · ${clientes.length} clientes con teléfono</p>
+            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">WhatsApp Cloud API</p>
+            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Envíos masivos</h2>
+            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">Plantillas aprobadas por Meta · ${clientes.length} clientes con teléfono</p>
           </div>
-          <span style="background:#25D366;color:white;padding:4px 12px;border-radius:100px;font-size:0.78rem;font-weight:600">✅ Meta Cloud API</span>
+          <span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:4px 12px;border-radius:100px;font-size:0.75rem;font-weight:700;letter-spacing:0.03em">Meta Cloud API activa</span>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
@@ -10885,7 +10891,7 @@ window.cargarEnviosMasivos = async function() {
             </div>
             <!-- Plantilla -->
             <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-              <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">1️⃣ Selecciona la plantilla</p>
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">1 · Plantilla</p>
               ${plantillas.length === 0
                 ? '<p style="color:#888;font-size:0.85rem">No hay plantillas aprobadas en tu cuenta de Meta.</p>'
                 : plantillas.map(p => {
@@ -10917,7 +10923,7 @@ window.cargarEnviosMasivos = async function() {
 
             <!-- Imagen: selector de modelo + variante -->
             <div id="envio-seccion-foto" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-              <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">2️⃣ Foto del modelo <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional — para plantillas con imagen)</span></p>
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">2 · Foto del modelo <span style="font-weight:400;color:#cbd5e1;text-transform:none;letter-spacing:0">(solo plantillas con imagen)</span></p>
 
               <!-- Búsqueda de modelo -->
               <input type="text" id="envio-modelo-buscar" placeholder="🔍 Buscar modelo por nombre..."
@@ -10947,7 +10953,7 @@ window.cargarEnviosMasivos = async function() {
 
             <!-- Audiencia -->
             <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-              <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Audiencia</p>
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">3 · Audiencia</p>
               <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
                 <option value="todos">Todos los clientes</option>
                 <option value="mayoreo">Solo Mayoreo</option>
@@ -11026,10 +11032,10 @@ window.cargarEnviosMasivos = async function() {
           </div>
 
           <!-- Envío de fotos de variantes (24 h) -->
-          <div style="background:white;border-radius:12px;border:1.5px solid #ffe0b2;padding:1.5rem;margin-top:1rem">
+          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem;margin-top:1rem">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <p style="font-weight:700;font-size:0.95rem;margin:0">📸 Enviar fotos de variantes</p>
-              <span style="background:#fff3e0;color:#e65100;border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700;white-space:nowrap">⏱ Solo 24 h</span>
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin:0">Fotos de variantes</p>
+              <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:100px;padding:2px 9px;font-size:0.68rem;font-weight:700;white-space:nowrap">Solo 24 h</span>
             </div>
             <p style="font-size:0.75rem;color:#888;margin-bottom:10px;line-height:1.4">
               Disponible <strong>solo si el cliente te escribió en las últimas 24 horas</strong>. Envía las fotos de los colores que elijas directamente al chat, igual que en la sección CRM.
@@ -11063,7 +11069,7 @@ window.cargarEnviosMasivos = async function() {
               <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
               <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
                 style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
-                📸 Enviar fotos · solo 24 h
+                Enviar fotos · solo 24 h
               </button>
             </div>
           </div>
@@ -14658,20 +14664,20 @@ async function cargarCarritos() {
 
     content.innerHTML = `
       <div style="padding:0 0 1rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px">
           <div>
-            <h2 style="margin:0">🛒 Carritos activos</h2>
-            <p style="color:#888;font-size:0.85rem;margin:4px 0 0">Pedidos en proceso — el stock se descuenta solo al confirmar la venta</p>
+            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Punto de venta</p>
+            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Carritos activos</h2>
+            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">El stock se reserva al confirmar la venta</p>
           </div>
           <button class="btn btn-primary" onclick="nuevoCarrito()">+ Nuevo carrito</button>
         </div>
 
         ${borradores.length === 0 ? `
-          <div class="table-card" style="padding:3rem;text-align:center;color:#888">
-            <p style="font-size:2rem;margin-bottom:0.5rem">🛒</p>
-            <p style="font-weight:600">No hay carritos abiertos</p>
-            <p style="font-size:0.85rem">Crea uno para empezar a agregar productos a un cliente</p>
-            <button class="btn btn-primary" style="margin-top:1rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+          <div class="table-card" style="padding:3rem;text-align:center">
+            <p style="font-weight:700;color:#0f172a;font-size:1rem">Sin carritos abiertos</p>
+            <p style="font-size:0.82rem;color:#94a3b8;margin-top:4px">Crea uno para agregar productos a un cliente</p>
+            <button class="btn btn-primary" style="margin-top:1.25rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
           </div>
         ` : `
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
@@ -14679,24 +14685,24 @@ async function cargarCarritos() {
               const cliente = p.clientes || {}
               const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
               return `
-                <div class="table-card" style="padding:1.2rem;cursor:pointer;transition:box-shadow 0.2s" onclick="abrirCarrito('${p.id}')"
-                     onmouseenter="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.1)'" onmouseleave="this.style.boxShadow=''">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                     onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)';this.style.borderColor='#E91E8C'" onmouseleave="this.style.boxShadow='';this.style.borderColor='#e2e8f0'">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
-                      <p style="font-weight:700;font-size:1rem;margin:0">${cliente.nombre || 'Sin cliente'}</p>
-                      <p style="font-size:0.78rem;color:#888;margin:2px 0 0">${cliente.telefono || ''}</p>
+                      <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
+                      <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
                     </div>
-                    <span style="background:#fff8e1;color:#f57f17;border:1px solid #ffe082;border-radius:20px;padding:3px 10px;font-size:0.72rem;font-weight:600;white-space:nowrap">
+                    <span style="background:${dias === 0 ? '#f0fdf4' : dias <= 2 ? '#fffbeb' : '#fef2f2'};color:${dias === 0 ? '#065f46' : dias <= 2 ? '#b45309' : '#991b1b'};border:1px solid ${dias === 0 ? '#bbf7d0' : dias <= 2 ? '#fde68a' : '#fecaca'};border-radius:100px;padding:3px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">
                       ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
                     </span>
                   </div>
-                  <div style="background:#f9f9f9;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px">
-                    <p style="font-size:0.72rem;color:#888;margin:0">Total del carrito</p>
-                    <p style="font-weight:700;font-size:1.3rem;margin:2px 0 0;color:#E91E8C">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
+                  <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
+                    <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
+                    <p style="font-weight:700;font-size:1.35rem;color:#E91E8C;margin:0">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
                   </div>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${p.id}')">Abrir</button>
-                    <button class="btn btn-secondary" style="font-size:0.8rem;color:#c62828;border-color:#c62828" onclick="event.stopPropagation();liberarCarrito('${p.id}')">Liberar</button>
+                    <button class="btn btn-secondary" style="font-size:0.8rem;color:#dc2626;border-color:#fca5a5" onclick="event.stopPropagation();liberarCarrito('${p.id}')">Liberar</button>
                   </div>
                 </div>
               `

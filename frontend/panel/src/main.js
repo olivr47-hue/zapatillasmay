@@ -6,31 +6,88 @@ const SESSION_KEY = 'erp_empleado'
 
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
-    <div style="min-height:100vh;background:#0f0f1a;display:flex;align-items:center;justify-content:center;padding:20px">
-      <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:40px;width:100%;max-width:400px">
-        <div style="text-align:center;margin-bottom:32px">
-          <h1 style="font-family:DM Sans,sans-serif;font-size:1.5rem;font-weight:700;color:white">Zapatillas <span style="color:#E91E8C">May</span></h1>
-          <p style="color:#8892a4;font-size:0.85rem;margin-top:6px">Panel de administracion</p>
+    <div style="min-height:100vh;width:100%;display:flex;font-family:DM Sans,sans-serif">
+
+      <!-- Panel izquierdo: marca -->
+      <div style="display:none;flex:0 0 42%;background:#0c0c17;flex-direction:column;justify-content:space-between;padding:48px 52px;position:relative;overflow:hidden"
+           id="login-brand-panel">
+        <!-- Glow decorativo -->
+        <div style="position:absolute;top:-120px;left:-80px;width:420px;height:420px;background:radial-gradient(circle,rgba(233,30,140,0.18) 0%,transparent 70%);pointer-events:none"></div>
+        <div style="position:absolute;bottom:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(233,30,140,0.1) 0%,transparent 70%);pointer-events:none"></div>
+
+        <!-- Logo -->
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:0">
+            <span style="width:8px;height:8px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span>
+            <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
+          </div>
         </div>
-        <div style="margin-bottom:16px">
-          <label style="display:block;font-size:0.72rem;font-weight:600;color:#8892a4;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
-          <input type="email" id="login-email" placeholder="correo@ejemplo.com"
-            style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(255,255,255,0.05);color:white;font-family:DM Sans,sans-serif;font-size:0.875rem;outline:none"
-            onkeydown="if(event.key==='Enter')hacerLogin()">
+
+        <!-- Texto central -->
+        <div>
+          <p style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#E91E8C;margin:0 0 16px">ERP · Panel interno</p>
+          <h2 style="font-size:3rem;font-weight:800;color:white;line-height:1.08;margin:0 0 20px;letter-spacing:-0.02em">
+            Gestiona<br>tu negocio<br>desde aquí.
+          </h2>
+          <p style="font-size:0.85rem;color:#4a4a6a;line-height:1.6;max-width:280px;margin:0">
+            Pedidos, clientes, inventario, WhatsApp y campañas, todo en un solo lugar.
+          </p>
         </div>
-        <div style="margin-bottom:24px">
-          <label style="display:block;font-size:0.72rem;font-weight:600;color:#8892a4;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contrasena</label>
-          <input type="password" id="login-password" placeholder="••••••••"
-            style="width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(255,255,255,0.05);color:white;font-family:DM Sans,sans-serif;font-size:0.875rem;outline:none"
-            onkeydown="if(event.key==='Enter')hacerLogin()">
+
+        <!-- Footer -->
+        <div>
+          <p style="font-size:0.7rem;color:#2a2a3f;margin:0">León, Guanajuato · México</p>
         </div>
-        <button onclick="hacerLogin()" id="btn-login"
-          style="width:100%;padding:12px;background:linear-gradient(135deg,#E91E8C,#c2187a);color:white;border:none;border-radius:8px;font-family:DM Sans,sans-serif;font-size:0.875rem;font-weight:600;cursor:pointer">
-          Iniciar sesion
-        </button>
-        <p id="login-error" style="color:#fc8181;font-size:0.82rem;text-align:center;margin-top:12px;display:none"></p>
+      </div>
+
+      <!-- Panel derecho: formulario -->
+      <div style="flex:1;background:#0f0f1c;display:flex;align-items:center;justify-content:center;padding:24px;position:relative">
+        <!-- Glow sutil -->
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);width:500px;height:400px;background:radial-gradient(ellipse,rgba(233,30,140,0.07) 0%,transparent 65%);pointer-events:none"></div>
+
+        <div style="width:100%;max-width:360px;position:relative">
+          <!-- Logo en móvil (oculto en desktop cuando el panel izq está visible) -->
+          <div style="text-align:center;margin-bottom:40px">
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px">
+              <span style="width:7px;height:7px;border-radius:50%;background:#E91E8C;flex-shrink:0"></span>
+              <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
+            </div>
+            <h1 style="font-size:1.6rem;font-weight:800;color:white;margin:0;letter-spacing:-0.01em">Bienvenida</h1>
+            <p style="color:#3a3a5c;font-size:0.82rem;margin:6px 0 0">Ingresa tus credenciales para continuar</p>
+          </div>
+
+          <div style="margin-bottom:18px">
+            <label style="display:block;font-size:0.68rem;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Correo electrónico</label>
+            <input type="email" id="login-email" placeholder="tu@correo.com"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color 0.15s"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'"
+              onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+
+          <div style="margin-bottom:28px">
+            <label style="display:block;font-size:0.68rem;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Contraseña</label>
+            <input type="password" id="login-password" placeholder="••••••••"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color 0.15s"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'"
+              onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+
+          <button onclick="hacerLogin()" id="btn-login"
+            style="width:100%;padding:13px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;letter-spacing:0.01em;transition:background 0.15s"
+            onmouseover="this.style.background='#d01a7e'" onmouseout="this.style.background='#E91E8C'">
+            Iniciar sesión
+          </button>
+
+          <p id="login-error" style="color:#f87171;font-size:0.8rem;text-align:center;margin-top:14px;display:none;background:rgba(248,113,113,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(248,113,113,0.2)"></p>
+        </div>
       </div>
     </div>
+
+    <style>
+      @media(min-width:720px){
+        #login-brand-panel{display:flex!important}
+      }
+    </style>
   `
 
   window.hacerLogin = async () => {
