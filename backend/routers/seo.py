@@ -375,6 +375,10 @@ def pagina_ssr(slug: str):
             'content="Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato"',
             f'content="{_esc_pagina(titulo)}"'
         )  # og:title si comparte el texto del title
+        template = template.replace(
+            '<meta property="og:url" content="https://zapatillasmay.mx/">',
+            f'<meta property="og:url" content="{canonical}">'
+        )
 
         # Inyectar H1 visible con keywords de categoría para ranking local (igual que Wix)
         # Se muestra como breadcrumb sutil arriba de los productos — visible para Google y usuarios

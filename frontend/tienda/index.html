@@ -51,6 +51,7 @@
       ascent-override: 115.25%;
       descent-override: 35.80%;
       line-gap-override: 0%;
+      font-display: swap;
     }
     @font-face {
       font-family: 'DM Sans Fallback';
@@ -59,6 +60,7 @@
       ascent-override: 102.06%;
       descent-override: 31.90%;
       line-gap-override: 0%;
+      font-display: swap;
     }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     .skip-link { position: absolute; left: -9999px; top: 0; z-index: 1000; background: #2A1A0E; color: #fff; padding: 10px 16px; border-radius: 0 0 8px 0; text-decoration: none; font-size: 0.85rem; }
@@ -2549,7 +2551,7 @@
 <div id="zm-splash">
   <div class="zm-splash-inner">
     <div class="zm-splash-shoe">
-      <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" alt="Zapatillas May — Calzado de moda León Guanajuato" onerror="this.style.display='none'">
+      <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" width="120" height="120" alt="Zapatillas May — Calzado de moda León Guanajuato" onerror="this.style.display='none'">
     </div>
     <div class="zm-splash-logo">Zapatillas <span>May</span></div>
     <div class="zm-splash-bar"><span></span></div>
@@ -2649,7 +2651,7 @@
     <div class="header-actions">
   <a class="btn-icon" href="/carrito" title="Carrito" aria-label="Carrito" style="text-decoration:none">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-    <span class="cart-badge" id="cart-count" style="display:none">0</span>
+    <span class="cart-badge" id="cart-count" style="display:none" aria-hidden="true">0</span>
   </a>
   <button class="btn-icon" onclick="abrirLogin()" title="Mi cuenta" aria-label="Mi cuenta" id="btn-cuenta">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -2788,7 +2790,7 @@
     <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
       <img id="hero-shoe-img"
         src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
-        fetchpriority="high"
+        fetchpriority="high" width="900" height="900"
         onerror="this.parentElement.parentElement.style.display='none'"
         alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
       <div class="hero-shoe-shadow"></div>
@@ -2978,7 +2980,7 @@
       <p style="font-size:0.78rem;font-weight:600;color:#888">— Fernanda L. · Monterrey</p>
     </div>
   </div>
-  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#aaa">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" rel="noopener" style="color:var(--pink);font-weight:600;text-decoration:none">Déjanos tu reseña por WhatsApp →</a></p>
+  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#aaa">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" rel="noopener noreferrer" style="color:var(--pink);font-weight:600;text-decoration:underline">Déjanos tu reseña por WhatsApp →</a></p>
 </div>
 
 <!-- POPUP CAPTURA DE EMAIL -->
@@ -3078,15 +3080,15 @@
 
 <!-- MODAL PRODUCTO -->
 <div class="modal-overlay" id="modal-overlay" onclick="cerrarModal(event)">
-  <div class="modal" id="modal-producto">
-    <button class="modal-close" onclick="cerrarModalBtn()">✕</button>
+  <div class="modal" id="modal-producto" role="dialog" aria-modal="true" aria-labelledby="modal-name">
+    <button class="modal-close" onclick="cerrarModalBtn()" aria-label="Cerrar">✕</button>
     <div class="modal-img" id="modal-img-wrap">
       <div class="modal-img-placeholder">👠</div>
     </div>
     <div id="modal-thumb-row" style="display:none"></div>
     <div class="modal-info">
       <p class="modal-sku" id="modal-sku"></p>
-      <h2 class="modal-name" id="modal-name"></h2>
+      <h2 class="modal-name" id="modal-name" aria-label="Producto seleccionado"></h2>
       <p class="modal-price-main" id="modal-price"></p>
       <div class="modal-prices-mayoreo" id="modal-mayoreo"></div>
       <div class="modal-section-label">Color</div>
@@ -3145,37 +3147,37 @@
 <!-- AUTH MODAL -->
 <div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
   <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
-    <button onclick="cerrarAuthBtn()" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
+    <button onclick="cerrarAuthBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
     <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
       <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
       <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
     </div>
     <div id="form-login">
       <div style="margin-bottom:16px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <label for="login-email" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
         <input type="email" id="login-email" autocomplete="email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <div style="margin-bottom:16px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
+        <label for="login-password" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
         <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
       <p style="text-align:center;margin-top:12px;font-size:0.82rem">
-        <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:none;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
+        <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:underline;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
       </p>
-      <p style="text-align:center;margin-top:8px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:none;font-weight:600">invitado</a></p>
+      <p style="text-align:center;margin-top:8px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:underline;font-weight:600">invitado</a></p>
     </div>
     <div id="form-registro" style="display:none">
       <div style="margin-bottom:12px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
+        <label for="reg-nombre" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
         <input type="text" id="reg-nombre" autocomplete="name" placeholder="Tu nombre" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <div style="margin-bottom:12px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
+        <label for="reg-email" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
         <input type="email" id="reg-email" autocomplete="email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <div style="margin-bottom:12px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
+        <label for="reg-password" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
         <input type="password" id="reg-password" autocomplete="new-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <div style="margin-bottom:12px">
@@ -6318,7 +6320,7 @@ function zmRechazarCookies() {
   <div id="zm-cursor-trail"></div>
   <img id="zm-cursor-shoe"
     src="https://res.cloudinary.com/dybdtehhs/image/upload/w_72,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png"
-    width="72" alt="" draggable="false"
+    width="72" height="72" loading="lazy" alt="" draggable="false"
     style="display:block;pointer-events:none;user-select:none;">
 </div>
 
@@ -6471,7 +6473,7 @@ function zmRechazarCookies() {
   <a class="bn-item" href="/carrito" aria-label="Carrito">
     <span class="bn-cart-wrap">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-      <span class="bn-badge" id="bn-cart-count" style="display:none">0</span>
+      <span class="bn-badge" id="bn-cart-count" style="display:none" aria-hidden="true">0</span>
     </span>
     <span>Carrito</span>
   </a>
