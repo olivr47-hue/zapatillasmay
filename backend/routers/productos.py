@@ -151,13 +151,14 @@ def generar_nombres(datos: dict = Body(default={})):
             continue
 
         # Plantillas base por categoría — suenan naturales en tienda
+        # {tacon_parte} se reemplaza solo si hay altura, si no queda vacío
         PLANTILLAS = {
-            "tacones":    "Tacones {estilo}de {tacon}",
+            "tacones":    "Tacones {estilo}{tacon_parte}",
             "sandalias":  "Sandalias {estilo}para dama",
             "botas":      "Botas {estilo}para dama",
             "botines":    "Botines {estilo}para dama",
             "flats":      "Flats {estilo}para dama",
-            "plataformas":"Plataformas {estilo}de {tacon}",
+            "plataformas":"Plataformas {estilo}{tacon_parte}",
             "tenis":      "Tenis {estilo}para dama",
             "nina":       "Calzado niña {estilo}",
             "accesorios": "Accesorios {estilo}de moda",
@@ -203,10 +204,11 @@ def generar_nombres(datos: dict = Body(default={})):
             except Exception:
                 pass
 
+        tacon_parte = f"de {tacon_str} " if tacon_str else ""
         plantilla = PLANTILLAS.get(categoria, "{estilo}calzado de moda")
         descripcion_base = plantilla.format(
             estilo=estilo_str,
-            tacon=tacon_str + " " if tacon_str else ""
+            tacon_parte=tacon_parte
         ).strip()
 
         # Nombre final: SKU original + descripción natural
