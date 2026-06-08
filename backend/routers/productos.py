@@ -109,6 +109,110 @@ def activar_producto(id: str):
     cache_invalidate_prefix(_CK)
     return resultado
 
+@router.post("/generar-nombres")
+def generar_nombres(datos: dict = Body(default={})):
+    """Genera nombres descriptivos para todos los productos basándose en
+    SKU + categoría + descripción/SEO. Muestra preview o aplica según modo."""
+    modo = datos.get("modo", "preview")  # "preview" o "aplicar"
+    solo_sin_descripcion = datos.get("solo_sin_descripcion", False)
+
+    CATEGORIA_LABEL = {
+        "tacones":    "Tacones",
+        "sandalias":  "Sandalias",
+        "botas":      "Botas",
+        "botines":    "Botines",
+        "flats":      "Flats",
+        "plataformas":"Plataformas",
+        "tenis":      "Tenis",
+        "nina":       "Calzado Niña",
+        "accesorios": "Accesorios",
+    }
+
+    try:
+        productos = supabase_get(
+            "productos?select=id,nombre,sku_interno,categoria,descripcion,"
+            "meta_titulo,meta_descripcion,altura_tacon,activo"
+        )
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+    resultados = []
+    for p in productos:
+        sku       = (p.get("sku_interno") or "").strip()
+        nombre    = (p.get("nombre") or "").strip()
+        categoria = (p.get("categoria") or "").strip().lower()
+        desc      = (p.get("descripcion") or "").strip()
+        meta_t    = (p.get("meta_titulo") or "").strip()
+        meta_d    = (p.get("meta_descripcion") or "").strip()
+        tacon     = p.get("altura_tacon")
+
+        if solo_sin_descripcion and len(nombre.split()) > 2:
+            # Ya tiene nombre descriptivo, saltar
+            continue
+
+        cat_label = CATEGORIA_LABEL.get(categoria, categoria.capitalize() if categoria else "")
+
+        # Extraer palabras clave del campo más rico disponible
+        fuente = desc or meta_d or meta_t or ""
+
+        # Detectar palabras descriptivas útiles de la fuente
+        palabras_clave = []
+
+        # Buscar palabras de estilo / ocasión en la descripción
+        estilos = ["fiesta", "casual", "oficina", "boda", "moda", "elegante",
+                   "cómodo", "comodo", "sexy", "clasico", "clásico", "moderno",
+                   "verano", "primavera", "fashion", "trendy", "diario", "paseo",
+                   "graduación", "graduacion", "quinceañera", "quinceanera",
+                   "plataforma", "stiletto", "kitten", "peep toe", "strappy",
+                   "destalonado", "cerrado", "abierto", "ankle", "mule", "pump"]
+        fuente_lower = fuente.lower()
+        for e in estilos:
+            if e in fuente_lower and e not in [p.lower() for p in palabras_clave]:
+                palabras_clave.append(e.capitalize())
+            if len(palabras_clave) >= 2:
+                break
+
+        # Agregar altura del tacón si existe
+        tacon_str = ""
+        if tacon:
+            try:
+                tacon_str = f"{float(tacon):.0f} cm"
+            except Exception:
+                pass
+
+        # Construir nombre nuevo
+        partes = [sku] if sku else [nombre]
+        if cat_label:
+            partes.append(cat_label)
+        partes.extend(palabras_clave)
+        if tacon_str:
+            partes.append(tacon_str)
+
+        nombre_nuevo = " · ".join(partes)
+
+        resultados.append({
+            "id":          p["id"],
+            "nombre_orig": nombre,
+            "nombre_nuevo": nombre_nuevo,
+            "sku":         sku,
+        })
+
+        if modo == "aplicar":
+            try:
+                supabase_patch(f"productos?id=eq.{p['id']}", {"nombre": nombre_nuevo})
+            except Exception as e:
+                resultados[-1]["error"] = str(e)
+
+    if modo == "aplicar":
+        cache_invalidate_prefix(_CK)
+
+    return {
+        "ok":       True,
+        "modo":     modo,
+        "total":    len(resultados),
+        "productos": resultados
+    }
+
 @router.get("/catalog-version")
 def catalog_version():
     """Versión del catálogo — la tienda lo usa para invalidar su caché local."""

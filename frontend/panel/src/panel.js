@@ -80,6 +80,7 @@ const modulos = [
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
+  { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
@@ -327,7 +328,8 @@ async function cargarModulo(id) {
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
-    case 'orden-home':   await cargarOrdenHome(); break;
+    case 'orden-home':     await cargarOrdenHome(); break;
+    case 'generar-nombres': await cargarGenerarNombres(); break;
     case 'referidos':    await cargarReferidos(); break;
     case 'carritos-abandonados': await cargarCarritosAbandonados(); break;
   }
@@ -16374,3 +16376,77 @@ window.liberarCarrito = async (pedidoId) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
+
+// ── Generar nombres de productos ──────────────────────────────────────────
+async function cargarGenerarNombres() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:1.5rem;max-width:860px">
+      <h2 style="margin:0 0 4px;font-size:1.05rem">✏️ Generar nombres de productos</h2>
+      <p style="margin:0 0 1.2rem;font-size:0.82rem;color:#64748b">
+        Construye nombres descriptivos automáticamente usando SKU + categoría + palabras clave de la descripción + altura del tacón.
+        Primero revisa el preview y luego aplica los cambios.
+      </p>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#475569;cursor:pointer">
+          <input type="checkbox" id="gn-solo-cortos"> Solo productos sin nombre descriptivo
+        </label>
+        <button onclick="gnPreview()" style="padding:8px 18px;background:#3483fa;color:#fff;border:none;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer">
+          👁 Ver preview
+        </button>
+        <button id="gn-btn-aplicar" onclick="gnAplicar()" style="padding:8px 18px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:none">
+          ✅ Aplicar todos los cambios
+        </button>
+        <span id="gn-status" style="font-size:0.8rem;color:#64748b"></span>
+      </div>
+
+      <div id="gn-tabla" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.72rem;font-weight:700;color:#94a3b8;padding:4px 8px;text-transform:uppercase">
+          <span>Nombre actual</span><span>Nombre nuevo</span>
+        </div>
+        <div id="gn-rows"></div>
+      </div>
+    </div>`
+
+  window.gnPreview = async () => {
+    const soloCortos = document.getElementById('gn-solo-cortos')?.checked || false
+    document.getElementById('gn-status').textContent = 'Cargando...'
+    try {
+      const r = await fetch(API + '/productos/generar-nombres', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modo: 'preview', solo_sin_descripcion: soloCortos })
+      })
+      const data = await r.json()
+      if (!data.ok) { alert('Error: ' + data.error); return }
+      document.getElementById('gn-status').textContent = `${data.total} productos`
+      document.getElementById('gn-tabla').style.display = 'block'
+      document.getElementById('gn-btn-aplicar').style.display = 'inline-block'
+      document.getElementById('gn-rows').innerHTML = data.productos.map(p => `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:0.81rem;align-items:center">
+          <span style="color:#64748b">${p.nombre_orig}</span>
+          <span style="color:#0f172a;font-weight:500">${p.nombre_nuevo}</span>
+        </div>`).join('')
+      window._gnProductos = data.productos
+    } catch(e) { alert('Error: ' + e.message) }
+    document.getElementById('gn-status').textContent = document.getElementById('gn-rows').children.length + ' productos'
+  }
+
+  window.gnAplicar = async () => {
+    if (!confirm('¿Aplicar los nombres nuevos a todos los productos del preview?')) return
+    const soloCortos = document.getElementById('gn-solo-cortos')?.checked || false
+    document.getElementById('gn-status').textContent = 'Aplicando...'
+    document.getElementById('gn-btn-aplicar').disabled = true
+    try {
+      const r = await fetch(API + '/productos/generar-nombres', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modo: 'aplicar', solo_sin_descripcion: soloCortos })
+      })
+      const data = await r.json()
+      document.getElementById('gn-status').textContent = `✅ ${data.total} nombres actualizados`
+      document.getElementById('gn-btn-aplicar').disabled = false
+      // Refrescar preview
+      await gnPreview()
+    } catch(e) { alert('Error: ' + e.message); document.getElementById('gn-btn-aplicar').disabled = false }
+  }
+}
