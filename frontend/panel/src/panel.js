@@ -16402,8 +16402,8 @@ async function cargarGenerarNombres() {
       </div>
 
       <div id="gn-tabla" style="display:none">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.72rem;font-weight:700;color:#94a3b8;padding:4px 8px;text-transform:uppercase">
-          <span>Nombre actual</span><span>Nombre nuevo</span>
+        <div style="display:grid;grid-template-columns:200px 1fr 80px;gap:4px;font-size:0.72rem;font-weight:700;color:#94a3b8;padding:4px 8px;text-transform:uppercase">
+          <span>Nombre actual</span><span>Nombre nuevo (editable)</span><span></span>
         </div>
         <div id="gn-rows"></div>
       </div>
@@ -16419,34 +16419,62 @@ async function cargarGenerarNombres() {
       })
       const data = await r.json()
       if (!data.ok) { alert('Error: ' + data.error); return }
-      document.getElementById('gn-status').textContent = `${data.total} productos`
+      window._gnProductos = data.productos
       document.getElementById('gn-tabla').style.display = 'block'
       document.getElementById('gn-btn-aplicar').style.display = 'inline-block'
-      document.getElementById('gn-rows').innerHTML = data.productos.map(p => `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:0.81rem;align-items:center">
-          <span style="color:#64748b">${p.nombre_orig}</span>
-          <span style="color:#0f172a;font-weight:500">${p.nombre_nuevo}</span>
+      document.getElementById('gn-status').textContent = `${data.total} productos`
+      document.getElementById('gn-rows').innerHTML = data.productos.map((p, i) => `
+        <div style="display:grid;grid-template-columns:200px 1fr 80px;gap:6px;padding:5px 8px;border-bottom:1px solid #f1f5f9;align-items:center">
+          <span style="color:#64748b;font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.nombre_orig}">${p.nombre_orig}</span>
+          <input
+            class="gn-input"
+            data-idx="${i}"
+            value="${p.nombre_nuevo.replace(/"/g,'&quot;')}"
+            style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:0.81rem;width:100%;outline:none;color:#0f172a"
+            oninput="window._gnProductos[${i}].nombre_nuevo=this.value"
+            onfocus="this.style.borderColor='#E91E8C'"
+            onblur="this.style.borderColor='#e2e8f0'">
+          <button onclick="window.gnGuardarUno(${i})" style="padding:4px 10px;border:none;background:#10b981;color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap">
+            Guardar
+          </button>
         </div>`).join('')
-      window._gnProductos = data.productos
     } catch(e) { alert('Error: ' + e.message) }
-    document.getElementById('gn-status').textContent = document.getElementById('gn-rows').children.length + ' productos'
+  }
+
+  window.gnGuardarUno = async (idx) => {
+    const p = window._gnProductos?.[idx]
+    if (!p) return
+    const btn = document.querySelectorAll('.gn-input')[idx]?.nextElementSibling
+    if (btn) { btn.textContent = '...'; btn.disabled = true }
+    try {
+      await fetch(`${API}/productos/${p.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: p.nombre_nuevo })
+      })
+      if (btn) { btn.textContent = '✓'; btn.style.background = '#94a3b8'; btn.disabled = true }
+    } catch(e) {
+      if (btn) { btn.textContent = 'Guardar'; btn.disabled = false }
+      alert('Error: ' + e.message)
+    }
   }
 
   window.gnAplicar = async () => {
-    if (!confirm('¿Aplicar los nombres nuevos a todos los productos del preview?')) return
-    const soloCortos = document.getElementById('gn-solo-cortos')?.checked || false
+    if (!confirm(`¿Aplicar los ${window._gnProductos?.length || 0} nombres del preview? Los que ya guardaste individualmente no se sobreescriben.`)) return
     document.getElementById('gn-status').textContent = 'Aplicando...'
     document.getElementById('gn-btn-aplicar').disabled = true
-    try {
-      const r = await fetch(API + '/productos/generar-nombres', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modo: 'aplicar', solo_sin_descripcion: soloCortos })
-      })
-      const data = await r.json()
-      document.getElementById('gn-status').textContent = `✅ ${data.total} nombres actualizados`
-      document.getElementById('gn-btn-aplicar').disabled = false
-      // Refrescar preview
-      await gnPreview()
-    } catch(e) { alert('Error: ' + e.message); document.getElementById('gn-btn-aplicar').disabled = false }
+    let ok = 0, err = 0
+    for (const p of (window._gnProductos || [])) {
+      try {
+        await fetch(`${API}/productos/${p.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre: p.nombre_nuevo })
+        })
+        ok++
+      } catch(e) { err++ }
+    }
+    document.getElementById('gn-status').textContent = `✅ ${ok} actualizados${err ? ' · ⚠ ' + err + ' errores' : ''}`
+    document.getElementById('gn-btn-aplicar').disabled = false
+    // Marcar todos los botones como guardados
+    document.querySelectorAll('.gn-input + button').forEach(b => { b.textContent = '✓'; b.style.background = '#94a3b8'; b.disabled = true })
   }
 }
