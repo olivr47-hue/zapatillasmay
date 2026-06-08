@@ -1798,29 +1798,10 @@
 /* cursor normal */
 #zm-cursor { display: none !important; }
 
+/* Hero entrance — manejado por animations.js (JS stagger, más fiable en Android) */
 .hero-content > * {
   opacity: 0;
-  transform: translateY(30px);
-}
-
-.hero.loaded .hero-eyebrow {
-  animation: fadeUp 0.8s ease forwards;
-  animation-delay: 0.3s;
-}
-
-.hero.loaded .hero-title {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 0.6s;
-}
-
-.hero.loaded .hero-subtitle {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 0.9s;
-}
-
-.hero.loaded .hero-cta {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 1.2s;
+  transform: translateY(28px);
 }
 
 @keyframes fadeUp {

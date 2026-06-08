@@ -148,7 +148,29 @@ window.zmObserveCards = function() {
   })
 }
 
-// Hero entrance — manejado por .hero.loaded en index.html (fadeUp CSS animation)
+// ─── Hero ──────────────────────────────────────────────
+function animateHero() {
+  const content = document.getElementById('hero-content')
+  if (!content) return
+
+  const selectors = ['.hero-eyebrow','.hero-title','.hero-subtitle','.hero-cta','.hero-garantias']
+  const els = selectors.map(s => content.querySelector(s)).filter(Boolean)
+
+  // Asegurar estado inicial invisible (por si el CSS no lo aplicó aún)
+  els.forEach(el => {
+    el.style.opacity = '0'
+    el.style.transform = 'translateY(28px)'
+  })
+
+  // Stagger JS: más fiable que CSS animations en Android
+  els.forEach((el, i) => {
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.7s cubic-bezier(0.23,1,0.32,1), transform 0.7s cubic-bezier(0.23,1,0.32,1)'
+      el.style.opacity = '1'
+      el.style.transform = 'translateY(0)'
+    }, noMotion ? 0 : 200 + i * 130)
+  })
+}
 
 // ─── Contador numérico ─────────────────────────────────
 function setupCounters() {
@@ -295,7 +317,7 @@ function init() {
   const path = location.pathname
   const isHome = path === '/' || path === '' || path.endsWith('index.html')
 
-  // Hero entrance: manejado por .hero.loaded en index.html
+  if (isHome) animateHero()
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
     setTimeout(() => {
