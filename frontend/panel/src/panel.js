@@ -964,49 +964,50 @@ function renderDashboardHTML() {
   return `
     <div id="dashboard-contenido">
 
-      <div style="margin-bottom:22px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <div>
-          <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 4px">Panel de control</p>
-          <h2 style="font-size:1.45rem;font-weight:700;color:#0f172a;line-height:1.15;margin:0">Resumen del negocio</h2>
-          <p style="font-size:0.78rem;color:#94a3b8;margin:4px 0 0;text-transform:capitalize">${hoy}</p>
+      <!-- Banner encabezado -->
+      <div style="background:linear-gradient(135deg,#0c0c17 0%,#1a0a14 100%);border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:-40px;right:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(233,30,140,0.2) 0%,transparent 70%);pointer-events:none"></div>
+        <div style="position:relative">
+          <p style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:#E91E8C;text-transform:uppercase;margin:0 0 6px">Panel de control</p>
+          <h2 style="font-size:1.55rem;font-weight:800;color:white;line-height:1.1;margin:0 0 5px;letter-spacing:-0.01em">Resumen del negocio</h2>
+          <p style="font-size:0.78rem;color:#4a4a6a;margin:0;text-transform:capitalize">${hoy}</p>
         </div>
-        <button onclick="cargarDashboard()" class="btn btn-secondary" style="font-size:0.78rem;gap:5px">↻ Actualizar</button>
+        <button onclick="cargarDashboard()" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);padding:8px 16px;border-radius:8px;font-family:inherit;font-size:0.78rem;cursor:pointer;white-space:nowrap">↻ Actualizar</button>
       </div>
 
       <div class="stats-grid" style="margin-bottom:18px">
         ${kpis.map(k => `
-          <div class="stat-card" style="border-top:3px solid ${k.accent};padding-top:14px">
-            <div class="stat-label" style="font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px">${k.label}</div>
-            <div class="stat-value" id="${k.id}" style="font-size:1.4rem;font-weight:700;color:#0f172a;line-height:1">—</div>
-            <div class="stat-sub" id="${k.id}-sub" style="font-size:0.7rem;color:#94a3b8;margin-top:4px"></div>
+          <div class="stat-card" style="border-left:3px solid ${k.accent};padding-left:14px">
+            <div class="stat-label" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">${k.label}</div>
+            <div class="stat-value" id="${k.id}" style="font-size:1.5rem;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em">—</div>
+            <div class="stat-sub" id="${k.id}-sub" style="font-size:0.7rem;color:#94a3b8;margin-top:5px"></div>
           </div>
         `).join('')}
       </div>
 
-      <div class="chart-container" style="margin-bottom:14px">
-        <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Ventas — últimos 7 días</p>
-        <canvas id="chart-tendencia" height="110"></canvas>
+      <!-- Tendencia full-width: compacta -->
+      <div class="chart-container" style="margin-bottom:14px;padding:14px 18px">
+        <p class="chart-title" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:10px">Tendencia — últimos 7 días</p>
+        <div style="height:72px;position:relative"><canvas id="chart-tendencia"></canvas></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Por día de semana (30 días)</p>
-          <canvas id="chart-dias" height="180"></canvas>
+      <!-- 4 gráficas secundarias en fila -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
+        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
+          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Días de semana</p>
+          <div style="height:90px;position:relative"><canvas id="chart-dias"></canvas></div>
         </div>
-        <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Canal de ventas</p>
-          <canvas id="chart-canales" height="180"></canvas>
+        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
+          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Canal de venta</p>
+          <div style="height:90px;position:relative"><canvas id="chart-canales"></canvas></div>
         </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Ventas por mes (últimos 6)</p>
-          <canvas id="chart-meses" height="180"></canvas>
+        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
+          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Últimos 6 meses</p>
+          <div style="height:90px;position:relative"><canvas id="chart-meses"></canvas></div>
         </div>
-        <div class="chart-container" style="margin-bottom:0">
-          <p class="chart-title" style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:12px">Métodos de pago</p>
-          <canvas id="chart-pagos" height="180"></canvas>
+        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
+          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Métodos de pago</p>
+          <div style="height:90px;position:relative"><canvas id="chart-pagos"></canvas></div>
         </div>
       </div>
 
@@ -9884,21 +9885,22 @@ async function cargarDashboard() {
 
     setTimeout(() => {
       // Paleta que combina con la tienda
-      const COLOR1 = '#C8967A'
-      const COLOR2 = '#b5687a'
-      const COLOR3 = '#d4b8a8'
-      const COLOR4 = '#8B6A54'
+      const COLOR1 = '#E91E8C'
+      const COLOR2 = '#7c3aed'
+      const COLOR3 = '#0891b2'
+      const COLOR4 = '#059669'
       const PALETTE = [
-        'rgba(200,150,122,0.75)', 'rgba(181,104,122,0.75)',
-        'rgba(139,106,84,0.75)', 'rgba(212,184,168,0.75)',
-        'rgba(160,120,96,0.75)',  'rgba(90,60,40,0.75)'
+        'rgba(233,30,140,0.8)',  'rgba(124,58,237,0.8)',
+        'rgba(8,145,178,0.8)',   'rgba(5,150,105,0.8)',
+        'rgba(217,119,6,0.8)',   'rgba(220,38,38,0.8)'
       ]
-      const BORDERS = ['#C8967A','#b5687a','#8B6A54','#d4b8a8','#a07060','#5a3c28']
+      const BORDERS = ['#E91E8C','#7c3aed','#0891b2','#059669','#d97706','#dc2626']
 
-      const axisStyle = { ticks: { color: '#C4A38A', font: { size: 10 } }, grid: { color: 'rgba(200,150,122,0.08)' } }
+      const axisStyle = { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(148,163,184,0.08)' } }
       const chartOpts = {
         responsive: true,
-        plugins: { legend: { labels: { color: '#8B6A54', font: { size: 11 } } } },
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
         scales: { x: axisStyle, y: axisStyle }
       }
 
@@ -9912,7 +9914,7 @@ async function cargarDashboard() {
             datasets: [{
               data: ultimos7.map(d => d.total),
               borderColor: COLOR1,
-              backgroundColor: 'rgba(200,150,122,0.10)',
+              backgroundColor: 'rgba(233,30,140,0.08)',
               borderWidth: 2.5,
               pointBackgroundColor: COLOR1,
               pointBorderColor: 'white',
@@ -9945,7 +9947,7 @@ async function cargarDashboard() {
       if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, {
         type: 'doughnut',
         data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
-        options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#8B6A54', font: { size: 11 }, padding: 10 } } } }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
       })
 
       // Línea: meses
@@ -9954,7 +9956,7 @@ async function cargarDashboard() {
         const md = Object.entries(porMes).slice(-6)
         new Chart(elMeses, {
           type: 'line',
-          data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: COLOR2, backgroundColor: 'rgba(181,104,122,0.08)', borderWidth: 2, pointBackgroundColor: COLOR2, pointBorderColor: 'white', pointBorderWidth: 2, pointRadius: 4, fill: true, tension: 0.4 }] },
+          data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: COLOR2, backgroundColor: 'rgba(124,58,237,0.07)', borderWidth: 2, pointBackgroundColor: COLOR2, pointBorderColor: 'white', pointBorderWidth: 2, pointRadius: 4, fill: true, tension: 0.4 }] },
           options: { ...chartOpts, plugins: { legend: { display: false } } }
         })
       }
@@ -9964,7 +9966,7 @@ async function cargarDashboard() {
       if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, {
         type: 'doughnut',
         data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
-        options: { responsive: true, cutout: '68%', plugins: { legend: { position: 'bottom', labels: { color: '#8B6A54', font: { size: 11 }, padding: 10 } } } }
+        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
       })
     }, 300)
 
@@ -10152,9 +10154,19 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
     content.innerHTML = `
-  <div style="display:flex;gap:6px;margin-bottom:1rem">
-    <button id="tab-chats" onclick="mostrarTabWA('chats')" class="wa-tab-btn activo">Conversaciones</button>
-    <button id="tab-config" onclick="mostrarTabWA('config')" class="wa-tab-btn">Configuración</button>
+  <div style="background:linear-gradient(135deg,#0c0c17 0%,#1a0a14 100%);border-radius:14px;padding:20px 24px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;background:radial-gradient(circle,rgba(233,30,140,0.18) 0%,transparent 70%);pointer-events:none"></div>
+    <div style="position:relative">
+      <p style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:#E91E8C;text-transform:uppercase;margin:0 0 4px">WhatsApp Cloud API</p>
+      <h2 style="font-size:1.3rem;font-weight:800;color:white;margin:0;letter-spacing:-0.01em">Conversaciones</h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      ${totalNoLeidos > 0 ? `<span style="background:#E91E8C;color:white;border-radius:100px;padding:4px 12px;font-size:0.75rem;font-weight:700">${totalNoLeidos} sin leer</span>` : ''}
+      <div style="display:flex;gap:4px">
+        <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit;transition:all 0.15s">Mensajes</button>
+        <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:7px 14px;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.7);font-family:inherit;transition:all 0.15s">Configuración</button>
+      </div>
+    </div>
   </div>
   <div id="wa-tab-content">
     <div id="wa-container">
@@ -10217,9 +10229,18 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
 window.mostrarTabWA = async (tab) => {
   const btnChats = document.getElementById('tab-chats')
   const btnConfig = document.getElementById('tab-config')
-  if (btnChats) btnChats.classList.toggle('activo', tab === 'chats')
-  if (btnConfig) btnConfig.classList.toggle('activo', tab === 'config')
-
+  if (btnChats) {
+    const active = tab === 'chats'
+    btnChats.style.background = active ? '#E91E8C' : 'rgba(255,255,255,0.07)'
+    btnChats.style.color = active ? 'white' : 'rgba(255,255,255,0.7)'
+    btnChats.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
+  }
+  if (btnConfig) {
+    const active = tab === 'config'
+    btnConfig.style.background = active ? '#E91E8C' : 'rgba(255,255,255,0.07)'
+    btnConfig.style.color = active ? 'white' : 'rgba(255,255,255,0.7)'
+    btnConfig.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
+  }
   if (tab === 'chats') {
     await window.cargarConversaciones()
   } else {

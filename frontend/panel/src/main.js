@@ -1,12 +1,12 @@
 import './style.css'
-document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%'
+document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%;flex:1'
 import { renderPanel } from './panel.js'
 
 const SESSION_KEY = 'erp_empleado'
 
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
-    <div style="min-height:100vh;width:100%;display:flex;font-family:DM Sans,sans-serif">
+    <div style="min-height:100vh;width:100vw;display:flex;font-family:DM Sans,sans-serif">
 
       <!-- Panel izquierdo: marca -->
       <div style="display:none;flex:0 0 42%;background:#0c0c17;flex-direction:column;justify-content:space-between;padding:48px 52px;position:relative;overflow:hidden"
