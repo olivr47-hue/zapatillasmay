@@ -133,13 +133,10 @@ export function renderPanel() {
   if (window._conversacionesInterval) clearInterval(window._conversacionesInterval)
   window._conversacionesInterval = setInterval(async () => {
     try {
-      const res = await fetch(API + '/chatbot/chats')
-      const chats = await res.json()
-      if (!window._chatsData) window._chatsData = {}
+      const chats = await window._recargarChats()
       const noLeidosAntes = window._totalNoLeidos || 0
       const noLeidosDespues = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
       window._totalNoLeidos = noLeidosDespues
-      chats.forEach(c => { if (window._chatsData) window._chatsData[c.telefono] = c })
       if (noLeidosDespues > noLeidosAntes) {
   document.title = `(${noLeidosDespues}) Zapatillas May`
   
@@ -10172,9 +10169,11 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
     const res = await fetch(API + '/chatbot/chats')
-    const chats = await res.json()
+    const chatsRaw = await res.json()
+    const chats = Array.isArray(chatsRaw) ? chatsRaw : []
     const resProductos = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo')
-    const productos = await resProductos.json()
+    const productosRaw = await resProductos.json()
+    const productos = Array.isArray(productosRaw) ? productosRaw : []
 
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
@@ -10519,6 +10518,17 @@ window.renderMensaje = (m, esManual, nombreContacto) => {
   return '<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
 }
 
+
+// Helper: fetch /chats y actualiza _chatsData de forma segura
+window._recargarChats = async () => {
+  try {
+    const raw = await fetch(API + '/chatbot/chats').then(r => r.json())
+    const chats = Array.isArray(raw) ? raw : []
+    window._chatsData = {}
+    chats.forEach(c => window._chatsData[c.telefono] = c)
+    return chats
+  } catch(_) { return [] }
+}
 
 // Función compartida de render de burbujas — usada por abrirChat y el polling
 window._renderBurbujas = (chat) => {
@@ -10923,10 +10933,7 @@ window.enviarMensajeWA = async (telefono) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mensaje, agente, reply_to_wa_id })
     })
-    const resChats = await fetch(API + '/chatbot/chats')
-    const chats = await resChats.json()
-    window._chatsData = {}
-    chats.forEach(c => window._chatsData[c.telefono] = c)
+    await window._recargarChats()
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando mensaje')
@@ -10984,10 +10991,7 @@ window.subirImagenWA = async (telefono, input) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imagen_url, caption: '', agente })
     })
-    const resChats = await fetch(API + '/chatbot/chats')
-    const chats = await resChats.json()
-    window._chatsData = {}
-    chats.forEach(c => window._chatsData[c.telefono] = c)
+    await window._recargarChats()
     abrirChat(telefono)
   } catch(e) {
     alert('Error subiendo imagen: ' + e.message)
@@ -11013,10 +11017,7 @@ window.subirDocumentoWA = async (telefono, input) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ doc_url, filename: file.name, caption: '', agente })
     })
-    const resChats = await fetch(API + '/chatbot/chats')
-    const chats = await resChats.json()
-    window._chatsData = {}
-    chats.forEach(c => window._chatsData[c.telefono] = c)
+    await window._recargarChats()
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando documento: ' + e.message)
@@ -11040,10 +11041,7 @@ window.subirVideoWA = async (telefono, input) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ video_url, caption: '', agente })
     })
-    const resChats = await fetch(API + '/chatbot/chats')
-    const chats = await resChats.json()
-    window._chatsData = {}
-    chats.forEach(c => window._chatsData[c.telefono] = c)
+    await window._recargarChats()
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando video: ' + e.message)
@@ -11159,11 +11157,8 @@ if (modalWA) modalWA.remove()
       })
     }
     await new Promise(r => setTimeout(r, 1500))
-const resChats = await fetch(API + '/chatbot/chats')
-const chats = await resChats.json()
-window._chatsData = {}
-chats.forEach(c => window._chatsData[c.telefono] = c)
-abrirChat(telefono)
+    await window._recargarChats()
+    abrirChat(telefono)
   } catch(e) {
     alert('Error enviando producto')
   }

@@ -610,7 +610,11 @@ async def listar_chats():
                     nombre = m['nombre_contacto']
                     break
             chat['nombre'] = nombre
-        control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+        # Intentar con columnas nuevas, fallback a columnas base si no existen aún
+        try:
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+        except Exception:
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
         for c in control:
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
