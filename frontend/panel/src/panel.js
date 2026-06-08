@@ -11606,7 +11606,8 @@ window.iniciarEnvioFotos = async () => {
       <div style="font-size:3rem;margin-bottom:1rem">${!data.fallidos?'🎉':'✅'}</div>
       <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
       <p style="color:#25D366;font-weight:700;margin-bottom:4px">${data.enviados||0} enviados</p>
-      ${data.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:6px">${data.fallidos} fallidos — probablemente fuera de ventana 24 h</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:6px">Sin errores</p>'}
+      ${data.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:4px">${data.fallidos} contactos sin entregas</p>`:''}
+      ${data.errores?.length?`<p style="font-size:0.7rem;color:#aaa;margin-bottom:6px;text-align:left;max-height:80px;overflow-y:auto">${data.errores.slice(0,5).join('<br>')}</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:6px">Sin errores</p>'}
       <button onclick="document.getElementById('fotos-overlay').remove()"
         style="background:#e65100;color:white;border:none;border-radius:10px;padding:10px 28px;margin-top:8px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
     </div>`

@@ -960,40 +960,47 @@ async def envio_fotos(datos: dict):
         for contacto in contactos:
             tel    = _tel(contacto.get("telefono",""))
             nombre = (contacto.get("nombre") or "Cliente").strip() or "Cliente"
-            ok = True
-            err = ""
-            try:
-                # 1. Mensaje de texto de saludo (si hay)
-                if texto:
+            contacto_ok = True
+
+            # 1. Mensaje de texto de saludo (si hay)
+            if texto:
+                try:
                     saludo = texto.replace("{{nombre}}", nombre).replace("{{1}}", nombre)
                     _post({"messaging_product":"whatsapp","to":tel,"type":"text","text":{"body":saludo}})
                     time.sleep(1)
+                except urllib.error.HTTPError as e:
+                    body_err = e.read().decode()
+                    contacto_ok = False
+                    errores.append(f"{tel} (saludo): HTTP {e.code} - {body_err[:150]}")
+                except Exception as e:
+                    contacto_ok = False
+                    errores.append(f"{tel} (saludo): {str(e)}")
 
-                # 2. Una imagen por variante seleccionada
-                for i, foto in enumerate(fotos):
-                    img_url = (foto.get("url") or "").strip()
-                    caption = (foto.get("caption") or "").strip()
-                    if not img_url:
-                        continue
+            # 2. Cada imagen en su propio try — si una falla, las demás siguen
+            fotos_ok = 0
+            for i, foto in enumerate(fotos):
+                img_url = (foto.get("url") or "").strip()
+                caption = (foto.get("caption") or "").strip()
+                if not img_url:
+                    continue
+                try:
                     _post({"messaging_product":"whatsapp","to":tel,"type":"image",
                            "image":{"link":img_url,"caption":caption}})
-                    if i < len(fotos) - 1:
-                        time.sleep(1.2)
+                    fotos_ok += 1
+                except urllib.error.HTTPError as e:
+                    body_err = e.read().decode()
+                    errores.append(f"{tel} (foto {i+1}): HTTP {e.code} - {body_err[:150]}")
+                except Exception as e:
+                    errores.append(f"{tel} (foto {i+1}): {str(e)}")
+                if i < len(fotos) - 1:
+                    time.sleep(1.2)
 
+            if fotos_ok > 0:
                 enviados += 1
-            except urllib.error.HTTPError as e:
-                ok = False
-                body_err = e.read().decode()
-                err = f"HTTP {e.code} - {body_err[:200]}"
+            else:
                 fallidos += 1
-                errores.append(f"{tel}: {err}")
-            except Exception as e:
-                ok = False
-                err = str(e)
-                fallidos += 1
-                errores.append(f"{tel}: {err}")
 
-            if contacto != contactos[-1] and ok:
+            if contacto != contactos[-1]:
                 time.sleep(delay)
 
         return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
