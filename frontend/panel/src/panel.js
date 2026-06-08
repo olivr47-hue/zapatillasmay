@@ -10827,176 +10827,438 @@ window.cargarEnviosMasivos = async function() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
-    const [resPlantillas, resClientes, resChats] = await Promise.all([
+    const [resPlantillas, resClientes] = await Promise.all([
       fetch(API + '/chatbot/plantillas').then(r => r.json()),
       fetch(API + '/clientes/').then(r => r.json()),
-      fetch(API + '/chatbot/chats').then(r => r.json())
     ])
-    const contactosMap = {}
-    resClientes.forEach(c => {
-      if (c.telefono) contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' }
-    })
-    resChats.forEach(c => {
-      if (!contactosMap[c.telefono]) {
-        contactosMap[c.telefono] = { telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp', etiqueta: c.etiqueta }
-      }
-    })
-    const todosContactos = Object.values(contactosMap)
-    window._envioContactos = todosContactos
-    window._envioChats = resChats
-    window._envioClientes = resClientes
+
+    if (resPlantillas.error) {
+      content.innerHTML = `<div style="padding:2rem;color:#c62828;background:#ffebee;border-radius:12px;margin:1rem">
+        ❌ <strong>Error al cargar plantillas:</strong> ${resPlantillas.error}
+        <p style="font-size:0.82rem;margin-top:8px;color:#666">Verifica que <code>WHATSAPP_WABA_ID</code> esté configurado en Railway.</p>
+      </div>`
+      return
+    }
+
+    const plantillas = Array.isArray(resPlantillas) ? resPlantillas : []
+    window._envioPlantillas = plantillas
+
+    const clientes = Array.isArray(resClientes) ? resClientes.filter(c => c.telefono) : []
+    window._envioClientes = clientes
+    window._envioContactos = clientes.map(c => ({ telefono: c.telefono, nombre: c.nombre, tipo: c.tipo, fuente: 'cliente' }))
+
+    window._envioSeleccionados = new Set(window._envioContactos.map(c => c.telefono))
+    window._envioContactosVisibles = [...window._envioContactos]
+
+    const renderContactos = (lista) => lista.map(c => {
+      const sel = window._envioSeleccionados?.has(c.telefono)
+      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${sel ? '#E91E8C' : '#f0f0f0'};background:${sel ? '#fff0f8' : 'white'}" id="envio-row-${c.telefono.replace(/\D/g,'')}">
+        <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${c.telefono}',this)"
+          style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
+        <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
+          ${(c.nombre||'?').charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre || c.telefono}</p>
+          <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
+        </div>
+      </label>`
+    }).join('')
 
     content.innerHTML = `
-      <div style="max-width:900px">
-        <div style="margin-bottom:1.5rem">
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos</h2>
-          <p style="color:#888;font-size:0.85rem">${todosContactos.length} contactos disponibles</p>
+      <div style="max-width:960px">
+        <div style="margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">📣 Envíos masivos — WhatsApp API</h2>
+            <p style="color:#888;font-size:0.85rem">Plantillas aprobadas por Meta · ${clientes.length} clientes con teléfono</p>
+          </div>
+          <span style="background:#25D366;color:white;padding:4px 12px;border-radius:100px;font-size:0.78rem;font-weight:600">✅ Meta Cloud API</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:1.5rem">⚙️ Configurar campaña</h3>
-            <div style="margin-bottom:1rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Plantilla</label>
-              <select id="envio-plantilla" class="form-input">
-                ${resPlantillas.map(p => `<option value="${p.name}">${p.name}</option>`).join('')}
-              </select>
-            </div>
-            <div style="margin-bottom:1rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Audiencia</label>
-              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
-                <option value="todos">Todos los contactos</option>
-                <option value="clientes">Solo clientes</option>
-                <option value="whatsapp">Solo WhatsApp</option>
-                <option value="comprador">🟢 Compradores</option>
-                <option value="posible_comprador">🟡 Posibles</option>
-                <option value="seguimiento">🔴 Seguimiento</option>
-              </select>
-            </div>
-            <div style="margin-bottom:1rem">
-              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Imagen del producto</label>
-              <select id="envio-producto-sel" class="form-input" onchange="seleccionarImagenProductoEnvio()" style="margin-bottom:8px">
-                <option value="">Seleccionar producto...</option>
-              </select>
-              <div id="envio-producto-preview" style="display:none;margin-bottom:8px;padding:8px;background:#f9f9f9;border-radius:8px;align-items:center;gap:8px">
-                <img id="envio-producto-img" src="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #eee">
-                <span id="envio-producto-nombre" style="font-size:0.82rem;font-weight:600;color:#333"></span>
-              </div>
-              <input type="text" id="envio-imagen" class="form-input" placeholder="O pega URL manualmente..." oninput="limpiarSelProductoEnvio()">
-            </div>
-            <div id="envio-resultado" style="display:none;background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7"></div>
-            <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%">📣 Enviar campaña</button>
 
-            <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid #f0f0f0">
-              <p style="font-size:0.78rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:0.75rem">🛍️ Catálogo interactivo (hasta 30 productos)</p>
-              <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar producto..."
-                oninput="filtrarProductosEnvioInteractivo(this.value)"
-                style="width:100%;padding:6px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
-              <div id="envio-prod-grid" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
-                <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando productos...</p>
-              </div>
-              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin-bottom:8px"></p>
-              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="width:100%;border-color:#E91E8C;color:#E91E8C">🛍️ Enviar catálogo interactivo</button>
-            </div>
-          </div>
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-              <h3 style="font-size:0.95rem;font-weight:700">👥 Contactos</h3>
-              <span id="envio-count" style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${todosContactos.length}</span>
-            </div>
-            <div id="envio-lista" style="max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
-              ${todosContactos.map(c => `
-                <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
-                  <div style="width:32px;height:32px;border-radius:50%;background:${c.fuente==='cliente'?'#e91e8c':'#25D366'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
-                    ${(c.nombre||'?').charAt(0).toUpperCase()}
-                  </div>
-                  <div style="flex:1;min-width:0">
-                    <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
-                    <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}</p>
-                  </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+          <!-- COLUMNA IZQUIERDA: configuración -->
+          <div>
+            <!-- Plantilla -->
+            <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">1️⃣ Selecciona la plantilla</p>
+              ${plantillas.length === 0
+                ? '<p style="color:#888;font-size:0.85rem">No hay plantillas aprobadas en tu cuenta de Meta.</p>'
+                : plantillas.map(p => {
+                    const bodyComp = (p.components || []).find(c => c.type === 'BODY')
+                    const preview = bodyComp?.text?.substring(0, 60) || ''
+                    return `<label style="display:block;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;margin-bottom:6px;transition:all 0.15s"
+                      onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${p.name}').checked)this.style.borderColor='#eee'">
+                      <div style="display:flex;align-items:flex-start;gap:8px">
+                        <input type="radio" name="envio-plantilla-radio" id="plt-${p.name}" value="${p.name}" data-idioma="${p.language}"
+                          onchange="onCambiarPlantillaEnvio('${p.name}','${p.language}')" style="accent-color:#E91E8C;margin-top:2px;flex-shrink:0">
+                        <div>
+                          <p style="font-size:0.85rem;font-weight:600;margin:0">${p.name}</p>
+                          <p style="font-size:0.7rem;color:#888;margin:0">${p.language}${preview ? ' · ' + preview + '…' : ''}</p>
+                        </div>
+                      </div>
+                    </label>`
+                  }).join('')
+              }
+
+              <!-- Vista previa de la plantilla seleccionada -->
+              <div id="plantilla-preview-box" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">
+                <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px">Vista previa del mensaje</p>
+                <div style="background:#e5ddd5;border-radius:10px;padding:10px;min-height:60px">
+                  <div id="plantilla-preview-burbuja" style="background:white;border-radius:8px 8px 8px 2px;padding:10px 12px;max-width:85%;font-size:0.82rem;line-height:1.55;color:#333;box-shadow:0 1px 2px rgba(0,0,0,0.1);white-space:pre-wrap"></div>
                 </div>
-              `).join('')}
+                <p style="font-size:0.7rem;color:#aaa;margin-top:6px">Las variables como <code>{{1}}</code> se reemplazan con el nombre del cliente al enviar.</p>
+              </div>
+            </div>
+
+            <!-- Imagen: selector de modelo + variante -->
+            <div id="envio-seccion-foto" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">2️⃣ Foto del modelo <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional — para plantillas con imagen)</span></p>
+
+              <!-- Búsqueda de modelo -->
+              <input type="text" id="envio-modelo-buscar" placeholder="🔍 Buscar modelo por nombre..."
+                oninput="filtrarModelosEnvio(this.value)"
+                style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="envio-modelos-lista" style="max-height:140px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:10px">
+                <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>
+              </div>
+
+              <!-- Variantes del modelo seleccionado -->
+              <div id="envio-variantes-panel" style="display:none">
+                <p id="envio-variantes-titulo" style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px"></p>
+                <div id="envio-variantes-grid" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto"></div>
+              </div>
+
+              <!-- Foto seleccionada -->
+              <div id="envio-foto-seleccionada" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;border:2px solid #E91E8C;position:relative">
+                <img id="envio-foto-img" src="" style="width:100%;height:120px;object-fit:cover">
+                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);padding:4px 8px;display:flex;justify-content:space-between;align-items:center">
+                  <span id="envio-foto-label" style="font-size:0.75rem;color:white;font-weight:600"></span>
+                  <button onclick="quitarFotoEnvio()" style="background:none;border:none;color:white;cursor:pointer;font-size:0.9rem;padding:0">✕</button>
+                </div>
+              </div>
+
+              <input type="hidden" id="envio-imagen">
+            </div>
+
+            <!-- Audiencia -->
+            <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Audiencia</p>
+              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
+                <option value="todos">Todos los clientes</option>
+                <option value="mayoreo">Solo Mayoreo</option>
+                <option value="zapateria">Solo Zapaterías</option>
+                <option value="menudeo">Solo Menudeo</option>
+              </select>
+            </div>
+
+            <!-- Botón enviar -->
+            <div id="envio-resultado" style="display:none;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7;background:#e8f5e9"></div>
+            <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%;padding:12px">
+              📣 Enviar campaña
+            </button>
+            <p style="font-size:0.72rem;color:#aaa;text-align:center;margin-top:8px">Solo plantillas aprobadas por Meta. No arriesga el número de teléfono.</p>
+
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px dashed #eee">
+              <p style="font-size:0.75rem;font-weight:700;color:#888;margin-bottom:6px">🔧 Diagnóstico</p>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <input type="text" id="diag-tel" class="form-input" placeholder="Tu teléfono (52...)" style="flex:1;min-width:140px;font-size:0.8rem">
+                <button onclick="ejecutarDiagnostico()" class="btn btn-secondary" style="font-size:0.78rem;white-space:nowrap">Probar envío</button>
+                <button onclick="ejecutarDebugPlantillas()" class="btn btn-secondary" style="font-size:0.78rem;white-space:nowrap">Ver estructura</button>
+              </div>
+              <div id="diag-resultado" style="display:none;margin-top:8px;padding:10px;background:#f9f9f9;border-radius:8px;font-size:0.75rem;font-family:monospace;white-space:pre-wrap;color:#333;max-height:260px;overflow-y:auto"></div>
             </div>
           </div>
+
+          <!-- COLUMNA DERECHA: lista de contactos + catálogo interactivo -->
+          <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <h3 style="font-size:0.95rem;font-weight:700">👥 Destinatarios</h3>
+              <span id="envio-count" style="background:#E91E8C;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${clientes.length} seleccionados</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <input type="text" id="envio-buscador" placeholder="🔍 Buscar..." oninput="buscarContactosEnvio(this.value)"
+                style="flex:1;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
+              <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                <input type="checkbox" id="envio-sel-todos" checked onchange="toggleSelTodosEnvio(this.checked)" style="accent-color:#E91E8C;width:14px;height:14px">
+                Todos
+              </label>
+            </div>
+            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+              ${renderContactos(window._envioContactos)}
+            </div>
+          </div>
+
+          <!-- Catálogo interactivo -->
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Productos del catálogo</p>
+              <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
+            </div>
+            <div id="envio-mpm-aviso" style="display:none;background:#e3f2fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.78rem;color:#1565c0">
+              ✅ La plantilla seleccionada es de tipo <strong>catálogo</strong> — los productos que elijas aquí se incluirán directamente en el mensaje y se envía como plantilla aprobada (sin restricción de 24 h).
+            </div>
+            <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos que quieres mostrar. El cliente recibe tarjetas con foto, precio y botón de compra.</p>
+            <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
+              oninput="filtrarProductosEnvioInteractivo(this.value)"
+              style="width:100%;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+            <div id="envio-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+              <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando modelos...</p>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0"></p>
+              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="border-color:#E91E8C;color:#E91E8C;font-size:0.82rem;white-space:nowrap">
+                🛍️ Enviar catálogo
+              </button>
+            </div>
+          </div>
+
+          </div><!-- fin columna derecha -->
         </div>
       </div>
     `
     cargarProductosEnvio()
     cargarProductosEnvioInteractivo()
+    // seleccionar primera plantilla por defecto y mostrar su preview
+    const primero = document.querySelector('input[name="envio-plantilla-radio"]')
+    if (primero) {
+      primero.checked = true
+      onCambiarPlantillaEnvio(primero.value, primero.dataset.idioma)
+    }
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
   }
 }
 
-
-window.filtrarAudienciaEnvio = () => {
-  const filtro = document.getElementById('envio-filtro').value
-  const clientes = window._envioClientes || []
-  const chats = window._envioChats || []
-
-  let contactos = []
-  if (filtro === 'todos') {
-    const map = {}
-    clientes.forEach(c => { if (c.telefono) map[c.telefono] = { telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' } })
-    chats.forEach(c => { if (!map[c.telefono]) map[c.telefono] = { telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp' } })
-    contactos = Object.values(map)
-  } else if (filtro === 'clientes') {
-    contactos = clientes.filter(c => c.telefono).map(c => ({ telefono: c.telefono, nombre: c.nombre, fuente: 'cliente' }))
-  } else if (filtro === 'whatsapp') {
-    contactos = chats.map(c => ({ telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp' }))
-  } else {
-    contactos = chats.filter(c => c.etiqueta === filtro).map(c => ({ telefono: c.telefono, nombre: c.nombre || c.telefono, fuente: 'whatsapp' }))
+window.ejecutarDebugPlantillas = async () => {
+  const resultado = document.getElementById('diag-resultado')
+  if (!resultado) return
+  resultado.style.display = 'block'
+  resultado.textContent = 'Consultando estructura...'
+  try {
+    const res = await fetch(API + '/chatbot/plantillas-debug')
+    const data = await res.json()
+    resultado.textContent = JSON.stringify(data, null, 2)
+  } catch(e) {
+    resultado.textContent = 'Error: ' + e.message
   }
+}
 
-  window._envioContactos = contactos
-  document.getElementById('envio-count').textContent = contactos.length
-  document.getElementById('envio-lista').innerHTML = contactos.map(c => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px;background:#f9f9f9;border-radius:8px">
-      <div style="width:32px;height:32px;border-radius:50%;background:${c.fuente==='cliente' ? '#e91e8c' : '#25D366'};display:flex;align-items:center;justify-content:center;color:white;font-size:0.8rem;font-weight:700;flex-shrink:0">
+window.ejecutarDiagnostico = async () => {
+  const tel = (document.getElementById('diag-tel')?.value || '').trim()
+  const radio = document.querySelector('input[name="envio-plantilla-radio"]:checked')
+  const plantilla = radio?.value || ''
+  const idioma = radio?.dataset?.idioma || 'es_MX'
+  const resultado = document.getElementById('diag-resultado')
+  if (!resultado) return
+  resultado.style.display = 'block'
+  resultado.textContent = 'Consultando...'
+  try {
+    const res = await fetch(API + '/chatbot/wa-diagnostico', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefono: tel, plantilla, idioma })
+    })
+    const data = await res.json()
+    resultado.textContent = JSON.stringify(data, null, 2)
+  } catch(e) {
+    resultado.textContent = 'Error: ' + e.message
+  }
+}
+
+window.onCambiarPlantillaEnvio = (nombre, idioma) => {
+  window._envioPlantillaActual = { nombre, idioma }
+  const plantillas = window._envioPlantillas || []
+  const p = plantillas.find(x => x.name === nombre)
+  const box = document.getElementById('plantilla-preview-box')
+  const burbuja = document.getElementById('plantilla-preview-burbuja')
+  if (!box || !burbuja || !p) return
+
+  const partes = []
+  const header = (p.components || []).find(c => c.type === 'HEADER')
+  const body = (p.components || []).find(c => c.type === 'BODY')
+  const footer = (p.components || []).find(c => c.type === 'FOOTER')
+  const buttons = (p.components || []).find(c => c.type === 'BUTTONS')
+  const esMPM = (buttons?.buttons || []).some(b => b.sub_type === 'MPM' || b.type === 'MPM' || (p.sub_category === 'MULTI_PRODUCT_MESSAGE'))
+
+  if (header?.format === 'IMAGE') partes.push('🖼️ [Imagen del producto]')
+  if (header?.text) partes.push(`*${header.text}*`)
+  if (body?.text) partes.push(body.text)
+  if (footer?.text) partes.push(`_${footer.text}_`)
+  if (esMPM) partes.push('🛍️ [Catálogo de productos — selecciona abajo]')
+  burbuja.textContent = partes.join('\n\n') || '(sin contenido)'
+  box.style.display = 'block'
+
+  // Mostrar/ocultar sección de foto según si es MPM o no
+  const secFoto = document.getElementById('envio-seccion-foto')
+  if (secFoto) secFoto.style.display = esMPM ? 'none' : 'block'
+
+  // Mostrar aviso MPM en el catálogo
+  const mpmAviso = document.getElementById('envio-mpm-aviso')
+  if (mpmAviso) mpmAviso.style.display = esMPM ? 'block' : 'none'
+
+  window._envioEsMPM = esMPM
+
+  // resaltar el label seleccionado
+  document.querySelectorAll('input[name="envio-plantilla-radio"]').forEach(r => {
+    const lbl = r.closest('label')
+    if (!lbl) return
+    lbl.style.borderColor = r.value === nombre ? '#E91E8C' : '#eee'
+    lbl.style.background = r.value === nombre ? '#fff0f8' : ''
+  })
+}
+
+const _renderEnvioLista = (lista) => {
+  const listaEl = document.getElementById('envio-lista')
+  if (!listaEl) return
+  listaEl.innerHTML = lista.map(c => {
+    const sel = window._envioSeleccionados?.has(c.telefono)
+    const tel = c.telefono.replace(/\D/g, '')
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${sel ? '#E91E8C' : '#f0f0f0'};background:${sel ? '#fff0f8' : 'white'}" id="envio-row-${tel}">
+      <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${c.telefono}',this)"
+        style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
+      <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
         ${(c.nombre||'?').charAt(0).toUpperCase()}
       </div>
       <div style="flex:1;min-width:0">
-        <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</p>
-        <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono} · ${c.fuente === 'cliente' ? '🛍️ Cliente' : '💬 WhatsApp'}</p>
+        <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre || c.telefono}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
       </div>
-    </div>
-  `).join('')
+    </label>`
+  }).join('')
 }
 
+const _actualizarConteoEnvio = () => {
+  const n = window._envioSeleccionados?.size || 0
+  const countEl = document.getElementById('envio-count')
+  if (countEl) countEl.textContent = `${n} seleccionado${n !== 1 ? 's' : ''}`
+  // sincronizar checkbox "Todos"
+  const chkTodos = document.getElementById('envio-sel-todos')
+  if (chkTodos) {
+    const visible = window._envioContactosVisibles || []
+    const todosCheck = visible.length > 0 && visible.every(c => window._envioSeleccionados?.has(c.telefono))
+    chkTodos.checked = todosCheck
+    chkTodos.indeterminate = !todosCheck && visible.some(c => window._envioSeleccionados?.has(c.telefono))
+  }
+}
+
+window.toggleEnvioContacto = (telefono, el) => {
+  if (!window._envioSeleccionados) window._envioSeleccionados = new Set()
+  const tel = telefono.replace(/\D/g, '')
+  const row = document.getElementById('envio-row-' + tel)
+  if (el.checked) {
+    window._envioSeleccionados.add(telefono)
+    if (row) { row.style.borderColor = '#E91E8C'; row.style.background = '#fff0f8' }
+  } else {
+    window._envioSeleccionados.delete(telefono)
+    if (row) { row.style.borderColor = '#f0f0f0'; row.style.background = 'white' }
+  }
+  _actualizarConteoEnvio()
+}
+
+window.toggleSelTodosEnvio = (checked) => {
+  const visible = window._envioContactosVisibles || []
+  if (!window._envioSeleccionados) window._envioSeleccionados = new Set()
+  visible.forEach(c => {
+    if (checked) window._envioSeleccionados.add(c.telefono)
+    else window._envioSeleccionados.delete(c.telefono)
+  })
+  _renderEnvioLista(visible)
+  _actualizarConteoEnvio()
+}
+
+window.filtrarAudienciaEnvio = () => {
+  const filtro = document.getElementById('envio-filtro')?.value || 'todos'
+  const q = (document.getElementById('envio-buscador')?.value || '').toLowerCase()
+  const clientes = window._envioClientes || []
+  let lista = filtro === 'todos' ? clientes : clientes.filter(c => c.tipo === filtro)
+  if (q) lista = lista.filter(c => (c.nombre||'').toLowerCase().includes(q) || (c.telefono||'').includes(q))
+  window._envioContactosVisibles = lista.map(c => ({ telefono: c.telefono, nombre: c.nombre, tipo: c.tipo }))
+  _renderEnvioLista(window._envioContactosVisibles)
+  _actualizarConteoEnvio()
+}
+
+window.buscarContactosEnvio = (texto) => {
+  filtrarAudienciaEnvio()
+}
 
 window.iniciarEnvioMasivo = async () => {
-  const contactos = window._envioContactos || []
-  if (contactos.length === 0) { alert('No hay contactos seleccionados'); return }
+  const seleccionados = window._envioSeleccionados || new Set()
+  const contactosBase = window._envioClientes || []
+  const contactos = contactosBase
+    .filter(c => seleccionados.has(c.telefono))
+    .map(c => ({ telefono: c.telefono, nombre: c.nombre }))
+  if (contactos.length === 0) { alert('Selecciona al menos un destinatario'); return }
 
-  const plantilla = document.getElementById('envio-plantilla').value
-  const imagenUrl = document.getElementById('envio-imagen').value
+  const radioChecked = document.querySelector('input[name="envio-plantilla-radio"]:checked')
+  if (!radioChecked) { alert('Selecciona una plantilla'); return }
+  const plantilla = radioChecked.value
+  const idioma = radioChecked.dataset.idioma || 'es_MX'
+  const imagenUrl = (document.getElementById('envio-imagen')?.value || '').trim()
+  const esMPM = window._envioEsMPM || false
+  const skusMPM = esMPM ? Array.from(window._envioProdSeleccionados || new Set()) : []
 
-  if (!confirm(`¿Enviar "${plantilla}" a ${contactos.length} contactos?`)) return
+  if (esMPM && skusMPM.length === 0) {
+    alert('Esta plantilla es de catálogo — selecciona al menos un producto en la sección de abajo')
+    return
+  }
 
-  const btn = document.getElementById('btn-enviar-masivo')
-  btn.textContent = 'Enviando...'
-  btn.disabled = true
+  if (!confirm(`¿Enviar la plantilla "${plantilla}" a ${contactos.length} contacto${contactos.length !== 1 ? 's' : ''} seleccionado${contactos.length !== 1 ? 's' : ''}${esMPM ? ` con ${skusMPM.length} producto${skusMPM.length !== 1 ? 's' : ''}` : ''}?`)) return
+
+  // Overlay de progreso
+  const overlay = document.createElement('div')
+  overlay.id = 'envio-masivo-overlay'
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  overlay.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">📣</div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando campaña…</h3>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">${contactos.length} contactos · plantilla: <strong>${plantilla}</strong></p>
+      <div style="background:#f5f5f5;border-radius:100px;height:8px;overflow:hidden;margin-bottom:0.5rem">
+        <div id="envio-progress-bar" style="height:100%;width:5%;background:linear-gradient(90deg,#E91E8C,#25D366);border-radius:100px;transition:width 0.3s"></div>
+      </div>
+      <p id="envio-progress-txt" style="font-size:0.75rem;color:#888">Procesando...</p>
+    </div>`
+  document.body.appendChild(overlay)
+
+  const bar = overlay.querySelector('#envio-progress-bar')
+  const txt = overlay.querySelector('#envio-progress-txt')
+  if (bar) bar.style.width = '15%'
 
   try {
     const res = await fetch(API + '/chatbot/envio-masivo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plantilla, imagen_url: imagenUrl, contactos })
+      body: JSON.stringify({ plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM })
     })
     const data = await res.json()
 
-    const resultado = document.getElementById('envio-resultado')
-    resultado.style.display = 'block'
-    resultado.style.background = data.fallidos > 0 ? '#fff8e1' : '#e8f5e9'
-    resultado.innerHTML = `
-      <p style="font-weight:700;margin-bottom:4px">${data.fallidos > 0 ? '⚠️' : '✅'} Campaña enviada</p>
-      <p style="margin:0">Enviados: <strong>${data.enviados}</strong> · Fallidos: <strong>${data.fallidos}</strong></p>
-      ${data.errores?.length > 0 ? `<p style="font-size:0.72rem;color:#888;margin-top:4px">${data.errores.slice(0,3).join(', ')}</p>` : ''}
-    `
+    if (data.error) {
+      overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1.5rem">${data.error}</p>
+        <button onclick="document.getElementById('envio-masivo-overlay').remove()"
+          style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`
+      return
+    }
+
+    overlay.innerHTML = `<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${data.fallidos === 0 ? '🎉' : '✅'}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem">¡Campaña enviada!</h3>
+      <div style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem">
+        <div><p style="font-size:1.5rem;font-weight:800;color:#25D366;margin:0">${data.enviados}</p><p style="font-size:0.75rem;color:#888;margin:0">enviados</p></div>
+        ${data.fallidos > 0 ? `<div><p style="font-size:1.5rem;font-weight:800;color:#e53e3e;margin:0">${data.fallidos}</p><p style="font-size:0.75rem;color:#888;margin:0">fallidos</p></div>` : ''}
+      </div>
+      ${data.errores?.length > 0 ? `<details style="text-align:left;margin-bottom:1rem"><summary style="font-size:0.78rem;color:#888;cursor:pointer">Ver errores</summary><p style="font-size:0.72rem;color:#c62828;margin-top:6px">${data.errores.slice(0,5).join('<br>')}</p></details>` : ''}
+      <button onclick="document.getElementById('envio-masivo-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`
   } catch(e) {
-    alert('Error: ' + e.message)
-  } finally {
-    btn.textContent = '📣 Enviar campaña'
-    btn.disabled = false
+    overlay.remove()
+    alert('Error de conexión: ' + e.message)
   }
 }
 
@@ -11064,11 +11326,14 @@ window.filtrarProductosEnvioInteractivo = (texto) => {
 }
 
 window.iniciarEnvioInteractivo = async () => {
-  const contactos = window._envioContactos || []
+  const seleccionados = window._envioSeleccionados || new Set()
+  const contactos = (window._envioClientes || [])
+    .filter(c => seleccionados.has(c.telefono))
+    .map(c => ({ telefono: c.telefono, nombre: c.nombre }))
   const skus = Array.from(window._envioProdSeleccionados || new Set())
-  if (!skus.length) { alert('Selecciona al menos un producto'); return }
-  if (!contactos.length) { alert('No hay contactos en la audiencia'); return }
-  if (!confirm(`¿Enviar catálogo interactivo con ${skus.length} producto${skus.length>1?'s':''} a ${contactos.length} contacto${contactos.length>1?'s':''}?`)) return
+  if (!skus.length) { alert('Selecciona al menos un modelo del catálogo'); return }
+  if (!contactos.length) { alert('No hay destinatarios seleccionados'); return }
+  if (!confirm(`¿Enviar catálogo con ${skus.length} modelo${skus.length>1?'s':''} a ${contactos.length} destinatario${contactos.length>1?'s':''} seleccionado${contactos.length>1?'s':''}?`)) return
 
   const overlay = document.createElement('div')
   overlay.id = 'envio-interactivo-overlay'
@@ -11112,43 +11377,121 @@ window.iniciarEnvioInteractivo = async () => {
   }
 }
 
-window.seleccionarImagenProductoEnvio = () => {
-  const sel = document.getElementById('envio-producto-sel')
-  const imgInput = document.getElementById('envio-imagen')
-  const preview = document.getElementById('envio-producto-preview')
-  const previewImg = document.getElementById('envio-producto-img')
-  const previewNombre = document.getElementById('envio-producto-nombre')
-  if (!sel) return
-  const url = sel.value
-  const nombre = sel.options[sel.selectedIndex]?.dataset?.nombre || ''
-  if (url) {
-    if (imgInput) imgInput.value = url
-    if (preview) preview.style.display = 'flex'
-    if (previewImg) previewImg.src = url
-    if (previewNombre) previewNombre.textContent = nombre
-  } else {
-    if (imgInput) imgInput.value = ''
-    if (preview) preview.style.display = 'none'
+// ── Selector modelo→variante para Envíos Masivos ─────────────────
+
+window.cargarProductosEnvio = async () => {
+  // Pre-carga la lista de modelos en segundo plano
+  if (window._envioModelosList) return
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=nombre.asc&limit=500')
+    window._envioModelosList = await res.json()
+  } catch(e) { console.error('Error cargando modelos:', e) }
+}
+
+window.filtrarModelosEnvio = (q) => {
+  const todos = window._envioModelosList || []
+  const lista = document.getElementById('envio-modelos-lista')
+  if (!lista) return
+  if (!q.trim()) {
+    lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>'
+    return
+  }
+  const filtrados = todos.filter(p =>
+    (p.nombre||'').toLowerCase().includes(q.toLowerCase()) ||
+    (p.sku_interno||'').toLowerCase().includes(q.toLowerCase())
+  )
+  if (!filtrados.length) {
+    lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>'
+    return
+  }
+  lista.innerHTML = filtrados.map(p => `
+    <div onclick="seleccionarModeloEnvio('${p.id}', '${(p.nombre||p.sku_interno).replace(/'/g,"\'")}')"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
+         onmouseover="this.style.background='#fff0f8'" onmouseout="this.style.background=''">
+      ${p.imagen_principal
+        ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0">`
+        : `<div style="width:32px;height:32px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
+      <span style="font-size:0.83rem;font-weight:500">${p.nombre || p.sku_interno}</span>
+    </div>`).join('')
+}
+
+window.seleccionarModeloEnvio = async (productoId, nombre) => {
+  const panel = document.getElementById('envio-variantes-panel')
+  const titulo = document.getElementById('envio-variantes-titulo')
+  const grid = document.getElementById('envio-variantes-grid')
+  const buscar = document.getElementById('envio-modelo-buscar')
+  if (!panel || !grid) return
+
+  if (buscar) buscar.value = nombre
+  const lista = document.getElementById('envio-modelos-lista')
+  if (lista) lista.innerHTML = '<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar otro modelo...</p>'
+
+  panel.style.display = 'block'
+  if (titulo) titulo.textContent = nombre + ' — elige el color'
+  grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando colores...</p>'
+
+  try {
+    const res = await fetch(API + '/variantes/producto/' + productoId)
+    const variantes = await res.json()
+    // Agrupar por color, tomar primera foto por color
+    const mapa = {}
+    for (const v of variantes) {
+      if (!v.color) continue
+      if (!mapa[v.color]) mapa[v.color] = { color: v.color, color_hex: v.color_hex || null, foto_url: v.foto_url || null }
+      if (!mapa[v.color].foto_url && v.foto_url) mapa[v.color].foto_url = v.foto_url
+    }
+    const colores = Object.values(mapa)
+    if (!colores.length) {
+      grid.innerHTML = '<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin colores registrados</p>'
+      return
+    }
+    grid.innerHTML = colores.map(c => `
+      <div onclick="${c.foto_url ? `elegirVarianteEnvio('${c.foto_url}', '${nombre} · ${c.color}')` : ''}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid #eee;cursor:${c.foto_url ? 'pointer' : 'default'};opacity:${c.foto_url ? '1' : '0.4'};transition:all 0.15s"
+           onmouseover="${c.foto_url ? "this.style.borderColor='#E91E8C';this.style.background='#fff0f8'" : ''}"
+           onmouseout="${c.foto_url ? "this.style.borderColor='#eee';this.style.background=''" : ''}">
+        <div style="width:22px;height:22px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.83rem;font-weight:600">${c.color}</span>
+        ${c.foto_url
+          ? `<img src="${c.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`
+          : `<span style="font-size:0.7rem;color:#bbb">sin foto</span>`}
+      </div>`).join('')
+  } catch(e) {
+    grid.innerHTML = '<p style="font-size:0.8rem;color:red;padding:4px">Error cargando variantes</p>'
   }
 }
 
-window.limpiarSelProductoEnvio = () => {
-  const sel = document.getElementById('envio-producto-sel')
-  const preview = document.getElementById('envio-producto-preview')
-  if (sel) sel.value = ''
-  if (preview) preview.style.display = 'none'
+window.elegirVarianteEnvio = (fotoUrl, label) => {
+  const input = document.getElementById('envio-imagen')
+  const contenedor = document.getElementById('envio-foto-seleccionada')
+  const img = document.getElementById('envio-foto-img')
+  const lbl = document.getElementById('envio-foto-label')
+  if (input) input.value = fotoUrl
+  if (img) img.src = fotoUrl
+  if (lbl) lbl.textContent = label
+  if (contenedor) contenedor.style.display = 'block'
+  // actualizar preview de la plantilla con la imagen real
+  const burbuja = document.getElementById('plantilla-preview-burbuja')
+  if (burbuja) {
+    const txt = burbuja.textContent
+    if (txt.startsWith('🖼️ [Imagen del producto]')) {
+      // ya está indicado, nada extra
+    }
+  }
+  // mostrar checkmark en la variante seleccionada
+  document.querySelectorAll('#envio-variantes-grid > div').forEach(d => {
+    d.style.borderColor = '#eee'; d.style.background = ''
+  })
+  event?.currentTarget?.closest && (event.currentTarget.style.borderColor = '#25D366')
 }
 
-window.cargarProductosEnvio = async () => {
-  try {
-    const res = await fetch(API + '/productos/')
-    const productos = await res.json()
-    const sel = document.getElementById('envio-producto-sel')
-    if (!sel) return
-    const activos = productos.filter(p => p.activo && p.imagen_principal)
-    sel.innerHTML = '<option value="">Seleccionar producto...</option>' +
-      activos.map(p => `<option value="${p.imagen_principal}" data-nombre="${p.nombre}">${p.nombre}</option>`).join('')
-  } catch(e) { console.error('Error:', e) }
+window.quitarFotoEnvio = () => {
+  const input = document.getElementById('envio-imagen')
+  const contenedor = document.getElementById('envio-foto-seleccionada')
+  const img = document.getElementById('envio-foto-img')
+  if (input) input.value = ''
+  if (img) img.src = ''
+  if (contenedor) contenedor.style.display = 'none'
 }
 
 

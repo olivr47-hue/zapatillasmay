@@ -809,48 +809,106 @@ async def envio_masivo(datos: dict):
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
         phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
         if not wa_token or not phone_id:
-            return JSONResponse(status_code=500, content={"error": "Token no configurado"})
-        plantilla = datos.get("plantilla", "catalogo_completo")
+            return JSONResponse(status_code=500, content={"error": "Faltan variables WHATSAPP_TOKEN o WHATSAPP_PHONE_ID en Railway"})
+        plantilla = datos.get("plantilla", "")
+        idioma = datos.get("idioma", "es_MX")
         contactos = datos.get("contactos", [])
-        imagen_url = datos.get("imagen_url", "")
+        imagen_url = (datos.get("imagen_url") or "").strip()
+        variables_body = datos.get("variables_body", [])  # [{"text": "valor"}]
+        if not plantilla:
+            return JSONResponse(status_code=400, content={"error": "Selecciona una plantilla"})
+        if not contactos:
+            return JSONResponse(status_code=400, content={"error": "No hay contactos"})
+
+        # Plantilla MPM: convertir sku_interno → product_retailer_id reales del catálogo Meta
+        skus_mpm = datos.get("skus_mpm", [])
+        print(f"MPM skus_mpm recibidos: {skus_mpm}")
+        mpm_sections = None
+        if skus_mpm:
+            variantes_db = supabase_get("variantes?activa=eq.true&select=producto_id,color,talla")
+            productos_db = supabase_get("productos?activo=eq.true&select=id,sku_interno")
+            sku_a_id = {p.get("sku_interno"): p.get("id") for p in productos_db if p.get("sku_interno")}
+            pid_a_variante = {}
+            for v in variantes_db:
+                pid = v.get("producto_id")
+                if pid and pid not in pid_a_variante and v.get("color"):
+                    pid_a_variante[pid] = v
+
+            def _retailer_id(sku, variante):
+                color = (variante.get("color") or "").strip()
+                talla = str(variante.get("talla") or "").strip()
+                color_norm = color.replace(" ", "_").replace("/", "_").replace("-", "_").strip("_")
+                return f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
+
+            retailer_ids = []
+            for sku in skus_mpm[:30]:
+                pid = sku_a_id.get(sku)
+                variante = pid_a_variante.get(pid) if pid else None
+                print(f"  sku={sku} pid={pid} variante={variante}")
+                if variante:
+                    rid = _retailer_id(sku, variante)
+                    print(f"  → retailer_id={rid}")
+                    retailer_ids.append(rid)
+
+            print(f"MPM retailer_ids construidos: {retailer_ids}")
+            if retailer_ids:
+                mpm_sections = [{"title": "Nuevos Modelos 👠", "product_items": [{"product_retailer_id": r} for r in retailer_ids]}]
+        print(f"MPM mpm_sections: {mpm_sections}")
+
         enviados = 0
         fallidos = 0
         errores = []
+        url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+        headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+
         for contacto in contactos:
+            telefono = contacto.get("telefono", "")
+            nombre = (contacto.get("nombre") or "Cliente").strip() or "Cliente"
+            if not telefono:
+                continue
+            tel = telefono.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+            if not tel.startswith("52"):
+                tel = "52" + tel
+
+            components = []
+            if imagen_url:
+                components.append({"type": "header", "parameters": [{"type": "image", "image": {"link": imagen_url}}]})
+
+            body_params = []
+            if variables_body:
+                body_params = [{"type": "text", "text": v.get("text", "")} for v in variables_body]
+            elif nombre:
+                body_params = [{"type": "text", "text": nombre}]
+            if body_params:
+                components.append({"type": "body", "parameters": body_params})
+
+            # Componente MPM (catálogo de productos en plantilla)
+            if mpm_sections:
+                components.append({
+                    "type": "button",
+                    "sub_type": "mpm",
+                    "index": "0",
+                    "parameters": [{"type": "action", "action": {"sections": mpm_sections}}]
+                })
+
+            body_msg = {
+                "messaging_product": "whatsapp",
+                "to": tel,
+                "type": "template",
+                "template": {"name": plantilla, "language": {"code": idioma}, "components": components}
+            }
             try:
-                telefono = contacto.get("telefono", "")
-                nombre = contacto.get("nombre", "Cliente")
-                if not telefono:
-                    continue
-                tel = telefono.replace("+", "").replace(" ", "").replace("-", "")
-                if not tel.startswith("52"):
-                    tel = "52" + tel
-                components = []
-                if imagen_url:
-                    components.append({"type": "header", "parameters": [{"type": "image", "image": {"link": imagen_url}}]})
-                if plantilla in ["catalogo_completo"]:
-                    nombre_limpio = (nombre or "Cliente").strip() or "Cliente"
-                    components.append({"type": "body", "parameters": [{"type": "text", "parameter_name": "customer_name", "text": nombre_limpio}]})
-                idiomas = {"catalogo_completo": "en", "nuevos_modelos": "es_MX", "hello_world": "en_US"}
-                idioma = idiomas.get(plantilla, "es_MX")
-                body_msg = {"messaging_product": "whatsapp", "to": tel, "type": "template", "template": {"name": plantilla, "language": {"code": idioma}, "components": components}}
-                url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
-                headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
-                body = json.dumps(body_msg).encode("utf-8")
-                req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-                try:
-                    with urllib.request.urlopen(req) as resp:
-                        enviados += 1
-                except urllib.error.HTTPError as http_e:
-                    error_body = http_e.read().decode()
-                    fallidos += 1
-                    errores.append(f"{telefono}: HTTP {http_e.code} - {error_body}")
-                except Exception as inner_e:
-                    fallidos += 1
-                    errores.append(f"{telefono}: {str(inner_e)}")
-            except Exception as e:
+                req = urllib.request.Request(url, data=json.dumps(body_msg).encode("utf-8"), headers=headers, method="POST")
+                with urllib.request.urlopen(req):
+                    enviados += 1
+            except urllib.error.HTTPError as http_e:
+                error_body = http_e.read().decode()
                 fallidos += 1
-                errores.append(f"{telefono}: {str(e)}")
+                errores.append(f"{telefono}: HTTP {http_e.code} - {error_body[:200]}")
+            except Exception as inner_e:
+                fallidos += 1
+                errores.append(f"{telefono}: {str(inner_e)}")
+
         return {"ok": True, "enviados": enviados, "fallidos": fallidos, "errores": errores}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -861,14 +919,54 @@ async def listar_plantillas():
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
         waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
         if not waba_id:
-            return [{"name": "catalogo_completo", "status": "APPROVED"}, {"name": "nuevos_modelos", "status": "APPROVED"}]
-        url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates?status=APPROVED"
+            return JSONResponse(status_code=500, content={"error": "Falta variable WHATSAPP_WABA_ID en Railway"})
+        url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates?status=APPROVED&limit=50&fields=name,language,status,components,sub_category,category"
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
         return data.get("data", [])
-    except:
-        return [{"name": "catalogo_completo", "status": "APPROVED"}, {"name": "nuevos_modelos", "status": "APPROVED"}]
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API: {body[:300]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/plantillas-debug")
+async def plantillas_debug():
+    """Devuelve estructura RAW de plantillas + ejemplos de retailer_id del catálogo."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+    resultado = {}
+    # Plantillas raw
+    try:
+        url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates?status=APPROVED&limit=10&fields=name,language,status,components,sub_category,category"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            resultado["plantillas"] = json.loads(r.read()).get("data", [])
+    except Exception as e:
+        resultado["plantillas_error"] = str(e)
+    # Primeros productos del catálogo Meta para ver sus retailer_id reales
+    try:
+        url2 = f"https://graph.facebook.com/v25.0/{catalog_id}/products?fields=retailer_id,name&limit=10"
+        req2 = urllib.request.Request(url2, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(req2, timeout=10) as r2:
+            resultado["catalogo_productos"] = json.loads(r2.read())
+    except Exception as e:
+        resultado["catalogo_error"] = str(e)
+    # Primeras variantes de la DB para comparar
+    try:
+        vars_db = supabase_get("variantes?activa=eq.true&select=producto_id,color,talla&limit=5")
+        prods_db = supabase_get("productos?activo=eq.true&select=id,sku_interno&limit=5")
+        sku_map = {p["id"]: p["sku_interno"] for p in prods_db}
+        resultado["variantes_db_ejemplo"] = [
+            {"sku": sku_map.get(v["producto_id"], "?"), "color": v["color"], "talla": v["talla"]}
+            for v in vars_db
+        ]
+    except Exception as e:
+        resultado["variantes_error"] = str(e)
+    return resultado
 
 @router.post("/autoresponder")
 async def autoresponder_webhook(datos: dict):
@@ -885,6 +983,54 @@ async def autoresponder_webhook(datos: dict):
     except Exception as e:
         return {"replies": [{"message": f"Error: {str(e)}"}]}
     
+@router.post("/wa-diagnostico")
+async def wa_diagnostico(datos: dict):
+    """Envía UN mensaje de prueba a un número y devuelve la respuesta exacta de Meta."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+
+    resultado = {
+        "vars": {
+            "WHATSAPP_TOKEN": ("✅ configurado (" + wa_token[:12] + "...)") if wa_token else "❌ VACÍO",
+            "WHATSAPP_PHONE_ID": ("✅ " + phone_id) if phone_id else "❌ VACÍO",
+            "WHATSAPP_WABA_ID": ("✅ " + waba_id) if waba_id else "❌ VACÍO",
+        }
+    }
+
+    telefono = datos.get("telefono", "")
+    plantilla = datos.get("plantilla", "")
+    idioma = datos.get("idioma", "es_MX")
+    if not telefono or not plantilla:
+        return resultado
+
+    tel = telefono.replace("+", "").replace(" ", "").replace("-", "")
+    if not tel.startswith("52"):
+        tel = "52" + tel
+
+    body_msg = {
+        "messaging_product": "whatsapp",
+        "to": tel,
+        "type": "template",
+        "template": {"name": plantilla, "language": {"code": idioma}, "components": []}
+    }
+    url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
+    headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(body_msg).encode(), headers=headers, method="POST")
+        with urllib.request.urlopen(req) as r:
+            resp_body = json.loads(r.read())
+        resultado["meta_response"] = resp_body
+        resultado["status"] = "✅ Meta aceptó el mensaje"
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()
+        resultado["meta_response"] = json.loads(err) if err.startswith('{') else err
+        resultado["status"] = f"❌ Meta rechazó: HTTP {e.code}"
+    except Exception as ex:
+        resultado["status"] = f"❌ Error: {str(ex)}"
+    return resultado
+
+
 @router.get("/catalogo-info")
 async def catalogo_info():
     import httpx
