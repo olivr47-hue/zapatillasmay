@@ -3309,6 +3309,18 @@ window.addEventListener('load', () => {
     try { sessionStorage.removeItem('zm_carrito') } catch(e){}
     carrito = []
     try { recalcularCarrito(); renderCarrito() } catch(e){}
+    // Marcar carrito abandonado como convertido si había uno registrado
+    try {
+      const emailGuardado = localStorage.getItem('zm_checkout_email')
+      if (emailGuardado) {
+        fetch(API + '/carrito-abandonado/guardar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: emailGuardado, items: [], total: 0, convertido: true })
+        }).catch(()=>{})
+        localStorage.removeItem('zm_checkout_email')
+      }
+    } catch(e){}
     setTimeout(() => mostrarPaginaExito(paymentId), 500)
 
   } else if (path === '/pedido-pendiente' || params.get('status') === 'pending') {
@@ -4969,7 +4981,8 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
           <!-- Campos -->
           <div style="display:flex;flex-direction:column;gap:11px">
             <input id="co-nombre" class="co-input" placeholder="Nombre completo *">
-            <input id="co-email" type="email" class="co-input" placeholder="Email *">
+            <input id="co-email" type="email" class="co-input" placeholder="Email *"
+              onblur="zmRegistrarCarritoAbandonado()">
             <input id="co-telefono" type="tel" class="co-input" placeholder="Teléfono *">
             <input id="co-calle" class="co-input" placeholder="Calle y número *">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -5009,6 +5022,31 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
       document.getElementById('co-nombre').value = usuarioActual.nombre || ''
       document.getElementById('co-email').value = usuarioActual.email || ''
     }
+  }
+
+  // ── Carrito abandonado ────────────────────────────────────────────────────
+  async function zmRegistrarCarritoAbandonado() {
+    const email  = document.getElementById('co-email')?.value.trim()
+    const nombre = document.getElementById('co-nombre')?.value.trim()
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
+    if (!carrito.length) return
+    try {
+      const total = carrito.reduce((s, i) => s + ((i.es_corrida ? i.cantidad*6 : i.cantidad) * i.precio_unitario), 0)
+      const items = carrito.map(i => ({
+        nombre:   i.nombre,
+        color:    i.color,
+        talla:    i.talla,
+        cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
+        imagen:   i.imagen || '',
+        precio:   i.precio_unitario
+      }))
+      await fetch(API + '/carrito-abandonado/guardar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, nombre, items, total })
+      })
+      try { localStorage.setItem('zm_checkout_email', email) } catch(e){}
+    } catch(e) {}
   }
 
   async function procesarCheckout() {

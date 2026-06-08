@@ -55,6 +55,11 @@ def guardar(datos: dict):
     if not email or "@" not in email:
         return {"ok": False, "motivo": "email_invalido"}
 
+    # Si viene convertido=True, solo marcar como convertido y salir
+    if datos.get("convertido"):
+        marcar_convertido(email)
+        return {"ok": True, "accion": "convertido"}
+
     items = datos.get("items") or []
     total = datos.get("total") or 0
     nombre = (datos.get("nombre") or "").strip()
