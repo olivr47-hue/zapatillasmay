@@ -204,17 +204,23 @@ def generar_nombres(datos: dict = Body(default={})):
             except Exception:
                 pass
 
-        tacon_parte = f"de {tacon_str} " if tacon_str else ""
+        tacon_parte = f"de {tacon_str}" if tacon_str else ""
         plantilla = PLANTILLAS.get(categoria, "{estilo}calzado de moda")
         descripcion_base = plantilla.format(
             estilo=estilo_str,
-            tacon_parte=tacon_parte
+            tacon_parte=tacon_parte + " " if tacon_parte else ""
         ).strip()
 
-        # Nombre final: SKU original + descripción natural
-        # El SKU siempre se preserva al inicio
-        codigo = sku if sku else nombre.split()[0] if nombre else ""
-        nombre_nuevo = f"{codigo} {descripcion_base}".strip() if codigo else descripcion_base
+        # Limpiar doble "de" (ej: "de verano de 11 cm" → "de verano 11 cm")
+        import re as _re
+        descripcion_base = _re.sub(r'\bde\s+de\b', 'de', descripcion_base)
+        # Quitar "de" o "para" al final si quedó colgado
+        descripcion_base = _re.sub(r'\s+(de|para|y)$', '', descripcion_base).strip()
+
+        # Código: primer token del nombre original (CH2367, MA201, etc.)
+        # NO usar sku_interno — ese es el código interno del sistema
+        codigo_orig = nombre.split()[0] if nombre else (sku or "")
+        nombre_nuevo = f"{codigo_orig} {descripcion_base}".strip() if codigo_orig else descripcion_base
 
         resultados.append({
             "id":          p["id"],
