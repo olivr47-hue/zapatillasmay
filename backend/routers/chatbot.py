@@ -1421,14 +1421,18 @@ def _wa_graph(path: str, method: str = "GET", body: dict = None) -> dict:
         return json.loads(r.read())
 
 def _get_waba_id() -> str:
-    """Obtiene el WABA_ID — primero de la variable de entorno, luego vía Graph API."""
-    waba_env = os.environ.get("WHATSAPP_WABA_ID", "")
-    if waba_env:
-        return waba_env
-    # Fallback: intentar obtenerlo desde el Phone ID
-    phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
-    data = _wa_graph(f"{phone_id}?fields=whatsapp_business_account")
-    return data.get("whatsapp_business_account", {}).get("id", "")
+    """Obtiene el WABA_ID desde cualquiera de los nombres posibles de env var."""
+    for key in ("WHATSAPP_WABA_ID", "WABA_ID", "WA_BUSINESS_ID", "WHATSAPP_BUSINESS_ID"):
+        val = os.environ.get(key, "")
+        if val:
+            return val
+    return ""
+
+@router.get("/templates/debug-env")
+async def debug_env():
+    """Diagnóstico: qué variables WA están configuradas (sin mostrar valores sensibles)."""
+    keys = ["WHATSAPP_TOKEN","WHATSAPP_PHONE_ID","WHATSAPP_WABA_ID","WABA_ID","WA_BUSINESS_ID","WHATSAPP_BUSINESS_ID"]
+    return {k: ("✓ SET" if os.environ.get(k) else "✗ MISSING") for k in keys}
 
 @router.get("/templates")
 async def listar_templates():
