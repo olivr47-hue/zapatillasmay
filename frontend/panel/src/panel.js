@@ -11362,43 +11362,77 @@ window._enviarListaWA = async (telefono) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
-// ── Modal: Carrusel de productos ───────────────────────────────────
-window.mostrarModalCarrusel = (telefono) => {
-  const prods = (window._productosWA || []).filter(p => p.imagen_principal).slice(0, 10)
-  const filas = prods.map((p, i) => `
-    <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;padding:4px 0;cursor:pointer">
-      <input type="checkbox" data-idx="${i}" value="${i}" style="width:14px;height:14px">
-      ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;border-radius:6px;object-fit:cover">` : '<div style="width:32px;height:32px;border-radius:6px;background:#f1f5f9"></div>'}
-      <span style="flex:1">${p.nombre}</span>
-      <span style="color:#E91E8C;font-weight:600">$${p.precio_menudeo}</span>
-    </label>`).join('')
-
+// ── Modal: Carrusel de productos (por variante/color) ─────────────
+window.mostrarModalCarrusel = async (telefono) => {
   const m = _crearModalWA('modal-carrusel-wa', `
-    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar carrusel de productos</h3>
-    <input id="mcr-cuerpo" placeholder="Mensaje (ej: Mira estos modelos 👠)" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:10px">
-    <p style="font-size:0.75rem;color:#64748b;margin:0 0 8px">Selecciona hasta 10 productos:</p>
-    <div style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px">${filas || '<p style="color:#94a3b8;font-size:0.8rem">Sin productos en catálogo</p>'}</div>
-    <div style="display:flex;gap:8px;margin-top:16px">
+    <h3 style="margin:0 0 4px;font-size:1rem;color:#0f172a">Enviar fotos de productos</h3>
+    <p style="margin:0 0 10px;font-size:0.75rem;color:#94a3b8">Selecciona los colores que quieres enviar (máx 10)</p>
+    <input id="mcr-cuerpo" placeholder="Mensaje intro (ej: Mira estos modelos 👠)" value="Mira estos modelos 👠" style="${_inputStyle()};margin-bottom:10px">
+    <div id="mcr-loading" style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">Cargando variantes...</div>
+    <div id="mcr-lista" style="max-height:260px;overflow-y:auto;display:none"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
       <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
-      <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+      <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar fotos</button>
     </div>`)
   document.body.appendChild(m)
+
+  // Cargar variantes agrupadas por producto
+  try {
+    const prods = (window._productosWA || [])
+    // Cargar variantes de todos los productos activos
+    const varsRes = await fetch(API + '/variantes/?activa=eq.true&select=id,producto_id,color,foto_url,imagenes,color_hex')
+    const vars = await varsRes.json()
+
+    // Agrupar: producto → colores únicos con foto
+    const grupos = []
+    prods.forEach(p => {
+      const varsP = vars.filter(v => v.producto_id === p.id)
+      // Colores únicos de este producto
+      const coloresSeen = new Set()
+      varsP.forEach(v => {
+        const key = `${p.id}__${v.color}`
+        if (coloresSeen.has(key)) return
+        coloresSeen.add(key)
+        const img = v.foto_url || (v.imagenes && v.imagenes[0]) || p.imagen_principal || ''
+        if (img) grupos.push({ img, nombre: p.nombre, color: v.color, precio: p.precio_menudeo, color_hex: v.color_hex || '' })
+      })
+      // Si no tiene variantes con foto, usar imagen_principal
+      if (coloresSeen.size === 0 && p.imagen_principal) {
+        grupos.push({ img: p.imagen_principal, nombre: p.nombre, color: '', precio: p.precio_menudeo, color_hex: '' })
+      }
+    })
+
+    const lista = document.getElementById('mcr-lista')
+    const loading = document.getElementById('mcr-loading')
+    if (!lista) return
+    loading.style.display = 'none'
+    lista.style.display = 'block'
+
+    if (!grupos.length) { lista.innerHTML = '<p style="color:#94a3b8;font-size:0.8rem;padding:8px">Sin variantes con foto</p>'; return }
+
+    lista.innerHTML = grupos.map((g, i) => `
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;padding:5px 4px;cursor:pointer;border-bottom:1px solid #f8fafc">
+        <input type="checkbox" data-img="${g.img}" data-texto="${g.nombre}${g.color ? ' · ' + g.color : ''} — $${g.precio} MXN" style="width:14px;height:14px;flex-shrink:0">
+        <img src="${g.img}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
+        <span style="flex:1;line-height:1.3">${g.nombre}<br><span style="color:#94a3b8;font-size:0.72rem">${g.color || 'Color único'}</span></span>
+        <span style="color:#E91E8C;font-weight:600;font-size:0.8rem">$${g.precio}</span>
+      </label>`).join('')
+  } catch(e) {
+    const loading = document.getElementById('mcr-loading')
+    if (loading) loading.textContent = 'Error cargando variantes'
+  }
 }
 
 window._enviarCarruselWA = async (telefono) => {
   const cuerpo = document.getElementById('mcr-cuerpo')?.value.trim() || 'Mira estos modelos'
   const checked = [...document.querySelectorAll('#modal-carrusel-wa input[type=checkbox]:checked')]
-  if (!checked.length) { alert('Selecciona al menos un producto'); return }
-  const prods = window._productosWA || []
+  if (!checked.length) { alert('Selecciona al menos una foto'); return }
+  if (checked.length > 10) { alert('Máximo 10 fotos a la vez'); return }
   const agente = window._empleadoActual?.nombre || 'Admin'
-  const tarjetas = checked.map(cb => {
-    const p = prods[parseInt(cb.value)]
-    return {
-      imagen_url: p.imagen_principal || '',
-      texto: `${p.nombre} — $${p.precio_menudeo} MXN`,
-      botones: [{ id: `comprar_${p.id}`, titulo: 'Me interesa' }]
-    }
-  })
+  const tarjetas = checked.map(cb => ({
+    imagen_url: cb.dataset.img,
+    texto: cb.dataset.texto || ''
+  }))
   document.getElementById('modal-carrusel-wa')?.remove()
   try {
     await fetch(API + '/chatbot/chats/' + telefono + '/carrusel', {
