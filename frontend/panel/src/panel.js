@@ -185,20 +185,13 @@ export function renderPanel() {
         const chat = window._chatsData[window._chatActivo]
         const mensajesArea = document.getElementById('mensajes-area')
         if (mensajesArea) {
-          const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 50
-          mensajesArea.innerHTML = [...chat.mensajes].reverse().map(m => {
-            const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
-            return `
-              <div style="display:flex;flex-direction:column;gap:4px">
-                ${m.mensaje ? '<div style="display:flex;flex-direction:column;align-items:' + (esSaliente ? 'flex-end' : 'flex-start') + '"><div style="max-width:70%;background:' + (esSaliente ? '#cfe9ff' : '#f5f5f5') + ';border-radius:' + (esSaliente ? '12px 12px 0 12px' : '12px 12px 12px 0') + ';padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)">' + window.renderMensaje(m) + '<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">' + new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'}) + '</p></div></div>' : ''} 
-                ${m.respuesta ? `<div style="display:flex;flex-direction:column;align-items:flex-end"><div style="max-width:70%;background:#dcf8c6;border-radius:12px 12px 0 12px;padding:8px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.08)"><p style="font-size:0.62rem;color:#2e7d32;margin-bottom:2px">🤖 Bot</p><p style="font-size:0.85rem;color:#333;white-space:pre-wrap">${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}<p style="font-size:0.62rem;color:#aaa;text-align:right;margin-top:2px">${new Date(m.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p></div></div>` : ''}
-              </div>`
-          }).join('')
+          const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 60
+          mensajesArea.innerHTML = window._renderBurbujas(chat)
           if (estaAbajo) mensajesArea.scrollTop = mensajesArea.scrollHeight
         }
       }
     } catch(e) {}
-  }, 30000)
+  }, 8000)
 
  // ── Polling: pedidos por enviar ───────────────────────────────────
 let _ultimosPedidosPorEnviar = new Set()
@@ -10411,6 +10404,34 @@ window.renderMensaje = (m, esManual, nombreContacto) => {
 }
 
 
+// Función compartida de render de burbujas — usada por abrirChat y el polling
+window._renderBurbujas = (chat) => {
+  return [...chat.mensajes].reverse().map(m => {
+    const esManual = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
+    const senderName = esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
+    const _imgUrl = m.tipo === 'imagen_saliente' ? m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() : ''
+    const msgBody = (m.tipo === 'imagen_saliente' && _imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i))
+      ? `<img src="${_imgUrl}" style="max-width:200px;border-radius:8px;display:block">`
+      : `<p>${m.mensaje.replace(/\[.+?\]:\s*/, '')}</p>`
+    const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+    return `
+      ${m.mensaje ? `
+        <div class="wa-msg-row ${esManual ? 'saliente' : 'entrante'}">
+          <span class="wa-msg-sender">${esManual ? senderName : senderName}</span>
+          <div class="wa-bubble ${esManual ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}</div></div>
+        </div>` : ''}
+      ${m.respuesta ? `
+        <div class="wa-msg-row saliente">
+          <span class="wa-msg-sender" style="color:#7c3aed;font-size:0.6rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Bot</span>
+          <div class="wa-bubble bot">
+            <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>
+            ${(m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('')}
+            <div class="wa-bubble-time">${ts}</div>
+          </div>
+        </div>` : ''}`
+  }).join('')
+}
+
 window.abrirChat = async (telefono) => {
   const chat = window._chatsData[telefono]
   if (!chat) return
@@ -10445,18 +10466,18 @@ area.style.minHeight = '0'
       </div>
       <div class="wa-header-actions">
         ${chat.en_control
-          ? `<button onclick="toggleControl('${telefono}', false)" class="wa-circ-btn wa-circ-on" title="Activar bot">🤖</button>`
-          : `<button onclick="toggleControl('${telefono}', true)" class="wa-circ-btn wa-circ-off" title="Tomar control">👤</button>`}
-        <button onclick="mostrarCatalogoWA('${telefono}')" class="wa-circ-btn wa-circ-prod" title="Catálogo">👠</button>
-        <button onclick="mostrarRespuestasRapidas('${telefono}')" class="wa-circ-btn wa-circ-quick" title="Resp. rápidas">⚡</button>
-        <button onclick="window.cargarConversaciones()" class="wa-circ-btn wa-circ-reload" title="Recargar">↺</button>
+          ? `<button onclick="toggleControl('${telefono}', false)" class="wa-btn wa-btn-on" title="Activar bot automático">Bot</button>`
+          : `<button onclick="toggleControl('${telefono}', true)" class="wa-btn wa-btn-off" title="Tomar control manual">Manual</button>`}
+        <button onclick="mostrarCatalogoWA('${telefono}')" class="wa-btn wa-btn-prod" title="Enviar producto">Catálogo</button>
+        <button onclick="mostrarRespuestasRapidas('${telefono}')" class="wa-btn wa-btn-quick" title="Respuestas rápidas">Rápidas</button>
+        <button onclick="window.cargarConversaciones()" class="wa-btn wa-btn-reload" title="Recargar">↺</button>
       </div>
     </div>
 
     <!-- Sub-header: estado + etiqueta -->
     <div class="wa-subheader">
       <span class="wa-bot-badge ${chat.en_control ? 'manual' : 'auto'}">
-        ${chat.en_control ? '👤 Manual' : '🤖 Bot activo'}
+        ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
       <select onchange="cambiarEtiqueta('${telefono}', this.value)" class="wa-label-select-sm">
         <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>⚪ Sin etiqueta</option>
@@ -10470,31 +10491,7 @@ area.style.minHeight = '0'
 
     <!-- Mensajes -->
     <div id="mensajes-area">
-      ${[...chat.mensajes].reverse().map(m => {
-  const esManual = m.tipo === 'manual' || m.tipo === 'imagen_saliente'
-  const senderName = esManual ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
-  const _imgUrl = m.tipo === 'imagen_saliente' ? m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim() : ''
-  const msgBody = (m.tipo === 'imagen_saliente' && _imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i))
-    ? '<img src="' + _imgUrl + '" style="max-width:200px;border-radius:8px;display:block">'
-    : '<p>' + m.mensaje.replace(/\[.+?\]:\s*/, '') + '</p>'
-  const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
-  return `
-    ${m.mensaje ? `
-      <div class="wa-msg-row ${esManual ? 'saliente' : 'entrante'}">
-        <span class="wa-msg-sender">${esManual ? '👤 ' + senderName : senderName}</span>
-        <div class="wa-bubble ${esManual ? 'saliente' : 'entrante'}">${msgBody}<div class="wa-bubble-time">${ts}</div></div>
-      </div>` : ''}
-    ${m.respuesta ? `
-      <div class="wa-msg-row saliente">
-        <span class="wa-msg-sender">🤖 Bot</span>
-        <div class="wa-bubble bot">
-          <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>
-          ${m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi) ? m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('') : ''}
-          <div class="wa-bubble-time">${ts}</div>
-        </div>
-      </div>` : ''}
-  `
-}).join('')}
+      ${window._renderBurbujas(chat)}
     </div>
 
     <!-- Input -->
@@ -10563,10 +10560,12 @@ window.volverChats = () => {
   document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const chatArea = document.getElementById('chat-area')
   if (chatArea) chatArea.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);flex-direction:column;gap:14px">
-      <p style="font-size:3rem;line-height:1">💬</p>
-      <p style="font-weight:700;color:var(--text-2);font-size:1rem">Selecciona una conversación</p>
-      <p style="font-size:0.83rem">para ver los mensajes</p>
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(233,30,140,0.08);border:1.5px solid rgba(233,30,140,0.15);display:flex;align-items:center;justify-content:center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <p style="font-weight:700;color:#0f172a;font-size:0.95rem;margin:0">Selecciona una conversación</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin:0">para ver los mensajes</p>
     </div>
   `
 }
