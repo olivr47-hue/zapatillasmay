@@ -815,6 +815,7 @@ async def envio_masivo(datos: dict):
         contactos = datos.get("contactos", [])
         imagen_url = (datos.get("imagen_url") or "").strip()
         variables_body = datos.get("variables_body", [])  # [{"text": "valor"}]
+        body_vars_count = datos.get("body_vars_count", 1)  # 0 = template has no {{N}} vars
         if not plantilla:
             return JSONResponse(status_code=400, content={"error": "Selecciona una plantilla"})
         if not contactos:
@@ -822,7 +823,6 @@ async def envio_masivo(datos: dict):
 
         # Plantilla MPM: convertir sku_interno → product_retailer_id reales del catálogo Meta
         skus_mpm = datos.get("skus_mpm", [])
-        print(f"MPM skus_mpm recibidos: {skus_mpm}")
         mpm_sections = None
         if skus_mpm:
             variantes_db = supabase_get("variantes?activa=eq.true&select=producto_id,color,talla")
@@ -844,16 +844,11 @@ async def envio_masivo(datos: dict):
             for sku in skus_mpm[:30]:
                 pid = sku_a_id.get(sku)
                 variante = pid_a_variante.get(pid) if pid else None
-                print(f"  sku={sku} pid={pid} variante={variante}")
                 if variante:
-                    rid = _retailer_id(sku, variante)
-                    print(f"  → retailer_id={rid}")
-                    retailer_ids.append(rid)
+                    retailer_ids.append(_retailer_id(sku, variante))
 
-            print(f"MPM retailer_ids construidos: {retailer_ids}")
             if retailer_ids:
                 mpm_sections = [{"title": "Nuevos Modelos 👠", "product_items": [{"product_retailer_id": r} for r in retailer_ids]}]
-        print(f"MPM mpm_sections: {mpm_sections}")
 
         enviados = 0
         fallidos = 0
@@ -875,10 +870,11 @@ async def envio_masivo(datos: dict):
                 components.append({"type": "header", "parameters": [{"type": "image", "image": {"link": imagen_url}}]})
 
             body_params = []
-            if variables_body:
-                body_params = [{"type": "text", "text": v.get("text", "")} for v in variables_body]
-            elif nombre:
-                body_params = [{"type": "text", "text": nombre}]
+            if body_vars_count > 0:
+                if variables_body:
+                    body_params = [{"type": "text", "text": v.get("text", "")} for v in variables_body]
+                elif nombre:
+                    body_params = [{"type": "text", "text": nombre}]
             if body_params:
                 components.append({"type": "body", "parameters": body_params})
 
