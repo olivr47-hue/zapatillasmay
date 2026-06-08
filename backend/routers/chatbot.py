@@ -1421,7 +1421,11 @@ def _wa_graph(path: str, method: str = "GET", body: dict = None) -> dict:
         return json.loads(r.read())
 
 def _get_waba_id() -> str:
-    """Obtiene el WABA_ID a partir del Phone ID configurado."""
+    """Obtiene el WABA_ID — primero de la variable de entorno, luego vía Graph API."""
+    waba_env = os.environ.get("WHATSAPP_WABA_ID", "")
+    if waba_env:
+        return waba_env
+    # Fallback: intentar obtenerlo desde el Phone ID
     phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
     data = _wa_graph(f"{phone_id}?fields=whatsapp_business_account")
     return data.get("whatsapp_business_account", {}).get("id", "")
