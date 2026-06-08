@@ -156,19 +156,19 @@ function animateHero() {
   const selectors = ['.hero-eyebrow','.hero-title','.hero-subtitle','.hero-cta','.hero-garantias']
   const els = selectors.map(s => content.querySelector(s)).filter(Boolean)
 
-  // Asegurar estado inicial invisible (por si el CSS no lo aplicó aún)
-  els.forEach(el => {
-    el.style.opacity = '0'
-    el.style.transform = 'translateY(28px)'
-  })
-
-  // Stagger JS: más fiable que CSS animations en Android
   els.forEach((el, i) => {
-    setTimeout(() => {
-      el.style.transition = 'opacity 0.7s cubic-bezier(0.23,1,0.32,1), transform 0.7s cubic-bezier(0.23,1,0.32,1)'
+    // Web Animations API — más fiable que CSS transitions en Android
+    const anim = el.animate(
+      [{ opacity: 0, transform: 'translateY(28px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      { duration: noMotion ? 1 : 700, delay: noMotion ? 0 : 150 + i * 130,
+        easing: 'cubic-bezier(0.23,1,0.32,1)', fill: 'forwards' }
+    )
+    // Mantener estado final visible cuando termina
+    anim.onfinish = () => {
       el.style.opacity = '1'
-      el.style.transform = 'translateY(0)'
-    }, noMotion ? 0 : 200 + i * 130)
+      el.style.transform = 'none'
+      anim.cancel()
+    }
   })
 }
 
