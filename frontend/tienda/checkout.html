@@ -122,7 +122,13 @@
     .checkout-sticky-btn { flex-shrink:0; padding:14px 24px; background:linear-gradient(135deg,#C8967A,#b5687a); color:white; border:none; border-radius:100px; font-family:var(--font-body); font-size:0.88rem; font-weight:700; cursor:pointer; box-shadow:0 4px 16px rgba(200,150,122,0.4); transition:transform 0.2s; }
     .checkout-sticky-btn:active { transform:scale(0.97); }
     .checkout-sticky-btn:disabled { opacity:0.6; cursor:not-allowed; }
-    @media (max-width: 760px) { .checkout-sticky { display:block; } body { padding-bottom:90px; } }
+    @media (max-width: 760px) {
+      .checkout-sticky { display:block; }
+      body { padding-bottom:90px; }
+      .page { padding-left: 20px; padding-right: 20px; }
+      .card { padding: 18px 16px; }
+      .resumen-row.total .val { font-size: 1.1rem; }
+    }
   </style>
 </head>
 <body>
