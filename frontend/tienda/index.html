@@ -3266,8 +3266,9 @@ window.addEventListener('load', () => {
     const paymentId = params.get('payment_id')
     // Valor real guardado en checkout antes de ir a MercadoPago (merchant_order_id NO es el monto)
     let _valor = 0, _ids = []
-    try { _valor = parseFloat(sessionStorage.getItem('zm_purchase_value') || '0') } catch(e){}
-    try { _ids = JSON.parse(sessionStorage.getItem('fbq_checkout_ids') || '[]') } catch(e){}
+    // localStorage (no sessionStorage) — sobrevive el redirect de MercadoPago en móvil
+    try { _valor = parseFloat(localStorage.getItem('zm_purchase_value') || '0') } catch(e){}
+    try { _ids = JSON.parse(localStorage.getItem('fbq_checkout_ids') || '[]') } catch(e){}
     window._pendingPurchase = { valor: _valor, ids: _ids, paymentId }
     _intentarPurchase()  // intenta ya (si los pixeles cargaron); si no, cargarConfigSEO reintenta
     // Vaciar carrito tras compra exitosa
@@ -3286,7 +3287,13 @@ window.addEventListener('load', () => {
         localStorage.removeItem('zm_checkout_email')
       }
     } catch(e){}
-    setTimeout(() => mostrarPaginaExito(paymentId), 500)
+    // Limpiar claves de localStorage ya usadas
+    try {
+      localStorage.removeItem('zm_purchase_value')
+      localStorage.removeItem('fbq_checkout_ids')
+    } catch(e){}
+    const _pedidoId = (() => { try { return localStorage.getItem('zm_checkout_pedido_id') || '' } catch(e) { return '' } })()
+    setTimeout(() => mostrarPaginaExito(paymentId, _pedidoId), 500)
 
   } else if (path === '/pedido-pendiente' || params.get('status') === 'pending') {
     // SPEI u otro método pendiente — limpiar carrito y mostrar pantalla de espera
@@ -3476,7 +3483,7 @@ window.addEventListener('load', () => {
     if (window.fbq) fbq('track', 'Purchase', { value: pp.valor, currency: 'MXN', content_type: 'product', content_ids: pp.ids })
     if (window.ttq) ttq.track('CompletePayment', { value: pp.valor, currency: 'MXN', contents: (pp.ids||[]).map(id=>({content_id:id})) })
     if (typeof gtag === 'function') gtag('event', 'purchase', { transaction_id: pp.paymentId || String(Date.now()), currency: 'MXN', value: pp.valor })
-    try { sessionStorage.removeItem('fbq_checkout_ids'); sessionStorage.removeItem('zm_purchase_value') } catch(e){}
+    try { localStorage.removeItem('fbq_checkout_ids'); localStorage.removeItem('zm_purchase_value') } catch(e){}
     window._pendingPurchase = null
   }
 
@@ -3930,6 +3937,38 @@ if (window.ttq) ttq.track('ViewContent', {
 
     document.getElementById('modal-overlay').classList.add('active')
     document.body.style.overflow = 'hidden'
+
+    // Animación entrada modal
+    requestAnimationFrame(function() {
+      var imgWrapAnim  = document.getElementById('modal-img-wrap');
+      var thumbRow     = document.getElementById('modal-thumb-row');
+      var modalInfo    = document.querySelector('.modal-info');
+      var infoChildren = modalInfo ? Array.from(modalInfo.children) : [];
+      var modalActions = document.querySelector('.modal-actions');
+
+      gsap.fromTo(imgWrapAnim,
+        { opacity: 0, scale: 0.96, y: 14 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: 'power3.out', clearProps: 'transform' }
+      );
+      if (thumbRow && thumbRow.style.display !== 'none') {
+        gsap.fromTo(thumbRow,
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', delay: 0.1, clearProps: 'transform' }
+        );
+      }
+      if (infoChildren.length) {
+        gsap.fromTo(infoChildren,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.42, ease: 'power2.out', stagger: 0.07, delay: 0.08, clearProps: 'transform' }
+        );
+      }
+      if (modalActions) {
+        gsap.fromTo(modalActions,
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out', delay: 0.28, clearProps: 'transform' }
+        );
+      }
+    });
     // Schema dinámico del producto
   const schemaAnterior = document.getElementById('schema-producto')
   if (schemaAnterior) schemaAnterior.remove()
@@ -4499,24 +4538,47 @@ if (window.ttq) ttq.track('AddToCart', {
       : ''
   }
   // ─────────────────────────────────────────────────────────
-  function mostrarPaginaExito(paymentId) {
+  function mostrarPaginaExito(paymentId, pedidoId) {
   const hero = document.getElementById('hero-section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
   if (hero) hero.style.display = 'none'
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none')
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
 
+  // Limpiar pedido_id guardado
+  try { localStorage.removeItem('zm_checkout_pedido_id') } catch(e){}
+
+  const numPedido = pedidoId ? pedidoId.toString().substring(0,8).toUpperCase() : (paymentId ? paymentId.toString().substring(0,8) : '')
+  const numPedidoHTML = numPedido
+    ? `<p style="font-size:0.72rem;color:#aaa;margin-bottom:22px;font-family:monospace;background:#f7f7f7;display:inline-block;padding:5px 14px;border-radius:100px">Pedido #${numPedido}</p>`
+    : ''
+
   const pagina = document.getElementById('pagina-interna')
   const contenido = document.getElementById('pagina-contenido')
   contenido.innerHTML = `
     <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:linear-gradient(160deg,#f7ede4,#f2e4d8)">
-      <div style="text-align:center;max-width:480px;background:white;border-radius:24px;padding:48px 36px;box-shadow:0 16px 48px rgba(90,40,10,0.12);border:1px solid rgba(200,150,122,0.15)">
-        <div style="width:84px;height:84px;margin:0 auto 24px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-size:2.4rem;box-shadow:0 8px 24px rgba(200,150,122,0.4);animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)">🎉</div>
-        <p style="font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#C8967A;margin-bottom:10px">Pedido confirmado</p>
-        <h2 style="font-family:var(--font-display);font-size:2.6rem;font-weight:400;margin-bottom:14px;color:#2A1A0E;line-height:1.05">¡Gracias por tu <em style="font-style:italic;color:#b5687a">compra!</em></h2>
-        <p style="color:#5a4030;margin-bottom:6px;line-height:1.6">Tu pedido ha sido confirmado con éxito.</p>
-        <p style="font-size:0.84rem;color:#C4A38A;margin-bottom:32px;line-height:1.6">📱 En breve recibirás los detalles y seguimiento por WhatsApp.</p>
-        <button onclick="mostrarInicio();window.history.pushState({},'','/')" class="btn-primary" style="border-radius:100px">Seguir comprando</button>
+      <div style="text-align:center;max-width:480px;background:white;border-radius:24px;padding:44px 32px;box-shadow:0 16px 48px rgba(90,40,10,0.12);border:1px solid rgba(200,150,122,0.15)">
+        <div style="width:84px;height:84px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-size:2.4rem;box-shadow:0 8px 24px rgba(200,150,122,0.4);animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)">🎉</div>
+        <p style="font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#C8967A;margin-bottom:8px">Pedido confirmado</p>
+        <h2 style="font-family:var(--font-display);font-size:2.4rem;font-weight:400;margin-bottom:10px;color:#2A1A0E;line-height:1.05">¡Gracias por tu <em style="font-style:italic;color:#b5687a">compra!</em></h2>
+        ${numPedidoHTML}
+        <p style="color:#5a4030;margin-bottom:6px;line-height:1.6;font-size:0.9rem">Tu pedido ha sido confirmado. Te contactaremos por WhatsApp con los detalles y el seguimiento.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
+          <a href="https://wa.me/524792244560?text=${encodeURIComponent('¡Hola! Acabo de realizar mi pedido' + (numPedido ? ' #' + numPedido : '') + '. ¿Cuándo me lo envían?')}"
+             target="_blank" rel="noopener"
+             style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:linear-gradient(135deg,#25D366,#128C7E);color:white;border-radius:100px;text-decoration:none;font-weight:700;font-size:0.9rem">
+            💬 Seguimiento por WhatsApp
+          </a>
+          <a href="https://wa.me/524792244560?text=${encodeURIComponent('¡Hola! Quiero dejar una reseña de mi compra' + (numPedido ? ' #' + numPedido : '') + ' 😊')}"
+             target="_blank" rel="noopener"
+             style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;background:transparent;border:1.5px solid rgba(200,150,122,0.3);color:#8B6A54;border-radius:100px;text-decoration:none;font-weight:600;font-size:0.88rem">
+            ⭐ Dejar una reseña
+          </a>
+          <button onclick="mostrarInicio();window.history.pushState({},'','/')"
+                  style="padding:13px;background:transparent;border:none;font-family:var(--font-body);font-size:0.85rem;color:#C4A38A;cursor:pointer;text-decoration:underline">
+            Seguir comprando
+          </button>
+        </div>
       </div>
     </div>
     <style>@keyframes popIn{from{opacity:0;transform:scale(0.5)}to{opacity:1;transform:scale(1)}}</style>

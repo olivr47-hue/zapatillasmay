@@ -450,11 +450,14 @@ async function procesarPago() {
     console.log('Respuesta /pagos/crear-preferencia:', resPago.status, pagoRaw)
     const pago = JSON.parse(pagoRaw)
     if (!pago.init_point) throw new Error(pago.error || pago.detail || pago.message || JSON.stringify(pago))
-    // Guardar IDs y valor para el evento Purchase tras volver de MercadoPago
+    // Guardar IDs, valor y email para el evento Purchase tras volver de MercadoPago
+    // IMPORTANTE: localStorage, no sessionStorage — la sesión puede morir en el redirect
     try {
       const ids = carrito.map(i => i.sku_interno || i.producto_id).filter(Boolean)
-      sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(ids))
-      sessionStorage.setItem('zm_purchase_value', String(totalFinal))
+      localStorage.setItem('fbq_checkout_ids', JSON.stringify(ids))
+      localStorage.setItem('zm_purchase_value', String(totalFinal))
+      localStorage.setItem('zm_checkout_email', email)  // para marcar carrito abandonado como convertido
+      localStorage.setItem('zm_checkout_pedido_id', String(pedido.id))  // para mostrar # pedido en éxito
     } catch(e) {}
     // Evento: AddPaymentInfo (intención de pago confirmada)
     if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
