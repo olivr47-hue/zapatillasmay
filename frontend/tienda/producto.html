@@ -567,10 +567,16 @@ function renderProducto() {
     ${envioGratisNote}
 
     ${colores.length ? `
-    <p class="section-label">Color <span id="color-label" style="text-transform:none;letter-spacing:0;color:var(--black);font-size:0.78rem;font-weight:600;margin-left:4px"></span></p>
+    <p class="section-label">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--tan);color:white;border-radius:50%;font-size:0.6rem;font-weight:700;margin-right:6px;flex-shrink:0">1</span>
+      Color <span id="color-label" style="text-transform:none;letter-spacing:0;color:var(--black);font-size:0.78rem;font-weight:600;margin-left:4px"></span>
+    </p>
     <div class="color-grid" id="color-grid"></div>` : ''}
 
-    <p class="section-label">Talla</p>
+    <p class="section-label" id="talla-section-label">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#ddd;color:#999;border-radius:50%;font-size:0.6rem;font-weight:700;margin-right:6px;flex-shrink:0;transition:all 0.3s" id="talla-step-num">${colores.length ? '2' : '1'}</span>
+      Talla <span id="talla-hint-text" style="text-transform:none;letter-spacing:0;font-size:0.72rem;font-weight:400;color:var(--gray);margin-left:4px">${colores.length ? '— primero elige un color' : ''}</span>
+    </p>
     <div class="talla-grid" id="talla-grid"></div>
 
     <div class="share-row">
@@ -679,6 +685,11 @@ function seleccionarColor(color) {
 
   // Renderizar tallas para este color
   renderTallas(color, varsProd)
+  // Activar visualmente el paso 2 (talla)
+  const stepNum = document.getElementById('talla-step-num')
+  const tallaHint = document.getElementById('talla-hint-text')
+  if (stepNum) { stepNum.style.background = 'var(--tan)'; stepNum.style.color = 'white' }
+  if (tallaHint) tallaHint.textContent = '— elige tu talla'
   actualizarCTA()
 }
 
@@ -687,6 +698,8 @@ function seleccionarTalla(talla) {
   document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('active'))
   const btn = document.getElementById('tbtn-' + talla.replace('.','_'))
   if (btn) btn.classList.add('active')
+  const tallaHint = document.getElementById('talla-hint-text')
+  if (tallaHint) tallaHint.textContent = ''
   actualizarCTA()
 }
 
@@ -930,6 +943,14 @@ document.addEventListener('visibilitychange', () => {
 
 // Forzar recarga si el navegador restaura desde bfcache (evita mostrar producto equivocado)
 window.addEventListener('pageshow', (e) => { if (e.persisted) window.location.reload() })
+
+// M3: refrescar nota de envío si el carrito cambia desde otra pestaña
+window.addEventListener('storage', e => {
+  if (e.key !== 'zm_carrito') return
+  const noteEl = document.getElementById('envio-note-producto')
+  if (noteEl) noteEl.innerHTML = envioHTML()
+  try { _actualizarBadgeCarrito(JSON.parse(e.newValue || '[]')) } catch(err) {}
+})
 
 init()
 </script>

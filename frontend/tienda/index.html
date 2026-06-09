@@ -3298,6 +3298,8 @@ window.addEventListener('load', () => {
   } else if (path === '/pedido-pendiente' || params.get('status') === 'pending') {
     // SPEI u otro método pendiente — limpiar carrito y mostrar pantalla de espera
     try { localStorage.removeItem('zm_carrito') } catch(e){}
+    // A5: limpiar claves de compra para no contaminar un Purchase futuro
+    try { localStorage.removeItem('zm_purchase_value'); localStorage.removeItem('fbq_checkout_ids') } catch(e){}
     carrito = []
     try { recalcularCarrito(); renderCarrito() } catch(e){}
     const extRef = params.get('external_reference') || ''
@@ -4148,22 +4150,26 @@ if (window.ttq) ttq.track('ViewContent', {
   const _cn = (colorSeleccionado||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
   const _t = (tallaSeleccionada||'').trim()
   const _varId = _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
+  const _precioPixel = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
   fbq('track', 'AddToCart', {
     content_ids: [_varId],
     content_type: 'product',
     content_name: p.nombre,
-    value: p.precio_menudeo + 80,
+    value: _precioPixel,
     currency: 'MXN'
   })
 }
-if (window.ttq) ttq.track('AddToCart', {
-  content_id: p.sku_interno || p.id,
-  content_type: 'product',
-  content_name: p.nombre,
-  value: p.precio_menudeo + 80,
-  price: p.precio_menudeo + 80,
-  currency: 'MXN'
-})
+if (window.ttq) {
+  const _precioTTQ = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
+  ttq.track('AddToCart', {
+    content_id: p.sku_interno || p.id,
+    content_type: 'product',
+    content_name: p.nombre,
+    value: _precioTTQ,
+    price: _precioTTQ,
+    currency: 'MXN'
+  })
+}
     // GA4: add_to_cart
     if (typeof gtag === 'function') gtag('event', 'add_to_cart', {
       currency: 'MXN',

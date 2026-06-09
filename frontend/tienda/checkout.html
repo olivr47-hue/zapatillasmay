@@ -217,12 +217,18 @@
           <span class="pago-badge">💰 MercadoPago</span>
         </div>
 
+        <!-- Guía paso 1: visible hasta que pasen al paso 2 -->
+        <div id="paso1-hint" style="text-align:center;padding:14px 0 2px;font-size:0.8rem;color:var(--gray-light)">
+          Completa tus datos de contacto y dirección<br>para continuar al pago seguro 🔒
+        </div>
+
         <button class="btn-pagar" id="btn-pagar" onclick="procesarPago()" style="display:none">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           Pagar ahora
         </button>
         <a href="/carrito" class="btn-volver">Volver al carrito</a>
         <p class="secure-note">🔒 Pago protegido por MercadoPago</p>
+        <p class="secure-note" style="margin-top:6px">↩ <a href="/politica-de-devoluciones" target="_blank" style="color:var(--gray-light);text-decoration:underline">Devolución en 30 días</a> · Sin preguntas</p>
       </div>
     </div>
   </div>
@@ -318,6 +324,7 @@ function render() {
     h += `<div class="resumen-row"><span>Envío 🚚</span><span>$${costoEnvio.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   }
   h += `<div class="resumen-row total"><span>Total</span><span class="val">$${totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN</span></div>`
+  h += `<div style="margin-top:10px;padding:9px 12px;background:rgba(200,150,122,0.07);border-radius:10px;font-size:0.73rem;color:var(--gray);display:flex;align-items:center;gap:7px"><span>📦</span><span>Entrega estimada <strong style="color:var(--black)">3-7 días hábiles</strong> a todo México</span></div>`
   document.getElementById('resumen-totales').innerHTML = h
 
   window._totalFinal = totalFinal
@@ -347,6 +354,26 @@ function irAPaso2() {
   })
   if (primerVacio) { mostrarToast(`Falta: ${primerVacio.label}`); primerVacio.el?.focus(); return }
 
+  // Validar formato email
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const el = document.getElementById('co-email')
+    if (el) el.style.borderColor = '#e74c3c'
+    mostrarToast('Email inválido (ej: nombre@correo.com)')
+    document.getElementById('co-email')?.focus()
+    return
+  }
+  // Validar teléfono 10 dígitos
+  if (telefono.replace(/\D/g,'').length < 10) {
+    const el = document.getElementById('co-telefono')
+    if (el) el.style.borderColor = '#e74c3c'
+    mostrarToast('Teléfono debe tener 10 dígitos')
+    document.getElementById('co-telefono')?.focus()
+    return
+  }
+
+  // Guardar datos para autocompletar en próxima visita (anónimo)
+  try { localStorage.setItem('zm_form_datos', JSON.stringify({ nombre, email, telefono })) } catch(e) {}
+
   // Guardar el email para carrito abandonado ahora que lo tenemos
   const items = leerCarrito()
   if (items.length && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -361,6 +388,9 @@ function irAPaso2() {
   document.getElementById('step-contacto').style.display = 'none'
   document.getElementById('step-direccion').style.display = 'block'
   document.getElementById('btn-pagar').style.display = 'flex'
+  // Ocultar guía paso 1, ya no se necesita
+  const hint1 = document.getElementById('paso1-hint')
+  if (hint1) hint1.style.display = 'none'
 
   // Actualizar sticky
   const stickyEl = document.getElementById('checkout-sticky')
@@ -440,6 +470,8 @@ async function procesarPago() {
     if (!pedido.id) throw new Error(pedido.error || pedido.detail || 'Error creando pedido')
     // Guardar dirección en la cuenta del cliente si está logueado
     guardarDatosEnCuenta({ nombre, telefono, calle, colonia, cp, ciudad, estado })
+    // Guardar dirección completa para próxima compra anónima
+    try { localStorage.setItem('zm_form_datos', JSON.stringify({ nombre, email, telefono, calle, colonia, cp, ciudad, estado })) } catch(e) {}
     const mpItems = carrito.map(i => ({ nombre: i.nombre+' - '+i.color+(i.talla?' T:'+i.talla:''), cantidad: i.es_corrida?i.cantidad*6:i.cantidad, precio: calcularPrecioUnitario(i,pTotal) }))
     if (costoEnvio > 0) mpItems.push({ nombre:'Envío a domicilio', cantidad:1, precio:costoEnvio })
     const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
@@ -463,6 +495,13 @@ async function procesarPago() {
     if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
     if (window.ttq) ttq.track('AddPaymentInfo',{value:totalFinal,currency:'MXN'})
     if (typeof gtag==='function') gtag('event','add_payment_info',{currency:'MXN',value:totalFinal})
+    // Marcar paso "Pago" como activo en el stepper antes de salir
+    try {
+      document.getElementById('step-3-label')?.classList.remove('active')
+      document.getElementById('step-3-label')?.classList.add('done')
+      document.getElementById('step-3-dot').textContent = '✓'
+      document.getElementById('step-4-label')?.classList.add('active')
+    } catch(e){}
     window.location.href = pago.init_point
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Pagar ahora'
@@ -552,6 +591,26 @@ async function cargarSesion() {
     banner.style.color = '#8B6A54'
     banner.innerHTML = `<span style="font-size:1.05rem">🔑</span>
       <span>¿Ya tienes cuenta? <a href="/?login=1&redirect=/checkout" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a> para autocompletar tus datos y guardar tu dirección.</span>`
+
+    // Pre-llenar con datos de la última compra anónima (localStorage)
+    try {
+      const saved = JSON.parse(localStorage.getItem('zm_form_datos') || 'null')
+      if (saved) {
+        const set = (id, val) => { const el = document.getElementById(id); if (el && val && !el.value) el.value = val }
+        set('co-nombre',   saved.nombre)
+        set('co-email',    saved.email)
+        set('co-telefono', saved.telefono)
+        set('co-calle',    saved.calle)
+        set('co-colonia',  saved.colonia)
+        set('co-cp',       saved.cp)
+        set('co-ciudad',   saved.ciudad)
+        set('co-estado',   saved.estado)
+        if (saved.nombre || saved.email) {
+          banner.innerHTML = `<span style="font-size:1.05rem">✨</span>
+            <span>Prellenamos tus datos de tu última compra. <button onclick="try{localStorage.removeItem('zm_form_datos')}catch(e){}this.closest('[id=sesion-banner]').innerHTML=''" style="background:none;border:none;color:#b5687a;font-weight:700;cursor:pointer;font-family:inherit;font-size:inherit">Borrar</button></span>`
+        }
+      }
+    } catch(e) {}
   }
 }
 
@@ -603,6 +662,57 @@ async function init() {
 
   // ── Captura de carrito abandonado: al escribir un email válido, guardar el carrito ──
   _wireCarritoAbandonado()
+  _wireValidaciones()
+  _wireCP()
+}
+
+// ── AUTOCOMPLETAR CP ─────────────────────────────────────────────
+async function _buscarCP(cp) {
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 4000)
+    const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?type=simplified&token=demo`, { signal: ctrl.signal })
+    clearTimeout(timer)
+    if (!r.ok) return
+    const data = await r.json()
+    if (!data || data.error) return
+    const ciudadEl = document.getElementById('co-ciudad')
+    const estadoEl = document.getElementById('co-estado')
+    const municipio = data.municipio || data.ciudad || data.alcaldia_municipio || ''
+    const estado    = data.estado || ''
+    if (ciudadEl && !ciudadEl.value.trim() && municipio) { ciudadEl.value = municipio; ciudadEl.style.borderColor = '#22c55e' }
+    if (estadoEl && !estadoEl.value.trim() && estado)    { estadoEl.value = estado;    estadoEl.style.borderColor = '#22c55e' }
+  } catch(e) { /* silencioso — no bloquear el flujo */ }
+}
+function _wireCP() {
+  const cpEl = document.getElementById('co-cp')
+  if (!cpEl) return
+  cpEl.addEventListener('input', () => {
+    const cp = cpEl.value.replace(/\D/g,'')
+    if (cp.length === 5) _buscarCP(cp)
+  })
+}
+
+// ── VALIDACIÓN EN TIEMPO REAL (email + teléfono) ─────────────────
+function _wireValidaciones() {
+  const emailEl = document.getElementById('co-email')
+  const telEl   = document.getElementById('co-telefono')
+  emailEl?.addEventListener('blur', () => {
+    const v = emailEl.value.trim()
+    if (!v) return
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+    emailEl.style.borderColor = ok ? '#22c55e' : '#e74c3c'
+    if (!ok) mostrarToast('Email inválido — revísalo')
+  })
+  emailEl?.addEventListener('input', () => { if (emailEl.style.borderColor === 'rgb(231, 76, 60)') emailEl.style.borderColor = '' })
+  telEl?.addEventListener('blur', () => {
+    const v = telEl.value.replace(/\D/g,'')
+    if (!v) return
+    const ok = v.length >= 10
+    telEl.style.borderColor = ok ? '#22c55e' : '#e74c3c'
+    if (!ok) mostrarToast('Teléfono debe tener al menos 10 dígitos')
+  })
+  telEl?.addEventListener('input', () => { if (telEl.style.borderColor === 'rgb(231, 76, 60)') telEl.style.borderColor = '' })
 }
 
 function _wireCarritoAbandonado() {
