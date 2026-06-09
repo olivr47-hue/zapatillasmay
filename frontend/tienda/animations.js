@@ -84,9 +84,7 @@ const noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     }
     .zm-toast { animation: zmToastIn 0.25s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 
-    /* Page enter */
-    @keyframes zmFadeIn { from { opacity:0 } to { opacity:1 } }
-    body { animation: zmFadeIn 0.35s ease forwards; }
+    /* Page enter — no body fade (causa FOIC al inyectar CSS tarde) */
   `
   document.head.appendChild(s)
 })()
