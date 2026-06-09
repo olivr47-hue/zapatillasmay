@@ -1798,17 +1798,22 @@
 /* cursor normal */
 #zm-cursor { display: none !important; }
 
-/* Hero entrance — manejado por animations.js (JS stagger, más fiable en Android) */
-.hero-content > * {
-  opacity: 0;
-  transform: translateY(28px);
+/* Hero entrance — CSS puro, sin depender de JS ni timing de scripts */
+@keyframes heroUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes fadeUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.hero-content .hero-eyebrow  { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.20s both; }
+.hero-content .hero-title    { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.38s both; }
+.hero-content .hero-subtitle { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.54s both; }
+.hero-content .hero-cta      { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.68s both; }
+.hero-content .hero-garantias{ animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.80s both; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-content .hero-eyebrow,
+  .hero-content .hero-title,
+  .hero-content .hero-subtitle,
+  .hero-content .hero-cta,
+  .hero-content .hero-garantias { animation: none; opacity: 1; transform: none; }
 }
   
 .hero::before {

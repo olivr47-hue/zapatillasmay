@@ -146,26 +146,7 @@ window.zmObserveCards = function() {
   })
 }
 
-// ─── Hero ──────────────────────────────────────────────
-function animateHero() {
-  const content = document.getElementById('hero-content')
-  if (!content) return
-
-  const selectors = ['.hero-eyebrow','.hero-title','.hero-subtitle','.hero-cta','.hero-garantias']
-  const els = selectors.map(s => content.querySelector(s)).filter(Boolean)
-
-  // Estado inicial
-  els.forEach(el => { el.style.opacity = '0'; el.style.transform = 'translateY(28px)' })
-
-  // 200ms mínimo: tiempo suficiente para que el browser pinte el estado inicial
-  els.forEach((el, i) => {
-    setTimeout(() => {
-      el.style.transition = 'opacity 0.72s cubic-bezier(0.23,1,0.32,1), transform 0.72s cubic-bezier(0.23,1,0.32,1)'
-      el.style.opacity = '1'
-      el.style.transform = 'translateY(0)'
-    }, 200 + i * 130)
-  })
-}
+// Hero entrance — CSS puro en index.html (@keyframes heroUp), no necesita JS
 
 // ─── Contador numérico ─────────────────────────────────
 function setupCounters() {
@@ -312,7 +293,7 @@ function init() {
   const path = location.pathname
   const isHome = path === '/' || path === '' || path.endsWith('index.html')
 
-  if (isHome) animateHero()
+  // Hero: CSS animation en index.html
 
   if (path.startsWith('/producto') || document.getElementById('product-section')) {
     setTimeout(() => {
