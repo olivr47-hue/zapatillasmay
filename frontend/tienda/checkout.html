@@ -146,35 +146,44 @@
 <!-- Checkout -->
 <div id="checkout-contenido" class="page" style="display:none">
 
+  <!-- Stepper dinámico (actualizado por JS) -->
   <div class="stepper">
     <div class="step done"><span class="dot">✓</span> Carrito</div>
     <div class="step-line"></div>
-    <div class="step active"><span class="dot">2</span> Datos de envío</div>
+    <div class="step active" id="step-2-label"><span class="dot" id="step-2-dot">2</span> Contacto</div>
     <div class="step-line"></div>
-    <div class="step"><span class="dot">3</span> Pago</div>
+    <div class="step" id="step-3-label"><span class="dot" id="step-3-dot">3</span> Dirección</div>
+    <div class="step-line"></div>
+    <div class="step" id="step-4-label"><span class="dot" id="step-4-dot">4</span> Pago</div>
   </div>
 
-  <h1>Finalizar <em style="font-style:italic;color:var(--mauve)">compra</em></h1>
-  <p class="subtitle">Completa tus datos para enviar tu pedido</p>
+  <h1 id="checkout-h1">Datos de <em style="font-style:italic;color:var(--mauve)">contacto</em></h1>
+  <p class="subtitle" id="checkout-subtitle">Paso 1 de 2 · Solo tarda 30 segundos</p>
 
   <!-- Banner sesión -->
   <div id="sesion-banner" style="display:none;max-width:880px;margin:0 auto 16px;padding:13px 18px;border-radius:14px;font-size:0.85rem;display:flex;align-items:center;gap:10px"></div>
 
   <div class="layout">
-    <!-- Formulario -->
+    <!-- Formulario 2 pasos -->
     <div>
-      <div class="card">
+
+      <!-- PASO 1: Contacto -->
+      <div class="card" id="step-contacto">
         <p class="card-title">Datos de <em>contacto</em></p>
         <label id="guardar-datos-wrap" style="display:none;align-items:center;gap:8px;font-size:0.8rem;color:var(--gray);margin-bottom:14px;cursor:pointer;user-select:none">
           <input type="checkbox" id="guardar-datos" checked style="width:16px;height:16px;accent-color:#b5687a;cursor:pointer">
-          Guardar esta dirección en mi cuenta para la próxima
+          Guardar mis datos para la próxima
         </label>
         <div class="field"><label>Nombre completo *</label><input id="co-nombre" autocomplete="name" placeholder="Tu nombre"></div>
         <div class="field"><label>Email *</label><input id="co-email" type="email" autocomplete="email" placeholder="correo@ejemplo.com"></div>
         <div class="field"><label>Teléfono / WhatsApp *</label><input id="co-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="477 123 4567"></div>
+        <button type="button" class="btn-pagar" id="btn-siguiente" onclick="irAPaso2()" style="margin-top:8px">
+          Continuar →
+        </button>
       </div>
 
-      <div class="card">
+      <!-- PASO 2: Dirección (oculto hasta que pasen el paso 1) -->
+      <div class="card" id="step-direccion" style="display:none">
         <p class="card-title">Dirección de <em>envío</em></p>
         <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
@@ -204,7 +213,7 @@
           <span class="pago-badge">💰 MercadoPago</span>
         </div>
 
-        <button class="btn-pagar" id="btn-pagar" onclick="procesarPago()">
+        <button class="btn-pagar" id="btn-pagar" onclick="procesarPago()" style="display:none">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
           Pagar ahora
         </button>
@@ -311,13 +320,63 @@ function render() {
   window._costoEnvio = costoEnvio
   window._subtotalProductos = subtotalProductos
 
-  // Actualizar sticky móvil
-  const stickyEl = document.getElementById('checkout-sticky')
+  // Actualizar sticky móvil (solo se muestra en paso 2)
   const stickyTotal = document.getElementById('sticky-total')
-  if (stickyEl && window.innerWidth <= 760) {
-    stickyEl.style.display = 'block'
-    if (stickyTotal) stickyTotal.textContent = '$' + totalFinal.toLocaleString('es-MX', {maximumFractionDigits:0}) + ' MXN'
+  if (stickyTotal) stickyTotal.textContent = '$' + totalFinal.toLocaleString('es-MX', {maximumFractionDigits:0}) + ' MXN'
+}
+
+// ── CHECKOUT 2 PASOS ─────────────────────────────────────────────
+function irAPaso2() {
+  const v = id => document.getElementById(id).value.trim()
+  const nombre = v('co-nombre'), email = v('co-email'), telefono = v('co-telefono')
+  // Validar paso 1
+  const campos1 = [
+    ['co-nombre', nombre, 'Nombre completo'],
+    ['co-email', email, 'Email'],
+    ['co-telefono', telefono, 'Teléfono'],
+  ]
+  let primerVacio = null
+  campos1.forEach(([id, val, label]) => {
+    const el = document.getElementById(id)
+    if (!val) { if (el) el.style.borderColor = '#e74c3c'; if (!primerVacio) primerVacio = { el, label } }
+    else if (el) el.style.borderColor = ''
+  })
+  if (primerVacio) { mostrarToast(`Falta: ${primerVacio.label}`); primerVacio.el?.focus(); return }
+
+  // Guardar el email para carrito abandonado ahora que lo tenemos
+  const items = leerCarrito()
+  if (items.length && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const total = window._totalFinal || 0
+    fetch(`${API}/carrito-abandonado/guardar`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, nombre, items, total })
+    }).catch(() => {})
   }
+
+  // Mostrar paso 2
+  document.getElementById('step-contacto').style.display = 'none'
+  document.getElementById('step-direccion').style.display = 'block'
+  document.getElementById('btn-pagar').style.display = 'flex'
+
+  // Actualizar sticky
+  const stickyEl = document.getElementById('checkout-sticky')
+  if (stickyEl && window.innerWidth <= 760) {
+    const stickyBtn = document.getElementById('sticky-btn-pagar')
+    if (stickyBtn) stickyBtn.style.display = ''
+    stickyEl.style.display = 'block'
+  }
+
+  // Actualizar stepper + títulos
+  document.getElementById('step-2-label')?.classList.remove('active')
+  document.getElementById('step-2-label')?.classList.add('done')
+  document.getElementById('step-2-dot').textContent = '✓'
+  document.getElementById('step-3-label')?.classList.add('active')
+  document.getElementById('checkout-h1').innerHTML = 'Dirección de <em style="font-style:italic;color:var(--mauve)">envío</em>'
+  document.getElementById('checkout-subtitle').textContent = 'Paso 2 de 2 · Ya casi terminamos'
+
+  // Focus en primer campo
+  setTimeout(() => document.getElementById('co-calle')?.focus(), 100)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 async function procesarPago() {

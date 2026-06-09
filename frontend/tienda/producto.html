@@ -372,7 +372,7 @@
     <span class="info-card-title">Detalles del producto</span>
     <svg class="info-card-chevron" id="details-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
-  <div class="info-card-body" id="details-body"></div>
+  <div class="info-card-body open" id="details-body"></div>
 </div>
 
 <!-- SIMILARES -->
@@ -625,7 +625,9 @@ function renderTallas(color, varsProd) {
     const v = vars.find(vv => vv.talla === t)
     const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
     const agotada = stock <= 0
-    return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}</button>`
+    const pocas = !agotada && stock <= 5
+    const stockLabel = pocas ? `<span style="display:block;font-size:0.55rem;color:#f97316;font-weight:700;line-height:1.1;margin-top:1px">¡Últimas!</span>` : ''
+    return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}${stockLabel}</button>`
   }).join('')
 }
 
@@ -857,6 +859,51 @@ async function cargarConfig() {
     }
   } catch(e) {}
 }
+
+// ── SWIPE EN GALERÍA (móvil) ──────────────────────────────────────
+(function() {
+  let _tx = 0, _dragging = false
+  const getImg = () => document.getElementById('gallery-main')
+  document.addEventListener('touchstart', e => {
+    const img = getImg()
+    if (!img || !img.contains(e.target) || fotosActuales.length < 2) return
+    _tx = e.touches[0].clientX
+    _dragging = true
+  }, { passive: true })
+  document.addEventListener('touchend', e => {
+    if (!_dragging || fotosActuales.length < 2) return
+    _dragging = false
+    const dx = e.changedTouches[0].clientX - _tx
+    if (Math.abs(dx) < 40) return
+    const thumbs = document.querySelectorAll('.gallery-thumb')
+    let activo = 0
+    thumbs.forEach((t, i) => { if (t.classList.contains('active')) activo = i })
+    const siguiente = dx < 0
+      ? Math.min(activo + 1, fotosActuales.length - 1)
+      : Math.max(activo - 1, 0)
+    if (siguiente !== activo) cambiarFoto(siguiente)
+  }, { passive: true })
+})()
+
+// ── CARRITO ABANDONADO DESDE PRODUCTO ────────────────────────────
+// Si el usuario llega a seleccionar talla y se va sin comprar, guardamos el carrito
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return
+  const carrito = (() => { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
+  if (!carrito.length) return
+  const usuarioStr = (() => { try { return localStorage.getItem('usuario') } catch(e) { return null } })()
+  const usuario = usuarioStr ? JSON.parse(usuarioStr) : null
+  const email = usuario?.email
+  if (!email) return
+  const total = carrito.reduce((s, i) => {
+    const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
+    return s + (i.precio_unitario || i.precio_menudeo) * pares
+  }, 0)
+  // Guardar silencioso — no bloqueamos el hilo
+  navigator.sendBeacon && navigator.sendBeacon(`${API}/carrito-abandonado/guardar`, new Blob([JSON.stringify({
+    email, nombre: usuario?.nombre || '', items: carrito, total
+  })], { type: 'application/json' }))
+})
 
 // Forzar recarga si el navegador restaura desde bfcache (evita mostrar producto equivocado)
 window.addEventListener('pageshow', (e) => { if (e.persisted) window.location.reload() })
