@@ -1798,22 +1798,36 @@
 /* cursor normal */
 #zm-cursor { display: none !important; }
 
-/* Hero entrance — CSS puro, sin depender de JS ni timing de scripts */
-@keyframes heroUp {
-  from { opacity: 0; transform: translateY(28px); }
-  to   { opacity: 1; transform: translateY(0); }
+.hero-content > * {
+  opacity: 0;
+  transform: translateY(30px);
 }
-.hero-content .hero-eyebrow  { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.20s both; }
-.hero-content .hero-title    { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.38s both; }
-.hero-content .hero-subtitle { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.54s both; }
-.hero-content .hero-cta      { animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.68s both; }
-.hero-content .hero-garantias{ animation: heroUp 0.7s cubic-bezier(0.23,1,0.32,1) 0.80s both; }
-@media (prefers-reduced-motion: reduce) {
-  .hero-content .hero-eyebrow,
-  .hero-content .hero-title,
-  .hero-content .hero-subtitle,
-  .hero-content .hero-cta,
-  .hero-content .hero-garantias { animation: none; opacity: 1; transform: none; }
+
+.hero.loaded .hero-eyebrow {
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 0.3s;
+}
+
+.hero.loaded .hero-title {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 0.6s;
+}
+
+.hero.loaded .hero-subtitle {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 0.9s;
+}
+
+.hero.loaded .hero-cta {
+  animation: fadeUp 1s ease forwards;
+  animation-delay: 1.2s;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
   
 .hero::before {
@@ -2023,7 +2037,20 @@
     }
     .btn-primary:hover::after { transform: translateX(100%); }
 
-    /* Aparición en scroll — manejado por animations.js (.zm-reveal / .zm-in) */
+    /* Aparición en scroll */
+    .product-card, .cat-card, .section-title {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .product-card.in-view, .cat-card.in-view, .section-title.in-view {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .products-grid .product-card:nth-child(1).in-view { transition-delay: 0.05s; }
+    .products-grid .product-card:nth-child(2).in-view { transition-delay: 0.10s; }
+    .products-grid .product-card:nth-child(3).in-view { transition-delay: 0.15s; }
+    .products-grid .product-card:nth-child(4).in-view { transition-delay: 0.20s; }
 
     /* === BREAKPOINTS INTERMEDIOS === */
 
@@ -2341,6 +2368,14 @@
     }
     .hero-bg {
       transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .hero.loaded .hero-eyebrow,
+    .hero.loaded .hero-title,
+    .hero.loaded .hero-subtitle,
+    .hero.loaded .hero-cta {
+      animation: none !important;
       opacity: 1 !important;
       transform: none !important;
     }
@@ -3256,7 +3291,6 @@ window.addEventListener('load', () => {
           recalcularCarrito()
           renderCarrito()
           mostrarToast('Producto agregado al carrito')
-          window.animateAddToCart?.()
           setTimeout(() => abrirCarrito(), 200)
         } catch(e) {}
       })
@@ -3740,7 +3774,6 @@ cargarConfigSEO()
     })
     _mostrados += lote.length
     _actualizarSentinel()
-    window.zmObserveCards?.()
   }
 
   function _actualizarSentinel() {
@@ -4135,7 +4168,6 @@ if (window.ttq) ttq.track('AddToCart', {
     recalcularCarrito()
     renderCarrito()
     mostrarToast('Producto agregado al carrito')
-    window.animateAddToCart?.(document.getElementById('btn-agregar'))
     setTimeout(() => abrirCarrito(), 300)
   }
 
@@ -4227,7 +4259,6 @@ if (window.ttq) ttq.track('AddToCart', {
     recalcularCarrito()
     renderCarrito()
     mostrarToast('Corrida agregada al carrito')
-    window.animateAddToCart?.(document.getElementById('btn-agregar'))
     setTimeout(() => abrirCarrito(), 300)
   }
 
@@ -6170,7 +6201,19 @@ window.addEventListener('scroll', () => {
     window.addEventListener('resize',rsz,{passive:true});
   }
 
-  /* TILT 3D eliminado — causaba lag iterando todas las cards en cada mousemove */
+  /* TILT 3D */
+  var _lm=0;
+  document.addEventListener('mousemove',function(e){
+    var n=Date.now();if(n-_lm<30)return;_lm=n;
+    document.querySelectorAll('.product-card').forEach(function(card){
+      var r=card.getBoundingClientRect();
+      var dx=(e.clientX-r.left-r.width/2)/r.width;
+      var dy=(e.clientY-r.top-r.height/2)/r.height;
+      if(Math.sqrt(dx*dx+dy*dy)<.85){
+        card.style.transform='perspective(900px) rotateY('+dx*9+'deg) rotateX('+(-dy*7)+'deg) translateY(-4px)';
+      }else{card.style.transform='';}
+    });
+  },{passive:true});
 
   /* HEADER SCROLL */
   window.addEventListener('scroll',function(){
@@ -6185,7 +6228,20 @@ window.addEventListener('scroll', () => {
     setTimeout(function(){bd.classList.remove('bounce');},500);
   }).observe(bd,{childList:true,characterData:true,subtree:true});
 
-  /* SCROLL reveal — manejado por animations.js */
+  /* SCROLL IN-VIEW */
+  var _io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in-view');_io.unobserve(e.target);}});
+  },{threshold:.12});
+  function initSA(){
+    document.querySelectorAll('.product-card,.cat-card,.section-title').forEach(function(el){
+      if(!el.classList.contains('in-view'))_io.observe(el);
+    });
+  }
+  var _pg=document.getElementById('products-grid');
+  var _cg=document.getElementById('cats-grid');
+  if(_pg)new MutationObserver(initSA).observe(_pg,{childList:true});
+  if(_cg)new MutationObserver(initSA).observe(_cg,{childList:true});
+  initSA();
 })();
 </script>
 <!-- WHATSAPP FLOTANTE -->
@@ -6307,7 +6363,21 @@ function zmRechazarCookies() {
     tick()
   }
 
-  // Tilt 3D hero eliminado — el parallax está en animations.js
+  // 3D tilt en la zapatilla
+  const shoeWrap = document.getElementById('hero-shoe-wrap')
+  const shoeImg  = document.getElementById('hero-shoe-img')
+  if (shoeWrap && shoeImg && isDesktop) {
+    section.addEventListener('mousemove', function(e) {
+      const r = section.getBoundingClientRect()
+      const x = (e.clientX - r.left) / r.width  - 0.5
+      const y = (e.clientY - r.top)  / r.height - 0.5
+      shoeImg.style.transform =
+        `perspective(800px) rotateY(${x * 18}deg) rotateX(${-y * 10}deg) scale(1.04) translateY(${y * -8}px)`
+    })
+    section.addEventListener('mouseleave', function() {
+      shoeImg.style.transform = 'perspective(800px) rotateY(0deg) rotateX(0deg) scale(1) translateY(0)'
+    })
+  }
 
   // ── PARALLAX SCROLL ──────────────────────────────────────────────
   const shoeScrollEl = document.getElementById('hero-shoe-scroll')
@@ -6424,7 +6494,7 @@ function zmRechazarCookies() {
 <style>
   @media (max-width: 768px) {
     /* Press feedback en tarjetas de producto */
-    .product-card { transition: opacity 0.55s cubic-bezier(0.23,1,0.32,1), transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s; -webkit-tap-highlight-color: transparent; }
+    .product-card { transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s; -webkit-tap-highlight-color: transparent; }
     .product-card:active { transform: scale(0.96); }
     .product-card:active .product-img-wrap { box-shadow: 0 4px 16px rgba(160,120,96,0.25); }
 
@@ -6459,6 +6529,5 @@ function zmRechazarCookies() {
     .product-badge { animation: none !important; }
   }
 </style>
-<script defer src="/animations.js?v=3"></script>
 </body>
 </html>
