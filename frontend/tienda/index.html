@@ -531,24 +531,30 @@
     }
 
     .cats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 14px;
     }
 
+    .cat-wrap {
+      position: relative;
+      width: 155px;
+      height: 207px; /* 155 × 4/3 */
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    /* Card rellena el wrapper — sin border-radius propio ni background negro */
     .cat-card {
-  background: var(--black);
-  border-radius: 12px;
-  padding: 0;
-  overflow: hidden;
-  aspect-ratio: 3/4;
-  position: relative;
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 1;
     }
 
-    .cat-card:hover {
-      border-color: var(--pink);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.15), 0 0 0 1px var(--pink);
-    }
 
     .cat-icon {
       font-size: 2rem;
@@ -601,6 +607,8 @@
       display: block;
       text-decoration: none;
       color: inherit;
+      overflow: hidden;
+      border-radius: 12px;
     }
 
     .product-card:hover .product-img-wrap img {
@@ -1798,37 +1806,9 @@
 /* cursor normal */
 #zm-cursor { display: none !important; }
 
-.hero-content > * {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-.hero.loaded .hero-eyebrow {
-  animation: fadeUp 0.8s ease forwards;
-  animation-delay: 0.3s;
-}
-
-.hero.loaded .hero-title {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 0.6s;
-}
-
-.hero.loaded .hero-subtitle {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 0.9s;
-}
-
-.hero.loaded .hero-cta {
-  animation: fadeUp 1s ease forwards;
-  animation-delay: 1.2s;
-}
-
-@keyframes fadeUp {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* Estado inicial del hero — oculto hasta que GSAP corre */
+.hero-content > * { opacity: 0; }
+#hero-shoe-wrap { opacity: 0; }
   
 .hero::before {
   content: '';
@@ -2013,14 +1993,12 @@
     .product-card:hover {
       box-shadow: 0 12px 24px rgba(30, 20, 21, 0.08);
     }
-    .cat-card {
-      transition: transform 0.3s var(--ease-out),
-                  box-shadow 0.3s var(--ease-out);
+    .cat-wrap {
+      transition: transform 0.3s var(--ease-out);
     }
     .cat-card img {
-      transition: transform 0.5s var(--ease-out);
+      will-change: transform;
     }
-    .cat-card:hover img { transform: scale(1.05); }
 
     /* Shimmer en botón primario */
     .btn-primary {
@@ -2037,20 +2015,7 @@
     }
     .btn-primary:hover::after { transform: translateX(100%); }
 
-    /* Aparición en scroll */
-    .product-card, .cat-card, .section-title {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .product-card.in-view, .cat-card.in-view, .section-title.in-view {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .products-grid .product-card:nth-child(1).in-view { transition-delay: 0.05s; }
-    .products-grid .product-card:nth-child(2).in-view { transition-delay: 0.10s; }
-    .products-grid .product-card:nth-child(3).in-view { transition-delay: 0.15s; }
-    .products-grid .product-card:nth-child(4).in-view { transition-delay: 0.20s; }
+    /* Aparición en scroll — manejada por GSAP ScrollTrigger */
 
     /* === BREAKPOINTS INTERMEDIOS === */
 
@@ -2076,7 +2041,7 @@
       .header-inner { padding: 0 24px; }
       .section { padding: 60px clamp(20px, 3vw, 32px); }
       .products-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-      .cats-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .cats-grid { gap: 10px; } .cat-wrap { width: 125px; height: 167px; }
       .modal { max-width: 720px; }
     }
 
@@ -2089,10 +2054,11 @@
     @media (max-width: 480px) {
       .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .color-selector { grid-template-columns: repeat(3, 1fr); }
-      .cats-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+      .cats-grid { gap: 8px; } .cat-wrap { width: 95px; height: 127px; }
       .section-title { font-size: 1.4rem; }
       .section { padding: 12px 12px !important; }
       .section-header { margin-bottom: 12px !important; }
+      .section-cats-desktop { display: none !important; }
     }
 
   /* ── MICROINTERACCIONES ── */
@@ -2347,7 +2313,7 @@
   /* ── HOVER GUARD: no transforms en touch ─────── */
   @media (hover: hover) and (pointer: fine) {
     .btn-primary:hover { transform: translateY(-2px); }
-    .cat-card:hover { transform: translateY(-4px); }
+    .cat-wrap:hover { transform: translateY(-4px); }
     .product-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(160,120,96,0.18); }
     .product-card:hover .product-img-wrap img { transform: scale(1.06); }
     .color-dot:hover { transform: scale(1.2); }
@@ -2548,7 +2514,11 @@
   (function(){
     function ocultarSplash(){
       var s = document.getElementById('zm-splash');
-      if (s) { s.classList.add('hide'); setTimeout(function(){ if(s) s.remove(); }, 700); }
+      if (s) {
+        s.classList.add('hide');
+        setTimeout(function(){ if(s) s.remove(); }, 700);
+      }
+      window.dispatchEvent(new Event('zm-splash-done'));
     }
     // Ocultar cuando la página esté lista (mínimo 1.1s para que se vea la animación)
     var t0 = Date.now();
@@ -2752,15 +2722,6 @@
     </div>
   </div>
 </section>
-<script>
-  /* Revela el hero apenas el DOM está listo (no espera a window.load) → el fondo (LCP) pinta antes. */
-  (function(){
-    var h = document.getElementById('hero-section');
-    if (!h) return;
-    if (document.readyState !== 'loading') h.classList.add('loaded');
-    else document.addEventListener('DOMContentLoaded', function(){ h.classList.add('loaded'); });
-  })();
-</script>
 
 <!-- STRIP MAYOREO + PRUEBA SOCIAL -->
 <div class="cro-trust-strip">
@@ -2810,7 +2771,7 @@
 </div>
 
 <!-- CATEGORIAS -->
-<div class="section">
+<div class="section section-cats-desktop">
   <div class="section-header">
     <h2 class="section-title">Explora por <em>categoria</em></h2>
   </div>
@@ -3699,12 +3660,14 @@ cargarConfigSEO()
     accesorios:  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
   }
   grid.innerHTML = cats.map(c => `
-    <div class="cat-card" onclick="filtrarCategoria('${c}')">
-      <img src="${IMG_CATS[c] || ''}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
-      <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(90,30,45,0.75) 0%, rgba(180,100,100,0.15) 60%, transparent 100%)"></div>
-      <div style="position:absolute;bottom:16px;left:16px;right:16px">
-        <span style="font-size:1.4rem;display:block;margin-bottom:4px">${ICONOS_CATS[c] || '👠'}</span>
-        <div class="cat-name">${c.charAt(0).toUpperCase() + c.slice(1)}</div>
+    <div class="cat-wrap" onclick="filtrarCategoria('${c}')">
+      <div class="cat-card">
+        <img src="${IMG_CATS[c] || ''}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
+        <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(90,30,45,0.75) 0%, rgba(180,100,100,0.15) 60%, transparent 100%)"></div>
+        <div style="position:absolute;bottom:16px;left:16px;right:16px">
+          <span style="font-size:1.4rem;display:block;margin-bottom:4px">${ICONOS_CATS[c] || '👠'}</span>
+          <div class="cat-name">${c.charAt(0).toUpperCase() + c.slice(1)}</div>
+        </div>
       </div>
     </div>
   `).join('')
@@ -6165,15 +6128,7 @@ async function registrarMayorista() {
   if (form) form.style.display = 'none'
   if (ok) ok.style.display = 'block'
 }
-window.addEventListener('scroll', () => {
-  const hero = document.getElementById('hero-section')
-  if (hero) {
-    const scrolled = window.scrollY
-    hero.style.backgroundPositionY = scrolled * 0.5 + 'px'
-    const content = hero.querySelector('.hero-content')
-    if (content) content.style.transform = `translateY(${scrolled * 0.3}px)`
-  }
-})
+/* parallax hero → manejado por GSAP ScrollTrigger */
 
   </script>
 <script>
@@ -6228,20 +6183,9 @@ window.addEventListener('scroll', () => {
     setTimeout(function(){bd.classList.remove('bounce');},500);
   }).observe(bd,{childList:true,characterData:true,subtree:true});
 
-  /* SCROLL IN-VIEW */
-  var _io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in-view');_io.unobserve(e.target);}});
-  },{threshold:.12});
-  function initSA(){
-    document.querySelectorAll('.product-card,.cat-card,.section-title').forEach(function(el){
-      if(!el.classList.contains('in-view'))_io.observe(el);
-    });
-  }
+  /* SCROLL IN-VIEW — manejado por GSAP más abajo */
   var _pg=document.getElementById('products-grid');
   var _cg=document.getElementById('cats-grid');
-  if(_pg)new MutationObserver(initSA).observe(_pg,{childList:true});
-  if(_cg)new MutationObserver(initSA).observe(_cg,{childList:true});
-  initSA();
 })();
 </script>
 <!-- WHATSAPP FLOTANTE -->
@@ -6308,6 +6252,242 @@ function zmRechazarCookies() {
 </script>
 
 <!-- ── CURSOR ZAPATILLA ── -->
+
+<!-- ── GSAP + ScrollTrigger ─────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script>
+(function() {
+  if (typeof gsap === 'undefined') return;
+  gsap.registerPlugin(ScrollTrigger);
+
+  var mm = gsap.matchMedia();
+  mm.add({
+    normal:  '(prefers-reduced-motion: no-preference)',
+    reduced: '(prefers-reduced-motion: reduce)'
+  }, function(ctx) {
+    var c = ctx.conditions;
+
+    if (c.reduced) {
+      // Sin animación — solo revelar todo
+      gsap.set(['.hero-eyebrow','.hero-title','.hero-subtitle','.hero-cta','#hero-shoe-wrap'], {
+        opacity: 1, y: 0, x: 0
+      });
+      return;
+    }
+
+    // ── HERO ENTRY — espera a que el splash desaparezca ─────────────
+    // ── HERO BG: revelar + parallax scroll ──────────────────────────
+    var heroBg = document.getElementById('hero-bg');
+    if (heroBg) {
+      // Revelar fondo (reemplaza .hero.loaded que se quitó)
+      gsap.to(heroBg, { opacity: 1, duration: 0.6, ease: 'power1.out' });
+      // Parallax suave al hacer scroll
+      gsap.to(heroBg, {
+        yPercent: 12,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#hero-section',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1.5
+        }
+      });
+    }
+
+    function runHeroEntry() {
+      gsap.fromTo(
+        '.hero-eyebrow, .hero-title, .hero-subtitle, .hero-cta',
+        { opacity: 0, y: 50 },
+        { opacity: 1, y: 0, duration: 1.1, ease: 'power3.out', stagger: 0.18 }
+      );
+      gsap.fromTo(
+        '#hero-shoe-wrap',
+        { opacity: 0, x: 80, y: 24 },
+        { opacity: 1, x: 0, y: 0, duration: 1.5, ease: 'power3.out', delay: 0.15 }
+      );
+    }
+    // Si el splash ya se fue (navegación rápida / caché), corre de inmediato
+    if (!document.getElementById('zm-splash')) {
+      runHeroEntry();
+    } else {
+      window.addEventListener('zm-splash-done', runHeroEntry, { once: true });
+    }
+
+    // Zapato sube levemente al hacer scroll (parallax suave)
+    var shoeScroll = document.getElementById('hero-shoe-scroll');
+    if (shoeScroll) {
+      gsap.to(shoeScroll, {
+        y: -50,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#hero-section',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 2
+        }
+      });
+    }
+
+    // ── TRUST STRIP: +2,400 pedidos + tiers + garantías ─────────────
+    var trustStrip = document.querySelector('.cro-trust-strip');
+    if (trustStrip) {
+      // Contenedor entra completo
+      gsap.fromTo(trustStrip,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out',
+          scrollTrigger: { trigger: trustStrip, start: 'top 88%', once: true }
+        }
+      );
+
+      // Counter animado del número +2,400
+      var numEl = document.getElementById('cro-pedidos');
+      if (numEl) {
+        var counter = { val: 0 };
+        gsap.to(counter, {
+          val: 2400,
+          duration: 1.8,
+          ease: 'power2.out',
+          snap: { val: 1 },
+          onUpdate: function() {
+            numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
+          },
+          scrollTrigger: { trigger: trustStrip, start: 'top 85%', once: true }
+        });
+      }
+
+      // Tiers (cajas) entran en stagger desde abajo
+      gsap.fromTo('.cro-tier',
+        { opacity: 0, y: 30, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1,
+          duration: 0.6, ease: 'back.out(1.4)', stagger: 0.1,
+          scrollTrigger: { trigger: '.cro-mayoreo-tiers', start: 'top 88%', once: true }
+        }
+      );
+
+      // Garantías entran desde la izquierda
+      gsap.fromTo('.cro-garantia',
+        { opacity: 0, x: -20 },
+        { opacity: 1, x: 0,
+          duration: 0.5, ease: 'power2.out', stagger: 0.12,
+          scrollTrigger: { trigger: '.cro-garantias', start: 'top 90%', once: true }
+        }
+      );
+    }
+
+    // ── CARDS ENTRANCE — trigger individual por card ─────────────────
+    function batchCards(selector) {
+      document.querySelectorAll(selector).forEach(function(el, i) {
+        gsap.set(el, { opacity: 0, y: 35 });
+        ScrollTrigger.create({
+          trigger: el,
+          start: 'top 92%',
+          once: true,
+          onEnter: function() {
+            gsap.fromTo(el,
+              { opacity: 0, y: 35 },
+              { opacity: 1, y: 0, duration: 0.65, ease: 'power2.out', delay: (i % 6) * 0.06 }
+            );
+          }
+        });
+      });
+    }
+    batchCards('.product-card');
+    batchCards('.section-title');
+
+    // Cards nuevas agregadas dinámicamente (product-card via fetch)
+    function animarNuevasCards(addedNodes) {
+      var nuevas = [];
+      addedNodes.forEach(function(n) {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('.product-card')) nuevas.push(n);
+        else n.querySelectorAll && n.querySelectorAll('.product-card').forEach(function(el){ nuevas.push(el); });
+      });
+      if (!nuevas.length) return;
+
+      nuevas.forEach(function(el) {
+        var tween = gsap.fromTo(el,
+          { opacity: 0, y: 32 },
+          { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', paused: true }
+        );
+        ScrollTrigger.create({
+          trigger: el,
+          start: 'top 92%',
+          end: 'top 8%',
+          onEnter:      function() { tween.play(); },
+          onLeaveBack:  function() { tween.reverse(); },
+          onEnterBack:  function() { tween.play(); },
+          onLeave:      function() { tween.reverse(); }
+        });
+      });
+
+      initProductTap(nuevas);
+    }
+
+    // ── RIPPLE GSAP en tarjetas de producto ──────────────────────────
+    function initProductTap(cards) {
+      cards.forEach(function(card) {
+        if (card._tapReady) return;
+        card._tapReady = true;
+        card.style.position = card.style.position || 'relative';
+        card.addEventListener('click', function(e) {
+          var rect = card.getBoundingClientRect();
+          var x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+          var y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+          var ripple = document.createElement('div');
+          ripple.style.cssText = 'position:absolute;border-radius:50%;background:rgba(255,255,255,0.45);pointer-events:none;z-index:20;width:10px;height:10px;left:' + (x - 5) + 'px;top:' + (y - 5) + 'px;';
+          card.appendChild(ripple);
+          gsap.fromTo(ripple,
+            { scale: 0, opacity: 1 },
+            { scale: 18, opacity: 0, duration: 0.55, ease: 'power2.out',
+              onComplete: function() { ripple.remove(); }
+            }
+          );
+        });
+      });
+    }
+    var _pg2 = document.getElementById('products-grid');
+    var _cg2 = document.getElementById('cats-grid');
+    if (_pg2) new MutationObserver(function(muts) {
+      muts.forEach(function(m) { animarNuevasCards(Array.from(m.addedNodes)); });
+      ScrollTrigger.refresh();
+    }).observe(_pg2, { childList: true });
+    if (_cg2) new MutationObserver(function() {
+      initCatHover();
+    }).observe(_cg2, { childList: true });
+
+    // ── HOVER / TAP GSAP en tarjetas de categoría ────────────────────
+    function initCatHover() {
+      document.querySelectorAll('.cat-wrap').forEach(function(wrap) {
+        if (wrap._hoverReady) return;
+        wrap._hoverReady = true;
+        var img = wrap.querySelector('img');
+
+        // Desktop: hover
+        wrap.addEventListener('mouseenter', function() {
+          gsap.to(wrap, { y: -6, duration: 0.3, ease: 'power2.out' });
+          if (img) gsap.to(img, { scale: 1.08, duration: 0.45, ease: 'power2.out' });
+        });
+        wrap.addEventListener('mouseleave', function() {
+          gsap.to(wrap, { y: 0, duration: 0.4, ease: 'power2.inOut' });
+          if (img) gsap.to(img, { scale: 1, duration: 0.4, ease: 'power2.inOut' });
+        });
+
+        // Móvil: tap press → escala baja, suelta → spring de vuelta
+        wrap.addEventListener('touchstart', function() {
+          gsap.to(wrap, { scale: 0.93, duration: 0.15, ease: 'power2.out' });
+          if (img) gsap.to(img, { scale: 1.06, duration: 0.15, ease: 'power2.out' });
+        }, { passive: true });
+        wrap.addEventListener('touchend', function() {
+          gsap.to(wrap, { scale: 1, duration: 0.4, ease: 'back.out(2)' });
+          if (img) gsap.to(img, { scale: 1, duration: 0.35, ease: 'power2.inOut' });
+        }, { passive: true });
+      });
+    }
+
+  });
+})();
+</script>
 
 <!-- ── HERO 3D PARALLAX + SPOTLIGHT ─────────────────────────────── -->
 <script>
@@ -6498,9 +6678,8 @@ function zmRechazarCookies() {
     .product-card:active { transform: scale(0.96); }
     .product-card:active .product-img-wrap { box-shadow: 0 4px 16px rgba(160,120,96,0.25); }
 
-    /* Press feedback en tarjetas de categoría */
-    .cat-card { transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1); -webkit-tap-highlight-color: transparent; }
-    .cat-card:active { transform: scale(0.95); }
+    /* GSAP maneja el transform — solo quitar highlight de tap */
+    .cat-wrap { -webkit-tap-highlight-color: transparent; }
 
     /* Botones con feedback */
     .btn-primary:active, .btn-outline:active, .btn-add-cart:active { transform: scale(0.95); }
