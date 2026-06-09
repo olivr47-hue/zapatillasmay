@@ -625,7 +625,7 @@ function renderTallas(color, varsProd) {
     const v = vars.find(vv => vv.talla === t)
     const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
     const agotada = stock <= 0
-    const pocas = !agotada && stock <= 5
+    const pocas = !agotada && stock <= 1
     const stockLabel = pocas ? `<span style="display:block;font-size:0.55rem;color:#f97316;font-weight:700;line-height:1.1;margin-top:1px">¡Últimas!</span>` : ''
     return `<button class="talla-btn ${agotada ? 'agotada' : ''}" id="tbtn-${t.replace('.','_')}" onclick="${agotada ? '' : `seleccionarTalla('${t}')`}" ${agotada ? 'disabled' : ''}>${t}${stockLabel}</button>`
   }).join('')
