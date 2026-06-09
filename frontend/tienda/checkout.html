@@ -191,7 +191,7 @@
         <p class="card-title">Dirección de <em>envío</em></p>
         <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
-          <div><label>Colonia *</label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro"></div>
+          <div><label>Colonia *</label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro" list="colonias-list"><datalist id="colonias-list"></datalist></div>
           <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
         </div>
         <div class="field field-row">
@@ -224,7 +224,7 @@
 
         <button class="btn-pagar" id="btn-pagar" onclick="procesarPago()" style="display:none">
           <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-          Pagar ahora
+          <span id="btn-pagar-text">Pagar ahora</span>
         </button>
         <a href="/carrito" class="btn-volver">Volver al carrito</a>
         <p class="secure-note">🔒 Pago protegido por MercadoPago</p>
@@ -330,6 +330,9 @@ function render() {
   window._totalFinal = totalFinal
   window._costoEnvio = costoEnvio
   window._subtotalProductos = subtotalProductos
+  // A1: actualizar texto del botón pagar con el monto real
+  const _btnPagarText = document.getElementById('btn-pagar-text')
+  if (_btnPagarText) _btnPagarText.textContent = `Pagar $${totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN`
 
   // Actualizar sticky móvil (solo se muestra en paso 2)
   const stickyTotal = document.getElementById('sticky-total')
@@ -671,17 +674,33 @@ async function _buscarCP(cp) {
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 4000)
-    const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?type=simplified&token=demo`, { signal: ctrl.signal })
+    // Sin "simplified" para obtener también las colonias del CP
+    const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?token=demo`, { signal: ctrl.signal })
     clearTimeout(timer)
     if (!r.ok) return
-    const data = await r.json()
-    if (!data || data.error) return
-    const ciudadEl = document.getElementById('co-ciudad')
-    const estadoEl = document.getElementById('co-estado')
-    const municipio = data.municipio || data.ciudad || data.alcaldia_municipio || ''
-    const estado    = data.estado || ''
-    if (ciudadEl && !ciudadEl.value.trim() && municipio) { ciudadEl.value = municipio; ciudadEl.style.borderColor = '#22c55e' }
-    if (estadoEl && !estadoEl.value.trim() && estado)    { estadoEl.value = estado;    estadoEl.style.borderColor = '#22c55e' }
+    const raw = await r.json()
+    // La API devuelve array cuando trae colonias, o un objeto si es simplified
+    const items = Array.isArray(raw) ? raw : [raw]
+    if (!items.length || items[0]?.error) return
+    const first = items[0]
+    const ciudadEl  = document.getElementById('co-ciudad')
+    const estadoEl  = document.getElementById('co-estado')
+    const coloniaEl = document.getElementById('co-colonia')
+    const listEl    = document.getElementById('colonias-list')
+    const municipio = first.municipio || first.ciudad || first.alcaldia_municipio || ''
+    const estado    = first.estado || ''
+    if (ciudadEl && !ciudadEl.value.trim() && municipio)  { ciudadEl.value  = municipio; ciudadEl.style.borderColor  = '#22c55e' }
+    if (estadoEl && !estadoEl.value.trim() && estado)     { estadoEl.value  = estado;    estadoEl.style.borderColor  = '#22c55e' }
+    // Poblar datalist de colonias
+    if (listEl) {
+      const colonias = [...new Set(items.map(i => i.asentamiento || i.colonia || '').filter(Boolean))]
+      listEl.innerHTML = colonias.map(c => `<option value="${c}">`).join('')
+      // Si solo hay una colonia, pre-llenar
+      if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
+        coloniaEl.value = colonias[0]
+        coloniaEl.style.borderColor = '#22c55e'
+      }
+    }
   } catch(e) { /* silencioso — no bloquear el flujo */ }
 }
 function _wireCP() {

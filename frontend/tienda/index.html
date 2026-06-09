@@ -3307,7 +3307,8 @@ window.addEventListener('load', () => {
     setTimeout(() => mostrarPaginaPendiente(pedidoShort), 500)
 
   } else if (path === '/pedido-fallido' || params.get('status') === 'failure') {
-    // Pago rechazado — mostrar mensaje y no limpiar carrito
+    // Pago rechazado — limpiar claves de compra para evitar Purchase duplicado en reintento
+    try { localStorage.removeItem('zm_purchase_value'); localStorage.removeItem('fbq_checkout_ids') } catch(e){}
     setTimeout(() => mostrarPaginaFallido(), 500)
 
   } else if (pSlug) {
@@ -4569,6 +4570,7 @@ if (window.ttq) {
         <h2 style="font-family:var(--font-display);font-size:2.4rem;font-weight:400;margin-bottom:10px;color:#2A1A0E;line-height:1.05">¡Gracias por tu <em style="font-style:italic;color:#b5687a">compra!</em></h2>
         ${numPedidoHTML}
         <p style="color:#5a4030;margin-bottom:6px;line-height:1.6;font-size:0.9rem">Tu pedido ha sido confirmado. Te contactaremos por WhatsApp con los detalles y el seguimiento.</p>
+        <p style="font-size:0.8rem;color:#999;margin-bottom:0;line-height:1.5">📩 También recibirás un correo de confirmación con el resumen de tu pedido.</p>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:24px">
           <a href="https://wa.me/524792244560?text=${encodeURIComponent('¡Hola! Acabo de realizar mi pedido' + (numPedido ? ' #' + numPedido : '') + '. ¿Cuándo me lo envían?')}"
              target="_blank" rel="noopener"

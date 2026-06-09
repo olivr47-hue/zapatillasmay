@@ -600,6 +600,8 @@ function renderProducto() {
   if (colores.length) renderColores(colores, varsProd)
   // Render tallas iniciales (sin color)
   renderTallas(null, varsProd)
+  // C1: si solo hay un color, auto-seleccionarlo para no pedirle un clic innecesario
+  if (colores.length === 1) setTimeout(() => seleccionarColor(colores[0]), 60)
 
   // Descripción
   if (p.descripcion && p.descripcion.trim()) {
