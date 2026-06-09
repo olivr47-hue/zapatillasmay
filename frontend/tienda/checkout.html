@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -112,6 +112,16 @@
 
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2A1A0E; color: white; padding: 11px 22px; border-radius: 100px; font-size: 0.83rem; font-weight: 600; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap; box-shadow:0 8px 24px rgba(42,26,14,0.3); }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Sticky bar móvil en checkout */
+    .checkout-sticky { display:none; position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,0.96); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border-top:1px solid rgba(200,150,122,0.18); padding:12px 16px; padding-bottom:max(12px,env(safe-area-inset-bottom)); z-index:300; box-shadow:0 -8px 28px rgba(0,0,0,0.07); }
+    .checkout-sticky-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:880px; margin:0 auto; }
+    .checkout-sticky-total { font-size:0.78rem; color:var(--gray); }
+    .checkout-sticky-total strong { display:block; font-size:1.1rem; font-family:var(--font-mono); color:var(--black); }
+    .checkout-sticky-btn { flex-shrink:0; padding:14px 24px; background:linear-gradient(135deg,#C8967A,#b5687a); color:white; border:none; border-radius:100px; font-family:var(--font-body); font-size:0.88rem; font-weight:700; cursor:pointer; box-shadow:0 4px 16px rgba(200,150,122,0.4); transition:transform 0.2s; }
+    .checkout-sticky-btn:active { transform:scale(0.97); }
+    .checkout-sticky-btn:disabled { opacity:0.6; cursor:not-allowed; }
+    @media (max-width: 760px) { .checkout-sticky { display:block; } body { padding-bottom:90px; } }
   </style>
 </head>
 <body>
@@ -207,6 +217,19 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Sticky CTA móvil -->
+<div class="checkout-sticky" id="checkout-sticky" style="display:none">
+  <div class="checkout-sticky-inner">
+    <div class="checkout-sticky-total">
+      Total a pagar
+      <strong id="sticky-total">—</strong>
+    </div>
+    <button class="checkout-sticky-btn" id="sticky-btn-pagar" onclick="procesarPago()">
+      Pagar ahora 🔒
+    </button>
+  </div>
+</div>
+
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
@@ -215,7 +238,7 @@ let usuarioActual = null   // cliente logueado (de localStorage)
 
 function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } }
 
-function leerCarrito() { try { return JSON.parse(sessionStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
+function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
 function totalPares(c) { return c.reduce((s, i) => s + (i.es_corrida ? (i.cantidad * 6) : i.cantidad), 0) }
 function calcularPrecioUnitario(item, total) {
   if (item.es_oferta) return item.precio_unitario
@@ -287,6 +310,14 @@ function render() {
   window._totalFinal = totalFinal
   window._costoEnvio = costoEnvio
   window._subtotalProductos = subtotalProductos
+
+  // Actualizar sticky móvil
+  const stickyEl = document.getElementById('checkout-sticky')
+  const stickyTotal = document.getElementById('sticky-total')
+  if (stickyEl && window.innerWidth <= 760) {
+    stickyEl.style.display = 'block'
+    if (stickyTotal) stickyTotal.textContent = '$' + totalFinal.toLocaleString('es-MX', {maximumFractionDigits:0}) + ' MXN'
+  }
 }
 
 async function procesarPago() {
@@ -294,11 +325,36 @@ async function procesarPago() {
   const nombre=v('co-nombre'), email=v('co-email'), telefono=v('co-telefono'),
         calle=v('co-calle'), colonia=v('co-colonia'), cp=v('co-cp'),
         ciudad=v('co-ciudad'), estado=v('co-estado'), notas=v('co-notas')
-  if (!nombre||!email||!telefono||!calle||!colonia||!cp||!ciudad||!estado) {
-    mostrarToast('Completa todos los campos requeridos'); return
+  // Validación con highlight de campo específico
+  const requeridos = [
+    ['co-nombre', nombre, 'Nombre completo'],
+    ['co-email', email, 'Email'],
+    ['co-telefono', telefono, 'Teléfono'],
+    ['co-calle', calle, 'Calle y número'],
+    ['co-colonia', colonia, 'Colonia'],
+    ['co-cp', cp, 'Código postal'],
+    ['co-ciudad', ciudad, 'Ciudad'],
+    ['co-estado', estado, 'Estado'],
+  ]
+  let primerVacio = null
+  requeridos.forEach(([id, val, label]) => {
+    const el = document.getElementById(id)
+    if (!val) {
+      if (el) el.style.borderColor = '#e74c3c'
+      if (!primerVacio) primerVacio = { el, label }
+    } else {
+      if (el) el.style.borderColor = ''
+    }
+  })
+  if (primerVacio) {
+    mostrarToast(`Falta: ${primerVacio.label}`)
+    primerVacio.el?.focus()
+    return
   }
   const btn = document.getElementById('btn-pagar')
+  const stickyBtn = document.getElementById('sticky-btn-pagar')
   btn.disabled = true; btn.textContent = 'Procesando...'
+  if (stickyBtn) { stickyBtn.disabled = true; stickyBtn.textContent = 'Procesando...' }
   try {
     const pTotal = totalPares(carrito)
     const totalFinal = window._totalFinal || 0
@@ -344,6 +400,7 @@ async function procesarPago() {
     window.location.href = pago.init_point
   } catch(e) {
     btn.disabled = false; btn.textContent = 'Pagar ahora'
+    if (stickyBtn) { stickyBtn.disabled = false; stickyBtn.textContent = 'Pagar ahora 🔒' }
     mostrarToast(e.message || 'Error al procesar. Intenta de nuevo.')
     console.error('Error pago:', e)
   }

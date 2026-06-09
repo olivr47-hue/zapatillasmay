@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -603,12 +603,16 @@
 
     .product-card {
       cursor: pointer;
-      transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+      transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                  opacity 0.75s ease;
       display: block;
       text-decoration: none;
       color: inherit;
       overflow: hidden;
       border-radius: 12px;
+    }
+    .product-card.card-scroll {
+      animation: none !important;
     }
 
     .product-card:hover .product-img-wrap img {
@@ -3201,7 +3205,7 @@
   let variantes = []
   let inventario = []
   // Restaurar carrito desde sessionStorage (persiste entre navegaciones de la sesión)
-  let carrito = (() => { try { return JSON.parse(sessionStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
+  let carrito = (() => { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
   let productoSeleccionado = null
   let colorSeleccionado = null
   let tallaSeleccionada = null
@@ -3267,7 +3271,7 @@ window.addEventListener('load', () => {
     window._pendingPurchase = { valor: _valor, ids: _ids, paymentId }
     _intentarPurchase()  // intenta ya (si los pixeles cargaron); si no, cargarConfigSEO reintenta
     // Vaciar carrito tras compra exitosa
-    try { sessionStorage.removeItem('zm_carrito') } catch(e){}
+    try { localStorage.removeItem('zm_carrito') } catch(e){}
     carrito = []
     try { recalcularCarrito(); renderCarrito() } catch(e){}
     // Marcar carrito abandonado como convertido si había uno registrado
@@ -3286,7 +3290,7 @@ window.addEventListener('load', () => {
 
   } else if (path === '/pedido-pendiente' || params.get('status') === 'pending') {
     // SPEI u otro método pendiente — limpiar carrito y mostrar pantalla de espera
-    try { sessionStorage.removeItem('zm_carrito') } catch(e){}
+    try { localStorage.removeItem('zm_carrito') } catch(e){}
     carrito = []
     try { recalcularCarrito(); renderCarrito() } catch(e){}
     const extRef = params.get('external_reference') || ''
@@ -4226,7 +4230,7 @@ if (window.ttq) ttq.track('AddToCart', {
   }
 
   function guardarCarrito() {
-    try { sessionStorage.setItem('zm_carrito', JSON.stringify(carrito)) } catch(e) {}
+    try { localStorage.setItem('zm_carrito', JSON.stringify(carrito)) } catch(e) {}
   }
 
   function recalcularCarrito() {
@@ -6261,6 +6265,34 @@ function zmRechazarCookies() {
   if (typeof gsap === 'undefined') return;
   gsap.registerPlugin(ScrollTrigger);
 
+  // ── Scroll reveal para product-cards ─────────────────────────────
+  var _scrollTicking = false;
+  window._checkCards = function() {
+    var vh = window.innerHeight;
+    document.querySelectorAll('.product-card.card-scroll').forEach(function(card) {
+      var r = card.getBoundingClientRect();
+      var fadeZone = vh * 0.42;
+      var opacity;
+      if (r.top > vh) {
+        opacity = 0;
+      } else if (r.bottom < 0) {
+        opacity = 0;
+      } else {
+        var enterRatio = (vh - r.top) / fadeZone;
+        var leaveRatio = r.bottom / fadeZone;
+        opacity = Math.min(enterRatio, leaveRatio, 1);
+        opacity = Math.max(0, opacity);
+      }
+      card.style.opacity = opacity;
+    });
+  };
+  window.addEventListener('scroll', function() {
+    if (!_scrollTicking) {
+      requestAnimationFrame(function() { window._checkCards(); _scrollTicking = false; });
+      _scrollTicking = true;
+    }
+  }, { passive: true });
+
   var mm = gsap.matchMedia();
   mm.add({
     normal:  '(prefers-reduced-motion: no-preference)',
@@ -6373,6 +6405,30 @@ function zmRechazarCookies() {
           scrollTrigger: { trigger: '.cro-garantias', start: 'top 90%', once: true }
         }
       );
+
+      // ── BANNER MAYOREO ───────────────────────────────────────────────
+      var banner = document.querySelector('.banner-mayoreo');
+      if (banner) {
+        var inner      = banner.querySelector('.banner-mayoreo-inner');
+        var bannerLeft = inner ? inner.children[0] : null;
+        var bannerRight = inner ? inner.children[1] : null;
+        var bannerRows = bannerRight ? Array.from(bannerRight.children) : [];
+        var bannerBtns = Array.from(banner.querySelectorAll('.btn-primary, .btn-outline'));
+
+        if (bannerLeft) gsap.set(bannerLeft, { opacity: 0, x: -50 });
+        bannerRows.forEach(function(r) { gsap.set(r, { opacity: 0, x: 45 }); });
+        bannerBtns.forEach(function(b) { gsap.set(b, { opacity: 0, y: 18 }); });
+
+        var bannerFired = false;
+        new IntersectionObserver(function(entries, obs) {
+          if (!entries[0].isIntersecting || bannerFired) return;
+          bannerFired = true;
+          obs.disconnect();
+          if (bannerLeft) gsap.to(bannerLeft, { opacity: 1, x: 0, duration: 0.9, ease: 'power3.out' });
+          if (bannerRows.length) gsap.to(bannerRows, { opacity: 1, x: 0, duration: 0.55, ease: 'power2.out', stagger: 0.1, delay: 0.15 });
+          if (bannerBtns.length) gsap.to(bannerBtns, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', stagger: 0.1, delay: 0.35 });
+        }, { threshold: 0.15 }).observe(banner);
+      }
     }
 
     // ── CARDS ENTRANCE — trigger individual por card ─────────────────
@@ -6406,20 +6462,10 @@ function zmRechazarCookies() {
       if (!nuevas.length) return;
 
       nuevas.forEach(function(el) {
-        var tween = gsap.fromTo(el,
-          { opacity: 0, y: 32 },
-          { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', paused: true }
-        );
-        ScrollTrigger.create({
-          trigger: el,
-          start: 'top 92%',
-          end: 'top 8%',
-          onEnter:      function() { tween.play(); },
-          onLeaveBack:  function() { tween.reverse(); },
-          onEnterBack:  function() { tween.play(); },
-          onLeave:      function() { tween.reverse(); }
-        });
+        el.classList.add('card-scroll');
+        el.style.opacity = '0';
       });
+      setTimeout(window._checkCards, 80);
 
       initProductTap(nuevas);
     }

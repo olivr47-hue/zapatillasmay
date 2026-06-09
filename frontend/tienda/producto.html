@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -430,7 +430,7 @@ const _slug = _path.replace('/producto/', '').replace(/^\/|\/$/g, '')
 async function init() {
   // Mostrar badge del carrito existente desde sessionStorage
   try {
-    const carritoExistente = JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')
+    const carritoExistente = JSON.parse(localStorage.getItem('zm_carrito') || '[]')
     if (carritoExistente.length > 0) _actualizarBadgeCarrito(carritoExistente)
   } catch(e) {}
 
@@ -472,7 +472,7 @@ async function init() {
 
     renderProducto()
     cargarSimilares()
-    try { _actualizarBadgeCarrito(JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')) } catch(e) {}
+    try { _actualizarBadgeCarrito(JSON.parse(localStorage.getItem('zm_carrito') || '[]')) } catch(e) {}
   } catch(e) {
     if (!window.__ZM_PRODUCT__) window.location.href = '/'
   }
@@ -523,6 +523,7 @@ function renderProducto() {
     precioHTML = `$${precioDisplay} MXN`
   }
 
+  const envioGratisNote = `<p style="font-size:0.74rem;color:#22c55e;font-weight:600;margin-top:8px">🚚 Envío gratis a partir de $1,299 MXN</p>`
   let mayoreoHTML = ''
   if (!p.es_oferta) {
     const m3 = p.precio_mayoreo3 || p.precio_menudeo
@@ -532,6 +533,7 @@ function renderProducto() {
       <p>Mayoreo 3-5 pares: <strong>$${m3} MXN</strong> c/u</p>
       <p>Mayoreo 6+ pares: <strong>$${m6} MXN</strong> c/u</p>
       ${p.corrida_activa ? `<p>Media corrida: <strong>$${mc} MXN</strong> c/u</p>` : ''}
+      <p style="margin-top:6px;font-size:0.74rem;color:#22c55e;font-weight:600">🚚 Envío gratis a partir de $1,299 MXN</p>
     </div>`
   }
 
@@ -541,6 +543,7 @@ function renderProducto() {
     <p class="product-sku">${p.sku_interno || ''}</p>
     <p class="product-price-main">${precioHTML}</p>
     ${mayoreoHTML}
+    ${p.es_oferta ? envioGratisNote : ''}
 
     ${colores.length ? `
     <p class="section-label">Color <span id="color-label" style="text-transform:none;letter-spacing:0;color:var(--black);font-size:0.78rem;font-weight:600;margin-left:4px"></span></p>
@@ -728,10 +731,10 @@ function irACarrito() {
 
   // Agregar directo al sessionStorage sin salir de la página
   try {
-    const carrito = JSON.parse(sessionStorage.getItem('zm_carrito') || '[]')
+    const carrito = JSON.parse(localStorage.getItem('zm_carrito') || '[]')
     const existente = carrito.find(i => i.variante_id && i.variante_id === item.variante_id)
     if (existente) { existente.cantidad++ } else { carrito.push(item) }
-    sessionStorage.setItem('zm_carrito', JSON.stringify(carrito))
+    localStorage.setItem('zm_carrito', JSON.stringify(carrito))
     _actualizarBadgeCarrito(carrito)
   } catch(e) {}
 
