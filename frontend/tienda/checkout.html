@@ -60,14 +60,14 @@
     .step.done { color:var(--gray); }
     .step-line { width:28px; height:1.5px; background:var(--border-med); }
 
-    .page { max-width: 880px; margin: 0 auto; padding: 16px 16px 120px; position: relative; z-index: 1; }
+    .page { max-width: 880px; margin: 0 auto; padding: 16px clamp(14px, 4vw, 32px) 120px; position: relative; z-index: 1; }
     h1 { font-family: var(--font-display); font-size: 2.2rem; font-weight: 400; margin-bottom: 2px; letter-spacing: -0.3px; text-align:center; }
     .subtitle { font-size: 0.8rem; color: var(--gray-light); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 1px; font-weight: 500; text-align:center; }
 
     .layout { display:grid; grid-template-columns: 1fr; gap: 20px; align-items:start; }
     @media (min-width: 760px) { .layout { grid-template-columns: 1fr 340px; } }
 
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 22px 24px; box-shadow: 0 2px 12px rgba(90,40,10,0.05); margin-bottom:16px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px clamp(14px, 4vw, 24px); box-shadow: 0 2px 12px rgba(90,40,10,0.05); margin-bottom:16px; width: 100%; box-sizing: border-box; }
     .card-title { font-family:var(--font-display); font-size:1.4rem; font-weight:400; margin-bottom:16px; color:var(--black); }
     .card-title em { font-style:italic; color:var(--mauve); }
 
@@ -89,7 +89,7 @@
     .ritem-price { font-family:var(--font-mono); font-weight:700; color:var(--mauve); font-size:0.82rem; }
     .resumen-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-size:0.84rem; color:var(--gray); }
     .resumen-row.total { border-top:1px solid var(--border); margin-top:8px; padding-top:14px; font-weight:700; font-size:1rem; color:var(--black); }
-    .resumen-row.total .val { font-family:var(--font-mono); font-size:1.3rem; }
+    .resumen-row.total .val { font-family:var(--font-mono); font-size: clamp(0.9rem, 4vw, 1.2rem); }
 
     .pagos-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--tan); margin: 18px 0 8px; }
     .pagos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -125,10 +125,6 @@
     @media (max-width: 760px) {
       .checkout-sticky { display:block; }
       body { padding-bottom:90px; }
-      .page { padding-left: 20px; padding-right: 20px; }
-      .card { padding: 18px 20px; }
-      .resumen-row.total .val { font-size: 1rem; }
-      .resumen-row { font-size: 0.8rem; }
     }
   </style>
 </head>
