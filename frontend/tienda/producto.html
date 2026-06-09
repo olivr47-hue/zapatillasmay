@@ -442,7 +442,8 @@ async function init() {
   try {
     const fetchPromises = [
       fetch(`${API}/variantes/`).catch(() => null),
-      fetch(`${API}/inventario/slim`).catch(() => null)
+      fetch(`${API}/inventario/slim`).catch(() => null),
+      fetch(`${API}/config/envio`).catch(() => null)
     ]
 
     // Solo fetch del producto si no fue pre-inyectado por el backend SSR
@@ -453,9 +454,10 @@ async function init() {
       }
     }
 
-    const [resV, resI] = await Promise.all(fetchPromises)
+    const [resV, resI, resEnvio] = await Promise.all(fetchPromises)
     variantes  = resV ? await resV.json() : []
     inventario = resI ? await resI.json() : []
+    if (resEnvio?.ok) { try { window._cfgEnvio = await resEnvio.json() } catch(e) {} }
 
     if (window.__ZM_PRODUCT__) {
       // SSR: datos ya disponibles, sin API call extra
@@ -523,7 +525,27 @@ function renderProducto() {
     precioHTML = `$${precioDisplay} MXN`
   }
 
-  const envioGratisNote = `<p style="font-size:0.74rem;color:#22c55e;font-weight:600;margin-top:8px">🚚 Envío gratis a partir de $1,299 MXN</p>`
+  // Tabla de envío dinámica — se actualiza al cambiar cantidad en carrito
+  const _cfg = window._cfgEnvio || { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }
+  const envioHTML = () => {
+    const carritoActual = (() => { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
+    const pares = carritoActual.reduce((s, i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0) + 1 // +1 par que está viendo
+    const subtotal = carritoActual.reduce((s, i) => {
+      const pp = i.es_corrida ? i.cantidad * 6 : i.cantidad
+      return s + (i.precio_unitario || i.precio_menudeo) * pp
+    }, 0) + precioDisplay
+    if (subtotal >= _cfg.gratis_desde) {
+      return `<p style="font-size:0.74rem;color:#22c55e;font-weight:700;margin-top:8px;display:flex;align-items:center;gap:5px">🚚 <span>¡Envío <strong>gratis</strong> con este pedido!</span></p>`
+    }
+    const costoActual = pares >= 3 ? _cfg.tier3 : pares >= 2 ? _cfg.tier2 : _cfg.tier1
+    const faltan = _cfg.gratis_desde - subtotal
+    return `<div style="margin-top:8px;font-size:0.73rem;color:#666;line-height:1.7">
+      <p>🚚 Envío estimado: <strong style="color:var(--tan)">$${costoActual} MXN</strong>
+        <span style="color:#aaa;font-size:0.66rem"> · Gratis a partir de $${_cfg.gratis_desde}</span></p>
+      ${faltan > 0 ? `<p style="color:#f97316;font-size:0.68rem">Faltan <strong>$${Math.round(faltan)}</strong> para envío gratis 🎯</p>` : ''}
+    </div>`
+  }
+  const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
   if (!p.es_oferta) {
     const m3 = p.precio_mayoreo3 || p.precio_menudeo
@@ -533,7 +555,6 @@ function renderProducto() {
       <p>Mayoreo 3-5 pares: <strong>$${m3} MXN</strong> c/u</p>
       <p>Mayoreo 6+ pares: <strong>$${m6} MXN</strong> c/u</p>
       ${p.corrida_activa ? `<p>Media corrida: <strong>$${mc} MXN</strong> c/u</p>` : ''}
-      <p style="margin-top:6px;font-size:0.74rem;color:#22c55e;font-weight:600">🚚 Envío gratis a partir de $1,299 MXN</p>
     </div>`
   }
 
@@ -543,7 +564,7 @@ function renderProducto() {
     <p class="product-sku">${p.sku_interno || ''}</p>
     <p class="product-price-main">${precioHTML}</p>
     ${mayoreoHTML}
-    ${p.es_oferta ? envioGratisNote : ''}
+    ${envioGratisNote}
 
     ${colores.length ? `
     <p class="section-label">Color <span id="color-label" style="text-transform:none;letter-spacing:0;color:var(--black);font-size:0.78rem;font-weight:600;margin-left:4px"></span></p>
@@ -738,6 +759,8 @@ function irACarrito() {
     if (existente) { existente.cantidad++ } else { carrito.push(item) }
     localStorage.setItem('zm_carrito', JSON.stringify(carrito))
     _actualizarBadgeCarrito(carrito)
+    const noteEl = document.getElementById('envio-note-producto')
+    if (noteEl) noteEl.innerHTML = envioHTML()
   } catch(e) {}
 
   // Pixels
