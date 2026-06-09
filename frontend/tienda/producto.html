@@ -409,6 +409,12 @@
     🛒 Ver carrito (<span id="cart-count-prod">0</span>)
   </a>
   <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
+  <div id="stock-urgency" style="display:none;font-size:0.73rem;color:#e07a30;font-weight:600;margin-top:8px;text-align:center">⚡ ¡Últimas unidades en esta talla!</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px;font-size:0.72rem;color:#8B6A54">
+    <span>✓ Garantía 22 días</span>
+    <span>↩ Devolución 30 días</span>
+    <span>🔒 Pago seguro</span>
+  </div>
 </div>
 
 <!-- LIGHTBOX -->
@@ -566,11 +572,10 @@ function renderProducto() {
   if (!p.es_oferta) {
     const m3 = p.precio_mayoreo3 || p.precio_menudeo
     const m6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
-    const mc = p.precio_corrida || (p.precio_menudeo - 100)
     mayoreoHTML = `<div class="mayoreo-box">
+      <p style="color:var(--gray-light);font-size:0.7rem;margin-bottom:4px">(1-2 pares = precio menudeo)</p>
       <p>Mayoreo 3-5 pares: <strong>$${m3} MXN</strong> c/u</p>
       <p>Mayoreo 6+ pares: <strong>$${m6} MXN</strong> c/u</p>
-      ${p.corrida_activa ? `<p>Media corrida: <strong>$${mc} MXN</strong> c/u</p>` : ''}
     </div>`
   }
 
@@ -742,6 +747,14 @@ function seleccionarTalla(talla) {
   }
   const tallaHint = document.getElementById('talla-hint-text')
   if (tallaHint) tallaHint.textContent = ''
+  // Urgencia stock bajo
+  const urgEl = document.getElementById('stock-urgency')
+  if (urgEl) {
+    const varsProd2 = variantes.filter(v => v.producto_id === producto?.id && v.activa !== false)
+    const v = varsProd2.find(vv => vv.color === colorSeleccionado && String(vv.talla) === String(talla))
+    const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
+    urgEl.style.display = (stock > 0 && stock <= 3) ? 'block' : 'none'
+  }
   actualizarCTA()
 }
 

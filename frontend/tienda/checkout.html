@@ -333,6 +333,9 @@ function render() {
   // A1: actualizar texto del botón pagar con el monto real
   const _btnPagarText = document.getElementById('btn-pagar-text')
   if (_btnPagarText) _btnPagarText.textContent = `Pagar $${totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN`
+  // Botón "Continuar" paso 1 también muestra total
+  const _btnSig = document.getElementById('btn-siguiente')
+  if (_btnSig) _btnSig.textContent = `Continuar · $${totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN →`
 
   // Actualizar sticky móvil (solo se muestra en paso 2)
   const stickyTotal = document.getElementById('sticky-total')

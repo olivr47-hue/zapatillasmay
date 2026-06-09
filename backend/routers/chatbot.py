@@ -17,7 +17,7 @@ def get_api_key():
 
 def construir_catalogo(productos):
     catalogo = ""
-    for p in productos[:40]:
+    for p in productos[:120]:
         sku = p.get('sku_interno') or p.get('id','')
         catalogo += f"- [SKU:{sku}] {p['nombre']}"
         if p.get('imagen_principal'):
@@ -104,6 +104,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + modelo + color + t
 - Máximo 3-4 líneas por mensaje, nunca textos largos de golpe
 - NUNCA inventes precios ni modelos fuera del catálogo
 - NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
+- Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre y dirección para envío.
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
 - Si preguntan por mayoreo, explica los precios y pregunta cuántos pares buscan
 - Sé diferente en cada mensaje, no repitas el mismo texto

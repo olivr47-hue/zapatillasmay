@@ -294,7 +294,10 @@ function render() {
   const hintText = document.getElementById('mayoreo-hint-texto')
   if (total < 3) {
     hint.style.display = 'flex'
-    hintText.innerHTML = `Agrega <strong>${3 - total} par${3 - total > 1 ? 'es' : ''} más</strong> y obtén precio de mayoreo (-$80/par)`
+    hint.style.background = ''
+    hint.style.border = ''
+    const falta = 3 - total
+    hintText.innerHTML = `💡 Agrega <strong>${falta} par${falta > 1 ? 'es' : ''} más</strong> y obtén precio de mayoreo — ahorras <strong style="color:#b5687a">$${falta === 2 ? 160 : 80} MXN</strong>`
   } else if (total === 5) {
     // Caso especial: a 1 par de desbloquear el mejor precio — mostrar ahorro real
     const ahorroExtra = carrito.reduce((s, item) => {
