@@ -822,15 +822,19 @@ function irACarrito() {
   if (window.fbq) fbq('track', 'AddToCart', { content_ids: [p.sku_interno || p.id], content_type: 'product', content_name: p.nombre, value: precioBase, currency: 'MXN' })
   if (window.ttq) ttq.track('AddToCart', { content_id: p.sku_interno || p.id, content_type: 'product', content_name: p.nombre, value: precioBase, price: precioBase, currency: 'MXN' })
 
-  // Toast + reset talla para agregar otro par fácil
+  // Toast + animación + reset talla
   mostrarToast('✓ Agregado al carrito')
-  window.animateAddToCart?.(document.getElementById('btn-agregar'))
-  tallaSeleccionada = null
-  document.querySelectorAll('.talla-btn').forEach(b => b.classList.remove('selected'))
-  const btn = document.getElementById('btn-agregar')
-  btn.textContent = 'Selecciona talla'
-  btn.disabled = true
-  btn.classList.remove('listo')
+  const _btnAgregar = document.getElementById('btn-agregar')
+  // Explosión de partículas y fly-to-cart
+  if (typeof burstParticles === 'function') burstParticles(_btnAgregar)
+  if (typeof flyToCart === 'function') flyToCart(_btnAgregar)
+  // Reset talla después de la animación para que la explosión se vea en el botón verde
+  setTimeout(() => {
+    tallaSeleccionada = null
+    document.querySelectorAll('.talla-btn').forEach(b => { b.classList.remove('selected'); b.classList.remove('active') })
+    const btn = document.getElementById('btn-agregar')
+    if (btn) { btn.textContent = 'Selecciona talla'; btn.disabled = true; btn.classList.remove('listo') }
+  }, 480)
 }
 
 function _actualizarBadgeCarrito(carrito) {
@@ -1069,6 +1073,6 @@ function zmRechazarCookies() {
   <p>&copy; 2026 Zapatillas May · León, Guanajuato · <a href="/" style="color:#9c5a52;text-decoration:none">zapatillasmay.mx</a></p>
   <p style="margin-top:0.4rem"><a href="/privacidad" style="color:#9c5a52;text-decoration:none">Política de privacidad</a> · <a href="/politica-de-devoluciones" style="color:#9c5a52;text-decoration:none">Devoluciones</a></p>
 </footer>
-<script defer src="/animations.js?v=2"></script>
+<script defer src="/animations.js?v=3"></script>
 </body>
 </html>

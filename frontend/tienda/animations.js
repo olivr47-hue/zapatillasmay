@@ -1,4 +1,4 @@
-/* animations.js v3 — Zapatillas May */
+/* animations.js v3.1 — Zapatillas May */
 
 // ── GRADIENT BORDER ANIMADO EN BOTÓN ────────────────────────────────────────
 ;(function initGradientBorder() {
