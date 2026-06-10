@@ -17,7 +17,7 @@ def get_api_key():
 
 def construir_catalogo(productos):
     catalogo = ""
-    for p in productos[:120]:
+    for p in productos:
         sku = p.get('sku_interno') or p.get('id','')
         catalogo += f"- [SKU:{sku}] {p['nombre']}"
         if p.get('imagen_principal'):
