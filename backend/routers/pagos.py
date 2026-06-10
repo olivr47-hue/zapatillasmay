@@ -337,9 +337,9 @@ def crear_preferencia(datos: dict):
             },
             "external_reference": str(pedido_id),
             "back_urls": {
-                "success": frontend_url + "/pedido-exitoso",
-                "failure": frontend_url + "/pedido-fallido",
-                "pending": frontend_url + "/pedido-pendiente"
+                "success": frontend_url + "/success",
+                "failure": frontend_url + "/success",
+                "pending": frontend_url + "/success"
             },
             "auto_return": "approved",
         }

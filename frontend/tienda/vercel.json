@@ -19,7 +19,7 @@
       ]
     },
     {
-      "source": "/(pedido-exitoso|pedido-pendiente|pedido-fallido|checkout|carrito)",
+      "source": "/(success|pedido-exitoso|pedido-pendiente|pedido-fallido|checkout|carrito)",
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
@@ -52,9 +52,10 @@
     { "source": "/tabla-tallas",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tabla-tallas" },
     { "source": "/como-comprar",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/como-comprar" },
     { "source": "/privacidad",     "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/privacidad" },
-    { "source": "/pedido-exitoso",   "destination": "/index.html" },
-    { "source": "/pedido-pendiente", "destination": "/index.html" },
-    { "source": "/pedido-fallido",   "destination": "/index.html" },
+    { "source": "/success",           "destination": "/success.html" },
+    { "source": "/pedido-exitoso",   "destination": "/success.html" },
+    { "source": "/pedido-pendiente", "destination": "/success.html" },
+    { "source": "/pedido-fallido",   "destination": "/success.html" },
     { "source": "/checkout",       "destination": "/checkout.html" },
     { "source": "/links",          "destination": "/links.html" },
     { "source": "/ofertas",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/ofertas" },
