@@ -53,9 +53,11 @@ PRECIOS Y MAYOREO:
 - Mayoreo variado 6+ pares: precio del catálogo -$70 por par
 - Corrida completa: precio del catálogo -$110 por par (mismo estilo/color, tallas 23 al 26 con medios = 6 pares)
 
-ENVÍOS:
-- Menos de 6 pares: Fedex o Estafeta $99
-- Mayoreo: Castores (pago al recibir), Estafeta o Fedex (pago con pedido)
+ENVÍOS (costo exacto — úsalo al calcular totales):
+- 1 par: $99 | 2 pares: $150 | 3-5 pares: $199
+- Envío GRATIS cuando el subtotal de productos es $1,299 o más
+- Mayoreo 6+ pares: Castores (pago al recibir), Estafeta o Fedex (pago con pedido)
+- IMPORTANTE: siempre calcula el envío correcto según número de pares antes de cotizar
 - Horario: Lunes y Sábado 10am–3pm | Martes a Viernes 10am–7pm | Domingo: cerrado
 - Enviamos en 24hrs después de confirmar pago (excepto sábados 3pm+ y domingos)
 - Cambios: el retorno de paquetería corre por cuenta del comprador
@@ -91,12 +93,14 @@ Cuando tengas modelo + color + talla:
   • ¿Cómo prefieres pagar?"
 
 PASO 5 — CERRAR PEDIDO Y GENERAR LINK DE PAGO:
-Cuando tengas TODOS los datos (nombre completo + dirección + modelo + color + talla + precio del catálogo):
-- Resume el pedido brevemente
+Cuando tengas TODOS los datos (nombre completo + dirección + modelos + colores + tallas + precios):
+- Calcula el subtotal sumando todos los pares
+- Calcula el envío según las reglas de ENVÍOS (1 par=$99, 2=$150, 3-5=$199, gratis si subtotal≥$1,299)
+- Resume el pedido con subtotal + envío + total
 - Usa el marcador GENERAR_PAGO con JSON exacto (sin espacios extra, sin saltos de línea dentro):
-  GENERAR_PAGO:{{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"NOMBRE_MODELO","sku":"SKU_DEL_CATALOGO","color":"COLOR","talla":"TALLA","precio":PRECIO_NUMERO}}
-- Ejemplo: "¡Perfecto Lupita! 🛍️ Tu pedido: MA302 Negro talla 24 — $365 + $99 envío = $464 total GENERAR_PAGO:{{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, Centro, CDMX 06600","modelo":"Tacón MA302","sku":"MA302","color":"Negro","talla":"24","precio":365}}
-- El sistema creará el pedido y mandará el link de Mercado Pago automáticamente
+  GENERAR_PAGO:{{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"DESCRIPCION_PEDIDO","sku":"SKU_PRINCIPAL","color":"COLOR","talla":"TALLAS","precio":SUBTOTAL_NUMERO,"pares":TOTAL_PARES}}
+- Ejemplo pedido 3 pares $430 c/u: GENERAR_PAGO:{{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, CDMX 06600","modelo":"EF1203 LATTE T23.5 + EF1203 NEGRO T23.5 + CR3385 ORO T23","sku":"EF1203","color":"varios","talla":"varios","precio":1290,"pares":3}}
+- El sistema calculará el envío correcto y mandará el link de Mercado Pago automáticamente
 - NO pongas LINK_PAGO, usa GENERAR_PAGO con el JSON
 
 === REGLAS IMPORTANTES ===
@@ -272,7 +276,16 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         color      = datos_pedido.get("color", "")
         talla      = datos_pedido.get("talla", "")
         precio     = float(datos_pedido.get("precio", 0))
-        envio      = 99.0
+        pares      = int(datos_pedido.get("pares", 1))
+        # Cálculo de envío igual que el sitio web
+        if precio >= 1299:
+            envio = 0.0
+        elif pares >= 3:
+            envio = 199.0
+        elif pares >= 2:
+            envio = 150.0
+        else:
+            envio = 99.0
         total      = precio + envio
         descripcion = f"{modelo} — {color} talla {talla}"
         notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
