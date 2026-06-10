@@ -271,11 +271,9 @@ def _construir_items_validados(pedido_id, items_cliente):
             cant = int(it.get("cantidad", 1) or 1)
             precio = float(it.get("precio_unitario", 0) or 0)
             var = it.get("variantes") or {}
-            prod_id = var.get("producto_id") if isinstance(var, dict) else None
-            piso = _precio_piso_producto(prod_id)
-            if piso and precio < piso:
-                print(f"[seguridad] Precio bajo el piso en pedido {pedido_id}: ${precio} < ${piso}. Corregido a ${piso}.")
-                precio = piso
+            # Nota: no aplicamos piso aquí porque precio_corrida puede ser estimado
+            # (precio_menudeo - 100) cuando no está en catálogo, y quedaría
+            # por debajo del piso calculado con otros tiers → MP cobra de más.
             nombre = "Producto"
             prod = var.get("productos") if isinstance(var, dict) else None
             if isinstance(prod, dict) and prod.get("nombre"):
