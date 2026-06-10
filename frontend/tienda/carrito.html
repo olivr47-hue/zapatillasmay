@@ -257,12 +257,9 @@ function guardarCarrito() {
 // ── PRECIO DINÁMICO POR VOLUMEN ──────────────────────────────────
 function calcularPrecioUnitario(item, totalPares) {
   if (item.es_oferta) return item.precio_unitario
-  if (totalPares >= 6 || item.es_corrida) {
-    return item.precio_corrida || item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
-  }
-  if (totalPares >= 3) {
-    return item.precio_mayoreo3 || item.precio_menudeo
-  }
+  if (item.es_corrida) return item.precio_corrida || item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
+  if (totalPares >= 6) return item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
+  if (totalPares >= 3) return item.precio_mayoreo3 || item.precio_menudeo
   return item.precio_menudeo
 }
 
