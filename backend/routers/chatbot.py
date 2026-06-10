@@ -759,11 +759,57 @@ async def recibir_mensaje_whatsapp(datos: dict):
             guardar_conversacion(from_number, mensaje, None, "texto", nombre_contacto)
             return {"status": "ok"}
 
-        mensajes = historial + [{"role": "user", "content": mensaje}]
+        # ── DEBOUNCE: guardar mensaje primero, esperar 2s y verificar si llegó otro ──
+        # Esto evita que dos mensajes enviados rápido se procesen por separado
+        guardar_conversacion(from_number, mensaje, None, "pendiente", nombre_contacto)
+        time.sleep(2)
+
+        # Buscar mensajes pendientes (sin respuesta) de este número en los últimos 5s
+        try:
+            recientes = supabase_get(
+                f"conversaciones_whatsapp?telefono=eq.{from_number}"
+                f"&respuesta=is.null&tipo=eq.pendiente"
+                f"&order=created_at.desc&limit=5"
+            )
+        except Exception:
+            recientes = []
+
+        # Si hay más de un mensaje pendiente, combinarlos
+        pendientes = [r for r in recientes if r.get("mensaje") and not r.get("mensaje","").startswith("[")]
+        if len(pendientes) > 1:
+            # Solo el más reciente procesa; los demás ya están guardados
+            # Si este mensaje NO es el más reciente, salir (el más reciente lo procesará)
+            mas_reciente = pendientes[0]  # order desc → [0] es el más reciente
+            if mas_reciente.get("mensaje") != mensaje:
+                return {"status": "ok"}
+            # Combinar todos los pendientes en orden cronológico
+            mensaje_combinado = "\n".join(r["mensaje"] for r in reversed(pendientes))
+            # Marcar todos como procesados
+            try:
+                supabase_patch(
+                    f"conversaciones_whatsapp?telefono=eq.{from_number}&respuesta=is.null&tipo=eq.pendiente",
+                    {"tipo": "texto"}
+                )
+            except Exception:
+                pass
+            mensaje_final = mensaje_combinado
+        else:
+            # Solo un mensaje pendiente, procesar normal
+            try:
+                supabase_patch(
+                    f"conversaciones_whatsapp?telefono=eq.{from_number}&respuesta=is.null&tipo=eq.pendiente",
+                    {"tipo": "texto"}
+                )
+            except Exception:
+                pass
+            mensaje_final = mensaje
+
+        # Recargar historial ahora que los mensajes están guardados
+        historial_actualizado = obtener_historial(from_number, limite=10)
+        mensajes = historial_actualizado + [{"role": "user", "content": mensaje_final}]
         respuesta_claude = llamar_claude(mensajes, sistema)
         texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-        # Guardar texto limpio (sin marcadores) para que el panel lo muestre correctamente
-        guardar_conversacion(from_number, mensaje, texto_guardado or respuesta_claude, "texto", nombre_contacto)
+        guardar_conversacion(from_number, mensaje_final, texto_guardado or respuesta_claude, "texto", nombre_contacto)
         return {"status": "ok"}
 
     except Exception:
@@ -2021,12 +2067,7 @@ async def enviar_carrusel(telefono: str, datos: dict):
             })
             enviadas += 1
 
-        # Poner en control manual para que Maya no responda mientras el cliente ve las fotos
-        existing_ctrl = supabase_get(f"chats_control?telefono=eq.{telefono}")
-        if existing_ctrl:
-            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"en_control": True})
-        else:
-            supabase_post("chats_control", {"telefono": telefono, "en_control": True})
+        # No poner en control manual automáticamente — Maya puede seguir respondiendo
 
         try:
             # Guardar nombres de los productos para que Maya tenga contexto
