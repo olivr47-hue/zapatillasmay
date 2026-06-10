@@ -165,6 +165,7 @@
     .similar-card-price { font-size: 0.75rem; color: var(--tan); font-family: var(--font-mono); margin-top: 2px; font-weight: 600; }
 
     /* ── STICKY BOTTOM BAR ── */
+    #stock-urgency { display: none; position: fixed; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 199; background: rgba(255,248,240,0.97); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid rgba(224,122,48,0.2); padding: 5px 16px; text-align: center; font-size: 0.72rem; color: #e07a30; font-weight: 700; letter-spacing: 0.2px; }
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(200,150,122,0.15); padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 12px; align-items: center; box-shadow: 0 -8px 32px rgba(0,0,0,0.06); }
     .sticky-bar-info { display: none; }
     .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A 0%,#b5687a 100%); color: white; border: none; border-radius: 100px; padding: 16px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.23,1,0.32,1); letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(200,150,122,0.45); position: relative; overflow: hidden; }
@@ -399,6 +400,9 @@
 
 </main>
 
+<!-- STOCK URGENCY BAR (floats above sticky bar) -->
+<div id="stock-urgency">⚡ ¡Últimas unidades en esta talla!</div>
+
 <!-- STICKY BOTTOM BAR -->
 <div class="sticky-bar">
   <div class="sticky-bar-info">
@@ -408,10 +412,8 @@
   <a id="btn-ver-carrito" href="/carrito" style="display:none;background:var(--pink);color:white;border:none;border-radius:10px;padding:14px 20px;font-family:var(--font-body);font-size:0.88rem;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;text-align:center;box-shadow:0 4px 14px rgba(233,30,140,0.35)">
     🛒 Ver carrito (<span id="cart-count-prod">0</span>)
   </a>
-  <div style="display:flex;flex-direction:column;flex:1;gap:4px;min-width:0">
-    <div id="stock-urgency" style="display:none;font-size:0.71rem;color:#e07a30;font-weight:700;text-align:center;letter-spacing:0.2px">⚡ ¡Últimas unidades en esta talla!</div>
-    <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled style="width:100%;margin:0">Selecciona color y talla</button>
-  </div>
+  <button class="btn-agregar" id="btn-agregar" onclick="irACarrito()" disabled>Selecciona color y talla</button>
+
 </div>
 
 <!-- LIGHTBOX -->
