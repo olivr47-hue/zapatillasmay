@@ -388,28 +388,32 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     match_pago = re.search(r'GENERAR_PAGO:(\{[^}]+\})', respuesta_claude)
     if match_pago:
         texto = re.sub(r'GENERAR_PAGO:\{[^}]+\}', '', respuesta_claude).strip()
+        msg_enviado = texto  # lo que finalmente se guarda como respuesta
         if texto:
             enviar_whatsapp_texto(from_number, texto)
         try:
             datos = json.loads(match_pago.group(1))
             link, total, pedido_id = generar_link_pago_wa(from_number, datos)
-            import time; time.sleep(1)
+            time.sleep(1)
             if link:
-                nombre_corto = datos.get("nombre", "").split()[0] or "aquí"
-                enviar_whatsapp_texto(
-                    from_number,
+                msg_link = (
                     f"💳 *Link de pago — ${total:.0f} MXN*\n\n{link}\n\n"
                     f"_Acepta tarjeta, transferencia, OXXO y más. "
                     f"En cuanto confirme el pago procesamos tu pedido 🚀_"
                 )
+                enviar_whatsapp_texto(from_number, msg_link)
+                msg_enviado = (texto + "\n\n" + msg_link).strip()
             else:
-                enviar_whatsapp_texto(from_number,
-                    "Hubo un problema generando tu link de pago, escríbeme y te lo mando por otro medio 🙏")
+                msg_fallback = "Hubo un problema generando tu link de pago 😔 Escríbeme y te lo mando por otro medio."
+                enviar_whatsapp_texto(from_number, msg_fallback)
+                msg_enviado = (texto + "\n\n" + msg_fallback).strip() if texto else msg_fallback
+                print(f"[chatbot] MP falló para {from_number} — token posiblemente expirado")
         except Exception as e:
-            print(f"Error procesando GENERAR_PAGO: {e}")
-            enviar_whatsapp_texto(from_number,
-                "Hubo un problema generando tu link de pago, escríbeme y te lo mando por otro medio 🙏")
-        return texto or respuesta_claude
+            print(f"[chatbot] Error procesando GENERAR_PAGO para {from_number}: {e}")
+            msg_fallback = "Hubo un problema generando tu link de pago 😔 Escríbeme y te lo mando por otro medio."
+            enviar_whatsapp_texto(from_number, msg_fallback)
+            msg_enviado = (texto + "\n\n" + msg_fallback).strip() if texto else msg_fallback
+        return msg_enviado or respuesta_claude
 
     # ── BUSCAR_COLORES:[SKU] ─────────────────────────────────────────────────
     match_colores = re.search(r'BUSCAR_COLORES:\[?([A-Za-z0-9_\-]+)\]?', respuesta_claude)
@@ -762,7 +766,8 @@ async def recibir_mensaje_whatsapp(datos: dict):
         # ── DEBOUNCE: guardar mensaje primero, esperar 2s y verificar si llegó otro ──
         # Esto evita que dos mensajes enviados rápido se procesen por separado
         guardar_conversacion(from_number, mensaje, None, "pendiente", nombre_contacto)
-        time.sleep(2)
+        import asyncio
+        await asyncio.sleep(2)  # async sleep — no bloquea el event loop
 
         # Buscar mensajes pendientes (sin respuesta) de este número en los últimos 5s
         try:
@@ -806,13 +811,44 @@ async def recibir_mensaje_whatsapp(datos: dict):
 
         # Recargar historial ahora que los mensajes están guardados
         historial_actualizado = obtener_historial(from_number, limite=10)
-        mensajes = historial_actualizado + [{"role": "user", "content": mensaje_final}]
-        respuesta_claude = llamar_claude(mensajes, sistema)
+        mensajes_claude = historial_actualizado + [{"role": "user", "content": mensaje_final}]
+
+        # ── Llamar Claude con retry en caso de error temporal ──────────────────
+        respuesta_claude = None
+        ultimo_error = None
+        for intento in range(2):  # 1 reintento
+            try:
+                respuesta_claude = llamar_claude(mensajes_claude, sistema)
+                break
+            except Exception as e:
+                ultimo_error = e
+                print(f"[chatbot] Error Claude intento {intento+1}: {e}")
+                if intento == 0:
+                    await asyncio.sleep(3)
+
+        if respuesta_claude is None:
+            # Claude no respondió después de reintentos — avisar al usuario
+            msg_error = "Disculpa, tuve un problema técnico 😔 ¿Puedes repetir tu mensaje?"
+            enviar_whatsapp_texto(from_number, msg_error)
+            guardar_conversacion(from_number, mensaje_final, msg_error, "texto", nombre_contacto)
+            print(f"[chatbot] FATAL para {from_number}: {ultimo_error}")
+            return {"status": "ok"}
+
         texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
         guardar_conversacion(from_number, mensaje_final, texto_guardado or respuesta_claude, "texto", nombre_contacto)
         return {"status": "ok"}
 
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(f"[chatbot] EXCEPCION no manejada para {locals().get('from_number','?')}: {e}")
+        print(traceback.format_exc())
+        # Intentar avisar al usuario si tenemos su número
+        try:
+            fn = locals().get('from_number')
+            if fn:
+                enviar_whatsapp_texto(fn, "Disculpa, tuve un problema técnico 😔 ¿Puedes repetir tu mensaje?")
+        except Exception:
+            pass
         return {"status": "ok"}
 
 _WA_VERIFY_TOKEN = os.getenv("WA_VERIFY_TOKEN", "")
