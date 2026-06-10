@@ -168,7 +168,7 @@
     #stock-urgency { display: none; position: fixed; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 199; background: rgba(255,248,240,0.97); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid rgba(224,122,48,0.2); padding: 5px 16px; text-align: center; font-size: 0.72rem; color: #e07a30; font-weight: 700; letter-spacing: 0.2px; }
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(200,150,122,0.15); padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 12px; align-items: center; box-shadow: 0 -8px 32px rgba(0,0,0,0.06); }
     .sticky-bar-info { display: none; }
-    .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A 0%,#b5687a 100%); color: white; border: none; border-radius: 100px; padding: 16px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.23,1,0.32,1); letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(200,150,122,0.45); position: relative; overflow: hidden; }
+    .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A 0%,#b5687a 100%); color: white; border: none; border-radius: 100px; padding: 16px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.23,1,0.32,1); letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(200,150,122,0.45); position: relative; overflow: hidden; white-space: nowrap; }
     .btn-agregar::after { content:''; position:absolute; inset:0; background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent); pointer-events:none; }
     .btn-agregar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(200,150,122,0.55); }
     .btn-agregar:active { transform: scale(0.97); }
@@ -322,9 +322,9 @@
       }
 
       .btn-agregar {
-        flex: 0 0 200px;
-        padding: 14px 24px;
-        font-size: 0.95rem;
+        flex: 0 0 auto;
+        padding: 14px 28px;
+        font-size: 0.9rem;
         border-radius: 100px;
       }
 
