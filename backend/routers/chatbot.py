@@ -136,13 +136,30 @@ def llamar_claude(mensajes, sistema):
         error = e.read().decode()
         raise Exception(f"Claude API error: {error}")
 
-def llamar_claude_con_imagen(img_b64, sistema, historial=[]):
+def llamar_claude_con_imagen(img_b64, sistema, historial=[], caption=""):
     url = "https://api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": get_api_key(),
         "anthropic-version": "2023-06-01",
         "content-type": "application/json"
     }
+    # Incluir el caption del cliente si lo mandó junto con la imagen
+    if caption:
+        texto_prompt = (
+            f"La clienta me mandó esta foto y escribió: \"{caption}\". "
+            f"SÍ PUEDO VER LA IMAGEN. Analiza el estilo (taco, sandalia, bota, plataforma), color y detalles. "
+            f"Responde a lo que preguntó y busca en el catálogo el modelo MÁS parecido. "
+            f"Menciona el precio y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas. "
+            f"NO digas que no recibiste la imagen."
+        )
+    else:
+        texto_prompt = (
+            "La clienta me mandó esta foto de calzado. SÍ PUEDO VER LA IMAGEN. "
+            "Analiza el estilo exacto (taco, sandalia, bota, plataforma), el color y los detalles. "
+            "Luego busca en el catálogo el modelo MÁS parecido por estilo y color, menciona el precio "
+            "y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas. "
+            "NO digas que no recibiste la imagen."
+        )
     mensajes = historial + [{
         "role": "user",
         "content": [
@@ -152,7 +169,7 @@ def llamar_claude_con_imagen(img_b64, sistema, historial=[]):
             },
             {
                 "type": "text",
-                "text": "La clienta me mandó esta foto de calzado. SÍ PUEDO VER LA IMAGEN. Analiza el estilo exacto (taco, sandalia, bota, plataforma), el color y los detalles. Luego busca en el catálogo el modelo MÁS parecido por estilo y color, menciona el precio y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas. NO digas que no recibiste la imagen."
+                "text": texto_prompt
             }
         ]
     }]
@@ -655,8 +672,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
         historial = obtener_historial(from_number)
 
         if tipo == "image":
+            caption_img = mensaje_data.get("image", {}).get("caption", "").strip()
+            msg_guardado = f"[Imagen]{': ' + caption_img if caption_img else ''}"
             if control:
-                guardar_conversacion(from_number, "[Imagen recibida]", None, "imagen", nombre_contacto)
+                guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto)
                 return {"status": "ok"}
             try:
                 image_id = mensaje_data.get("image", {}).get("id", "")
@@ -672,14 +691,29 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 with urllib.request.urlopen(img_req) as r:
                     img_bytes = r.read()
                 img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-                respuesta_claude = llamar_claude_con_imagen(img_b64, sistema, historial)
+                # Retry igual que mensajes de texto
+                respuesta_claude = None
+                for intento in range(2):
+                    try:
+                        respuesta_claude = llamar_claude_con_imagen(img_b64, sistema, historial, caption=caption_img)
+                        break
+                    except Exception as e:
+                        print(f"[chatbot] Error Claude imagen intento {intento+1}: {e}")
+                        if intento == 0:
+                            import asyncio; await asyncio.sleep(3)
+                if respuesta_claude is None:
+                    fb = "Vi tu foto 📸 Tuve un problema técnico, ¿puedes reenviarla? 😊"
+                    enviar_whatsapp_texto(from_number, fb)
+                    guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto)
+                    return {"status": "ok"}
                 texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-                guardar_conversacion(from_number, "[Imagen]", texto_guardado, "imagen", nombre_contacto)
+                guardar_conversacion(from_number, msg_guardado, texto_guardado, "imagen", nombre_contacto)
             except Exception as e:
-                print(f"ERROR IMAGEN: {str(e)}")
+                import traceback
+                print(f"[chatbot] ERROR IMAGEN {from_number}: {e}\n{traceback.format_exc()}")
                 fb = "Vi tu foto 📸 Dime qué estilo buscas y te muestro opciones similares 😊"
                 enviar_whatsapp_texto(from_number, fb)
-                guardar_conversacion(from_number, "[Imagen]", fb, "imagen", nombre_contacto)
+                guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto)
             return {"status": "ok"}
 
         if tipo == "text":
