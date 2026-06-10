@@ -242,6 +242,12 @@
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
 let cfgEnvio = { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }  // defaults
+let inventario = []  // { variante_id, cantidad }
+
+function stockDisponible(variante_id) {
+  const inv = inventario.find(i => i.variante_id === variante_id)
+  return inv ? (inv.cantidad ?? 0) : 999  // si no cargó inventario, sin límite
+}
 
 // ── LEER CARRITO ─────────────────────────────────────────────────
 function leerCarrito() {
@@ -430,7 +436,10 @@ function actualizarWhatsApp() {
 }
 
 function cambiarCantidad(idx, delta, btn) {
-  carrito[idx].cantidad = Math.max(1, carrito[idx].cantidad + delta)
+  const stock = stockDisponible(carrito[idx].variante_id)
+  const nueva = carrito[idx].cantidad + delta
+  if (nueva > stock) { mostrarToast(`Solo hay ${stock} par${stock !== 1 ? 'es' : ''} disponibles`); return }
+  carrito[idx].cantidad = Math.max(1, nueva)
   if (delta > 0 && btn && typeof burstParticles === 'function') burstParticles(btn)
   // Recalcular precio_unitario con el nuevo total
   const total = totalPares(carrito)
@@ -609,10 +618,14 @@ async function init() {
     history.replaceState(null, '', '/carrito')
   }
 
-  // Cargar config de envío del backend
+  // Cargar config de envío e inventario en paralelo
   try {
-    const r = await fetch(`${API}/config/envio`)
-    if (r.ok) cfgEnvio = await r.json()
+    const [rEnvio, rInv] = await Promise.all([
+      fetch(`${API}/config/envio`).catch(() => null),
+      fetch(`${API}/inventario/slim`).catch(() => null)
+    ])
+    if (rEnvio?.ok) cfgEnvio = await rEnvio.json()
+    if (rInv?.ok) inventario = await rInv.json()
   } catch(e) { /* usa defaults */ }
   render()
 

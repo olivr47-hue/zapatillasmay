@@ -833,7 +833,15 @@ function irACarrito() {
   try {
     const carrito = JSON.parse(localStorage.getItem('zm_carrito') || '[]')
     const existente = carrito.find(i => i.variante_id && i.variante_id === item.variante_id)
-    if (existente) { existente.cantidad++ } else { carrito.push(item) }
+    if (existente) {
+      const inv = inventario.find(i => i.variante_id === existente.variante_id)
+      const stock = inv ? (inv.cantidad ?? 0) : 0
+      if (stock > 0 && existente.cantidad >= stock) {
+        mostrarToast(`Solo hay ${stock} par${stock !== 1 ? 'es' : ''} disponibles en esta talla`)
+        return
+      }
+      existente.cantidad++
+    } else { carrito.push(item) }
     localStorage.setItem('zm_carrito', JSON.stringify(carrito))
     _actualizarBadgeCarrito(carrito)
     const noteEl = document.getElementById('envio-note-producto')
