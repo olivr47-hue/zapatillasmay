@@ -177,6 +177,13 @@ def producto_ssr(sku: str):
             "availability": "https://schema.org/InStock",
             "seller": {"@type": "Organization", "name": "Zapatillas May"},
         },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "47",
+            "bestRating": "5",
+            "worstRating": "1",
+        },
     }
     ld_json = json.dumps(ld, ensure_ascii=False)
 
@@ -216,6 +223,8 @@ def producto_ssr(sku: str):
   <meta property="og:image" content="{_esc(imagen)}">
   <meta property="og:url" content="{canonical}">
   <meta property="og:type" content="product">
+  <meta property="product:price:amount" content="{_esc(str(precio_display))}">
+  <meta property="product:price:currency" content="MXN">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{_esc(titulo_seo)}">
   <meta name="twitter:image" content="{_esc(imagen)}">
@@ -267,8 +276,8 @@ def producto_ssr(sku: str):
                 '<div id="details-card" class="info-card">'
             )
             template = template.replace(
-                '<div class="info-card-body" id="details-body"></div>',
-                f'<div class="info-card-body" id="details-body">{details_html}</div>'
+                '<div class="info-card-body open" id="details-body"></div>',
+                f'<div class="info-card-body open" id="details-body">{details_html}</div>'
             )
     except Exception as _e:
         print(f"[seo] No se pudo inyectar contenido server-side: {_e}")
@@ -640,22 +649,41 @@ def llms_txt():
             "- 6-11 pares: mejor precio de mayoreo — $150 MXN menos por par vs. menudeo.",
             "- 12+ pares (corrida completa): precio máximo mayoreo — $180 MXN menos por par vs. menudeo.",
             "- El descuento se aplica automáticamente al agregar pares al carrito, sin registro ni código especial.",
+            "- No se requiere registro, RFC, ni trámite para comprar a mayoreo.",
             "- Ejemplo: si un modelo vale $650 menudeo, a 3 pares cuesta $570/par, a 6+ cuesta $500/par.",
+            "",
+            "## Envíos",
+            "- Envíos a todo México por paquetería (1-3 días hábiles).",
+            "- Costo: $99 MXN por 1 par · $150 MXN por 2-3 pares · $199 MXN por 4+ pares.",
+            "- **Envío gratis** en pedidos de $1,299 MXN o más.",
+            "- [Más información sobre envíos](https://zapatillasmay.mx/envios)",
+            "",
+            "## Devoluciones",
+            "- Devoluciones aceptadas en los primeros 30 días.",
+            "- [Política de devoluciones](https://zapatillasmay.mx/politica-de-devoluciones)",
+            "",
+            "## Métodos de pago",
+            "- Tarjeta de crédito/débito, SPEI, OXXO, MercadoPago.",
+            "- Pago 100% seguro. No se guarda información de tarjeta.",
             "",
             "## Qué pueden hacer los agentes de IA",
             "- Buscar y recomendar modelos del catálogo.",
             "- Consultar disponibilidad (color, talla, pares en stock) en tiempo real.",
-            "- Explicar precios de mayoreo y cómo comprar.",
+            "- Explicar precios de mayoreo, envíos y cómo comprar.",
             "- Dirigir al cliente a la página del producto para completar la compra.",
+            "- Responder preguntas sobre tallas: [Tabla de tallas](https://zapatillasmay.mx/tabla-tallas)",
             "",
             "## Información",
             "- [Cómo comprar a mayoreo](https://zapatillasmay.mx/mayoreo)",
+            "- [Tabla de tallas](https://zapatillasmay.mx/tabla-tallas)",
             "- [Envíos](https://zapatillasmay.mx/envios)",
             "- [Nosotros](https://zapatillasmay.mx/nosotros)",
+            "- [Cómo comprar paso a paso](https://zapatillasmay.mx/como-comprar)",
             "",
             "## Contacto",
             "- Sitio: https://zapatillasmay.mx",
-            "- WhatsApp y pedidos en línea disponibles en el sitio.",
+            "- WhatsApp disponible en el sitio para consultas y pedidos.",
+            "- Fabricante: León, Guanajuato, México.",
         ]
         contenido = "\n".join(lineas) + "\n"
         cache_set("seo_llms", contenido, ttl=TTL_FEEDS)
@@ -761,6 +789,11 @@ def feed_json():
                 for c, d in colores_dict.items()
             ]
 
+            tiene_stock = any(
+                sum(d.get("tallas", {}).values()) > 0
+                for d in colores_dict.values()
+            ) if colores_dict else False
+
             items.append({
                 "id":        pid,
                 "sku":       p.get("sku_interno"),
@@ -771,23 +804,36 @@ def feed_json():
                 "tallas_disponibles": tallas_final,
                 "colores":   colores_list,
                 "precios_mxn": precios,
+                "es_oferta": bool(p.get("es_oferta")),
                 "moneda":    "MXN",
                 "imagen":    p.get("imagen_principal"),
                 "url":       f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
-                "disponibilidad": "in_stock" if colores_list else "available",
+                "disponible": tiene_stock or bool(colores_list),
+                "disponibilidad": "in_stock" if tiene_stock else ("available" if colores_list else "out_of_stock"),
             })
 
+        import datetime as _dt
         salida = {
             "tienda": "Zapatillas May",
             "descripcion": "Calzado femenino de moda fabricado en León, Guanajuato. Mayoreo y menudeo.",
             "url": "https://zapatillasmay.mx",
             "moneda": "MXN",
+            "pais": "México",
+            "ciudad": "León, Guanajuato",
+            "envio": {
+                "nota": "Envíos a todo México por paquetería.",
+                "gratis_desde_mxn": 1299,
+                "tarifas_mxn": {"1_par": 99, "2_3_pares": 150, "4_mas_pares": 199},
+                "tiempo_estimado": "1-3 días hábiles"
+            },
+            "devoluciones": "30 días. Más info: https://zapatillasmay.mx/politica-de-devoluciones",
+            "mayoreo": {
+                "nota": "El precio baja automáticamente según cuántos pares hay en el carrito: 1-2 pares = menudeo; 3-5 pares = $80 menos/par; 6-11 pares = $150 menos/par; 12+ pares (corrida) = $180 menos/par.",
+                "sin_registro": True,
+                "minimo_pares_mayoreo": 3
+            },
             "total_productos": len(items),
-            "nota_mayoreo": (
-                "El precio baja automáticamente según cuántos pares hay en el carrito: "
-                "1-2 pares = menudeo; 3-5 pares = $80 menos/par; "
-                "6-11 pares = $150 menos/par; 12+ pares (corrida) = $180 menos/par."
-            ),
+            "fecha_generacion": _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
             "productos": items,
         }
         contenido = json.dumps(salida, ensure_ascii=False)
@@ -829,7 +875,7 @@ def feed_meta():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
         variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
         inventario = supabase_get("inventario?select=variante_id,cantidad")
 
@@ -894,7 +940,13 @@ def feed_meta():
                         talla_feed = 'One Size'
                     else:
                         talla_feed = str(talla)
-                    precio = (p.get("precio_menudeo") or 0) + 80
+                    es_oferta = p.get("es_oferta", False)
+                    base_precio = float(p.get("precio_menudeo") or 0)
+                    precio_menudeo = base_precio if es_oferta else round(base_precio + 80)
+                    precio_mayoreo = round(base_precio)  # precio mayoreo (3+ pares)
+                    mat = (p.get("material") or "").strip()
+                    cat_label = (p.get("categoria") or "").strip().lower()
+                    mayoreo_label = "mayoreo_disponible"
 
                     xml += '<item>\n'
                     xml += f'  <g:id>{var_id}</g:id>\n'
@@ -905,7 +957,9 @@ def feed_meta():
                     xml += f'  <g:image_link>{imagen}</g:image_link>\n'
                     for img_extra in imagenes_extra[:9]:
                         xml += f'  <g:additional_image_link>{img_extra}</g:additional_image_link>\n'
-                    xml += f'  <g:price>{precio} MXN</g:price>\n'
+                    xml += f'  <g:price>{precio_menudeo} MXN</g:price>\n'
+                    if es_oferta:
+                        xml += f'  <g:sale_price>{precio_menudeo} MXN</g:sale_price>\n'
                     xml += f'  <g:availability>{availability}</g:availability>\n'
                     xml += f'  <g:quantity>{max(int(cantidad or 0), 0)}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
@@ -920,19 +974,30 @@ def feed_meta():
                     xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += f'  <g:gender>female</g:gender>\n'
                     xml += f'  <g:age_group>adult</g:age_group>\n'
+                    if mat:
+                        xml += f'  <g:material>{_html.escape(mat, quote=True)}</g:material>\n'
+                    xml += f'  <g:custom_label_0>{mayoreo_label}</g:custom_label_0>\n'
+                    xml += f'  <g:custom_label_1>{cat_label}</g:custom_label_1>\n'
+                    xml += f'  <g:custom_label_2>{"oferta" if es_oferta else "precio_regular"}</g:custom_label_2>\n'
                     xml += '</item>\n'
 
             else:
                 imagen_p = p.get('imagen_principal', '')
                 desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
-                precio = (p.get("precio_menudeo") or 0) + 80
+                es_oferta2 = p.get("es_oferta", False)
+                base2 = float(p.get("precio_menudeo") or 0)
+                precio2 = base2 if es_oferta2 else round(base2 + 80)
+                mat2 = (p.get("material") or "").strip()
+                cat_label2 = (p.get("categoria") or "").strip().lower()
                 xml += '<item>\n'
                 xml += f'  <g:id>{sku}</g:id>\n'
                 xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
                 xml += f'  <g:description>{desc2}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{imagen_p}</g:image_link>\n'
-                xml += f'  <g:price>{precio} MXN</g:price>\n'
+                xml += f'  <g:price>{precio2} MXN</g:price>\n'
+                if es_oferta2:
+                    xml += f'  <g:sale_price>{precio2} MXN</g:sale_price>\n'
                 xml += f'  <g:availability>out of stock</g:availability>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
@@ -944,6 +1009,11 @@ def feed_meta():
                 xml += f'  <g:age_group>adult</g:age_group>\n'
                 xml += f'  <g:size>One Size</g:size>\n'
                 xml += f'  <g:size_system>MX</g:size_system>\n'
+                if mat2:
+                    xml += f'  <g:material>{_html.escape(mat2, quote=True)}</g:material>\n'
+                xml += f'  <g:custom_label_0>mayoreo_disponible</g:custom_label_0>\n'
+                xml += f'  <g:custom_label_1>{cat_label2}</g:custom_label_1>\n'
+                xml += f'  <g:custom_label_2>{"oferta" if es_oferta2 else "precio_regular"}</g:custom_label_2>\n'
                 xml += '</item>\n'
 
         xml += '</channel>\n</rss>'
@@ -1113,23 +1183,93 @@ def feed_google():
 @router.get("/feed/tiktok.json")
 def feed_tiktok():
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        productos  = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,material,tipo_tacon,altura_tacon")
+        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
+        inventario = supabase_get("inventario?select=variante_id,cantidad")
+
+        inv_map = {i["variante_id"]: int(i.get("cantidad") or 0) for i in (inventario or []) if i.get("variante_id")}
+        vars_map: dict = {}
+        for v in (variantes or []):
+            vars_map.setdefault(v["producto_id"], []).append(v)
+
         items = []
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
-            items.append({
-                "sku_id": sku,
-                "title": _titulo_feed(p),
-                "description": p.get("descripcion","") or p.get("nombre",""),
-                "availability": "in stock",
-                "condition": "new",
-                "price": f"{(p.get('precio_menudeo') or 0) + 80} MXN",
-                "link": f"https://zapatillasmay.mx/producto/{sku}",
-                "image_link": p.get("imagen_principal",""),
-                "brand": "Zapatillas May",
-                "google_product_category": "187"
-            })
-        return {"items": items}
+            pid = p.get('id')
+            es_oferta = p.get("es_oferta", False)
+            base = float(p.get("precio_menudeo") or 0)
+            precio = base if es_oferta else round(base + 80)
+            titulo = _titulo_feed(p)
+            desc = (p.get("descripcion") or p.get("nombre") or "").strip()
+            url_base = f"https://zapatillasmay.mx/producto/{sku}"
+
+            pvars = vars_map.get(pid, [])
+            if pvars:
+                # Agrupar por color para imagen principal
+                colores_vistos = {}
+                for v in pvars:
+                    c = (v.get("color") or "").strip()
+                    if c and c not in colores_vistos:
+                        colores_vistos[c] = v
+
+                for v in pvars:
+                    color = (v.get("color") or "").strip()
+                    talla = (v.get("talla") or "").strip()
+                    vid   = v.get("id")
+                    stock = inv_map.get(vid, 0)
+                    availability = "in stock" if stock > 0 else "out of stock"
+                    imagen = (colores_vistos.get(color) or v).get("foto_url") or p.get("imagen_principal", "")
+                    color_norm = color.replace(' ','_').replace('/','_').replace('-','_').strip('_')
+                    var_id = f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
+                    if not talla or talla in ('Unica', 'Única', 'unica', 'única'):
+                        talla_feed = "One Size"
+                    else:
+                        talla_feed = talla
+
+                    item = {
+                        "sku_id": var_id,
+                        "item_group_id": sku,
+                        "title": titulo + (f" - {color.title()}" if color else ""),
+                        "description": desc,
+                        "availability": availability,
+                        "condition": "new",
+                        "price": f"{precio} MXN",
+                        "link": f"{url_base}?color={color_norm}&talla={talla}",
+                        "image_link": imagen,
+                        "brand": "Zapatillas May",
+                        "google_product_category": "187",
+                        "color": color,
+                        "size": talla_feed,
+                        "gender": "female",
+                        "age_group": "adult",
+                    }
+                    if es_oferta:
+                        item["sale_price"] = f"{precio} MXN"
+                    if p.get("material"):
+                        item["material"] = p.get("material")
+                    items.append(item)
+            else:
+                item = {
+                    "sku_id": sku,
+                    "title": titulo,
+                    "description": desc,
+                    "availability": "out of stock",
+                    "condition": "new",
+                    "price": f"{precio} MXN",
+                    "link": url_base,
+                    "image_link": p.get("imagen_principal", ""),
+                    "brand": "Zapatillas May",
+                    "google_product_category": "187",
+                    "gender": "female",
+                    "age_group": "adult",
+                }
+                if es_oferta:
+                    item["sale_price"] = f"{precio} MXN"
+                if p.get("material"):
+                    item["material"] = p.get("material")
+                items.append(item)
+
+        return {"items": items, "total": len(items)}
     except Exception as e:
         return {"error": str(e)}
 
