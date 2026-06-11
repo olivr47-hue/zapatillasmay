@@ -13230,7 +13230,8 @@ async function cargarCarritosAbandonados() {
                       <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${horas}<br><span style="font-size:0.7rem">${fmtFecha(p.created_at)}</span></td>
                       <td style="padding:10px 14px">
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
-                          <button onclick="enviarRecordatorioPago('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #b5687a;background:none;color:#b5687a;font-size:0.75rem;font-weight:600;cursor:pointer">${yaAvisado ? '🔄 Re-enviar' : '📨 Recordatorio'}</button>
+                          ${email ? `<button onclick="enviarRecordatorioEmail('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>` : ''}
+                          ${tel   ? `<button onclick="enviarRecordatorioWA('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
                         </div>
                         ${yaAvisado ? `<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${fmtFecha(p.recordatorio_pago_enviado_at)}</div>` : ''}
                       </td>
@@ -13341,30 +13342,30 @@ window.enviarWACarrito = async function(carritoId, btn) {
   }
 }
 
-window.enviarRecordatorioPago = async function(pedidoId, btn) {
+async function _enviarRecordatorio(url, btn) {
   const orig = btn.textContent
   btn.disabled = true
   btn.textContent = 'Enviando...'
   try {
-    const res = await fetch(API + `/pedidos/${pedidoId}/recordatorio-pago`, { method: 'POST' })
+    const res = await fetch(url, { method: 'POST' })
     const d = await res.json()
     if (d.ok) {
-      const partes = []
-      if (d.enviado_email) partes.push('📧')
-      if (d.enviado_wa)    partes.push('💬')
-      btn.textContent = (partes.length ? partes.join('') + ' ' : '') + 'Enviado'
+      btn.textContent = '✅ Enviado'
       btn.style.borderColor = '#15803d'
       btn.style.color = '#15803d'
     } else {
-      btn.textContent = '❌ Error'
+      btn.textContent = orig
       btn.disabled = false
-      console.error(d.error)
+      alert('Error: ' + (d.error || 'No se pudo enviar'))
     }
   } catch(e) {
     btn.textContent = orig
     btn.disabled = false
   }
 }
+
+window.enviarRecordatorioEmail = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-email`, btn)
+window.enviarRecordatorioWA    = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-whatsapp`, btn)
 
 window.probarRecordatorio = async function() {
   const email = (document.getElementById('ca-test-email').value || '').trim()
