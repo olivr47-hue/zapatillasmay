@@ -1522,6 +1522,8 @@ async def wa_diagnostico(datos: dict):
     telefono = datos.get("telefono", "")
     plantilla = datos.get("plantilla", "")
     idioma = datos.get("idioma", "es_MX")
+    # Parámetros de prueba: se autodetectan según la plantilla o se pasan explícitamente
+    body_params_custom = datos.get("body_params", [])  # lista de strings
     if not telefono or not plantilla:
         return resultado
 
@@ -1529,11 +1531,36 @@ async def wa_diagnostico(datos: dict):
     if not tel.startswith("52"):
         tel = "52" + tel
 
+    # Detectar cuántas variables tiene la plantilla consultando Meta
+    components_diag = []
+    try:
+        url_tpl = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates?name={plantilla}&fields=components&limit=1"
+        req_tpl = urllib.request.Request(url_tpl, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(req_tpl, timeout=8) as r:
+            tpl_data = json.loads(r.read())
+        tpl_items = tpl_data.get("data", [])
+        if tpl_items:
+            body_comp = next((c for c in tpl_items[0].get("components", []) if c.get("type") == "BODY"), None)
+            if body_comp:
+                import re as _re
+                n_vars = len(set(_re.findall(r'\{\{\d+\}\}', body_comp.get("text", ""))))
+                if n_vars > 0:
+                    if body_params_custom:
+                        params = [{"type": "text", "text": str(p)} for p in body_params_custom[:n_vars]]
+                    else:
+                        # Valores de prueba genéricos
+                        defaults = ["Cliente", "500", "OXXO", "Prueba4", "Prueba5"]
+                        params = [{"type": "text", "text": defaults[i] if i < len(defaults) else f"Var{i+1}"} for i in range(n_vars)]
+                    components_diag.append({"type": "body", "parameters": params})
+                    resultado["params_enviados"] = [p["text"] for p in params]
+    except Exception as e:
+        resultado["params_warning"] = f"No se pudo detectar variables: {e}"
+
     body_msg = {
         "messaging_product": "whatsapp",
         "to": tel,
         "type": "template",
-        "template": {"name": plantilla, "language": {"code": idioma}, "components": []}
+        "template": {"name": plantilla, "language": {"code": idioma}, "components": components_diag}
     }
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
