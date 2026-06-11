@@ -1646,6 +1646,70 @@ async def crear_plantilla_pago():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/crear-plantilla-catalogo")
+async def crear_plantilla_catalogo():
+    """
+    Crea la plantilla 'catalogo_disponible' en Meta WA Business con categoría UTILITY.
+    Al ser UTILITY puede enviarse a contactos fríos sin restricción de 24h.
+    Usa botón MPM (Multi-Product Message) para mostrar el catálogo de productos.
+    """
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    catalog_id = os.environ.get("WHATSAPP_CATALOG_ID", "")
+    if not wa_token or not waba_id:
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+    if not catalog_id:
+        return JSONResponse(status_code=500, content={"error": "Falta WHATSAPP_CATALOG_ID en Railway"})
+
+    plantilla = {
+        "name": "catalogo_disponible",
+        "language": "es_MX",
+        "category": "UTILITY",
+        "components": [
+            {
+                "type": "HEADER",
+                "format": "TEXT",
+                "text": "Zapatillas May"
+            },
+            {
+                "type": "BODY",
+                "text": "Hola {{1}}, aqui tienes los modelos disponibles que solicitaste. Puedes ver fotos, tallas y precios de cada par.",
+                "example": {
+                    "body_text": [["Maria"]]
+                }
+            },
+            {
+                "type": "FOOTER",
+                "text": "Leon, Guanajuato · Envios a todo Mexico"
+            },
+            {
+                "type": "BUTTONS",
+                "buttons": [
+                    {
+                        "type": "MPM",
+                        "text": "Ver modelos disponibles",
+                        "flow_action": "FLOW_ACTION_UNSPECIFIED",
+                        "navigate_screen": "SCREEN_1"
+                    }
+                ]
+            }
+        ]
+    }
+
+    url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates"
+    headers_req = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(plantilla).encode(), headers=headers_req, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = json.loads(r.read())
+        return {"ok": True, "meta_response": resp}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/catalogo-info")
 async def catalogo_info():
     import httpx

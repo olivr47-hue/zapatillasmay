@@ -12334,8 +12334,11 @@ window.cargarEnviosMasivos = async function() {
               <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Catálogo de productos</p>
               <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
             </div>
-            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#856404">
-              ⚠️ <strong>La restricción de 24h depende de la categoría de la plantilla.</strong> Si tu plantilla de catálogo es <strong>MARKETING</strong>, solo llega si el cliente te escribió hoy. Si es <strong>UTILITY</strong>, llega siempre. Revisa el badge en la lista de plantillas de la pestaña Campaña.
+            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#856404;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <span>⚠️ <strong>Tu plantilla de catálogo actual es MARKETING</strong> → solo llega a contactos activos (24h). Para enviar a cualquier cliente crea la versión UTILITY.</span>
+              <button onclick="crearPlantillaCatalogo(this)" style="padding:5px 12px;border-radius:16px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                ⚙️ Crear plantilla UTILITY
+              </button>
             </div>
             <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos a mostrar y elige los destinatarios en la columna derecha.</p>
             <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
@@ -13543,6 +13546,30 @@ window.enviarRecordatorioEmail = (id, btn, nombre, total, metodo) =>
   window.abrirModalRecordatorio(id, 'email', nombre, total, metodo)
 window.enviarRecordatorioWA    = (id, btn, nombre, total, metodo) =>
   window.abrirModalRecordatorio(id, 'wa', nombre, total, metodo)
+
+window.crearPlantillaCatalogo = async function(btn) {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Creando...'
+  try {
+    const res = await fetch(API + '/chatbot/crear-plantilla-catalogo', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      btn.textContent = '✅ Enviada a Meta'
+      btn.style.borderColor = '#16a34a'
+      btn.style.color = '#15803d'
+      alert('Plantilla "catalogo_disponible" enviada a Meta para revisión como UTILITY. Una vez aprobada (minutos/horas), selecciónala en la pestaña Campaña para enviar sin restricción de 24h.')
+    } else {
+      btn.disabled = false
+      btn.textContent = orig
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
+  } catch(e) {
+    btn.disabled = false
+    btn.textContent = orig
+    alert('Error de red: ' + e.message)
+  }
+}
 
 window.crearPlantillaPago = async function(btn) {
   const orig = btn.textContent
