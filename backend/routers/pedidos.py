@@ -236,6 +236,31 @@ async def crear_pedido(pedido: dict, request: Request):
         # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
         if not items and canal not in ("sucursal", "whatsapp"):
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene productos"})
+        # Upsert cliente web: si no viene cliente_id pero sí email, buscar o crear en clientes
+        if not pedido.get("cliente_id") and pedido.get("email_cliente"):
+            try:
+                email_c = pedido["email_cliente"].strip()
+                tel_c   = pedido.get("telefono_cliente", "").strip()
+                nombre_c = pedido.get("nombre_cliente", "").strip()
+                cli_existente = supabase_get(f"clientes?email=eq.{email_c}&limit=1")
+                if not cli_existente and tel_c:
+                    cli_existente = supabase_get(f"clientes?telefono=eq.{tel_c}&limit=1")
+                if cli_existente:
+                    pedido["cliente_id"] = cli_existente[0]["id"]
+                else:
+                    nuevo_cli = supabase_post("clientes", {
+                        "nombre": nombre_c,
+                        "email": email_c,
+                        "telefono": tel_c,
+                        "tipo": "menudeo",
+                        "activo": True,
+                        "origen": "tienda"
+                    })
+                    if nuevo_cli:
+                        pedido["cliente_id"] = nuevo_cli[0]["id"]
+            except Exception as e:
+                print(f"[pedidos] Error upsert cliente web: {e}")
+
         resultado = supabase_post("pedidos", pedido)
         if resultado and len(resultado) > 0:
             pedido_id = resultado[0]["id"]
