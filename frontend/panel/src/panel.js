@@ -3918,6 +3918,8 @@ async function cargarClientes() {
     const totalEnRiesgo = clientesEnriquecidos.filter(c => c.segmento === 'riesgo').length
     const totalActivos = clientesEnriquecidos.filter(c => c.segmento === 'frecuente' || c.segmento === 'activo').length
 
+    const totalTienda = clientesEnriquecidos.filter(c => c.origen === 'tienda').length
+
     window._clientesData = clientesEnriquecidos
 
     content.innerHTML = `
@@ -3925,6 +3927,10 @@ async function cargarClientes() {
         <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('todos')">
           <p style="font-size:1.8rem;font-weight:700;color:#333">${clientes.length}</p>
           <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total</p>
+        </div>
+        <div style="background:#fdf4ff;border-radius:12px;padding:1rem;border:1px solid #e9d5ff;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('tienda')">
+          <p style="font-size:1.8rem;font-weight:700;color:#7c3aed">${totalTienda}</p>
+          <p style="font-size:0.72rem;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">🛍️ Tienda web</p>
         </div>
         <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('vip')">
           <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${totalVIP}</p>
@@ -3957,10 +3963,15 @@ async function cargarClientes() {
             <option value="mayoreo">Mayoreo variado</option>
             <option value="zapateria">Corridas</option>
           </select>
+          <select class="form-input" id="cli-origen" style="min-width:140px" onchange="filtrarClientes()">
+            <option value="">Todos los orígenes</option>
+            <option value="tienda">🛍️ Registrados en tienda</option>
+            <option value="panel">Panel / manual</option>
+          </select>
         </div>
         <div id="cli-lista">
           ${clientesEnriquecidos.map(c => `
-            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}"
+            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
                  onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
                  onclick="verCliente('${c.id}')">
@@ -3972,6 +3983,7 @@ async function cargarClientes() {
                   <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
                   <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${c.segmentoBg};color:${c.segmentoColor}">${c.segmentoLabel}</span>
                   <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#f5f5f5;color:#888">${c.tipo === 'mayoreo' ? 'Mayoreo' : c.tipo === 'zapateria' ? 'Corridas' : 'Menudeo'}</span>
+                  ${c.origen === 'tienda' ? '<span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#fdf4ff;color:#7c3aed">🛍️ Tienda</span>' : ''}
                 </div>
                 <p style="font-size:0.78rem;color:#888">${c.telefono || 'Sin teléfono'}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
                 ${c.comentarios_internos ? `<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${c.comentarios_internos.substring(0,50)}${c.comentarios_internos.length > 50 ? '...' : ''}</p>` : ''}
@@ -3981,8 +3993,9 @@ async function cargarClientes() {
                 <p style="font-size:0.72rem;color:#888">${c.totalPedidos} pedidos</p>
                 ${c.diasSinComprar !== null ? `<p style="font-size:0.68rem;color:${c.diasSinComprar > 60 ? '#c62828' : '#aaa'}">${c.diasSinComprar === 0 ? 'Hoy' : 'Hace ' + c.diasSinComprar + ' días'}</p>` : ''}
               </div>
-              <div style="display:flex;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
-                ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem;background:#25D366;color:white;border-color:#25D366">WhatsApp</a>` : ''}
+              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap" onclick="event.stopPropagation()">
+                ${c.tipo === 'menudeo' ? `<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem;border-color:#7c3aed;color:#7c3aed" onclick="cambiarTipoCliente('${c.id}','mayoreo',this)">→ Mayoreo</button>` : ''}
+                ${c.tipo === 'mayoreo' ? `<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem" onclick="cambiarTipoCliente('${c.id}','menudeo',this)">→ Menudeo</button>` : ''}
                 <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem" onclick="mostrarFormCliente('${c.id}')">Editar</button>
               </div>
             </div>
@@ -3997,23 +4010,66 @@ async function cargarClientes() {
 
 window.filtrarClientes = () => {
   const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase()
-  const tipo = document.getElementById('cli-tipo')?.value || ''
+  const tipo   = document.getElementById('cli-tipo')?.value || ''
+  const origen = document.getElementById('cli-origen')?.value || ''
   document.querySelectorAll('.cli-item').forEach(el => {
-    const nombre = el.dataset.nombre || ''
-    const tel = el.dataset.tel || ''
-    const tipoEl = el.dataset.tipo || ''
+    const nombre  = el.dataset.nombre || ''
+    const tel     = el.dataset.tel || ''
+    const tipoEl  = el.dataset.tipo || ''
+    const origenEl = el.dataset.origen || ''
     const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
-    const matchTipo = !tipo || tipoEl === tipo
-    el.style.display = matchBuscar && matchTipo ? '' : 'none'
+    const matchTipo   = !tipo   || tipoEl  === tipo
+    const matchOrigen = !origen || origenEl === origen
+    el.style.display = matchBuscar && matchTipo && matchOrigen ? '' : 'none'
   })
 }
 
 window.filtrarClientesSeg = (seg) => {
+  // Limpiar selects al filtrar por tarjeta
+  const selTipo   = document.getElementById('cli-tipo')
+  const selOrigen = document.getElementById('cli-origen')
+  if (selTipo)   selTipo.value   = ''
+  if (selOrigen) selOrigen.value = ''
   document.querySelectorAll('.cli-item').forEach(el => {
-    if (seg === 'todos') { el.style.display = ''; return }
+    if (seg === 'todos')  { el.style.display = ''; return }
+    if (seg === 'tienda') { el.style.display = el.dataset.origen === 'tienda' ? '' : 'none'; return }
     if (seg === 'activos') { el.style.display = (el.dataset.segmento === 'activo' || el.dataset.segmento === 'frecuente') ? '' : 'none'; return }
     el.style.display = el.dataset.segmento === seg ? '' : 'none'
   })
+}
+
+window.cambiarTipoCliente = async (id, nuevoTipo, btn) => {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = '...'
+  try {
+    const res = await fetch(API + `/clientes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: nuevoTipo })
+    })
+    const d = await res.json()
+    if (d && !d.error) {
+      btn.textContent = '✅ Actualizado'
+      btn.style.color = '#15803d'
+      btn.style.borderColor = '#15803d'
+      // Actualizar data-tipo en la fila y refrescar badge
+      const fila = btn.closest('.cli-item')
+      if (fila) {
+        fila.dataset.tipo = nuevoTipo
+        const badgeTipo = fila.querySelector('[data-badge-tipo]')
+        if (badgeTipo) badgeTipo.textContent = nuevoTipo === 'mayoreo' ? 'Mayoreo' : 'Menudeo'
+      }
+      setTimeout(() => cargarClientes(), 1200)
+    } else {
+      btn.textContent = orig
+      btn.disabled = false
+      alert('Error: ' + (d?.error || 'desconocido'))
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
+  }
 }
 
 
