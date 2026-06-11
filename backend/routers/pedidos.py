@@ -126,7 +126,7 @@ def pedidos_pendientes():
     try:
         rows = supabase_get(
             "pedidos?status=eq.pendiente_pago"
-            "&select=id,created_at,updated_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente"
+            "&select=id,created_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente,recordatorio_pago_enviado_at"
             "&order=created_at.desc&limit=200"
         ) or []
         ahora = _dt.datetime.now(_dt.timezone.utc)
