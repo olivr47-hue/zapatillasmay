@@ -4003,7 +4003,7 @@ async function cargarInventario() {
     // Complementar variantes con las que vienen anidadas en inventario
     // (cubre variantes con activa=null que el endpoint /variantes/ filtra)
     inventario.forEach(i => {
-      if (i.variantes && i.variantes.id && !variantes.find(v => v.id === i.variantes.id)) {
+      if (i.variantes && i.variantes.id && i.variantes.activa !== false && !variantes.find(v => v.id === i.variantes.id)) {
         variantes.push(i.variantes)
       }
     })
@@ -4075,7 +4075,7 @@ window.renderInventario = () => {
   const html = sucursales.map(suc => {
     const invSucursal = inventario.filter(i => i.sucursal_id === suc.id)
     const productosHtml = productosFiltrados.map(prod => {
-      const variantesProd = variantes.filter(v => v.producto_id === prod.id)
+      const variantesProd = variantes.filter(v => v.producto_id === prod.id && v.activa !== false)
       if (variantesProd.length === 0) return ''
       const colores = [...new Set(variantesProd.map(v => v.color).filter(Boolean))]
 
