@@ -198,7 +198,9 @@
   }
 
   if (paymentId) {
-    document.getElementById('order-id').textContent = '#' + paymentId
+    // Generar número corto legible tipo #MAY-4821
+    const short = String(paymentId).replace(/\D/g,'').slice(-4).padStart(4,'0')
+    document.getElementById('order-id').textContent = '#MAY-' + short
   } else if (externalRef) {
     document.getElementById('order-id').textContent = externalRef
   } else {

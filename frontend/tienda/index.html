@@ -3717,7 +3717,7 @@ cargarConfigSEO()
           ${p.imagen_principal
             ? `<img src="${zmImg(p.imagen_principal, 600)}" alt="${p.nombre} ${p.categoria||''} de moda — Zapatillas May" width="600" height="800" loading="lazy">`
             : `<div class="product-placeholder">👠</div>`}
-          ${p.nuevo ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
+          ${(p.nuevo || (p.fecha_creacion && new Date(p.fecha_creacion) > new Date(Date.now() - 21*24*60*60*1000))) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
           ${_stockBajo ? `<span class="badge-stock">¡Últimos ${_stockTotal} pares!</span>` : ''}
           <div class="product-actions">
