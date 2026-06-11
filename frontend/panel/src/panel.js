@@ -943,74 +943,139 @@ window.guardarOrdenCompra2 = async () => {
 
 function renderDashboardHTML() {
   const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})
-  const kpis = [
-    {label:'Ventas hoy',      id:'kpi-ventas-hoy',      accent:'#E91E8C'},
-    {label:'Pedidos hoy',     id:'kpi-pedidos-hoy',      accent:'#7c3aed'},
-    {label:'Ventas 7 días',   id:'kpi-ventas-7d',        accent:'#0891b2'},
-    {label:'Ventas 30 días',  id:'kpi-ventas-30d',       accent:'#059669'},
-    {label:'Clientes nuevos', id:'kpi-clientes-nuevos',  accent:'#d97706'},
-    {label:'Stock bajo',      id:'kpi-stock-bajo',       accent:'#dc2626'},
-    {label:'Mejor día',       id:'kpi-mejor-dia',        accent:'#E91E8C'},
-    {label:'Total clientes',  id:'kpi-total-clientes',   accent:'#475569'},
-  ]
+  const nombre = (window._empleadoActual?.nombre || 'May').split(' ')[0]
   return `
     <div id="dashboard-contenido">
 
-      <!-- Banner encabezado -->
-      <div style="background:linear-gradient(135deg,#0c0c17 0%,#1a0a14 100%);border-radius:16px;padding:24px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:relative;overflow:hidden">
-        <div style="position:absolute;top:-40px;right:-40px;width:220px;height:220px;background:radial-gradient(circle,rgba(233,30,140,0.2) 0%,transparent 70%);pointer-events:none"></div>
-        <div style="position:relative">
-          <p style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:#E91E8C;text-transform:uppercase;margin:0 0 6px">Panel de control</p>
-          <h2 style="font-size:1.55rem;font-weight:800;color:white;line-height:1.1;margin:0 0 5px;letter-spacing:-0.01em">Resumen del negocio</h2>
-          <p style="font-size:0.78rem;color:#4a4a6a;margin:0;text-transform:capitalize">${hoy}</p>
-        </div>
-        <button onclick="cargarDashboard()" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);padding:8px 16px;border-radius:8px;font-family:inherit;font-size:0.78rem;cursor:pointer;white-space:nowrap">↻ Actualizar</button>
-      </div>
+      <!-- ROW 1: Banner + 2 KPI cards -->
+      <div class="dash-row-1" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch">
 
-      <div class="stats-grid" style="margin-bottom:18px">
-        ${kpis.map(k => `
-          <div class="stat-card" style="border-left:3px solid ${k.accent};padding-left:14px">
-            <div class="stat-label" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">${k.label}</div>
-            <div class="stat-value" id="${k.id}" style="font-size:1.5rem;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-0.02em">—</div>
-            <div class="stat-sub" id="${k.id}-sub" style="font-size:0.7rem;color:#94a3b8;margin-top:5px"></div>
+        <div class="dash-banner">
+          <div style="position:relative;z-index:1">
+            <p style="font-size:0.63rem;font-weight:700;letter-spacing:0.14em;color:var(--pink);text-transform:uppercase;margin:0 0 8px">Panel de control</p>
+            <h2 style="font-size:1.55rem;font-weight:800;color:#fff;line-height:1.15;margin:0 0 6px;letter-spacing:-0.01em">¡Bienvenida, ${nombre}! 👋</h2>
+            <p style="font-size:0.76rem;color:rgba(255,255,255,0.35);margin:0 0 18px;text-transform:capitalize">${hoy}</p>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+              <span style="font-size:1.9rem;font-weight:900;color:#fff;font-family:'DM Mono',monospace;letter-spacing:-0.03em" id="kpi-ventas-hoy">—</span>
+              <span style="font-size:0.73rem;color:rgba(255,255,255,0.45)">ventas hoy</span>
+            </div>
+            <p style="font-size:0.73rem;color:var(--pink);margin:0 0 20px" id="kpi-ventas-hoy-sub"></p>
+            <button onclick="navegarA('pedidos')" style="background:var(--pink);border:none;color:white;padding:8px 18px;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer">Ver pedidos →</button>
           </div>
-        `).join('')}
+          <div style="position:relative;z-index:1;flex-shrink:0">
+            <div style="width:96px;height:96px;background:rgba(200,150,122,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:1px solid rgba(200,150,122,0.20)">👠</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="dash-kpi-v" style="flex:1">
+            <div class="dash-kpi-icon" style="background:var(--pink-soft)">🛍️</div>
+            <p class="dash-kpi-lbl">Pedidos hoy</p>
+            <p class="dash-kpi-val" id="kpi-pedidos-hoy">—</p>
+            <p class="dash-kpi-sub" id="kpi-pedidos-hoy-sub"></p>
+          </div>
+          <div class="dash-kpi-v" style="flex:1;cursor:pointer" onclick="navegarA('inventario')">
+            <div class="dash-kpi-icon" style="background:var(--amber-soft)">📦</div>
+            <p class="dash-kpi-lbl">Stock bajo</p>
+            <p class="dash-kpi-val" id="kpi-stock-bajo">—</p>
+            <p class="dash-kpi-sub" id="kpi-stock-bajo-sub"></p>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Tendencia full-width: compacta -->
-      <div class="chart-container" style="margin-bottom:14px;padding:14px 18px">
-        <p class="chart-title" style="font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin-bottom:10px">Tendencia — últimos 7 días</p>
-        <div style="height:72px;position:relative"><canvas id="chart-tendencia"></canvas></div>
+      <!-- ROW 2: Gráfica ingresos + 4 mini KPIs -->
+      <div class="dash-row-2" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header">
+            <div>
+              <p class="dash-card-title">Ingresos — últimos 7 días</p>
+              <p class="dash-card-sub">Tendencia de ventas recientes</p>
+            </div>
+            <button onclick="cargarDashboard()" class="dash-refresh-btn" title="Actualizar">↻</button>
+          </div>
+          <div style="height:190px;position:relative;margin-top:12px"><canvas id="chart-tendencia"></canvas></div>
+        </div>
+
+        <div class="dash-kpi-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Ventas 7 días</p>
+            <p class="dash-kpi-mini-val" id="kpi-ventas-7d">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-ventas-7d-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Ventas 30 días</p>
+            <p class="dash-kpi-mini-val" id="kpi-ventas-30d">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-ventas-30d-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Clientes nuevos</p>
+            <p class="dash-kpi-mini-val" id="kpi-clientes-nuevos">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-clientes-nuevos-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Mejor día</p>
+            <p class="dash-kpi-mini-val" id="kpi-mejor-dia">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-mejor-dia-sub"></p>
+          </div>
+        </div>
+
       </div>
 
-      <!-- 4 gráficas secundarias en fila -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px">
-        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
-          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Días de semana</p>
-          <div style="height:90px;position:relative"><canvas id="chart-dias"></canvas></div>
+      <!-- ROW 3: Canales + Tabs + Últimos pedidos -->
+      <div class="dash-row-3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:16px">
+            <div>
+              <p class="dash-card-title">Canales de venta</p>
+              <p class="dash-card-sub">Distribución acumulada</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="height:110px;width:110px;flex-shrink:0;position:relative"><canvas id="chart-canales"></canvas></div>
+            <div id="dash-canales-lista" style="flex:1;min-width:0"></div>
+          </div>
         </div>
-        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
-          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Canal de venta</p>
-          <div style="height:90px;position:relative"><canvas id="chart-canales"></canvas></div>
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <p class="dash-card-title">Estadísticas</p>
+            <div style="display:flex;gap:4px">
+              <button class="dash-tab-btn active" onclick="dashSwitchTab('dias',this)">Días</button>
+              <button class="dash-tab-btn" onclick="dashSwitchTab('meses',this)">Meses</button>
+              <button class="dash-tab-btn" onclick="dashSwitchTab('pagos',this)">Pagos</button>
+            </div>
+          </div>
+          <div id="dash-tab-dias" style="height:160px;position:relative"><canvas id="chart-dias"></canvas></div>
+          <div id="dash-tab-meses" style="height:160px;position:relative;display:none"><canvas id="chart-meses"></canvas></div>
+          <div id="dash-tab-pagos" style="height:160px;position:relative;display:none"><canvas id="chart-pagos"></canvas></div>
         </div>
-        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
-          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Últimos 6 meses</p>
-          <div style="height:90px;position:relative"><canvas id="chart-meses"></canvas></div>
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:14px">
+            <p class="dash-card-title">Últimos pedidos</p>
+            <button onclick="navegarA('pedidos')" style="font-size:0.72rem;color:var(--pink);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600;padding:0;white-space:nowrap">Ver todos →</button>
+          </div>
+          <div id="dash-ultimos-pedidos"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
         </div>
-        <div class="chart-container" style="margin-bottom:0;padding:12px 14px">
-          <p class="chart-title" style="font-size:0.65rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">Métodos de pago</p>
-          <div style="height:90px;position:relative"><canvas id="chart-pagos"></canvas></div>
-        </div>
+
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        <div class="table-card" style="padding:18px">
-          <p style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px">Top clientes — 30 días</p>
+      <!-- ROW 4: Top clientes + Total clientes KPI -->
+      <div class="dash-row-4" style="display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:14px">
+            <p class="dash-card-title">Top clientes — 30 días</p>
+          </div>
           <div id="dash-top-clientes"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
         </div>
-        <div class="table-card" style="padding:18px">
-          <p style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#64748b;margin:0 0 14px">Últimos pedidos</p>
-          <div id="dash-ultimos-pedidos"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
+        <div class="dash-kpi-v">
+          <div class="dash-kpi-icon" style="background:var(--cyan-soft)">👥</div>
+          <p class="dash-kpi-lbl">Total clientes</p>
+          <p class="dash-kpi-val" id="kpi-total-clientes">—</p>
+          <p class="dash-kpi-sub" id="kpi-total-clientes-sub"></p>
         </div>
       </div>
 
@@ -10208,15 +10273,18 @@ async function cargarDashboard() {
 
     const ultimosEl = document.getElementById('dash-ultimos-pedidos')
     if (ultimosEl) {
-      ultimosEl.innerHTML = pedidos.slice(0,6).map(p => `
-        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(200,150,122,0.08);cursor:pointer;transition:background 0.12s">
-          <div>
-            <p style="font-size:0.84rem;font-weight:600;color:var(--text-1)">${p.clientes?.nombre || p.nombre_cliente || 'General'}</p>
-            <p style="font-size:0.7rem;color:var(--text-3);margin-top:1px">${p.mp_preference_id ? '🌐 online' : (p.canal||'sucursal')} · ${new Date(p.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</p>
+      const canalIcon = c => c === 'online' || c === 'mp' ? '🌐' : c === 'whatsapp' ? '💬' : '🏪'
+      const statusColor = s => s==='confirmado'||s==='pagado' ? '#10b981' : s==='enviado' ? '#0891b2' : '#f59e0b'
+      ultimosEl.innerHTML = pedidos.slice(0,7).map(p => `
+        <div onclick="verPedido('${p.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+          <div style="width:36px;height:36px;background:var(--pink-soft);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">${canalIcon(p.mp_preference_id ? 'online' : (p.canal||''))}</div>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:0.83rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.clientes?.nombre || p.nombre_cliente || 'General'}</p>
+            <p style="font-size:0.68rem;color:var(--text-3);margin-top:1px">${p.mp_preference_id ? 'Online' : (p.canal||'Sucursal')} · ${new Date(p.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</p>
           </div>
-          <div style="text-align:right">
-            <p style="font-weight:700;color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
-            <span class="badge ${p.status==='confirmado'||p.status==='pagado'?'badge-success':'badge-warning'}" style="font-size:0.6rem">${p.status}</span>
+          <div style="text-align:right;flex-shrink:0">
+            <p style="font-weight:700;color:var(--pink);font-family:'DM Mono',monospace;font-size:0.84rem">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+            <span style="font-size:0.6rem;font-weight:700;color:${statusColor(p.status)}">${p.status}</span>
           </div>
         </div>`).join('')
     }
@@ -10282,11 +10350,24 @@ async function cargarDashboard() {
 
       // Dona: canal
       const elCanales = document.getElementById('chart-canales')
-      if (elCanales && window.Chart && Object.keys(porCanal).length > 0) new Chart(elCanales, {
-        type: 'doughnut',
-        data: { labels: Object.keys(porCanal), datasets: [{ data: Object.values(porCanal), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
-      })
+      const canalesLabels = Object.keys(porCanal)
+      const canalesVals = Object.values(porCanal)
+      if (elCanales && window.Chart && canalesLabels.length > 0) {
+        new Chart(elCanales, {
+          type: 'doughnut',
+          data: { labels: canalesLabels, datasets: [{ data: canalesVals, backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: $${ctx.parsed.toLocaleString('es-MX',{maximumFractionDigits:0})}` } } } }
+        })
+        // Leyenda lateral
+        const totalCanal = canalesVals.reduce((s,v) => s+v, 0)
+        const listaEl = document.getElementById('dash-canales-lista')
+        if (listaEl) listaEl.innerHTML = canalesLabels.map((lbl, i) => `
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${BORDERS[i%BORDERS.length]};flex-shrink:0"></span>
+            <span style="flex:1;font-size:0.76rem;color:var(--text-2);text-transform:capitalize">${lbl}</span>
+            <span style="font-size:0.76rem;font-weight:700;color:var(--text-1);font-family:'DM Mono',monospace">${totalCanal > 0 ? Math.round(canalesVals[i]/totalCanal*100) : 0}%</span>
+          </div>`).join('')
+      }
 
       // Línea: meses
       const elMeses = document.getElementById('chart-meses')
@@ -10307,6 +10388,16 @@ async function cargarDashboard() {
         options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
       })
     }, 300)
+
+    // Tab switcher para estadísticas
+    window.dashSwitchTab = (tab, btn) => {
+      ['dias','meses','pagos'].forEach(t => {
+        const el = document.getElementById('dash-tab-' + t)
+        if (el) el.style.display = t === tab ? 'block' : 'none'
+      })
+      document.querySelectorAll('.dash-tab-btn').forEach(b => b.classList.remove('active'))
+      if (btn) btn.classList.add('active')
+    }
 
     // Tareas pendientes hoy
     try {
