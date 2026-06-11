@@ -12192,7 +12192,7 @@ window.cargarEnviosMasivos = async function() {
           <button onclick="switchTipoEnvio('catalogo',this)" id="tab-envio-catalogo"
             style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
             🛍️ Catálogo<br>
-            <span style="font-size:0.68rem;font-weight:400;color:#888">Muestra productos · sin restricción</span>
+            <span style="font-size:0.68rem;font-weight:400;color:#888">Muestra productos del catálogo</span>
           </button>
           <button onclick="switchTipoEnvio('fotos',this)" id="tab-envio-fotos"
             style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
@@ -12214,14 +12214,22 @@ window.cargarEnviosMasivos = async function() {
                 ? '<p style="color:#888;font-size:0.85rem">No hay plantillas aprobadas en tu cuenta de Meta.</p>'
                 : plantillas.map(p => {
                     const bodyComp = (p.components || []).find(c => c.type === 'BODY')
-                    const preview = bodyComp?.text?.substring(0, 60) || ''
+                    const preview = bodyComp?.text?.substring(0, 55) || ''
+                    const cat = (p.category || '').toUpperCase()
+                    const isUtility = cat === 'UTILITY' || cat === 'AUTHENTICATION'
+                    const catBadge = isUtility
+                      ? `<span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">UTILITY · sin restricción</span>`
+                      : `<span style="background:#fff3cd;color:#92400e;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">MARKETING · solo 24h</span>`
                     return `<label style="display:block;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;margin-bottom:6px;transition:all 0.15s"
                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${p.name}').checked)this.style.borderColor='#eee'">
                       <div style="display:flex;align-items:flex-start;gap:8px">
                         <input type="radio" name="envio-plantilla-radio" id="plt-${p.name}" value="${p.name}" data-idioma="${p.language}"
                           onchange="onCambiarPlantillaEnvio('${p.name}','${p.language}')" style="accent-color:#E91E8C;margin-top:2px;flex-shrink:0">
-                        <div>
-                          <p style="font-size:0.85rem;font-weight:600;margin:0">${p.name}</p>
+                        <div style="min-width:0">
+                          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+                            <p style="font-size:0.85rem;font-weight:600;margin:0">${p.name}</p>
+                            ${catBadge}
+                          </div>
                           <p style="font-size:0.7rem;color:#888;margin:0">${p.language}${preview ? ' · ' + preview + '…' : ''}</p>
                         </div>
                       </div>
@@ -12326,8 +12334,8 @@ window.cargarEnviosMasivos = async function() {
               <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Catálogo de productos</p>
               <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
             </div>
-            <div style="background:#e3f2fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#1565c0">
-              ✅ <strong>Sin restricción de 24h</strong> — usa una plantilla aprobada tipo catálogo (MPM). El cliente recibe tarjetas con foto, precio y botón de compra.
+            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#856404">
+              ⚠️ <strong>La restricción de 24h depende de la categoría de la plantilla.</strong> Si tu plantilla de catálogo es <strong>MARKETING</strong>, solo llega si el cliente te escribió hoy. Si es <strong>UTILITY</strong>, llega siempre. Revisa el badge en la lista de plantillas de la pestaña Campaña.
             </div>
             <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos a mostrar y elige los destinatarios en la columna derecha.</p>
             <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
