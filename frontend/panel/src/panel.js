@@ -13198,6 +13198,14 @@ async function cargarCarritosAbandonados() {
 
         <!-- Tab: Pedidos OXXO/SPEI pendientes -->
         <div id="panel-pp">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="font-size:0.8rem;color:#856404">
+              <strong>💬 WhatsApp requiere plantilla aprobada.</strong> Si el botón "WhatsApp" no envía, crea la plantilla primero (solo se hace una vez).
+            </div>
+            <button onclick="crearPlantillaPago(this)" style="padding:6px 14px;border-radius:20px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
+              ⚙️ Crear plantilla en Meta
+            </button>
+          </div>
           ${pedidosPendientes.length === 0
             ? '<div class="table-card" style="padding:2rem;text-align:center;color:var(--text-muted)">No hay pedidos pendientes de pago 🎉</div>'
             : `<div class="table-card" style="padding:0;overflow:hidden">
@@ -13366,6 +13374,30 @@ async function _enviarRecordatorio(url, btn) {
 
 window.enviarRecordatorioEmail = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-email`, btn)
 window.enviarRecordatorioWA    = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-whatsapp`, btn)
+
+window.crearPlantillaPago = async function(btn) {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Creando...'
+  try {
+    const res = await fetch(API + '/chatbot/crear-plantilla-pago', { method: 'POST' })
+    const data = await res.json()
+    if (data.ok) {
+      btn.textContent = '✅ Plantilla enviada a Meta'
+      btn.style.borderColor = '#16a34a'
+      btn.style.color = '#15803d'
+      alert('Plantilla enviada a Meta para revisión. Puede tardar unos minutos en aprobarse. Una vez APROBADA, el botón WhatsApp funcionará.')
+    } else {
+      btn.textContent = '❌ Error'
+      btn.disabled = false
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
+    alert('Error de red: ' + e.message)
+  }
+}
 
 window.probarRecordatorio = async function() {
   const email = (document.getElementById('ca-test-email').value || '').trim()

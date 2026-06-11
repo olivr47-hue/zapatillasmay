@@ -216,6 +216,25 @@ def enviar_whatsapp_texto(to, texto, reply_to_id=None):
         payload["context"] = {"message_id": reply_to_id}
     return _wa_send(payload)
 
+def enviar_whatsapp_plantilla(to: str, nombre_plantilla: str, idioma: str, parametros: list) -> str | None:
+    """Envía un mensaje usando una plantilla aprobada de Meta WA. parametros = lista de strings para {{1}}, {{2}}..."""
+    components = []
+    if parametros:
+        components.append({
+            "type": "body",
+            "parameters": [{"type": "text", "text": str(p)} for p in parametros]
+        })
+    return _wa_send({
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": nombre_plantilla,
+            "language": {"code": idioma},
+            "components": components
+        }
+    })
+
 def enviar_whatsapp_imagen(to, url_img, caption=""):
     print(f"ENVIANDO IMAGEN: {url_img}")
     return _wa_send({
@@ -1531,6 +1550,73 @@ async def wa_diagnostico(datos: dict):
     except Exception as ex:
         resultado["status"] = f"❌ Error: {str(ex)}"
     return resultado
+
+
+@router.post("/crear-plantilla-pago")
+async def crear_plantilla_pago():
+    """Crea la plantilla 'recordatorio_pago_pendiente' en Meta WA Business para recordatorios OXXO/SPEI."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    if not wa_token or not waba_id:
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+
+    plantilla = {
+        "name": "recordatorio_pago_pendiente",
+        "language": "es_MX",
+        "category": "UTILITY",
+        "components": [
+            {
+                "type": "HEADER",
+                "format": "TEXT",
+                "text": "Tu pedido está esperando el pago 🛍️"
+            },
+            {
+                "type": "BODY",
+                "text": (
+                    "Hola {{1}}, te recordamos que tu pedido en *Zapatillas May* "
+                    "está pendiente de pago por *${{2}} MXN* vía *{{3}}*.\n\n"
+                    "Realiza tu pago para que procesemos tu pedido lo antes posible. "
+                    "Si ya pagaste, por favor ignora este mensaje.\n\n"
+                    "¿Tienes dudas? Contáctanos 👇"
+                ),
+                "example": {
+                    "body_text": [["María", "850", "OXXO"]]
+                }
+            },
+            {
+                "type": "FOOTER",
+                "text": "Zapatillas May · León, Guanajuato"
+            },
+            {
+                "type": "BUTTONS",
+                "buttons": [
+                    {
+                        "type": "URL",
+                        "text": "Ir a zapatillasmay.mx",
+                        "url": "https://zapatillasmay.mx"
+                    },
+                    {
+                        "type": "PHONE_NUMBER",
+                        "text": "Llamar al negocio",
+                        "phone_number": "+524792244560"
+                    }
+                ]
+            }
+        ]
+    }
+
+    url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates"
+    headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(plantilla).encode(), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = json.loads(r.read())
+        return {"ok": True, "meta_response": resp}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.get("/catalogo-info")

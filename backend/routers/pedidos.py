@@ -176,9 +176,9 @@ def recordatorio_email(id: str):
 
 @router.post("/{id}/recordatorio-whatsapp")
 def recordatorio_whatsapp(id: str):
-    """Envía recordatorio de pago por WhatsApp API (Meta)."""
+    """Envía recordatorio de pago por WhatsApp API (Meta) usando plantilla aprobada."""
     try:
-        from routers.chatbot import enviar_whatsapp_texto
+        from routers.chatbot import enviar_whatsapp_plantilla
         p, err = _get_pedido_pendiente(id)
         if err: return err
         tel_cliente    = p.get("telefono_cliente", "")
@@ -188,16 +188,19 @@ def recordatorio_whatsapp(id: str):
         if not tel_cliente:
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene teléfono"})
         tel_limpio = "52" + tel_cliente.replace("+52","").replace("+","").strip().replace(" ","").replace("-","")
-        nombre_corto = nombre_cliente.split()[0] if nombre_cliente else "Cliente"
-        msg = (
-            f"Hola {nombre_corto} 👋, te escribimos de *Zapatillas May*.\n\n"
-            f"Vimos que elegiste pago por *{metodo}* para tu pedido de *${float(total):.0f} MXN* "
-            f"pero aún no lo vemos acreditado.\n\n"
-            f"¿Pudiste realizar el pago? Si tienes dudas con gusto te ayudamos 😊"
+        nombre_corto = (nombre_cliente.split()[0] if nombre_cliente else "Cliente").capitalize()
+        # Usar plantilla aprobada: {{1}}=nombre, {{2}}=total, {{3}}=metodo_pago
+        wamid = enviar_whatsapp_plantilla(
+            tel_limpio,
+            "recordatorio_pago_pendiente",
+            "es_MX",
+            [nombre_corto, f"{float(total):.0f}", metodo]
         )
-        wamid = enviar_whatsapp_texto(tel_limpio, msg)
         if not wamid:
-            return JSONResponse(status_code=500, content={"error": "No se pudo enviar. Verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID en Railway."})
+            return JSONResponse(status_code=500, content={
+                "error": "No se pudo enviar. Asegúrate de que la plantilla 'recordatorio_pago_pendiente' esté APROBADA en Meta. "
+                         "Usa el botón 'Crear plantilla' en el panel si aún no la has creado."
+            })
         _marcar_recordatorio(id)
         return {"ok": True, "enviado_a": tel_limpio}
     except Exception as e:
