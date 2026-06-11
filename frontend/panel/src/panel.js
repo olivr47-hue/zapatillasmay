@@ -12115,6 +12115,23 @@ if (modalWA) modalWA.remove()
 }
 
 
+window.switchTipoEnvio = function(tipo, btn) {
+  // Tabs
+  const tabs = ['campana','catalogo','fotos']
+  tabs.forEach(t => {
+    const b = document.getElementById(`tab-envio-${t}`)
+    const p = document.getElementById(`panel-envio-${t}`)
+    if (!b || !p) return
+    if (t === tipo) {
+      b.style.background = '#E91E8C'; b.style.color = '#fff'; b.style.borderColor = '#E91E8C'
+      p.style.display = 'block'
+    } else {
+      b.style.background = '#fff'; b.style.color = '#374151'; b.style.borderColor = '#e5e7eb'
+      p.style.display = 'none'
+    }
+  })
+}
+
 window.cargarEnviosMasivos = async function() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
@@ -12159,23 +12176,37 @@ window.cargarEnviosMasivos = async function() {
 
     content.innerHTML = `
       <div style="max-width:960px">
-        <div style="margin-bottom:1.5rem;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div>
-            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">WhatsApp Cloud API</p>
-            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Envíos masivos</h2>
-            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">Plantillas aprobadas por Meta · ${clientes.length} clientes con teléfono</p>
-          </div>
-          <span style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;padding:4px 12px;border-radius:100px;font-size:0.75rem;font-weight:700;letter-spacing:0.03em">Meta Cloud API activa</span>
+        <div style="margin-bottom:1.5rem">
+          <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">WhatsApp Cloud API</p>
+          <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0 0 4px">Envíos masivos</h2>
+          <p style="color:#94a3b8;font-size:0.78rem;margin:0">${clientes.length} clientes con teléfono registrado</p>
+        </div>
+
+        <!-- Selector de tipo de envío -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem">
+          <button onclick="switchTipoEnvio('campana',this)" id="tab-envio-campana"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #E91E8C;background:#E91E8C;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.4">
+            📣 Campaña<br>
+            <span style="font-size:0.68rem;font-weight:400;opacity:0.9">Cualquier cliente · sin restricción</span>
+          </button>
+          <button onclick="switchTipoEnvio('catalogo',this)" id="tab-envio-catalogo"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
+            🛍️ Catálogo<br>
+            <span style="font-size:0.68rem;font-weight:400;color:#888">Muestra productos · sin restricción</span>
+          </button>
+          <button onclick="switchTipoEnvio('fotos',this)" id="tab-envio-fotos"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
+            📸 Fotos variantes<br>
+            <span style="font-size:0.68rem;font-weight:400;color:#c2410c">Solo si cliente escribió hoy</span>
+          </button>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
 
           <!-- COLUMNA IZQUIERDA: configuración -->
           <div>
-            <div style="background:#fff8e1;border-radius:10px;border:1px solid #ffe082;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#5d4037;line-height:1.5">
-              <strong>📣 Columna izquierda → botón "Enviar campaña"</strong><br>
-              Elige plantilla + audiencia y envía a todos tus contactos. Funciona siempre (plantilla aprobada por Meta).
-            </div>
+            <!-- Panel campaña -->
+            <div id="panel-envio-campana">
             <!-- Plantilla -->
             <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
               <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">1 · Plantilla</p>
@@ -12266,16 +12297,10 @@ window.cargarEnviosMasivos = async function() {
               <div id="diag-resultado" style="display:none;margin-top:8px;padding:10px;background:#f9f9f9;border-radius:8px;font-size:0.75rem;font-family:monospace;white-space:pre-wrap;color:#333;max-height:260px;overflow-y:auto"></div>
             </div>
           </div>
+          </div><!-- fin panel-envio-campana -->
 
-          <!-- COLUMNA DERECHA: destinatarios + opciones de envío alternativas -->
+          <!-- COLUMNA DERECHA: destinatarios -->
           <div>
-            <div style="background:#e8f5e9;border-radius:10px;border:1px solid #a5d6a7;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:#2e7d32;line-height:1.5">
-              <strong>👥 Columna derecha → selecciona destinatarios</strong><br>
-              Marca los contactos aquí y luego usa el botón que necesites:<br>
-              <span style="font-size:0.73rem">• <strong>"Enviar campaña"</strong> (izq.) — plantilla para cualquier contacto<br>
-              • <strong>"Enviar catálogo"</strong> — muestra productos del catálogo Meta (solo si plantilla es MPM)<br>
-              • <strong>"Enviar fotos · 24 h"</strong> — manda fotos de variantes a quienes te escribieron hoy</span>
-            </div>
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
               <h3 style="font-size:0.95rem;font-weight:700">👥 Destinatarios</h3>
@@ -12295,15 +12320,16 @@ window.cargarEnviosMasivos = async function() {
           </div>
 
           <!-- Catálogo interactivo -->
+          <div id="panel-envio-catalogo" style="display:none">
           <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Productos del catálogo</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Catálogo de productos</p>
               <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
             </div>
-            <div id="envio-mpm-aviso" style="display:none;background:#e3f2fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.78rem;color:#1565c0">
-              ✅ La plantilla seleccionada es de tipo <strong>catálogo</strong> — los productos que elijas aquí se incluirán directamente en el mensaje y se envía como plantilla aprobada (sin restricción de 24 h).
+            <div style="background:#e3f2fd;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#1565c0">
+              ✅ <strong>Sin restricción de 24h</strong> — usa una plantilla aprobada tipo catálogo (MPM). El cliente recibe tarjetas con foto, precio y botón de compra.
             </div>
-            <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos que quieres mostrar. El cliente recibe tarjetas con foto, precio y botón de compra.</p>
+            <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos a mostrar y elige los destinatarios en la columna derecha.</p>
             <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
               oninput="filtrarProductosEnvioInteractivo(this.value)"
               style="width:100%;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
@@ -12317,15 +12343,20 @@ window.cargarEnviosMasivos = async function() {
               </button>
             </div>
           </div>
+          </div><!-- fin panel-envio-catalogo -->
 
           <!-- Envío de fotos de variantes (24 h) -->
-          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem;margin-top:1rem">
+          <div id="panel-envio-fotos" style="display:none">
+          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin:0">Fotos de variantes</p>
-              <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:100px;padding:2px 9px;font-size:0.68rem;font-weight:700;white-space:nowrap">Solo 24 h</span>
+              <p style="font-weight:700;font-size:0.95rem;margin:0">📸 Fotos de variantes</p>
+              <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700;white-space:nowrap">⚠️ Solo 24 h</span>
+            </div>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#92400e">
+              ⚠️ <strong>Requiere que el cliente te haya escrito en las últimas 24 horas.</strong> Si no, el mensaje no llega (error 131047).
             </div>
             <p style="font-size:0.75rem;color:#888;margin-bottom:10px;line-height:1.4">
-              Disponible <strong>solo si el cliente te escribió en las últimas 24 horas</strong>. Envía las fotos de los colores que elijas directamente al chat, igual que en la sección CRM.
+              Envía fotos de los colores/variantes que elijas directamente al chat, igual que en la sección CRM.
             </p>
 
             <!-- Mensaje de saludo -->
@@ -12360,15 +12391,18 @@ window.cargarEnviosMasivos = async function() {
               </button>
             </div>
           </div>
+          </div><!-- fin panel-envio-fotos -->
 
           </div><!-- fin columna derecha -->
         </div>
       </div>
     `
-    window._fotosSeleccionadas = [] // resetear al recargar la sección
+    window._fotosSeleccionadas = []
     cargarProductosEnvio()
     cargarProductosEnvioInteractivo()
-    // seleccionar primera plantilla por defecto y mostrar su preview
+    // Activar tab campaña por defecto
+    window.switchTipoEnvio('campana', null)
+    // seleccionar primera plantilla por defecto
     const primero = document.querySelector('input[name="envio-plantilla-radio"]')
     if (primero) {
       primero.checked = true
@@ -13373,14 +13407,40 @@ async function _enviarRecordatorio(url, btn) {
 }
 
 // Modal editable de recordatorio
-window.abrirModalRecordatorio = function(pedidoId, tipo, nombre, total, metodo) {
+window.abrirModalRecordatorio = async function(pedidoId, tipo, nombre, total, metodo) {
   const esWA = tipo === 'wa'
-  const msgDefault = esWA
-    ? `Hola ${nombre} 😊 Te escribimos de Zapatillas May.\n\nVimos que tienes un pedido de $${total} MXN pendiente de pago vía ${metodo}. ¿Pudiste realizarlo? Si tienes alguna duda o necesitas ayuda, con mucho gusto te apoyamos 🌸\n\n¡Gracias por confiar en nosotras!`
-    : `Hola ${nombre}, te recordamos que tienes un pedido de $${total} MXN pendiente de pago vía ${metodo}.\n\nCuando realices el pago lo procesamos de inmediato. Si tienes alguna duda estamos para ayudarte 😊`
+  const msgDefault = esWA ? '' : `Hola ${nombre}, te recordamos que tienes un pedido de $${total} MXN pendiente de pago vía ${metodo}.\n\nCuando realices el pago lo procesamos de inmediato. Si tienes alguna duda estamos para ayudarte 😊`
 
   // Remover modal previo si existe
   document.getElementById('modal-recordatorio')?.remove()
+
+  // Cargar plantillas WA si aplica
+  let plantillasHtml = ''
+  let plantillasDisp = []
+  if (esWA) {
+    try {
+      const rp = await fetch(API + '/chatbot/plantillas')
+      plantillasDisp = await rp.json()
+      if (!Array.isArray(plantillasDisp)) plantillasDisp = []
+    } catch(e) { plantillasDisp = [] }
+
+    if (plantillasDisp.length) {
+      const opts = plantillasDisp.map(p =>
+        `<option value="${p.name}" data-idioma="${(p.language||'es_MX')}">${p.name} (${p.language||'es_MX'})</option>`
+      ).join('')
+      plantillasHtml = `
+        <div style="margin-bottom:10px">
+          <label style="font-size:0.78rem;color:#555;font-weight:600;display:block;margin-bottom:4px">Plantilla a usar:</label>
+          <select id="modal-wa-plantilla" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:0.83rem">
+            ${opts}
+          </select>
+        </div>`
+    } else {
+      plantillasHtml = `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:0.78rem;color:#856404">
+        ⚠️ No se encontraron plantillas aprobadas. Usa el botón <strong>"⚙️ Crear plantilla en Meta"</strong> y espera la aprobación.
+      </div>`
+    }
+  }
 
   const modal = document.createElement('div')
   modal.id = 'modal-recordatorio'
@@ -13391,10 +13451,22 @@ window.abrirModalRecordatorio = function(pedidoId, tipo, nombre, total, metodo) 
         <h3 style="margin:0;font-size:1rem;font-weight:700">${esWA ? '💬 Recordatorio por WhatsApp' : '📧 Recordatorio por Email'}</h3>
         <button onclick="document.getElementById('modal-recordatorio').remove()" style="border:none;background:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1">×</button>
       </div>
-      <p style="font-size:0.78rem;color:#888;margin-bottom:8px">Edita el mensaje antes de enviarlo:</p>
-      <textarea id="modal-recordatorio-msg" rows="7"
-        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.85rem;line-height:1.6;resize:vertical;font-family:inherit;box-sizing:border-box"
-      >${msgDefault}</textarea>
+
+      ${esWA ? `
+        ${plantillasHtml}
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:0.76rem;color:#2e7d32;line-height:1.5">
+          <strong>WhatsApp solo entrega mensajes fuera de 24h si usas una plantilla UTILITY aprobada.</strong><br>
+          Si el cliente te escribió hace menos de 24h puedes usar texto libre — si no, se requiere plantilla.
+        </div>
+      ` : `
+        <p style="font-size:0.78rem;color:#888;margin-bottom:8px">Edita el mensaje antes de enviarlo:</p>
+        <textarea id="modal-recordatorio-msg" rows="6"
+          style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.85rem;line-height:1.6;resize:vertical;font-family:inherit;box-sizing:border-box"
+        >${msgDefault}</textarea>
+      `}
+
+      <div id="modal-recordatorio-error" style="display:none;margin-top:8px;background:#ffebee;border:1px solid #ef9a9a;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#c62828"></div>
+
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
         <button onclick="document.getElementById('modal-recordatorio').remove()"
           style="padding:8px 18px;border-radius:20px;border:1.5px solid #e5e7eb;background:none;color:#666;font-size:0.82rem;cursor:pointer">
@@ -13407,40 +13479,55 @@ window.abrirModalRecordatorio = function(pedidoId, tipo, nombre, total, metodo) 
       </div>
     </div>`
   document.body.appendChild(modal)
-  // Cerrar al hacer clic fuera
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
 }
 
 window.enviarRecordatorioConfirmado = async function(pedidoId, tipo) {
-  const msg = document.getElementById('modal-recordatorio-msg')?.value?.trim()
   const btn = document.getElementById('modal-recordatorio-btn')
+  const errBox = document.getElementById('modal-recordatorio-error')
   if (!btn) return
   btn.disabled = true
   btn.textContent = 'Enviando...'
+  if (errBox) errBox.style.display = 'none'
+
   const url = tipo === 'wa'
     ? API + `/pedidos/${pedidoId}/recordatorio-whatsapp`
     : API + `/pedidos/${pedidoId}/recordatorio-email`
+
+  let body = {}
+  if (tipo === 'wa') {
+    const sel = document.getElementById('modal-wa-plantilla')
+    if (sel) {
+      body.plantilla = sel.value
+      body.idioma = sel.selectedOptions[0]?.dataset?.idioma || 'es_MX'
+    }
+  } else {
+    body.mensaje = document.getElementById('modal-recordatorio-msg')?.value?.trim() || ''
+  }
+
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mensaje: msg })
+      body: JSON.stringify(body)
     })
     const data = await res.json()
     if (data.ok) {
       document.getElementById('modal-recordatorio')?.remove()
-      // Feedback visual en la fila
       const rows = document.querySelectorAll(`[data-pedido-id="${pedidoId}"]`)
       rows.forEach(r => r.style.opacity = '0.5')
     } else {
       btn.disabled = false
       btn.textContent = tipo === 'wa' ? '💬 Enviar por WhatsApp' : '📧 Enviar Email'
-      alert('Error: ' + (data.error || 'No se pudo enviar'))
+      if (errBox) {
+        errBox.textContent = data.error || 'No se pudo enviar'
+        errBox.style.display = 'block'
+      }
     }
   } catch(e) {
     btn.disabled = false
     btn.textContent = tipo === 'wa' ? '💬 Enviar por WhatsApp' : '📧 Enviar Email'
-    alert('Error de red: ' + e.message)
+    if (errBox) { errBox.textContent = 'Error de red: ' + e.message; errBox.style.display = 'block' }
   }
 }
 

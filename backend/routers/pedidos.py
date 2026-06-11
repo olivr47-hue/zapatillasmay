@@ -189,9 +189,14 @@ def recordatorio_email(id: str, datos: dict = {}):
 
 @router.post("/{id}/recordatorio-whatsapp")
 def recordatorio_whatsapp(id: str, datos: dict = {}):
-    """Envía recordatorio de pago por WhatsApp. Acepta mensaje personalizado en datos.mensaje."""
+    """
+    Envía recordatorio de pago por WhatsApp usando una plantilla UTILITY aprobada.
+    Los mensajes de texto libre fallan con error 131047 si el cliente no respondió en 24h.
+    datos.plantilla = nombre de la plantilla a usar (default: recordatorio_pago_pendiente)
+    datos.idioma    = código de idioma (default: es_MX)
+    """
     try:
-        from routers.chatbot import enviar_whatsapp_texto
+        from routers.chatbot import enviar_whatsapp_plantilla
         p, err = _get_pedido_pendiente(id)
         if err: return err
         tel_cliente    = p.get("telefono_cliente", "")
@@ -203,21 +208,24 @@ def recordatorio_whatsapp(id: str, datos: dict = {}):
         tel_limpio = "52" + tel_cliente.replace("+52","").replace("+","").strip().replace(" ","").replace("-","")
         nombre_corto = (nombre_cliente.split()[0] if nombre_cliente else "Cliente").capitalize()
 
-        # Mensaje personalizado o el predeterminado amigable
-        msg = (datos.get("mensaje") or "").strip()
-        if not msg:
-            msg = (
-                f"Hola {nombre_corto} 😊 Te escribimos de *Zapatillas May*.\n\n"
-                f"Vimos que tienes un pedido de *${float(total):.0f} MXN* pendiente de pago vía *{metodo}*. "
-                f"¿Pudiste realizarlo? Si tienes alguna duda o necesitas ayuda, con mucho gusto te apoyamos 🌸\n\n"
-                f"¡Gracias por confiar en nosotras!"
-            )
+        plantilla = (datos.get("plantilla") or "recordatorio_pago_pendiente").strip()
+        idioma    = (datos.get("idioma")    or "es_MX").strip()
 
-        wamid = enviar_whatsapp_texto(tel_limpio, msg)
+        wamid = enviar_whatsapp_plantilla(
+            tel_limpio, plantilla, idioma,
+            [nombre_corto, f"{float(total):.0f}", metodo]
+        )
         if not wamid:
-            return JSONResponse(status_code=500, content={"error": "No se pudo enviar. Verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID en Railway."})
+            return JSONResponse(status_code=500, content={
+                "error": (
+                    f"Meta rechazó el mensaje. Verifica que la plantilla '{plantilla}' "
+                    "esté APROBADA en Meta Business. "
+                    "Los mensajes de texto libre fallan si han pasado más de 24h desde la última respuesta del cliente (error 131047)."
+                ),
+                "code": "TEMPLATE_ERROR"
+            })
         _marcar_recordatorio(id)
-        return {"ok": True, "enviado_a": tel_limpio}
+        return {"ok": True, "enviado_a": tel_limpio, "plantilla": plantilla}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
