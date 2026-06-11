@@ -1568,16 +1568,16 @@ async def crear_plantilla_pago():
             {
                 "type": "HEADER",
                 "format": "TEXT",
-                "text": "Tu pedido está esperando el pago 🛍️"
+                "text": "Tu pedido está esperando el pago"
             },
             {
                 "type": "BODY",
                 "text": (
-                    "Hola {{1}}, te recordamos que tu pedido en *Zapatillas May* "
-                    "está pendiente de pago por *${{2}} MXN* vía *{{3}}*.\n\n"
+                    "Hola {{1}}, te recordamos que tu pedido en Zapatillas May "
+                    "está pendiente de pago por ${{2}} MXN vía {{3}}.\n\n"
                     "Realiza tu pago para que procesemos tu pedido lo antes posible. "
                     "Si ya pagaste, por favor ignora este mensaje.\n\n"
-                    "¿Tienes dudas? Contáctanos 👇"
+                    "Tienes dudas, con gusto te ayudamos."
                 ),
                 "example": {
                     "body_text": [["María", "850", "OXXO"]]
