@@ -13103,12 +13103,12 @@ async function cargarCarritosAbandonados() {
   content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
   try {
     const [resCA, resPP] = await Promise.all([
-      fetch(API + '/carrito-abandonado/listar').then(r => r.json()),
-      fetch(API + '/pedidos/pendientes').then(r => r.json()),
+      fetch(API + '/carrito-abandonado/listar').then(r => r.json()).catch(() => ({ carritos: [], stats: {} })),
+      fetch(API + '/pedidos/pendientes').then(r => r.json()).catch(() => ({ pedidos: [] })),
     ])
     const st = resCA.stats || {}
     const carritos = resCA.carritos || []
-    const pedidosPendientes = resPP.pedidos || []
+    const pedidosPendientes = resPP.pedidos || resPP || []
 
     const fmtFecha = (f) => { try { return new Date(f).toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) } catch(e){ return f } }
     const badgeCA = (c) => {
