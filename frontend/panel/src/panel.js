@@ -13102,83 +13102,185 @@ async function cargarCarritosAbandonados() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
   try {
-    const res = await fetch(API + '/carrito-abandonado/listar')
-    const data = await res.json()
-    const st = data.stats || {}
-    const carritos = data.carritos || []
+    const [resCA, resPP] = await Promise.all([
+      fetch(API + '/carrito-abandonado/listar').then(r => r.json()),
+      fetch(API + '/pedidos/pendientes').then(r => r.json()),
+    ])
+    const st = resCA.stats || {}
+    const carritos = resCA.carritos || []
+    const pedidosPendientes = resPP.pedidos || []
 
-    const estadoBadge = (c) => {
-      if (c.convertido) return '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">✓ Compró</span>'
-      if (c.recordatorio_enviado) return '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">📧 Recordatorio enviado</span>'
-      return '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">⏳ Pendiente</span>'
-    }
     const fmtFecha = (f) => { try { return new Date(f).toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) } catch(e){ return f } }
+    const badgeCA = (c) => {
+      if (c.convertido) return '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">✓ Compró</span>'
+      if (c.recordatorio_enviado) return '<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">📧 Avisado</span>'
+      return '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">⏳ Sin avisar</span>'
+    }
+    const metodoBadge = (m) => {
+      const c = {'oxxo':'#e63946','spei':'#0a7c3e','tarjeta':'#1a56db','mercadopago':'#009ee3'}[m?.toLowerCase()] || '#888'
+      return `<span style="background:${c}18;color:${c};padding:2px 9px;border-radius:12px;font-size:0.7rem;font-weight:700;text-transform:uppercase">${m||'—'}</span>`
+    }
 
     content.innerHTML = `
-      <div style="max-width:920px">
-        <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
-          <h3 style="margin-bottom:0.25rem">🛒 Carritos abandonados</h3>
-          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
-            Clientes que llegaron al checkout, dejaron su email pero no completaron la compra.
-            El sistema les envía un recordatorio automático <strong>1 hora después</strong> (revisa cada 15 min).
-          </p>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem">
-            <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)">
-              <div style="font-size:1.6rem;font-weight:700">${st.total||0}</div>
-              <div style="font-size:0.72rem;color:var(--text-muted)">Total</div>
-            </div>
-            <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a">
-              <div style="font-size:1.6rem;font-weight:700;color:#856404">${st.pendientes||0}</div>
-              <div style="font-size:0.72rem;color:#856404">Pendientes</div>
-            </div>
-            <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;border:1px solid #bfdbfe">
-              <div style="font-size:1.6rem;font-weight:700;color:#1565c0">${st.enviados||0}</div>
-              <div style="font-size:0.72rem;color:#1565c0">Recordatorios enviados</div>
-            </div>
-            <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:1px solid #bbf7d0">
-              <div style="font-size:1.6rem;font-weight:700;color:#15803d">${st.convertidos||0}</div>
-              <div style="font-size:0.72rem;color:#15803d">Convertidos</div>
-            </div>
-          </div>
+      <div style="max-width:960px">
+        <h3 style="margin-bottom:0.25rem">🛒 Seguimiento de pagos pendientes</h3>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+          Clientes que no completaron su pago — ya sea por carrito abandonado o pedido OXXO/SPEI sin acreditar.
+        </p>
 
-          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:1.25rem;font-size:0.82rem;color:#0369a1">
-            <strong>¿Cómo verificar que se envían?</strong><br>
-            1. Cada recordatorio llega con copia (BCC) a <strong>${'olivr47@gmail.com'}</strong> — lo verás en tu bandeja.<br>
-            2. En <a href="https://resend.com/emails" target="_blank" style="color:#0369a1;font-weight:600">resend.com/emails</a> ves todos los correos enviados.<br>
-            3. Aquí abajo: la columna "Estado" cambia a "📧 Recordatorio enviado".
-            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <input id="ca-test-email" type="email" placeholder="tu-correo@ejemplo.com"
-                style="border:1.5px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.82rem;flex:1;min-width:200px;outline:none">
-              <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Enviar correo de prueba</button>
-            </div>
-            <div id="ca-test-msg" style="margin-top:8px;font-size:0.8rem"></div>
-          </div>
+        <!-- Tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
+          <button id="tab-pp" onclick="switchTabPagos('pp')"
+            style="padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px">
+            💳 OXXO / SPEI sin pagar (${pedidosPendientes.length})
+          </button>
+          <button id="tab-ca" onclick="switchTabPagos('ca')"
+            style="padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px">
+            🛒 Carritos abandonados (${carritos.filter(c=>!c.convertido).length})
+          </button>
+        </div>
 
-          <div style="overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-              <thead>
-                <tr style="text-align:left;border-bottom:2px solid var(--border)">
-                  <th style="padding:8px">Email</th>
-                  <th style="padding:8px">Total</th>
-                  <th style="padding:8px">Última actividad</th>
-                  <th style="padding:8px">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${carritos.length ? carritos.map(c => `
-                  <tr style="border-bottom:1px solid var(--border)">
-                    <td style="padding:8px">${c.email}${c.nombre?`<br><span style="color:var(--text-muted);font-size:0.75rem">${c.nombre}</span>`:''}</td>
-                    <td style="padding:8px;font-weight:600">$${parseFloat(c.total||0).toFixed(0)}</td>
-                    <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
-                    <td style="padding:8px">${estadoBadge(c)}</td>
-                  </tr>`).join('') : '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
-              </tbody>
-            </table>
+        <!-- Tab: Pedidos OXXO/SPEI pendientes -->
+        <div id="panel-pp">
+          ${pedidosPendientes.length === 0
+            ? '<div class="table-card" style="padding:2rem;text-align:center;color:var(--text-muted)">No hay pedidos pendientes de pago 🎉</div>'
+            : `<div class="table-card" style="padding:0;overflow:hidden">
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+                <thead>
+                  <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--bg)">
+                    <th style="padding:10px 14px">Cliente</th>
+                    <th style="padding:10px 14px">Total</th>
+                    <th style="padding:10px 14px">Método</th>
+                    <th style="padding:10px 14px">Hace</th>
+                    <th style="padding:10px 14px">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pedidosPendientes.map(p => {
+                    const nombre = p.nombre_cliente || '—'
+                    const email  = p.email_cliente  || ''
+                    const tel    = p.telefono_cliente|| ''
+                    const horas  = p.horas_pendiente != null ? (p.horas_pendiente < 1 ? 'hace &lt;1h' : `hace ${p.horas_pendiente}h`) : '—'
+                    const yaAvisado = !!p.recordatorio_pago_enviado_at
+                    const waMsg = encodeURIComponent(`Hola ${nombre.split(' ')[0]}, te escribimos de Zapatillas May. Vimos que elegiste pago por ${p.forma_pago?.toUpperCase()||'OXXO/SPEI'} para tu pedido de $${parseFloat(p.total||0).toFixed(0)} MXN pero aún no lo vemos acreditado. ¿Pudiste realizar el pago? Si tienes dudas con placer te ayudamos 😊`)
+                    const waUrl = tel ? `https://wa.me/52${tel.replace(/\D/g,'')}?text=${waMsg}` : ''
+                    return `<tr style="border-bottom:1px solid var(--border)">
+                      <td style="padding:10px 14px">
+                        <div style="font-weight:600">${nombre}</div>
+                        ${email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${email}</div>` : ''}
+                        ${tel   ? `<div style="font-size:0.75rem;color:var(--text-muted)">${tel}</div>` : ''}
+                      </td>
+                      <td style="padding:10px 14px;font-weight:700">$${parseFloat(p.total||0).toFixed(0)}</td>
+                      <td style="padding:10px 14px">${metodoBadge(p.forma_pago)}</td>
+                      <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${horas}<br><span style="font-size:0.7rem">${fmtFecha(p.created_at)}</span></td>
+                      <td style="padding:10px 14px">
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                          ${email ? `<button onclick="enviarRecordatorioPago('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">${yaAvisado ? '📧 Re-enviar' : '📧 Email'}</button>` : ''}
+                          ${waUrl ? `<a href="${waUrl}" target="_blank" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block">💬 WhatsApp</a>` : ''}
+                        </div>
+                        ${yaAvisado ? `<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${fmtFecha(p.recordatorio_pago_enviado_at)}</div>` : ''}
+                      </td>
+                    </tr>`
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`}
+        </div>
+
+        <!-- Tab: Carritos abandonados -->
+        <div id="panel-ca" style="display:none">
+          <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem">
+              <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)">
+                <div style="font-size:1.6rem;font-weight:700">${st.total||0}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted)">Total</div>
+              </div>
+              <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a">
+                <div style="font-size:1.6rem;font-weight:700;color:#856404">${st.pendientes||0}</div>
+                <div style="font-size:0.72rem;color:#856404">Sin avisar</div>
+              </div>
+              <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;border:1px solid #bfdbfe">
+                <div style="font-size:1.6rem;font-weight:700;color:#1565c0">${st.enviados||0}</div>
+                <div style="font-size:0.72rem;color:#1565c0">Avisados</div>
+              </div>
+              <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:1px solid #bbf7d0">
+                <div style="font-size:1.6rem;font-weight:700;color:#15803d">${st.convertidos||0}</div>
+                <div style="font-size:0.72rem;color:#15803d">Compraron</div>
+              </div>
+            </div>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:1.25rem;font-size:0.82rem;color:#0369a1">
+              <strong>Recordatorio automático:</strong> se envía 1 hora después de inactividad.<br>
+              Copia BCC a <strong>olivr47@gmail.com</strong> · Verifica en <a href="https://resend.com/emails" target="_blank" style="color:#0369a1;font-weight:600">resend.com/emails</a>
+              <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input id="ca-test-email" type="email" placeholder="correo de prueba"
+                  style="border:1.5px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.82rem;flex:1;min-width:180px;outline:none">
+                <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Prueba</button>
+              </div>
+              <div id="ca-test-msg" style="margin-top:8px;font-size:0.8rem"></div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+                <thead>
+                  <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                    <th style="padding:8px">Email / Nombre</th>
+                    <th style="padding:8px">Total</th>
+                    <th style="padding:8px">Última actividad</th>
+                    <th style="padding:8px">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${carritos.length
+                    ? carritos.map(c => `
+                      <tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:8px">${c.email}${c.nombre?`<br><span style="color:var(--text-muted);font-size:0.75rem">${c.nombre}</span>`:''}</td>
+                        <td style="padding:8px;font-weight:600">$${parseFloat(c.total||0).toFixed(0)}</td>
+                        <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
+                        <td style="padding:8px">${badgeCA(c)}</td>
+                      </tr>`).join('')
+                    : '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>`
   } catch(e) {
     document.getElementById('content').innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
+  }
+}
+
+window.switchTabPagos = function(tab) {
+  document.getElementById('panel-pp').style.display = tab === 'pp' ? 'block' : 'none'
+  document.getElementById('panel-ca').style.display = tab === 'ca' ? 'block' : 'none'
+  document.getElementById('tab-pp').style.cssText = tab === 'pp'
+    ? 'padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px'
+    : 'padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px'
+  document.getElementById('tab-ca').style.cssText = tab === 'ca'
+    ? 'padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px'
+    : 'padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px'
+}
+
+window.enviarRecordatorioPago = async function(pedidoId, btn) {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  try {
+    const res = await fetch(API + `/pedidos/${pedidoId}/recordatorio-pago`, { method: 'POST' })
+    const d = await res.json()
+    if (d.ok) {
+      btn.textContent = '✅ Enviado'
+      btn.style.borderColor = '#15803d'
+      btn.style.color = '#15803d'
+    } else {
+      btn.textContent = '❌ Error'
+      btn.disabled = false
+      console.error(d.error)
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
   }
 }
 

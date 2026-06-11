@@ -121,8 +121,55 @@ def confirmar_deposito(id: str, datos: dict):
 
 @router.get("/pendientes")
 def pedidos_pendientes():
+    """Pedidos con pago pendiente (OXXO/SPEI) — para el panel de seguimiento."""
+    import datetime as _dt
     try:
-        return supabase_get("pedidos?status=eq.pendiente_pago&select=*,clientes(nombre,telefono)")
+        rows = supabase_get(
+            "pedidos?status=eq.pendiente_pago"
+            "&select=id,created_at,updated_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente,recordatorio_pago_enviado_at"
+            "&order=created_at.desc&limit=200"
+        ) or []
+        ahora = _dt.datetime.now(_dt.timezone.utc)
+        for p in rows:
+            try:
+                creado = _dt.datetime.fromisoformat(p["created_at"].replace("Z", "+00:00"))
+                p["horas_pendiente"] = round((ahora - creado).total_seconds() / 3600, 1)
+            except Exception:
+                p["horas_pendiente"] = None
+        return {"ok": True, "pedidos": rows, "total": len(rows)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/{id}/recordatorio-pago")
+def enviar_recordatorio_pago(id: str):
+    """Envía email + WhatsApp de recordatorio de pago para un pedido pendiente."""
+    import datetime as _dt
+    try:
+        from email_utils import enviar_email, email_pedido_pendiente_spei
+        rows = supabase_get(f"pedidos?id=eq.{id}&select=*&limit=1")
+        if not rows:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        p = rows[0]
+        if p.get("status") != "pendiente_pago":
+            return JSONResponse(status_code=400, content={"error": "El pedido no está pendiente de pago"})
+
+        email_cliente = p.get("email_cliente", "")
+        enviado_email = False
+        if email_cliente:
+            try:
+                subj, html = email_pedido_pendiente_spei(p)
+                enviar_email(email_cliente, subj, html)
+                enviado_email = True
+            except Exception as e:
+                print(f"[pedidos] Error email recordatorio: {e}")
+
+        # Marcar timestamp del recordatorio
+        supabase_patch(
+            f"pedidos?id=eq.{id}",
+            {"recordatorio_pago_enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+        )
+        return {"ok": True, "enviado_email": enviado_email, "email": email_cliente}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

@@ -52,6 +52,7 @@
     { "source": "/tabla-tallas",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tabla-tallas" },
     { "source": "/como-comprar",   "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/como-comprar" },
     { "source": "/privacidad",     "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/privacidad" },
+    { "source": "/politica-de-devoluciones", "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/politica-de-devoluciones" },
     { "source": "/success",           "destination": "/success.html" },
     { "source": "/pedido-exitoso",   "destination": "/success.html" },
     { "source": "/pedido-pendiente", "destination": "/success.html" },

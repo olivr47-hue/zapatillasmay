@@ -91,6 +91,14 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
 @router.get("/seo/producto/{sku}")
 def producto_ssr(sku: str):
     """Sirve producto.html con meta tags y datos del producto pre-inyectados para indexación SEO."""
+    try:
+        return _producto_ssr_inner(sku)
+    except Exception as e:
+        print(f"[seo] producto_ssr crash sku={sku}: {e}")
+        return RedirectResponse(url="https://zapatillasmay.mx/", status_code=302)
+
+
+def _producto_ssr_inner(sku: str):
     # 0. Caché del HTML ya armado (baja el TTFB). El JS del navegador re-carga
     #    stock/precio en vivo, así que cachear el SSR no muestra datos viejos al cliente.
     _ck_ssr = f"ssr_prod_{sku}"
@@ -159,6 +167,26 @@ def producto_ssr(sku: str):
             # Fallback: HTML mínimo con meta tags
             template = None
 
+    # aggregateRating real desde reseñas de clientes (si existen)
+    _rating_data = None
+    try:
+        _resenas = supabase_get(
+            f"resenas_producto?producto_id=eq.{p['id']}&aprobada=eq.true&select=calificacion"
+        )
+        if _resenas and len(_resenas) >= 3:
+            _vals = [float(r["calificacion"]) for r in _resenas if r.get("calificacion")]
+            if _vals:
+                _avg = round(sum(_vals) / len(_vals), 1)
+                _rating_data = {
+                    "@type": "AggregateRating",
+                    "ratingValue": str(_avg),
+                    "reviewCount": str(len(_vals)),
+                    "bestRating": "5",
+                    "worstRating": "1",
+                }
+    except Exception:
+        pass
+
     # JSON-LD del producto (con todas las imágenes) — generado de forma segura
     ld = {
         "@context": "https://schema.org/",
@@ -177,15 +205,30 @@ def producto_ssr(sku: str):
             "availability": "https://schema.org/InStock",
             "seller": {"@type": "Organization", "name": "Zapatillas May"},
         },
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.9",
-            "reviewCount": "47",
-            "bestRating": "5",
-            "worstRating": "1",
-        },
+    }
+    if _rating_data:
+        ld["aggregateRating"] = _rating_data
+
+    # BreadcrumbList para SERP
+    _cat_slug = {
+        "tacones": "tacones", "sandalias": "sandalias", "botas": "botas",
+        "botines": "botines", "flats": "flats", "plataformas": "plataformas",
+        "tenis": "tenis", "nina": "nina", "accesorios": "accesorios",
+    }.get(categoria.lower(), categoria.lower())
+    ld_breadcrumb = {
+        "@context": "https://schema.org/",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "Inicio",
+             "item": "https://zapatillasmay.mx/"},
+            {"@type": "ListItem", "position": 2, "name": categoria.capitalize(),
+             "item": f"https://zapatillasmay.mx/{_cat_slug}"},
+            {"@type": "ListItem", "position": 3, "name": nombre,
+             "item": canonical},
+        ]
     }
     ld_json = json.dumps(ld, ensure_ascii=False)
+    ld_breadcrumb_json = json.dumps(ld_breadcrumb, ensure_ascii=False)
 
     if not template:
         # Fallback minimal HTML
@@ -229,6 +272,7 @@ def producto_ssr(sku: str):
   <meta name="twitter:title" content="{_esc(titulo_seo)}">
   <meta name="twitter:image" content="{_esc(imagen)}">
   <script type="application/ld+json">{ld_json}</script>
+  <script type="application/ld+json">{ld_breadcrumb_json}</script>
   <script>window.__ZM_PRODUCT__ = {json.dumps(p, ensure_ascii=False)}; window.__ZM_LOADED__ = true;</script>"""
 
     template = template.replace("</head>", schema + "\n</head>")
@@ -341,6 +385,8 @@ _PAGINAS_SEO = {
                      "Guía paso a paso para comprar en Zapatillas May: menudeo y mayoreo desde 3 pares, formas de pago y envíos a todo México."),
     "privacidad": ("Aviso de Privacidad | Zapatillas May",
                    "Aviso de privacidad de Zapatillas May. Conoce cómo protegemos y usamos tus datos personales."),
+    "politica-de-devoluciones": ("Política de Devoluciones — 30 Días | Zapatillas May",
+                                  "Política de cambios y devoluciones de Zapatillas May: 30 días sin complicaciones. Conoce las condiciones y el proceso paso a paso."),
 }
 
 
@@ -401,6 +447,48 @@ def pagina_ssr(slug: str):
             # Insertar antes del cierre del header o al inicio del main content
             template = template.replace('<div id="productos-section"',
                                         h1_tag + '<div id="productos-section"', 1)
+
+        # ItemList + BreadcrumbList schema para categorías (rich results en SERP)
+        _cat_productos = []
+        try:
+            _cat_productos = supabase_get(
+                f"productos?activo=eq.true&categoria=eq.{slug}&select=sku_interno,nombre,meta_titulo,imagen_principal,precio_menudeo,es_oferta&limit=20"
+            ) or []
+        except Exception:
+            pass
+        if _cat_productos:
+            _items_ld = []
+            for _i, _pp in enumerate(_cat_productos, 1):
+                _psku = _pp.get("sku_interno") or str(_pp.get("id", ""))
+                _pnombre = (_pp.get("meta_titulo") or _pp.get("nombre") or _psku).strip()
+                _pprecio = (_pp.get("precio_menudeo") or 0)
+                _pprecio_d = _pprecio if _pp.get("es_oferta") else round(float(_pprecio) + 80)
+                _items_ld.append({
+                    "@type": "ListItem",
+                    "position": _i,
+                    "url": f"https://zapatillasmay.mx/producto/{_psku}",
+                    "name": _pnombre,
+                })
+            ld_list = {
+                "@context": "https://schema.org/",
+                "@type": "ItemList",
+                "name": titulo,
+                "url": canonical,
+                "itemListElement": _items_ld,
+            }
+            ld_breadcrumb_cat = {
+                "@context": "https://schema.org/",
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://zapatillasmay.mx/"},
+                    {"@type": "ListItem", "position": 2, "name": titulo.split(" |")[0], "item": canonical},
+                ]
+            }
+            schemas_json = (
+                f'<script type="application/ld+json">{json.dumps(ld_list, ensure_ascii=False)}</script>\n'
+                f'<script type="application/ld+json">{json.dumps(ld_breadcrumb_cat, ensure_ascii=False)}</script>'
+            )
+            template = template.replace("</head>", schemas_json + "\n</head>", 1)
     except Exception as e:
         print(f"[seo] pagina_ssr replace error ({slug}): {e}")
 
@@ -533,16 +621,26 @@ def sitemap():
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += ('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
                 'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n')
-        # URLs sin imagen (home, categorías, páginas fijas)
+        import datetime as _dt_sm
+        _today = _dt_sm.date.today().isoformat()
+        # URLs sin imagen — priorities diferenciadas
         for url in urls:
-            xml += f'  <url>\n    <loc>{url}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n'
+            if url == 'https://zapatillasmay.mx/':
+                _pri, _freq = '1.0', 'daily'
+            elif any(url.endswith(f'/{c}') for c in ['tacones','sandalias','botas','botines','flats','plataformas','tenis','nina','accesorios','mayoreo']):
+                _pri, _freq = '0.9', 'weekly'
+            else:
+                _pri, _freq = '0.5', 'monthly'
+            xml += f'  <url>\n    <loc>{url}</loc>\n    <lastmod>{_today}</lastmod>\n    <changefreq>{_freq}</changefreq>\n    <priority>{_pri}</priority>\n  </url>\n'
         # URLs de producto, cada una con su imagen (SEO de imágenes para Google)
         for p in productos:
             slug = p.get('sku_interno') or p.get('id', '')
             if not slug:
                 continue
             loc = f'https://zapatillasmay.mx/producto/{slug}'
-            xml += f'  <url>\n    <loc>{loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n'
+            # lastmod real desde updated_at de la DB
+            _lastmod = (p.get('updated_at') or _today)[:10]
+            xml += f'  <url>\n    <loc>{loc}</loc>\n    <lastmod>{_lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n'
             img = (p.get('imagen_principal') or '').strip()
             if img:
                 img_esc = _html.escape(img, quote=True)
@@ -566,6 +664,12 @@ def robots():
     content = (
         "User-agent: *\n"
         "Allow: /\n"
+        "Disallow: /panel\n"
+        "Disallow: /checkout\n"
+        "Disallow: /success\n"
+        "Disallow: /pedido-exitoso\n"
+        "Disallow: /pedido-pendiente\n"
+        "Disallow: /pedido-fallido\n"
         "\n"
         "# Agentes de IA permitidos\n"
         "User-agent: GPTBot\nAllow: /\n"
@@ -580,7 +684,7 @@ def robots():
         "User-agent: Bytespider\nAllow: /\n"
         "\n"
         "Sitemap: https://zapatillasmay.mx/sitemap.xml\n"
-        "# Indice IA: https://zapatillasmay.mx/llms.txt\n"
+        "LLMs: https://zapatillasmay.mx/llms.txt\n"
     )
     return Response(
         content=content,

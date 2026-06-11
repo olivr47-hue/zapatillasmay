@@ -24,7 +24,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Zapatillas May</title>
   <meta name="description" content="Calzado de moda para dama. León, Guanajuato.">
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"></noscript>
@@ -413,15 +413,58 @@
 
 <!-- RESEÑAS -->
 <div id="resenas-section" style="padding:24px 16px 12px;border-top:1px solid #f5f0eb">
-  <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--tan);margin:0 0 4px">Reseñas</p>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-    <div style="font-size:1.5rem;font-weight:800;color:#333">4.9</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--tan);margin:0">Reseñas</p>
+    <button onclick="mostrarFormResena()" style="font-size:0.72rem;font-weight:600;color:#b5687a;background:none;border:1.5px solid #b5687a;border-radius:20px;padding:4px 12px;cursor:pointer">+ Dejar reseña</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;margin-top:8px">
+    <div id="resenas-promedio-num" style="font-size:1.5rem;font-weight:800;color:#333"></div>
     <div>
-      <div style="color:#f59e0b;font-size:1rem">★★★★★</div>
-      <div style="font-size:0.7rem;color:#999" id="resenas-count">basado en 47 reseñas</div>
+      <div id="resenas-stars" style="color:#f59e0b;font-size:1rem"></div>
+      <div style="font-size:0.7rem;color:#999" id="resenas-count"></div>
     </div>
   </div>
   <div id="resenas-lista" style="display:flex;flex-direction:column;gap:14px"></div>
+</div>
+
+<!-- Modal formulario de reseña -->
+<div id="modal-resena" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:24px 20px 32px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--tan);margin:0">Dejar reseña</p>
+      <button onclick="cerrarFormResena()" style="background:none;border:none;font-size:1.4rem;color:#aaa;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:6px">Calificación *</label>
+        <select id="resena-cal" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;background:#fff">
+          <option value="">Selecciona tu calificación</option>
+          <option value="5">★★★★★ — Excelente</option>
+          <option value="4">★★★★☆ — Muy bueno</option>
+          <option value="3">★★★☆☆ — Bueno</option>
+          <option value="2">★★☆☆☆ — Regular</option>
+          <option value="1">★☆☆☆☆ — Malo</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:6px">Tu nombre</label>
+        <input id="resena-nombre" placeholder="Ej: María G." style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:6px">Comentario (opcional)</label>
+        <textarea id="resena-comentario" rows="3" placeholder="¿Qué te pareció el producto?" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
+      </div>
+      <div>
+        <label style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Token de pedido *</label>
+        <p style="font-size:0.68rem;color:#aaa;margin:0 0 6px">Lo encuentras en el correo de confirmación de tu compra.</p>
+        <input id="resena-token" placeholder="Ej: abc123xyz" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;box-sizing:border-box">
+      </div>
+      <p id="resena-msg" style="font-size:0.78rem;margin:0;min-height:18px"></p>
+      <button id="btn-enviar-resena" onclick="enviarResena()" style="width:100%;padding:14px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;border-radius:50px;font-size:0.9rem;font-weight:700;font-family:inherit;cursor:pointer">
+        Enviar reseña
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- SIMILARES -->
@@ -1217,67 +1260,115 @@ function cerrarGuiaTallas() {
   document.body.style.overflow = ''
 }
 
-// Reseñas por categoría
+// Sistema de reseñas reales
 (function() {
-  const RESENAS = {
-    tacones: [
-      { ini:'MG', color:'#C8967A,#b5687a', nombre:'Mariana G.', loc:'Guadalajara · Clienta verificada', stars:'★★★★★', txt:'"Los tacones llegaron perfectos, muy bien acabados. Los uso para mis eventos y siempre me preguntan dónde los compré."' },
-      { ini:'VR', color:'#b5687a,#8c4a6a', nombre:'Valentina R.', loc:'CDMX · Clienta frecuente', stars:'★★★★★', txt:'"Calidad increíble para el precio. Ya llevo 3 pedidos de tacones, todos llegaron en 2 días. 100% recomendados."' },
-      { ini:'LP', color:'#C8967A,#a07050', nombre:'Lucía P.', loc:'Monterrey · Revendedora', stars:'★★★★★', txt:'"Compro para mi tienda desde hace 6 meses. Los tacones de León son los que más se me venden, excelente calidad."' }
-    ],
-    sandalias: [
-      { ini:'SR', color:'#7c9ec9,#5b6fa6', nombre:'Sofía R.', loc:'Cancún · Clienta verificada', stars:'★★★★★', txt:'"Las sandalias son súper cómodas y el material aguanta muy bien el calor. Llegaron rapidísimo a Cancún."' },
-      { ini:'AL', color:'#C8967A,#b5687a', nombre:'Andrea L.', loc:'Guadalajara · Clienta frecuente', stars:'★★★★★', txt:'"Pedí 3 pares de sandalias y el precio mayoreo fue increíble. Todas perfectas, sin defectos."' },
-      { ini:'GM', color:'#a3c47c,#6ba058', nombre:'Gabriela M.', loc:'CDMX · Revendedora', stars:'★★★★☆', txt:'"Muy buena calidad de sandalia para el precio. Mis clientes siempre quedan contentas. El envío llegó en 3 días."' }
-    ],
-    botas: [
-      { ini:'CR', color:'#8b7355,#5c4a30', nombre:'Carolina R.', loc:'Monterrey · Clienta verificada', stars:'★★★★★', txt:'"Las botas son exactamente como en las fotos, excelente acabado y el cuero se siente de buena calidad."' },
-      { ini:'IS', color:'#C8967A,#b5687a', nombre:'Isabel S.', loc:'CDMX · Clienta frecuente', stars:'★★★★★', txt:'"Llevo dos temporadas comprando botas aquí. La calidad de León no tiene comparación con lo que encuentras en otras tiendas."' },
-      { ini:'NF', color:'#7c9ec9,#5b6fa6', nombre:'Natalia F.', loc:'Guadalajara · Revendedora', stars:'★★★★★', txt:'"Compro para reventar en mi boutique. Las botas se van solas, siempre piden más del mismo modelo."' }
-    ],
-    botines: [
-      { ini:'PG', color:'#b5687a,#8c4a6a', nombre:'Paola G.', loc:'CDMX · Clienta verificada', stars:'★★★★★', txt:'"Los botines son preciosos y súper cómodos. El mayoreo desde 3 pares me salvó el presupuesto para mi tienda."' },
-      { ini:'MH', color:'#C8967A,#b5687a', nombre:'Mariana H.', loc:'Puebla · Clienta frecuente', stars:'★★★★★', txt:'"Calidad de León en botines, increíble. Ya pedí 4 veces y nunca he tenido un problema con los productos."' },
-      { ini:'RL', color:'#a3c47c,#6ba058', nombre:'Rebeca L.', loc:'Monterrey · Revendedora', stars:'★★★★☆', txt:'"Muy buen producto. El envío tardó 2 días y los botines llegaron perfectamente empacados."' }
-    ],
-    default: [
-      { ini:'MG', color:'#C8967A,#b5687a', nombre:'Mariana G.', loc:'Guadalajara · Clienta verificada', stars:'★★★★★', txt:'"Llegaron súper rápido y la calidad superó mis expectativas. Ya pedí dos modelos más, muy recomendados."' },
-      { ini:'RL', color:'#7c9ec9,#5b6fa6', nombre:'Rosa L.', loc:'CDMX · Clienta frecuente', stars:'★★★★★', txt:'"El precio mayoreo desde 3 pares es increíble. Mis clientes siempre quedan satisfechas con la calidad."' },
-      { ini:'EP', color:'#a3c47c,#6ba058', nombre:'Elena P.', loc:'Monterrey · Revendedora', stars:'★★★★★', txt:'"Muy buena relación calidad-precio. El envío llegó en 2 días hábiles. Calzado excelente para reventa."' }
-    ]
-  }
-  const COUNTS = { tacones:52, sandalias:38, botas:41, botines:45, default:47 }
+  const COLORES = ['#C8967A,#b5687a','#b5687a,#8c4a6a','#7c9ec9,#5b6fa6','#a3c47c,#6ba058','#8b7355,#5c4a30']
 
-  function renderResenas(cat) {
-    const lista = RESENAS[cat] || RESENAS.default
-    const count = COUNTS[cat] || COUNTS.default
+  function starsHtml(n) {
+    return '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n))
+  }
+
+  function renderResenas(rows, total, promedio) {
     const el = document.getElementById('resenas-lista')
     const countEl = document.getElementById('resenas-count')
+    const numEl = document.getElementById('resenas-promedio-num')
+    const starsEl = document.getElementById('resenas-stars')
     if (!el) return
-    if (countEl) countEl.textContent = `basado en ${count} reseñas`
-    el.innerHTML = lista.map(r => `
+    if (total > 0) {
+      if (numEl) numEl.textContent = promedio
+      if (starsEl) starsEl.textContent = starsHtml(promedio)
+      if (countEl) countEl.textContent = `basado en ${total} reseña${total !== 1 ? 's' : ''}`
+    } else {
+      if (numEl) numEl.textContent = ''
+      if (starsEl) starsEl.textContent = ''
+      if (countEl) countEl.textContent = 'Sé la primera en dejar reseña'
+    }
+    if (!rows || rows.length === 0) {
+      el.innerHTML = '<p style="font-size:0.8rem;color:#aaa;text-align:center;padding:16px 0">Aún no hay reseñas para este producto.</p>'
+      return
+    }
+    el.innerHTML = rows.map((r, i) => {
+      const nombre = r.nombre_cliente || 'Cliente'
+      const ini = nombre.split(' ').map(p => p[0]).join('').slice(0,2).toUpperCase()
+      const color = COLORES[i % COLORES.length]
+      const fecha = r.created_at ? new Date(r.created_at).toLocaleDateString('es-MX', {year:'numeric',month:'short',day:'numeric'}) : ''
+      return `
       <div style="background:#faf8f6;border-radius:12px;padding:14px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,${r.color});display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.82rem;flex-shrink:0">${r.ini}</div>
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,${color});display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.82rem;flex-shrink:0">${ini}</div>
           <div>
-            <div style="font-size:0.8rem;font-weight:700;color:#333">${r.nombre}</div>
-            <div style="font-size:0.68rem;color:#999">${r.loc}</div>
+            <div style="font-size:0.8rem;font-weight:700;color:#333">${nombre}</div>
+            <div style="font-size:0.68rem;color:#999">Clienta verificada${fecha ? ' · ' + fecha : ''}</div>
           </div>
-          <div style="margin-left:auto;color:#f59e0b;font-size:0.82rem">${r.stars}</div>
+          <div style="margin-left:auto;color:#f59e0b;font-size:0.82rem">${starsHtml(r.calificacion)}</div>
         </div>
-        <p style="font-size:0.8rem;color:#555;margin:0;line-height:1.5">${r.txt}</p>
-      </div>`).join('')
+        ${r.comentario ? `<p style="font-size:0.8rem;color:#555;margin:0;line-height:1.5">"${r.comentario}"</p>` : ''}
+      </div>`
+    }).join('')
   }
 
-  // Esperar a que se cargue el producto y leer la categoría
-  function intentarRender() {
-    if (window.producto && window.producto.categoria) {
-      renderResenas(window.producto.categoria)
-    } else {
-      setTimeout(intentarRender, 300)
+  async function cargarResenas(sku) {
+    try {
+      const res = await fetch(`${API}/resenas/producto/${sku}`)
+      const data = await res.json()
+      renderResenas(data.resenas, data.total, data.promedio)
+    } catch(e) {
+      const el = document.getElementById('resenas-lista')
+      if (el) el.innerHTML = ''
     }
   }
-  intentarRender()
+
+  // Formulario para dejar reseña
+  function mostrarFormResena() {
+    const modal = document.getElementById('modal-resena')
+    if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden' }
+  }
+  function cerrarFormResena() {
+    const modal = document.getElementById('modal-resena')
+    if (modal) { modal.style.display = 'none'; document.body.style.overflow = '' }
+  }
+  window.mostrarFormResena = mostrarFormResena
+  window.cerrarFormResena = cerrarFormResena
+
+  window.enviarResena = async function() {
+    const sku = window.producto?.sku_interno
+    if (!sku) return
+    const cal = document.getElementById('resena-cal')?.value
+    const comentario = document.getElementById('resena-comentario')?.value || ''
+    const nombre = document.getElementById('resena-nombre')?.value || ''
+    const token = document.getElementById('resena-token')?.value || ''
+    const btn = document.getElementById('btn-enviar-resena')
+    const msg = document.getElementById('resena-msg')
+    if (!cal || !token) { if(msg) msg.textContent = 'Por favor llena todos los campos requeridos.'; return }
+    if (btn) btn.disabled = true
+    try {
+      const res = await fetch(`${API}/resenas/producto/${sku}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ calificacion: parseInt(cal), comentario, nombre, pedido_token: token })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        if(msg) { msg.style.color = '#0a7c3e'; msg.textContent = data.mensaje || '¡Gracias por tu reseña!' }
+        setTimeout(() => { cerrarFormResena(); cargarResenas(sku) }, 1500)
+      } else {
+        if(msg) { msg.style.color = '#e63946'; msg.textContent = data.error || 'Error al enviar.' }
+        if(btn) btn.disabled = false
+      }
+    } catch(e) {
+      if(msg) { msg.style.color = '#e63946'; msg.textContent = 'Error de conexión.' }
+      if(btn) btn.disabled = false
+    }
+  }
+
+  function intentarCargar() {
+    if (window.producto?.sku_interno) {
+      cargarResenas(window.producto.sku_interno)
+    } else {
+      setTimeout(intentarCargar, 300)
+    }
+  }
+  intentarCargar()
 })()
 
 // Contador "vendidos esta semana" — basado en ID del producto para ser consistente

@@ -440,17 +440,18 @@ async def webhook_mercadopago(request: Request):
 
                     elif status == "pending":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
+                        ya_era_pendiente = pedido and pedido[0].get("status") == "pendiente_pago"
                         supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago"})
-                        # Email SPEI pendiente al cliente (solo si no se había enviado ya)
-                        if pedido:
+                        # Email SPEI/OXXO pendiente al cliente (solo la primera vez)
+                        if pedido and not ya_era_pendiente:
                             p = pedido[0]
                             email_cliente = p.get("email_cliente", "")
-                            if email_cliente and p.get("status") != "pendiente_pago":
+                            if email_cliente:
                                 try:
                                     subj, html = email_pedido_pendiente_spei(p)
                                     enviar_email(email_cliente, subj, html)
                                 except Exception as e:
-                                    print(f"[pagos] Error email SPEI pendiente: {e}")
+                                    print(f"[pagos] Error email SPEI/OXXO pendiente: {e}")
 
         return {"ok": True}
     except Exception:
