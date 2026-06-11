@@ -124,19 +124,11 @@ def pedidos_pendientes():
     """Pedidos con pago pendiente (OXXO/SPEI) — para el panel de seguimiento."""
     import datetime as _dt
     try:
-        # Intentar con la columna nueva; si falla (columna no existe aún), re-intentar sin ella
-        try:
-            rows = supabase_get(
-                "pedidos?status=eq.pendiente_pago"
-                "&select=id,created_at,updated_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente,recordatorio_pago_enviado_at"
-                "&order=created_at.desc&limit=200"
-            ) or []
-        except Exception:
-            rows = supabase_get(
-                "pedidos?status=eq.pendiente_pago"
-                "&select=id,created_at,updated_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente"
-                "&order=created_at.desc&limit=200"
-            ) or []
+        rows = supabase_get(
+            "pedidos?status=eq.pendiente_pago"
+            "&select=id,created_at,updated_at,total,forma_pago,email_cliente,nombre_cliente,telefono_cliente"
+            "&order=created_at.desc&limit=200"
+        ) or []
         ahora = _dt.datetime.now(_dt.timezone.utc)
         for p in rows:
             try:
@@ -172,11 +164,14 @@ def enviar_recordatorio_pago(id: str):
             except Exception as e:
                 print(f"[pedidos] Error email recordatorio: {e}")
 
-        # Marcar timestamp del recordatorio
-        supabase_patch(
-            f"pedidos?id=eq.{id}",
-            {"recordatorio_pago_enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
-        )
+        # Marcar timestamp del recordatorio (columna opcional)
+        try:
+            supabase_patch(
+                f"pedidos?id=eq.{id}",
+                {"recordatorio_pago_enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+            )
+        except Exception:
+            pass
         return {"ok": True, "enviado_email": enviado_email, "email": email_cliente}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
