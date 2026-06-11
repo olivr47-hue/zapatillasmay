@@ -13163,8 +13163,6 @@ async function cargarCarritosAbandonados() {
                     const tel    = p.telefono_cliente|| ''
                     const horas  = p.horas_pendiente != null ? (p.horas_pendiente < 1 ? 'hace &lt;1h' : `hace ${p.horas_pendiente}h`) : '—'
                     const yaAvisado = !!p.recordatorio_pago_enviado_at
-                    const waMsg = encodeURIComponent(`Hola ${nombre.split(' ')[0]}, te escribimos de Zapatillas May. Vimos que elegiste pago por ${p.forma_pago?.toUpperCase()||'OXXO/SPEI'} para tu pedido de $${parseFloat(p.total||0).toFixed(0)} MXN pero aún no lo vemos acreditado. ¿Pudiste realizar el pago? Si tienes dudas con placer te ayudamos 😊`)
-                    const waUrl = tel ? `https://wa.me/52${tel.replace(/\D/g,'')}?text=${waMsg}` : ''
                     return `<tr style="border-bottom:1px solid var(--border)">
                       <td style="padding:10px 14px">
                         <div style="font-weight:600">${nombre}</div>
@@ -13176,8 +13174,7 @@ async function cargarCarritosAbandonados() {
                       <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${horas}<br><span style="font-size:0.7rem">${fmtFecha(p.created_at)}</span></td>
                       <td style="padding:10px 14px">
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
-                          ${email ? `<button onclick="enviarRecordatorioPago('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">${yaAvisado ? '📧 Re-enviar' : '📧 Email'}</button>` : ''}
-                          ${waUrl ? `<a href="${waUrl}" target="_blank" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block">💬 WhatsApp</a>` : ''}
+                          <button onclick="enviarRecordatorioPago('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #b5687a;background:none;color:#b5687a;font-size:0.75rem;font-weight:600;cursor:pointer">${yaAvisado ? '🔄 Re-enviar' : '📨 Recordatorio'}</button>
                         </div>
                         ${yaAvisado ? `<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${fmtFecha(p.recordatorio_pago_enviado_at)}</div>` : ''}
                       </td>
@@ -13270,7 +13267,10 @@ window.enviarRecordatorioPago = async function(pedidoId, btn) {
     const res = await fetch(API + `/pedidos/${pedidoId}/recordatorio-pago`, { method: 'POST' })
     const d = await res.json()
     if (d.ok) {
-      btn.textContent = '✅ Enviado'
+      const partes = []
+      if (d.enviado_email) partes.push('📧')
+      if (d.enviado_wa)    partes.push('💬')
+      btn.textContent = (partes.length ? partes.join('') + ' ' : '') + 'Enviado'
       btn.style.borderColor = '#15803d'
       btn.style.color = '#15803d'
     } else {

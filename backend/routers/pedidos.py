@@ -155,7 +155,15 @@ def enviar_recordatorio_pago(id: str):
             return JSONResponse(status_code=400, content={"error": "El pedido no está pendiente de pago"})
 
         email_cliente = p.get("email_cliente", "")
+        tel_cliente   = p.get("telefono_cliente", "")
+        nombre_cliente = p.get("nombre_cliente", "Cliente")
+        metodo = (p.get("forma_pago") or "OXXO/SPEI").upper()
+        total  = p.get("total", 0)
+
         enviado_email = False
+        enviado_wa    = False
+
+        # Email
         if email_cliente:
             try:
                 subj, html = email_pedido_pendiente_spei(p)
@@ -163,6 +171,24 @@ def enviar_recordatorio_pago(id: str):
                 enviado_email = True
             except Exception as e:
                 print(f"[pedidos] Error email recordatorio: {e}")
+
+        # WhatsApp API (Meta)
+        if tel_cliente:
+            try:
+                from routers.chatbot import enviar_whatsapp_texto
+                tel_limpio = "52" + tel_cliente.replace("+52","").replace("+","").strip().replace(" ","").replace("-","")
+                nombre_corto = nombre_cliente.split()[0] if nombre_cliente else "Cliente"
+                msg = (
+                    f"Hola {nombre_corto} 👋, te escribimos de *Zapatillas May*.\n\n"
+                    f"Vimos que elegiste pago por *{metodo}* para tu pedido de *${float(total):.0f} MXN* "
+                    f"pero aún no lo vemos acreditado.\n\n"
+                    f"¿Pudiste realizar el pago? Si tienes dudas con gusto te ayudamos 😊"
+                )
+                wamid = enviar_whatsapp_texto(tel_limpio, msg)
+                if wamid:
+                    enviado_wa = True
+            except Exception as e:
+                print(f"[pedidos] Error WA recordatorio: {e}")
 
         # Marcar timestamp del recordatorio (columna opcional)
         try:
@@ -172,7 +198,7 @@ def enviar_recordatorio_pago(id: str):
             )
         except Exception:
             pass
-        return {"ok": True, "enviado_email": enviado_email, "email": email_cliente}
+        return {"ok": True, "enviado_email": enviado_email, "enviado_wa": enviado_wa, "email": email_cliente, "telefono": tel_cliente}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
