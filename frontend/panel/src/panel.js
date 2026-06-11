@@ -13108,7 +13108,7 @@ async function cargarCarritosAbandonados() {
     ])
     const st = resCA.stats || {}
     const carritos = resCA.carritos || []
-    const pedidosPendientes = resPP.pedidos || resPP || []
+    const pedidosPendientes = Array.isArray(resPP) ? resPP : (Array.isArray(resPP.pedidos) ? resPP.pedidos : [])
 
     const fmtFecha = (f) => { try { return new Date(f).toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) } catch(e){ return f } }
     const badgeCA = (c) => {
