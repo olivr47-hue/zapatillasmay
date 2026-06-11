@@ -158,16 +158,29 @@ def _marcar_recordatorio(id: str):
         pass
 
 @router.post("/{id}/recordatorio-email")
-def recordatorio_email(id: str):
-    """Envía recordatorio de pago por email."""
+def recordatorio_email(id: str, datos: dict = {}):
+    """Envía recordatorio de pago por email. Acepta mensaje personalizado en datos.mensaje."""
     try:
-        from email_utils import enviar_email, email_pedido_pendiente_spei
+        from email_utils import enviar_email, email_pedido_pendiente_spei, _base_html
         p, err = _get_pedido_pendiente(id)
         if err: return err
         email_cliente = p.get("email_cliente", "")
         if not email_cliente:
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene email"})
-        subj, html = email_pedido_pendiente_spei(p)
+
+        msg_personalizado = (datos.get("mensaje") or "").strip()
+        if msg_personalizado:
+            nombre = (p.get("nombre_cliente") or "Clienta").split()[0].capitalize()
+            pedido_id = str(p.get("id") or "")[:8].upper()
+            # Convertir saltos de línea a HTML
+            parrafos = "".join(f'<p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:12px">{l}</p>'
+                               for l in msg_personalizado.split("\n") if l.strip())
+            contenido = f'<h2 style="color:#2A1A0E;font-size:1.3rem;margin-bottom:16px">Hola {nombre} 😊</h2>{parrafos}'
+            subj = f"Tu pedido #{pedido_id} · Zapatillas May"
+            html = _base_html(contenido)
+        else:
+            subj, html = email_pedido_pendiente_spei(p)
+
         enviar_email(email_cliente, subj, html)
         _marcar_recordatorio(id)
         return {"ok": True, "enviado_a": email_cliente}
@@ -175,10 +188,10 @@ def recordatorio_email(id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/recordatorio-whatsapp")
-def recordatorio_whatsapp(id: str):
-    """Envía recordatorio de pago por WhatsApp API (Meta) usando plantilla aprobada."""
+def recordatorio_whatsapp(id: str, datos: dict = {}):
+    """Envía recordatorio de pago por WhatsApp. Acepta mensaje personalizado en datos.mensaje."""
     try:
-        from routers.chatbot import enviar_whatsapp_plantilla
+        from routers.chatbot import enviar_whatsapp_texto
         p, err = _get_pedido_pendiente(id)
         if err: return err
         tel_cliente    = p.get("telefono_cliente", "")
@@ -189,18 +202,20 @@ def recordatorio_whatsapp(id: str):
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene teléfono"})
         tel_limpio = "52" + tel_cliente.replace("+52","").replace("+","").strip().replace(" ","").replace("-","")
         nombre_corto = (nombre_cliente.split()[0] if nombre_cliente else "Cliente").capitalize()
-        # Usar plantilla aprobada: {{1}}=nombre, {{2}}=total, {{3}}=metodo_pago
-        wamid = enviar_whatsapp_plantilla(
-            tel_limpio,
-            "recordatorio_pago_pendiente",
-            "es_MX",
-            [nombre_corto, f"{float(total):.0f}", metodo]
-        )
+
+        # Mensaje personalizado o el predeterminado amigable
+        msg = (datos.get("mensaje") or "").strip()
+        if not msg:
+            msg = (
+                f"Hola {nombre_corto} 😊 Te escribimos de *Zapatillas May*.\n\n"
+                f"Vimos que tienes un pedido de *${float(total):.0f} MXN* pendiente de pago vía *{metodo}*. "
+                f"¿Pudiste realizarlo? Si tienes alguna duda o necesitas ayuda, con mucho gusto te apoyamos 🌸\n\n"
+                f"¡Gracias por confiar en nosotras!"
+            )
+
+        wamid = enviar_whatsapp_texto(tel_limpio, msg)
         if not wamid:
-            return JSONResponse(status_code=500, content={
-                "error": "No se pudo enviar. Asegúrate de que la plantilla 'recordatorio_pago_pendiente' esté APROBADA en Meta. "
-                         "Usa el botón 'Crear plantilla' en el panel si aún no la has creado."
-            })
+            return JSONResponse(status_code=500, content={"error": "No se pudo enviar. Verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID en Railway."})
         _marcar_recordatorio(id)
         return {"ok": True, "enviado_a": tel_limpio}
     except Exception as e:

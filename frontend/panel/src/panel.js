@@ -13227,7 +13227,7 @@ async function cargarCarritosAbandonados() {
                     const tel    = p.telefono_cliente|| ''
                     const horas  = p.horas_pendiente != null ? (p.horas_pendiente < 1 ? 'hace &lt;1h' : `hace ${p.horas_pendiente}h`) : '—'
                     const yaAvisado = !!p.recordatorio_pago_enviado_at
-                    return `<tr style="border-bottom:1px solid var(--border)">
+                    return `<tr data-pedido-id="${p.id}" style="border-bottom:1px solid var(--border)">
                       <td style="padding:10px 14px">
                         <div style="font-weight:600">${nombre}</div>
                         ${email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${email}</div>` : ''}
@@ -13238,8 +13238,8 @@ async function cargarCarritosAbandonados() {
                       <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${horas}<br><span style="font-size:0.7rem">${fmtFecha(p.created_at)}</span></td>
                       <td style="padding:10px 14px">
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
-                          ${email ? `<button onclick="enviarRecordatorioEmail('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>` : ''}
-                          ${tel   ? `<button onclick="enviarRecordatorioWA('${p.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
+                          ${email ? `<button onclick="enviarRecordatorioEmail('${p.id}', this, '${(p.nombre_cliente||'').split(' ')[0]}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>` : ''}
+                          ${tel   ? `<button onclick="enviarRecordatorioWA('${p.id}', this, '${(p.nombre_cliente||'').split(' ')[0]}', '${parseFloat(p.total||0).toFixed(0)}', '${(p.forma_pago||'OXXO/SPEI').toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
                         </div>
                         ${yaAvisado ? `<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${fmtFecha(p.recordatorio_pago_enviado_at)}</div>` : ''}
                       </td>
@@ -13372,8 +13372,82 @@ async function _enviarRecordatorio(url, btn) {
   }
 }
 
-window.enviarRecordatorioEmail = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-email`, btn)
-window.enviarRecordatorioWA    = (id, btn) => _enviarRecordatorio(API + `/pedidos/${id}/recordatorio-whatsapp`, btn)
+// Modal editable de recordatorio
+window.abrirModalRecordatorio = function(pedidoId, tipo, nombre, total, metodo) {
+  const esWA = tipo === 'wa'
+  const msgDefault = esWA
+    ? `Hola ${nombre} 😊 Te escribimos de Zapatillas May.\n\nVimos que tienes un pedido de $${total} MXN pendiente de pago vía ${metodo}. ¿Pudiste realizarlo? Si tienes alguna duda o necesitas ayuda, con mucho gusto te apoyamos 🌸\n\n¡Gracias por confiar en nosotras!`
+    : `Hola ${nombre}, te recordamos que tienes un pedido de $${total} MXN pendiente de pago vía ${metodo}.\n\nCuando realices el pago lo procesamos de inmediato. Si tienes alguna duda estamos para ayudarte 😊`
+
+  // Remover modal previo si existe
+  document.getElementById('modal-recordatorio')?.remove()
+
+  const modal = document.createElement('div')
+  modal.id = 'modal-recordatorio'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h3 style="margin:0;font-size:1rem;font-weight:700">${esWA ? '💬 Recordatorio por WhatsApp' : '📧 Recordatorio por Email'}</h3>
+        <button onclick="document.getElementById('modal-recordatorio').remove()" style="border:none;background:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1">×</button>
+      </div>
+      <p style="font-size:0.78rem;color:#888;margin-bottom:8px">Edita el mensaje antes de enviarlo:</p>
+      <textarea id="modal-recordatorio-msg" rows="7"
+        style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.85rem;line-height:1.6;resize:vertical;font-family:inherit;box-sizing:border-box"
+      >${msgDefault}</textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button onclick="document.getElementById('modal-recordatorio').remove()"
+          style="padding:8px 18px;border-radius:20px;border:1.5px solid #e5e7eb;background:none;color:#666;font-size:0.82rem;cursor:pointer">
+          Cancelar
+        </button>
+        <button id="modal-recordatorio-btn" onclick="enviarRecordatorioConfirmado('${pedidoId}','${tipo}')"
+          style="padding:8px 18px;border-radius:20px;border:none;background:${esWA ? '#25D366' : '#1a56db'};color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">
+          ${esWA ? '💬 Enviar por WhatsApp' : '📧 Enviar Email'}
+        </button>
+      </div>
+    </div>`
+  document.body.appendChild(modal)
+  // Cerrar al hacer clic fuera
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.enviarRecordatorioConfirmado = async function(pedidoId, tipo) {
+  const msg = document.getElementById('modal-recordatorio-msg')?.value?.trim()
+  const btn = document.getElementById('modal-recordatorio-btn')
+  if (!btn) return
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  const url = tipo === 'wa'
+    ? API + `/pedidos/${pedidoId}/recordatorio-whatsapp`
+    : API + `/pedidos/${pedidoId}/recordatorio-email`
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mensaje: msg })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      document.getElementById('modal-recordatorio')?.remove()
+      // Feedback visual en la fila
+      const rows = document.querySelectorAll(`[data-pedido-id="${pedidoId}"]`)
+      rows.forEach(r => r.style.opacity = '0.5')
+    } else {
+      btn.disabled = false
+      btn.textContent = tipo === 'wa' ? '💬 Enviar por WhatsApp' : '📧 Enviar Email'
+      alert('Error: ' + (data.error || 'No se pudo enviar'))
+    }
+  } catch(e) {
+    btn.disabled = false
+    btn.textContent = tipo === 'wa' ? '💬 Enviar por WhatsApp' : '📧 Enviar Email'
+    alert('Error de red: ' + e.message)
+  }
+}
+
+window.enviarRecordatorioEmail = (id, btn, nombre, total, metodo) =>
+  window.abrirModalRecordatorio(id, 'email', nombre, total, metodo)
+window.enviarRecordatorioWA    = (id, btn, nombre, total, metodo) =>
+  window.abrirModalRecordatorio(id, 'wa', nombre, total, metodo)
 
 window.crearPlantillaPago = async function(btn) {
   const orig = btn.textContent
