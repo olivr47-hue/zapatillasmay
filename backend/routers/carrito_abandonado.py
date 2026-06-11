@@ -258,3 +258,45 @@ def test_envio(datos: dict):
     }
     ok = _enviar_recordatorio(carrito_demo)
     return {"ok": ok, "enviado_a": email, "resend_configurado": bool(_RESEND_OK and resend.api_key)}
+
+
+# ── 8. WA API: enviar recordatorio por WhatsApp al cliente ──────────
+@router.post("/{id}/whatsapp")
+def recordatorio_whatsapp(id: str):
+    """Envía recordatorio de carrito abandonado por WhatsApp API (Meta)."""
+    try:
+        rows = supabase_get(f"carritos_abandonados?id=eq.{id}&select=*&limit=1")
+        if not rows:
+            return JSONResponse(status_code=404, content={"error": "Carrito no encontrado"})
+        c = rows[0]
+        email = c.get("email", "")
+        nombre = (c.get("nombre") or "").split()[0].capitalize() or "Hola"
+        total = c.get("total") or 0
+
+        # Buscar teléfono en clientes por email
+        telefono = ""
+        if email:
+            cli = supabase_get(f"clientes?email=eq.{email}&select=telefono,lada&limit=1")
+            if cli:
+                lada = cli[0].get("lada") or "52"
+                tel_raw = (cli[0].get("telefono") or "").replace(" ", "").replace("-", "")
+                if tel_raw:
+                    telefono = lada + tel_raw if not tel_raw.startswith(lada) else tel_raw
+
+        if not telefono:
+            return JSONResponse(status_code=400, content={"error": "El cliente no tiene teléfono registrado"})
+
+        from routers.chatbot import enviar_whatsapp_texto
+        msg = (
+            f"Hola {nombre} 👋, te escribimos de *Zapatillas May*.\n\n"
+            f"Dejaste productos en tu carrito por *${float(total):.0f} MXN* y nos gustaría ayudarte a completar tu compra 👠\n\n"
+            f"¿Tienes alguna duda sobre talla, color o envío? Con gusto te asesoramos 😊\n\n"
+            f"👉 https://zapatillasmay.mx"
+        )
+        wamid = enviar_whatsapp_texto(telefono, msg)
+        if wamid:
+            return {"ok": True, "enviado_a": telefono}
+        else:
+            return JSONResponse(status_code=500, content={"error": "No se pudo enviar por WhatsApp. Verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

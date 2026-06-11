@@ -13281,6 +13281,7 @@ async function cargarCarritosAbandonados() {
                     <th style="padding:8px">Total</th>
                     <th style="padding:8px">Última actividad</th>
                     <th style="padding:8px">Estado</th>
+                    <th style="padding:8px">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -13291,8 +13292,11 @@ async function cargarCarritosAbandonados() {
                         <td style="padding:8px;font-weight:600">$${parseFloat(c.total||0).toFixed(0)}</td>
                         <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
                         <td style="padding:8px">${badgeCA(c)}</td>
+                        <td style="padding:8px">
+                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
+                        </td>
                       </tr>`).join('')
-                    : '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
+                    : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
                 </tbody>
               </table>
             </div>
@@ -13313,6 +13317,28 @@ window.switchTabPagos = function(tab) {
   document.getElementById('tab-ca').style.cssText = tab === 'ca'
     ? 'padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px'
     : 'padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px'
+}
+
+window.enviarWACarrito = async function(carritoId, btn) {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  try {
+    const res = await fetch(API + `/carrito-abandonado/${carritoId}/whatsapp`, { method: 'POST' })
+    const d = await res.json()
+    if (d.ok) {
+      btn.textContent = '✅ Enviado'
+      btn.style.borderColor = '#15803d'
+      btn.style.color = '#15803d'
+    } else {
+      btn.textContent = orig
+      btn.disabled = false
+      alert('Error: ' + (d.error || 'No se pudo enviar'))
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
+  }
 }
 
 window.enviarRecordatorioPago = async function(pedidoId, btn) {
