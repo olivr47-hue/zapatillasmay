@@ -4655,14 +4655,15 @@ window.buscarVariante = (texto, prefijo) => {
     return
   }
   const terminos = texto.toLowerCase().split(' ').filter(t => t)
-  const filtradas = variantes.filter(v => {
+  const todasFiltradas = variantes.filter(v => {
     const nombre = (v.productos ? v.productos.nombre || '' : '').toLowerCase()
     const color = (v.color || '').toLowerCase()
     const talla = (v.talla || '').toLowerCase()
     const sku = (v.sku || '').toLowerCase()
     const completo = nombre + ' ' + color + ' ' + talla + ' ' + sku
     return terminos.every(t => completo.includes(t))
-  }).slice(0, 15)
+  })
+  const filtradas = todasFiltradas.slice(0, 15)
 
   if (filtradas.length === 0) {
     resultadosDiv.innerHTML = '<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron resultados</div>'
@@ -4671,6 +4672,40 @@ window.buscarVariante = (texto, prefijo) => {
   }
 
   const esPedido = prefijo === 'ped-prod'
+
+  // En pedidos: agrupar por producto + color y mostrar chips de talla tocables
+  // (agregar varias tallas de un mismo modelo de un toque, estilo POS)
+  if (esPedido) {
+    const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+    const grupos = {}
+    todasFiltradas.forEach(v => {
+      const key = (v.producto_id || '') + '|' + (v.color || '')
+      if (!grupos[key]) grupos[key] = { nombre: (v.productos ? v.productos.nombre || '—' : '—'), color: v.color || '', hex: v.color_hex, foto: v.foto_url, vars: [] }
+      grupos[key].vars.push(v)
+    })
+    const gruposArr = Object.values(grupos).slice(0, 8)
+    resultadosDiv.innerHTML = gruposArr.map(g => {
+      const chips = g.vars
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+        .map(v => {
+          const nombreCompleto = (g.nombre + ' - ' + g.color + ' - T' + v.talla).replace(/'/g, '')
+          return `<button onclick="agregarItemPedido('${v.id}', '${nombreCompleto}');this.style.background='#E91E8C';this.style.color='#fff';this.style.borderColor='#E91E8C'"
+                          style="min-width:46px;min-height:42px;padding:6px 12px;border:1.5px solid #ddd;border-radius:9px;background:#fff;color:#333;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">T${v.talla}</button>`
+        }).join('')
+      return `
+        <div style="padding:11px 12px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+            ${g.foto ? `<img src="${g.foto}" style="width:38px;height:38px;object-fit:cover;border-radius:7px;flex-shrink:0">` : `<div style="width:38px;height:38px;background:#f3f3f3;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>`}
+            ${g.hex ? `<span style="width:13px;height:13px;border-radius:50%;background:${g.hex};border:1px solid #ddd;flex-shrink:0"></span>` : ''}
+            <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${g.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${g.color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        </div>`
+    }).join('')
+    resultadosDiv.style.display = 'block'
+    return
+  }
 
   resultadosDiv.innerHTML = filtradas.map(v => {
     const nombreCompleto = (v.productos ? v.productos.nombre || '' : '') + ' - ' + v.color + ' - T' + v.talla
@@ -7431,10 +7466,10 @@ window.renderItemsPedido = () => {
       <div style="flex:1">
         <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${item.nombre}</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:4px">
-            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">−</button>
-            <span style="font-weight:600;min-width:24px;text-align:center">${item.cantidad}</span>
-            <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:1rem">+</button>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="cambiarCantidadItem(${idx}, -1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+            <span style="font-weight:700;min-width:26px;text-align:center">${item.cantidad}</span>
+            <button onclick="cambiarCantidadItem(${idx}, 1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
           </div>
           <span style="color:#888;font-size:0.8rem">×$${item.precio_unitario}</span>
           <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
@@ -8545,8 +8580,18 @@ if (modalAnterior) modalAnterior.remove()
         <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;flex-shrink:0">✕</button>
       </div>
 
+      ${producto.corrida_activa ? `
+      <div style="padding:12px 1.5rem 0">
+        <div style="display:flex;gap:4px;background:var(--surface-2,#f5f3f7);border-radius:12px;padding:4px">
+          <button id="pos-modo-variado" class="pos-modo-tab active" onclick="posCambiarModo('${productoId}','variado')">🧺 Surtido variado</button>
+          <button id="pos-modo-corrida" class="pos-modo-tab corrida" onclick="posCambiarModo('${productoId}','corrida')">📦 Corrida completa</button>
+        </div>
+        <p id="pos-modo-hint" style="font-size:0.72rem;color:#888;margin-top:7px;line-height:1.4">Elige tallas sueltas; el precio se ajusta solo según el total de pares (menudeo · mayoreo 3+ · 6+).</p>
+      </div>
+      ` : ''}
+
       <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
-        <p style="font-size:0.75rem;color:#888;font-weight:600;margin-bottom:8px">SELECCIONA COLOR</p>
+        <p id="pos-color-label" style="font-size:0.75rem;color:#888;font-weight:600;margin-bottom:8px">SELECCIONA COLOR</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${colores.map(color => {
             const v = varsProd.find(v => v.color === color)
@@ -8557,7 +8602,7 @@ if (modalAnterior) modalAnterior.remove()
                 return sum + (inv ? inv.cantidad : 0)
               }, 0)
             return `
-              <div onclick="seleccionarColorModalPOS('${productoId}', '${color}')"
+              <div onclick="posSeleccionarColor('${productoId}', '${color}')"
                    id="pos-color-btn-${color.replace(/\s/g,'_')}"
                    style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${totalStock === 0 ? '#f5f5f5' : '#ddd'};opacity:${totalStock === 0 ? '0.4' : '1'}">
                 <div style="width:24px;height:24px;border-radius:50%;background:${v ? v.color_hex : '#888'};border:2px solid #ddd"></div>
@@ -8576,136 +8621,184 @@ if (modalAnterior) modalAnterior.remove()
       <div id="pos-modal-resumen" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:none">
       </div>
 
-      <div style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #eee">
-  ${producto.corrida_activa ? `
-    <button onclick="mostrarCorridaModalPOS('${productoId}')"
-            class="btn btn-secondary"
-            style="width:100%;padding:10px;font-size:0.9rem;background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">
-      📦 Agregar corrida completa
-    </button>
-  ` : ''}
-  <button onclick="confirmarModalPOS('${productoId}')"
-          id="pos-btn-confirmar"
-          class="btn btn-primary"
-          style="width:100%;padding:12px;font-size:1rem"
-          disabled>
-    Selecciona al menos una talla
-  </button>
-</div>
+      <div id="pos-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #eee">
+        <button onclick="confirmarModalPOS('${productoId}')"
+                id="pos-btn-confirmar"
+                class="btn btn-primary"
+                style="width:100%;padding:14px;font-size:1rem"
+                disabled>
+          Selecciona al menos una talla
+        </button>
+      </div>
   `
 
   document.body.appendChild(modal)
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
   window._posSeleccion = { productoId, color: null }
   window._posBuffer = {}
-  
+  window._posModo = 'variado'
+  window._posColores = colores
+  window._corridaCantidades = {}
 }
-window.mostrarCorridaModalPOS = (productoId) => {
+
+// ── POS modal: selección de color compartida entre los dos modos ──
+window._posHighlightColor = (color, border, bg) => {
+  document.querySelectorAll('[id^="pos-color-btn-"]').forEach(el => {
+    el.style.borderColor = '#ddd'; el.style.background = 'transparent'
+  })
+  const el = document.getElementById('pos-color-btn-' + color.replace(/\s/g,'_'))
+  if (el) { el.style.borderColor = border; el.style.background = bg }
+}
+
+window.posSeleccionarColor = (productoId, color) => {
+  if (window._posModo === 'corrida') {
+    window._corridaColorActivo = color
+    window._posSeleccion.color = color
+    window._posHighlightColor(color, '#6a1b9a', '#f3e5f5')
+    renderCorridaTallas(productoId, color)
+  } else {
+    // modo variado: seleccionarColorModalPOS hace su propio resaltado (rosa) y pinta las tallas
+    seleccionarColorModalPOS(productoId, color)
+  }
+}
+
+window.posCambiarModo = (productoId, modo) => {
+  window._posModo = modo
+  const tv = document.getElementById('pos-modo-variado')
+  const tc = document.getElementById('pos-modo-corrida')
+  if (tv) tv.classList.toggle('active', modo === 'variado')
+  if (tc) tc.classList.toggle('active', modo === 'corrida')
+  const hint = document.getElementById('pos-modo-hint')
+  if (hint) hint.textContent = modo === 'corrida'
+    ? 'Una corrida completa: varias tallas de un mismo color a precio de corrida. Usa "Sugerir" para llenarla rápido.'
+    : 'Elige tallas sueltas; el precio se ajusta solo según el total de pares (menudeo · mayoreo 3+ · 6+).'
+  // cada modo recalcula sus propias insignias de color
+  document.querySelectorAll('[id^="pos-color-badge-"]').forEach(b => { b.style.display = 'none' })
+
+  const footer = document.getElementById('pos-modal-footer')
+  const colorActivo = window._posSeleccion?.color || window._corridaColorActivo || (window._posColores && window._posColores[0])
+
+  if (modo === 'corrida') {
+    if (!window._corridaCantidades) window._corridaCantidades = {}
+    if (footer) footer.innerHTML = `
+      <button onclick="sugerirCorrida('${productoId}', window._corridaColorActivo)"
+              style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:#f3e5f5;color:#6a1b9a;border:1.5px solid #ce93d8;border-radius:10px;min-height:46px">
+        ✨ Sugerir corrida (6 pares)
+      </button>
+      <button onclick="confirmarCorridaNueva('${productoId}')"
+              id="pos-btn-confirmar-corrida" class="btn btn-primary"
+              style="width:100%;padding:14px;font-size:1rem;background:#6a1b9a;border-color:#6a1b9a" disabled>
+        Agrega tallas a la corrida
+      </button>`
+    window._corridaColorActivo = colorActivo
+    if (colorActivo) { window._posHighlightColor(colorActivo, '#6a1b9a', '#f3e5f5'); renderCorridaTallas(productoId, colorActivo) }
+    else {
+      const panel = document.getElementById('pos-tallas-panel')
+      if (panel) panel.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Selecciona un color para armar la corrida</p>'
+    }
+  } else {
+    if (footer) footer.innerHTML = `
+      <button onclick="confirmarModalPOS('${productoId}')" id="pos-btn-confirmar"
+              class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem" disabled>
+        Selecciona al menos una talla
+      </button>`
+    if (colorActivo) seleccionarColorModalPOS(productoId, colorActivo)
+    else {
+      const panel = document.getElementById('pos-tallas-panel')
+      if (panel) panel.innerHTML = '<p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>'
+    }
+    actualizarResumenModalPOS(productoId)
+  }
+}
+
+// Renderiza SOLO las tallas de la corrida del color dado (el selector de color es el de arriba)
+window.renderCorridaTallas = (productoId, color) => {
   const { variantes, inventario } = window._posData
   const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
   const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
-  const colores = [...new Set(variantes.filter(v => v.producto_id === productoId).map(v => v.color).filter(Boolean))]
-const btnCorrida = document.querySelector(`button[onclick="mostrarCorridaModalPOS('${productoId}')"]`)
-  if (btnCorrida) btnCorrida.style.display = 'none'
-  // Limpiar overlay si existe
-document.querySelectorAll('#pos-modal').forEach(m => {
-  if (m !== document.getElementById('pos-modal')) m.remove()
-})
-window._posSeleccion.color = null
-  window._corridaCantidades = {} // buffer de cantidades por variante
-
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
   const panel = document.getElementById('pos-tallas-panel')
   if (!panel) return
+  if (!window._corridaCantidades) window._corridaCantidades = {}
 
-  // Renderizar selector de colores + tallas del color activo
-  const renderCorridaColor = (colorActivo) => {
-    const varsColor = variantes
-      .filter(v => v.producto_id === productoId && v.color === colorActivo)
-      .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-
-    const tallasConStock = varsColor.filter(v => {
-      const inv = invSucursal.find(i => i.variante_id === v.id)
-      return inv && inv.cantidad > 0
-    })
-
-    panel.innerHTML = `
-      <p style="font-size:0.75rem;color:#6a1b9a;font-weight:700;margin-bottom:12px">📦 CORRIDA — selecciona color y ajusta cantidades</p>
-
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-        ${colores.map(c => {
-          const vColor = variantes.find(v => v.producto_id === productoId && v.color === c)
-          const hex = vColor ? vColor.color_hex : '#888'
-          const foto = vColor ? vColor.foto_url : null
-          const totalColor = Object.entries(window._corridaCantidades)
-            .filter(([vid]) => variantes.find(v => v.id === vid && v.color === c))
-            .reduce((s, [, qty]) => s + qty, 0)
-          return `
-            <div onclick="window._corridaColorActivo='${c}';renderCorridaColor('${c}')"
-                 style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px;border-radius:10px;border:2px solid ${c === colorActivo ? '#6a1b9a' : '#eee'};background:${c === colorActivo ? '#f3e5f5' : 'white'};min-width:64px;position:relative">
-              ${foto
-                ? `<img src="${foto}" style="width:44px;height:44px;object-fit:cover;border-radius:6px">`
-                : `<div style="width:44px;height:44px;border-radius:6px;background:${hex}"></div>`}
-              <span style="font-size:0.65rem;font-weight:600;color:#333;text-align:center">${c}</span>
-              ${totalColor > 0 ? `<span style="position:absolute;top:-6px;right:-6px;background:#6a1b9a;color:white;font-size:0.6rem;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center">${totalColor}</span>` : ''}
+  panel.innerHTML = `
+    <p style="font-size:0.75rem;color:#6a1b9a;font-weight:700;margin-bottom:12px">📦 CORRIDA · ${color} — ajusta cantidades por talla</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${varsColor.map(v => {
+        const inv = invSucursal.find(i => i.variante_id === v.id)
+        const stock = inv ? inv.cantidad : 0
+        const cantidad = window._corridaCantidades[v.id] || 0
+        return `
+          <div style="display:flex;align-items:center;gap:10px;opacity:${stock === 0 ? '0.4' : '1'}">
+            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#333">${v.talla}</span>
+            <span style="font-size:0.72rem;color:#aaa;min-width:54px">Stock: ${stock}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button ${stock === 0 ? 'disabled' : ''} onclick="posCorridaQty('${v.id}',-1,${stock},'${productoId}')"
+                      style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
+              <input type="number" min="0" max="${stock}" value="${cantidad}" id="qty-corrida-${v.id}" ${stock === 0 ? 'disabled' : ''}
+                     style="width:56px;height:40px;text-align:center;padding:4px;border:2px solid ${cantidad > 0 ? '#6a1b9a' : '#ddd'};border-radius:8px;font-size:1rem;font-weight:700"
+                     oninput="window._corridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._corridaCantidades['${v.id}'];this.style.borderColor=window._corridaCantidades['${v.id}']>0?'#6a1b9a':'#ddd';actualizarBadgesCorrida('${productoId}')">
+              <button ${stock === 0 ? 'disabled' : ''} onclick="posCorridaQty('${v.id}',1,${stock},'${productoId}')"
+                      style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
             </div>
-          `
-        }).join('')}
-      </div>
+            ${stock === 0 ? '<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>' : ''}
+          </div>`
+      }).join('')}
+    </div>`
+  actualizarBadgesCorrida(productoId)
+}
 
-           <div style="display:flex;flex-direction:column;gap:8px">
-        ${varsColor.map(v => {
-          const inv = invSucursal.find(i => i.variante_id === v.id)
-          const stock = inv ? inv.cantidad : 0
-          const cantidad = window._corridaCantidades[v.id] || 0
-          return `
-            <div style="display:flex;align-items:center;gap:10px;opacity:${stock === 0 ? '0.4' : '1'}">
-              <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#333">${v.talla}</span>
-              <span style="font-size:0.72rem;color:#aaa;min-width:50px">Stock: ${stock}</span>
-              <div style="display:flex;align-items:center;gap:6px">
-                <button ${stock === 0 ? 'disabled' : ''}
-                        onclick="const i=document.getElementById('qty-corrida-${v.id}');const val=Math.max(0,(parseInt(i.value)||0)-1);i.value=val;window._corridaCantidades['${v.id}']=val;renderCorridaColor('${colorActivo}')"
-                        style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
-                <input type="number" min="0" max="${stock}"
-                       value="${cantidad}"
-                       id="qty-corrida-${v.id}"
-                       ${stock === 0 ? 'disabled' : ''}
-                       style="width:56px;height:40px;text-align:center;padding:4px;border:2px solid ${cantidad > 0 ? '#6a1b9a' : '#ddd'};border-radius:8px;font-size:1rem;font-weight:700"
-                       oninput="window._corridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._corridaCantidades['${v.id}']">
-                <button ${stock === 0 ? 'disabled' : ''}
-                        onclick="const i=document.getElementById('qty-corrida-${v.id}');const val=Math.min(${stock},(parseInt(i.value)||0)+1);i.value=val;window._corridaCantidades['${v.id}']=val;renderCorridaColor('${colorActivo}')"
-                        style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
-              </div>
-              ${stock === 0 ? '<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>' : ''}
-            </div>
-          `
-        }).join('')}
-      </div>
-    `
-  }
-  
-  
+window.posCorridaQty = (varId, delta, stock, productoId) => {
+  const cur = window._corridaCantidades[varId] || 0
+  const val = Math.min(stock, Math.max(0, cur + delta))
+  window._corridaCantidades[varId] = val
+  const input = document.getElementById('qty-corrida-' + varId)
+  if (input) { input.value = val; input.style.borderColor = val > 0 ? '#6a1b9a' : '#ddd' }
+  actualizarBadgesCorrida(productoId)
+}
 
-  window.renderCorridaColor = renderCorridaColor
-  window._corridaColorActivo = colores[0]
-  renderCorridaColor(colores[0])
+// Actualiza insignias por color (arriba), el resumen y el botón confirmar de corrida
+window.actualizarBadgesCorrida = (productoId) => {
+  const { variantes } = window._posData
+  let total = 0
+  ;(window._posColores || []).forEach(c => {
+    const varsC = variantes.filter(v => v.producto_id === productoId && v.color === c)
+    let sum = 0
+    varsC.forEach(v => { sum += window._corridaCantidades[v.id] || 0 })
+    total += sum
+    const badge = document.getElementById('pos-color-badge-' + c.replace(/\s/g,'_'))
+    if (badge) {
+      if (sum > 0) { badge.textContent = sum + ' par' + (sum > 1 ? 'es' : ''); badge.style.color = '#6a1b9a'; badge.style.display = 'block' }
+      else badge.style.display = 'none'
+    }
+  })
 
-const btnDiv = document.querySelector('#pos-modal > div > div:last-child')
-  if (btnDiv) {
-    btnDiv.innerHTML = `
-      <button id="pos-btn-sugerir"
-              onclick="sugerirCorrida('${productoId}', window._corridaColorActivo)"
-              style="width:100%;padding:12px;font-size:0.9rem;font-weight:600;cursor:pointer;background:#f3e5f5;color:#6a1b9a;border:2px solid #6a1b9a;border-radius:8px;margin-bottom:8px;min-height:48px">
-        ✨ Sugerir corrida
-      </button>
-      <button onclick="confirmarCorridaNueva('${productoId}')"
-              class="btn btn-primary"
-              style="width:100%;padding:16px;font-size:1.1rem;background:#6a1b9a;border-color:#6a1b9a;min-height:54px">
-        ✅ Agregar corrida al carrito
-      </button>
-    `
+  const resumen = document.getElementById('pos-modal-resumen')
+  const btn = document.getElementById('pos-btn-confirmar-corrida')
+  if (total > 0) {
+    if (resumen) {
+      const lineas = []
+      Object.entries(window._corridaCantidades).forEach(([vid, cant]) => {
+        if (cant > 0) { const v = variantes.find(v => v.id === vid); if (v) lineas.push({ color: v.color, talla: v.talla, cantidad: cant }) }
+      })
+      resumen.style.display = 'block'
+      resumen.innerHTML = `
+        <p style="font-size:0.75rem;font-weight:700;color:#6a1b9a;margin-bottom:8px">📦 CORRIDA — ${total} pares</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${lineas.map(l => `<span style="background:#f3e5f5;border-radius:100px;padding:3px 10px;font-size:0.78rem;color:#6a1b9a"><strong>${l.color}</strong> T${l.talla} × ${l.cantidad}</span>`).join('')}
+        </div>`
+    }
+    if (btn) { btn.textContent = `✅ Agregar corrida (${total} pares)`; btn.disabled = false }
+  } else {
+    if (resumen) resumen.style.display = 'none'
+    if (btn) { btn.textContent = 'Agrega tallas a la corrida'; btn.disabled = true }
   }
-  }
+}
+// Compatibilidad: ahora "corrida" es un modo del mismo modal (selector de color único arriba)
+window.mostrarCorridaModalPOS = (productoId) => posCambiarModo(productoId, 'corrida')
 
 window.sugerirCorrida = (productoId, color) => {
   const { variantes, inventario } = window._posData
@@ -8748,7 +8841,8 @@ window.sugerirCorrida = (productoId, color) => {
     }
   }
 
-  window.renderCorridaColor(color)
+  window._posHighlightColor(color, '#6a1b9a', '#f3e5f5')
+  renderCorridaTallas(productoId, color)
 }
 
 window.confirmarCorridaNueva = (productoId) => {
@@ -10718,7 +10812,11 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     </div>
   </div>
     `
-  
+    // En móvil, mostrar primero la lista a pantalla completa; el chat aparece al tocar una conversación
+    if (window.innerWidth <= 900) {
+      const ca = document.getElementById('chat-area')
+      if (ca) ca.style.display = 'none'
+    }
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
   }
@@ -11414,6 +11512,8 @@ window.volverChats = () => {
   if (container) container.style.gridTemplateColumns = ''
   document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const chatArea = document.getElementById('chat-area')
+  // En móvil, ocultar el área de chat para que la lista use toda la altura (maestro-detalle)
+  if (chatArea && window.innerWidth <= 900) chatArea.style.display = 'none'
   if (chatArea) chatArea.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px">
       <div style="width:48px;height:48px;border-radius:50%;background:rgba(233,30,140,0.08);border:1.5px solid rgba(233,30,140,0.15);display:flex;align-items:center;justify-content:center">

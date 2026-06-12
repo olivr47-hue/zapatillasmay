@@ -672,6 +672,21 @@ select.form-input   { cursor:pointer; }
 .neon-pink { color:var(--pink); }
 .neon-cyan { color:var(--cyan); }
 
+/* ── POS MODAL: toggle de modo de venta ──────── */
+.pos-modo-tab {
+  flex:1; padding:9px 8px; border:none; border-radius:9px;
+  background:transparent; color:var(--text-2);
+  font-family:inherit; font-size:0.82rem; font-weight:700;
+  cursor:pointer; transition:background var(--t), color var(--t), box-shadow var(--t);
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  white-space:nowrap; min-height:42px;
+}
+.pos-modo-tab.active {
+  background:var(--surface); color:var(--text-1);
+  box-shadow:0 1px 3px rgba(90,40,10,0.12);
+}
+.pos-modo-tab.corrida.active { color:#6a1b9a; }
+
 /* ── POS DRAWER ──────────────────────────────── */
 #pos-drawer {
   display:block;
@@ -751,6 +766,56 @@ select.form-input   { cursor:pointer; }
   .stats-grid { grid-template-columns:1fr 1fr; gap:6px; }
   .stat-value { font-size:1.4rem; }
   .content { padding:10px; }
+}
+
+/* ── MÓVIL: endurecimiento global (aplica a todas las secciones) ── */
+@media (max-width:900px) {
+  /* Evita el zoom automático de iOS al enfocar un campo (se dispara con font-size < 16px) */
+  input[type="text"], input[type="email"], input[type="password"],
+  input[type="number"], input[type="search"], input[type="tel"],
+  input[type="date"], input[type="datetime-local"], input[type="time"],
+  input:not([type]), select, textarea, .form-input {
+    font-size:16px !important;
+  }
+  /* Campos de ancho completo cómodos al tacto */
+  .form-input { min-height:42px; }
+  textarea.form-input { min-height:72px; }
+  select.form-input { min-height:42px; }
+
+  /* Tablas: cualquier tabla puede desbordar a lo ancho con scroll suave,
+     aunque no esté dentro de .table-card */
+  .content table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
+  .content .table-card table { display:table; }
+
+  /* Modales genéricos del proyecto (overlay fijo a pantalla completa con tarjeta interna):
+     que la tarjeta nunca exceda la pantalla y haga scroll por dentro */
+  .content { -webkit-text-size-adjust:100%; }
+
+  /* La regla global de arriba convierte cualquier fila flex-wrap en scroll horizontal
+     (útil para chips/tallas). Pero en filas de FILTROS y BOTONES eso esconde controles:
+     reactivamos el envolvido a varias líneas cuando la fila contiene inputs o botones. */
+  .content div[style*="flex-wrap:wrap"]:has(> .form-input),
+  .content div[style*="flex-wrap:wrap"]:has(> .btn),
+  .content div[style*="flex-wrap:wrap"]:has(> select),
+  .content div[style*="flex-wrap:wrap"]:has(> input) {
+    flex-wrap:wrap !important;
+    overflow-x:visible !important;
+    padding-bottom:0 !important;
+  }
+}
+
+/* En pantallas muy chicas, los selects/inputs de ancho fijo en línea no deben romper el layout */
+@media (max-width:480px) {
+  select.form-input[style*="max-width"] { max-width:100% !important; }
+}
+
+/* Formularios dentro de tarjetas con padding:2rem ocupan demasiado margen en móvil */
+@media (max-width:600px) {
+  .table-card[style*="padding:2rem"] { padding:1rem !important; }
+  /* Cabecera pegajosa de formularios que compensa el padding del card con margen negativo */
+  .table-card[style*="padding:2rem"] > div[style*="margin:-2rem -2rem 1.5rem -2rem"] {
+    margin:-1rem -1rem 1rem -1rem !important;
+  }
 }
 
 /* ── CONVERSACIONES ──────────────────────────── */
