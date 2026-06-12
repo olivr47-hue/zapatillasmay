@@ -10507,6 +10507,13 @@ async function cargarEmpleados() {
   try {
     const res = await fetch(API + '/empleados/', { headers: window.authHeaders() })
     const data = await res.json()
+    if (!res.ok || !Array.isArray(data)) {
+      content.innerHTML = `<div style="padding:2rem;background:#fff3cd;border-radius:12px;color:#856404">
+        <strong>⚠️ ${data.detail || data.error || 'Error al cargar empleados'}</strong><br>
+        <span style="font-size:0.82rem">HTTP ${res.status} — intenta recargar la página o vuelve a iniciar sesión.</span>
+      </div>`
+      return
+    }
     content.innerHTML = `
       <div class="table-card">
         <div class="table-header">

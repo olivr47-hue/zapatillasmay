@@ -4113,7 +4113,10 @@ ${o.telefono?'<a href="https://wa.me/'+(o.lada||"52")+o.telefono.replace(/\D/g,"
                     style="background:#e3f2fd;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#1565c0;cursor:pointer">Ver chat</button>
           </div>
         `).join("")}
-    `,document.getElementById("dashboard-contenido").appendChild(D)}catch(k){console.error("tareas:",k)}}catch(e){console.error("Error dashboard:",e)}}window.eliminarItemPedido=e=>{window._pedidoItems.splice(e,1),window.recalcularTotal(),window.renderItemsPedido()};window.cerrarSesionPanel=()=>{confirm("Cerrar sesion?")&&(sessionStorage.removeItem("erp_empleado"),sessionStorage.removeItem("erp_token"),window._empleadoActual=null,location.reload())};async function He(){const e=document.getElementById("content");try{const o=await(await fetch(f+"/empleados/",{headers:window.authHeaders()})).json();e.innerHTML=`
+    `,document.getElementById("dashboard-contenido").appendChild(D)}catch(k){console.error("tareas:",k)}}catch(e){console.error("Error dashboard:",e)}}window.eliminarItemPedido=e=>{window._pedidoItems.splice(e,1),window.recalcularTotal(),window.renderItemsPedido()};window.cerrarSesionPanel=()=>{confirm("Cerrar sesion?")&&(sessionStorage.removeItem("erp_empleado"),sessionStorage.removeItem("erp_token"),window._empleadoActual=null,location.reload())};async function He(){const e=document.getElementById("content");try{const t=await fetch(f+"/empleados/",{headers:window.authHeaders()}),o=await t.json();if(!t.ok||!Array.isArray(o)){e.innerHTML=`<div style="padding:2rem;background:#fff3cd;border-radius:12px;color:#856404">
+        <strong>⚠️ ${o.detail||o.error||"Error al cargar empleados"}</strong><br>
+        <span style="font-size:0.82rem">HTTP ${t.status} — intenta recargar la página o vuelve a iniciar sesión.</span>
+      </div>`;return}e.innerHTML=`
       <div class="table-card">
         <div class="table-header">
           <h3>Empleados (${o.length})</h3>
