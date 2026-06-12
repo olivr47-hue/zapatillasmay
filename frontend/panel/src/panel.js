@@ -16629,24 +16629,13 @@ function renderCarritoAbierto(p) {
 
         <!-- Modo par suelto -->
         <div id="c-panel-par">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-            <div style="flex:2;min-width:200px;position:relative">
-              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Producto / talla</label>
-              <input class="form-input" id="c-buscar-prod" placeholder="Escribe nombre o SKU..." oninput="buscarProductoCarrito(this.value)" autocomplete="off" style="font-size:0.9rem"
-                onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('c-prod-resultados');if(el)el.style.display='none'},200)">
-              <div id="c-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:280px;overflow-y:auto;min-width:320px"></div>
-            </div>
-            <div style="width:70px">
-              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Cantidad</label>
-              <input type="number" class="form-input" id="c-cantidad" value="1" min="1" style="font-size:0.9rem">
-            </div>
-            <div style="width:90px">
-              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Precio/par</label>
-              <input type="number" class="form-input" id="c-precio" placeholder="$" style="font-size:0.9rem">
-            </div>
-            <button class="btn btn-primary" onclick="agregarAlCarritoActivo()">+ Agregar</button>
+          <div style="position:relative">
+            <input class="form-input" id="c-buscar-prod" placeholder="🔍 Busca el modelo (nombre o SKU)…" oninput="buscarProductoCarrito(this.value)" autocomplete="off"
+              onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('c-prod-resultados');if(el)el.style.display='none'},250)">
+            <div id="c-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:340px;overflow-y:auto;min-width:300px"></div>
           </div>
-          <p id="c-prod-seleccionado" style="font-size:0.8rem;color:#2e7d32;margin:6px 0 0;display:none"></p>
+          <p style="font-size:0.76rem;color:#888;margin:7px 0 0;line-height:1.4">Busca el modelo y <strong>toca una talla</strong> para agregar 1 par. El precio se ajusta solo (menudeo · mayoreo). Ajusta cantidades en la lista de abajo.</p>
+          <p id="c-prod-seleccionado" style="display:none"></p>
         </div>
 
         <!-- Modo corrida -->
@@ -16839,34 +16828,96 @@ window.posicionarDropdownCarrito = (dropId, inputId) => {
 window.buscarProductoCarrito = (texto) => {
   const { variantes, productos } = window._carritoActivo
   const res = document.getElementById('c-prod-resultados')
+  if (!res) return
   posicionarDropdownCarrito('c-prod-resultados', 'c-buscar-prod')
   if (!texto || texto.length < 2) { res.style.display = 'none'; return }
-  const terminos = texto.toLowerCase().split(' ')
-  const filtrados = variantes.filter(v => {
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const terminos = texto.toLowerCase().split(' ').filter(Boolean)
+  const filtradas = variantes.filter(v => {
     const prod = productos.find(p => p.id === v.producto_id)
     const txt = ((prod?.nombre || '') + ' ' + (v.color || '') + ' ' + (v.talla || '') + ' ' + (prod?.sku_interno || '')).toLowerCase()
     return terminos.every(t => txt.includes(t))
-  }).slice(0, 8)
+  })
 
-  if (!filtrados.length) { res.style.display = 'none'; return }
-  res.style.display = 'block'
-  res.innerHTML = filtrados.map(v => {
+  if (!filtradas.length) {
+    res.innerHTML = '<div style="padding:12px 14px;color:#888;font-size:0.85rem">Sin resultados</div>'
+    res.style.display = 'block'
+    return
+  }
+
+  // Agrupar por modelo + color → chips de talla tocables (toca = +1 par al carrito)
+  const grupos = {}
+  filtradas.forEach(v => {
     const prod = productos.find(p => p.id === v.producto_id)
-    const inv = window._carritoActivo.inventario.find(i => i.variante_id === v.id && i.sucursal_id === window._carritoActivo.sucursalId)
-    const stock = inv ? inv.cantidad : 0
+    const key = v.producto_id + '|' + (v.color || '')
+    if (!grupos[key]) grupos[key] = { nombre: prod?.nombre || '—', color: v.color || '', foto: prod?.imagen_principal, hex: v.color_hex, vars: [] }
+    grupos[key].vars.push(v)
+  })
+  const arr = Object.values(grupos).slice(0, 6)
+
+  res.style.display = 'block'
+  res.innerHTML = arr.map(g => {
+    const chips = g.vars
+      .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+      .map(v => {
+        const inv = window._carritoActivo.inventario.find(i => i.variante_id === v.id && i.sucursal_id === window._carritoActivo.sucursalId)
+        const stock = inv ? inv.cantidad : 0
+        const enCarrito = window._carritoActivo.items.filter(i => i.variante_id === v.id && !i.es_corrida).reduce((s, i) => s + i.cantidad, 0)
+        return `
+          <button onmousedown="event.preventDefault()" onclick="quickAddCarrito('${v.id}')" ${stock <= 0 ? 'disabled' : ''}
+                  style="position:relative;min-width:50px;min-height:48px;padding:5px 9px;border:1.5px solid ${enCarrito > 0 ? '#E91E8C' : '#ddd'};border-radius:10px;background:${enCarrito > 0 ? '#fce4f3' : '#fff'};font-family:inherit;cursor:${stock <= 0 ? 'not-allowed' : 'pointer'};${stock <= 0 ? 'opacity:0.45' : ''};display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;touch-action:manipulation">
+            <span style="font-size:0.92rem;font-weight:800;color:#333">T${v.talla}</span>
+            <span style="font-size:0.6rem;font-weight:600;color:${stock > 0 ? '#2e7d32' : '#c62828'}">${stock > 0 ? 'stock ' + stock : 'agotado'}</span>
+            ${enCarrito > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:19px;height:19px;font-size:0.65rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 4px">${enCarrito}</span>` : ''}
+          </button>`
+      }).join('')
     return `
-      <div onclick="seleccionarVarianteCarrito('${v.id}')"
-           style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
-           onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
-        ${prod?.imagen_principal ? `<img src="${prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;flex-shrink:0">` : '<div style="width:36px;height:36px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
-        <div style="flex:1">
-          <p style="font-size:0.85rem;font-weight:600;margin:0">${prod?.nombre || '—'} · ${v.color || ''} T${v.talla || ''}</p>
-          <p style="font-size:0.72rem;color:${stock > 0 ? '#2e7d32' : '#c62828'};margin:0">Stock: ${stock} pares</p>
+      <div style="padding:11px 12px;border-bottom:1px solid #f0f0f0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+          ${g.foto ? `<img src="${g.foto}" style="width:36px;height:36px;object-fit:cover;border-radius:7px;flex-shrink:0">` : `<div style="width:36px;height:36px;background:#f3f3f3;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>`}
+          ${g.hex ? `<span style="width:13px;height:13px;border-radius:50%;background:${g.hex};border:1px solid #ddd;flex-shrink:0"></span>` : ''}
+          <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${g.nombre}</span>
+          <span style="font-size:0.78rem;color:#888">· ${g.color}</span>
         </div>
-        <span style="font-size:0.8rem;color:#E91E8C;font-weight:600">$${prod?.precio_menudeo || ''}</span>
-      </div>
-    `
+        <div style="display:flex;flex-wrap:wrap;gap:7px">${chips}</div>
+      </div>`
   }).join('')
+}
+
+// Toca una talla en el buscador = agregar 1 par al carrito del cliente (refresca y deja el buscador abierto)
+window.quickAddCarrito = async (varianteId) => {
+  const ca = window._carritoActivo
+  if (!ca) return
+  const v = ca.variantes.find(x => x.id === varianteId)
+  const prod = v ? ca.productos.find(p => p.id === v.producto_id) : null
+  const precio = parseFloat(prod?.precio_mayoreo6 || prod?.precio_mayoreo3 || prod?.precio_menudeo) || 0
+  const existente = ca.items.find(i => i.variante_id === varianteId && !i.es_corrida)
+  const queryActual = document.getElementById('c-buscar-prod') ? document.getElementById('c-buscar-prod').value : ''
+  try {
+    if (existente) {
+      await fetch(API + '/pedidos/' + ca.pedidoId + '/items/' + existente.id, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: existente.cantidad + 1, precio_unitario: existente.precio_unitario })
+      })
+    } else {
+      await fetch(API + '/pedidos/' + ca.pedidoId + '/items', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variante_id: varianteId, cantidad: 1, precio_unitario: precio, subtotal: precio, nombre: prod?.nombre || '', color: v?.color || '', talla: v?.talla || '' })
+      })
+    }
+    const its = await fetch(API + '/pedidos/' + ca.pedidoId + '/items').then(r => r.json())
+    ca.items = Array.isArray(its) ? its : []
+    ca._tier = null
+    await recalcularPreciosCarrito()
+    renderCarritoAbierto(ca.pedidoData)
+    const pares = ca.items.reduce((s, i) => s + i.cantidad, 0)
+    mostrarToastPanel('✓ ' + (prod?.nombre || '') + ' T' + (v?.talla || '') + ' · ' + pares + ' pares')
+    // Reabrir el buscador con la misma búsqueda para seguir agregando tallas (outlast del timer de blur)
+    if (queryActual) setTimeout(() => {
+      const inp = document.getElementById('c-buscar-prod')
+      if (inp) { inp.value = queryActual; buscarProductoCarrito(queryActual) }
+    }, 300)
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 window.seleccionarVarianteCarrito = (varianteId) => {
