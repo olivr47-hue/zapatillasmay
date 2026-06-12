@@ -15880,6 +15880,10 @@ async function cargarOrdenHome() {
       }
       .oh-btn:active { background:#e8f0ff; }
       .oh-btn:disabled { opacity:.25; cursor:default; }
+      .oh-stock-badge {
+        background:#e8f5e9; color:#2e7d32; font-size:0.66rem; font-weight:700;
+        padding:1px 6px; border-radius:100px; margin-left:4px; white-space:nowrap;
+      }
       @media(max-width:480px){
         .oh-nombre { font-size:0.78rem; }
         .oh-img { width:34px; height:34px; }
@@ -15892,9 +15896,14 @@ async function cargarOrdenHome() {
           <h2 style="margin:0;font-size:1.05rem">🏠 Orden en Home</h2>
           <p style="margin:0.2rem 0 0;font-size:0.75rem;color:#888">Escribe un número para mover el modelo a esa posición</p>
         </div>
-        <button id="oh-save-btn" onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;font-size:0.83rem;font-weight:600;cursor:pointer">
-          💾 Guardar orden
-        </button>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button id="oh-sort-stock-btn" onclick="_ohOrdenarPorStock()" style="background:#fff;color:#2e7d32;border:1px solid #a5d6a7;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.83rem;font-weight:600;cursor:pointer">
+            📦 Por stock
+          </button>
+          <button id="oh-save-btn" onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;font-size:0.83rem;font-weight:600;cursor:pointer">
+            💾 Guardar orden
+          </button>
+        </div>
       </div>
       <input id="oh-search" type="text" placeholder="🔍 Buscar modelo o SKU..."
         oninput="_ohFiltrar(this.value)"
@@ -15972,7 +15981,7 @@ function _ohRenderLista() {
         ${imgHtml}
         <div class="oh-info">
           <div class="oh-nombre">${p.nombre || 'Sin nombre'}</div>
-          <div class="oh-sku">${p.sku_interno || ''}</div>
+          <div class="oh-sku">${p.sku_interno || ''}${p._stockTotal != null ? `<span class="oh-stock-badge">📦 ${p._stockTotal}</span>` : ''}</div>
         </div>
         <div class="oh-btns">
           <button class="oh-btn" onclick="_ohMover(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
@@ -16025,6 +16034,40 @@ window._ohDrop = function(e, i) {
 window._ohDragEnd = function() {
   _ohDragIdx = null
   document.querySelectorAll('.oh-row').forEach(r => { r.classList.remove('dragging'); r.classList.remove('drag-over') })
+}
+
+window._ohOrdenarPorStock = async function() {
+  const btn = document.getElementById('oh-sort-stock-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando...' }
+  try {
+    const [varsRes, slimRes] = await Promise.all([
+      fetch(`${API}/variantes/`),
+      fetch(`${API}/inventario/slim`)
+    ])
+    const vars = await varsRes.json()
+    const slim = await slimRes.json()
+
+    // variante_id → producto_id
+    const varMap = {}
+    vars.forEach(v => { varMap[v.id] = v.producto_id })
+
+    // suma de stock por producto
+    const stockPorProd = {}
+    slim.forEach(s => {
+      const pid = varMap[s.variante_id]
+      if (pid) stockPorProd[pid] = (stockPorProd[pid] || 0) + (s.cantidad || 0)
+    })
+
+    _ordenHomeList.forEach(p => { p._stockTotal = stockPorProd[p.id] || 0 })
+    _ordenHomeList.sort((a, b) => (b._stockTotal || 0) - (a._stockTotal || 0))
+    _ohRenderLista()
+    if (btn) { btn.style.background = '#e8f5e9'; btn.textContent = '📦 Por stock ✓' }
+    setTimeout(() => { if (btn) { btn.style.background = '#fff'; btn.textContent = '📦 Por stock' } }, 2000)
+  } catch(e) {
+    alert('Error al obtener stock: ' + e.message)
+  } finally {
+    if (btn) btn.disabled = false
+  }
 }
 
 window.guardarOrdenHome = async function() {
