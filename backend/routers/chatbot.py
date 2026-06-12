@@ -1687,7 +1687,7 @@ async def crear_plantilla_catalogo():
                 "buttons": [
                     {
                         "type": "MPM",
-                        "text": "Ver modelos disponibles"
+                        "text": "View items"
                     }
                 ]
             }
