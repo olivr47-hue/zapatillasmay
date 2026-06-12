@@ -8639,6 +8639,8 @@ if (modalAnterior) modalAnterior.remove()
   window._posModo = 'variado'
   window._posColores = colores
   window._corridaCantidades = {}
+  // Auto-seleccionar el primer color para mostrar las tallas de inmediato (un tap menos)
+  if (colores.length) posSeleccionarColor(productoId, colores[0])
 }
 
 // ── POS modal: selección de color compartida entre los dos modos ──
@@ -8923,37 +8925,61 @@ window.seleccionarColorModalPOS = (productoId, color) => {
   const panel = document.getElementById('pos-tallas-panel')
   if (panel) {
     panel.innerHTML = `
-      <p style="font-size:0.75rem;color:#888;font-weight:600;margin-bottom:10px">TALLAS — ${color}</p>
-      <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <p style="font-size:0.75rem;color:#888;font-weight:600;margin:0">TALLAS — ${color}</p>
+        <p style="font-size:0.7rem;color:#aaa;margin:0">Toca una talla para agregar</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px">
         ${varsColor.map(v => {
           const inv = invSucursal.find(i => i.variante_id === v.id)
           const stock = inv ? inv.cantidad : 0
-          const cantidadGuardada = bufferColor[v.id] || 0
+          const qty = bufferColor[v.id] || 0
           return `
-            <div style="display:flex;align-items:center;gap:10px;opacity:${stock === 0 ? '0.4' : '1'}">
-              <span style="min-width:44px;font-size:0.9rem;font-weight:700;color:#333">${v.talla}</span>
-              <span style="font-size:0.72rem;color:#aaa;min-width:60px">Stock: ${stock}</span>
-              <div style="display:flex;align-items:center;gap:6px">
-                <button onclick="cambiarCantidadTallaPOS('modal-${v.id}', -1, ${stock})"
-                        ${stock === 0 ? 'disabled' : ''}
-                        style="background:#f0f0f0;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:1.1rem;font-weight:600">−</button>
-                <input type="number" min="0" max="${stock}"
-                       value="${cantidadGuardada}"
-                       id="qty-modal-${v.id}"
-                       ${stock === 0 ? 'disabled' : ''}
-                       style="width:50px;text-align:center;padding:5px;border:2px solid ${cantidadGuardada > 0 ? '#E91E8C' : '#ddd'};border-radius:8px;font-size:1rem;font-weight:700"
-                       oninput="validarCantidadTalla('modal-${v.id}', ${stock}); actualizarBadgeColor('${productoId}', '${color}')">
-                <button onclick="cambiarCantidadTallaPOS('modal-${v.id}', 1, ${stock})"
-                        ${stock === 0 ? 'disabled' : ''}
-                        style="background:#f0f0f0;border:none;border-radius:6px;width:30px;height:30px;cursor:pointer;font-size:1.1rem;font-weight:600">+</button>
-              </div>
-              ${stock === 0 ? '<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>' : ''}
+            <div style="position:relative">
+              <button id="chip-talla-${v.id}"
+                      onclick="posTallaTap('${v.id}','${productoId}','${color}',${stock})"
+                      ${stock === 0 ? 'disabled' : ''}
+                      style="width:100%;min-height:62px;border:2px solid ${qty > 0 ? '#E91E8C' : '#ddd'};background:${qty > 0 ? '#fce4f3' : '#fff'};border-radius:12px;cursor:${stock === 0 ? 'not-allowed' : 'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock === 0 ? 'opacity:0.45' : ''};touch-action:manipulation">
+                <span style="font-size:1.05rem;font-weight:800;color:#333">${v.talla}</span>
+                <span style="font-size:0.63rem;color:${stock === 0 ? '#c62828' : '#aaa'}">${stock === 0 ? 'Agotado' : 'Stock ' + stock}</span>
+              </button>
+              <span id="chipbadge-${v.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${qty > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${qty}</span>
+              <button id="chipmenos-${v.id}"
+                      onclick="posTallaMenos('${v.id}','${productoId}','${color}',${stock})"
+                      style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #E91E8C;color:#E91E8C;border-radius:100px;width:26px;height:26px;display:${qty > 0 ? 'flex' : 'none'};align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;cursor:pointer;line-height:1;touch-action:manipulation;box-shadow:0 1px 3px rgba(0,0,0,0.15)">−</button>
+              <input type="hidden" id="qty-modal-${v.id}" value="${qty}">
             </div>
           `
         }).join('')}
       </div>
     `
   }
+}
+
+// Tocar una talla = +1 par (POS, modo variado). Mantiene el input oculto que lee el buffer.
+window.posTallaTap = (varId, productoId, color, max) => {
+  const input = document.getElementById('qty-modal-' + varId)
+  if (!input || input.disabled) return
+  const nueva = Math.min(max, (parseInt(input.value) || 0) + 1)
+  input.value = nueva
+  posPintarChipTalla(varId, nueva)
+  actualizarBadgeColor(productoId, color)
+}
+window.posTallaMenos = (varId, productoId, color) => {
+  const input = document.getElementById('qty-modal-' + varId)
+  if (!input) return
+  const nueva = Math.max(0, (parseInt(input.value) || 0) - 1)
+  input.value = nueva
+  posPintarChipTalla(varId, nueva)
+  actualizarBadgeColor(productoId, color)
+}
+window.posPintarChipTalla = (varId, val) => {
+  const chip = document.getElementById('chip-talla-' + varId)
+  if (chip) { chip.style.borderColor = val > 0 ? '#E91E8C' : '#ddd'; chip.style.background = val > 0 ? '#fce4f3' : '#fff' }
+  const badge = document.getElementById('chipbadge-' + varId)
+  if (badge) { badge.textContent = val; badge.style.display = val > 0 ? 'flex' : 'none' }
+  const menos = document.getElementById('chipmenos-' + varId)
+  if (menos) menos.style.display = val > 0 ? 'flex' : 'none'
 }
 
 window.guardarBufferColor = (productoId, color) => {

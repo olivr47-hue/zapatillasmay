@@ -755,10 +755,20 @@ select.form-input   { cursor:pointer; }
   #stock-inicial-container { overflow-x:auto !important; }
   .talla-label { flex-shrink:0; }
   div[style*="flex-wrap:wrap"] { overflow-x:auto; flex-wrap:nowrap !important; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
-  #wa-container { grid-template-columns:1fr !important; height:calc(100vh - 130px) !important; }
+  #wa-container { grid-template-columns:1fr !important; height:calc(100dvh - 92px) !important; }
   .wa-nt-grid { grid-template-columns:1fr !important; }
-  .wa-header-actions { gap:4px; }
-  .wa-btn { padding:4px 8px; font-size:0.68rem; }
+
+  /* Header del chat en móvil: el nombre se aplastaba a 0px (se partía en vertical).
+     Ahora envuelve: fila 1 = ← + avatar + nombre; fila 2 = botones en una sola línea. */
+  .wa-chat-header { flex-wrap:wrap !important; padding:6px 10px; row-gap:4px; }
+  .wa-header-info { flex:1 1 120px; min-width:120px; }
+  .wa-header-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wa-header-actions {
+    width:100%; order:5; flex-wrap:nowrap !important; overflow-x:auto;
+    justify-content:flex-start; gap:5px; -webkit-overflow-scrolling:touch; padding-bottom:2px;
+  }
+  .wa-header-actions::-webkit-scrollbar { display:none; }
+  .wa-btn { padding:5px 10px; font-size:0.7rem; min-height:30px; flex-shrink:0; }
   body { overflow-x:hidden; overflow-y:auto; }
 }
 
