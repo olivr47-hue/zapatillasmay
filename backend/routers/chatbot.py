@@ -1687,9 +1687,7 @@ async def crear_plantilla_catalogo():
                 "buttons": [
                     {
                         "type": "MPM",
-                        "text": "Ver modelos disponibles",
-                        "flow_action": "FLOW_ACTION_UNSPECIFIED",
-                        "navigate_screen": "SCREEN_1"
+                        "text": "Ver modelos disponibles"
                     }
                 ]
             }
