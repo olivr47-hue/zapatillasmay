@@ -607,6 +607,7 @@ def sitemap():
         urls = [
             'https://zapatillasmay.mx/',
             'https://zapatillasmay.mx/mayoreo',
+            'https://zapatillasmay.mx/ofertas',
             'https://zapatillasmay.mx/nosotros',
             'https://zapatillasmay.mx/envios',
             'https://zapatillasmay.mx/contacto',

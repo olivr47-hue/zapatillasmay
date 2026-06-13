@@ -35,7 +35,6 @@
     { "source": "/carrito",        "destination": "/carrito.html" },
     { "source": "/catalogo",       "destination": "/catalogo.html" },
     { "source": "/catalogo/:id",   "destination": "/catalogo.html" },
-    { "source": "/politica-de-devoluciones", "destination": "/politica-de-devoluciones.html" },
     { "source": "/tacones",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/tacones" },
     { "source": "/sandalias",      "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/sandalias" },
     { "source": "/botas",          "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/botas" },
