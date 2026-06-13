@@ -546,16 +546,44 @@ def obtener_historial(telefono, limite=10):
     except:
         return []
 
-def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre=""):
+def subir_imagen_storage(img_bytes: bytes, filename: str) -> str:
+    """Sube bytes de imagen a Supabase Storage y devuelve la URL pública."""
+    supabase_url = os.environ.get("SUPABASE_URL", "")
+    supabase_key = os.environ.get("SUPABASE_KEY", "")
+    if not supabase_url or not supabase_key:
+        return ""
+    upload_url = f"{supabase_url}/storage/v1/object/wa-media/{filename}"
+    req = urllib.request.Request(
+        upload_url,
+        data=img_bytes,
+        headers={
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "image/jpeg",
+            "x-upsert": "true"
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            r.read()
+        return f"{supabase_url}/storage/v1/object/public/wa-media/{filename}"
+    except Exception as e:
+        print(f"[storage] Error subiendo imagen: {e}")
+        return ""
+
+def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", media_url=""):
     try:
         from database import supabase_post
-        supabase_post("conversaciones_whatsapp", {
+        data = {
             "telefono": telefono,
             "nombre_contacto": nombre,
             "mensaje": mensaje,
             "respuesta": respuesta,
             "tipo": tipo
-        })
+        }
+        if media_url:
+            data["media_url"] = media_url
+        supabase_post("conversaciones_whatsapp", data)
         cache_invalidate("chats_lista")  # forzar refresh en próximo poll
     except Exception as e:
         print(f"ERROR guardando: {str(e)}")
@@ -698,7 +726,25 @@ async def recibir_mensaje_whatsapp(datos: dict):
             caption_img = mensaje_data.get("image", {}).get("caption", "").strip()
             msg_guardado = f"[Imagen]{': ' + caption_img if caption_img else ''}"
             if control:
-                guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto)
+                # En control manual: descargar y subir a Storage para que el agente vea la imagen
+                try:
+                    image_id = mensaje_data.get("image", {}).get("id", "")
+                    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+                    img_url_req = urllib.request.Request(
+                        f"https://graph.facebook.com/v25.0/{image_id}",
+                        headers={"Authorization": f"Bearer {wa_token}"}
+                    )
+                    with urllib.request.urlopen(img_url_req) as r:
+                        img_meta = json.loads(r.read())
+                    img_url_wa = img_meta.get("url", "")
+                    img_req = urllib.request.Request(img_url_wa, headers={"Authorization": f"Bearer {wa_token}"})
+                    with urllib.request.urlopen(img_req) as r:
+                        img_bytes_ctrl = r.read()
+                    filename_ctrl = f"{from_number}_{image_id}.jpg"
+                    public_url_ctrl = subir_imagen_storage(img_bytes_ctrl, filename_ctrl)
+                    guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto, media_url=public_url_ctrl)
+                except Exception:
+                    guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto)
                 return {"status": "ok"}
             try:
                 image_id = mensaje_data.get("image", {}).get("id", "")
@@ -713,6 +759,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 img_req = urllib.request.Request(img_url, headers={"Authorization": f"Bearer {wa_token}"})
                 with urllib.request.urlopen(img_req) as r:
                     img_bytes = r.read()
+                # Subir a Storage para persistencia en el panel
+                filename = f"{from_number}_{image_id}.jpg"
+                public_url = subir_imagen_storage(img_bytes, filename)
                 img_b64 = base64.b64encode(img_bytes).decode("utf-8")
                 # Retry igual que mensajes de texto
                 respuesta_claude = None
@@ -727,10 +776,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 if respuesta_claude is None:
                     fb = "Vi tu foto 📸 Tuve un problema técnico, ¿puedes reenviarla? 😊"
                     enviar_whatsapp_texto(from_number, fb)
-                    guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto)
+                    guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto, media_url=public_url)
                     return {"status": "ok"}
                 texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-                guardar_conversacion(from_number, msg_guardado, texto_guardado, "imagen", nombre_contacto)
+                guardar_conversacion(from_number, msg_guardado, texto_guardado, "imagen", nombre_contacto, media_url=public_url)
             except Exception as e:
                 import traceback
                 print(f"[chatbot] ERROR IMAGEN {from_number}: {e}\n{traceback.format_exc()}")

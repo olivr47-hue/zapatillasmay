@@ -11299,7 +11299,17 @@ window._renderBurbujas = (chat) => {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         ${ctxt}</span>`
     } else if (m.tipo === 'imagen') {
-      msgBody = `<p style="color:#64748b;font-size:0.8rem">[Imagen recibida]</p>`
+      if (m.media_url) {
+        const caption = textoLimpio.replace('[Imagen]', '').replace(/^:\s*/, '').trim()
+        msgBody = `<div>
+          <a href="${m.media_url}" target="_blank" rel="noopener">
+            <img src="${m.media_url}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
+          </a>
+          ${caption ? `<p style="margin:4px 0 0;font-size:0.82rem;color:#475569">${caption}</p>` : ''}
+        </div>`
+      } else {
+        msgBody = `<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>`
+      }
     } else {
       msgBody = `<p>${textoLimpio}</p>`
     }
