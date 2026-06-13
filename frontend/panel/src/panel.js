@@ -11232,6 +11232,13 @@ window._recargarChats = async () => {
 
 // Función compartida de render de burbujas — usada por abrirChat y el polling
 window._renderBurbujas = (chat) => {
+  // Parsea timestamps forzando UTC cuando no traen zona (Supabase a veces devuelve naive)
+  const parseUTC = (s) => {
+    if (!s) return null
+    // Si ya trae Z o offset (+hh:mm / -hh:mm), úsalo tal cual; si no, trátalo como UTC
+    const tieneZona = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)
+    return new Date(tieneZona ? s : s.replace(' ', 'T') + 'Z')
+  }
   const mensajesOrden = [...chat.mensajes].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
@@ -11318,9 +11325,9 @@ window._renderBurbujas = (chat) => {
     // cliente_leyo_at = "el cliente leyó todo hasta esta hora" → todos los msg antes de esa hora son ✓✓ azul
     let readReceipt = ''
     if (esSaliente) {
-      const leyoAt   = chat.cliente_leyo_at   ? new Date(chat.cliente_leyo_at)   : null
-      const entregAt = chat.cliente_entrego_at ? new Date(chat.cliente_entrego_at) : null
-      const msgAt    = new Date(m.created_at)
+      const leyoAt   = parseUTC(chat.cliente_leyo_at)
+      const entregAt = parseUTC(chat.cliente_entrego_at)
+      const msgAt    = parseUTC(m.created_at)
       if (leyoAt && msgAt <= leyoAt) {
         readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
       } else if (entregAt && msgAt <= entregAt) {
