@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from cache import cache_invalidate_prefix
 
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
@@ -46,6 +47,7 @@ def ajuste_inventario(datos: dict):
             "usuario": usuario
         })
 
+        cache_invalidate_prefix("inventario")
         return {"ok": True, "cantidad_anterior": cantidad_anterior, "cantidad_nueva": cantidad_nueva}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -84,6 +86,7 @@ def entrada_mercancia(datos: dict):
             "motivo": motivo
         })
 
+        cache_invalidate_prefix("inventario")
         return {"ok": True, "cantidad_anterior": cantidad_anterior, "cantidad_nueva": cantidad_nueva}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -143,6 +146,7 @@ def registrar_cambio(datos: dict):
             "motivo": motivo
         })
 
+        cache_invalidate_prefix("inventario")
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -200,6 +204,7 @@ def registrar_traspaso(datos: dict):
             "motivo": motivo
         })
 
+        cache_invalidate_prefix("inventario")
         return {"ok": True, "cantidad_movida": cantidad}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
