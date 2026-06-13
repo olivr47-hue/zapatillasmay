@@ -112,7 +112,11 @@ Cuando tengas TODOS los datos (nombre completo + dirección + modelos + colores 
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
 - Si preguntan por mayoreo, explica los precios y pregunta cuántos pares buscan
 - Sé diferente en cada mensaje, no repitas el mismo texto
-- Responde siempre en español mexicano natural"""
+- Responde siempre en español mexicano natural
+
+=== COMPROBANTES DE PAGO ===
+- Si el cliente manda una imagen que parece captura de transferencia, OXXO, Mercado Pago u otro comprobante de pago: di SOLO "¡Listo! Recibí tu comprobante ✅ Procesamos tu pedido en las próximas 24hrs 🚀 ¡Gracias!" y NO pidas ningún dato adicional.
+- NUNCA pidas nombre, dirección, modelos, tallas ni nada más cuando ya tienes el comprobante — ya tienes toda la info del pedido en el historial."""
 
 def llamar_claude(mensajes, sistema):
     url = "https://api.anthropic.com/v1/messages"
@@ -154,10 +158,10 @@ def llamar_claude_con_imagen(img_b64, sistema, historial=[], caption=""):
         )
     else:
         texto_prompt = (
-            "La clienta me mandó esta foto de calzado. SÍ PUEDO VER LA IMAGEN. "
-            "Analiza el estilo exacto (taco, sandalia, bota, plataforma), el color y los detalles. "
-            "Luego busca en el catálogo el modelo MÁS parecido por estilo y color, menciona el precio "
-            "y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas. "
+            "El cliente me mandó esta imagen. SÍ PUEDO VER LA IMAGEN. "
+            "PRIMERO determina qué tipo de imagen es:\n"
+            "A) Comprobante de pago (captura de transferencia, OXXO, Mercado Pago, CoDi, SPEI, etc.) → responde SOLO: '¡Listo! Recibí tu comprobante ✅ Procesamos tu pedido en las próximas 24hrs 🚀 ¡Gracias!' Sin pedir más datos.\n"
+            "B) Foto de calzado → analiza el estilo (taco, sandalia, bota, plataforma), color y detalles. Busca en el catálogo el modelo MÁS parecido, menciona el precio y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas.\n"
             "NO digas que no recibiste la imagen."
         )
     mensajes = historial + [{
