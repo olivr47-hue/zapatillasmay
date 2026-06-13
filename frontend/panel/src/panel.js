@@ -11326,11 +11326,6 @@ window._renderBurbujas = (chat) => {
           readReceipt = `<span class="wa-read-receipt read" title="Visto ${leyoAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}">✓✓</span>`
         } else if (entregAt && entregAt >= msgAt) {
           readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
-        } else if (leyoAt) {
-          // Hay lectura pero puede ser de un mensaje anterior — igual mostrar azul
-          readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
-        } else if (entregAt) {
-          readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
         } else {
           readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
         }
