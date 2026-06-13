@@ -11314,24 +11314,19 @@ window._renderBurbujas = (chat) => {
       msgBody = `<p>${textoLimpio}</p>`
     }
 
-    // Read receipt en todos los salientes (✓ enviado, ✓✓ gris entregado, ✓✓ azul visto)
+    // Read receipt: ✓ enviado | ✓✓ gris entregado | ✓✓ azul visto
+    // cliente_leyo_at = "el cliente leyó todo hasta esta hora" → todos los msg antes de esa hora son ✓✓ azul
     let readReceipt = ''
     if (esSaliente) {
       const leyoAt   = chat.cliente_leyo_at   ? new Date(chat.cliente_leyo_at)   : null
       const entregAt = chat.cliente_entrego_at ? new Date(chat.cliente_entrego_at) : null
       const msgAt    = new Date(m.created_at)
-      if (idx === idxUltimoSaliente) {
-        // Último saliente: muestra el estado más reciente
-        if (leyoAt && leyoAt >= msgAt) {
-          readReceipt = `<span class="wa-read-receipt read" title="Visto ${leyoAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}">✓✓</span>`
-        } else if (entregAt && entregAt >= msgAt) {
-          readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
-        } else {
-          readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
-        }
-      } else {
-        // Mensajes anteriores: palomita gris simple
-        readReceipt = `<span class="wa-read-receipt sent">✓</span>`
+      if (leyoAt && msgAt <= leyoAt) {
+        readReceipt = `<span class="wa-read-receipt read" title="Visto">✓✓</span>`
+      } else if (entregAt && msgAt <= entregAt) {
+        readReceipt = `<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>`
+      } else if (idx === idxUltimoSaliente) {
+        readReceipt = `<span class="wa-read-receipt sent" title="Enviado">✓</span>`
       }
     }
 
