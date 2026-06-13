@@ -115,7 +115,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + modelos + colores 
 - Responde siempre en español mexicano natural
 
 === COMPROBANTES DE PAGO ===
-- Si el cliente manda una imagen que parece captura de transferencia, OXXO, Mercado Pago u otro comprobante de pago: di SOLO "¡Listo! Recibí tu comprobante ✅ Procesamos tu pedido en las próximas 24hrs 🚀 ¡Gracias!" y NO pidas ningún dato adicional.
+- Si el cliente manda una imagen que parece captura de transferencia, OXXO, Mercado Pago u otro comprobante de pago: confirma el pago, di que procesamos en 24hrs y pregunta al final "¿Hay algo más en lo que te pueda ayudar? 😊" NO pidas ningún dato adicional del pedido.
 - NUNCA pidas nombre, dirección, modelos, tallas ni nada más cuando ya tienes el comprobante — ya tienes toda la info del pedido en el historial."""
 
 def llamar_claude(mensajes, sistema):
@@ -160,7 +160,7 @@ def llamar_claude_con_imagen(img_b64, sistema, historial=[], caption=""):
         texto_prompt = (
             "El cliente me mandó esta imagen. SÍ PUEDO VER LA IMAGEN. "
             "PRIMERO determina qué tipo de imagen es:\n"
-            "A) Comprobante de pago (captura de transferencia, OXXO, Mercado Pago, CoDi, SPEI, etc.) → responde SOLO: '¡Listo! Recibí tu comprobante ✅ Procesamos tu pedido en las próximas 24hrs 🚀 ¡Gracias!' Sin pedir más datos.\n"
+            "A) Comprobante de pago (captura de transferencia, OXXO, Mercado Pago, CoDi, SPEI, etc.) → confirma el pago, di que procesamos en 24hrs y pregunta '¿Hay algo más en lo que te pueda ayudar? 😊'. Sin pedir datos del pedido.\n"
             "B) Foto de calzado → analiza el estilo (taco, sandalia, bota, plataforma), color y detalles. Busca en el catálogo el modelo MÁS parecido, menciona el precio y muestra la foto con ENVIAR_FOTO:[url]. Si hay 2 opciones parecidas muéstralas.\n"
             "NO digas que no recibiste la imagen."
         )
