@@ -6152,6 +6152,8 @@ function mostrarPagina(id) {
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none')
   if (hero) hero.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
+  const ssrBlock = document.getElementById('ssr-page-content')
+  if (ssrBlock) ssrBlock.style.display = 'none'
 
   // Mostrar página
   document.documentElement.classList.add('ruta-interna')

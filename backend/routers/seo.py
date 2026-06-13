@@ -390,6 +390,178 @@ _PAGINAS_SEO = {
 }
 
 
+# Contenido HTML visible para Google en páginas informacionales (sin JS)
+_PAGINAS_CONTENT = {
+    "nosotros": """
+<section style="max-width:800px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Fabricante de calzado femenino en León, Guanajuato</p>
+  <p>Somos una empresa familiar fabricante de calzado femenino de moda con sede en <strong>León, Guanajuato</strong>, la capital mundial del calzado. Llevamos años produciendo tacones, sandalias, botas, botines, flats y plataformas con materiales de calidad y diseños actuales.</p>
+  <h2 style="font-size:1.2rem;margin-top:32px">Directo del fabricante</h2>
+  <p>Al comprar en Zapatillas May adquieres calzado directamente de la fábrica, sin intermediarios. Eso nos permite ofrecerte precios competitivos tanto en menudeo como en <strong>mayoreo desde 3 pares</strong>, sin necesidad de registro ni mínimos absurdos.</p>
+  <h2 style="font-size:1.2rem;margin-top:32px">Precios de mayoreo automáticos</h2>
+  <ul style="padding-left:20px">
+    <li>1–2 pares: precio de menudeo</li>
+    <li>3–5 pares: $80 MXN menos por par</li>
+    <li>6–11 pares: $150 MXN menos por par</li>
+    <li>12+ pares (corrida completa): $180 MXN menos por par</li>
+  </ul>
+  <p>El descuento se aplica automáticamente al agregar pares al carrito — sin códigos ni trámites.</p>
+  <h2 style="font-size:1.2rem;margin-top:32px">Envíos a todo México</h2>
+  <p>Enviamos a toda la República Mexicana por paquetería en 1 a 3 días hábiles. También realizamos envíos a <strong>Estados Unidos y Canadá</strong>.</p>
+  <p style="margin-top:24px">Más de 2,400 pedidos enviados a clientes satisfechas en toda la República.</p>
+</section>""",
+    "contacto": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Contacto</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
+  <p>Estamos disponibles para atenderte por WhatsApp de lunes a sábado. Puedes escribirnos para preguntas sobre productos, tallas, pedidos al mayoreo o seguimiento de envíos.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">WhatsApp</h2>
+  <p>Escríbenos directo desde el botón de WhatsApp en la tienda o desde nuestras redes sociales.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Redes sociales</h2>
+  <ul style="padding-left:20px">
+    <li>Instagram: @zapatillasmay</li>
+    <li>Facebook: Zapatillas May</li>
+    <li>TikTok: @zapatillasmay</li>
+  </ul>
+  <h2 style="font-size:1.2rem;margin-top:28px">Ubicación</h2>
+  <p>León, Guanajuato, México — la capital mundial del calzado.</p>
+</section>""",
+    "envios": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Información de Envíos</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Enviamos a toda la República Mexicana</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Costos de envío</h2>
+  <ul style="padding-left:20px">
+    <li><strong>1 par:</strong> $99 MXN</li>
+    <li><strong>2–3 pares:</strong> $150 MXN</li>
+    <li><strong>4 o más pares:</strong> $199 MXN</li>
+    <li><strong>Envío gratis</strong> en pedidos de $1,299 MXN o más</li>
+  </ul>
+  <h2 style="font-size:1.2rem;margin-top:28px">Tiempo de entrega</h2>
+  <p>Los pedidos se entregan en <strong>1 a 3 días hábiles</strong> en toda la República Mexicana. Los pedidos se procesan el mismo día si se realizan antes de las 2 pm (hora del centro).</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Cobertura</h2>
+  <p>Enviamos a todos los estados de México. También realizamos envíos internacionales a <strong>Estados Unidos y Canadá</strong> — consulta el costo por WhatsApp.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Seguimiento</h2>
+  <p>Al confirmar tu pedido recibirás un correo con el número de guía para rastrear tu paquete en tiempo real.</p>
+</section>""",
+    "tabla-tallas": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Tabla de Tallas</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Calzado de dama — tallas mexicanas</p>
+  <p>Nuestro calzado sigue la numeración mexicana estándar. Si tienes dudas sobre tu talla, escríbenos por WhatsApp y con gusto te ayudamos.</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Equivalencias de tallas</h2>
+  <table style="width:100%;border-collapse:collapse;margin-top:12px">
+    <thead><tr style="background:#f5ece2">
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">MX</th>
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">US</th>
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">EU</th>
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">CM</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">22</td><td style="padding:8px 12px;border:1px solid #e8d8cc">5</td><td style="padding:8px 12px;border:1px solid #e8d8cc">35</td><td style="padding:8px 12px;border:1px solid #e8d8cc">22</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">23</td><td style="padding:8px 12px;border:1px solid #e8d8cc">6</td><td style="padding:8px 12px;border:1px solid #e8d8cc">36</td><td style="padding:8px 12px;border:1px solid #e8d8cc">23</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">24</td><td style="padding:8px 12px;border:1px solid #e8d8cc">7</td><td style="padding:8px 12px;border:1px solid #e8d8cc">37</td><td style="padding:8px 12px;border:1px solid #e8d8cc">24</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">25</td><td style="padding:8px 12px;border:1px solid #e8d8cc">8</td><td style="padding:8px 12px;border:1px solid #e8d8cc">38</td><td style="padding:8px 12px;border:1px solid #e8d8cc">25</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">26</td><td style="padding:8px 12px;border:1px solid #e8d8cc">9</td><td style="padding:8px 12px;border:1px solid #e8d8cc">39</td><td style="padding:8px 12px;border:1px solid #e8d8cc">26</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">27</td><td style="padding:8px 12px;border:1px solid #e8d8cc">10</td><td style="padding:8px 12px;border:1px solid #e8d8cc">40</td><td style="padding:8px 12px;border:1px solid #e8d8cc">27</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:16px;font-size:0.9rem;color:#7a6055">¿No encontras tu talla? Escríbenos — manejamos tallas especiales bajo pedido.</p>
+</section>""",
+    "como-comprar": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Cómo Comprar</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Menudeo y mayoreo sin complicaciones</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Paso a paso</h2>
+  <ol style="padding-left:20px">
+    <li style="margin-bottom:10px"><strong>Explora el catálogo</strong> — navega por categoría o usa el buscador para encontrar tu modelo.</li>
+    <li style="margin-bottom:10px"><strong>Elige talla y color</strong> — selecciona la variante que quieras en la página del producto.</li>
+    <li style="margin-bottom:10px"><strong>Agrega al carrito</strong> — el precio de mayoreo se aplica automáticamente al agregar 3 o más pares.</li>
+    <li style="margin-bottom:10px"><strong>Elige tu forma de pago</strong> — tarjeta, SPEI, OXXO o MercadoPago.</li>
+    <li style="margin-bottom:10px"><strong>Recibe en 1–3 días hábiles</strong> — con guía de rastreo por correo.</li>
+  </ol>
+  <h2 style="font-size:1.2rem;margin-top:28px">Formas de pago</h2>
+  <ul style="padding-left:20px">
+    <li>Tarjeta de crédito o débito (Visa, Mastercard, Amex)</li>
+    <li>Transferencia SPEI</li>
+    <li>Pago en efectivo en OXXO</li>
+    <li>MercadoPago</li>
+  </ul>
+  <h2 style="font-size:1.2rem;margin-top:28px">Precios de mayoreo</h2>
+  <p>El descuento de mayoreo es automático — no necesitas registro, RFC ni código especial. Solo agrega 3 o más pares al carrito y el precio baja solo.</p>
+  <ul style="padding-left:20px">
+    <li>3–5 pares: $80 MXN menos por par</li>
+    <li>6–11 pares: $150 MXN menos por par</li>
+    <li>12+ pares: $180 MXN menos por par</li>
+  </ul>
+</section>""",
+    "mayoreo": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Desde 3 pares, sin registro especial · León, Guanajuato</p>
+  <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial. El descuento se aplica automáticamente en el carrito.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Tabla de precios de mayoreo</h2>
+  <table style="width:100%;border-collapse:collapse;margin-top:12px">
+    <thead><tr style="background:#f5ece2">
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Cantidad</th>
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Descuento por par</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">1–2 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Precio de menudeo</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$80 MXN por par</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6–11 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$150 MXN por par</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">12+ pares (corrida)</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$180 MXN por par</td></tr>
+    </tbody>
+  </table>
+  <h2 style="font-size:1.2rem;margin-top:28px">¿Qué es una corrida?</h2>
+  <p>Una corrida es un mismo modelo en todos los colores y tallas disponibles — ideal para revendedoras y tiendas. Al completar una corrida obtienes el mejor precio por par.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Sin registro</h2>
+  <p>No necesitas cuenta especial ni autorización previa. Cualquier persona puede comprar a precio de mayoreo desde el primer pedido.</p>
+</section>""",
+    "privacidad": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Aviso de Privacidad</h1>
+  <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
+  <p>En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), Zapatillas May informa lo siguiente:</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Responsable</h2>
+  <p>Zapatillas May, con domicilio en León, Guanajuato, México, es responsable del tratamiento de tus datos personales.</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Datos que recopilamos</h2>
+  <ul style="padding-left:20px">
+    <li>Nombre completo</li>
+    <li>Dirección de entrega</li>
+    <li>Correo electrónico</li>
+    <li>Número de teléfono</li>
+  </ul>
+  <h2 style="font-size:1.2rem;margin-top:24px">Finalidad</h2>
+  <p>Tus datos se utilizan exclusivamente para procesar y entregar tu pedido, enviarte confirmaciones de compra y brindarte atención al cliente.</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Compartición de datos</h2>
+  <p>No compartimos tu información con terceros, salvo con la empresa de paquetería necesaria para realizar tu envío y con el procesador de pagos para completar la transacción.</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Derechos ARCO</h2>
+  <p>Puedes ejercer tus derechos de Acceso, Rectificación, Cancelación u Oposición escribiéndonos por WhatsApp o a través de nuestras redes sociales.</p>
+</section>""",
+    "politica-de-devoluciones": """
+<section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Política de Devoluciones</h1>
+  <p style="color:#7a6055;margin-bottom:24px">30 días sin complicaciones</p>
+  <p>En Zapatillas May aceptamos devoluciones y cambios dentro de los primeros <strong>30 días</strong> naturales a partir de la fecha de entrega.</p>
+  <h2 style="font-size:1.2rem;margin-top:24px">Condiciones</h2>
+  <ul style="padding-left:20px">
+    <li>El producto debe estar sin uso, en su estado original.</li>
+    <li>Debe conservar la caja o empaque original.</li>
+    <li>No aplica para productos marcados como "oferta final" o "liquidación".</li>
+  </ul>
+  <h2 style="font-size:1.2rem;margin-top:24px">Proceso</h2>
+  <ol style="padding-left:20px">
+    <li style="margin-bottom:8px">Contáctanos por WhatsApp dentro de los 30 días con tu número de pedido.</li>
+    <li style="margin-bottom:8px">Te indicamos la dirección para el envío de devolución.</li>
+    <li style="margin-bottom:8px">Una vez recibido el producto y verificado su estado, procesamos el cambio o reembolso en un plazo de 3 a 5 días hábiles.</li>
+  </ol>
+  <h2 style="font-size:1.2rem;margin-top:24px">Costo del envío de devolución</h2>
+  <p>Si la devolución es por defecto de fabricación, cubrimos el costo del envío. Si es por cambio de talla u otra razón, el costo del envío corre por cuenta del cliente.</p>
+</section>""",
+}
+
 @router.get("/seo/pagina/{slug}")
 def pagina_ssr(slug: str):
     """Sirve index.html con título/descripción/canónica propios por ruta (categorías
@@ -435,6 +607,18 @@ def pagina_ssr(slug: str):
             f'<meta property="og:url" content="{canonical}">'
         )
 
+        # Inyectar contenido HTML visible para páginas informacionales.
+        # Siempre visible: Google lo lee en el HTML inicial; el SPA lo deja intacto
+        # porque no referencia este ID. Los usuarios lo ven mientras carga el JS.
+        page_content = _PAGINAS_CONTENT.get(slug)
+        if page_content:
+            template = template.replace(
+                '<div class="section section-cats-desktop">',
+                f'<div id="ssr-page-content">{page_content}</div>'
+                + '<div class="section section-cats-desktop">',
+                1
+            )
+
         # Inyectar H1 visible con keywords de categoría para ranking local (igual que Wix)
         # Se muestra como breadcrumb sutil arriba de los productos — visible para Google y usuarios
         h1_seo = _PAGINAS_H1.get(slug)
@@ -444,7 +628,6 @@ def pagina_ssr(slug: str):
                 f'padding:8px 20px 0;margin:0;font-family:DM Sans,sans-serif;opacity:0.85">'
                 f'{_esc_pagina(h1_seo)}</h1>'
             )
-            # Insertar antes del cierre del header o al inicio del main content
             template = template.replace('<div id="productos-section"',
                                         h1_tag + '<div id="productos-section"', 1)
 
