@@ -653,6 +653,14 @@ def publicar_payloads_raw(body: dict):
 
     resultados = []
     for payload in payloads:
+        # Si el panel mandó family_name sin title (JS viejo), promover a title
+        # para que ML cree una publicación normal en lugar de un user_product_listing.
+        if not payload.get("title") and payload.get("family_name"):
+            payload["title"] = payload.pop("family_name")
+        # Si ya tiene title, quitar family_name para evitar user_product_listing
+        if payload.get("title") and "family_name" in payload:
+            del payload["family_name"]
+
         sku = ""
         for attr in payload.get("attributes") or []:
             if attr.get("id") == "SELLER_SKU":
