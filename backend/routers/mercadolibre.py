@@ -781,66 +781,14 @@ def debug_publicar(body: dict):
         }
 
 
-@router.get("/get")
-def ml_get_diag(path: str):
-    """
-    Diagnóstico: proxy GET de solo lectura a la API de ML (con el token del vendedor).
-    Restringido a rutas de catálogo/usuario para no exponer acciones de escritura.
-    Ej: /ml/get?path=/categories/MLM193324/technical_specs
-    """
-    if not path.startswith("/"):
-        path = "/" + path
-    permitido = ("/categories", "/catalog_options", "/users", "/sites", "/items")
-    if not path.startswith(permitido):
-        raise HTTPException(400, f"Ruta no permitida. Debe empezar con {permitido}")
-    req = urllib.request.Request(f"{ML_BASE}{path}", headers=ml_headers())
-    try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        try:
-            err = json.loads(raw)
-        except Exception:
-            err = {"raw": raw.decode(errors="replace")}
-        return {"error": err, "codigo": e.code, "path": path}
-
-
-@router.get("/grids")
-def buscar_grids(q: str = "domain_id=MLM-HEELS_AND_WEDGES"):
-    """
-    Diagnóstico: lista guías de tallas (size charts) disponibles.
-    q = querystring para /catalog_options/size_chart/search
-    Ej: domain_id=MLM-HEELS_AND_WEDGES
-    """
-    path = f"/catalog_options/size_chart/search?{q}"
-    req = urllib.request.Request(f"{ML_BASE}{path}", headers=ml_headers())
-    try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        try:
-            err = json.loads(raw)
-        except Exception:
-            err = {"raw": raw.decode(errors="replace")}
-        return {"error": err, "codigo": e.code, "path": path}
-
-
-@router.get("/grid/{grid_id}")
-def detalle_grid(grid_id: str):
-    """Diagnóstico: detalle de una guía de tallas (rows + atributos)."""
-    req = urllib.request.Request(f"{ML_BASE}/catalog_options/size_chart/{grid_id}", headers=ml_headers())
-    try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        try:
-            err = json.loads(raw)
-        except Exception:
-            err = {"raw": raw.decode(errors="replace")}
-        return {"error": err, "codigo": e.code}
+@router.post("/cerrar/{item_id}")
+def cerrar_item(item_id: str):
+    """Pausa, cierra y elimina una publicación de ML (ej. una de prueba)."""
+    pasos = {}
+    pasos["pausar"] = ml_put(f"/items/{item_id}", {"status": "paused"})
+    pasos["cerrar"] = ml_put(f"/items/{item_id}", {"status": "closed"})
+    pasos["eliminar"] = ml_put(f"/items/{item_id}", {"deleted": "true"})
+    return {"item_id": item_id, "pasos": pasos}
 
 
 @router.post("/validar")
