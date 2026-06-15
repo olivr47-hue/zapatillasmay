@@ -622,7 +622,7 @@ def _build_item(producto: dict, variante: dict, qty: int,
     precio = float(producto.get("precio_menudeo") or 0)
 
     return {
-        "family_name":        title,   # requerido por ML; el título final lo pone el usuario en el panel
+        "title":              title,
         "category_id":        category_id,
         "price":              precio,
         "currency_id":        "MXN",

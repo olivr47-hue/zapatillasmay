@@ -15508,9 +15508,23 @@ async function cargarMercadoLibre() {
         Genera el preview, edita el JSON de cada variante (especialmente el título), y publica.
       </p>
 
+      <!-- Mis publicaciones -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h3 style="margin:0">📋 Mis publicaciones</h3>
+          <button onclick="mlCargarPublicaciones(this)"
+                  style="padding:0.4rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔄 Cargar / Actualizar
+          </button>
+        </div>
+        <div id="ml-pubs-wrap">
+          <p style="color:#aaa;font-size:0.85rem;margin:0">Haz clic en "Cargar" para ver tus publicaciones activas en MercadoLibre.</p>
+        </div>
+      </div>
+
       <!-- Paso 1: configurar -->
       <div class="card" style="margin-bottom:1.5rem">
-        <h3 style="margin-bottom:1rem">Paso 1 — Producto</h3>
+        <h3 style="margin-bottom:1rem">Paso 1 — Publicar producto nuevo</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
           <div>
             <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
@@ -15739,8 +15753,9 @@ async function cargarMercadoLibre() {
     tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
 
     list.innerHTML = resultados.map((r, i) => {
-      const payload = { ...r.preview, family_name: titulo }
-      delete payload.title
+      const payload = { ...r.preview }
+      delete payload.family_name
+      payload.title = titulo
 
       // Precio ML
       if (precio !== null) payload.price = precio
@@ -15785,6 +15800,72 @@ async function cargarMercadoLibre() {
           </div>
         </details>`
     }).join('')
+  }
+
+  window.mlCargarPublicaciones = async (btn) => {
+    const wrap = document.getElementById('ml-pubs-wrap')
+    const orig = btn.innerHTML
+    btn.innerHTML = '⏳ Cargando...'
+    btn.disabled = true
+    wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Consultando MercadoLibre (puede tardar ~10 s)...</p>'
+    try {
+      const res  = await fetch(`${API}/ml/items`)
+      const data = await res.json()
+      if (!res.ok) { wrap.innerHTML = `<p style="color:red">Error: ${data.detail || JSON.stringify(data)}</p>`; return }
+
+      const items = data.items || []
+      if (!items.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
+
+      const statusBadge = (s) => {
+        const map = { active: ['#27ae60','Activa'], paused: ['#e67e22','Pausada'], closed: ['#e74c3c','Cerrada'], under_review: ['#8e44ad','En revisión'] }
+        const [color, label] = map[s] || ['#999', s]
+        return `<span style="background:${color};color:#fff;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700">${label}</span>`
+      }
+
+      const filas = items.map(it => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;white-space:nowrap">
+            <a href="https://articulo.mercadolibre.com.mx/${it.item_id.replace(/^(ML[A-Z]+)(\d+)$/, '$1-$2')}" target="_blank" style="color:#3483fa;text-decoration:none">
+              ${it.item_id}
+            </a>
+          </td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.title}">${it.title}</td>
+          <td style="padding:0.4rem 0.5rem;white-space:nowrap">${statusBadge(it.status)}</td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${it.seller_sku || '—'}</td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">${it.qty}</td>
+        </tr>`).join('')
+
+      const active  = items.filter(i => i.status === 'active').length
+      const paused  = items.filter(i => i.status === 'paused').length
+      const sinSku  = data.sin_sku || 0
+
+      wrap.innerHTML = `
+        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+          <span style="font-size:0.82rem;color:#555">Total: <b>${data.total}</b></span>
+          <span style="font-size:0.82rem;color:#27ae60">Activas: <b>${active}</b></span>
+          <span style="font-size:0.82rem;color:#e67e22">Pausadas: <b>${paused}</b></span>
+          ${sinSku ? `<span style="font-size:0.82rem;color:#e74c3c">Sin SKU ERP: <b>${sinSku}</b></span>` : ''}
+        </div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--bg-secondary);position:sticky;top:0">
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Item ID</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Título</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Estado</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKU ERP</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888;font-weight:600">Stock</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>`
+    } catch(e) {
+      wrap.innerHTML = `<p style="color:red">Error de conexión: ${e.message}</p>`
+    } finally {
+      btn.innerHTML = orig
+      btn.disabled = false
+    }
   }
 
   window.mlPublicarTodas = async () => {
