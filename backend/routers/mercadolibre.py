@@ -623,6 +623,7 @@ def _build_item(producto: dict, variante: dict, qty: int,
 
     return {
         "title":              title,
+        "family_name":        title,
         "category_id":        category_id,
         "price":              precio,
         "currency_id":        "MXN",
@@ -653,13 +654,12 @@ def publicar_payloads_raw(body: dict):
 
     resultados = []
     for payload in payloads:
-        # Si el panel mandó family_name sin title (JS viejo), promover a title
-        # para que ML cree una publicación normal en lugar de un user_product_listing.
+        # ML requiere family_name en MLM192717 y categorías de calzado.
+        # Asegurar que ambos campos estén presentes con el mismo valor.
+        if not payload.get("family_name") and payload.get("title"):
+            payload["family_name"] = payload["title"]
         if not payload.get("title") and payload.get("family_name"):
-            payload["title"] = payload.pop("family_name")
-        # Si ya tiene title, quitar family_name para evitar user_product_listing
-        if payload.get("title") and "family_name" in payload:
-            del payload["family_name"]
+            payload["title"] = payload["family_name"]
 
         sku = ""
         for attr in payload.get("attributes") or []:
