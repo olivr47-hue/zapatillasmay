@@ -491,13 +491,14 @@ _FOOTWEAR_BY_CAT = {
     "MLM6585":   ("517583",  "Tenis"),      # Tenis
 }
 
-# Categoría → SIZE_GRID_ID verificado en items existentes
+# Categoría → SIZE_GRID_ID verificado en items existentes.
+# Las categorías que NO aparecen aquí publican SIZE como valor directo
+# ("23", "24.5") sin grid. MLM193324 (Zapatillas y Tacones, dominio
+# MLM-HEELS_AND_WEDGES) NO usa el grid de sandalias: lo rechaza
+# (cause 2613 invalid.fashion_grid.grid_id.values).
 _SIZE_GRID = {
     "MLM192717": "487994",   # Sandalias (→MLM193324 en storage)
-    "MLM193324": "487994",
     "MLM192062": "356657",   # Botas y Botines
-    "MLM193197": "487994",   # Flats
-    "MLM6585":   "487994",   # Tenis
 }
 
 # Color ERP → (value_id ML, value_name estándar)
@@ -570,9 +571,17 @@ def _build_item(producto: dict, variante: dict, qty: int,
         fotos = [producto["imagen_principal"]]
     pictures = [{"source": u} for u in fotos[:12] if u]
 
-    # ── SIZE_GRID_ID y ROW por categoría ──
-    grid_id = _SIZE_GRID.get(category_id, "487994")
-    row_id  = _talla_to_row(talla_display, grid_id)
+    # ── Tallas: con grid (sandalias/botas) o valor directo (tacones/heels) ──
+    # Si la categoría tiene un size grid válido → "{talla} MX" + grid + row.
+    # Si no → SIZE como valor directo ("23", "24.5"), que es lo que acepta
+    # MLM-HEELS_AND_WEDGES; mandar un grid ajeno da error 2613.
+    grid_id = _SIZE_GRID.get(category_id)
+    if grid_id:
+        size_value = f"{talla_display} MX"
+        row_id     = _talla_to_row(talla_display, grid_id)
+    else:
+        size_value = talla_display
+        row_id     = None
 
     # ── MAIN_COLOR con value_id estándar de ML ──
     color_key = color_raw.lower().split()[0] if color_raw else ""
@@ -586,21 +595,21 @@ def _build_item(producto: dict, variante: dict, qty: int,
               else "Primavera/Verano")
 
     # FOOTWEAR_TYPE válido según la categoría (value_id estándar de ML).
-    # AGE_GROUP no se manda: es read_only en estas categorías y ML lo ignora
-    # (devolvía warning item.attributes.ignored).
     fw = _FOOTWEAR_BY_CAT.get(category_id)
 
     attrs = [
         {"id": "SELLER_SKU",    "value_name": variante.get("sku", "")},
         {"id": "BRAND",         "value_name": "May"},
         {"id": "GENDER",        "value_name": "Mujer"},
+        {"id": "AGE_GROUP",     "value_id": "6725189"},   # Adultos (ML lo pide en MLM193324)
         {"id": "COLOR",         "value_name": color_simple},
         {"id": "MAIN_COLOR",    "value_id": mc_id, "value_name": mc_name},
-        {"id": "SIZE",          "value_name": f"{talla_display} MX"},
-        {"id": "SIZE_GRID_ID",  "value_name": grid_id},
+        {"id": "SIZE",          "value_name": size_value},
     ]
     if fw:
         attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
+    if grid_id:
+        attrs.append({"id": "SIZE_GRID_ID", "value_name": grid_id})
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if nombre:
