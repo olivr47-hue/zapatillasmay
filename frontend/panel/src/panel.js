@@ -15754,7 +15754,7 @@ async function cargarMercadoLibre() {
 
     list.innerHTML = resultados.map((r, i) => {
       const payload = { ...r.preview }
-      payload.title = titulo
+      delete payload.title
       payload.family_name = titulo
 
       // Precio ML

@@ -622,7 +622,6 @@ def _build_item(producto: dict, variante: dict, qty: int,
     precio = float(producto.get("precio_menudeo") or 0)
 
     return {
-        "title":              title,
         "family_name":        title,
         "category_id":        category_id,
         "price":              precio,
@@ -654,12 +653,11 @@ def publicar_payloads_raw(body: dict):
 
     resultados = []
     for payload in payloads:
-        # ML requiere family_name en MLM192717 y categorías de calzado.
-        # Asegurar que ambos campos estén presentes con el mismo valor.
+        # ML requiere family_name y rechaza title cuando family_name está presente.
         if not payload.get("family_name") and payload.get("title"):
-            payload["family_name"] = payload["title"]
-        if not payload.get("title") and payload.get("family_name"):
-            payload["title"] = payload["family_name"]
+            payload["family_name"] = payload.pop("title")
+        elif payload.get("family_name") and "title" in payload:
+            del payload["title"]
 
         sku = ""
         for attr in payload.get("attributes") or []:
