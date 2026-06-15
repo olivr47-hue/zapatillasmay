@@ -256,10 +256,13 @@
 try {
   if (typeof gtag === 'function') {
     const params = new URLSearchParams(window.location.search)
+    const purchaseValue = parseFloat(localStorage.getItem('zm_purchase_value') || '0')
     gtag('event', 'purchase', {
-      transaction_id: params.get('payment_id') || params.get('collection_id') || 'unknown',
-      currency: 'MXN'
+      transaction_id: params.get('payment_id') || params.get('collection_id') || String(Date.now()),
+      currency: 'MXN',
+      value: purchaseValue
     })
+    localStorage.removeItem('zm_purchase_value')
   }
 } catch(e) {}
 
