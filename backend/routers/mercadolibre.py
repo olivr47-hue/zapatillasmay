@@ -774,6 +774,43 @@ def debug_publicar(body: dict):
         }
 
 
+@router.get("/grids")
+def buscar_grids(q: str = "domain_id=MLM-HEELS_AND_WEDGES"):
+    """
+    Diagnóstico: lista guías de tallas (size charts) disponibles.
+    q = querystring para /catalog_options/size_chart/search
+    Ej: domain_id=MLM-HEELS_AND_WEDGES
+    """
+    path = f"/catalog_options/size_chart/search?{q}"
+    req = urllib.request.Request(f"{ML_BASE}{path}", headers=ml_headers())
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {"error": err, "codigo": e.code, "path": path}
+
+
+@router.get("/grid/{grid_id}")
+def detalle_grid(grid_id: str):
+    """Diagnóstico: detalle de una guía de tallas (rows + atributos)."""
+    req = urllib.request.Request(f"{ML_BASE}/catalog_options/size_chart/{grid_id}", headers=ml_headers())
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {"error": err, "codigo": e.code}
+
+
 @router.post("/validar")
 def validar_publicacion(body: dict):
     """
