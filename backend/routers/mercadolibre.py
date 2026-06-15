@@ -472,7 +472,11 @@ _TIPO_CALZADO = {
 #   MLM192062=Botas y Botines, MLM193197=Flats, MLM6585=Tenis
 _CATEGORY_ID = {
     "sandalia": "MLM192717", "sandalias": "MLM192717",
-    "tacon": "MLM193324",    "tacones":   "MLM193324",   # Zapatillas y Tacones (antes apuntaba mal a Sandalias)
+    # Tacones van a MLM192717 (Sandalias) como SIEMPRE los publicó el vendedor
+    # ("Sandalia de tacón"): esa categoría ya tiene su guía de tallas 487994 y
+    # envío me2. MLM193324 (Zapatillas y Tacones) sería la categoría "pura" pero
+    # exige una guía de tallas propia que la cuenta no tiene (API de guías da 404).
+    "tacon": "MLM192717",    "tacones":   "MLM192717",
     "botin": "MLM192717",    "botines":   "MLM192717",   # ML redirige a MLM193324, SIZE_GRID 487994
     "flat":  "MLM193197",    "flats":     "MLM193197",
     "balerina": "MLM193197", "balerinas": "MLM193197",
@@ -627,6 +631,9 @@ def _build_item(producto: dict, variante: dict, qty: int,
         "listing_type_id":    listing_type,
         "condition":          "new",
         "catalog_listing":    False,
+        # Envío Mercado Envíos me2 + envío gratis, igual que los items que ya
+        # tiene publicados el vendedor (sin esto ML da 400 por me1 faltante).
+        "shipping":           {"mode": "me2", "local_pick_up": False, "free_shipping": True},
         "description":        {"plain_text": descripcion},
         "pictures":           pictures,
         "attributes":         attrs,
