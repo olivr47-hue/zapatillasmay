@@ -725,7 +725,7 @@ def debug_publicar(body: dict):
     """
     sku_interno = (body.get("sku_interno") or "").strip().upper()
     producto_id = (body.get("producto_id") or "").strip()
-    listing_type = body.get("listing_type") or "free"
+    listing_type = body.get("listing_type") or "gold_special"
 
     if not sku_interno and not producto_id:
         raise HTTPException(400, "Se requiere sku_interno o producto_id")
@@ -846,7 +846,7 @@ def validar_publicacion(body: dict):
     """
     sku_interno = (body.get("sku_interno") or "").strip().upper()
     producto_id = (body.get("producto_id") or "").strip()
-    listing_type = body.get("listing_type") or "free"
+    listing_type = body.get("listing_type") or "gold_special"
 
     if not sku_interno and not producto_id:
         raise HTTPException(400, "Se requiere sku_interno o producto_id")
@@ -921,7 +921,7 @@ def publicar_producto(body: dict):
     producto_id  = (body.get("producto_id") or "").strip()
     sku_interno  = (body.get("sku_interno") or "").strip().upper()
     variante_ids = body.get("variante_ids") or []
-    listing_type = body.get("listing_type") or "free"
+    listing_type = body.get("listing_type") or "gold_special"
     solo_preview = bool(body.get("solo_preview", False))
 
     if not producto_id and not sku_interno:
