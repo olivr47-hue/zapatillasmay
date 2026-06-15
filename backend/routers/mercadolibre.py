@@ -774,6 +774,31 @@ def debug_publicar(body: dict):
         }
 
 
+@router.get("/get")
+def ml_get_diag(path: str):
+    """
+    Diagnóstico: proxy GET de solo lectura a la API de ML (con el token del vendedor).
+    Restringido a rutas de catálogo/usuario para no exponer acciones de escritura.
+    Ej: /ml/get?path=/categories/MLM193324/technical_specs
+    """
+    if not path.startswith("/"):
+        path = "/" + path
+    permitido = ("/categories", "/catalog_options", "/users", "/sites", "/items")
+    if not path.startswith(permitido):
+        raise HTTPException(400, f"Ruta no permitida. Debe empezar con {permitido}")
+    req = urllib.request.Request(f"{ML_BASE}{path}", headers=ml_headers())
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {"error": err, "codigo": e.code, "path": path}
+
+
 @router.get("/grids")
 def buscar_grids(q: str = "domain_id=MLM-HEELS_AND_WEDGES"):
     """
