@@ -467,17 +467,29 @@ _TIPO_CALZADO = {
 }
 
 # ERP categoria → category_id de ML México
-# Verificados 2026-05-28: MLM192717=Sandalias, MLM193324=Zapatillas/Tacones,
-# MLM192062=Botas y Botines, MLM193197=Flats
+# Verificados 2026-06-15 contra /categories/{id}/attributes:
+#   MLM192717=Sandalias y Chanclas, MLM193324=Zapatillas y Tacones,
+#   MLM192062=Botas y Botines, MLM193197=Flats, MLM6585=Tenis
 _CATEGORY_ID = {
     "sandalia": "MLM192717", "sandalias": "MLM192717",
-    "tacon": "MLM192717",    "tacones":   "MLM192717",
+    "tacon": "MLM193324",    "tacones":   "MLM193324",   # Zapatillas y Tacones (antes apuntaba mal a Sandalias)
     "botin": "MLM192717",    "botines":   "MLM192717",   # ML redirige a MLM193324, SIZE_GRID 487994
     "flat":  "MLM193197",    "flats":     "MLM193197",
     "balerina": "MLM193197", "balerinas": "MLM193197",
     "tenis": "MLM6585",
 }
 _CATEGORY_DEFAULT = "MLM192717"
+
+# category_id → (value_id, value_name) de FOOTWEAR_TYPE válido en esa categoría.
+# Cada categoría acepta SOLO sus propios valores; mandar el texto equivocado
+# (ej. "Tacón" en Sandalias) provoca cause_id 3510 invalid.item.attribute.values.
+# MLM192062 (Botas y Botines) no tiene el atributo → no aparece aquí.
+_FOOTWEAR_BY_CAT = {
+    "MLM192717": ("517585",  "Sandalia"),   # Sandalias y Chanclas
+    "MLM193324": ("4097913", "Tacos"),      # Zapatillas y Tacones
+    "MLM193197": ("4102827", "Flats"),      # Flats
+    "MLM6585":   ("517583",  "Tenis"),      # Tenis
+}
 
 # Categoría → SIZE_GRID_ID verificado en items existentes
 _SIZE_GRID = {
@@ -573,17 +585,22 @@ def _build_item(producto: dict, variante: dict, qty: int,
               if any(p in desc_lower for p in ("otoño", "invierno"))
               else "Primavera/Verano")
 
+    # FOOTWEAR_TYPE válido según la categoría (value_id estándar de ML).
+    # AGE_GROUP no se manda: es read_only en estas categorías y ML lo ignora
+    # (devolvía warning item.attributes.ignored).
+    fw = _FOOTWEAR_BY_CAT.get(category_id)
+
     attrs = [
         {"id": "SELLER_SKU",    "value_name": variante.get("sku", "")},
         {"id": "BRAND",         "value_name": "May"},
         {"id": "GENDER",        "value_name": "Mujer"},
-        {"id": "AGE_GROUP",     "value_id": "6725189"},          # Adulto (requerido por ML)
-        {"id": "FOOTWEAR_TYPE", "value_name": tipo},             # requerido para MLM192717
         {"id": "COLOR",         "value_name": color_simple},
         {"id": "MAIN_COLOR",    "value_id": mc_id, "value_name": mc_name},
         {"id": "SIZE",          "value_name": f"{talla_display} MX"},
         {"id": "SIZE_GRID_ID",  "value_name": grid_id},
     ]
+    if fw:
+        attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
     if row_id:
         attrs.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
     if nombre:
@@ -745,6 +762,68 @@ def debug_publicar(body: dict):
             "ml_error": err,
             "causa_detalle": err.get("cause") or [],
             "mensaje": err.get("message") or "",
+        }
+
+
+@router.post("/validar")
+def validar_publicacion(body: dict):
+    """
+    Valida en SECO la primera variante activa de un producto contra ML
+    (POST /items/validate) — NO crea ninguna publicación.
+    Devuelve el payload + el resultado de la validación con su array `cause`.
+    Body: { "sku_interno": "M-TAC-0106" } o { "producto_id": "uuid" }
+    """
+    sku_interno = (body.get("sku_interno") or "").strip().upper()
+    producto_id = (body.get("producto_id") or "").strip()
+    listing_type = body.get("listing_type") or "free"
+
+    if not sku_interno and not producto_id:
+        raise HTTPException(400, "Se requiere sku_interno o producto_id")
+
+    if producto_id:
+        prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    else:
+        prods = supabase_get_all(f"productos?sku_interno=eq.{sku_interno}&select=*&limit=1")
+    if not prods:
+        raise HTTPException(404, "Producto no encontrado")
+    producto = prods[0]
+    producto_id = producto_id or producto.get("id", "")
+
+    variantes = supabase_get_all(
+        f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*&limit=1"
+    )
+    if not variantes:
+        raise HTTPException(404, "Sin variantes activas")
+    variante = variantes[0]
+
+    cat_key     = (producto.get("categoria") or "sandalia").lower().strip()
+    category_id = _CATEGORY_ID.get(cat_key, _CATEGORY_DEFAULT)
+    payload     = _build_item(producto, variante, 5, category_id, listing_type)
+
+    req_body = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{ML_BASE}/items/validate", data=req_body, headers=ml_headers(), method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            # 204/200 sin cuerpo = payload válido
+            raw = r.read()
+            return {"ok": True, "valido": True, "category_id": category_id,
+                    "payload_enviado": payload,
+                    "ml_response": json.loads(raw) if raw else None}
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw": raw.decode(errors="replace")}
+        return {
+            "ok": True, "valido": False, "codigo": e.code,
+            "category_id": category_id,
+            "payload_enviado": payload,
+            "causa_detalle": err.get("cause") or [],
+            "mensaje": err.get("message") or "",
+            "ml_error": err,
         }
 
 

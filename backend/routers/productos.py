@@ -61,6 +61,17 @@ def productos_por_categoria(categoria: str):
 def producto_por_sku(sku: str):
     return supabase_get(f"productos?sku_interno=eq.{sku}")
 
+@router.get("/catalog-version")
+def catalog_version():
+    """Versión del catálogo — la tienda lo usa para invalidar su caché local."""
+    cached = cache_get(_CK + "_version")
+    if cached is not None:
+        return cached
+    import time
+    v = {"v": int(time.time())}
+    cache_set(_CK + "_version", v, ttl=3600)
+    return v
+
 @router.get("/{id}")
 def obtener_producto(id: str):
     return supabase_get(f"productos?id=eq.{id}")
@@ -244,17 +255,6 @@ def generar_nombres(datos: dict = Body(default={})):
         "total":    len(resultados),
         "productos": resultados
     }
-
-@router.get("/catalog-version")
-def catalog_version():
-    """Versión del catálogo — la tienda lo usa para invalidar su caché local."""
-    cached = cache_get(_CK + "_version")
-    if cached is not None:
-        return cached
-    import time
-    v = {"v": int(time.time())}
-    cache_set(_CK + "_version", v, ttl=3600)
-    return v
 
 @router.post("/orden-home")
 def guardar_orden_home(ordenes: List[dict] = Body(...)):

@@ -23,6 +23,7 @@ import os
 import json
 import time
 import datetime
+import urllib.parse
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
@@ -192,7 +193,9 @@ def procesar_recordatorios() -> dict:
     """Busca carritos abandonados (>N horas de inactividad, sin convertir ni avisar) y envía recordatorio."""
     try:
         corte = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=_HORAS_ESPERA)
-        corte_iso = corte.isoformat()
+        # URL-encode: el "+00:00" del offset se decodifica como espacio en la query
+        # de PostgREST y rompe el timestamp (HTTP 400). quote() lo vuelve %2B00%3A00.
+        corte_iso = urllib.parse.quote(corte.isoformat())
         # updated_at <= corte, no convertido, no avisado
         pendientes = supabase_get(
             f"carritos_abandonados?convertido=eq.false&recordatorio_enviado=eq.false"
