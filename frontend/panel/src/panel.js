@@ -11268,7 +11268,7 @@ window._htmlChatItems = (chats) => {
                   <div class="wa-chat-name">${c.nombre || c.telefono}
                     ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
                   </div>
-                  <div class="wa-chat-preview">${((c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||'').substring(0,40)}…</div>
+                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; return mm.startsWith('[Imagen]') ? '📷 Imagen' : mm.substring(0,40)+'…' })()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
@@ -11380,11 +11380,14 @@ window._renderBurbujas = (chat) => {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         ${ctxt}</span>`
     } else if (m.tipo === 'imagen') {
-      if (m.media_url) {
-        const caption = textoLimpio.replace('[Imagen]', '').replace(/^:\s*/, '').trim()
+      // La URL viene en media_url (legacy) o embebida en el mensaje: "[Imagen] https://..."
+      const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
+      const imgSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
+      const caption = (m.mensaje || '').replace('[Imagen]', '').replace(/https?:\/\/\S+/, '').replace(/^[:\s]+/, '').trim()
+      if (imgSrc) {
         msgBody = `<div>
-          <a href="${m.media_url}" target="_blank" rel="noopener">
-            <img src="${m.media_url}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
+          <a href="${imgSrc}" target="_blank" rel="noopener">
+            <img src="${imgSrc}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
           </a>
           ${caption ? `<p style="margin:4px 0 0;font-size:0.82rem;color:#475569">${caption}</p>` : ''}
         </div>`

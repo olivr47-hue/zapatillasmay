@@ -614,7 +614,15 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
         }
         if media_url:
             data["media_url"] = media_url
-        supabase_post("conversaciones_whatsapp", data)
+        try:
+            supabase_post("conversaciones_whatsapp", data)
+        except Exception as e_post:
+            # Si falla por la columna media_url (cache de PostgREST desactualizado), reintentar sin ella
+            if "media_url" in data:
+                data.pop("media_url", None)
+                supabase_post("conversaciones_whatsapp", data)
+            else:
+                raise e_post
         cache_invalidate("chats_lista")  # forzar refresh en próximo poll
     except Exception as e:
         print(f"ERROR guardando: {str(e)}")
@@ -773,7 +781,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
                         img_bytes_ctrl = r.read()
                     filename_ctrl = f"{from_number}_{image_id}.jpg"
                     public_url_ctrl = subir_imagen_storage(img_bytes_ctrl, filename_ctrl)
-                    guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto, media_url=public_url_ctrl)
+                    # La URL se guarda dentro del mensaje (no en columna aparte) para que el panel la muestre
+                    msg_ctrl = (f"[Imagen] {public_url_ctrl}" + (f" {caption_img}" if caption_img else "")).strip() if public_url_ctrl else msg_guardado
+                    guardar_conversacion(from_number, msg_ctrl, None, "imagen", nombre_contacto)
                 except Exception:
                     guardar_conversacion(from_number, msg_guardado, None, "imagen", nombre_contacto)
                 return {"status": "ok"}
@@ -793,6 +803,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 # Subir a Storage para persistencia en el panel
                 filename = f"{from_number}_{image_id}.jpg"
                 public_url = subir_imagen_storage(img_bytes, filename)
+                # La URL se guarda dentro del mensaje (no en columna aparte) para que el panel la muestre
+                if public_url:
+                    msg_guardado = (f"[Imagen] {public_url}" + (f" {caption_img}" if caption_img else "")).strip()
                 img_b64 = base64.b64encode(img_bytes).decode("utf-8")
                 # Retry igual que mensajes de texto
                 respuesta_claude = None
@@ -807,10 +820,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 if respuesta_claude is None:
                     fb = "Vi tu foto 📸 Tuve un problema técnico, ¿puedes reenviarla? 😊"
                     enviar_whatsapp_texto(from_number, fb)
-                    guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto, media_url=public_url)
+                    guardar_conversacion(from_number, msg_guardado, fb, "imagen", nombre_contacto)
                     return {"status": "ok"}
                 texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-                guardar_conversacion(from_number, msg_guardado, texto_guardado, "imagen", nombre_contacto, media_url=public_url)
+                guardar_conversacion(from_number, msg_guardado, texto_guardado, "imagen", nombre_contacto)
             except Exception as e:
                 import traceback
                 print(f"[chatbot] ERROR IMAGEN {from_number}: {e}\n{traceback.format_exc()}")

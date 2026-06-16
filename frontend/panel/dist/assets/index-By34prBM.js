@@ -4374,7 +4374,7 @@ ${o.telefono?'<a href="https://wa.me/'+(o.lada||"52")+o.telefono.replace(/\D/g,"
                   <div class="wa-chat-name">${t.nombre||t.telefono}
                     ${t.estado&&t.estado!=="abierto"?`<span class="wa-estado-badge ${t.estado}">${t.estado==="espera"?"En espera":"Cerrado"}</span>`:""}
                   </div>
-                  <div class="wa-chat-preview">${(t.mensajes&&t.mensajes[0]&&t.mensajes[0].mensaje||"").substring(0,40)}…</div>
+                  <div class="wa-chat-preview">${(()=>{const o=t.mensajes&&t.mensajes[0]&&t.mensajes[0].mensaje||"";return o.startsWith("[Imagen]")?"📷 Imagen":o.substring(0,40)+"…"})()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${new Date(t.ultimo_mensaje).toLocaleDateString("es-MX",{day:"numeric",month:"short"})}</span>
@@ -4395,12 +4395,12 @@ ${o.telefono?'<a href="https://wa.me/'+(o.lada||"52")+o.telefono.replace(/\D/g,"
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         ${h||"Ubicación"}</a>`}else if(n.tipo==="contacto_saliente")c=`<span class="wa-doc-link" style="color:#0f172a">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        ${l.replace("[Contacto] ","")}</span>`;else if(n.tipo==="imagen")if(n.media_url){const v=l.replace("[Imagen]","").replace(/^:\s*/,"").trim();c=`<div>
-          <a href="${n.media_url}" target="_blank" rel="noopener">
-            <img src="${n.media_url}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
+        ${l.replace("[Contacto] ","")}</span>`;else if(n.tipo==="imagen"){const v=(n.mensaje||"").match(/https?:\/\/\S+/),h=n.media_url||(v?v[0]:null),$=(n.mensaje||"").replace("[Imagen]","").replace(/https?:\/\/\S+/,"").replace(/^[:\s]+/,"").trim();h?c=`<div>
+          <a href="${h}" target="_blank" rel="noopener">
+            <img src="${h}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
           </a>
-          ${v?`<p style="margin:4px 0 0;font-size:0.82rem;color:#475569">${v}</p>`:""}
-        </div>`}else c='<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>';else c=`<p>${l}</p>`;let p="";if(r){const v=t(e.cliente_leyo_at),h=t(e.cliente_entrego_at),$=t(n.created_at);v&&$<=v?p='<span class="wa-read-receipt read" title="Visto">✓✓</span>':h&&$<=h?p='<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>':i===a&&(p='<span class="wa-read-receipt sent" title="Enviado">✓</span>')}const m=`<button class="wa-reply-btn" onclick="iniciarReply('${e.telefono}','${(n.wa_message_id||"").replace(/'/g,"")}')" title="Responder">
+          ${$?`<p style="margin:4px 0 0;font-size:0.82rem;color:#475569">${$}</p>`:""}
+        </div>`:c='<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>'}else c=`<p>${l}</p>`;let p="";if(r){const v=t(e.cliente_leyo_at),h=t(e.cliente_entrego_at),$=t(n.created_at);v&&$<=v?p='<span class="wa-read-receipt read" title="Visto">✓✓</span>':h&&$<=h?p='<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>':i===a&&(p='<span class="wa-read-receipt sent" title="Enviado">✓</span>')}const m=`<button class="wa-reply-btn" onclick="iniciarReply('${e.telefono}','${(n.wa_message_id||"").replace(/'/g,"")}')" title="Responder">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     </button>`,g=n.mensaje?`
       <div class="wa-msg-row ${r?"saliente":"entrante"}" data-idx="${i}">
