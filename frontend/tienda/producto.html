@@ -53,7 +53,7 @@
 
     /* ── GALLERY ── */
     .gallery { background: white; position: relative; overflow: hidden; }
-    .gallery-main { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; background: #f5f0eb; cursor: zoom-in; transition: transform 0.6s cubic-bezier(0.23,1,0.32,1); }
+    .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: #f5f0eb; cursor: zoom-in; transition: transform 0.6s cubic-bezier(0.23,1,0.32,1); }
     .gallery-main:hover { transform: scale(1.03); }
     .gallery-thumbs { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 1px solid var(--border); }
     .gallery-thumbs::-webkit-scrollbar { display: none; }
@@ -756,8 +756,15 @@ function renderProducto() {
   if (colores.length) renderColores(colores, varsProd)
   // Render tallas iniciales (sin color)
   renderTallas(null, varsProd)
-  // C1: si solo hay un color, auto-seleccionarlo para no pedirle un clic innecesario
-  if (colores.length === 1) setTimeout(() => seleccionarColor(colores[0]), 60)
+  // Preseleccionar el color principal (el de la foto de portada) para mostrar fotos y tallas al abrir
+  if (colores.length) {
+    let colorPrincipal = colores[0]
+    if (p.imagen_principal) {
+      const vp = varsProd.find(v => v.foto_url === p.imagen_principal || (Array.isArray(v.imagenes) && v.imagenes.includes(p.imagen_principal)))
+      if (vp && vp.color) colorPrincipal = vp.color
+    }
+    setTimeout(() => seleccionarColor(colorPrincipal), 60)
+  }
 
   // Descripción
   if (p.descripcion && p.descripcion.trim()) {
