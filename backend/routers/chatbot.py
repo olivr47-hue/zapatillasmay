@@ -364,7 +364,6 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                 ],
                 "payer":              {"name": nombre, "email": "cliente@zapatillasmay.mx"},
                 "external_reference": str(pedido_id),
-                "notification_url":   os.environ.get("MP_WEBHOOK_URL", ""),
                 "back_urls": {
                     "success": "https://zapatillasmay.com/gracias",
                     "failure": "https://zapatillasmay.com/pago-fallido",
@@ -372,6 +371,10 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                 },
                 "auto_return": "approved",
             }
+            # Solo incluir notification_url si NO está vacío (MP rechaza "" como URL inválida)
+            webhook_url = os.environ.get("MP_WEBHOOK_URL", "")
+            if webhook_url:
+                pref_data["notification_url"] = webhook_url
             result = sdk.preference().create(pref_data)
             pref   = result["response"]
             link   = pref.get("init_point", "")
