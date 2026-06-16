@@ -2247,6 +2247,27 @@
     transition: opacity 0.15s;
   }
   .modal-foto-clickeable:hover { opacity: 0.92; }
+  /* Foto principal del modal — escritorio: contain; móvil: cuadrada 1:1 (cover) como el inicio.
+     Selector con img.modal-foto-main para ganar a .modal-img img (object-fit:contain) por especificidad */
+  .modal-img img.modal-foto-main {
+    width: calc(100% - 24px);
+    max-height: clamp(220px, 43vh, 390px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+    background: white;
+    border-radius: 10px;
+    margin: 12px auto 0;
+  }
+  @media (max-width: 760px) {
+    .modal-img img.modal-foto-main {
+      width: calc(100% - 24px);
+      aspect-ratio: 1 / 1;
+      max-height: none;
+      height: auto;
+      object-fit: cover;
+    }
+  }
   /* Grid de colores sin selección */
   .color-foto-grid {
     display: grid;
@@ -3867,34 +3888,24 @@ if (window.ttq) ttq.track('ViewContent', {
     }
 
     const imgWrap = document.getElementById('modal-img-wrap')
-    // Construir grid de todos los colores con sus fotos
-    const colorFotos = colores.map(c => {
-      const v = varsProd.find(vv => vv.color === c)
-      const foto = v ? (v.foto_url || (v.imagenes && v.imagenes[0]) || null) : null
-      return { color: c, hex: v ? (v.color_hex || '#888') : '#888', foto }
-    }).filter(cf => cf.foto)
-
-    // Mostrar imagen: grid de colores si hay más de 1 con foto, si no imagen principal
-    if (colorFotos.length > 1) {
-      imgWrap.innerHTML = `<div class="color-foto-grid">
-        ${colorFotos.map(cf => `
-          <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy">
-            <div class="color-foto-label">
-              <span class="color-foto-dot" style="background:${cf.hex}"></span>
-              ${cf.color}
-            </div>
-          </div>`).join('')}
-      </div>`
-    } else if (p.imagen_principal) {
-      imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
-    } else {
-      imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
+    // Color principal: el de la variante cuya foto es la portada; si no, el primer color
+    let colorPrincipal = colores[0]
+    if (p.imagen_principal && varsProd.length) {
+      const vp = varsProd.find(v => v.foto_url === p.imagen_principal || (Array.isArray(v.imagenes) && v.imagenes.includes(p.imagen_principal)))
+      if (vp && vp.color) colorPrincipal = vp.color
     }
-    if (window._videoUrl) _adjuntarBotonVideo(imgWrap)
-    // Ocultar miniaturas en el estado inicial (grid de colores)
-    const thumbRowInit = document.getElementById('modal-thumb-row')
-    if (thumbRowInit) { thumbRowInit.style.display = 'none'; thumbRowInit.innerHTML = '' }
+    // Sin colores: mostrar imagen principal / placeholder.
+    // Con colores: se preselecciona el color principal más abajo (seleccionarColor arma las fotos).
+    if (colores.length === 0) {
+      if (p.imagen_principal) {
+        imgWrap.innerHTML = `<div style="padding:0 12px;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" class="modal-foto-main modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
+      } else {
+        imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
+      }
+      if (window._videoUrl) _adjuntarBotonVideo(imgWrap)
+      const thumbRowInit = document.getElementById('modal-thumb-row')
+      if (thumbRowInit) { thumbRowInit.style.display = 'none'; thumbRowInit.innerHTML = '' }
+    }
 
     // Secciones de color y talla
     const seccionColor = document.getElementById('modal-colores')
@@ -3921,12 +3932,8 @@ if (window.ttq) ttq.track('ViewContent', {
         </div>`
       }).join('')
 
-      // Si solo hay un color, auto-seleccionarlo (DESPUÉS de renderizar los dots)
-      if (colores.length === 1) {
-        seleccionarColor(colores[0])
-      } else {
-        seccionTalla.innerHTML = '<p style="font-size:0.82rem;color:#aaa">Selecciona un color</p>'
-      }
+      // Preseleccionar el color principal (muestra sus fotos y tallas al abrir)
+      seleccionarColor(colorPrincipal)
     }
 
     const btnCorrida = document.getElementById('btn-corrida')
@@ -4051,9 +4058,8 @@ if (window.ttq) ttq.track('ViewContent', {
                ontouchstart="event.stopPropagation();window._swipeStartX=event.touches[0].clientX"
                ontouchend="event.stopPropagation();if(Math.abs(event.changedTouches[0].clientX-window._swipeStartX)>40)window.cambiarFoto(event.changedTouches[0].clientX<window._swipeStartX?1:-1)">
             <img src="${zmImg(fotos[idx], 800)}" alt="${color}"
-              class="modal-foto-clickeable"
-              onclick="abrirLightbox(window._fotosActuales, ${idx})"
-              style="width:calc(100% - 24px);max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:10px;margin:12px auto 0;">
+              class="modal-foto-main modal-foto-clickeable"
+              onclick="abrirLightbox(window._fotosActuales, ${idx})">
             ${fotos.length > 1 ? `
               <button onclick="event.stopPropagation();window.cambiarFoto(-1)" style="position:absolute;left:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
               <button onclick="event.stopPropagation();window.cambiarFoto(1)" style="position:absolute;right:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
@@ -4067,7 +4073,7 @@ if (window.ttq) ttq.track('ViewContent', {
           thumbRow.innerHTML = fotos.map((f, i) => `
             <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)"
               style="width:44px;height:44px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===idx?'#E91E8C':'#ddd'};transition:border 0.2s">
-              <img src="${f}" alt="${color} — ${p.nombre}" style="width:100%;height:100%;object-fit:cover">
+              <img src="${f}" alt="${color} — ${productoSeleccionado.nombre}" style="width:100%;height:100%;object-fit:cover">
             </div>`).join('')
         } else {
           thumbRow.style.display = 'none'
