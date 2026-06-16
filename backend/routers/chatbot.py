@@ -331,47 +331,67 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
 
         # 1. Crear pedido en Supabase
-        pedido_db = supabase_post("pedidos", {
-            "nombre_cliente":   nombre,
-            "telefono_cliente": telefono,
-            "email_cliente":    "cliente@zapatillasmay.mx",
-            "total":            total,
-            "status":           "pendiente_pago",
-            "canal":            "whatsapp",
-            "notas":            notas,
-        })
+        try:
+            pedido_db = supabase_post("pedidos", {
+                "nombre_cliente":   nombre,
+                "telefono_cliente": telefono,
+                "email_cliente":    "cliente@zapatillasmay.mx",
+                "total":            total,
+                "status":           "pendiente_pago",
+                "canal":            "whatsapp",
+                "notas":            notas,
+            })
+        except Exception as e:
+            print(f"[link-pago] FALLO al crear pedido en Supabase: {e}")
+            return None, 0, None
         # supabase_post puede devolver lista o dict
         pedido_id = (pedido_db[0] if isinstance(pedido_db, list) else pedido_db).get("id")
         if not pedido_id:
+            print(f"[link-pago] Pedido creado sin id. Respuesta: {pedido_db}")
             return None, total, None
 
         # 2. Crear preferencia Mercado Pago
-        sdk = mercadopago.SDK(os.environ.get("MP_ACCESS_TOKEN", ""))
-        pref_data = {
-            "items": [
-                {"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"},
-                {"title": "Envío",           "quantity": 1, "unit_price": envio,  "currency_id": "MXN"},
-            ],
-            "payer":              {"name": nombre, "email": "cliente@zapatillasmay.mx"},
-            "external_reference": str(pedido_id),
-            "notification_url":   os.environ.get("MP_WEBHOOK_URL", ""),
-            "back_urls": {
-                "success": "https://zapatillasmay.com/gracias",
-                "failure": "https://zapatillasmay.com/pago-fallido",
-                "pending": "https://zapatillasmay.com/pago-pendiente",
-            },
-            "auto_return": "approved",
-        }
-        result = sdk.preference().create(pref_data)
-        pref   = result["response"]
-        link   = pref.get("init_point", "")
+        mp_token = os.environ.get("MP_ACCESS_TOKEN", "")
+        if not mp_token:
+            print("[link-pago] FALTA MP_ACCESS_TOKEN en variables de entorno")
+            return None, total, pedido_id
+        try:
+            sdk = mercadopago.SDK(mp_token)
+            pref_data = {
+                "items": [
+                    {"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"},
+                    {"title": "Envío",           "quantity": 1, "unit_price": envio,  "currency_id": "MXN"},
+                ],
+                "payer":              {"name": nombre, "email": "cliente@zapatillasmay.mx"},
+                "external_reference": str(pedido_id),
+                "notification_url":   os.environ.get("MP_WEBHOOK_URL", ""),
+                "back_urls": {
+                    "success": "https://zapatillasmay.com/gracias",
+                    "failure": "https://zapatillasmay.com/pago-fallido",
+                    "pending": "https://zapatillasmay.com/pago-pendiente",
+                },
+                "auto_return": "approved",
+            }
+            result = sdk.preference().create(pref_data)
+            pref   = result["response"]
+            link   = pref.get("init_point", "")
+            if not link:
+                print(f"[link-pago] MP no devolvió init_point. Respuesta MP: {result}")
+                return None, total, pedido_id
+        except Exception as e:
+            print(f"[link-pago] FALLO en Mercado Pago: {e}")
+            return None, total, pedido_id
 
         if pref.get("id"):
-            supabase_patch(f"pedidos?id=eq.{pedido_id}",
-                           {"mp_preference_id": pref["id"]})
+            try:
+                supabase_patch(f"pedidos?id=eq.{pedido_id}",
+                               {"mp_preference_id": pref["id"]})
+            except Exception as e:
+                print(f"[link-pago] No se pudo guardar mp_preference_id (no crítico): {e}")
         return link, total, pedido_id
     except Exception as e:
-        print(f"Error generando link MP: {e}")
+        import traceback
+        print(f"[link-pago] Error inesperado: {e}\n{traceback.format_exc()}")
         return None, 0, None
 
 
