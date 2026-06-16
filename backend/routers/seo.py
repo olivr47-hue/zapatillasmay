@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTMLResponse
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
 import urllib.request
 import json
@@ -1164,8 +1164,8 @@ def feed_meta():
         return Response(content=cached, media_type="application/xml")
     try:
         productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
-        variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
-        inventario = supabase_get("inventario?select=variante_id,cantidad")
+        variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
         inv_por_variante = {}
         for i in inventario:
@@ -1472,8 +1472,8 @@ def feed_google():
 def feed_tiktok():
     try:
         productos  = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,material,tipo_tacon,altura_tacon")
-        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
-        inventario = supabase_get("inventario?select=variante_id,cantidad")
+        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
         inv_map = {i["variante_id"]: int(i.get("cantidad") or 0) for i in (inventario or []) if i.get("variante_id")}
         vars_map: dict = {}
@@ -1569,8 +1569,8 @@ def tiktok_import_excel():
         import csv
 
         productos  = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,imagen_principal")
-        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
-        inventario = supabase_get("inventario?select=variante_id,cantidad")
+        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
         inv = {i["variante_id"]: int(i.get("cantidad", 0) or 0) for i in inventario}
 
@@ -1650,9 +1650,9 @@ def tiktok_stock_excel():
     try:
         import csv
 
-        variantes  = supabase_get("variantes?activa=eq.true&select=id,producto_id,color,talla")
+        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla")
         productos  = supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre")
-        inventario = supabase_get("inventario?select=variante_id,cantidad")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
         inv      = {i["variante_id"]: int(i.get("cantidad", 0) or 0) for i in inventario}
         prod_map = {p["id"]: p for p in productos}
