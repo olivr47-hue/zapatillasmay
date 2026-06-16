@@ -340,6 +340,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                 "status":           "checkout_iniciado",
                 "canal":            "whatsapp",
                 "notas":            notas,
+                "direccion_envio":  direccion,
             })
         except Exception as e:
             print(f"[link-pago] FALLO al crear pedido en Supabase: {e}")

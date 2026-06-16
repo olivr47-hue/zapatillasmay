@@ -7726,8 +7726,9 @@ window.verPedido = async (id) => {
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
-            <p style="font-weight:600">${cliente.nombre || 'Mostrador'}</p>
-            <p style="font-size:0.8rem;color:#888">${cliente.telefono || ''}</p>
+            <p style="font-weight:600">${cliente.nombre || p.nombre_cliente || 'Mostrador'}</p>
+            <p style="font-size:0.8rem;color:#888">${cliente.telefono || p.telefono_cliente || ''}</p>
+            ${p.email_cliente ? `<p style="font-size:0.78rem;color:#888">${p.email_cliente}</p>` : ''}
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
@@ -7739,6 +7740,29 @@ window.verPedido = async (id) => {
             <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${p.total || '0'}</p>
           </div>
         </div>
+
+        ${(() => {
+          const dir = (p.direccion_envio || p.direccion_entrega || '').trim()
+          // Pedidos de WhatsApp guardan la dirección dentro de notas tras "Envío a:"
+          let dirNotas = ''
+          if (!dir && p.notas) { const m = p.notas.match(/Env[ií]o a:\s*(.+)$/i); if (m) dirNotas = m[1].trim() }
+          const dirFinal = dir || dirNotas
+          const nombreEnvio = cliente.nombre || p.nombre_cliente || ''
+          const telEnvio = cliente.telefono || p.telefono_cliente || ''
+          if (!dirFinal && !nombreEnvio && !telEnvio) return ''
+          const bloqueCopia = [nombreEnvio, telEnvio, dirFinal].filter(Boolean).join('\n')
+          return `
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem;margin-bottom:1.5rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <p style="font-size:0.8rem;font-weight:700;color:#1d4ed8;margin:0">📦 Datos de envío</p>
+              <button onclick="navigator.clipboard.writeText(this.dataset.copy).then(()=>{this.textContent='✓ Copiado';setTimeout(()=>this.textContent='📋 Copiar',1500)})" data-copy="${bloqueCopia.replace(/"/g,'&quot;')}" style="padding:4px 12px;border-radius:20px;border:1.5px solid #1d4ed8;background:none;color:#1d4ed8;font-size:0.75rem;font-weight:600;cursor:pointer">📋 Copiar</button>
+            </div>
+            ${nombreEnvio ? `<p style="margin:2px 0;font-size:0.88rem;color:#0f172a"><strong>${nombreEnvio}</strong></p>` : ''}
+            ${telEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📞 ${telEnvio}</p>` : ''}
+            ${dirFinal ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📍 ${dirFinal}</p>` : '<p style="margin:2px 0;font-size:0.82rem;color:#c62828">⚠ Sin dirección registrada</p>'}
+            ${p.notas ? `<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${p.notas}</p>` : ''}
+          </div>`
+        })()}
 
         <div style="margin-bottom:1.5rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
