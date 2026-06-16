@@ -178,6 +178,9 @@ export function renderPanel() {
   } catch(e) {}
 }
 
+      // Refrescar la lista lateral en vivo (nuevas conversaciones / mensajes recientes)
+      try { window._refrescarListaChats(chats) } catch(_) {}
+
       // Actualizar mensajes si hay chat abierto
       if (window._chatActivo && window._chatsData[window._chatActivo]) {
         const chat = window._chatsData[window._chatActivo]
@@ -7749,8 +7752,9 @@ window.verPedido = async (id) => {
           const dirFinal = dir || dirNotas
           const nombreEnvio = cliente.nombre || p.nombre_cliente || ''
           const telEnvio = cliente.telefono || p.telefono_cliente || ''
+          const emailEnvio = (p.email_cliente && p.email_cliente !== 'cliente@zapatillasmay.mx') ? p.email_cliente : ''
           if (!dirFinal && !nombreEnvio && !telEnvio) return ''
-          const bloqueCopia = [nombreEnvio, telEnvio, dirFinal].filter(Boolean).join('\n')
+          const bloqueCopia = [nombreEnvio, telEnvio, emailEnvio, dirFinal].filter(Boolean).join('\n')
           return `
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem;margin-bottom:1.5rem">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
@@ -7759,6 +7763,7 @@ window.verPedido = async (id) => {
             </div>
             ${nombreEnvio ? `<p style="margin:2px 0;font-size:0.88rem;color:#0f172a"><strong>${nombreEnvio}</strong></p>` : ''}
             ${telEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📞 ${telEnvio}</p>` : ''}
+            ${emailEnvio ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">✉️ ${emailEnvio}</p>` : ''}
             ${dirFinal ? `<p style="margin:2px 0;font-size:0.85rem;color:#334155">📍 ${dirFinal}</p>` : '<p style="margin:2px 0;font-size:0.82rem;color:#c62828">⚠ Sin dirección registrada</p>'}
             ${p.notas ? `<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${p.notas}</p>` : ''}
           </div>`
@@ -10792,11 +10797,10 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
-    const res = await fetch(API + '/chatbot/chats')
-    const chatsRaw = await res.json()
+    // Lecturas resilientes: si /productos/ falla o devuelve vacío, NO debe tumbar la lista de chats
+    const chatsRaw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
     const chats = Array.isArray(chatsRaw) ? chatsRaw : []
-    const resProductos = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo')
-    const productosRaw = await resProductos.json()
+    const productosRaw = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo').then(r => r.json()).catch(() => [])
     const productos = Array.isArray(productosRaw) ? productosRaw : []
 
     window._chatsData = {}
@@ -10840,27 +10844,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
           </div>
         </div>
         <div class="wa-chat-list">
-          ${chats.length === 0
-            ? '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
-            : chats.sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
-                   onclick="abrirChat('${c.telefono}')">
-                <div class="wa-avatar">
-                  ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
-                  ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
-                </div>
-                <div class="wa-chat-info">
-                  <div class="wa-chat-name">${c.nombre || c.telefono}
-                    ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
-                  </div>
-                  <div class="wa-chat-preview">${(c.mensajes[0]?.mensaje||'').substring(0,40)}…</div>
-                </div>
-                <div class="wa-chat-meta">
-                  <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
-                  ${c.no_leidos > 0 ? `<span class="wa-unread">${c.no_leidos}</span>` : ''}
-                </div>
-              </div>
-            `).join('')}
+          ${window._htmlChatItems(chats)}
         </div>
       </div>
 
@@ -11266,6 +11250,58 @@ window._recargarChats = async () => {
     chats.forEach(c => window._chatsData[c.telefono] = c)
     return chats
   } catch(_) { return [] }
+}
+
+// HTML de los items de la lista de chats (usado por cargarConversaciones y el auto-refresco)
+window._htmlChatItems = (chats) => {
+  if (!chats || chats.length === 0) {
+    return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
+  }
+  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
+                   onclick="abrirChat('${c.telefono}')">
+                <div class="wa-avatar">
+                  ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
+                  ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
+                </div>
+                <div class="wa-chat-info">
+                  <div class="wa-chat-name">${c.nombre || c.telefono}
+                    ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
+                  </div>
+                  <div class="wa-chat-preview">${((c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||'').substring(0,40)}…</div>
+                </div>
+                <div class="wa-chat-meta">
+                  <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
+                  ${c.no_leidos > 0 ? `<span class="wa-unread">${c.no_leidos}</span>` : ''}
+                </div>
+              </div>
+            `).join('')
+}
+
+// Re-renderiza la barra lateral de chats en vivo (sin perder búsqueda/filtros ni el chat abierto)
+window._refrescarListaChats = (chats) => {
+  const lista = document.querySelector('.wa-chat-list')
+  if (!lista) return  // no estamos en la pestaña de conversaciones
+  const firmaNueva = chats.map(c => c.telefono + ':' + c.ultimo_mensaje + ':' + (c.no_leidos||0)).join('|')
+  if (firmaNueva === window._firmaListaChats) return  // nada cambió, no re-renderizar
+  window._firmaListaChats = firmaNueva
+  lista.innerHTML = window._htmlChatItems(chats)
+  // Re-aplicar búsqueda y filtros activos
+  const busq = document.querySelector('.wa-search-input')
+  if (busq && busq.value) filtrarChats(busq.value)
+  const etiqAct = document.querySelector('.wa-pill.activa')
+  const estAct = document.querySelector('.wa-estado-tab.activa')
+  document.querySelectorAll('.wa-chat-item').forEach(el => {
+    let mostrar = true
+    if (etiqAct) { const e = (etiqAct.getAttribute('onclick')||'').match(/filtrarEtiqueta\('([^']*)'\)/); if (e && e[1] && (el.dataset.etiqueta||'') !== e[1]) mostrar = false }
+    if (mostrar && estAct) { const s = (estAct.getAttribute('onclick')||'').match(/filtrarEstado\('([^']*)'/); if (s && s[1] && (el.dataset.estado||'abierto') !== s[1]) mostrar = false }
+    if (!mostrar) el.style.display = 'none'
+  })
+  // Marcar como activo el chat abierto
+  if (window._chatActivo) {
+    const act = lista.querySelector(`.wa-chat-item[data-tel="${window._chatActivo}"]`)
+    if (act) act.classList.add('activa')
+  }
 }
 
 // Función compartida de render de burbujas — usada por abrirChat y el polling
