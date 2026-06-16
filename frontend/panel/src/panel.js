@@ -15749,6 +15749,7 @@ async function cargarMercadoLibre() {
       // portadaByColor: { color: índice } — coloresActivos: Set de colores seleccionados
       const portadaByColor = {}
       const coloresActivos = new Set()
+      const fotosExcluidas = new Set()  // sources de fotos que NO se enviarán
       for (const color of Object.keys(fotosPorColor)) {
         portadaByColor[color] = 0
         coloresActivos.add(color)
@@ -15762,7 +15763,7 @@ async function cargarMercadoLibre() {
         const rerenderTodo = () => {
           renderFotoGrid()
           const resultadosFiltrados = resultados.filter(r => coloresActivos.has(r.color || 'Sin color'))
-          _mlRenderVariantes(resultadosFiltrados, titulo, precio, portadaByColor, descEl.value.trim(), fotosPorColor)
+          _mlRenderVariantes(resultadosFiltrados, titulo, precio, portadaByColor, descEl.value.trim(), fotosPorColor, fotosExcluidas)
         }
 
         const renderFotoGrid = () => {
@@ -15782,14 +15783,18 @@ async function cargarMercadoLibre() {
                   <span style="font-size:0.72rem;color:#888">(${resultados.filter(r=>(r.color||'Sin color')===color).length} tallas)</span>
                 </label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;padding-left:24px">
-                  ${fotos.map((p, i) => `
-                    <div onclick="${activo ? `mlSeleccionarPortadaColor('${colorKey}',${i})` : ''}"
+                  ${fotos.map((p, i) => {
+                    const excl = fotosExcluidas.has(p.source)
+                    const esPortada = i===portadaByColor[color] && activo && !excl
+                    return `
+                    <div onclick="${(activo && !excl) ? `mlSeleccionarPortadaColor('${colorKey}',${i})` : ''}"
                          id="ml-foto-${colorId}-${i}"
-                         style="cursor:${activo?'pointer':'default'};border:3px solid ${i===portadaByColor[color]&&activo?'#3483fa':'#ddd'};border-radius:8px;overflow:hidden;width:80px;height:80px;position:relative;flex-shrink:0">
+                         style="cursor:${(activo&&!excl)?'pointer':'default'};border:3px solid ${esPortada?'#3483fa':'#ddd'};border-radius:8px;overflow:hidden;width:80px;height:80px;position:relative;flex-shrink:0;opacity:${excl?0.35:1}">
                       <img src="${p.source}" style="width:100%;height:100%;object-fit:cover">
-                      ${i===portadaByColor[color]&&activo ? '<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.55rem;text-align:center;padding:2px;font-weight:700">PORTADA</div>' : ''}
-                    </div>
-                  `).join('')}
+                      ${activo ? `<div onclick="event.stopPropagation();mlToggleFoto('${colorKey}',${i},'${p.source.replace(/'/g,"\\'")}')" title="${excl?'Incluir foto':'Quitar foto'}" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:${excl?'#16a34a':'#e74c3c'};color:#fff;font-size:0.75rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.3)">${excl?'+':'✕'}</div>` : ''}
+                      ${esPortada ? '<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.55rem;text-align:center;padding:2px;font-weight:700">PORTADA</div>' : ''}
+                    </div>`
+                  }).join('')}
                 </div>
               </div>`
           }).join('')
@@ -15805,6 +15810,20 @@ async function cargarMercadoLibre() {
         }
         window.mlSeleccionarPortadaColor = (color, idx) => {
           portadaByColor[color] = idx
+          rerenderTodo()
+        }
+        window.mlToggleFoto = (color, idx, source) => {
+          if (fotosExcluidas.has(source)) {
+            fotosExcluidas.delete(source)
+          } else {
+            fotosExcluidas.add(source)
+            // Si quitamos la portada actual, mover la portada a la primera foto incluida
+            const fotos = fotosPorColor[color] || []
+            if (fotos[portadaByColor[color]] && fotos[portadaByColor[color]].source === source) {
+              const firstIncl = fotos.findIndex(p => !fotosExcluidas.has(p.source))
+              portadaByColor[color] = firstIncl >= 0 ? firstIncl : 0
+            }
+          }
           rerenderTodo()
         }
       }
@@ -15824,7 +15843,8 @@ async function cargarMercadoLibre() {
     }
   }
 
-  function _mlRenderVariantes(resultados, titulo, precio, portadaByColor, descripcion, fotosPorColor) {
+  function _mlRenderVariantes(resultados, titulo, precio, portadaByColor, descripcion, fotosPorColor, fotosExcluidas) {
+    fotosExcluidas = fotosExcluidas || new Set()
     const tit  = document.getElementById('ml-variantes-titulo')
     const list = document.getElementById('ml-variantes-list')
     tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
@@ -15845,16 +15865,20 @@ async function cargarMercadoLibre() {
         const color = r.color || 'Sin color'
         const fotosColor = fotosPorColor[color] || []
         const idx = (portadaByColor && portadaByColor[color]) || 0
-        let fotos = [...fotosColor]
-        if (idx > 0 && idx < fotos.length) {
-          const [portada] = fotos.splice(idx, 1)
-          fotos.unshift(portada)
+        const portadaSrc = fotosColor[idx] ? fotosColor[idx].source : null
+        // Solo fotos NO excluidas
+        let fotos = fotosColor.filter(p => !fotosExcluidas.has(p.source))
+        // La portada (si sigue incluida) va primero
+        if (portadaSrc) {
+          const pIdx = fotos.findIndex(f => f.source === portadaSrc)
+          if (pIdx > 0) { const [portada] = fotos.splice(pIdx, 1); fotos.unshift(portada) }
         }
-        // Completar con fotos de otros colores si hay menos de 3
-        if (fotos.length < 3 && fotosPorColor) {
+        // Completar con fotos de otros colores (no excluidas) si hay menos de 3
+        if (fotos.length < 3) {
           for (const [c, pics] of Object.entries(fotosPorColor)) {
             if (c === color) continue
             for (const p of pics) {
+              if (fotosExcluidas.has(p.source)) continue
               if (!fotos.find(f => f.source === p.source)) fotos.push(p)
               if (fotos.length >= 12) break
             }
