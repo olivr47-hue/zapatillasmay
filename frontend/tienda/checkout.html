@@ -66,8 +66,11 @@
     h1 { font-family: var(--font-display); font-size: 2.2rem; font-weight: 400; margin-bottom: 2px; letter-spacing: -0.3px; text-align:center; }
     .subtitle { font-size: 0.8rem; color: var(--gray-light); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 1px; font-weight: 500; text-align:center; }
 
-    .layout { display:grid; grid-template-columns: 1fr; gap: 20px; align-items:start; }
-    @media (min-width: 760px) { .layout { grid-template-columns: 1fr 340px; } }
+    /* minmax(0,1fr) + min-width:0 permiten que la columna se encoja bajo contenido ancho
+       (nombres de producto, badges); con 1fr el grid se ensancha y desborda el botón a la derecha */
+    .layout { display:grid; grid-template-columns: minmax(0,1fr); gap: 20px; align-items:start; }
+    .layout > * { min-width: 0; }
+    @media (min-width: 760px) { .layout { grid-template-columns: minmax(0,1fr) 340px; } }
 
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 18px clamp(14px, 4vw, 24px); box-shadow: 0 2px 12px rgba(90,40,10,0.05); margin-bottom:16px; width: 100%; box-sizing: border-box; }
     .card-title { font-family:var(--font-display); font-size:1.4rem; font-weight:400; margin-bottom:16px; color:var(--black); }
