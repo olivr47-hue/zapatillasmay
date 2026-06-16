@@ -52,13 +52,15 @@
     .header-right { width: 60px; }
 
     /* Stepper */
-    .stepper { display:flex; align-items:center; justify-content:center; gap:8px; padding:20px 16px 4px; position:relative; z-index:1; }
-    .step { display:flex; align-items:center; gap:7px; font-size:0.74rem; font-weight:600; color:var(--gray-light); }
-    .step .dot { width:22px; height:22px; border-radius:50%; background:var(--surface-2); border:1.5px solid var(--border-med); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-family:var(--font-mono); }
+    /* flex-wrap + tamaños en vw evitan que el stepper se desborde y recorte
+       cuando el usuario tiene la fuente del sistema agrandada (común en Samsung) */
+    .stepper { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px 4px; padding:20px 12px 4px; position:relative; z-index:1; max-width:100%; }
+    .step { display:flex; align-items:center; gap:6px; font-size:clamp(0.62rem,2.7vw,0.74rem); font-weight:600; color:var(--gray-light); }
+    .step .dot { width:22px; height:22px; border-radius:50%; background:var(--surface-2); border:1.5px solid var(--border-med); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-family:var(--font-mono); flex-shrink:0; }
     .step.done .dot, .step.active .dot { background:linear-gradient(135deg,#C8967A,#b5687a); border-color:transparent; color:white; }
     .step.active { color:var(--mauve); }
     .step.done { color:var(--gray); }
-    .step-line { width:28px; height:1.5px; background:var(--border-med); }
+    .step-line { width:clamp(12px,4vw,28px); height:1.5px; background:var(--border-med); }
 
     .page { max-width: 880px; margin: 0 auto; padding: 16px clamp(14px, 4vw, 32px) 120px; position: relative; z-index: 1; }
     h1 { font-family: var(--font-display); font-size: 2.2rem; font-weight: 400; margin-bottom: 2px; letter-spacing: -0.3px; text-align:center; }
