@@ -579,6 +579,7 @@ def subir_imagen_storage(img_bytes: bytes, filename: str) -> str:
         upload_url,
         data=img_bytes,
         headers={
+            "apikey": supabase_key,
             "Authorization": f"Bearer {supabase_key}",
             "Content-Type": "image/jpeg",
             "x-upsert": "true"
@@ -589,6 +590,13 @@ def subir_imagen_storage(img_bytes: bytes, filename: str) -> str:
         with urllib.request.urlopen(req) as r:
             r.read()
         return f"{supabase_url}/storage/v1/object/public/wa-media/{filename}"
+    except urllib.error.HTTPError as e:
+        try:
+            cuerpo = e.read().decode()
+        except Exception:
+            cuerpo = ""
+        print(f"[storage] Error subiendo imagen HTTP {e.code}: {cuerpo}")
+        return ""
     except Exception as e:
         print(f"[storage] Error subiendo imagen: {e}")
         return ""
