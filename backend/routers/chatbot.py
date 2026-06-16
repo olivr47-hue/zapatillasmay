@@ -486,7 +486,6 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
         texto = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', respuesta_claude).strip()
         if texto:
             enviar_whatsapp_texto(from_number, texto)
-        import time
         colores = obtener_colores_modelo(sku)
         if colores:
             for c in colores:
@@ -505,7 +504,7 @@ def procesar_y_enviar_respuesta(from_number, respuesta_claude):
         texto = respuesta_claude.replace('LINK_PAGO', '').strip()
         if texto:
             enviar_whatsapp_texto(from_number, texto)
-        import time; time.sleep(0.8)
+        time.sleep(0.8)
         info_pago = obtener_info_pago()
         enviar_whatsapp_texto(from_number, info_pago)
         return texto or respuesta_claude
