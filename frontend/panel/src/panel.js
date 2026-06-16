@@ -6983,23 +6983,25 @@ window.guardarTraspaso = async () => {
 }
 function _renderFilaPedido(p) {
   const statusColor = {
-    'borrador':        'badge-warning',
-    'pendiente_pago':  'badge-warning',
-    'confirmado':      'badge-success',
-    'cancelado':       'badge-danger',
-    'pagado':          'badge-success',
-    'por_enviar':      'badge-info',
-    'enviado':         'badge-success',
+    'borrador':          'badge-warning',
+    'checkout_iniciado': 'badge-danger',
+    'pendiente_pago':    'badge-warning',
+    'confirmado':        'badge-success',
+    'cancelado':         'badge-danger',
+    'pagado':            'badge-success',
+    'por_enviar':        'badge-info',
+    'enviado':           'badge-success',
   }[p.status] || 'badge-warning'
 
   const statusLabel = {
-    'borrador':       'Borrador',
-    'pendiente_pago': 'Pend. pago',
-    'confirmado':     'Confirmado',
-    'cancelado':      'Cancelado',
-    'pagado':         'Pagado',
-    'por_enviar':     '📦 Por enviar',
-    'enviado':        '✅ Enviado',
+    'borrador':          'Borrador',
+    'checkout_iniciado': '🛒 Abandonó',
+    'pendiente_pago':    'Pend. pago',
+    'confirmado':        'Confirmado',
+    'cancelado':         'Cancelado',
+    'pagado':            'Pagado',
+    'por_enviar':        '📦 Por enviar',
+    'enviado':           '✅ Enviado',
   }[p.status] || p.status
 
   // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
@@ -7142,11 +7144,16 @@ async function cargarPedidos() {
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
     const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
 
-    const pedidosActivos = data.filter(p => p.status !== 'cancelado' && p.status !== 'borrador')
+    // checkout_iniciado = abandonó el pago (fue a MP y no eligió método ni pagó). No es venta.
+    const NO_VENTA = ['cancelado', 'borrador', 'checkout_iniciado']
+    const pedidosActivos = data.filter(p => !NO_VENTA.includes(p.status))
+    // La tabla "Todos" muestra solo ventas/intentos reales, no los abandonados
+    const dataVisible = data.filter(p => p.status !== 'checkout_iniciado')
     const pedidosHoy = pedidosActivos.filter(p => new Date(p.created_at) >= inicioHoy)
     const totalHoy = pedidosHoy.reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
+    const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
     const porEnviar = data.filter(p => p.status === 'pagado' && p.mp_preference_id).length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
 
@@ -7172,8 +7179,11 @@ async function cargarPedidos() {
           ${kpiCard(pedidosHoy.length, 'Pedidos hoy', `$${totalHoy.toLocaleString('es-MX',{maximumFractionDigits:0})} vendidos`, '#E91E8C', 'linear-gradient(135deg,#fff0f8,#ffe4f2)', '#f9a8d4', '')}
           ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p=>new Date(p.created_at)>=hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
           ${pendienteSPEI > 0
-            ? kpiCard(pendienteSPEI, 'SPEI pendiente', 'Esperando confirmación', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
-            : kpiCard('0', 'SPEI pendiente', 'Todo al corriente', '#16a34a', '#f0fdf4', '#86efac', '')}
+            ? kpiCard(pendienteSPEI, 'SPEI/OXXO pendiente', 'Eligió método, falta pagar', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
+            : kpiCard('0', 'SPEI/OXXO pendiente', 'Todo al corriente', '#16a34a', '#f0fdf4', '#86efac', '')}
+          ${abandonados > 0
+            ? kpiCard(abandonados, 'Abandonados', 'Fue a pagar y no terminó', '#be123c', '#fff1f2', '#fda4af', "cargarPedidosFiltro('abandonado')")
+            : kpiCard('0', 'Abandonados', 'Ninguno', '#16a34a', '#f0fdf4', '#86efac', '')}
           ${porEnviar > 0
             ? kpiCard(porEnviar, 'Por enviar', 'Pagados online', '#1d4ed8', '#eff6ff', '#93c5fd', "cargarPedidosFiltro('por_enviar')")
             : kpiCard('0', 'Por enviar', 'Sin pendientes', '#16a34a', '#f0fdf4', '#86efac', '')}
@@ -7184,11 +7194,12 @@ async function cargarPedidos() {
           <input class="form-input" id="ped-buscar" placeholder="Buscar por # pedido o cliente..."
                  style="max-width:240px;font-size:0.82rem" oninput="filtrarPedidos()">
           <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
-            <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${data.length}</span></button>
+            <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span></button>
             <button class="pill-filter" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
             <button class="pill-filter" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
             <button class="pill-filter" onclick="cargarPedidosFiltro('online')">Online</button>
-            <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI pendiente</button>
+            <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI/OXXO pendiente</button>
+            <button class="pill-filter pill-danger" onclick="cargarPedidosFiltro('abandonado')">Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}</button>
             <button class="pill-filter pill-info" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
             <button class="pill-filter pill-success" onclick="cargarPedidosFiltro('credito')">Crédito</button>
           </div>
@@ -7209,9 +7220,9 @@ async function cargarPedidos() {
             </tr>
           </thead>
           <tbody>
-            ${data.length === 0
+            ${dataVisible.length === 0
               ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
-              : data.map(p => _renderFilaPedido(p)).join('')}
+              : dataVisible.map(p => _renderFilaPedido(p)).join('')}
           </tbody>
         </table>
       </div>
@@ -7232,9 +7243,12 @@ window.filtrarPedidos = () => {
 
 window.cargarPedidosFiltro = (filtro) => {
   const data = window._pedidosData || []
-  let filtrados = data
+  // "Todos" (sin filtro) oculta los abandonados; solo se ven en su propio filtro
+  let filtrados = data.filter(p => p.status !== 'checkout_iniciado')
   if (filtro === 'pendiente_pago') {
     filtrados = data.filter(p => p.status === 'pendiente_pago')
+  } else if (filtro === 'abandonado') {
+    filtrados = data.filter(p => p.status === 'checkout_iniciado')
   } else if (filtro === 'credito') {
     filtrados = data.filter(p => p.forma_pago === 'credito')
   } else if (filtro === 'por_enviar') {

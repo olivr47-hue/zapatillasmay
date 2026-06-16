@@ -337,7 +337,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                 "telefono_cliente": telefono,
                 "email_cliente":    "cliente@zapatillasmay.mx",
                 "total":            total,
-                "status":           "pendiente_pago",
+                "status":           "checkout_iniciado",
                 "canal":            "whatsapp",
                 "notas":            notas,
             })

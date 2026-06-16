@@ -350,9 +350,11 @@ def crear_preferencia(datos: dict):
         preference = result["response"]
 
         if "id" in preference:
+            # checkout_iniciado = se generó el link y se mandó a MP, pero aún no elige
+            # forma de pago ni paga. Si abandona, queda aquí (≠ pendiente_pago real de SPEI/OXXO).
             supabase_patch(
                 f"pedidos?id=eq.{pedido_id}",
-                {"mp_preference_id": preference["id"], "status": "pendiente_pago"}
+                {"mp_preference_id": preference["id"], "status": "checkout_iniciado"}
             )
             return {
                 "preference_id": preference["id"],
