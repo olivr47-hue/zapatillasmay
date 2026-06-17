@@ -52,6 +52,31 @@ def variantes_producto(producto_id: str):
     # Incluir variantes activas Y las que tienen activa=null
     return supabase_get(f"variantes?producto_id=eq.{producto_id}&or=(activa.eq.true,activa.is.null)")
 
+@router.get("/producto/{producto_id}/todas")
+def variantes_producto_todas(producto_id: str):
+    """TODAS las variantes del producto, incluidas las desactivadas (activa=false),
+    para poder gestionar colores (ocultar/mostrar en el sitio)."""
+    return supabase_get(f"variantes?producto_id=eq.{producto_id}&select=id,color,color_hex,talla,activa,foto_url")
+
+@router.post("/toggle-color")
+def toggle_color(datos: dict):
+    """Activa o desactiva TODAS las variantes de un color de un producto (mostrar/ocultar en el sitio)."""
+    from urllib.parse import quote
+    producto_id = datos.get("producto_id")
+    color = datos.get("color")
+    activa = bool(datos.get("activa"))
+    if not producto_id or color is None:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Falta producto_id o color"})
+    try:
+        supabase_patch(
+            f"variantes?producto_id=eq.{producto_id}&color=eq.{quote(str(color), safe='')}",
+            {"activa": activa}
+        )
+        cache_invalidate_prefix(_CK)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 @router.post("/")
 def crear_variante(variante: dict):
     variante["activa"] = True  # Siempre activa al crear

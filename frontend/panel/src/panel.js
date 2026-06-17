@@ -2627,6 +2627,7 @@ console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inacti
                   <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td style="display:flex;gap:4px;flex-wrap:wrap">
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${p.id}','${(p.nombre||'').replace(/'/g,'')}')">🎨 Colores</button>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#c62828' : '#2e7d32'};border-color:${p.activo ? '#c62828' : '#2e7d32'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
                   </td>
@@ -10934,6 +10935,59 @@ window.generarLinkPago = async () => {
   } catch (e) {
     out.innerHTML = `<p style="color:#c62828">Error de conexión</p>`
   } finally { btn.textContent = 'Generar link de pago'; btn.disabled = false }
+}
+
+// ── Gestionar colores de un producto (ocultar/mostrar en el sitio) ─────────
+window.gestionarColores = async (productoId, nombre) => {
+  const ov = document.createElement('div'); ov.id = 'modal-colores'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px'
+  ov.onclick = (e) => { if (e.target === ov) ov.remove() }
+  ov.innerHTML = `<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0;font-size:1.05rem">🎨 Colores — ${nombre}</h3>
+        <button onclick="document.getElementById('modal-colores').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">×</button>
+      </div>
+      <p style="font-size:0.8rem;color:#888;margin:0 0 1rem">Apaga un color para ocultarlo del sitio web. Enciéndelo cuando vuelva a haber existencia.</p>
+      <div id="colores-lista"><p style="color:#888">Cargando…</p></div>
+    </div>`
+  document.body.appendChild(ov)
+  window._renderColoresLista(productoId)
+}
+window._renderColoresLista = async (productoId) => {
+  const cont = document.getElementById('colores-lista'); if (!cont) return
+  let vars = []
+  try { vars = await fetch(API + '/variantes/producto/' + productoId + '/todas').then(r => r.json()) } catch (e) {}
+  if (!Array.isArray(vars)) vars = []
+  const mapa = {}
+  vars.forEach(v => {
+    const c = v.color || 'Sin color'
+    if (!mapa[c]) mapa[c] = { color: c, hex: v.color_hex || '#999', foto: v.foto_url, activas: 0, total: 0 }
+    mapa[c].total++
+    if (v.activa !== false) mapa[c].activas++
+    if (!mapa[c].foto && v.foto_url) mapa[c].foto = v.foto_url
+  })
+  const colores = Object.values(mapa)
+  cont.innerHTML = colores.length ? colores.map(c => {
+    const activo = c.activas > 0
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:10px;margin-bottom:8px;${activo ? '' : 'opacity:0.6;background:#fafafa'}">
+      ${c.foto ? `<img src="${c.foto}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<span style="width:44px;height:44px;border-radius:8px;background:${c.hex};flex-shrink:0;display:inline-block;border:1px solid #ddd"></span>`}
+      <div style="flex:1;min-width:0">
+        <p style="font-weight:600;margin:0">${c.color}</p>
+        <p style="font-size:0.75rem;margin:0;color:${activo ? '#16a34a' : '#c62828'}">${activo ? '✓ Visible en el sitio' : '✕ Oculto'} · ${c.total} tallas</p>
+      </div>
+      <button class="btn ${activo ? 'btn-secondary' : 'btn-primary'}" style="padding:6px 12px;font-size:0.78rem;flex-shrink:0;${activo ? 'color:#c62828;border-color:#c62828' : ''}" onclick="toggleColorWeb('${productoId}','${c.color.replace(/'/g, "\\'")}',${activo ? 'false' : 'true'},this)">${activo ? 'Ocultar' : 'Mostrar'}</button>
+    </div>`
+  }).join('') : '<p style="color:#888">Este producto no tiene colores.</p>'
+}
+window.toggleColorWeb = async (productoId, color, activa, btn) => {
+  btn.disabled = true; btn.textContent = '…'
+  try {
+    const res = await fetch(API + '/variantes/toggle-color', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ producto_id: productoId, color, activa }) })
+    const d = await res.json()
+    if (!d.ok) throw new Error(d.error || '')
+    window._variantesCache = null
+    window._renderColoresLista(productoId)
+  } catch (e) { alert('Error al cambiar el color'); btn.disabled = false }
 }
 
 window.cargarConversaciones = async function() {
