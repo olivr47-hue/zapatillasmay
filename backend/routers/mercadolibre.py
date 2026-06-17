@@ -866,6 +866,12 @@ def predecir_categoria(q: str = "sandalia mujer"):
     return ml_get(f"/sites/MLM/category_predictor/select?title={urllib.parse.quote(q)}")
 
 
+@router.get("/size-charts")
+def size_charts(cat: str = "MLM193197"):
+    """Devuelve las guías de tallas válidas para una categoría de ML."""
+    return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
+
+
 @router.post("/publicar")
 def publicar_producto(body: dict):
     """
