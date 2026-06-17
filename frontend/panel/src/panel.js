@@ -7177,7 +7177,10 @@ async function cargarPedidos() {
             <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
             <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Pedidos</h2>
           </div>
-          <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="mostrarFormLinkPago()" style="background:#ffe600;color:#333;border-color:#ffe600">💳 Crear link de pago</button>
+            <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
@@ -10871,6 +10874,66 @@ window.pedirResena = (telefono, nombre, sku) => {
   const link = sku ? `https://zapatillasmay.mx/producto/${sku}` : 'https://zapatillasmay.mx'
   const msg = `¡Hola ${nombre || ''}! 🥰 ¿Te gustaron tus zapatillas? Nos ayudarías muchísimo dejando una reseña aquí 👉 ${link}\n\nSolo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`
   window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank')
+}
+
+// ── Crear link de pago manual (precio personalizado) ──────────────────────
+window.mostrarFormLinkPago = () => {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:560px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+        <button class="btn btn-secondary" onclick="cargarPedidos()">← Volver</button>
+        <h3 style="margin:0">💳 Crear link de pago</h3>
+      </div>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Crea el pedido + link de MercadoPago. Al pagar, se detecta en Meta y GA.</p>
+      <div style="display:grid;gap:0.9rem">
+        <div><label class="form-label">Modelo / descripción *</label><input class="form-input" id="lp-modelo" placeholder="Ej: MA1400 Tacones para fiesta"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div><label class="form-label">Color</label><input class="form-input" id="lp-color" placeholder="Neutro"></div>
+          <div><label class="form-label">Talla</label><input class="form-input" id="lp-talla" placeholder="24"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div><label class="form-label">Precio producto (sin envío) *</label><input class="form-input" id="lp-precio" type="number" min="1" placeholder="390"></div>
+          <div><label class="form-label">Pares</label><input class="form-input" id="lp-pares" type="number" min="1" value="1"></div>
+        </div>
+        <hr style="border:none;border-top:1px solid #eee;margin:0.25rem 0">
+        <div><label class="form-label">Nombre del cliente *</label><input class="form-input" id="lp-nombre" placeholder="Nombre completo"></div>
+        <div><label class="form-label">WhatsApp del cliente *</label><input class="form-input" id="lp-tel" inputmode="tel" placeholder="2711476093"></div>
+        <div><label class="form-label">Dirección de envío</label><textarea class="form-input" id="lp-dir" rows="2" placeholder="Calle y número, colonia, CP, ciudad, estado"></textarea></div>
+      </div>
+      <p style="font-size:0.78rem;color:#888;margin-top:0.75rem">El envío se agrega solo: 1 par $99 · 2 $150 · 3-5 $199 · gratis desde $1,299.</p>
+      <button class="btn btn-primary" id="lp-btn" onclick="generarLinkPago()" style="margin-top:1rem;width:100%">Generar link de pago</button>
+      <div id="lp-resultado" style="margin-top:1.25rem"></div>
+    </div>`
+}
+window.generarLinkPago = async () => {
+  const v = id => (document.getElementById(id).value || '').trim()
+  const modelo = v('lp-modelo'), precio = parseFloat(v('lp-precio')), pares = parseInt(v('lp-pares') || '1'), nombre = v('lp-nombre'), tel = v('lp-tel')
+  if (!modelo || !nombre || !tel || !v('lp-precio')) { alert('Completa modelo, precio, nombre y WhatsApp'); return }
+  if (isNaN(precio) || precio <= 0) { alert('El precio debe ser mayor a 0'); return }
+  const btn = document.getElementById('lp-btn'); btn.textContent = 'Generando...'; btn.disabled = true
+  const out = document.getElementById('lp-resultado'); out.innerHTML = ''
+  try {
+    const res = await fetch(API + '/chatbot/link-pago-manual', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefono: tel, nombre, direccion: v('lp-dir'), modelo, color: v('lp-color'), talla: v('lp-talla'), precio, pares: pares || 1 })
+    })
+    const data = await res.json()
+    if (!data.ok || !data.link) { out.innerHTML = `<p style="color:#c62828">Error: ${data.error || 'no se pudo generar'}</p>`; return }
+    let telWa = tel.replace(/\D/g, ''); if (telWa.length === 10) telWa = '52' + telWa
+    const msg = `¡Hola ${nombre.split(' ')[0]}! 🥰 Aquí está tu link de pago de ${modelo}:\n💳 Total: $${data.total} MXN (incluye envío)\n👉 ${data.link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`
+    out.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:1rem">
+        <p style="font-weight:700;color:#16a34a;margin:0 0 8px">✅ Link generado — Total $${data.total} MXN</p>
+        <input class="form-input" readonly value="${data.link}" onclick="this.select()" style="font-size:0.76rem;margin-bottom:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.value);this.textContent='✓ Copiado'">📋 Copiar link</button>
+          <a class="btn btn-primary" href="https://wa.me/${telWa}?text=${encodeURIComponent(msg)}" target="_blank" style="background:#25D366;border-color:#25D366">💬 Enviar por WhatsApp</a>
+        </div>
+      </div>`
+  } catch (e) {
+    out.innerHTML = `<p style="color:#c62828">Error de conexión</p>`
+  } finally { btn.textContent = 'Generar link de pago'; btn.disabled = false }
 }
 
 window.cargarConversaciones = async function() {
