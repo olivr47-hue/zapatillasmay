@@ -883,7 +883,13 @@ function seleccionarTalla(talla) {
     const varsProd2 = variantes.filter(v => v.producto_id === producto?.id && v.activa !== false)
     const v = varsProd2.find(vv => vv.color === colorSeleccionado && String(vv.talla) === String(talla))
     const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
-    urgEl.style.display = (stock > 0 && stock <= 3) ? 'block' : 'none'
+    const mostrarUrg = (stock > 0 && stock <= 3)
+    urgEl.style.display = mostrarUrg ? 'block' : 'none'
+    // Subir el botón flotante de WhatsApp para que no tape el mensaje de "últimas unidades"
+    const waBtn = document.getElementById('btn-float-wa')
+    if (waBtn) waBtn.style.bottom = mostrarUrg
+      ? 'calc(74px + env(safe-area-inset-bottom,0px) + 44px)'
+      : 'calc(74px + env(safe-area-inset-bottom,0px) + 8px)'
   }
   actualizarCTA()
 }

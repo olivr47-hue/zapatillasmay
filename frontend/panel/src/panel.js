@@ -7711,6 +7711,22 @@ window.verPedido = async (id) => {
     const cliente = p.clientes || {}
     window._currentPedido = p
 
+    // SKU del primer producto del pedido, para el link de "pedir reseña"
+    let _reviewSku = ''
+    try {
+      const it0 = (items && items[0]) || null
+      if (it0) {
+        if (it0.variantes && it0.variantes.productos && it0.variantes.productos.sku_interno) {
+          _reviewSku = it0.variantes.productos.sku_interno
+        } else if (it0.variante_id && window._variantesCache && window._productosCache) {
+          const v = window._variantesCache.find(x => x.id === it0.variante_id)
+          if (v) { const pr = window._productosCache.find(x => x.id === v.producto_id); if (pr) _reviewSku = pr.sku_interno || '' }
+        }
+      }
+    } catch(_) {}
+    const _telResena = (cliente.telefono || p.telefono_cliente || '')
+    const _nomResena = (cliente.nombre || p.nombre_cliente || '').split(' ')[0]
+
     const statusColor = {
       'borrador': '#f57f17',
       'pendiente_pago': '#f57f17',
@@ -7726,6 +7742,7 @@ window.verPedido = async (id) => {
           <h3 style="flex:1">Pedido #${p.id.substring(0,8).toUpperCase()}</h3>
           <span class="badge" style="background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;padding:6px 12px">${p.status}</span>
           ${cliente.telefono ? '<a href="https://wa.me/52' + cliente.telefono.replace(/\D/g,'') + '?text=' + encodeURIComponent('Hola ' + (cliente.nombre || '') + ', tu pedido está listo') + '" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>' : ''}
+          ${(_telResena && ['pagado','confirmado','enviado'].includes(p.status)) ? `<button class="btn btn-secondary" style="background:#f59e0b;color:white;border-color:#f59e0b" onclick="pedirResena('${_telResena.replace(/\D/g,'')}','${_nomResena.replace(/'/g,'')}','${_reviewSku}')">⭐ Pedir reseña</button>` : ''}
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
@@ -10845,6 +10862,15 @@ window.eliminarResena = async (id) => {
     await fetch(API + '/resenas/admin/' + id, { method: 'DELETE' })
     const el = document.getElementById('resena-' + id); if (el) el.remove()
   } catch (e) { alert('Error al eliminar la reseña') }
+}
+// Abre WhatsApp con un mensaje para pedirle una reseña al cliente
+window.pedirResena = (telefono, nombre, sku) => {
+  let tel = (telefono || '').replace(/\D/g, '')
+  if (!tel) { alert('Este pedido no tiene teléfono'); return }
+  if (tel.length === 10) tel = '52' + tel
+  const link = sku ? `https://zapatillasmay.mx/producto/${sku}` : 'https://zapatillasmay.mx'
+  const msg = `¡Hola ${nombre || ''}! 🥰 ¿Te gustaron tus zapatillas? Nos ayudarías muchísimo dejando una reseña aquí 👉 ${link}\n\nSolo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`
+  window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank')
 }
 
 window.cargarConversaciones = async function() {
