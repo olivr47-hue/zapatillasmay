@@ -62,6 +62,7 @@ const modulos = [
   { id: 'dashboard', icon: '📊', label: 'Dashboard', section: 'Principal', soloAdmin: true },
   { id: 'pos', icon: '🛒', label: 'Punto de venta', section: 'Principal' },
   { id: 'productos', icon: '👠', label: 'Productos', section: 'Catalogo' },
+  { id: 'resenas', icon: '⭐', label: 'Reseñas', section: 'Catalogo', soloAdmin: true },
   { id: 'inventario', icon: '📦', label: 'Inventario', section: 'Catalogo' },
   { id: 'carritos', icon: '🛒', label: 'Carritos', section: 'Ventas' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
@@ -312,6 +313,7 @@ async function cargarModulo(id) {
     case 'catalogos': await cargarCatalogos(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
+    case 'resenas': await cargarResenasModeracion(); break
     case 'clientes': await cargarClientes(); break
     case 'carritos': await cargarCarritos(); break
     case 'pedidos': await cargarPedidos(); window._limpiarBadgePedidos?.(); break
@@ -10789,6 +10791,61 @@ window.resetearPassword = async (id, nombre) => {
   }
 }
 
+
+window.cargarResenasModeracion = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando reseñas...</p>'
+  try {
+    const [resR, resP] = await Promise.all([
+      fetch(API + '/resenas/admin/pendientes').then(r => r.json()).catch(() => ({ resenas: [] })),
+      fetch(API + '/productos/?select=id,nombre,sku_interno').then(r => r.json()).catch(() => [])
+    ])
+    const resenas = (resR && resR.resenas) || []
+    const prods = Array.isArray(resP) ? resP : []
+    const nombreDe = (pid) => { const p = prods.find(x => x.id === pid); return p ? (p.nombre + ' · ' + (p.sku_interno || '')) : pid }
+    const estrellas = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
+    content.innerHTML = `
+      <div style="padding:2rem;max-width:760px">
+        <h2 style="margin-bottom:0.25rem">⭐ Reseñas</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Aprueba las reseñas para que aparezcan en la tienda. Se necesitan <b>3 o más aprobadas por producto</b> para mostrar estrellas en Google.</p>
+        <h3 style="margin-bottom:0.75rem">Pendientes de aprobar (${resenas.length})</h3>
+        <div id="resenas-mod-lista">
+          ${resenas.length === 0
+            ? '<div class="table-card" style="padding:2rem;text-align:center;color:#888">No hay reseñas pendientes 🎉</div>'
+            : resenas.map(r => `
+            <div class="table-card" id="resena-${r.id}" style="padding:1rem;margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <div style="color:#f59e0b;font-size:1rem">${estrellas(r.calificacion || 0)} <span style="color:#888;font-size:0.8rem">(${r.calificacion}/5)</span></div>
+                  <p style="font-weight:600;margin:4px 0 2px">${(r.nombre_cliente || 'Anónimo')}</p>
+                  <p style="font-size:0.8rem;color:#888;margin:0 0 6px">${nombreDe(r.producto_id)} · ${new Date(r.created_at).toLocaleDateString('es-MX')}</p>
+                  <p style="font-size:0.9rem;color:#333;margin:0">${(r.comentario || '').replace(/</g, '&lt;')}</p>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                  <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="aprobarResena('${r.id}')">✓ Aprobar</button>
+                  <button class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem;color:#c62828" onclick="eliminarResena('${r.id}')">Eliminar</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`
+  } catch (e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+window.aprobarResena = async (id) => {
+  try {
+    await fetch(API + '/resenas/admin/' + id + '/aprobar', { method: 'PATCH' })
+    const el = document.getElementById('resena-' + id); if (el) el.remove()
+  } catch (e) { alert('Error al aprobar la reseña') }
+}
+window.eliminarResena = async (id) => {
+  if (!confirm('¿Eliminar esta reseña permanentemente?')) return
+  try {
+    await fetch(API + '/resenas/admin/' + id, { method: 'DELETE' })
+    const el = document.getElementById('resena-' + id); if (el) el.remove()
+  } catch (e) { alert('Error al eliminar la reseña') }
+}
 
 window.cargarConversaciones = async function() {
   document.title = 'Zapatillas May'
