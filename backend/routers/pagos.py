@@ -71,6 +71,55 @@ def _validar_firma_mp(request_body: bytes, headers: dict) -> bool:
     return hmac.compare_digest(expected, v1)
 
 
+def enviar_ga4_purchase(pedido, payment):
+    """Envía el evento purchase a GA4 vía Measurement Protocol (server-side).
+    Captura compras que no pasan por la página de éxito (OXXO/SPEI, links de pago
+    pendientes, etc.). Usa el id de pago de MP como transaction_id, igual que el
+    evento del navegador, para que GA4 deduplique los pagos con tarjeta."""
+    measurement_id = os.getenv("GA4_MEASUREMENT_ID", "G-QX8MK3D4RY")
+    api_secret = os.getenv("GA4_API_SECRET", "")
+    if not api_secret:
+        return  # sin secreto configurado → no-op (no rompe nada)
+    try:
+        pedido_id = pedido.get("id", "")
+        payment_id = str((payment or {}).get("id") or pedido_id)
+        total = float(pedido.get("total") or 0)
+        items_pedido = pedido.get("pedido_items", []) or []
+        ga_items = []
+        for it in items_pedido:
+            ga_items.append({
+                "item_id": str(it.get("variante_id") or it.get("sku") or it.get("id") or ""),
+                "item_name": it.get("nombre_producto") or it.get("nombre") or "Calzado",
+                "quantity": int(it.get("cantidad") or 1),
+                "price": float(it.get("precio_unitario") or it.get("precio") or 0),
+            })
+        if not ga_items:
+            ga_items = [{"item_name": "Pedido", "quantity": 1, "price": total}]
+        # client_id: el real de GA si se guardó, si no uno estable derivado del pedido
+        client_id = pedido.get("ga_client_id") or f"{pedido_id}.0"
+        body = {
+            "client_id": client_id,
+            "events": [{
+                "name": "purchase",
+                "params": {
+                    "transaction_id": payment_id,
+                    "currency": "MXN",
+                    "value": total,
+                    "items": ga_items,
+                },
+            }],
+        }
+        url = f"https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={api_secret}"
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=8) as r:
+            r.read()
+    except Exception as e:
+        print(f"[ga4] Error enviando purchase: {e}")
+
+
 def enviar_evento_meta(event_name, pedido, payment):
     if not META_PIXEL_ID or not META_ACCESS_TOKEN:
         return
@@ -418,6 +467,7 @@ async def webhook_mercadopago(request: Request):
                                 {"status": "pagado", "mp_payment_id": str(payment_id)}
                             )
                             enviar_evento_meta("Purchase", p, payment)
+                            enviar_ga4_purchase(p, payment)
                             _confirmar_pago_whatsapp(p)
                             email_cliente = p.get("email_cliente", "")
                             if email_cliente:
