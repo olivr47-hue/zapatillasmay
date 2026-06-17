@@ -695,6 +695,24 @@ def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
         return "[Audio de voz recibido — no se pudo transcribir]"
 
 
+@router.post("/link-pago-manual")
+async def link_pago_manual(datos: dict):
+    """Genera un pedido manual + link de Mercado Pago con precio personalizado
+    (ventas del admin, ej. cuando se cotizó un precio especial). El pago dispara
+    Purchase a Meta/GA igual que cualquier pedido. Espera:
+    {telefono, nombre, direccion, modelo, color, talla, precio (subtotal sin envío), pares}"""
+    try:
+        telefono = (datos.get("telefono") or "").strip()
+        if not telefono:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Falta el teléfono del cliente"})
+        link, total, pedido_id = generar_link_pago_wa(telefono, datos)
+        if link:
+            return {"ok": True, "link": link, "total": total, "pedido_id": pedido_id}
+        return JSONResponse(status_code=500, content={"ok": False, "error": "No se pudo generar el link (revisa MP_ACCESS_TOKEN)"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
 @router.post("/whatsapp")
 async def recibir_mensaje_whatsapp(datos: dict):
     try:
