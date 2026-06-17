@@ -15603,10 +15603,11 @@ async function cargarMercadoLibre() {
       <div class="card" style="margin-bottom:1.5rem">
         <h3 style="margin-bottom:1rem">Paso 1 — Publicar producto nuevo</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-          <div>
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
-            <input id="ml-sku" type="text" placeholder="Ej: O-TAC-0118"
-                   style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+          <div style="position:relative">
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU o modelo del producto</label>
+            <input id="ml-sku" type="text" placeholder="Ej: CR3385 o C-TAC-0118" autocomplete="off"
+                   style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;box-sizing:border-box">
+            <div id="ml-sku-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
           </div>
           <div>
             <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de publicación</label>
@@ -15695,13 +15696,58 @@ async function cargarMercadoLibre() {
     document.getElementById('ml-titulo-count').textContent = this.value.length
   })
 
+  // ── Autocompletado del SKU: buscar por modelo (nombre) o SKU interno ──
+  let _mlProductos = []
+  fetch(`${API}/productos/?select=id,sku_interno,nombre,activo`)
+    .then(r => r.json())
+    .then(d => { _mlProductos = (Array.isArray(d) ? d : []).filter(p => p.activo !== false) })
+    .catch(() => {})
+  const _skuInput = document.getElementById('ml-sku')
+  const _skuSug   = document.getElementById('ml-sku-sug')
+  const _mlRenderSug = (q) => {
+    q = (q || '').toLowerCase().trim()
+    if (!q || !_mlProductos.length) { _skuSug.style.display = 'none'; return }
+    const matches = _mlProductos.filter(p =>
+      (p.nombre || '').toLowerCase().includes(q) || (p.sku_interno || '').toLowerCase().includes(q)
+    ).slice(0, 12)
+    if (!matches.length) { _skuSug.style.display = 'none'; return }
+    _skuSug.innerHTML = matches.map(p => `
+      <div onclick="window._mlElegirSku('${(p.sku_interno || '').replace(/'/g,"\\'")}')"
+           style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.85rem"
+           onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='#fff'">
+        <span style="font-weight:600">${p.nombre || ''}</span>
+        <span style="color:#888;font-size:0.75rem;margin-left:6px">${p.sku_interno || ''}</span>
+      </div>`).join('')
+    _skuSug.style.display = 'block'
+  }
+  window._mlElegirSku = (sku) => { _skuInput.value = sku; _skuSug.style.display = 'none' }
+  _skuInput.addEventListener('input', () => _mlRenderSug(_skuInput.value))
+  _skuInput.addEventListener('focus', () => _mlRenderSug(_skuInput.value))
+  document.addEventListener('click', (e) => {
+    if (_skuSug && !_skuSug.contains(e.target) && e.target !== _skuInput) _skuSug.style.display = 'none'
+  })
+  // Resolver lo escrito (modelo o SKU) a un sku_interno válido. Devuelve sku o null si es ambiguo.
+  window._mlResolverSku = (texto) => {
+    const t = (texto || '').trim()
+    if (!t || !_mlProductos.length) return t.toUpperCase()
+    const exact = _mlProductos.find(p => (p.sku_interno || '').toUpperCase() === t.toUpperCase())
+    if (exact) return exact.sku_interno.toUpperCase()
+    const byName = _mlProductos.filter(p => (p.nombre || '').toLowerCase().includes(t.toLowerCase()))
+    if (byName.length === 1) return byName[0].sku_interno.toUpperCase()
+    if (byName.length > 1) return '__AMBIGUO__'
+    return t.toUpperCase()  // dejar pasar; el backend dirá si no existe
+  }
+
   window.mlGenerarPreview = async () => {
-    const sku       = document.getElementById('ml-sku').value.trim().toUpperCase()
+    const skuTexto  = document.getElementById('ml-sku').value.trim()
     const tipo      = document.getElementById('ml-listing').value
     const titulo    = document.getElementById('ml-titulo').value.trim()
     const precioRaw = document.getElementById('ml-precio').value.trim()
     const precio    = precioRaw ? parseFloat(precioRaw) : null
-    if (!sku)    { alert('Ingresa el SKU del producto'); return }
+    if (!skuTexto) { alert('Ingresa el SKU o modelo del producto'); return }
+    // Resolver modelo/nombre → sku_interno
+    const sku = window._mlResolverSku(skuTexto)
+    if (sku === '__AMBIGUO__') { alert('Hay varios productos que coinciden con "' + skuTexto + '". Elige uno de la lista que aparece al escribir.'); return }
     if (!titulo) { alert('Ingresa el título para ML'); return }
     if (titulo.length > 60) { alert('El título no puede superar 60 caracteres'); return }
     if (precio !== null && (isNaN(precio) || precio <= 0)) { alert('El precio debe ser mayor a 0'); return }
@@ -15924,7 +15970,7 @@ async function cargarMercadoLibre() {
       }
 
       const filas = items.map(it => `
-        <tr style="border-bottom:1px solid var(--border)">
+        <tr data-search="${(it.item_id + ' ' + (it.title||'') + ' ' + (it.seller_sku||'')).toLowerCase().replace(/"/g,'')}" style="border-bottom:1px solid var(--border)">
           <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;white-space:nowrap">
             <a href="https://articulo.mercadolibre.com.mx/${it.item_id.replace(/^(ML[A-Z]+)(\d+)$/, '$1-$2')}" target="_blank" style="color:#3483fa;text-decoration:none">
               ${it.item_id}
@@ -15947,6 +15993,8 @@ async function cargarMercadoLibre() {
           <span style="font-size:0.82rem;color:#e67e22">Pausadas: <b>${paused}</b></span>
           ${sinSku ? `<span style="font-size:0.82rem;color:#e74c3c">Sin SKU ERP: <b>${sinSku}</b></span>` : ''}
         </div>
+        <input id="ml-pubs-buscar" oninput="mlFiltrarPubs(this.value)" placeholder="🔍 Buscar por título, SKU o item ID..."
+               style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
         <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
           <table style="width:100%;border-collapse:collapse">
             <thead>
@@ -15967,6 +16015,13 @@ async function cargarMercadoLibre() {
       btn.innerHTML = orig
       btn.disabled = false
     }
+  }
+
+  window.mlFiltrarPubs = (q) => {
+    q = (q || '').toLowerCase().trim()
+    document.querySelectorAll('#ml-pubs-wrap tbody tr').forEach(tr => {
+      tr.style.display = !q || (tr.dataset.search || '').includes(q) ? '' : 'none'
+    })
   }
 
   window.mlPublicarTodas = async () => {
