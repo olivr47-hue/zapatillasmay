@@ -320,7 +320,13 @@ def _producto_ssr_inner(sku: str):
             '<div class="product-section" id="product-section">',
             f'<div class="product-section" id="product-section">\n  <h1 class="product-name">{_esc(nombre)}</h1>'
         )
-        desc_visible = _esc(desc_raw or desc_unica)
+        # El contenido visible LIDERA con la descripción única (nombre+specs+colores),
+        # luego la descripción original si aporta algo distinto. Así cada página tiene
+        # contenido propio aunque varios productos compartan el texto base.
+        _vis = [desc_unica]
+        if desc_raw and desc_raw[:40].lower() not in desc_unica.lower():
+            _vis.append(desc_raw)
+        desc_visible = "</p><p>".join(_esc(x) for x in _vis)
         if desc_visible:
             template = template.replace(
                 '<div id="desc-card" style="display:none" class="info-card">',
