@@ -501,7 +501,8 @@ _FOOTWEAR_BY_CAT = {
 # MLM-HEELS_AND_WEDGES) NO usa el grid de sandalias: lo rechaza
 # (cause 2613 invalid.fashion_grid.grid_id.values).
 _SIZE_GRID = {
-    "MLM192717": "487994",   # Sandalias (→MLM193324 en storage)
+    "MLM192717": "487994",   # Sandalias y Chanclas
+    "MLM193197": "487994",   # Flats (mismo grid fashion footwear)
     "MLM192062": "356657",   # Botas y Botines
 }
 
