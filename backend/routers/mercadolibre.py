@@ -472,14 +472,15 @@ _TIPO_CALZADO = {
 #   MLM192062=Botas y Botines, MLM193197=Flats, MLM6585=Tenis
 _CATEGORY_ID = {
     "sandalia": "MLM192717", "sandalias": "MLM192717",
-    # Tacones van a MLM192717 (Sandalias) como SIEMPRE los publicó el vendedor
-    # ("Sandalia de tacón"): esa categoría ya tiene su guía de tallas 487994 y
-    # envío me2. MLM193324 (Zapatillas y Tacones) sería la categoría "pura" pero
-    # exige una guía de tallas propia que la cuenta no tiene (API de guías da 404).
+    # Tacones, botines, flats y balerinas van todos a MLM192717 (Sandalias):
+    # es la categoría donde el vendedor siempre publicó su calzado. Tiene
+    # guía de tallas 487994 y envío me2 configurados. Las categorías "puras"
+    # (MLM193324 tacones, MLM193197 flats) exigen guías propias que la cuenta
+    # no tiene — ML responde cause 2613 (invalid.fashion_grid.grid_id.values).
     "tacon": "MLM192717",    "tacones":   "MLM192717",
-    "botin": "MLM192717",    "botines":   "MLM192717",   # ML redirige a MLM193324, SIZE_GRID 487994
-    "flat":  "MLM193197",    "flats":     "MLM193197",
-    "balerina": "MLM193197", "balerinas": "MLM193197",
+    "botin": "MLM192717",    "botines":   "MLM192717",
+    "flat":  "MLM192717",    "flats":     "MLM192717",
+    "balerina": "MLM192717", "balerinas": "MLM192717",
     "tenis": "MLM6585",
 }
 _CATEGORY_DEFAULT = "MLM192717"
@@ -501,8 +502,7 @@ _FOOTWEAR_BY_CAT = {
 # MLM-HEELS_AND_WEDGES) NO usa el grid de sandalias: lo rechaza
 # (cause 2613 invalid.fashion_grid.grid_id.values).
 _SIZE_GRID = {
-    "MLM192717": "487994",   # Sandalias y Chanclas
-    "MLM193197": "487994",   # Flats (mismo grid fashion footwear)
+    "MLM192717": "487994",   # Sandalias y Chanclas (también tacones, botines, flats)
     "MLM192062": "356657",   # Botas y Botines
 }
 
