@@ -40,6 +40,7 @@
       --font-mono: 'DM Mono', monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    a, button, input, select, textarea, [onclick], [role="button"] { touch-action: manipulation; }
     :focus-visible { outline: 2px solid #8B6A54; outline-offset: 2px; border-radius: 3px; }
     html, body { overflow-x: hidden; max-width: 100vw; scroll-behavior: smooth; }
     body { font-family: var(--font-body); background: var(--bg); color: var(--black); -webkit-font-smoothing: antialiased; padding-bottom: 100px; }
@@ -432,7 +433,7 @@
   <div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:520px;padding:24px 20px 32px;max-height:90vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--tan);margin:0">Dejar reseña</p>
-      <button onclick="cerrarFormResena()" style="background:none;border:none;font-size:1.4rem;color:#aaa;cursor:pointer;line-height:1">×</button>
+      <button onclick="cerrarFormResena()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;color:#aaa;cursor:pointer;line-height:1">×</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div>
@@ -1224,7 +1225,7 @@ function zmRechazarCookies() {
   <div style="background:white;border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <span style="font-size:0.9rem;font-weight:700;color:#333">📏 Guía de tallas</span>
-      <button onclick="cerrarGuiaTallas()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;padding:4px">✕</button>
+      <button onclick="cerrarGuiaTallas()" aria-label="Cerrar" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;padding:4px">✕</button>
     </div>
     <p style="font-size:0.78rem;color:#666;margin:0 0 14px">Medida del pie en centímetros (largo interior del zapato)</p>
     <table style="width:100%;border-collapse:collapse;font-size:0.8rem">

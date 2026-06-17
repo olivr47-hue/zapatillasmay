@@ -435,7 +435,7 @@ _PAGINAS_SEO = {
 _PAGINAS_CONTENT = {
     "nosotros": """
 <section style="max-width:800px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h2>
   <p style="color:#7a6055;margin-bottom:24px">Fabricante de calzado femenino en León, Guanajuato</p>
   <p>Somos una empresa familiar fabricante de calzado femenino de moda con sede en <strong>León, Guanajuato</strong>, la capital mundial del calzado. Llevamos años produciendo tacones, sandalias, botas, botines, flats y plataformas con materiales de calidad y diseños actuales.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Directo del fabricante</h2>
@@ -454,7 +454,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "contacto": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Contacto</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Contacto</h2>
   <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
   <p>Estamos disponibles para atenderte por WhatsApp de lunes a sábado. Puedes escribirnos para preguntas sobre productos, tallas, pedidos al mayoreo o seguimiento de envíos.</p>
   <h2 style="font-size:1.2rem;margin-top:28px">WhatsApp</h2>
@@ -470,7 +470,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "envios": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Información de Envíos</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Información de Envíos</h2>
   <p style="color:#7a6055;margin-bottom:24px">Enviamos a toda la República Mexicana</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Costos de envío</h2>
   <ul style="padding-left:20px">
@@ -488,7 +488,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "tabla-tallas": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Tabla de Tallas</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Tabla de Tallas</h2>
   <p style="color:#7a6055;margin-bottom:24px">Calzado de dama — tallas mexicanas</p>
   <p>Nuestro calzado sigue la numeración mexicana estándar. Si tienes dudas sobre tu talla, escríbenos por WhatsApp y con gusto te ayudamos.</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Equivalencias de tallas</h2>
@@ -512,7 +512,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "como-comprar": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Cómo Comprar</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Cómo Comprar</h2>
   <p style="color:#7a6055;margin-bottom:24px">Menudeo y mayoreo sin complicaciones</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Paso a paso</h2>
   <ol style="padding-left:20px">
@@ -539,7 +539,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "mayoreo": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h2>
   <p style="color:#7a6055;margin-bottom:24px">Desde 3 pares, sin registro especial · León, Guanajuato</p>
   <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial. El descuento se aplica automáticamente en el carrito.</p>
   <h2 style="font-size:1.2rem;margin-top:28px">Tabla de precios de mayoreo</h2>
@@ -562,7 +562,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "privacidad": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Aviso de Privacidad</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Aviso de Privacidad</h2>
   <p style="color:#7a6055;margin-bottom:24px">Zapatillas May — León, Guanajuato</p>
   <p>En cumplimiento con la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP), Zapatillas May informa lo siguiente:</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Responsable</h2>
@@ -583,7 +583,7 @@ _PAGINAS_CONTENT = {
 </section>""",
     "politica-de-devoluciones": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
-  <h1 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Política de Devoluciones</h1>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Política de Devoluciones</h2>
   <p style="color:#7a6055;margin-bottom:24px">30 días sin complicaciones</p>
   <p>En Zapatillas May aceptamos devoluciones y cambios dentro de los primeros <strong>30 días</strong> naturales a partir de la fecha de entrega.</p>
   <h2 style="font-size:1.2rem;margin-top:24px">Condiciones</h2>
