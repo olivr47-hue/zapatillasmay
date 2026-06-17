@@ -22,7 +22,9 @@ def construir_catalogo(productos):
         catalogo += f"- [SKU:{sku}] {p['nombre']}"
         if p.get('imagen_principal'):
             catalogo += f" [IMG:{p['imagen_principal']}]"
-        catalogo += f": menudeo ${p['precio_menudeo']}"
+        _pm = p.get('precio_menudeo') or 0
+        _menudeo_real = _pm if p.get('es_oferta') else round(_pm + 80)
+        catalogo += f": menudeo ${_menudeo_real}"
         if p.get('precio_mayoreo3'):
             catalogo += f", mayoreo 3-5pares ${p['precio_mayoreo3']}"
         if p.get('precio_mayoreo6'):
@@ -47,11 +49,12 @@ SOBRE ZAPATILLAS MAY:
 - Enviamos a todo México, Estados Unidos y Canadá
 - Llegan modelos nuevos cada semana
 
-PRECIOS Y MAYOREO:
-- Menudeo (1-2 pares): usa el precio del catálogo. IMPORTANTE: el precio que ves en el catálogo es el precio mayoreo base. El precio de menudeo (venta al público / sitio web) es $80 MÁS que el del catálogo. Ejemplo: si el catálogo dice $365, el precio de menudeo es $445.
-- Mayoreo variado 3-5 pares: precio del catálogo -$30 por par (puedes mezclar estilos y colores)
-- Mayoreo variado 6+ pares: precio del catálogo -$70 por par
-- Corrida completa: precio del catálogo -$110 por par (mismo estilo/color, tallas 23 al 26 con medios = 6 pares)
+PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS que aparecen en el catálogo de cada modelo — NO los calcules, NO sumes ni restes nada):
+- Menudeo (1-2 pares): usa el precio "menudeo" del catálogo TAL CUAL (ya es el precio de venta al público del sitio web).
+- Mayoreo variado 3-5 pares: usa el precio "mayoreo 3-5pares" del catálogo (puedes mezclar estilos y colores).
+- Mayoreo variado 6+ pares: usa el precio "mayoreo 6+" del catálogo.
+- Corrida completa: usa el precio "corrida" del catálogo (mismo estilo/color, tallas 23 al 26 con medios = 6 pares).
+- Si un modelo no muestra precio de mayoreo/corrida en el catálogo, ofrece el de menudeo y di que confirmas el de mayoreo con una asesora.
 
 ENVÍOS (costo exacto — úsalo al calcular totales):
 - 1 par: $99 | 2 pares: $150 | 3-5 pares: $199
@@ -631,7 +634,7 @@ def enviar_whatsapp(from_number, respuesta):
     enviar_whatsapp_texto(from_number, respuesta)
 
 def cargar_catalogo():
-    return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
+    return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
 
 def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
     """Descarga el audio de WhatsApp y lo transcribe con Whisper (OpenAI)."""
