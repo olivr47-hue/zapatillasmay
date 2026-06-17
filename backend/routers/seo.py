@@ -134,7 +134,7 @@ def _producto_ssr_inner(sku: str):
         imagenes_seo.append(imagen)
     try:
         variantes = supabase_get(
-            f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=foto_url,imagenes"
+            f"variantes?producto_id=eq.{p['id']}&activa=eq.true&select=foto_url,imagenes,color"
         )
         for v in (variantes or []):
             if v.get("foto_url"):
@@ -147,6 +147,39 @@ def _producto_ssr_inner(sku: str):
     # Quitar duplicados conservando el orden
     _seen = set()
     imagenes_seo = [u for u in imagenes_seo if u and not (u in _seen or _seen.add(u))]
+
+    # Colores disponibles (contenido único por producto — combate el "contenido duplicado")
+    colores = []
+    _cseen = set()
+    for v in (variantes or []):
+        c = (v.get("color") or "").strip()
+        if c and c.lower() not in _cseen:
+            _cseen.add(c.lower())
+            colores.append(c)
+
+    # Descripción única generada con los atributos reales del producto.
+    # Evita que 186 páginas compartan el mismo texto (causa de que Google elija otra canónica).
+    _cat_txt = {
+        "tacones": "Tacones", "sandalias": "Sandalias", "botas": "Botas",
+        "botines": "Botines", "flats": "Flats", "plataformas": "Plataformas",
+        "tenis": "Tenis", "nina": "Calzado para niña", "accesorios": "Accesorios",
+    }.get(categoria, (categoria or "Calzado").capitalize())
+    _det = []
+    if p.get("altura_tacon"):
+        _det.append(f"altura de tacón {p.get('altura_tacon')} cm")
+    if p.get("tipo_tacon"):
+        _det.append(f"tacón {str(p.get('tipo_tacon')).strip().lower()}")
+    if p.get("material"):
+        _det.append(f"corte {str(p.get('material')).strip().lower()}")
+    _partes = [f"{nombre}.", f"{_cat_txt} para dama de Zapatillas May, fabricados en León, Guanajuato."]
+    if _det:
+        _partes.append("Con " + ", ".join(_det) + ".")
+    if colores:
+        _partes.append("Disponible en " + ", ".join(colores[:6]) + ".")
+    _partes.append("Mayoreo automático desde 3 pares y envíos a todo México.")
+    desc_unica = " ".join(_partes)
+    # Meta description única: prioriza la del panel; si no, la generada (nunca la genérica compartida)
+    desc = (meta_desc or desc_unica)[:160]
 
     def _esc(s):
         return _html.escape(str(s or ""), quote=True)
@@ -287,7 +320,7 @@ def _producto_ssr_inner(sku: str):
             '<div class="product-section" id="product-section">',
             f'<div class="product-section" id="product-section">\n  <h1 class="product-name">{_esc(nombre)}</h1>'
         )
-        desc_visible = _esc(desc_raw)
+        desc_visible = _esc(desc_raw or desc_unica)
         if desc_visible:
             template = template.replace(
                 '<div id="desc-card" style="display:none" class="info-card">',
@@ -303,6 +336,8 @@ def _producto_ssr_inner(sku: str):
             if v:
                 specs.append(f"{label}: {_esc(v)}")
         _add("Categoría", categoria)
+        if colores:
+            _add("Colores disponibles", ", ".join(colores))
         _add("Material", p.get("material"))
         _add("Forro", p.get("forro"))
         _add("Suela", p.get("material_suela"))
