@@ -7,6 +7,14 @@
   <meta name="description" content="Tu pedido fue confirmado exitosamente. Gracias por comprar en Zapatillas May.">
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-QX8MK3D4RY');
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"></noscript>
@@ -252,16 +260,48 @@
   } catch(e) {}
 })()
 
-// GA4: purchase event
-try {
-  if (typeof gtag === 'function') {
-    const params = new URLSearchParams(window.location.search)
+// GA4: purchase event (se dispara una sola vez por payment_id)
+;(function() {
+  const params = new URLSearchParams(window.location.search)
+  const paymentId = params.get('payment_id') || params.get('collection_id') || ''
+  const status    = params.get('status') || params.get('collection_status') || ''
+
+  // Solo disparar si el pago fue aprobado
+  if (status && status !== 'approved') return
+
+  // Evitar duplicados si el usuario recarga la página
+  const lastKey = 'zm_last_purchase'
+  if (paymentId && localStorage.getItem(lastKey) === paymentId) return
+  if (paymentId) localStorage.setItem(lastKey, paymentId)
+
+  // Valor guardado en checkout antes del redirect a MercadoPago
+  let valor = 0
+  try { valor = parseFloat(localStorage.getItem('zm_purchase_value') || '0') } catch(e) {}
+  try { localStorage.removeItem('zm_purchase_value') } catch(e) {}
+
+  const fireGA4 = () => {
+    if (typeof gtag !== 'function') return
     gtag('event', 'purchase', {
-      transaction_id: params.get('payment_id') || params.get('collection_id') || 'unknown',
-      currency: 'MXN'
+      transaction_id: paymentId || String(Date.now()),
+      currency:       'MXN',
+      value:          valor,
+      items: [{
+        item_id:   paymentId || 'pedido',
+        item_name: 'Pedido Zapatillas May',
+        currency:  'MXN',
+        price:     valor,
+        quantity:  1,
+      }]
     })
   }
-} catch(e) {}
+
+  // gtag puede tardar unos ms en cargar (script async)
+  if (typeof gtag === 'function') {
+    fireGA4()
+  } else {
+    setTimeout(fireGA4, 1500)
+  }
+})();
 
 function copiarLink() {
   navigator.clipboard.writeText('https://zapatillasmay.mx').then(() => {
