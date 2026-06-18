@@ -978,6 +978,7 @@ function irACarrito() {
   // Pixels
   if (window.fbq) fbq('track', 'AddToCart', { content_ids: [p.sku_interno || p.id], content_type: 'product', content_name: p.nombre, value: precioBase, currency: 'MXN' })
   if (window.ttq) ttq.track('AddToCart', { content_id: p.sku_interno || p.id, content_type: 'product', content_name: p.nombre, value: precioBase, price: precioBase, currency: 'MXN' })
+  if (typeof gtag === 'function') gtag('event', 'add_to_cart', { currency: 'MXN', value: precioBase, items: [{ item_id: p.sku_interno || p.id, item_name: p.nombre, price: precioBase, quantity: 1 }] })
 
   // Toast + animación + reset talla
   mostrarToast('✓ Agregado al carrito')
