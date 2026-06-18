@@ -11530,7 +11530,7 @@ window._renderBurbujas = (chat) => {
   return mensajesOrden.map((m, idx) => {
     const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
     const senderName = esSaliente ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
-    const ts = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+    const ts = parseUTC(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
     const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
 
     // Construir body de la burbuja según tipo
