@@ -4206,10 +4206,10 @@ ${o.telefono?'<a href="https://wa.me/'+(o.lada||"52")+o.telefono.replace(/\D/g,"
         </div>
       </div>`}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error: '+t.message+"</p>"}};window.aprobarResena=async e=>{try{await fetch(f+"/resenas/admin/"+e+"/aprobar",{method:"PATCH"});const t=document.getElementById("resena-"+e);t&&t.remove()}catch{alert("Error al aprobar la reseña")}};window.eliminarResena=async e=>{if(confirm("¿Eliminar esta reseña permanentemente?"))try{await fetch(f+"/resenas/admin/"+e,{method:"DELETE"});const t=document.getElementById("resena-"+e);t&&t.remove()}catch{alert("Error al eliminar la reseña")}};window.pedirResena=(e,t,o)=>{let a=(e||"").replace(/\D/g,"");if(!a){alert("Este pedido no tiene teléfono");return}a.length===10&&(a="52"+a);const n=o?`https://zapatillasmay.mx/producto/${o}`:"https://zapatillasmay.mx",i=`¡Hola ${t||""}! 🥰 ¿Te gustaron tus zapatillas? Nos ayudarías muchísimo dejando una reseña aquí 👉 ${n}
 
-Solo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`;window.open("https://wa.me/"+a+"?text="+encodeURIComponent(i),"_blank")};window.mostrarFormLinkPago=()=>{const e=document.getElementById("content");e.innerHTML=`
+Solo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`;window.open("https://wa.me/"+a+"?text="+encodeURIComponent(i),"_blank")};window.mostrarFormLinkPago=e=>{e=e||{};const t=e.volver==="chat"?"cargarConversaciones()":"cargarPedidos()",o=document.getElementById("content");if(o.innerHTML=`
     <div class="table-card" style="padding:2rem;max-width:560px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
-        <button class="btn btn-secondary" onclick="cargarPedidos()">← Volver</button>
+        <button class="btn btn-secondary" onclick="${t}">← Volver</button>
         <h3 style="margin:0">💳 Crear link de pago</h3>
       </div>
       <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Crea el pedido + link de MercadoPago. Al pagar, se detecta en Meta y GA.</p>
@@ -4231,7 +4231,7 @@ Solo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`;window.open("https
       <p style="font-size:0.78rem;color:#888;margin-top:0.75rem">El envío se agrega solo: 1 par $99 · 2 $150 · 3-5 $199 · gratis desde $1,299.</p>
       <button class="btn btn-primary" id="lp-btn" onclick="generarLinkPago()" style="margin-top:1rem;width:100%">Generar link de pago</button>
       <div id="lp-resultado" style="margin-top:1.25rem"></div>
-    </div>`};window.generarLinkPago=async()=>{const e=d=>(document.getElementById(d).value||"").trim(),t=e("lp-modelo"),o=parseFloat(e("lp-precio")),a=parseInt(e("lp-pares")||"1"),n=e("lp-nombre"),i=e("lp-tel");if(!t||!n||!i||!e("lp-precio")){alert("Completa modelo, precio, nombre y WhatsApp");return}if(isNaN(o)||o<=0){alert("El precio debe ser mayor a 0");return}const r=document.getElementById("lp-btn");r.textContent="Generando...",r.disabled=!0;const s=document.getElementById("lp-resultado");s.innerHTML="";try{const l=await(await fetch(f+"/chatbot/link-pago-manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:i,nombre:n,direccion:e("lp-dir"),modelo:t,color:e("lp-color"),talla:e("lp-talla"),precio:o,pares:a||1})})).json();if(!l.ok||!l.link){s.innerHTML=`<p style="color:#c62828">Error: ${l.error||"no se pudo generar"}</p>`;return}let c=i.replace(/\D/g,"");c.length===10&&(c="52"+c);const p=`¡Hola ${n.split(" ")[0]}! 🥰 Aquí está tu link de pago de ${t}:
+    </div>`,e.telefono){const a=document.getElementById("lp-tel");a&&(a.value=e.telefono.replace(/\D/g,""))}if(e.nombre){const a=document.getElementById("lp-nombre");a&&(a.value=e.nombre)}};window.linkPagoDesdeChat=(e,t)=>{mostrarFormLinkPago({telefono:e,nombre:t,volver:"chat"})};window.generarLinkPago=async()=>{const e=d=>(document.getElementById(d).value||"").trim(),t=e("lp-modelo"),o=parseFloat(e("lp-precio")),a=parseInt(e("lp-pares")||"1"),n=e("lp-nombre"),i=e("lp-tel");if(!t||!n||!i||!e("lp-precio")){alert("Completa modelo, precio, nombre y WhatsApp");return}if(isNaN(o)||o<=0){alert("El precio debe ser mayor a 0");return}const r=document.getElementById("lp-btn");r.textContent="Generando...",r.disabled=!0;const s=document.getElementById("lp-resultado");s.innerHTML="";try{const l=await(await fetch(f+"/chatbot/link-pago-manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:i,nombre:n,direccion:e("lp-dir"),modelo:t,color:e("lp-color"),talla:e("lp-talla"),precio:o,pares:a||1})})).json();if(!l.ok||!l.link){s.innerHTML=`<p style="color:#c62828">Error: ${l.error||"no se pudo generar"}</p>`;return}let c=i.replace(/\D/g,"");c.length===10&&(c="52"+c);const p=`¡Hola ${n.split(" ")[0]}! 🥰 Aquí está tu link de pago de ${t}:
 💳 Total: $${l.total} MXN (incluye envío)
 👉 ${l.link}
 Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`;s.innerHTML=`
@@ -4577,6 +4577,9 @@ Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu
         </button>
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${e}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${e}','${(t.nombre||"").replace(/'/g,"")}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>
         <div style="flex:1"></div>
         <span id="reply-context-${e}" class="wa-reply-context" style="display:none"></span>

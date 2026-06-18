@@ -10878,12 +10878,14 @@ window.pedirResena = (telefono, nombre, sku) => {
 }
 
 // ── Crear link de pago manual (precio personalizado) ──────────────────────
-window.mostrarFormLinkPago = () => {
+window.mostrarFormLinkPago = (prefill) => {
+  prefill = prefill || {}
+  const _volver = prefill.volver === 'chat' ? 'cargarConversaciones()' : 'cargarPedidos()'
   const content = document.getElementById('content')
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:560px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
-        <button class="btn btn-secondary" onclick="cargarPedidos()">← Volver</button>
+        <button class="btn btn-secondary" onclick="${_volver}">← Volver</button>
         <h3 style="margin:0">💳 Crear link de pago</h3>
       </div>
       <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Crea el pedido + link de MercadoPago. Al pagar, se detecta en Meta y GA.</p>
@@ -10906,6 +10908,11 @@ window.mostrarFormLinkPago = () => {
       <button class="btn btn-primary" id="lp-btn" onclick="generarLinkPago()" style="margin-top:1rem;width:100%">Generar link de pago</button>
       <div id="lp-resultado" style="margin-top:1.25rem"></div>
     </div>`
+  if (prefill.telefono) { const e = document.getElementById('lp-tel'); if (e) e.value = prefill.telefono.replace(/\D/g, '') }
+  if (prefill.nombre) { const e = document.getElementById('lp-nombre'); if (e) e.value = prefill.nombre }
+}
+window.linkPagoDesdeChat = (telefono, nombre) => {
+  mostrarFormLinkPago({ telefono, nombre, volver: 'chat' })
 }
 window.generarLinkPago = async () => {
   const v = id => (document.getElementById(id).value || '').trim()
@@ -11748,6 +11755,9 @@ area.style.minHeight = '0'
         </button>
         <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${telefono}','${(chat.nombre||'').replace(/'/g,'')}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>
         <div style="flex:1"></div>
         <span id="reply-context-${telefono}" class="wa-reply-context" style="display:none"></span>
