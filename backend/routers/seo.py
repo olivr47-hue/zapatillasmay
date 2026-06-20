@@ -712,8 +712,8 @@ def pagina_ssr(slug: str):
                     f'<ul style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px">'
                     f'{_prod_links}</ul></section>'
                 )
-            template = template.replace('<div id="productos-section"',
-                                        _ssr_block + '<div id="productos-section"', 1)
+            template = template.replace('<div class="section" id="productos-section"',
+                                        _ssr_block + '<div class="section" id="productos-section"', 1)
 
         if _cat_productos:
             _items_ld = []
