@@ -1544,6 +1544,50 @@ def feed_google():
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
+STORE_CODE = "MAY-LEON"
+
+@router.get("/feed/google-local.xml")
+def feed_google_local():
+    """Feed de inventario local para Google Merchant Center (Local Surfaces across Google)."""
+    cached = cache_get("feed_google_local")
+    if cached is not None:
+        return Response(content=cached, media_type="application/xml")
+    try:
+        productos  = supabase_get("productos?activo=eq.true&select=id,sku_interno,precio_menudeo,es_oferta")
+        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
+
+        inv_map = {i["variante_id"]: int(i.get("cantidad") or 0) for i in (inventario or []) if i.get("variante_id")}
+        # stock total por producto_id
+        stock_por_producto: dict = {}
+        for v in (variantes or []):
+            pid = v.get("producto_id")
+            vid = v.get("id")
+            if pid and vid:
+                stock_por_producto[pid] = stock_por_producto.get(pid, 0) + inv_map.get(vid, 0)
+
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+        xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
+        for p in productos:
+            sku = p.get("sku_interno") or p.get("id")
+            pid = p.get("id")
+            base = float(p.get("precio_menudeo") or 0)
+            precio = base if p.get("es_oferta") else round(base + 80)
+            qty = stock_por_producto.get(pid, 0)
+            availability = "in stock" if qty > 0 else "out of stock"
+            xml += '<entry>\n'
+            xml += f'  <g:store_code>{STORE_CODE}</g:store_code>\n'
+            xml += f'  <g:id>{sku}</g:id>\n'
+            xml += f'  <g:availability>{availability}</g:availability>\n'
+            xml += f'  <g:price>{precio}.0 MXN</g:price>\n'
+            xml += f'  <g:quantity>{qty}</g:quantity>\n'
+            xml += '</entry>\n'
+        xml += '</feed>'
+        cache_set("feed_google_local", xml, ttl=TTL_FEEDS)
+        return Response(content=xml, media_type="application/xml")
+    except Exception as e:
+        return Response(content=str(e), status_code=500)
+
 @router.get("/feed/tiktok.json")
 def feed_tiktok():
     try:
