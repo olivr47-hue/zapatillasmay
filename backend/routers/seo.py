@@ -1544,7 +1544,7 @@ def feed_google():
     except Exception as e:
         return Response(content=str(e), status_code=500)
 
-STORE_CODE = "48CP+WR León, Guanajuato"
+STORE_CODE = "6434402037718937415"
 
 @router.get("/feed/google-local.xml")
 def feed_google_local():
