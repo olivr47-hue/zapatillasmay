@@ -1573,13 +1573,15 @@ def feed_google_local():
             pid = p.get("id")
             base = float(p.get("precio_menudeo") or 0)
             precio = base if p.get("es_oferta") else round(base + 80)
+            if not sku or precio <= 0:
+                continue
             qty = stock_por_producto.get(pid, 0)
             availability = "in stock" if qty > 0 else "out of stock"
             xml += '<entry>\n'
-            xml += f'  <g:store_code>{STORE_CODE}</g:store_code>\n'
-            xml += f'  <g:id>{sku}</g:id>\n'
+            xml += f'  <g:store_code>{_html.escape(STORE_CODE)}</g:store_code>\n'
+            xml += f'  <g:id>{_html.escape(str(sku))}</g:id>\n'
             xml += f'  <g:availability>{availability}</g:availability>\n'
-            xml += f'  <g:price>{precio}.0 MXN</g:price>\n'
+            xml += f'  <g:price>{precio} MXN</g:price>\n'
             xml += f'  <g:quantity>{qty}</g:quantity>\n'
             xml += '</entry>\n'
         xml += '</feed>'
