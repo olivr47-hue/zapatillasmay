@@ -303,6 +303,34 @@
   }
 })();
 
+// Pinterest Tag + checkout event (complementa la CAPI server-side)
+;(function() {
+  if (localStorage.getItem('zm_consent') === 'rejected') return
+  const params    = new URLSearchParams(window.location.search)
+  const paymentId = params.get('payment_id') || params.get('collection_id') || ''
+  const status    = params.get('status') || params.get('collection_status') || ''
+  if (status && status !== 'approved') return
+
+  let valor = 0
+  try { valor = parseFloat(localStorage.getItem('zm_purchase_value') || '0') } catch(e) {}
+  const email = (localStorage.getItem('zm_checkout_email') || '').trim().toLowerCase()
+
+  const s = document.createElement('script')
+  s.textContent = `!function(e){if(!window.pintrk){window.pintrk=function(){window.pintrk.queue.push(Array.prototype.slice.call(arguments))};var n=window.pintrk;n.queue=[],n.version="3.0";var t=document.createElement("script");t.async=!0,t.src=e;var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r)}}("https://s.pinimg.com/ct/core.js");pintrk('load','2612943035007',${email ? `{em:${JSON.stringify(email)}}` : '{}'});pintrk('page');`
+  document.head.appendChild(s)
+
+  // Disparar checkout después de que el script cargue
+  setTimeout(() => {
+    if (typeof pintrk !== 'function') return
+    pintrk('track', 'checkout', {
+      value:       valor,
+      currency:    'MXN',
+      order_id:    paymentId || undefined,
+      line_items:  [{ product_category: 'Calzado', product_brand: 'May' }]
+    })
+  }, 1200)
+})();
+
 function copiarLink() {
   navigator.clipboard.writeText('https://zapatillasmay.mx').then(() => {
     const btn = document.getElementById('btn-copiar')
