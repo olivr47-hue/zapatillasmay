@@ -4199,6 +4199,24 @@ if (window.ttq) {
       value: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
       items: [{ item_id: p.sku_interno || p.id, item_name: p.nombre, item_category: p.categoria, price: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80, quantity: 1 }]
     })
+    // Pinterest CAPI: add_to_cart (server-side)
+    try {
+      const _pinterestPrice = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
+      fetch(API + '/pinterest/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name:       'add_to_cart',
+          event_source_url: location.href,
+          event_id:         'atc-' + (p.sku_interno || p.id) + '-' + Date.now(),
+          value:            _pinterestPrice,
+          currency:         'MXN',
+          content_ids:      [p.sku_interno || p.id],
+          content_name:     p.nombre,
+          num_items:        1,
+        })
+      }).catch(() => {})
+    } catch(e) {}
     cerrarModalBtn()
     recalcularCarrito()
     renderCarrito()

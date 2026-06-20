@@ -16,6 +16,7 @@ from routers import carrito_abandonado
 from routers import mcp_server
 from routers import tiktok as tiktok_router
 from routers import resenas
+from routers import pinterest
 
 app = FastAPI(
     title="ERP Zapatillas May",
@@ -91,6 +92,7 @@ app.include_router(referidos.router)
 app.include_router(carrito_abandonado.router)
 app.include_router(mcp_server.router)
 app.include_router(resenas.router)
+app.include_router(pinterest.router)
 
 # ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
 import threading, time as _time

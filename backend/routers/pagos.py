@@ -468,6 +468,11 @@ async def webhook_mercadopago(request: Request):
                             )
                             enviar_evento_meta("Purchase", p, payment)
                             enviar_ga4_purchase(p, payment)
+                            try:
+                                from routers.pinterest import enviar_checkout as pinterest_checkout
+                                pinterest_checkout(p, payment)
+                            except Exception as _pe:
+                                print(f"[pagos] Error Pinterest CAPI: {_pe}")
                             _confirmar_pago_whatsapp(p)
                             email_cliente = p.get("email_cliente", "")
                             if email_cliente:
