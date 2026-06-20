@@ -224,7 +224,7 @@ def _producto_ssr_inner(sku: str):
     ld = {
         "@context": "https://schema.org/",
         "@type": "Product",
-        "name": nombre,
+        "name": titulo_seo.split(" | ")[0] if " | " in titulo_seo else titulo_seo,
         "image": imagenes_seo or ([imagen] if imagen else []),
         "description": (meta_desc or desc_raw)[:300],
         "sku": sku_canon,
@@ -234,7 +234,7 @@ def _producto_ssr_inner(sku: str):
             "@type": "Offer",
             "url": canonical,
             "priceCurrency": "MXN",
-            "price": str(precio_display),
+            "price": str(precio),
             "availability": "https://schema.org/InStock",
             "seller": {"@type": "Organization", "name": "Zapatillas May"},
         },
@@ -660,18 +660,6 @@ def pagina_ssr(slug: str):
                 1
             )
 
-        # Inyectar H1 visible con keywords de categoría para ranking local (igual que Wix)
-        # Se muestra como breadcrumb sutil arriba de los productos — visible para Google y usuarios
-        h1_seo = _PAGINAS_H1.get(slug)
-        if h1_seo:
-            h1_tag = (
-                f'<h1 style="font-size:0.78rem;font-weight:500;color:#9c7c6e;letter-spacing:0.3px;'
-                f'padding:8px 20px 0;margin:0;font-family:DM Sans,sans-serif;opacity:0.85">'
-                f'{_esc_pagina(h1_seo)}</h1>'
-            )
-            template = template.replace('<div id="productos-section"',
-                                        h1_tag + '<div id="productos-section"', 1)
-
         # ItemList + BreadcrumbList schema para categorías (rich results en SERP)
         _cat_productos = []
         try:
@@ -680,6 +668,53 @@ def pagina_ssr(slug: str):
             ) or []
         except Exception:
             pass
+
+        # Inyectar H1 + listado de productos visible en HTML inicial.
+        # Hace cada página de categoría genuinamente diferente a la home para Google
+        # (soluciona "Duplicate, Google chose different canonical than user").
+        # El JS carga el catálogo debajo; esta sección queda como acceso rápido.
+        _CAT_DESCS = {
+            "tacones":     "Tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México.",
+            "sandalias":   "Sandalias de dama hechas en León, Guanajuato: casuales, de fiesta y de cuña. Mayoreo desde 3 pares. Envíos a todo México.",
+            "botas":       "Botas de moda para dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México.",
+            "botines":     "Botines de dama de temporada fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "flats":       "Flats y zapatos bajos de dama, cómodos y de moda, hechos en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "plataformas": "Plataformas de dama con altura y comodidad, fabricadas en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "tenis":       "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "nina":        "Calzado para niña cómodo y resistente, fabricado en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "accesorios":  "Accesorios de moda de Zapatillas May, fabricados en León, Guanajuato. Mayoreo y menudeo con envíos a todo México.",
+            "ofertas":     "Ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México.",
+            "mayoreo":     "Compra calzado de dama a precio de mayoreo desde 3 pares, sin registro especial. Fabricado en León, Guanajuato.",
+        }
+        h1_seo = _PAGINAS_H1.get(slug)
+        _cat_desc_txt = _CAT_DESCS.get(slug, "")
+        if h1_seo:
+            _h1_tag = (
+                f'<h1 style="font-size:0.78rem;font-weight:500;color:#9c7c6e;letter-spacing:0.3px;'
+                f'padding:8px 20px 0;margin:0;font-family:DM Sans,sans-serif;opacity:0.85">'
+                f'{_esc_pagina(h1_seo)}</h1>'
+            )
+            _prod_links = ""
+            if _cat_productos and _cat_desc_txt:
+                _prod_links = "".join(
+                    f'<li style="flex:0 0 auto"><a href="/producto/{_esc_pagina(_pp.get("sku_interno") or "")}"'
+                    f' style="display:block;padding:6px 12px;background:#fff;border:1px solid #e8e0da;'
+                    f'border-radius:20px;text-decoration:none;color:#5a4a40;font-size:0.78rem;white-space:nowrap">'
+                    f'{_esc_pagina((_pp.get("meta_titulo") or _pp.get("nombre") or "").strip())}</a></li>'
+                    for _pp in _cat_productos[:15] if _pp.get("sku_interno")
+                )
+            _ssr_block = _h1_tag
+            if _prod_links:
+                _ssr_block += (
+                    f'<section style="padding:10px 20px 14px;font-family:DM Sans,sans-serif">'
+                    f'<p style="font-size:0.82rem;color:#6b5a52;margin:0 0 10px;line-height:1.5">'
+                    f'{_esc_pagina(_cat_desc_txt)}</p>'
+                    f'<ul style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px">'
+                    f'{_prod_links}</ul></section>'
+                )
+            template = template.replace('<div id="productos-section"',
+                                        _ssr_block + '<div id="productos-section"', 1)
+
         if _cat_productos:
             _items_ld = []
             for _i, _pp in enumerate(_cat_productos, 1):
