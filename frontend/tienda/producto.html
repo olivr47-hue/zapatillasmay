@@ -899,12 +899,21 @@ function renderThumbs() {
   if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
   row.style.display = 'flex'
   row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${zmImg(url, 128)}" alt="${(producto?.nombre||'Calzado')} ${producto?.categoria||''} — foto ${i+1}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
+  // Precargar fotos secundarias en 900px para que el click sea instantáneo
+  fotosActuales.slice(1).forEach(url => { const _p = new Image(); _p.src = zmImg(url, 900) })
 }
 
 function cambiarFoto(idx) {
   const imgMain = document.getElementById('gallery-main')
-  imgMain.src = zmImg(fotosActuales[idx], 900)
+  const nextSrc = zmImg(fotosActuales[idx], 900)
   document.querySelectorAll('.gallery-thumb').forEach((t,i) => t.classList.toggle('active', i===idx))
+  const img = new Image()
+  img.onload = () => {
+    imgMain.style.transition = 'opacity 0.15s'
+    imgMain.style.opacity = '0'
+    requestAnimationFrame(() => { imgMain.src = nextSrc; imgMain.style.opacity = '1' })
+  }
+  img.src = nextSrc
 }
 
 function actualizarCTA() {
