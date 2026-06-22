@@ -361,6 +361,35 @@ function copiarLink() {
     setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar enlace' }, 2000)
   }).catch(() => {})
 }
+
+// Google Customer Reviews — opt-in survey
+;(function() {
+  const params = new URLSearchParams(window.location.search)
+  const status = params.get('status') || params.get('collection_status') || ''
+  if (['failure','rejected','cancelled'].includes(status)) return
+  const email = (localStorage.getItem('zm_checkout_email') || '').trim().toLowerCase()
+  if (!email) return  // email requerido por Google
+  const orderId = params.get('payment_id') || params.get('collection_id') || String(Date.now())
+  // Fecha estimada: 3 días hábiles desde hoy
+  let d = new Date(), hábiles = 0
+  while (hábiles < 3) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) hábiles++ }
+  const entrega = d.toISOString().slice(0, 10)
+  window.renderOptIn = function() {
+    window.gapi.load('surveyoptin', function() {
+      window.gapi.surveyoptin.render({
+        merchant_id: 5536736016,
+        order_id: orderId,
+        email: email,
+        delivery_country: 'MX',
+        estimated_delivery_date: entrega,
+      })
+    })
+  }
+  const s = document.createElement('script')
+  s.src = 'https://apis.google.com/js/platform.js?onload=renderOptIn'
+  s.async = true; s.defer = true
+  document.head.appendChild(s)
+})();
 </script>
 </body>
 </html>
