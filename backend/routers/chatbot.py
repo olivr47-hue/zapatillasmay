@@ -735,7 +735,8 @@ async def recibir_mensaje_whatsapp(datos: dict):
                     if existing:
                         supabase_patch(f"chats_control?telefono=eq.{recipient}", {campo: now_iso})
                     else:
-                        supabase_post("chats_control", {"telefono": recipient, campo: now_iso})
+                        # en_control=False explícito: un recibo de lectura NO debe apagar a Maya
+                        supabase_post("chats_control", {"telefono": recipient, campo: now_iso, "en_control": False})
                     cache_invalidate("chats_lista")
                 except Exception as e:
                     print(f"Error guardando status {status_type}: {e}")
