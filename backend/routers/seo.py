@@ -1336,7 +1336,7 @@ def feed_meta():
                     xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
                     xml += f'  <g:color>{color}</g:color>\n'
                     xml += f'  <g:size>{talla_feed}</g:size>\n'
-                    xml += f'  <g:size_system>MX</g:size_system>\n'
+                    xml += f'  <g:size_system>MEX</g:size_system>\n'
                     xml += f'  <g:size_type>regular</g:size_type>\n'
                     xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
                     xml += f'  <g:gender>female</g:gender>\n'
@@ -1375,7 +1375,7 @@ def feed_meta():
                 xml += f'  <g:gender>female</g:gender>\n'
                 xml += f'  <g:age_group>adult</g:age_group>\n'
                 xml += f'  <g:size>One Size</g:size>\n'
-                xml += f'  <g:size_system>MX</g:size_system>\n'
+                xml += f'  <g:size_system>MEX</g:size_system>\n'
                 if mat2:
                     xml += f'  <g:material>{_html.escape(mat2, quote=True)}</g:material>\n'
                 xml += f'  <g:custom_label_0>mayoreo_disponible</g:custom_label_0>\n'
