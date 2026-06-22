@@ -11475,7 +11475,7 @@ window._htmlChatItems = (chats) => {
                   <div class="wa-chat-name">${c.nombre || c.telefono}
                     ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
                   </div>
-                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; return mm.startsWith('[Imagen]') ? '📷 Imagen' : mm.substring(0,40)+'…' })()}</div>
+                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.substring(0,40)+'…' })()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
@@ -11566,8 +11566,18 @@ window._renderBurbujas = (chat) => {
           ${ops.length < (partes[1]||'').split(', ').length ? '<div style="color:#94a3b8">…</div>' : ''}
         </div>`
     } else if (m.tipo === 'carrusel_saliente') {
-      msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Carrusel] ','')}</p>
-        <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>`
+      const partesC = (m.mensaje || '').split('|IMGS|')
+      const imgsC = partesC[1] ? partesC[1].split(',').filter(Boolean) : []
+      const textoC = textoLimpio.split('|IMGS|')[0].replace('[Carrusel] ', '')
+      msgBody = `<p style="margin:0;font-size:0.85rem">${textoC}</p>
+        ${imgsC.length
+          ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;max-width:250px;padding-bottom:2px">${imgsC.map(u => `<img src="${u}" alt="producto" style="width:62px;height:78px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer" onclick="window.open('${u}','_blank')">`).join('')}</div>`
+          : '<p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>'}`
+    } else if (m.tipo === 'sticker') {
+      const stUrl = (m.mensaje || '').match(/https?:\/\/\S+/)
+      msgBody = stUrl
+        ? `<img src="${stUrl[0]}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
+        : `<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>`
     } else if (m.tipo === 'template_saliente') {
       msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Template] ','')}</p>
         <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`

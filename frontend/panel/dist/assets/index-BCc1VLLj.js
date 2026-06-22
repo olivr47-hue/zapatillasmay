@@ -4453,7 +4453,7 @@ Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu
                   <div class="wa-chat-name">${t.nombre||t.telefono}
                     ${t.estado&&t.estado!=="abierto"?`<span class="wa-estado-badge ${t.estado}">${t.estado==="espera"?"En espera":"Cerrado"}</span>`:""}
                   </div>
-                  <div class="wa-chat-preview">${(()=>{const o=t.mensajes&&t.mensajes[0]&&t.mensajes[0].mensaje||"";return o.startsWith("[Imagen]")?"📷 Imagen":o.substring(0,40)+"…"})()}</div>
+                  <div class="wa-chat-preview">${(()=>{const o=t.mensajes&&t.mensajes[0]&&t.mensajes[0].mensaje||"";return o.startsWith("[Imagen]")?"📷 Imagen":o.startsWith("[Sticker]")?"🏷️ Sticker":o.substring(0,40)+"…"})()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${new Date(t.ultimo_mensaje).toLocaleDateString("es-MX",{day:"numeric",month:"short"})}</span>
@@ -4468,8 +4468,8 @@ Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu
         <div style="border:1px solid rgba(8,145,178,0.25);border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#0891b2">
           ${w.map(k=>`<div>• ${k}</div>`).join("")}
           ${w.length<(b[1]||"").split(", ").length?'<div style="color:#94a3b8">…</div>':""}
-        </div>`}else if(n.tipo==="carrusel_saliente")c=`<p style="margin:0;font-size:0.85rem">${l.replace("[Carrusel] ","")}</p>
-        <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>`;else if(n.tipo==="template_saliente")c=`<p style="margin:0;font-size:0.85rem">${l.replace("[Template] ","")}</p>
+        </div>`}else if(n.tipo==="carrusel_saliente"){const b=(n.mensaje||"").split("|IMGS|"),h=b[1]?b[1].split(",").filter(Boolean):[];c=`<p style="margin:0;font-size:0.85rem">${l.split("|IMGS|")[0].replace("[Carrusel] ","")}</p>
+        ${h.length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;max-width:250px;padding-bottom:2px">${h.map(k=>`<img src="${k}" alt="producto" style="width:62px;height:78px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer" onclick="window.open('${k}','_blank')">`).join("")}</div>`:'<p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>'}`}else if(n.tipo==="sticker"){const b=(n.mensaje||"").match(/https?:\/\/\S+/);c=b?`<img src="${b[0]}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`:'<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>'}else if(n.tipo==="template_saliente")c=`<p style="margin:0;font-size:0.85rem">${l.replace("[Template] ","")}</p>
         <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`;else if(n.tipo==="button_reply")c=`<p style="margin:0;color:#0891b2;font-size:0.85rem">👆 ${l.replace("[Botón] ","")}</p>`;else if(n.tipo==="list_reply")c=`<p style="margin:0;color:#0891b2;font-size:0.85rem">☰ ${l.replace("[Lista] ","")}</p>`;else if(n.tipo==="ubicacion_saliente"){const b=((v=l.match(/https:\/\/maps\.google\.com\/\?q=[\d.,]+/))==null?void 0:v[0])||"",h=l.replace("[Ubicación] ","").replace(/ https:.*/,"");c=`<a href="${b}" target="_blank" class="wa-doc-link" style="color:#0891b2;text-decoration:none">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         ${h||"Ubicación"}</a>`}else if(n.tipo==="contacto_saliente")c=`<span class="wa-doc-link" style="color:#0f172a">

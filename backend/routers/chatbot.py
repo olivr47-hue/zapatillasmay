@@ -555,7 +555,8 @@ def obtener_historial(telefono, limite=10):
             # ── Respuesta del asistente ──────────────────────────────
             if tipo == 'carrusel_saliente':
                 # Extraer productos del mensaje guardado para que Maya sepa qué se mostró
-                productos_mostrados = re.sub(r'\[.*?\]:\s*\[Carrusel\]\s*', '', msg).strip()
+                _msg_sin_imgs = msg.split('|IMGS|')[0]
+                productos_mostrados = re.sub(r'\[.*?\]:\s*\[Carrusel\]\s*', '', _msg_sin_imgs).strip()
                 mensajes.append({"role": "assistant", "content": f"[Envié un carrusel de fotos al cliente: {productos_mostrados}]"})
             elif tipo == 'imagen_saliente':
                 # Foto individual enviada al cliente
@@ -572,7 +573,7 @@ def obtener_historial(telefono, limite=10):
     except:
         return []
 
-def subir_imagen_storage(img_bytes: bytes, filename: str) -> str:
+def subir_imagen_storage(img_bytes: bytes, filename: str, content_type: str = "image/jpeg") -> str:
     """Sube bytes de imagen a Supabase Storage y devuelve la URL pública."""
     supabase_url = os.environ.get("SUPABASE_URL", "")
     supabase_key = os.environ.get("SUPABASE_KEY", "")
@@ -585,7 +586,7 @@ def subir_imagen_storage(img_bytes: bytes, filename: str) -> str:
         headers={
             "apikey": supabase_key,
             "Authorization": f"Bearer {supabase_key}",
-            "Content-Type": "image/jpeg",
+            "Content-Type": content_type,
             "x-upsert": "true"
         },
         method="POST"
@@ -758,7 +759,28 @@ async def recibir_mensaje_whatsapp(datos: dict):
 
         # ── Sticker ─────────────────────────────────────────────────
         if tipo == "sticker":
-            guardar_conversacion(from_number, "[Sticker]", None, "sticker", nombre_contacto)
+            msg_sticker = "[Sticker]"
+            try:
+                sticker_id = mensaje_data.get("sticker", {}).get("id", "")
+                if sticker_id:
+                    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+                    meta_req = urllib.request.Request(
+                        f"https://graph.facebook.com/v25.0/{sticker_id}",
+                        headers={"Authorization": f"Bearer {wa_token}"}
+                    )
+                    with urllib.request.urlopen(meta_req) as r:
+                        st_meta = json.loads(r.read())
+                    st_url = st_meta.get("url", "")
+                    if st_url:
+                        st_req = urllib.request.Request(st_url, headers={"Authorization": f"Bearer {wa_token}"})
+                        with urllib.request.urlopen(st_req) as r:
+                            st_bytes = r.read()
+                        public_url = subir_imagen_storage(st_bytes, f"{from_number}_{sticker_id}.webp", content_type="image/webp")
+                        if public_url:
+                            msg_sticker = f"[Sticker] {public_url}"
+            except Exception as e:
+                print(f"[sticker] no se pudo guardar imagen: {e}")
+            guardar_conversacion(from_number, msg_sticker, None, "sticker", nombre_contacto)
             return {"status": "ok"}
 
         # ── Ubicación entrante ───────────────────────────────────────
@@ -2435,9 +2457,10 @@ async def enviar_carrusel(telefono: str, datos: dict):
         try:
             # Guardar nombres de los productos para que Maya tenga contexto
             nombres_productos = ", ".join([t.get("texto", "").split("\n")[0] for t in tarjetas_validas if t.get("texto")])
+            _imgs_carrusel = ",".join([t["imagen_url"] for t in tarjetas_validas if t.get("imagen_url")])
             supabase_post("conversaciones_whatsapp", {
                 "telefono": telefono,
-                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} — Productos: {nombres_productos} ({enviadas} fotos)",
+                "mensaje": f"[{agente}]: [Carrusel] {cuerpo} — Productos: {nombres_productos} ({enviadas} fotos)\n|IMGS|{_imgs_carrusel}",
                 "tipo": "carrusel_saliente",
                 "leido": True
             })
