@@ -37,6 +37,11 @@
   <title>Calzado de Dama Mayoreo y Menudeo en León | Zapatillas May</title>
   <link rel="canonical" href="https://zapatillasmay.mx/">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_180,h_180,c_pad,b_white,f_png,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta name="apple-mobile-web-app-title" content="Zapatillas May">
+  <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Preload del LCP: fondo del hero (descubrible desde el HTML y optimizado con Cloudinary) -->
@@ -3015,6 +3020,11 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', zmInit)
   else zmInit()
+
+  // Service Worker (PWA instalable)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  }
 })()
 </script>
 
@@ -3102,6 +3112,12 @@
         <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
+        <div style="flex:1;height:1px;background:#eee"></div>
+        <span style="font-size:0.75rem;color:#bbb;font-weight:500">O</span>
+        <div style="flex:1;height:1px;background:#eee"></div>
+      </div>
+      <div id="g-login-btn" style="width:100%;height:44px;display:flex;align-items:center;justify-content:center"></div>
       <p style="text-align:center;margin-top:12px;font-size:0.82rem">
         <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:underline;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
       </p>
@@ -3137,6 +3153,12 @@
         <p id="ref-msg" style="font-size:0.78rem;margin-top:4px;display:none"></p>
       </div>
       <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:background 0.2s">Crear cuenta</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
+        <div style="flex:1;height:1px;background:#eee"></div>
+        <span style="font-size:0.75rem;color:#bbb;font-weight:500">O</span>
+        <div style="flex:1;height:1px;background:#eee"></div>
+      </div>
+      <div id="g-registro-btn" style="width:100%;height:44px;display:flex;align-items:center;justify-content:center"></div>
     </div>
     <div id="form-recuperacion" style="display:none">
       <button onclick="mostrarTab('login')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:0.8rem;margin-bottom:16px;padding:0">← Volver al login</button>
@@ -5317,7 +5339,7 @@ function abrirLogin() {
   const overlay = document.getElementById('auth-overlay')
   overlay.style.display = 'flex'
   overlay.style.opacity = '0'
-  setTimeout(() => overlay.style.opacity = '1', 10)
+  setTimeout(() => { overlay.style.opacity = '1'; initGoogleButtons() }, 10)
   document.body.style.overflow = 'hidden'
 }
 
@@ -5354,6 +5376,48 @@ function mostrarTab(tab) {
   document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--pink)' : '#aaa'
   document.getElementById('tab-registro').style.borderBottomColor = tab === 'registro' ? 'var(--pink)' : 'transparent'
   document.getElementById('tab-registro').style.color = tab === 'registro' ? 'var(--pink)' : '#aaa'
+}
+
+function initGoogleButtons() {
+  const clientId = (window._zmSeoConfig || {}).google_client_id
+  if (!clientId || typeof google === 'undefined') return
+  const opts = {
+    client_id: clientId,
+    callback: handleGoogleLogin,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  }
+  google.accounts.id.initialize(opts)
+  const btnLogin = document.getElementById('g-login-btn')
+  const btnReg = document.getElementById('g-registro-btn')
+  if (btnLogin) google.accounts.id.renderButton(btnLogin, { theme: 'outline', size: 'large', width: btnLogin.offsetWidth || 320, locale: 'es_MX', text: 'signin_with' })
+  if (btnReg) google.accounts.id.renderButton(btnReg, { theme: 'outline', size: 'large', width: btnReg.offsetWidth || 320, locale: 'es_MX', text: 'signup_with' })
+}
+
+async function handleGoogleLogin(credentialResponse) {
+  const idToken = credentialResponse.credential
+  if (!idToken) { mostrarToast('Error al conectar con Google'); return }
+  try {
+    const res = await fetch(API + '/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_token: idToken })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      usuarioActual = data
+      localStorage.setItem('usuario', JSON.stringify(data))
+      cerrarAuthBtn()
+      actualizarBtnCuenta()
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
+      if (redirectUrl) { window.location.href = redirectUrl; return }
+      mostrarToast('Bienvenido, ' + data.nombre)
+    } else {
+      mostrarToast(data.error || 'Error al iniciar sesion con Google')
+    }
+  } catch(e) {
+    mostrarToast('Error conectando con el servidor')
+  }
 }
 
 async function hacerLogin() {

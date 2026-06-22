@@ -1216,7 +1216,11 @@ def get_config():
     if cached is not None:
         return cached
     try:
-        data = supabase_get("configuracion_seo?select=clave,valor")
+        data = supabase_get("configuracion_seo?select=clave,valor") or []
+        # Agregar claves de env vars que el frontend necesita (no secretas)
+        gcid = os.environ.get("GOOGLE_CLIENT_ID", "")
+        if gcid:
+            data = list(data) + [{"clave": "google_client_id", "valor": gcid}]
         cache_set("seo_config", data, ttl=TTL_ESTATICO)
         return data
     except Exception as e:

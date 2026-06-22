@@ -3,6 +3,9 @@ from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 from security import hash_password, verify_password, create_token, limiter
 import os
+import secrets
+import json
+import urllib.request
 import resend
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -145,6 +148,74 @@ def pedidos_cliente(cliente_id: str):
         return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&order=created_at.desc&select=*,pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
+
+@router.post("/google")
+def google_login(datos: dict):
+    """Verifica un Google ID token y devuelve sesión, creando al usuario si no existe."""
+    id_token = datos.get("id_token", "").strip()
+    if not id_token:
+        return JSONResponse(status_code=400, content={"error": "Token requerido"})
+    try:
+        # Verificar token con Google tokeninfo (no requiere librería adicional)
+        req = urllib.request.Request(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
+            headers={"User-Agent": "ZapatillasMay/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            info = json.loads(r.read())
+
+        email = info.get("email", "").strip().lower()
+        nombre = info.get("name") or info.get("given_name") or ""
+        email_verified = info.get("email_verified") == "true"
+        client_id_env = os.environ.get("GOOGLE_CLIENT_ID", "")
+        aud = info.get("aud", "")
+
+        if not email or not email_verified:
+            return JSONResponse(status_code=401, content={"error": "Token inválido: email no verificado"})
+        if client_id_env and aud != client_id_env:
+            return JSONResponse(status_code=401, content={"error": "Token no corresponde a esta aplicación"})
+
+        existente = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre,email,tipo,cliente_id")
+        if existente:
+            u = existente[0]
+        else:
+            nuevo = supabase_post("usuarios", {
+                "nombre": nombre or email.split("@")[0],
+                "email": email,
+                "password_hash": secrets.token_hex(32),
+                "tipo": "cliente",
+                "activo": True,
+            })
+            u = nuevo[0]
+            cliente_existente = supabase_get(f"clientes?email=eq.{email}")
+            if not cliente_existente:
+                cliente = supabase_post("clientes", {
+                    "nombre": u["nombre"],
+                    "email": email,
+                    "tipo": "menudeo",
+                    "activo": True,
+                    "origen": "google",
+                })
+                cliente_id = cliente[0]["id"] if cliente else None
+                if cliente_id:
+                    supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
+                    u["cliente_id"] = cliente_id
+
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"]})
+        return {
+            "token": token,
+            "id": u["id"],
+            "nombre": u["nombre"],
+            "email": u["email"],
+            "tipo": u["tipo"],
+            "cliente_id": u.get("cliente_id"),
+        }
+    except urllib.error.HTTPError:
+        return JSONResponse(status_code=401, content={"error": "Token de Google inválido o expirado"})
+    except Exception as e:
+        print(f"[auth/google] {e}")
+        return JSONResponse(status_code=500, content={"error": "Error al verificar con Google"})
 
 
 @router.post("/recuperar")
