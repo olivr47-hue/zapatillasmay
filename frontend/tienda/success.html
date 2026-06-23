@@ -7,8 +7,11 @@
   <meta name="description" content="Tu pedido fue confirmado exitosamente. Gracias por comprar en Zapatillas May.">
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
-  <!-- Gate de redirección: corre ANTES de pintar el body para evitar el flash
-       de "Pedido confirmado" cuando el usuario abandona MercadoPago sin pagar. -->
+  <!-- Anti-flash: el body queda oculto hasta confirmar que el pago es válido.
+       Así nunca se alcanza a pintar "Pedido confirmado" en un abandono. -->
+  <style>body{visibility:hidden}html.zm-pago-ok body{visibility:visible}</style>
+  <noscript><style>body{visibility:visible}</style></noscript>
+  <!-- Gate de redirección: corre ANTES de pintar el body. -->
   <script>
   (function() {
     // MercadoPago a veces redirige con parámetros como string literal
@@ -24,19 +27,22 @@
     var fallido   = ['failure', 'rejected', 'cancelled']
     var ok        = ['approved', 'pending', 'in_process']
 
-    // Sin pago real → fuera (a carrito si fue cancelado, si no a inicio)
+    // Sin pago real → al carrito para que vuelva a intentar
     if (!paymentId) {
-      window.location.replace(fallido.indexOf(status) !== -1 ? '/carrito.html?pago=cancelado' : '/')
+      window.location.replace('/carrito.html?pago=cancelado')
       return
     }
     if (fallido.indexOf(status) !== -1) {
       window.location.replace('/carrito.html?pago=cancelado')
       return
     }
+    // Status presente pero no es uno válido → al carrito
     if (status && ok.indexOf(status) === -1) {
-      window.location.replace('/')
+      window.location.replace('/carrito.html?pago=cancelado')
       return
     }
+    // Pago válido: revelar el contenido (el <html> ya existe en este punto)
+    document.documentElement.classList.add('zm-pago-ok')
   })()
   </script>
   <!-- Google Analytics 4 -->
