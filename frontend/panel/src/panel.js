@@ -8141,7 +8141,8 @@ async function cargarPOS() {
     const inventario = await resInv.json()
 
     window._posData = { productos, variantes, sucursales, clientes, inventario }
-    window._posCarrito = []
+    // Restaurar carrito guardado en el navegador para que no se pierda al recargar
+    window._posCarrito = cargarCarritoLocal()
     window._posClienteId = null
 
     content.innerHTML = `
@@ -8267,10 +8268,24 @@ async function cargarPOS() {
     `
 
     renderProductosPOS(productos.filter(p => p.activo))
+    renderCarritoPOS()  // pintar el carrito restaurado (si lo hay)
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error cargando punto de venta</p>'
   }
+}
+
+// Persistencia del carrito del POS en el navegador (sobrevive recargas)
+const POS_CARRITO_KEY = 'pos_carrito_v1'
+function cargarCarritoLocal() {
+  try {
+    const raw = localStorage.getItem(POS_CARRITO_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    return Array.isArray(arr) ? arr : []
+  } catch (_) { return [] }
+}
+function guardarCarritoLocal() {
+  try { localStorage.setItem(POS_CARRITO_KEY, JSON.stringify(window._posCarrito || [])) } catch (_) {}
 }
 window.abrirDrawerPOS = () => {
   renderDrawerPOS()
@@ -9689,7 +9704,7 @@ window.renderCarritoPOS = () => {
   if (fp) fp.textContent = totalPares + ' pares'
   if (ft) ft.textContent = '$' + total.toFixed(2)
   if (document.getElementById('pos-drawer')?.classList.contains('open')) renderDrawerPOS()
-  
+  guardarCarritoLocal()  // persistir el carrito tras cada cambio
 }
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
   if (!window._posCarrito[idx]) return
@@ -9710,6 +9725,7 @@ window.editarPrecioPOS = (idx, nuevoPrecio) => {
   const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
   const totalEl = document.getElementById('pos-total')
   if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
+  guardarCarritoLocal()
 }
 
 window.editarPrecioCorridaPOS = (key, nuevoPrecioPorPar) => {
@@ -9737,6 +9753,7 @@ window.editarPrecioCorridaPOS = (key, nuevoPrecioPorPar) => {
   const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
   const totalEl = document.getElementById('pos-total')
   if (totalEl) totalEl.textContent = '$' + total.toFixed(2)
+  guardarCarritoLocal()
 }
 
 window.editarCorridaEnCarrito = (key) => {
@@ -10017,61 +10034,86 @@ window.guardarCarritoPOS = async (fromDrawer) => {
 
   const sucursalId = document.getElementById('pos-sucursal')?.value
   const formaPago = document.getElementById('pos-pago')?.value || 'efectivo'
-  const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
 
   const btns = [...document.querySelectorAll('button[onclick^="guardarCarritoPOS"]')]
   btns.forEach(b => { b.disabled = true; b._txt = b.textContent; b.textContent = 'Guardando...' })
 
   let pedidoId = null
+  let creadoNuevo = false
   try {
-    // 1. Crear pedido como borrador (sin confirmar → no toca stock)
-    const resPedido = await fetch(API + '/pedidos/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cliente_id: clienteId,
-        canal: 'sucursal',
-        sucursal_id: sucursalId,
-        forma_pago: formaPago,
-        total,
-        subtotal: total,
-        status: 'borrador'
-      })
-    })
-    const pedidoData = await resPedido.json()
-    if (!resPedido.ok) throw new Error('No se pudo crear el carrito: ' + JSON.stringify(pedidoData))
-    pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
-    if (!pedidoId) throw new Error('No se obtuvo ID del carrito')
+    // 1. ¿Ya hay un carrito (borrador) abierto para este cliente? → reusarlo en vez de duplicar
+    const borradores = await fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => [])
+    const existente = Array.isArray(borradores)
+      ? borradores.find(p => p.cliente_id === clienteId && (!p.canal || p.canal === 'sucursal' || p.canal === 'mayoreo'))
+      : null
 
-    // 2. Agregar items
-    for (const item of window._posCarrito) {
-      const resItem = await fetch(API + '/pedidos/' + pedidoId + '/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          variante_id: item.variante_id,
-          cantidad: item.cantidad,
-          precio_unitario: item.precio_unitario,
-          subtotal: item.cantidad * item.precio_unitario
-        })
+    if (existente) {
+      pedidoId = existente.id
+    } else {
+      // Crear pedido nuevo como borrador (sin confirmar → no toca stock)
+      const resPedido = await fetch(API + '/pedidos/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cliente_id: clienteId, canal: 'sucursal', sucursal_id: sucursalId, forma_pago: formaPago, total: 0, subtotal: 0, status: 'borrador' })
       })
-      if (!resItem.ok) {
-        const errItem = await resItem.json().catch(() => ({}))
-        throw new Error('Error en item ' + item.nombre + ': ' + JSON.stringify(errItem))
+      const pedidoData = await resPedido.json()
+      if (!resPedido.ok) throw new Error('No se pudo crear el carrito: ' + JSON.stringify(pedidoData))
+      pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
+      if (!pedidoId) throw new Error('No se obtuvo ID del carrito')
+      creadoNuevo = true
+    }
+
+    // 2. Items actuales del carrito destino (para fusionar y no duplicar tallas)
+    let itemsDestino = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()).catch(() => [])
+    if (!Array.isArray(itemsDestino)) itemsDestino = []
+
+    // 3. Fusionar cada par del POS: si ya existe esa variante (mismo modo corrida/suelto) suma cantidad; si no, lo agrega
+    for (const item of window._posCarrito) {
+      const esCorrida = !!item.es_corrida
+      const ya = itemsDestino.find(ei => ei.variante_id === item.variante_id && (!!ei.es_corrida) === esCorrida)
+      if (ya) {
+        const nuevaCant = ya.cantidad + item.cantidad
+        const resPatch = await fetch(API + '/pedidos/' + pedidoId + '/items/' + ya.id, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cantidad: nuevaCant, precio_unitario: item.precio_unitario, subtotal: nuevaCant * item.precio_unitario })
+        })
+        if (!resPatch.ok) throw new Error('Error actualizando ' + (item.nombre || '') + ': ' + JSON.stringify(await resPatch.json().catch(() => ({}))))
+        ya.cantidad = nuevaCant
+      } else {
+        const resItem = await fetch(API + '/pedidos/' + pedidoId + '/items', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variante_id: item.variante_id, cantidad: item.cantidad,
+            precio_unitario: item.precio_unitario, subtotal: item.cantidad * item.precio_unitario,
+            nombre: item.nombre || '', color: item.color || '', talla: item.talla || '', es_corrida: esCorrida
+          })
+        })
+        if (!resItem.ok) throw new Error('Error en item ' + (item.nombre || '') + ': ' + JSON.stringify(await resItem.json().catch(() => ({}))))
+        const creado = await resItem.json().catch(() => null)
+        if (Array.isArray(creado) && creado[0]) itemsDestino.push(creado[0])
       }
     }
 
-    // 3. Éxito — vaciar carrito y cliente para empezar de cero
+    // 4. Recalcular total del carrito destino con TODOS sus items y actualizarlo
+    const itemsFinales = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()).catch(() => itemsDestino)
+    const totalFinal = (Array.isArray(itemsFinales) ? itemsFinales : []).reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    await fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: totalFinal, subtotal: totalFinal })
+    })
+
+    // 5. Éxito — vaciar carrito y cliente para empezar de cero
     window._posCarrito = []
     window._guardandoCarrito = false
     if (fromDrawer && typeof cerrarDrawerPOS === 'function') cerrarDrawerPOS()
     if (typeof limpiarClientePOS === 'function') limpiarClientePOS()
     renderCarritoPOS()
-    alert('Carrito guardado. Lo encuentras en la sección Carritos.')
+    alert(existente
+      ? 'Se agregó al carrito que ya tenía este cliente. Lo ves en la sección Carritos.'
+      : 'Carrito guardado. Lo encuentras en la sección Carritos.')
   } catch(e) {
     window._guardandoCarrito = false
-    // Si el pedido ya se creó, cancelarlo para no dejar basura
-    if (pedidoId) {
+    // Solo cancelar si fue un pedido NUEVO (no tocar un carrito que ya existía)
+    if (pedidoId && creadoNuevo) {
       try { await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) } catch(e2) {}
     }
     alert('No se pudo guardar el carrito:\n' + (e?.message || e))
