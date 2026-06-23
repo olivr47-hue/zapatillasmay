@@ -527,7 +527,12 @@ async function procesarPago() {
         direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`, notas,
         fbc: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
         fbp: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
-        client_user_agent: navigator.userAgent || ''
+        client_user_agent: navigator.userAgent || '',
+        // client_id real de GA4 (del cookie _ga: GA1.1.<client_id>) para que el
+        // Purchase server-side recupere la fuente original de la sesión en GA4.
+        ga_client_id: (function(){ try { return (document.cookie.match(/_ga=GA\d+\.\d+\.(\d+\.\d+)/)||[])[1] || '' } catch(e){ return '' } })(),
+        gclid:  (function(){ try { return new URLSearchParams(location.search).get('gclid')  || localStorage.getItem('zm_gclid')  || '' } catch(e){ return '' } })(),
+        fbclid: (function(){ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })()
       })
     })
     const pedido = await resPedido.json()
