@@ -160,6 +160,43 @@ def estado_productos(limite: int = 250, solo_con_problemas: bool = True):
     }
 
 
+@router.get("/lia")
+def local_inventory_settings():
+    """
+    Estado del programa de inventario local (Local Inventory Ads):
+    vínculo con Business Profile, verificación de inventario, posición por país.
+    Clave para diagnosticar 'local_requires_review' / 'local_stores_lack_supported_inventory'.
+    """
+    if not _configurado():
+        return _no_config()
+    resp = _get(f"{MERCHANT_ID}/liasettings/{MERCHANT_ID}")
+    if resp is None:
+        return {"configurado": True, "error": _last_error}
+    paises = []
+    for c in resp.get("countrySettings", []) or []:
+        inv = c.get("inventory", {}) or {}
+        paises.append({
+            "pais": c.get("country"),
+            "inventario_estado": inv.get("status"),
+            "verificacion_contacto": inv.get("inventoryVerificationContactStatus"),
+            "on_display_to_order": (c.get("onDisplayToOrder", {}) or {}).get("status"),
+            "pos_data_provider": c.get("posDataProvider"),
+            "storefront_local_activo": c.get("hostedLocalStorefrontActive"),
+            "omnicanal": c.get("omnichannelExperience"),
+        })
+    return {"configurado": True, "account_id": resp.get("accountId"), "paises": paises, "_raw": resp}
+
+
+@router.get("/cuenta")
+def cuenta():
+    """Info de la cuenta: identidad de negocio y vínculos (Business Profile, etc.)."""
+    if not _configurado():
+        return _no_config()
+    info = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}")
+    links = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}/listlinks")
+    return {"configurado": True, "cuenta": info, "vinculos": links, "error": _last_error or None}
+
+
 @router.get("/resumen-problemas")
 def resumen_problemas(limite: int = 250):
     """Agrega los problemas por código/descripción y severidad (vista rápida)."""
