@@ -191,16 +191,26 @@
 <script>
 // Leer parámetros de MercadoPago desde la URL
 (function() {
+  // MercadoPago a veces redirige con los parámetros como string literal
+  // "null"/"undefined" cuando el usuario abandona el checkout sin pagar.
+  // Hay que tratarlos como vacíos, no como valores válidos.
+  const clean = v => {
+    if (v == null) return ''
+    const t = String(v).trim().toLowerCase()
+    return (t === 'null' || t === 'undefined') ? '' : String(v).trim()
+  }
   const params = new URLSearchParams(window.location.search)
-  const paymentId = params.get('payment_id') || params.get('collection_id')
-  const status = params.get('status') || params.get('collection_status')
-  const externalRef = params.get('external_reference')
-  const merchant = params.get('merchant_order_id')
+  const paymentId = clean(params.get('payment_id')) || clean(params.get('collection_id'))
+  const status = clean(params.get('status')) || clean(params.get('collection_status'))
+  const externalRef = clean(params.get('external_reference'))
+  const merchant = clean(params.get('merchant_order_id'))
+
+  const statusFallido = ['failure', 'rejected', 'cancelled']
+  const statusOk = ['approved', 'pending', 'in_process']
 
   // Sin payment_id real → no hay pago confirmado
   if (!paymentId) {
-    const statusFallido = ['failure', 'rejected', 'cancelled']
-    if (status && statusFallido.includes(status)) {
+    if (statusFallido.includes(status)) {
       window.location.replace('/carrito.html?pago=cancelado')
     } else {
       window.location.replace('/')
@@ -209,9 +219,14 @@
   }
 
   // Con payment_id: redirigir si el status es explícitamente fallido
-  const statusFallido = ['failure', 'rejected', 'cancelled']
-  if (status && statusFallido.includes(status)) {
+  if (statusFallido.includes(status)) {
     window.location.replace('/carrito.html?pago=cancelado')
+    return
+  }
+
+  // Si hay status pero NO es uno aprobado/pendiente válido → no confirmar
+  if (status && !statusOk.includes(status)) {
+    window.location.replace('/')
     return
   }
 
