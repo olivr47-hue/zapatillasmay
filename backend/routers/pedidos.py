@@ -308,7 +308,24 @@ async def crear_pedido(pedido: dict, request: Request):
             except Exception as e:
                 print(f"[pedidos] Error upsert cliente web: {e}")
 
-        resultado = supabase_post("pedidos", pedido)
+        # Los campos de atribución/rastreo son opcionales (analítica Meta CAPI / GA4).
+        # Si la API REST aún no reconoce esas columnas (cache de esquema de PostgREST
+        # desfasado tras agregarlas), NO debe romperse la venta: reintentamos sin ellos.
+        ATRIBUCION_KEYS = (
+            "ga_client_id", "fbc", "fbp", "fbclid", "gclid",
+            "client_user_agent", "client_ip_address",
+            "ciudad_cliente", "estado_cliente", "cp_cliente",
+        )
+        try:
+            resultado = supabase_post("pedidos", pedido)
+        except Exception as e:
+            msg = str(e)
+            if "PGRST204" in msg or "schema cache" in msg:
+                pedido_min = {k: v for k, v in pedido.items() if k not in ATRIBUCION_KEYS}
+                print("[pedidos] Cache de esquema desfasado; reintentando sin campos de atribución")
+                resultado = supabase_post("pedidos", pedido_min)
+            else:
+                raise
         if resultado and len(resultado) > 0:
             pedido_id = resultado[0]["id"]
             for item in items:
