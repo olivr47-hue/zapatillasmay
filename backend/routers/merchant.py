@@ -197,6 +197,31 @@ def cuenta():
     return {"configurado": True, "cuenta": info, "vinculos": links, "error": _last_error or None}
 
 
+@router.get("/feeds")
+def feeds():
+    """Estado de procesamiento de las fuentes de datos (feeds): items válidos/errores."""
+    if not _configurado():
+        return _no_config()
+    ds = _get(f"{MERCHANT_ID}/datafeeds")
+    st = _get(f"{MERCHANT_ID}/datafeedstatuses")
+    fuentes = []
+    for f in (ds or {}).get("resources", []) or []:
+        fuentes.append({"id": f.get("id"), "nombre": f.get("name"),
+                        "url": (f.get("fetchSchedule") or {}).get("fetchUrl")})
+    estados = []
+    for s in (st or {}).get("resources", []) or []:
+        estados.append({
+            "nombre": s.get("datafeedId"),
+            "items_totales": s.get("itemsTotal"),
+            "items_validos": s.get("itemsValid"),
+            "errores": [
+                {"msg": e.get("message"), "afectados": e.get("count")}
+                for e in (s.get("errors") or [])[:5]
+            ],
+        })
+    return {"configurado": True, "fuentes": fuentes, "estados": estados, "error": _last_error or None}
+
+
 @router.get("/resumen-problemas")
 def resumen_problemas(limite: int = 250):
     """Agrega los problemas por código/descripción y severidad (vista rápida)."""
