@@ -18,12 +18,7 @@ Requisito manual (una sola vez):
 
 import os, json, time, urllib.parse, urllib.request, urllib.error
 from fastapi import APIRouter
-
-try:
-    import jwt as pyjwt
-    JWT_OK = True
-except ImportError:
-    JWT_OK = False
+import google_sa
 
 router = APIRouter(prefix="/merchant", tags=["Merchant"])
 
@@ -38,9 +33,6 @@ _last_error = ""
 
 def _access_token() -> str | None:
     global _last_error
-    if not JWT_OK:
-        _last_error = "PyJWT/cryptography no disponible"
-        return None
     if not MERCHANT_CREDENTIALS:
         _last_error = "Falta MERCHANT_CREDENTIALS_JSON / GSC_CREDENTIALS_JSON"
         return None
@@ -48,38 +40,20 @@ def _access_token() -> str | None:
     if _token_cache["token"] and _token_cache["expires"] > now + 60:
         return _token_cache["token"]
     try:
-        creds = json.loads(MERCHANT_CREDENTIALS)
-        payload = {
-            "iss":   creds["client_email"],
-            "sub":   creds["client_email"],
-            "scope": MERCHANT_SCOPE,
-            "aud":   "https://oauth2.googleapis.com/token",
-            "iat":   now,
-            "exp":   now + 3600,
-        }
-        signed = pyjwt.encode(payload, creds["private_key"], algorithm="RS256")
-        data = (
-            "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
-            f"&assertion={signed}"
-        ).encode()
-        req = urllib.request.Request(
-            "https://oauth2.googleapis.com/token",
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req) as r:
-            resp = json.loads(r.read())
-        token = resp.get("access_token")
+        token = google_sa.get_access_token(MERCHANT_CREDENTIALS, MERCHANT_SCOPE)
         if not token:
-            _last_error = f"Respuesta sin access_token: {resp}"
+            _last_error = "Respuesta sin access_token"
             return None
         _token_cache["token"]   = token
-        _token_cache["expires"] = now + resp.get("expires_in", 3600)
+        _token_cache["expires"] = now + 3500
         _last_error = ""
         return token
+    except urllib.error.HTTPError as e:
+        _last_error = f"HTTP {e.code}: {e.read().decode(errors='replace')[:300]}"
+        print(f"[merchant] {_last_error}")
+        return None
     except Exception as e:
-        _last_error = f"Error JWT: {e}"
+        _last_error = f"Error token: {e}"
         print(f"[merchant] {_last_error}")
         return None
 
@@ -109,7 +83,7 @@ def _get(path: str) -> dict | None:
 
 
 def _configurado() -> bool:
-    return bool(JWT_OK and MERCHANT_CREDENTIALS and MERCHANT_ID)
+    return bool(MERCHANT_CREDENTIALS and MERCHANT_ID)
 
 
 def _no_config():
@@ -133,7 +107,7 @@ def diagnostico():
     if token:
         info = _get(f"accounts/{MERCHANT_ID}/accounts/{MERCHANT_ID}")
     return {
-        "jwt_ok": JWT_OK,
+        "build": "2026-06-23d-purepy",
         "tiene_credentials": bool(MERCHANT_CREDENTIALS),
         "merchant_id": MERCHANT_ID,
         "token_ok": bool(token),

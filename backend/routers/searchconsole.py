@@ -18,12 +18,7 @@ Requisito manual (una sola vez):
 
 import os, json, time, urllib.parse, urllib.request, urllib.error
 from fastapi import APIRouter
-
-try:
-    import jwt as pyjwt
-    JWT_OK = True
-except ImportError:
-    JWT_OK = False
+import google_sa
 
 router = APIRouter(prefix="/searchconsole", tags=["SearchConsole"])
 
@@ -36,52 +31,29 @@ _last_error = ""
 
 
 def _access_token() -> str | None:
-    """Access token vía JWT del service account."""
+    """Access token del service account (firma RS256 en Python puro)."""
     global _last_error
-    if not JWT_OK:
-        _last_error = "PyJWT/cryptography no disponible"
-        return None
     if not GSC_CREDENTIALS:
         _last_error = "Falta GSC_CREDENTIALS_JSON"
         return None
-
     now = int(time.time())
     if _token_cache["token"] and _token_cache["expires"] > now + 60:
         return _token_cache["token"]
-
     try:
-        creds = json.loads(GSC_CREDENTIALS)
-        payload = {
-            "iss":   creds["client_email"],
-            "sub":   creds["client_email"],
-            "scope": GSC_SCOPE,
-            "aud":   "https://oauth2.googleapis.com/token",
-            "iat":   now,
-            "exp":   now + 3600,
-        }
-        signed = pyjwt.encode(payload, creds["private_key"], algorithm="RS256")
-        data = (
-            "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
-            f"&assertion={signed}"
-        ).encode()
-        req = urllib.request.Request(
-            "https://oauth2.googleapis.com/token",
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req) as r:
-            resp = json.loads(r.read())
-        token = resp.get("access_token")
+        token = google_sa.get_access_token(GSC_CREDENTIALS, GSC_SCOPE)
         if not token:
-            _last_error = f"Respuesta sin access_token: {resp}"
+            _last_error = "Respuesta sin access_token"
             return None
         _token_cache["token"]   = token
-        _token_cache["expires"] = now + resp.get("expires_in", 3600)
+        _token_cache["expires"] = now + 3500
         _last_error = ""
         return token
+    except urllib.error.HTTPError as e:
+        _last_error = f"HTTP {e.code}: {e.read().decode(errors='replace')[:300]}"
+        print(f"[searchconsole] {_last_error}")
+        return None
     except Exception as e:
-        _last_error = f"Error JWT: {e}"
+        _last_error = f"Error token: {e}"
         print(f"[searchconsole] {_last_error}")
         return None
 
@@ -113,7 +85,7 @@ def _api(url: str, body: dict | None = None) -> dict | None:
 
 
 def _configurado() -> bool:
-    return bool(JWT_OK and GSC_CREDENTIALS and GSC_SITE_URL)
+    return bool(GSC_CREDENTIALS and GSC_SITE_URL)
 
 
 def _no_config():
@@ -133,19 +105,11 @@ def _no_config():
 def diagnostico():
     """Verifica configuración y conectividad con la API."""
     import sys
-    crypto_ok = False
-    try:
-        import cryptography  # noqa: F401
-        crypto_ok = True
-    except Exception:
-        crypto_ok = False
     ok = _configurado()
     token = _access_token() if ok else None
     return {
-        "build": "2026-06-23c",          # marcador para confirmar despliegue
+        "build": "2026-06-23d-purepy",   # marcador para confirmar despliegue
         "python": sys.version.split()[0],
-        "jwt_ok": JWT_OK,
-        "cryptography_ok": crypto_ok,
         "tiene_credentials": bool(GSC_CREDENTIALS),
         "site_url": GSC_SITE_URL,
         "token_ok": bool(token),
