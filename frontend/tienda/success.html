@@ -260,71 +260,8 @@
   } catch(e) {}
 })()
 
-// GA4: purchase event (se dispara una sola vez por payment_id)
-;(function() {
-  const API = 'https://zapatillasmay-production.up.railway.app'
-  const params    = new URLSearchParams(window.location.search)
-  const paymentId = params.get('payment_id') || params.get('collection_id') || ''
-  const status    = params.get('status') || params.get('collection_status') || ''
-
-  // Excluir solo pagos explícitamente fallidos — 'pending' (OXXO, transferencia) sí se registra
-  const statusFallido = ['failure', 'rejected', 'cancelled']
-  if (status && statusFallido.includes(status)) return
-
-  // Evitar duplicados si el usuario recarga la página
-  const lastKey = 'zm_last_purchase'
-  if (paymentId && localStorage.getItem(lastKey) === paymentId) return
-  if (paymentId) localStorage.setItem(lastKey, paymentId)
-
-  // Intentar obtener el valor: primero localStorage, luego el backend (fallback móvil)
-  const pedidoId = (() => { try { return localStorage.getItem('zm_checkout_pedido_id') || '' } catch(e) { return '' } })()
-  let valor = 0
-  try { valor = parseFloat(localStorage.getItem('zm_purchase_value') || '0') } catch(e) {}
-  try { localStorage.removeItem('zm_purchase_value') } catch(e) {}
-
-  const fireGA4 = (v) => {
-    if (typeof gtag !== 'function') return
-    gtag('event', 'purchase', {
-      transaction_id: paymentId || String(Date.now()),
-      currency:       'MXN',
-      value:          v,
-      items: [{
-        item_id:   paymentId || 'pedido',
-        item_name: 'Pedido Zapatillas May',
-        currency:  'MXN',
-        price:     v,
-        quantity:  1,
-      }]
-    })
-  }
-
-  const dispararEvento = (v) => {
-    if (typeof gtag === 'function') fireGA4(v)
-    else setTimeout(() => fireGA4(v), 1500)
-  }
-
-  // Si el valor ya está en localStorage, disparar directo
-  if (valor > 0) {
-    dispararEvento(valor)
-    return
-  }
-
-  // Fallback: obtener total del pedido desde el backend (cubre casos móvil donde
-  // localStorage no persiste entre contextos de browser distintos)
-  if (pedidoId) {
-    fetch(`${API}/pedidos/${pedidoId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const arr = Array.isArray(data) ? data : (data ? [data] : [])
-        const pedido = arr[0] || data
-        const total = parseFloat(pedido?.total || '0')
-        dispararEvento(total)
-      })
-      .catch(() => dispararEvento(0))
-  } else {
-    dispararEvento(0)
-  }
-})();
+// GA4 purchase: el backend lo envía via Measurement Protocol en el webhook.
+// No se dispara desde el frontend para evitar duplicados.
 
 // Pinterest Tag + checkout event (complementa la CAPI server-side)
 ;(function() {
