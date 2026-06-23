@@ -1543,7 +1543,7 @@ def feed_google():
             xml += f'  <g:gender>female</g:gender>\n'
             xml += f'  <g:age_group>adult</g:age_group>\n'
             xml += f'  <g:size>One Size</g:size>\n'
-            xml += f'  <g:size_system>MX</g:size_system>\n'
+            xml += f'  <g:size_system>MEX</g:size_system>\n'
             xml += '</entry>\n'
         xml += '</feed>'
         cache_set("feed_google", xml, ttl=TTL_ESTATICO)
