@@ -197,6 +197,12 @@
   const externalRef = params.get('external_reference')
   const merchant = params.get('merchant_order_id')
 
+  // Si no hay payment_id ni external_reference, no es una compra real
+  if (!paymentId && !externalRef) {
+    window.location.replace('/')
+    return
+  }
+
   // Redirigir si el pago fue cancelado o fallido
   const statusFallido = ['failure', 'rejected', 'cancelled']
   if (status && statusFallido.includes(status)) {
