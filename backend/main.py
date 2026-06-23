@@ -13,6 +13,7 @@ from routers import mercadolibre
 from routers import analytics
 from routers import searchconsole
 from routers import merchant
+from routers import businessprofile
 from routers import referidos
 from routers import carrito_abandonado
 from routers import mcp_server
@@ -92,6 +93,7 @@ app.include_router(mercadolibre.router)
 app.include_router(analytics.router)
 app.include_router(searchconsole.router)
 app.include_router(merchant.router)
+app.include_router(businessprofile.router)
 app.include_router(referidos.router)
 app.include_router(carrito_abandonado.router)
 app.include_router(mcp_server.router)
