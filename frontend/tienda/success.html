@@ -197,9 +197,15 @@
   const externalRef = params.get('external_reference')
   const merchant = params.get('merchant_order_id')
 
-  // Si el pago no fue aprobado, redirigir
-  if (status && status !== 'approved' && status !== 'pending') {
-    // Pago rechazado o en otro estado — mostrar mensaje alternativo
+  // Redirigir si el pago fue cancelado o fallido
+  const statusFallido = ['failure', 'rejected', 'cancelled']
+  if (status && statusFallido.includes(status)) {
+    window.location.replace('/carrito.html?pago=cancelado')
+    return
+  }
+
+  // Pago pendiente (OXXO, transferencia) — ajustar textos
+  if (status === 'pending' || status === 'in_process') {
     document.querySelector('.success-title').textContent = 'Pago en proceso'
     document.querySelector('.success-sub').textContent = 'Tu pago está siendo procesado. Te notificaremos por correo cuando se confirme.'
     document.querySelector('.check-circle').style.background = 'linear-gradient(135deg,#f59e0b,#d97706)'

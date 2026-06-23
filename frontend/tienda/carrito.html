@@ -249,6 +249,20 @@
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
+
+// Aviso si viene de un pago cancelado
+;(function() {
+  if (new URLSearchParams(window.location.search).get('pago') === 'cancelado') {
+    history.replaceState(null, '', '/carrito')
+    setTimeout(() => {
+      const t = document.createElement('div')
+      t.textContent = 'Pago cancelado. Puedes intentarlo de nuevo.'
+      Object.assign(t.style, { position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%)', background:'#333', color:'#fff', padding:'12px 20px', borderRadius:'8px', fontSize:'0.85rem', zIndex:'9999', whiteSpace:'nowrap', boxShadow:'0 4px 12px rgba(0,0,0,0.25)' })
+      document.body.appendChild(t)
+      setTimeout(() => t.remove(), 4000)
+    }, 300)
+  }
+})()
 let cfgEnvio = { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }  // defaults
 let inventario = []  // { variante_id, cantidad }
 
