@@ -7,6 +7,38 @@
   <meta name="description" content="Tu pedido fue confirmado exitosamente. Gracias por comprar en Zapatillas May.">
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
+  <!-- Gate de redirección: corre ANTES de pintar el body para evitar el flash
+       de "Pedido confirmado" cuando el usuario abandona MercadoPago sin pagar. -->
+  <script>
+  (function() {
+    // MercadoPago a veces redirige con parámetros como string literal
+    // "null"/"undefined" cuando se abandona el checkout sin pagar.
+    var clean = function(v) {
+      if (v == null) return ''
+      var t = String(v).trim().toLowerCase()
+      return (t === 'null' || t === 'undefined') ? '' : String(v).trim()
+    }
+    var params    = new URLSearchParams(window.location.search)
+    var paymentId = clean(params.get('payment_id')) || clean(params.get('collection_id'))
+    var status    = clean(params.get('status')) || clean(params.get('collection_status'))
+    var fallido   = ['failure', 'rejected', 'cancelled']
+    var ok        = ['approved', 'pending', 'in_process']
+
+    // Sin pago real → fuera (a carrito si fue cancelado, si no a inicio)
+    if (!paymentId) {
+      window.location.replace(fallido.indexOf(status) !== -1 ? '/carrito.html?pago=cancelado' : '/')
+      return
+    }
+    if (fallido.indexOf(status) !== -1) {
+      window.location.replace('/carrito.html?pago=cancelado')
+      return
+    }
+    if (status && ok.indexOf(status) === -1) {
+      window.location.replace('/')
+      return
+    }
+  })()
+  </script>
   <!-- Google Analytics 4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
   <script>
