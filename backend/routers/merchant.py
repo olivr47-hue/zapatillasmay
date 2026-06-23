@@ -105,7 +105,7 @@ def diagnostico():
     token = _access_token() if ok else None
     info = None
     if token:
-        info = _get(f"accounts/{MERCHANT_ID}/accounts/{MERCHANT_ID}")
+        info = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}")
     return {
         "build": "2026-06-23d-purepy",
         "tiene_credentials": bool(MERCHANT_CREDENTIALS),
@@ -117,14 +117,14 @@ def diagnostico():
 
 
 @router.get("/estado-productos")
-def estado_productos(max: int = 250, solo_con_problemas: bool = True):
+def estado_productos(limite: int = 250, solo_con_problemas: bool = True):
     """
     Lista el estado de los productos con sus item-level issues (rechazos/avisos).
     solo_con_problemas=True devuelve únicamente los que tienen al menos un issue.
     """
     if not _configurado():
         return _no_config()
-    resp = _get(f"{MERCHANT_ID}/productstatuses?maxResults={max(1, min(max, 250))}")
+    resp = _get(f"{MERCHANT_ID}/productstatuses?maxResults={max(1, min(limite, 250))}")
     if resp is None:
         return {"configurado": True, "error": _last_error}
     salida = []
@@ -161,11 +161,11 @@ def estado_productos(max: int = 250, solo_con_problemas: bool = True):
 
 
 @router.get("/resumen-problemas")
-def resumen_problemas(max: int = 250):
+def resumen_problemas(limite: int = 250):
     """Agrega los problemas por código/descripción y severidad (vista rápida)."""
     if not _configurado():
         return _no_config()
-    resp = _get(f"{MERCHANT_ID}/productstatuses?maxResults={max(1, min(max, 250))}")
+    resp = _get(f"{MERCHANT_ID}/productstatuses?maxResults={max(1, min(limite, 250))}")
     if resp is None:
         return {"configurado": True, "error": _last_error}
     agg: dict = {}
