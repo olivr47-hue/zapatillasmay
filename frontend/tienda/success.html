@@ -7,10 +7,16 @@
   <meta name="description" content="Tu pedido fue confirmado exitosamente. Gracias por comprar en Zapatillas May.">
   <meta name="robots" content="noindex">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
-  <!-- Anti-flash: el body queda oculto hasta confirmar que el pago es válido.
-       Así nunca se alcanza a pintar "Pedido confirmado" en un abandono. -->
-  <style>body{visibility:hidden}html.zm-pago-ok body{visibility:visible}</style>
-  <noscript><style>body{visibility:visible}</style></noscript>
+  <!-- Anti-flash: el body queda oculto hasta que el gate decida qué vista mostrar
+       (confirmación o recuperación). Así nunca se pinta "Pedido confirmado" en un abandono. -->
+  <style>
+    body{visibility:hidden}
+    html.zm-pago-ok body, html.zm-abandono body{visibility:visible}
+    #vista-confirmado, #vista-abandono{display:none}
+    html.zm-pago-ok #vista-confirmado{display:block}
+    html.zm-abandono #vista-abandono{display:block}
+  </style>
+  <noscript><style>body{visibility:visible}#vista-confirmado{display:block}</style></noscript>
   <!-- Gate de redirección: corre ANTES de pintar el body. -->
   <script>
   (function() {
@@ -27,22 +33,15 @@
     var fallido   = ['failure', 'rejected', 'cancelled']
     var ok        = ['approved', 'pending', 'in_process']
 
-    // Sin pago real → al carrito para que vuelva a intentar
-    if (!paymentId) {
-      window.location.replace('/carrito.html?pago=cancelado')
-      return
-    }
-    if (fallido.indexOf(status) !== -1) {
-      window.location.replace('/carrito.html?pago=cancelado')
-      return
-    }
-    // Status presente pero no es uno válido → al carrito
-    if (status && ok.indexOf(status) === -1) {
-      window.location.replace('/carrito.html?pago=cancelado')
-      return
-    }
-    // Pago válido: revelar el contenido (el <html> ya existe en este punto)
-    document.documentElement.classList.add('zm-pago-ok')
+    // Pago válido = hay payment_id real, no falló, y el status es uno bueno
+    // (o viene vacío junto a un payment_id real).
+    var statusBueno = status === '' || ok.indexOf(status) !== -1
+    var valido = !!paymentId && fallido.indexOf(status) === -1 && statusBueno
+
+    // El <html> ya existe en este punto, así que podemos marcar la clase
+    // que el CSS usa para mostrar una vista u otra (sin flash, sin redirigir).
+    window.__zmPagoOk = valido
+    document.documentElement.classList.add(valido ? 'zm-pago-ok' : 'zm-abandono')
   })()
   </script>
   <!-- Google Analytics 4 -->
@@ -133,6 +132,9 @@
 
 <div class="container">
 
+  <!-- ============ VISTA A: PAGO CONFIRMADO ============ -->
+  <div id="vista-confirmado">
+
   <!-- Check animado -->
   <div class="check-wrap">
     <div class="check-circle">
@@ -220,6 +222,48 @@
     </div>
   </div>
 
+  </div><!-- /vista-confirmado -->
+
+  <!-- ============ VISTA B: PAGO NO COMPLETADO (recuperación) ============ -->
+  <div id="vista-abandono">
+    <div class="check-wrap">
+      <div class="check-circle" style="background:linear-gradient(135deg,#C8967A,#b5687a);box-shadow:0 12px 40px rgba(200,150,122,0.35)">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <path d="M3 6h18"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+      </div>
+    </div>
+
+    <h1 class="success-title">Tu pedido te está esperando</h1>
+    <p class="success-sub">No alcanzaste a completar el pago, pero guardamos todo en tu carrito. Termínalo en menos de 1 minuto.</p>
+
+    <div class="steps-card">
+      <div class="step">
+        <div class="step-num">✓</div>
+        <div class="step-text"><strong>Envío rápido</strong> — Llega en 1–3 días hábiles a todo México con paquetería confiable.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">✓</div>
+        <div class="step-text"><strong>Pago 100% seguro</strong> — Tarjeta, SPEI, OXXO o MercadoPago. Tú eliges al pagar.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">✓</div>
+        <div class="step-text"><strong>Tu carrito sigue guardado</strong> — No perdiste nada, retoma justo donde te quedaste.</div>
+      </div>
+    </div>
+
+    <a href="/checkout.html" class="btn-primary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+      Completar mi compra
+    </a>
+    <a href="/" class="btn-secondary">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Seguir viendo modelos
+    </a>
+  </div><!-- /vista-abandono -->
+
 </div>
 
 <footer style="text-align:center;padding:1.5rem;font-size:0.78rem;color:#aaa;border-top:1px solid #f0f0f0">
@@ -243,30 +287,9 @@
   const externalRef = clean(params.get('external_reference'))
   const merchant = clean(params.get('merchant_order_id'))
 
-  const statusFallido = ['failure', 'rejected', 'cancelled']
-  const statusOk = ['approved', 'pending', 'in_process']
-
-  // Sin payment_id real → no hay pago confirmado
-  if (!paymentId) {
-    if (statusFallido.includes(status)) {
-      window.location.replace('/carrito.html?pago=cancelado')
-    } else {
-      window.location.replace('/')
-    }
-    return
-  }
-
-  // Con payment_id: redirigir si el status es explícitamente fallido
-  if (statusFallido.includes(status)) {
-    window.location.replace('/carrito.html?pago=cancelado')
-    return
-  }
-
-  // Si hay status pero NO es uno aprobado/pendiente válido → no confirmar
-  if (status && !statusOk.includes(status)) {
-    window.location.replace('/')
-    return
-  }
+  // El gate del <head> ya decidió si esto es un pago válido y qué vista mostrar.
+  // Si no es válido, no rellenamos la confirmación ni tocamos el carrito.
+  if (!window.__zmPagoOk) return
 
   // Pago pendiente (OXXO, transferencia) — ajustar textos
   if (status === 'pending' || status === 'in_process') {
@@ -305,6 +328,7 @@
 
 // Cross-sell: cargar productos nuevos/populares
 ;(async function() {
+  if (!window.__zmPagoOk) return
   const API = 'https://zapatillasmay-production.up.railway.app'
   try {
     const r = await fetch(`${API}/productos?activo=eq.true&nuevo=eq.true&select=id,nombre,slug,precio_menudeo,imagen_principal&limit=6`)
@@ -335,6 +359,7 @@
 
 // Pinterest Tag + checkout event (complementa la CAPI server-side)
 ;(function() {
+  if (!window.__zmPagoOk) return
   if (localStorage.getItem('zm_consent') === 'rejected') return
   const params    = new URLSearchParams(window.location.search)
   const paymentId = params.get('payment_id') || params.get('collection_id') || ''
@@ -371,6 +396,7 @@ function copiarLink() {
 
 // Google Customer Reviews — opt-in survey
 ;(function() {
+  if (!window.__zmPagoOk) return
   const params = new URLSearchParams(window.location.search)
   const status = params.get('status') || params.get('collection_status') || ''
   if (['failure','rejected','cancelled'].includes(status)) return
