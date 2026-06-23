@@ -8204,6 +8204,7 @@ async function cargarPOS() {
               <p id="pos-descuento-info" style="font-size:0.75rem;color:#888;margin-top:4px"></p>
             </div>
             <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem;font-weight:600" onclick="cobrarPOS()">Cobrar</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.9rem;font-weight:600;border-color:#E91E8C;color:#E91E8C" onclick="guardarCarritoPOS(false)">💾 Guardar carrito</button>
             <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem" onclick="limpiarCarritoPOS()">Limpiar carrito</button>
           </div>
         </div>
@@ -8259,6 +8260,7 @@ async function cargarPOS() {
             <option value="credito">Credito</option>
           </select>
           <button onclick="cobrarPOSM()" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700;margin-bottom:8px">💳 Cobrar</button>
+          <button onclick="guardarCarritoPOS(true)" class="btn btn-secondary" style="width:100%;font-size:0.9rem;font-weight:600;margin-bottom:8px;border-color:#E91E8C;color:#E91E8C">💾 Guardar carrito</button>
           <button onclick="limpiarCarritoPOS();cerrarDrawerPOS()" class="btn btn-secondary" style="width:100%;font-size:0.9rem">🗑 Limpiar carrito</button>
         </div>
       </div>
@@ -8642,8 +8644,8 @@ if (modalAnterior) modalAnterior.remove()
   
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
-      
-      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #eee">
+
+      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #eee;flex-shrink:0">
         <div style="display:flex;align-items:flex-start;gap:12px">
           ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0">` : ''}
           <div style="flex:1;min-width:0">
@@ -8668,6 +8670,8 @@ if (modalAnterior) modalAnterior.remove()
           </div>
         </div>
       </div>
+
+      <div id="pos-modal-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
       ${producto.corrida_activa ? `
       <div style="padding:12px 1.5rem 0">
@@ -8707,11 +8711,13 @@ if (modalAnterior) modalAnterior.remove()
         </div>
       </div>
 
-      <div id="pos-tallas-panel" style="padding:1rem;border-bottom:1px solid #eee;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch">
+      <div id="pos-tallas-panel" style="padding:1rem;border-bottom:1px solid #eee">
         <p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
       </div>
 
-      <div id="pos-modal-resumen" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:none">
+      </div><!-- /pos-modal-scroll -->
+
+      <div id="pos-modal-resumen" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:none;flex-shrink:0">
       </div>
 
       <div id="pos-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #eee">
@@ -9996,6 +10002,83 @@ window.cobrarPOS = async () => {
     ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
   }
 }
+
+// Guardar el carrito del POS como borrador (aparece en la sección "Carritos").
+// NO descuenta stock: eso ocurre al confirmar la venta desde Carritos.
+window.guardarCarritoPOS = async (fromDrawer) => {
+  if (!window._posCarrito || window._posCarrito.length === 0) { alert('El carrito está vacío'); return }
+  const clienteId = document.getElementById('pos-cliente')?.value || null
+  if (!clienteId) {
+    alert('Selecciona un cliente para guardar el carrito')
+    return
+  }
+  if (window._guardandoCarrito) return
+  window._guardandoCarrito = true
+
+  const sucursalId = document.getElementById('pos-sucursal')?.value
+  const formaPago = document.getElementById('pos-pago')?.value || 'efectivo'
+  const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+
+  const btns = [...document.querySelectorAll('button[onclick^="guardarCarritoPOS"]')]
+  btns.forEach(b => { b.disabled = true; b._txt = b.textContent; b.textContent = 'Guardando...' })
+
+  let pedidoId = null
+  try {
+    // 1. Crear pedido como borrador (sin confirmar → no toca stock)
+    const resPedido = await fetch(API + '/pedidos/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: clienteId,
+        canal: 'sucursal',
+        sucursal_id: sucursalId,
+        forma_pago: formaPago,
+        total,
+        subtotal: total,
+        status: 'borrador'
+      })
+    })
+    const pedidoData = await resPedido.json()
+    if (!resPedido.ok) throw new Error('No se pudo crear el carrito: ' + JSON.stringify(pedidoData))
+    pedidoId = Array.isArray(pedidoData) ? pedidoData[0]?.id : pedidoData?.id
+    if (!pedidoId) throw new Error('No se obtuvo ID del carrito')
+
+    // 2. Agregar items
+    for (const item of window._posCarrito) {
+      const resItem = await fetch(API + '/pedidos/' + pedidoId + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: item.variante_id,
+          cantidad: item.cantidad,
+          precio_unitario: item.precio_unitario,
+          subtotal: item.cantidad * item.precio_unitario
+        })
+      })
+      if (!resItem.ok) {
+        const errItem = await resItem.json().catch(() => ({}))
+        throw new Error('Error en item ' + item.nombre + ': ' + JSON.stringify(errItem))
+      }
+    }
+
+    // 3. Éxito — vaciar carrito y cliente para empezar de cero
+    window._posCarrito = []
+    window._guardandoCarrito = false
+    if (fromDrawer && typeof cerrarDrawerPOS === 'function') cerrarDrawerPOS()
+    if (typeof limpiarClientePOS === 'function') limpiarClientePOS()
+    renderCarritoPOS()
+    alert('Carrito guardado. Lo encuentras en la sección Carritos.')
+  } catch(e) {
+    window._guardandoCarrito = false
+    // Si el pedido ya se creó, cancelarlo para no dejar basura
+    if (pedidoId) {
+      try { await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) } catch(e2) {}
+    }
+    alert('No se pudo guardar el carrito:\n' + (e?.message || e))
+    btns.forEach(b => { b.disabled = false; if (b._txt) b.textContent = b._txt })
+  }
+}
+
 window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   const res = await fetch(API + '/pedidos/' + pedidoId)
   const data = await res.json()
