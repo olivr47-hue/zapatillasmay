@@ -197,13 +197,18 @@
   const externalRef = params.get('external_reference')
   const merchant = params.get('merchant_order_id')
 
-  // Si no hay payment_id ni external_reference, no es una compra real
-  if (!paymentId && !externalRef) {
-    window.location.replace('/')
+  // Sin payment_id real → no hay pago confirmado
+  if (!paymentId) {
+    const statusFallido = ['failure', 'rejected', 'cancelled']
+    if (status && statusFallido.includes(status)) {
+      window.location.replace('/carrito.html?pago=cancelado')
+    } else {
+      window.location.replace('/')
+    }
     return
   }
 
-  // Redirigir si el pago fue cancelado o fallido
+  // Con payment_id: redirigir si el status es explícitamente fallido
   const statusFallido = ['failure', 'rejected', 'cancelled']
   if (status && statusFallido.includes(status)) {
     window.location.replace('/carrito.html?pago=cancelado')
