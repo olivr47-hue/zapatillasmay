@@ -8626,6 +8626,13 @@ if (modalAnterior) modalAnterior.remove()
   const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
   const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
+  // Precios por nivel (con los mismos defaults que usa el resto del POS)
+  const pMenudeo = parseFloat(producto.precio_menudeo) || 0
+  const pMay3    = parseFloat(producto.precio_mayoreo3) || (pMenudeo - 30)
+  const pMay6    = parseFloat(producto.precio_mayoreo6) || (pMenudeo - 70)
+  const pCorrida = parseFloat(producto.precio_corrida)  || (pMenudeo - 100)
+  const fmtP = n => '$' + Math.round(n).toLocaleString('es-MX')
+
   // Buffer temporal de cantidades seleccionadas
   window._posBuffer = {}
 
@@ -8636,14 +8643,30 @@ if (modalAnterior) modalAnterior.remove()
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
       
-      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #eee;display:flex;align-items:center;gap:12px">
-        ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : ''}
-        <div style="flex:1">
-          <p style="font-weight:700;font-size:1rem">${producto.nombre}</p>
-          <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
-          <p style="font-weight:700;color:#E91E8C">$${producto.precio_menudeo} menudeo</p>
+      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #eee">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0">` : ''}
+          <div style="flex:1;min-width:0">
+            <p style="font-weight:700;font-size:1rem;line-height:1.25">${producto.nombre}</p>
+            <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
+            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin-top:2px">${fmtP(pMenudeo)} <span style="font-size:0.72rem;font-weight:600;color:#aaa">menudeo</span></p>
+          </div>
+          <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;flex-shrink:0;line-height:1">✕</button>
         </div>
-        <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;flex-shrink:0">✕</button>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="flex:1;background:#fafafa;border:1px solid #eee;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Mayoreo 3+</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#333">${fmtP(pMay3)}</p>
+          </div>
+          <div style="flex:1;background:#fafafa;border:1px solid #eee;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Mayoreo 6+</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#333">${fmtP(pMay6)}</p>
+          </div>
+          <div style="flex:1;background:#f3e5f5;border:1px solid #e1bee7;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#6a1b9a;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Corrida c/u</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#6a1b9a">${fmtP(pCorrida)}</p>
+          </div>
+        </div>
       </div>
 
       ${producto.corrida_activa ? `
@@ -8660,19 +8683,23 @@ if (modalAnterior) modalAnterior.remove()
         <p id="pos-color-label" style="font-size:0.75rem;color:#888;font-weight:600;margin-bottom:8px">SELECCIONA COLOR</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${colores.map(color => {
-            const v = varsProd.find(v => v.color === color)
-            const totalStock = varsProd
-              .filter(v => v.color === color)
+            const varsColor = varsProd.filter(v => v.color === color)
+            const v = varsColor[0]
+            const fotoColor = varsColor.map(x => x.foto_url).find(Boolean)
+            const totalStock = varsColor
               .reduce((sum, v) => {
                 const inv = invSucursal.find(i => i.variante_id === v.id)
                 return sum + (inv ? inv.cantidad : 0)
               }, 0)
+            const swatch = fotoColor
+              ? `<img src="${fotoColor}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid #ddd">`
+              : `<div style="width:46px;height:46px;border-radius:8px;background:${v ? v.color_hex : '#888'};border:1px solid #ddd"></div>`
             return `
               <div onclick="posSeleccionarColor('${productoId}', '${color}')"
                    id="pos-color-btn-${color.replace(/\s/g,'_')}"
-                   style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${totalStock === 0 ? '#f5f5f5' : '#ddd'};opacity:${totalStock === 0 ? '0.4' : '1'}">
-                <div style="width:24px;height:24px;border-radius:50%;background:${v ? v.color_hex : '#888'};border:2px solid #ddd"></div>
-                <span style="font-size:0.65rem;color:#666;white-space:nowrap">${color}</span>
+                   style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;border:2px solid ${totalStock === 0 ? '#f5f5f5' : '#ddd'};opacity:${totalStock === 0 ? '0.4' : '1'};width:74px">
+                ${swatch}
+                <span style="font-size:0.62rem;color:#666;text-align:center;line-height:1.1;height:2.2em;overflow:hidden">${color}</span>
                 <span id="pos-color-badge-${color.replace(/\s/g,'_')}" style="font-size:0.6rem;color:#2e7d32;font-weight:700;display:none">0 pares</span>
               </div>
             `
