@@ -132,10 +132,20 @@ def _no_config():
 @router.get("/diagnostico")
 def diagnostico():
     """Verifica configuración y conectividad con la API."""
+    import sys
+    crypto_ok = False
+    try:
+        import cryptography  # noqa: F401
+        crypto_ok = True
+    except Exception:
+        crypto_ok = False
     ok = _configurado()
     token = _access_token() if ok else None
     return {
+        "build": "2026-06-23c",          # marcador para confirmar despliegue
+        "python": sys.version.split()[0],
         "jwt_ok": JWT_OK,
+        "cryptography_ok": crypto_ok,
         "tiene_credentials": bool(GSC_CREDENTIALS),
         "site_url": GSC_SITE_URL,
         "token_ok": bool(token),
