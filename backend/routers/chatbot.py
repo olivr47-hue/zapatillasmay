@@ -40,7 +40,73 @@ def construir_catalogo(productos):
         catalogo += "\n"
     return catalogo
 
-def construir_sistema(catalogo):
+def obtener_pedidos_cliente(telefono: str) -> list:
+    """Busca los pedidos recientes del cliente por teléfono para dárselos a Maya."""
+    try:
+        tel = telefono.replace("+", "").strip()
+        tel_sin = tel[2:] if tel.startswith("52") else tel
+        tel_con = "52" + tel_sin
+        pedidos = supabase_get(
+            f"pedidos?telefono_cliente=in.({tel_con},{tel_sin})"
+            f"&status=neq.cancelado&order=created_at.desc&limit=5"
+            f"&select=id,created_at,status,total,notas,direccion_envio,numero_guia,paqueteria,tracking_url,forma_pago"
+        )
+        return pedidos if pedidos else []
+    except Exception as e:
+        print(f"[pedidos-cliente] Error: {e}")
+        return []
+
+def _resumir_pedidos(pedidos: list) -> str:
+    if not pedidos:
+        return ""
+    status_map = {
+        'pagado':           'Pagado — preparando envío',
+        'enviado':          'Enviado',
+        'entregado':        'Entregado',
+        'checkout_iniciado':'En proceso de pago',
+        'pendiente_pago':   'Pendiente de pago (SPEI/OXXO)',
+        'confirmado':       'Confirmado',
+        'cancelado':        'Cancelado',
+    }
+    lineas = []
+    for p in pedidos:
+        st = status_map.get(p.get('status', ''), p.get('status', ''))
+        total = p.get('total', 0)
+        direccion = p.get('direccion_envio', '')
+        guia = p.get('numero_guia', '')
+        paq  = p.get('paqueteria', '')
+        url_track = p.get('tracking_url', '')
+        notas = p.get('notas', '')
+        pid = str(p.get('id', ''))[:8]
+        linea = f"• Pedido #{pid} | {st} | ${total:.0f} MXN"
+        if direccion:
+            linea += f" | Envío a: {direccion}"
+        if guia and paq:
+            linea += f" | Guía {paq}: {guia}"
+            if url_track:
+                linea += f" ({url_track})"
+        elif guia:
+            linea += f" | Guía: {guia}"
+        if notas:
+            linea += f" | Detalle: {notas}"
+        lineas.append(linea)
+    return "\n".join(lineas)
+
+def construir_sistema(catalogo, pedidos_cliente=None):
+    seccion_pedidos = ""
+    if pedidos_cliente:
+        resumen = _resumir_pedidos(pedidos_cliente)
+        seccion_pedidos = f"""
+
+=== PEDIDOS DE ESTE CLIENTE ===
+{resumen}
+
+REGLAS para pedidos existentes:
+- Si pregunta por su pedido, rastreo o estatus: usa ESTA información, NO vuelvas a pedir su nombre, dirección, ciudad ni CP.
+- Si ya tiene guía: dísela directamente.
+- Si el pedido está "Pagado — preparando envío": dile que está siendo preparado y que le llegará la guía pronto.
+- Si el pedido está "Enviado" sin guía: dile que ya fue enviado y que confirmes la guía con una asesora."""
+
     return f"""Eres Maya, asistente de ventas de Zapatillas May en León, Guanajuato por WhatsApp.
 
 SOBRE ZAPATILLAS MAY:
@@ -119,7 +185,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + modelos + colores 
 
 === COMPROBANTES DE PAGO ===
 - Si el cliente manda una imagen que parece captura de transferencia, OXXO, Mercado Pago u otro comprobante de pago: confirma el pago, di que procesamos en 24hrs y pregunta al final "¿Hay algo más en lo que te pueda ayudar? 😊" NO pidas ningún dato adicional del pedido.
-- NUNCA pidas nombre, dirección, modelos, tallas ni nada más cuando ya tienes el comprobante — ya tienes toda la info del pedido en el historial."""
+- NUNCA pidas nombre, dirección, modelos, tallas ni nada más cuando ya tienes el comprobante — ya tienes toda la info del pedido en el historial.{seccion_pedidos}"""
 
 def llamar_claude(mensajes, sistema):
     url = "https://api.anthropic.com/v1/messages"
@@ -802,7 +868,8 @@ async def recibir_mensaje_whatsapp(datos: dict):
 
         productos = cargar_catalogo()
         catalogo = construir_catalogo(productos)
-        sistema = construir_sistema(catalogo)
+        pedidos_cliente = obtener_pedidos_cliente(from_number)
+        sistema = construir_sistema(catalogo, pedidos_cliente)
         historial = obtener_historial(from_number)
 
         if tipo == "image":
@@ -923,7 +990,7 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 else:
                     # Pasar a Maya como si fuera texto
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": btn_title}]
-                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo())))
+                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, btn_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -935,7 +1002,7 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 guardar_conversacion(from_number, mensaje, None, "list_reply", nombre_contacto)
                 if not control:
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": row_title}]
-                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo())))
+                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, row_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
