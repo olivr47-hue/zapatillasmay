@@ -515,6 +515,17 @@ async def webhook_mercadopago(request: Request):
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 
 
+@router.get("/diag-pk")
+def diag_pk():
+    """Diagnóstico temporal: nombres de env vars relacionadas con MP / public key
+    (sin exponer valores) para identificar la llave pública ya configurada."""
+    nombres = sorted([
+        k for k in os.environ
+        if ("MP" in k.upper() or "MERCAD" in k.upper() or "PUBLIC" in k.upper())
+    ])
+    return {"vars_relacionadas": nombres}
+
+
 @router.get("/estado/{pedido_id}")
 def estado_pago(pedido_id: str):
     try:
