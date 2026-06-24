@@ -198,6 +198,27 @@ def cuenta():
     return {"configurado": True, "cuenta": info, "vinculos": links, "error": _last_error or None}
 
 
+@router.get("/account-issues")
+def account_issues():
+    """Problemas a nivel de CUENTA + conteo de productos por destino (active/disapproved)."""
+    if not _configurado():
+        return _no_config()
+    st = _get(f"{MERCHANT_ID}/accountstatuses/{MERCHANT_ID}")
+    if st is None:
+        return {"configurado": True, "error": _last_error}
+    issues = [
+        {"titulo": i.get("title"), "pais": i.get("country"), "destino": i.get("destination"),
+         "severidad": i.get("severity"), "detalle": i.get("detail"), "doc": i.get("documentation")}
+        for i in (st.get("accountLevelIssues") or [])
+    ]
+    productos = [
+        {"canal": p.get("channel"), "destino": p.get("destination"), "pais": p.get("country"),
+         "stats": p.get("statistics")}
+        for p in (st.get("products") or [])
+    ]
+    return {"configurado": True, "problemas_cuenta": issues, "productos_por_destino": productos}
+
+
 @router.get("/feeds")
 def feeds():
     """Estado de procesamiento de las fuentes de datos (feeds): items válidos/errores."""
