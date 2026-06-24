@@ -34,6 +34,7 @@
     { "source": "/feed/google.xml",       "destination": "https://zapatillasmay-production.up.railway.app/feed/google.xml" },
     { "source": "/feed/google-local.xml", "destination": "https://zapatillasmay-production.up.railway.app/feed/google-local.xml" },
     { "source": "/feed/meta.xml",         "destination": "https://zapatillasmay-production.up.railway.app/feed/meta.xml" },
+    { "source": "/logo.png",       "destination": "https://res.cloudinary.com/dybdtehhs/image/upload/w_512,h_512,c_fit,f_png/v1776836428/Proyecto_nuevo_wpdwus.png" },
     { "source": "/mcp",            "destination": "https://zapatillasmay-production.up.railway.app/mcp" },
     { "source": "/carrito",        "destination": "/carrito.html" },
     { "source": "/catalogo",       "destination": "/catalogo.html" },
