@@ -558,17 +558,31 @@ async def webhook_mercadopago(request: Request):
                             for item in items:
                                 variante_id = item.get("variante_id")
                                 cantidad = item.get("cantidad", 1)
-                                if variante_id and sucursal_id:
+                                if not variante_id:
+                                    continue
+                                # Mostrador trae sucursal_id; los pedidos WEB no → descontar
+                                # del inventario donde exista la variante (bodega online).
+                                if sucursal_id:
                                     inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                                    if inv:
-                                        nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
-                                        supabase_patch(
-                                            f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                                            {"cantidad": nueva_cantidad}
-                                        )
+                                else:
+                                    inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&order=cantidad.desc&limit=1")
+                                if inv:
+                                    inv_suc = inv[0].get("sucursal_id")
+                                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
+                                    supabase_patch(
+                                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{inv_suc}",
+                                        {"cantidad": nueva_cantidad}
+                                    )
+                            # Guardar la forma de pago real según el método de MercadoPago
+                            _pt = (payment or {}).get("payment_type_id", "")
+                            _forma = {
+                                "credit_card": "tarjeta", "debit_card": "tarjeta", "prepaid_card": "tarjeta",
+                                "account_money": "mercadopago", "digital_wallet": "mercadopago",
+                                "ticket": "oxxo", "atm": "spei", "bank_transfer": "spei",
+                            }.get(_pt, "mercadopago")
                             supabase_patch(
                                 f"pedidos?id=eq.{pedido_id}",
-                                {"status": "pagado", "mp_payment_id": str(payment_id)}
+                                {"status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma}
                             )
                             enviar_evento_meta("Purchase", p, payment)
                             enviar_ga4_purchase(p, payment)

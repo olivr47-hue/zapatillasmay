@@ -202,8 +202,8 @@ async function _pollPedidosPorEnviar() {
     const res = await fetch(API + '/pedidos/?status=pagado')
     if (!res.ok) return
     const pedidos = await res.json()
-    // Solo los que vienen de MercadoPago (online)
-    const porEnviar = pedidos.filter(p => p.mp_preference_id)
+    // Solo los que vienen de MercadoPago (online): preference (Checkout Pro) o payment (pago embebido)
+    const porEnviar = pedidos.filter(p => p.mp_preference_id || p.mp_payment_id)
     const count = porEnviar.length
 
     // Actualizar badge en sidebar
@@ -7011,7 +7011,7 @@ function _renderFilaPedido(p) {
   }[p.status] || p.status
 
   // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
-  const esPagadoOnline = (p.status === 'pagado') && p.mp_preference_id
+  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id)
   const esEnviado = p.status === 'enviado'
 
   let accionEnvio = ''
