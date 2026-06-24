@@ -790,7 +790,7 @@ def _img_feed(url):
         return u
     # Evitar doble transformación si ya viene con una
     cabeza, _, cola = u.partition("/upload/")
-    transform = "if_w_lt_800,c_scale,w_1200,e_sharpen:60/if_end/c_limit,w_1600,f_auto,q_auto"
+    transform = "if_w_lt_800/c_scale,w_1200,e_sharpen:60/if_end/c_limit,w_1600,f_auto,q_auto"
     return f"{cabeza}/upload/{transform}/{cola}"
 
 
