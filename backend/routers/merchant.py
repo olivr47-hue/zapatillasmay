@@ -143,6 +143,7 @@ def estado_productos(limite: int = 250, solo_con_problemas: bool = True):
                 {
                     "codigo": i.get("code"),
                     "severidad": i.get("servability"),     # disapproved / demoted / unaffected
+                    "destino": i.get("destination"),       # Shopping / SurfacesAcrossGoogle / Local...
                     "atributo": i.get("attributeName"),
                     "descripcion": i.get("description"),
                     "detalle": i.get("detail"),
