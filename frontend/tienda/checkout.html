@@ -86,6 +86,9 @@
 
     /* Resumen lateral (sticky) */
     .resumen-side { position:sticky; top:76px; }
+    /* Al mostrar el pago embebido: una sola columna centrada (no dejar la izquierda vacía en PC) */
+    .layout.brick-activo { grid-template-columns: minmax(0,1fr); max-width: 480px; margin: 0 auto; }
+    .layout.brick-activo .resumen-side { position: static; }
     .ritem { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); }
     .ritem img { width:46px; height:58px; object-fit:cover; border-radius:8px; background:#f5f0eb; flex-shrink:0; }
     .ritem-ph { width:46px; height:58px; border-radius:8px; background:#f5f0eb; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -601,6 +604,7 @@ function _volverAEditar() {
   const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = ''
   const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = ''
   const cont = document.getElementById('brick-container'); if (cont) cont.style.display = 'none'
+  document.querySelector('.layout')?.classList.remove('brick-activo')
   const btn = document.getElementById('btn-pagar'); if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Pagar ahora' }
   try { document.getElementById('step-direccion').scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){}
 }
@@ -635,6 +639,7 @@ async function pagarConBrick(pedidoId, total, email) {
     // Ocultar los formularios ya completados para que el pago quede arriba (clave en móvil)
     const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
     const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
+    document.querySelector('.layout')?.classList.add('brick-activo')  // PC: 1 columna centrada
 
     const mp = new MercadoPago(cfg.public_key, { locale: 'es-MX' })
     if (_brickController) { try { _brickController.unmount() } catch(e){} }
