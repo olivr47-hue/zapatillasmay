@@ -264,9 +264,17 @@ window._limpiarBadgePedidos = function() {
   _ultimosPedidosPorEnviar = new Set([..._ultimosPedidosPorEnviar])
 }
 
-// Correr al cargar y luego cada 60 segundos
-_pollPedidosPorEnviar()
-setInterval(_pollPedidosPorEnviar, 60000)
+// Correr en cuanto exista el menú (evita que el badge tarde ~1 min en aparecer tras
+// recargar, porque antes el primer chequeo corría antes de que el sidebar estuviera en el DOM)
+function _arrancarPollPedidos() {
+  if (document.getElementById('badge-pedidos-enviar')) {
+    _pollPedidosPorEnviar()
+  } else {
+    setTimeout(_arrancarPollPedidos, 400)
+  }
+}
+_arrancarPollPedidos()
+setInterval(_pollPedidosPorEnviar, 30000)
 
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
