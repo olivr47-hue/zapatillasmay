@@ -196,7 +196,16 @@ export function renderPanel() {
   }, 8000)
 
  // ── Polling: pedidos por enviar ───────────────────────────────────
+const _BADGE_KEY = 'zm_badge_pedidos'
 let _ultimosPedidosPorEnviar = new Set()
+
+function _setBadge(count) {
+  const badge = document.getElementById('badge-pedidos-enviar')
+  if (!badge) return
+  badge.textContent = count
+  badge.style.display = count > 0 ? 'inline' : 'none'
+}
+
 async function _pollPedidosPorEnviar() {
   try {
     const res = await fetch(API + '/pedidos/?status=pagado')
@@ -206,12 +215,9 @@ async function _pollPedidosPorEnviar() {
     const porEnviar = pedidos.filter(p => p.mp_preference_id || p.mp_payment_id)
     const count = porEnviar.length
 
-    // Actualizar badge en sidebar
-    const badge = document.getElementById('badge-pedidos-enviar')
-    if (badge) {
-      badge.textContent = count
-      badge.style.display = count > 0 ? 'inline' : 'none'
-    }
+    // Guardar en localStorage para mostrar al instante en la próxima carga
+    localStorage.setItem(_BADGE_KEY, count)
+    _setBadge(count)
 
     // Detectar pedidos nuevos (que no estaban en el poll anterior)
     const idsActuales = new Set(porEnviar.map(p => p.id))
@@ -264,10 +270,11 @@ window._limpiarBadgePedidos = function() {
   _ultimosPedidosPorEnviar = new Set([..._ultimosPedidosPorEnviar])
 }
 
-// Correr en cuanto exista el menú (evita que el badge tarde ~1 min en aparecer tras
-// recargar, porque antes el primer chequeo corría antes de que el sidebar estuviera en el DOM)
 function _arrancarPollPedidos() {
   if (document.getElementById('badge-pedidos-enviar')) {
+    // Mostrar conteo cacheado al instante, luego confirmar con la API
+    const cached = parseInt(localStorage.getItem(_BADGE_KEY) || '0', 10)
+    if (cached > 0) _setBadge(cached)
     _pollPedidosPorEnviar()
   } else {
     setTimeout(_arrancarPollPedidos, 400)
@@ -7168,7 +7175,7 @@ async function cargarPedidos() {
     const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
     const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
-    const porEnviar = data.filter(p => p.status === 'pagado' && p.mp_preference_id).length
+    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id)).length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
 
     const kpiCard = (valor, label, sub, color, bg, border, onclick) => `
@@ -7269,7 +7276,7 @@ window.cargarPedidosFiltro = (filtro) => {
   } else if (filtro === 'credito') {
     filtrados = data.filter(p => p.forma_pago === 'credito')
   } else if (filtro === 'por_enviar') {
-    filtrados = data.filter(p => p.status === 'pagado' && p.mp_preference_id)
+    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id))
   } else if (filtro) {
     filtrados = data.filter(p => p.canal === filtro)
   }
