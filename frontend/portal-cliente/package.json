@@ -1,0 +1,15 @@
+{
+  "name": "portal-cliente",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Portal de cliente mayoreo (prototipo aislado, NO producción)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
