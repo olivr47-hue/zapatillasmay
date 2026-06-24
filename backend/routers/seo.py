@@ -779,6 +779,21 @@ def _cap(s):
     return (s[:1].upper() + s[1:].lower()) if s else ""
 
 
+def _img_feed(url):
+    """Normaliza la imagen para los feeds de Shopping.
+    Solo toca URLs de Cloudinary: si la imagen mide menos de 800px de ancho la
+    agranda a 1200 (con sharpen) para cumplir el mínimo de Google; las que ya son
+    grandes NO se tocan (solo se limitan a 1600 y se optimizan). Es no-destructivo:
+    transforma en la entrega, no modifica el original guardado."""
+    u = (url or "").strip()
+    if not u or "res.cloudinary.com" not in u or "/upload/" not in u:
+        return u
+    # Evitar doble transformación si ya viene con una
+    cabeza, _, cola = u.partition("/upload/")
+    transform = "if_w_lt_800,c_scale,w_1200,e_sharpen:60/if_end/c_limit,w_1600,f_auto,q_auto"
+    return f"{cabeza}/upload/{transform}/{cola}"
+
+
 def _titulo_feed(p):
     codigo = (p.get("nombre") or p.get("sku_interno") or "").strip()
     cat = (p.get("categoria") or "").strip().lower()
@@ -1173,7 +1188,7 @@ def feed_json():
                 "precios_mxn": precios,
                 "es_oferta": bool(p.get("es_oferta")),
                 "moneda":    "MXN",
-                "imagen":    p.get("imagen_principal"),
+                "imagen":    _img_feed(p.get("imagen_principal")),
                 "url":       f"https://zapatillasmay.mx/producto/{slug}" if slug else None,
                 "disponible": tiene_stock or bool(colores_list),
                 "disponibilidad": "in_stock" if tiene_stock else ("available" if colores_list else "out_of_stock"),
@@ -1325,9 +1340,9 @@ def feed_meta():
                     xml += f'  <g:title>{_html.escape(titulo_base + (" - " + color_title if color_title else ""), quote=True)}</g:title>\n'
                     xml += f'  <g:description>{desc}</g:description>\n'
                     xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
-                    xml += f'  <g:image_link>{imagen}</g:image_link>\n'
+                    xml += f'  <g:image_link>{_img_feed(imagen)}</g:image_link>\n'
                     for img_extra in imagenes_extra[:9]:
-                        xml += f'  <g:additional_image_link>{img_extra}</g:additional_image_link>\n'
+                        xml += f'  <g:additional_image_link>{_img_feed(img_extra)}</g:additional_image_link>\n'
                     xml += f'  <g:price>{precio_menudeo} MXN</g:price>\n'
                     if es_oferta:
                         xml += f'  <g:sale_price>{precio_menudeo} MXN</g:sale_price>\n'
@@ -1365,7 +1380,7 @@ def feed_meta():
                 xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
                 xml += f'  <g:description>{desc2}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
-                xml += f'  <g:image_link>{imagen_p}</g:image_link>\n'
+                xml += f'  <g:image_link>{_img_feed(imagen_p)}</g:image_link>\n'
                 xml += f'  <g:price>{precio2} MXN</g:price>\n'
                 if es_oferta2:
                     xml += f'  <g:sale_price>{precio2} MXN</g:sale_price>\n'
@@ -1531,7 +1546,7 @@ def feed_google():
             xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
             xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
             xml += f'  <g:link>{url}</g:link>\n'
-            xml += f'  <g:image_link>{p.get("imagen_principal","")}</g:image_link>\n'
+            xml += f'  <g:image_link>{_img_feed(p.get("imagen_principal",""))}</g:image_link>\n'
             xml += f'  <g:price>{(p.get("precio_menudeo") or 0) + 80} MXN</g:price>\n'
             xml += f'  <g:availability>in stock</g:availability>\n'
             xml += f'  <g:condition>new</g:condition>\n'
