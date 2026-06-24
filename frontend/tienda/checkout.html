@@ -260,7 +260,7 @@
           <span style="font-size:0.7rem;color:var(--gray-light);display:flex;align-items:center;gap:4px">📦 1–3 días hábiles</span>
           <span style="font-size:0.7rem;color:var(--gray-light);display:flex;align-items:center;gap:4px">↩ <a href="/politica-de-devoluciones" target="_blank" style="color:var(--gray-light);text-decoration:underline">30 días garantía</a></span>
         </div>
-        <p style="text-align:center;font-size:0.72rem;color:var(--gray);margin-top:2px">Acepta <strong>tarjeta, SPEI y OXXO</strong> · vía MercadoPago</p>
+        <p style="text-align:center;font-size:0.72rem;color:var(--gray);margin-top:2px">Al pagar te llevamos a <strong>MercadoPago</strong> (tarjeta, SPEI u OXXO). Tu pedido <strong>queda apartado</strong> mientras completas el pago. 🔒</p>
       </div>
     </div>
   </div>
@@ -740,32 +740,26 @@ async function _buscarCP(cp) {
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 4000)
-    // Sin "simplified" para obtener también las colonias del CP
-    const r = await fetch(`https://api.copomex.com/query/info_cp/${cp}?token=demo`, { signal: ctrl.signal })
+    // API pública gratuita de códigos postales (sin token ni cuenta). Devuelve
+    // estado y colonias (place name). No trae municipio, así que ciudad es manual.
+    const r = await fetch(`https://api.zippopotam.us/mx/${cp}`, { signal: ctrl.signal })
     clearTimeout(timer)
     if (!r.ok) return
-    const raw = await r.json()
-    // La API devuelve array cuando trae colonias, o un objeto si es simplified
-    const items = Array.isArray(raw) ? raw : [raw]
-    if (!items.length || items[0]?.error) return
-    const first = items[0]
-    const ciudadEl  = document.getElementById('co-ciudad')
+    const data = await r.json()
+    const places = Array.isArray(data.places) ? data.places : []
+    if (!places.length) return
     const estadoEl  = document.getElementById('co-estado')
     const coloniaEl = document.getElementById('co-colonia')
     const listEl    = document.getElementById('colonias-list')
-    const municipio = first.municipio || first.ciudad || first.alcaldia_municipio || ''
-    const estado    = first.estado || ''
-    if (ciudadEl && !ciudadEl.value.trim() && municipio)  { ciudadEl.value  = municipio; ciudadEl.style.borderColor  = '#22c55e' }
-    if (estadoEl && !estadoEl.value.trim() && estado)     { estadoEl.value  = estado;    estadoEl.style.borderColor  = '#22c55e' }
+    const estado    = (places[0]['state'] || '').trim()
+    if (estadoEl && !estadoEl.value.trim() && estado) { estadoEl.value = estado; estadoEl.style.borderColor = '#22c55e' }
     // Poblar datalist de colonias
-    if (listEl) {
-      const colonias = [...new Set(items.map(i => i.asentamiento || i.colonia || '').filter(Boolean))]
-      listEl.innerHTML = colonias.map(c => `<option value="${c}">`).join('')
-      // Si solo hay una colonia, pre-llenar
-      if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
-        coloniaEl.value = colonias[0]
-        coloniaEl.style.borderColor = '#22c55e'
-      }
+    const colonias = [...new Set(places.map(p => (p['place name'] || '').trim()).filter(Boolean))]
+    if (listEl) listEl.innerHTML = colonias.map(c => `<option value="${c}">`).join('')
+    // Si solo hay una colonia, pre-llenar
+    if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
+      coloniaEl.value = colonias[0]
+      coloniaEl.style.borderColor = '#22c55e'
     }
   } catch(e) { /* silencioso — no bloquear el flujo */ }
 }
