@@ -24,6 +24,22 @@ router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
 sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
 
+# Credenciales de PRUEBA (Checkout Bricks embebido). Si no están, el modo test
+# simplemente no funciona y se usa producción.
+MP_ACCESS_TOKEN_TEST = os.getenv("MP_ACCESS_TOKEN_TEST", "")
+MP_PUBLIC_KEY        = os.getenv("MP_PUBLIC_KEY", "")
+MP_PUBLIC_KEY_TEST   = os.getenv("MP_PUBLIC_KEY_TEST", "")
+sdk_test = mercadopago.SDK(MP_ACCESS_TOKEN_TEST) if MP_ACCESS_TOKEN_TEST else None
+
+
+def _sdk(test=False):
+    """SDK de MP: el de prueba si test=True y existe, si no el de producción."""
+    return sdk_test if (test and sdk_test) else sdk
+
+
+def _public_key(test=False):
+    return MP_PUBLIC_KEY_TEST if (test and MP_PUBLIC_KEY_TEST) else MP_PUBLIC_KEY
+
 META_PIXEL_ID = os.getenv("META_PIXEL_ID")
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
@@ -417,6 +433,88 @@ def crear_preferencia(datos: dict):
     except Exception as e:
         import traceback
         print(f"crear_preferencia exception: {traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _total_validado(pedido_id):
+    """Total autoritativo del pedido. Usa el total guardado, pero NUNCA por debajo
+    del valor real de los productos (validado contra catálogo) — anti-manipulación."""
+    try:
+        ped = supabase_get(f"pedidos?id=eq.{pedido_id}&select=total")
+        total = float(ped[0]["total"]) if ped and ped[0].get("total") is not None else None
+    except Exception:
+        total = None
+    try:
+        items = _construir_items_validados(pedido_id, [])
+        floor = sum(float(i["unit_price"]) * int(i["quantity"]) for i in items) if items else None
+    except Exception:
+        floor = None
+    if total is None:
+        return floor
+    if floor is not None and total < floor:
+        return round(floor, 2)
+    return round(total, 2)
+
+
+@router.get("/config")
+def pagos_config(test: bool = False):
+    """Llave pública de MP para inicializar el Brick embebido en el frontend."""
+    pk = _public_key(test)
+    return {"public_key": pk, "test_mode": bool(test and MP_ACCESS_TOKEN_TEST), "disponible": bool(pk)}
+
+
+@router.post("/procesar")
+def procesar_pago(datos: dict):
+    """Cobro embebido (Checkout Bricks / Payments API). El navegador tokeniza la
+    tarjeta y aquí se crea el pago server-side. El MONTO se calcula en el servidor
+    (no se confía en el cliente). El webhook hace el post-pago igual que Checkout Pro."""
+    try:
+        test = bool(datos.get("test"))
+        pedido_id = datos.get("pedido_id")
+        token = datos.get("token")
+        payment_method_id = datos.get("payment_method_id")
+        if not pedido_id or not payment_method_id:
+            return JSONResponse(status_code=400, content={"error": "Faltan datos del pago"})
+
+        monto = _total_validado(pedido_id)
+        if not monto or monto <= 0:
+            return JSONResponse(status_code=400, content={"error": "No se pudo determinar el total"})
+
+        ped = supabase_get(f"pedidos?id=eq.{pedido_id}&select=email_cliente")
+        email = ((ped[0].get("email_cliente") if ped else "") or
+                 (datos.get("payer") or {}).get("email") or "cliente@zapatillasmay.mx")
+
+        pago_data = {
+            "transaction_amount": float(monto),
+            "description": f"Pedido {pedido_id} - Zapatillas May",
+            "payment_method_id": payment_method_id,
+            "payer": {"email": email},
+            "external_reference": str(pedido_id),
+        }
+        if token:
+            pago_data["token"] = token
+            pago_data["installments"] = int(datos.get("installments") or 1)
+        if datos.get("issuer_id"):
+            pago_data["issuer_id"] = datos.get("issuer_id")
+        webhook_url = os.getenv("MP_WEBHOOK_URL", "")
+        if webhook_url:
+            pago_data["notification_url"] = webhook_url
+
+        result = _sdk(test).payment().create(pago_data)
+        pago = result.get("response", {}) or {}
+        if pago.get("id"):
+            supabase_patch(f"pedidos?id=eq.{pedido_id}", {"mp_payment_id": str(pago.get("id"))})
+
+        tdetails = pago.get("transaction_details") or {}
+        return {
+            "status": pago.get("status"),            # approved / in_process / rejected / pending
+            "status_detail": pago.get("status_detail"),
+            "id": pago.get("id"),
+            "voucher_url": tdetails.get("external_resource_url"),  # OXXO/SPEI
+        }
+    except Exception as e:
+        import traceback
+        print(f"procesar_pago: {traceback.format_exc()}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
