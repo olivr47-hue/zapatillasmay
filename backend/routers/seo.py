@@ -1570,26 +1570,32 @@ STORE_CODE = "MAY-LEON"
 
 @router.get("/feed/google-local.xml")
 def feed_google_local():
-    """Feed de inventario local para Google Merchant Center (Local Surfaces across Google)."""
+    """Feed de inventario local — IDs deben coincidir exactamente con google.xml (var_id por variante)."""
     cached = cache_get("feed_google_local")
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
         productos  = supabase_get("productos?activo=eq.true&select=id,sku_interno,precio_menudeo,es_oferta")
-        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id")
+        variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
-        inv_map = {i["variante_id"]: int(i.get("cantidad") or 0) for i in (inventario or []) if i.get("variante_id")}
-        # stock total por producto_id
-        stock_por_producto: dict = {}
+        # Stock por variante (suma todas las sucursales)
+        inv_map: dict = {}
+        for i in (inventario or []):
+            vid = i.get("variante_id")
+            if vid:
+                inv_map[vid] = inv_map.get(vid, 0) + int(i.get("cantidad") or 0)
+
+        # Variantes agrupadas por producto_id
+        vars_por_producto: dict = {}
         for v in (variantes or []):
             pid = v.get("producto_id")
-            vid = v.get("id")
-            if pid and vid:
-                stock_por_producto[pid] = stock_por_producto.get(pid, 0) + inv_map.get(vid, 0)
+            if pid:
+                vars_por_producto.setdefault(pid, []).append(v)
 
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
+
         for p in productos:
             sku = p.get("sku_interno") or p.get("id")
             pid = p.get("id")
@@ -1597,15 +1603,35 @@ def feed_google_local():
             precio = base if p.get("es_oferta") else round(base + 80)
             if not sku or precio <= 0:
                 continue
-            qty = stock_por_producto.get(pid, 0)
-            availability = "in stock" if qty > 0 else "out of stock"
-            xml += '<entry>\n'
-            xml += f'  <g:store_code>{_html.escape(STORE_CODE)}</g:store_code>\n'
-            xml += f'  <g:id>{_html.escape(str(sku))}</g:id>\n'
-            xml += f'  <g:availability>{availability}</g:availability>\n'
-            xml += f'  <g:price>{precio} MXN</g:price>\n'
-            xml += f'  <g:quantity>{qty}</g:quantity>\n'
-            xml += '</entry>\n'
+
+            variantes_p = vars_por_producto.get(pid, [])
+            if variantes_p:
+                # Una entrada por variante — mismo var_id que feed primario
+                for v in variantes_p:
+                    vid = v.get("id")
+                    color = (v.get("color") or "").strip()
+                    talla = str(v.get("talla") or "").strip()
+                    color_norm = color.replace(' ', '_').replace('/', '_').replace('-', '_').strip('_')
+                    var_id = f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
+                    qty = max(inv_map.get(vid, 0), 0)
+                    availability = "in stock" if qty > 0 else "out of stock"
+                    xml += '<entry>\n'
+                    xml += f'  <g:store_code>{_html.escape(STORE_CODE)}</g:store_code>\n'
+                    xml += f'  <g:id>{_html.escape(var_id)}</g:id>\n'
+                    xml += f'  <g:availability>{availability}</g:availability>\n'
+                    xml += f'  <g:price>{precio} MXN</g:price>\n'
+                    xml += f'  <g:quantity>{qty}</g:quantity>\n'
+                    xml += '</entry>\n'
+            else:
+                # Sin variantes: ID simple igual que fallback del feed primario
+                xml += '<entry>\n'
+                xml += f'  <g:store_code>{_html.escape(STORE_CODE)}</g:store_code>\n'
+                xml += f'  <g:id>{_html.escape(str(sku))}</g:id>\n'
+                xml += f'  <g:availability>out of stock</g:availability>\n'
+                xml += f'  <g:price>{precio} MXN</g:price>\n'
+                xml += f'  <g:quantity>0</g:quantity>\n'
+                xml += '</entry>\n'
+
         xml += '</feed>'
         cache_set("feed_google_local", xml, ttl=TTL_FEEDS)
         return Response(content=xml, media_type="application/xml")
