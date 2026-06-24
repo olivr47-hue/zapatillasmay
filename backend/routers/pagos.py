@@ -158,6 +158,12 @@ def enviar_evento_meta(event_name, pedido, payment):
         fbp = pedido.get("fbp", "")   # cookie _fbp de Meta
         client_ip = pedido.get("client_ip_address", "")
         user_agent = pedido.get("client_user_agent", "")
+        # Si no hay cookie _fbc pero sí el fbclid del clic del anuncio, construimos
+        # el fbc en formato Meta (fb.1.<ms>.<fbclid>) para mejorar la cobertura de fbc.
+        if not fbc:
+            fbclid = pedido.get("fbclid", "")
+            if fbclid:
+                fbc = f"fb.1.{int(time.time() * 1000)}.{fbclid}"
 
         nombre_parts = nombre.strip().split(" ", 1)
         fn = nombre_parts[0] if nombre_parts else ""

@@ -1189,10 +1189,25 @@ init()
 </div>
 
 <script>
+// Coincidencias avanzadas: datos del cliente (hasheados por el pixel) para subir el EMQ
+window._fbAM = function() {
+  try {
+    const d = JSON.parse(localStorage.getItem('zm_form_datos') || '{}') || {}
+    const am = {}
+    const email = (d.email || localStorage.getItem('zm_checkout_email') || '').trim().toLowerCase()
+    if (email)      am.em = email
+    if (d.telefono) am.ph = String(d.telefono).replace(/\D/g, '')
+    if (d.nombre)   { const p = String(d.nombre).trim().split(/\s+/); if (p[0]) am.fn = p[0].toLowerCase(); if (p.length > 1) am.ln = p[p.length-1].toLowerCase() }
+    if (d.ciudad)   am.ct = String(d.ciudad).toLowerCase().replace(/\s/g,'')
+    if (d.estado)   am.st = String(d.estado).toLowerCase().replace(/\s/g,'')
+    if (d.cp)       am.zp = String(d.cp).replace(/\D/g,'')
+    return am
+  } catch(e) { return {} }
+}
 function _cargarPixelesMarketing(config) {
   if (config.facebook_pixel_id && !window.fbq) {
     const s = document.createElement('script')
-    s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}');fbq('track','PageView');`
+    s.textContent = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${config.facebook_pixel_id}', ${JSON.stringify(window._fbAM())});fbq('track','PageView');`
     document.head.appendChild(s)
   }
   if (config.tiktok_pixel_id && !window.ttq) {
