@@ -545,20 +545,21 @@ async function procesarPago() {
     // Guardar dirección completa para próxima compra anónima
     try { localStorage.setItem('zm_form_datos', JSON.stringify({ nombre, email, telefono, calle, colonia, cp, ciudad, estado })) } catch(e) {}
 
-    // ── MODO BRICK (pago embebido, sin salir del sitio) — detrás de ?brick=1 ──
-    if (new URLSearchParams(location.search).get('brick') === '1') {
-      try {
-        localStorage.setItem('zm_checkout_email', email)
-        localStorage.setItem('zm_purchase_value', String(totalFinal))
-        localStorage.setItem('zm_checkout_pedido_id', String(pedido.id))
-      } catch(e){}
-      if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
-      if (window.ttq) ttq.track('AddPaymentInfo',{value:totalFinal,currency:'MXN'})
-      if (typeof gtag==='function') gtag('event','add_payment_info',{currency:'MXN',value:totalFinal})
-      await pagarConBrick(pedido.id, totalFinal, email)
-      return
-    }
+    try {
+      localStorage.setItem('zm_checkout_email', email)
+      localStorage.setItem('zm_purchase_value', String(totalFinal))
+      localStorage.setItem('zm_checkout_pedido_id', String(pedido.id))
+    } catch(e){}
+    if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
+    if (window.ttq) ttq.track('AddPaymentInfo',{value:totalFinal,currency:'MXN'})
+    if (typeof gtag==='function') gtag('event','add_payment_info',{currency:'MXN',value:totalFinal})
 
+    // ── Pago EMBEBIDO por defecto (sin salir del sitio). Si el Brick no carga,
+    //    cae automáticamente al redirect (Checkout Pro) de más abajo. ──
+    const brickOk = await pagarConBrick(pedido.id, totalFinal, email)
+    if (brickOk) return
+
+    // ── Respaldo: Checkout Pro (redirect) ──
     const mpItems = carrito.map(i => ({ nombre: i.nombre+' - '+i.color+(i.talla?' T:'+i.talla:''), cantidad: i.es_corrida?i.cantidad*6:i.cantidad, precio: calcularPrecioUnitario(i,pTotal) }))
     if (costoEnvio > 0) mpItems.push({ nombre:'Envío a domicilio', cantidad:1, precio:costoEnvio })
     const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
@@ -578,10 +579,7 @@ async function procesarPago() {
       localStorage.setItem('zm_checkout_email', email)  // para marcar carrito abandonado como convertido
       localStorage.setItem('zm_checkout_pedido_id', String(pedido.id))  // para mostrar # pedido en éxito
     } catch(e) {}
-    // Evento: AddPaymentInfo (intención de pago confirmada)
-    if (window.fbq) fbq('track','AddPaymentInfo',{value:totalFinal,currency:'MXN'})
-    if (window.ttq) ttq.track('AddPaymentInfo',{value:totalFinal,currency:'MXN'})
-    if (typeof gtag==='function') gtag('event','add_payment_info',{currency:'MXN',value:totalFinal})
+    // (AddPaymentInfo ya se disparó antes de intentar el pago embebido)
     // Marcar paso "Pago" como activo en el stepper antes de salir
     try {
       document.getElementById('step-3-label')?.classList.remove('active')
@@ -618,11 +616,12 @@ async function _cargarMpSdk() {
   })
 }
 async function pagarConBrick(pedidoId, total, email) {
+  const _pagoTest = new URLSearchParams(location.search).get('pagotest') === '1'  // ?pagotest=1 → credenciales TEST
   const btn = document.getElementById('btn-pagar')
   const stickyBtn = document.getElementById('sticky-btn-pagar')
   try {
-    const cfg = await fetch(`${API}/pagos/config?test=true`).then(r => r.json())
-    if (!cfg.public_key) { mostrarToast('Pago no disponible (config)'); return }
+    const cfg = await fetch(`${API}/pagos/config?test=${_pagoTest}`).then(r => r.json())
+    if (!cfg.public_key) return false   // sin config → cae al redirect (Checkout Pro)
     await _cargarMpSdk()
     // Contenedor del brick (justo antes del botón de pagar)
     let cont = document.getElementById('brick-container')
@@ -652,7 +651,7 @@ async function pagarConBrick(pedidoId, total, email) {
         onSubmit: ({ formData }) => fetch(`${API}/pagos/procesar`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
-              test: true, pedido_id: pedidoId,
+              test: _pagoTest, pedido_id: pedidoId,
               token: formData.token, payment_method_id: formData.payment_method_id,
               installments: formData.installments, issuer_id: formData.issuer_id,
               payer: formData.payer
@@ -673,10 +672,10 @@ async function pagarConBrick(pedidoId, total, email) {
           })
       }
     })
+    return true   // brick renderizado OK
   } catch(e) {
-    console.error('pagarConBrick:', e)
-    mostrarToast('No se pudo cargar el pago. Intenta de nuevo.')
-    if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Pagar ahora' }
+    console.error('pagarConBrick (se usará redirect como respaldo):', e)
+    return false  // que procesarPago caiga al redirect (Checkout Pro)
   }
 }
 
