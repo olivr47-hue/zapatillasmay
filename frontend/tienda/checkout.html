@@ -597,6 +597,13 @@ async function procesarPago() {
 
 // ── PAGO EMBEBIDO (MercadoPago Checkout Bricks) ──────────────────
 let _brickController = null
+function _volverAEditar() {
+  const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = ''
+  const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = ''
+  const cont = document.getElementById('brick-container'); if (cont) cont.style.display = 'none'
+  const btn = document.getElementById('btn-pagar'); if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Pagar ahora' }
+  try { document.getElementById('step-direccion').scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){}
+}
 async function _cargarMpSdk() {
   if (window.MercadoPago) return
   await new Promise((res, rej) => {
@@ -620,10 +627,14 @@ async function pagarConBrick(pedidoId, total, email) {
       if (btn && btn.parentNode) btn.parentNode.insertBefore(cont, btn)
       else (document.querySelector('.resumen-side') || document.body).appendChild(cont)
     }
-    cont.innerHTML = '<div id="paymentBrick_container"></div>'
+    cont.style.display = ''
+    cont.innerHTML = '<p class="card-title" style="margin:4px 0 10px">Datos de <em style="font-style:italic;color:var(--mauve)">pago</em></p><div id="paymentBrick_container"></div><button type="button" onclick="_volverAEditar()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--gray);font-size:0.8rem;text-decoration:underline;cursor:pointer">← Editar mis datos de envío</button>'
     if (btn) btn.style.display = 'none'
     if (stickyBtn) stickyBtn.style.display = 'none'
     const paso1 = document.getElementById('paso1-hint'); if (paso1) paso1.style.display = 'none'
+    // Ocultar los formularios ya completados para que el pago quede arriba (clave en móvil)
+    const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
+    const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
 
     const mp = new MercadoPago(cfg.public_key, { locale: 'es-MX' })
     if (_brickController) { try { _brickController.unmount() } catch(e){} }
@@ -631,7 +642,7 @@ async function pagarConBrick(pedidoId, total, email) {
       initialization: { amount: Number(total), payer: { email } },
       customization: { paymentMethods: { creditCard:'all', debitCard:'all', ticket:'all', bankTransfer:'all', maxInstallments: 12 } },
       callbacks: {
-        onReady: () => { try { window.scrollTo({ top: cont.offsetTop - 20, behavior:'smooth' }) } catch(e){} },
+        onReady: () => { setTimeout(() => { try { cont.scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){} }, 350) },
         onError: (err) => { console.error('Brick error', err); mostrarToast('Revisa los datos de tu tarjeta') },
         onSubmit: ({ formData }) => fetch(`${API}/pagos/procesar`, {
             method:'POST', headers:{'Content-Type':'application/json'},
