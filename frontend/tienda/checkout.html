@@ -218,12 +218,16 @@
         </button>
       </div>
 
-      <!-- PASO 2: Dirección (oculto hasta que pasen el paso 1) -->
       <div class="card" id="step-direccion" style="display:none">
         <p class="card-title">Dirección de <em>envío</em></p>
         <div class="field field-row">
           <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
-          <div><label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro" list="colonias-list"><datalist id="colonias-list"></datalist></div>
+          <div>
+            <label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label>
+            <div id="colonia-wrapper">
+              <input id="co-colonia" autocomplete="address-line2" placeholder="Centro">
+            </div>
+          </div>
         </div>
         <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
@@ -232,7 +236,7 @@
         </div>
         <div class="field"><label>Notas (opcional)</label><textarea id="co-notas" placeholder="Referencias, indicaciones de entrega..." rows="2"></textarea></div>
         <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:flex-start">
-          <button type="button" onclick="_volverAContacto()" style="background:none;border:none;color:var(--gray);text-decoration:underline;font-size:0.8rem;cursor:pointer;font-family:inherit">← Editar datos de contacto</button>
+          <button type="button" onclick="window.history.back()" style="background:none;border:none;color:var(--gray);text-decoration:underline;font-size:0.8rem;cursor:pointer;font-family:inherit">← Editar datos de contacto</button>
         </div>
       </div>
     </div>
@@ -456,33 +460,7 @@ function irAPaso2() {
     }).catch(() => {})
   }
 
-  // Mostrar paso 2
-  document.getElementById('step-contacto').style.display = 'none'
-  document.getElementById('step-direccion').style.display = 'block'
-  document.getElementById('btn-pagar').style.display = 'flex'
-  // Ocultar guía paso 1, ya no se necesita
-  const hint1 = document.getElementById('paso1-hint')
-  if (hint1) hint1.style.display = 'none'
-
-  // Actualizar sticky
-  const stickyEl = document.getElementById('checkout-sticky')
-  if (stickyEl && window.innerWidth <= 760) {
-    const stickyBtn = document.getElementById('sticky-btn-pagar')
-    if (stickyBtn) stickyBtn.style.display = ''
-    stickyEl.style.display = 'block'
-  }
-
-  // Actualizar stepper + títulos
-  document.getElementById('step-2-label')?.classList.remove('active')
-  document.getElementById('step-2-label')?.classList.add('done')
-  document.getElementById('step-2-dot').textContent = '✓'
-  document.getElementById('step-3-label')?.classList.add('active')
-  document.getElementById('checkout-h1').innerHTML = 'Dirección de <em style="font-style:italic;color:var(--mauve)">envío</em>'
-  document.getElementById('checkout-subtitle').textContent = 'Paso 2 de 2 · Ya casi terminamos'
-
-  // Focus en primer campo
-  setTimeout(() => document.getElementById('co-calle')?.focus(), 100)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  mostrarPasoVisual(2, true)
 }
 
 async function procesarPago() {
@@ -626,50 +604,136 @@ async function procesarPago() {
 
 // ── PAGO EMBEBIDO (MercadoPago Checkout Bricks) ──────────────────
 let _brickController = null
-function _volverAEditar() {
-  const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
-  const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'block'
-  const cont = document.getElementById('brick-container'); if (cont) cont.style.display = 'none'
-  document.querySelector('.layout')?.classList.remove('brick-activo')
-  const btn = document.getElementById('btn-pagar'); if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Pagar ahora' }
-  
-  // Restablecer títulos y stepper a Dirección
-  document.getElementById('checkout-h1').innerHTML = 'Dirección de <em style="font-style:italic;color:var(--mauve)">envío</em>'
-  document.getElementById('checkout-subtitle').textContent = 'Paso 2 de 2 · Ya casi terminamos'
-  try {
-    document.getElementById('step-3-label')?.classList.remove('done')
-    document.getElementById('step-3-label')?.classList.add('active')
-    document.getElementById('step-3-dot').textContent = '3'
-    document.getElementById('step-4-label')?.classList.remove('active')
-  } catch(e){}
-  
-  try { document.getElementById('step-direccion').scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){}
-}
-function _volverAContacto() {
-  document.getElementById('step-direccion').style.display = 'none'
-  document.getElementById('step-contacto').style.display = 'block'
-  document.getElementById('btn-pagar').style.display = 'none'
-  const stickyBtn = document.getElementById('sticky-btn-pagar')
-  if (stickyBtn) stickyBtn.style.display = 'none'
-  const stickyEl = document.getElementById('checkout-sticky')
-  if (stickyEl) stickyEl.style.display = 'none'
+function mostrarPasoVisual(paso, updateState = true) {
+  if (paso === 1) {
+    const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
+    const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'block'
+    const btn = document.getElementById('btn-pagar'); if (btn) btn.style.display = 'none'
+    const stickyBtn = document.getElementById('sticky-btn-pagar')
+    if (stickyBtn) stickyBtn.style.display = 'none'
+    const stickyEl = document.getElementById('checkout-sticky')
+    if (stickyEl) stickyEl.style.display = 'none'
 
-  // Restablecer Stepper
-  try {
-    document.getElementById('step-2-label')?.classList.remove('done')
-    document.getElementById('step-2-label')?.classList.add('active')
-    document.getElementById('step-2-dot').textContent = '2'
-    document.getElementById('step-3-label')?.classList.remove('active')
-  } catch(e){}
-  
-  // Restablecer Título
-  document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">contacto</em>'
-  document.getElementById('checkout-subtitle').textContent = 'Paso 1 de 2 · Entrega en 1–3 días hábiles 🚚'
-  const hint1 = document.getElementById('paso1-hint')
-  if (hint1) hint1.style.display = 'block'
-  
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+    const cont = document.getElementById('brick-container')
+    if (cont) cont.style.display = 'none'
+    document.querySelector('.layout')?.classList.remove('brick-activo')
+
+    // Restablecer Stepper
+    try {
+      document.getElementById('step-2-label')?.classList.remove('done')
+      document.getElementById('step-2-label')?.classList.add('active')
+      document.getElementById('step-2-dot').textContent = '2'
+      document.getElementById('step-3-label')?.classList.remove('active')
+      document.getElementById('step-3-label')?.classList.remove('done')
+      document.getElementById('step-3-dot').textContent = '3'
+      document.getElementById('step-4-label')?.classList.remove('active')
+    } catch(e){}
+    
+    // Restablecer Título
+    document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">contacto</em>'
+    document.getElementById('checkout-subtitle').textContent = 'Paso 1 de 2 · Entrega en 1–3 días hábiles 🚚'
+    const hint1 = document.getElementById('paso1-hint')
+    if (hint1) hint1.style.display = 'block'
+
+    if (updateState) {
+      window.history.pushState({ step: 1 }, '', '')
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  } else if (paso === 2) {
+    const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
+    const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'block'
+    
+    const btn = document.getElementById('btn-pagar')
+    if (btn) { btn.style.display = 'flex'; btn.disabled = false; btn.textContent = 'Pagar ahora' }
+    
+    const stickyBtn = document.getElementById('sticky-btn-pagar')
+    if (stickyBtn) { stickyBtn.style.display = ''; stickyBtn.disabled = false; stickyBtn.textContent = 'Pagar ahora 🔒' }
+    const stickyEl = document.getElementById('checkout-sticky')
+    if (stickyEl && window.innerWidth <= 760) {
+      stickyEl.style.display = 'block'
+    }
+
+    const cont = document.getElementById('brick-container')
+    if (cont) cont.style.display = 'none'
+    document.querySelector('.layout')?.classList.remove('brick-activo')
+
+    // Ocultar guía paso 1, ya no se necesita
+    const hint1 = document.getElementById('paso1-hint')
+    if (hint1) hint1.style.display = 'none'
+
+    // Actualizar stepper + títulos
+    try {
+      document.getElementById('step-2-label')?.classList.remove('active')
+      document.getElementById('step-2-label')?.classList.add('done')
+      document.getElementById('step-2-dot').textContent = '✓'
+      
+      document.getElementById('step-3-label')?.classList.remove('done')
+      document.getElementById('step-3-label')?.classList.add('active')
+      document.getElementById('step-3-dot').textContent = '3'
+      document.getElementById('step-4-label')?.classList.remove('active')
+    } catch(e){}
+    
+    document.getElementById('checkout-h1').innerHTML = 'Dirección de <em style="font-style:italic;color:var(--mauve)">envío</em>'
+    document.getElementById('checkout-subtitle').textContent = 'Paso 2 de 2 · Ya casi terminamos'
+
+    if (updateState) {
+      window.history.pushState({ step: 2 }, '', '')
+    }
+
+    // Autocompletar CP si ya tiene un valor cargado (5 dígitos)
+    const cpVal = document.getElementById('co-cp')?.value.replace(/\D/g,'') || ''
+    if (cpVal.length === 5) {
+      _buscarCP(cpVal)
+    }
+
+    // Focus en Código postal
+    setTimeout(() => document.getElementById('co-cp')?.focus(), 100)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  } else if (paso === 3) {
+    const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
+    const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
+    
+    const btn = document.getElementById('btn-pagar')
+    if (btn) btn.style.display = 'none'
+    const stickyBtn = document.getElementById('sticky-btn-pagar')
+    if (stickyBtn) stickyBtn.style.display = 'none'
+    const stickyEl = document.getElementById('checkout-sticky')
+    if (stickyEl) stickyEl.style.display = 'none'
+
+    const cont = document.getElementById('brick-container')
+    if (cont) cont.style.display = ''
+    document.querySelector('.layout')?.classList.add('brick-activo')  // PC: 1 columna centrada
+    
+    // Actualizar títulos e indicadores del Stepper para Pago
+    document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">pago</em>'
+    document.getElementById('checkout-subtitle').textContent = 'Paso final · Pago seguro 🔒'
+    try {
+      document.getElementById('step-2-label')?.classList.remove('active')
+      document.getElementById('step-2-label')?.classList.add('done')
+      document.getElementById('step-2-dot').textContent = '✓'
+      
+      document.getElementById('step-3-label')?.classList.remove('active')
+      document.getElementById('step-3-label')?.classList.add('done')
+      document.getElementById('step-3-dot').textContent = '✓'
+      document.getElementById('step-4-label')?.classList.add('active')
+    } catch(e){}
+
+    if (updateState) {
+      window.history.pushState({ step: 3 }, '', '')
+    }
+  }
 }
+
+// Escuchar cambios de historial (Back / Forward del navegador o gesto móvil)
+window.addEventListener('popstate', (e) => {
+  if (e.state && typeof e.state.step === 'number') {
+    mostrarPasoVisual(e.state.step, false)
+  } else {
+    mostrarPasoVisual(1, false)
+  }
+})
 async function _cargarMpSdk() {
   if (window.MercadoPago) return
   await new Promise((res, rej) => {
@@ -694,25 +758,80 @@ async function pagarConBrick(pedidoId, total, email) {
       if (btn && btn.parentNode) btn.parentNode.insertBefore(cont, btn)
       else (document.querySelector('.resumen-side') || document.body).appendChild(cont)
     }
-    cont.style.display = ''
-    cont.innerHTML = '<p class="card-title" style="margin:4px 0 10px">Datos de <em style="font-style:italic;color:var(--mauve)">pago</em></p><div id="paymentBrick_container"><div id="mp-brick-loader" style="padding:40px 20px;text-align:center;color:var(--gray);font-size:0.85rem;display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:28px;height:28px;border:3px solid var(--border-med);border-top-color:var(--pink);border-radius:50%;animation:mpSpin 0.8s linear infinite"></div>Cargando métodos de pago seguros...</div></div><button type="button" onclick="_volverAEditar()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--gray);font-size:0.8rem;text-decoration:underline;cursor:pointer">← Editar mis datos de envío</button>'
-    if (btn) btn.style.display = 'none'
-    if (stickyBtn) stickyBtn.style.display = 'none'
-    const paso1 = document.getElementById('paso1-hint'); if (paso1) paso1.style.display = 'none'
-    // Ocultar los formularios ya completados para que el pago quede arriba (clave en móvil)
-    const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
-    const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
-    document.querySelector('.layout')?.classList.add('brick-activo')  // PC: 1 columna centrada
+    const nombre = document.getElementById('co-nombre')?.value.trim() || ''
+    const telefono = document.getElementById('co-telefono')?.value.trim() || ''
+    const emailVal = document.getElementById('co-email')?.value.trim() || email
+    const calle = document.getElementById('co-calle')?.value.trim() || ''
+    const colonia = document.getElementById('co-colonia')?.value.trim() || ''
+    const cp = document.getElementById('co-cp')?.value.trim() || ''
+    const ciudad = document.getElementById('co-ciudad')?.value.trim() || ''
+    const estado = document.getElementById('co-estado')?.value.trim() || ''
+    const notas = document.getElementById('co-notas')?.value.trim() || ''
+
+    let summaryHTML = `
+      <div id="checkout-summary-review" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;font-size:0.85rem;line-height:1.45;box-shadow:0 2px 8px rgba(90,40,10,0.03);box-sizing:border-box;width:100%">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:8px">
+          <strong style="color:var(--black);font-size:0.9rem;font-family:var(--font-body)">Resumen de envío y contacto</strong>
+          <button type="button" onclick="window.history.back()" style="background:none;border:none;color:#b5687a;font-weight:700;font-size:0.75rem;cursor:pointer;text-decoration:underline;font-family:inherit">Editar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;color:var(--gray)">
+          <div>
+            <p style="margin:0;font-weight:700;color:var(--black);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px">👤 Datos de Contacto</p>
+            <p style="margin:2px 0 0 0;font-size:0.85rem">${nombre} · ${telefono} · ${emailVal}</p>
+          </div>
+          <div style="margin-top:4px">
+            <p style="margin:0;font-weight:700;color:var(--black);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px">📍 Dirección de Entrega</p>
+            <p style="margin:2px 0 0 0;font-size:0.85rem">${calle}, ${colonia ? 'Col. ' + colonia : ''}, CP ${cp}, ${ciudad}, ${estado}</p>
+            ${notas ? `<p style="margin:4px 0 0 0;font-style:italic;font-size:0.8rem;background:rgba(200,150,122,0.06);padding:6px 10px;border-radius:6px">Nota: ${notas}</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `
+
+    cont.innerHTML = '<p class="card-title" style="margin:4px 0 10px">Datos de <em style="font-style:italic;color:var(--mauve)">pago</em></p>' + summaryHTML + '<div id="paymentBrick_container"><div id="mp-brick-loader" style="padding:40px 20px;text-align:center;color:var(--gray);font-size:0.85rem;display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:28px;height:28px;border:3px solid var(--border-med);border-top-color:var(--pink);border-radius:50%;animation:mpSpin 0.8s linear infinite"></div>Cargando métodos de pago seguros...</div></div><button type="button" onclick="window.history.back()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--gray);font-size:0.8rem;text-decoration:underline;cursor:pointer">← Editar mis datos de envío</button>'
     
-    // Actualizar títulos e indicadores del Stepper para Pago
-    document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">pago</em>'
-    document.getElementById('checkout-subtitle').textContent = 'Paso final · Pago seguro 🔒'
-    try {
-      document.getElementById('step-3-label')?.classList.remove('active')
-      document.getElementById('step-3-label')?.classList.add('done')
-      document.getElementById('step-3-dot').textContent = '✓'
-      document.getElementById('step-4-label')?.classList.add('active')
-    } catch(e){}
+    mostrarPasoVisual(3, true)
+
+    let timeoutTimer = setTimeout(() => {
+      const loader = document.getElementById('mp-brick-loader')
+      if (loader) {
+        loader.innerHTML = `
+          <div style="color:#e74c3c;font-weight:600;margin-bottom:8px">⚠️ La pasarela de pago está tardando en cargar.</div>
+          <p style="margin:0 0 12px;font-size:0.8rem;color:var(--gray)">Si tienes problemas, puedes usar la pasarela alternativa:</p>
+          <button type="button" id="btn-fallback-redirect" style="padding:10px 18px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;border-radius:20px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.8rem;box-shadow:0 4px 12px rgba(200,150,122,0.3)">Pagar con Mercado Pago externo</button>
+        `
+        const btnFallback = document.getElementById('btn-fallback-redirect')
+        if (btnFallback) {
+          btnFallback.addEventListener('click', async () => {
+            btnFallback.disabled = true
+            btnFallback.textContent = 'Redirigiendo...'
+            try {
+              const pTotal = totalPares(carrito)
+              const totalFinal = window._totalFinal || 0
+              const costoEnvio = window._costoEnvio || 0
+              const mpItems = carrito.map(i => ({ nombre: i.nombre+' - '+i.color+(i.talla?' T:'+i.talla:''), cantidad: i.es_corrida?i.cantidad*6:i.cantidad, precio: calcularPrecioUnitario(i,pTotal) }))
+              if (costoEnvio > 0) mpItems.push({ nombre:'Envío a domicilio', cantidad:1, precio:costoEnvio })
+              const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ pedido_id:pedidoId, items:mpItems, cliente:{nombre,email:emailVal}, total:totalFinal })
+              })
+              const pago = await resPago.json()
+              if (pago.init_point) {
+                window.location.href = pago.init_point
+              } else {
+                mostrarToast('Error al redirigir, intenta de nuevo.')
+                btnFallback.disabled = false
+                btnFallback.textContent = 'Pagar con Mercado Pago externo'
+              }
+            } catch(err) {
+              mostrarToast('Error al redirigir, intenta de nuevo.')
+              btnFallback.disabled = false
+              btnFallback.textContent = 'Pagar con Mercado Pago externo'
+            }
+          })
+        }
+      }
+    }, 8000)
 
     const mp = new MercadoPago(cfg.public_key, { locale: 'es-MX' })
     if (_brickController) { try { _brickController.unmount() } catch(e){} }
@@ -721,11 +840,13 @@ async function pagarConBrick(pedidoId, total, email) {
       customization: { paymentMethods: { creditCard:'all', debitCard:'all', ticket:'all', bankTransfer:'all', maxInstallments: 12 } },
       callbacks: {
         onReady: () => {
+          if (timeoutTimer) clearTimeout(timeoutTimer)
           const loader = document.getElementById('mp-brick-loader')
           if (loader) loader.style.display = 'none'
           setTimeout(() => { try { cont.scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){} }, 350)
         },
         onError: (err) => {
+          if (timeoutTimer) clearTimeout(timeoutTimer)
           console.error('Brick error', err)
           const loader = document.getElementById('mp-brick-loader')
           if (loader) loader.style.display = 'none'
@@ -905,6 +1026,9 @@ async function guardarDatosEnCuenta(datos) {
 }
 
 async function init() {
+  if (!window.history.state) {
+    window.history.replaceState({ step: 1 }, '', '')
+  }
   // Config de envío
   try { const r = await fetch(`${API}/config/envio`); if (r.ok) cfgEnvio = await r.json() } catch(e){}
   render()
@@ -934,12 +1058,57 @@ async function init() {
   _wireCP()
 }
 
+function actualizarColoniaElemento(colonias, valorPreseleccionado) {
+  const wrapper = document.getElementById('colonia-wrapper')
+  if (!wrapper) return
+
+  if (!colonias || colonias.length === 0) {
+    wrapper.innerHTML = `<input id="co-colonia" autocomplete="address-line2" placeholder="Centro" value="${valorPreseleccionado || ''}">`
+    return
+  }
+
+  let selectHTML = `<select id="co-colonia" autocomplete="address-line2" style="width: 100%; border: 1.5px solid var(--border-med); border-radius: 10px; padding: 12px 14px; font-family: var(--font-body); font-size: 0.9rem; outline: none; transition: border-color 0.2s, box-shadow 0.2s; background: white; color: var(--black); height: auto; appearance: auto; cursor: pointer;">`
+  selectHTML += `<option value="">-- Selecciona tu colonia --</option>`
+  
+  let matchesPrefilled = false
+  colonias.forEach(c => {
+    const isSelected = valorPreseleccionado && valorPreseleccionado.toLowerCase().trim() === c.toLowerCase().trim()
+    if (isSelected) matchesPrefilled = true
+    selectHTML += `<option value="${c}" ${isSelected ? 'selected' : ''}>${c}</option>`
+  })
+  
+  if (valorPreseleccionado && !matchesPrefilled && valorPreseleccionado !== '__MANUAL__') {
+    wrapper.innerHTML = `<input id="co-colonia" autocomplete="address-line2" placeholder="Centro" value="${valorPreseleccionado}">`
+    return
+  }
+
+  selectHTML += `<option value="__MANUAL__">✍️ Escribir colonia a mano...</option>`
+  selectHTML += `</select>`
+  
+  wrapper.innerHTML = selectHTML
+
+  const selectEl = document.getElementById('co-colonia')
+  if (selectEl.value && selectEl.value !== '__MANUAL__') {
+    selectEl.style.borderColor = '#22c55e'
+  }
+
+  selectEl.addEventListener('change', () => {
+    if (selectEl.value === '__MANUAL__') {
+      wrapper.innerHTML = `<input id="co-colonia" autocomplete="address-line2" placeholder="Centro" style="border-color: var(--border)">`
+      const inputEl = document.getElementById('co-colonia')
+      inputEl.focus()
+    } else if (selectEl.value) {
+      selectEl.style.borderColor = '#22c55e'
+    } else {
+      selectEl.style.borderColor = ''
+    }
+  })
+}
+
 // ── AUTOCOMPLETAR CP ─────────────────────────────────────────────
 async function _buscarCP(cp) {
   const estadoEl  = document.getElementById('co-estado')
   const ciudadEl  = document.getElementById('co-ciudad')
-  const coloniaEl = document.getElementById('co-colonia')
-  const listEl    = document.getElementById('colonias-list')
 
   try {
     const ctrl = new AbortController()
@@ -964,12 +1133,15 @@ async function _buscarCP(cp) {
       ciudadEl.style.borderColor = '#22c55e'
     }
 
-    // Poblar datalist de colonias (asentamientos)
+    // Poblar dropdown de colonias (asentamientos)
+    const valorActual = document.getElementById('co-colonia')?.value || ''
     const colonias = [...new Set(posts.map(p => (p.d_asenta || '').trim()).filter(Boolean))]
-    if (listEl) listEl.innerHTML = colonias.map(c => `<option value="${c}">${c}</option>`).join('')
-    if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
-      coloniaEl.value = colonias[0]
-      coloniaEl.style.borderColor = '#22c55e'
+    actualizarColoniaElemento(colonias, valorActual)
+    
+    const selectEl = document.getElementById('co-colonia')
+    if (colonias.length === 1 && selectEl && selectEl.tagName === 'SELECT' && !valorActual) {
+      selectEl.value = colonias[0]
+      selectEl.style.borderColor = '#22c55e'
     }
     return // Exito
   } catch(e) {
@@ -993,11 +1165,14 @@ async function _buscarCP(cp) {
       estadoEl.style.borderColor = '#22c55e'
     }
 
+    const valorActual = document.getElementById('co-colonia')?.value || ''
     const colonias = [...new Set(places.map(p => (p['place name'] || '').trim()).filter(Boolean))]
-    if (listEl) listEl.innerHTML = colonias.map(c => `<option value="${c}">${c}</option>`).join('')
-    if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
-      coloniaEl.value = colonias[0]
-      coloniaEl.style.borderColor = '#22c55e'
+    actualizarColoniaElemento(colonias, valorActual)
+
+    const selectEl = document.getElementById('co-colonia')
+    if (colonias.length === 1 && selectEl && selectEl.tagName === 'SELECT' && !valorActual) {
+      selectEl.value = colonias[0]
+      selectEl.style.borderColor = '#22c55e'
     }
   } catch(err) { /* silencioso */ }
 }
