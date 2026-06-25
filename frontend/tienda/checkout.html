@@ -661,7 +661,8 @@ async function pagarConBrick(pedidoId, total, email) {
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=approved&transaction_amount=${total}`
             } else if (res.voucher_url) {
-              window.location.href = res.voucher_url       // OXXO/SPEI: cupón de pago
+              try { localStorage.removeItem('zm_carrito') } catch(e){}
+              window.location.href = `/success?payment_id=${res.id||''}&status=pending&transaction_amount=${total}&voucher=${encodeURIComponent(res.voucher_url)}`
             } else if (res.status === 'in_process' || res.status === 'pending') {
               try { localStorage.removeItem('zm_carrito') } catch(e){}
               window.location.href = `/success?payment_id=${res.id||''}&status=${res.status}&transaction_amount=${total}`

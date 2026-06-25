@@ -4947,20 +4947,35 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
 
   // ── SEO dinámico por categoría ──────────────────────────────────────────
   const _cat = catPreset?.toLowerCase() || ''
+  const _setOg = (title, desc, url) => {
+    let og = document.querySelector('meta[property="og:title"]'); if (og) og.content = title
+    let ogd = document.querySelector('meta[property="og:description"]'); if (ogd) ogd.content = desc
+    let ogu = document.querySelector('meta[property="og:url"]'); if (ogu) ogu.content = url
+  }
   if (_SEO_TITLES[_cat]) {
     document.title = _SEO_TITLES[_cat]
     let _metaDesc = document.querySelector('meta[name="description"]')
     if (_metaDesc) _metaDesc.setAttribute('content', _SEO_DESCRIPTIONS[_cat] || '')
+    _setOg(_SEO_TITLES[_cat], _SEO_DESCRIPTIONS[_cat] || '', `https://zapatillasmay.mx/${_cat}`)
   } else if (urlPath === '/ofertas') {
-    document.title = 'Ofertas de Calzado para Dama | Zapatillas May — León, Guanajuato'
+    const _t = 'Ofertas de Calzado para Dama | Zapatillas May — León, Guanajuato'
+    const _d = 'Zapatos de moda para dama en oferta. Directo del fabricante en León, Guanajuato. Mayoreo y menudeo sin registro. Envíos a todo México.'
+    document.title = _t
     let _metaDesc = document.querySelector('meta[name="description"]')
-    if (_metaDesc) _metaDesc.setAttribute('content', 'Zapatos de moda para dama en oferta. Directo del fabricante en León, Guanajuato. Mayoreo y menudeo sin registro. Envíos a todo México.')
+    if (_metaDesc) _metaDesc.setAttribute('content', _d)
+    _setOg(_t, _d, 'https://zapatillasmay.mx/ofertas')
   } else if (urlPath === '/catalogo') {
-    document.title = 'Catálogo Completo Calzado Mayoreo | Zapatillas May — León, Gto.'
+    const _t = 'Catálogo Completo Calzado Mayoreo | Zapatillas May — León, Gto.'
+    const _d = 'Todo el catálogo de calzado femenino de moda al mayoreo. Directo del fabricante en León, Guanajuato. Sin registro, precio automático por volumen.'
+    document.title = _t
     let _metaDesc = document.querySelector('meta[name="description"]')
-    if (_metaDesc) _metaDesc.setAttribute('content', 'Todo el catálogo de calzado femenino de moda al mayoreo. Directo del fabricante en León, Guanajuato. Sin registro, precio automático por volumen.')
+    if (_metaDesc) _metaDesc.setAttribute('content', _d)
+    _setOg(_t, _d, 'https://zapatillasmay.mx/catalogo')
   } else {
-    document.title = 'Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato'
+    const _t = 'Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato'
+    const _d = 'Calzado de moda para dama. Tacones, sandalias, botas y botines. Mayoreo y menudeo sin mínimo. Hecho en León, Guanajuato.'
+    document.title = _t
+    _setOg(_t, _d, 'https://zapatillasmay.mx/')
   }
 }
 

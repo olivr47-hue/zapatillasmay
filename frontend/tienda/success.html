@@ -11,17 +11,16 @@
        (confirmación o recuperación). Así nunca se pinta "Pedido confirmado" en un abandono. -->
   <style>
     body{visibility:hidden}
-    html.zm-pago-ok body, html.zm-abandono body{visibility:visible}
-    #vista-confirmado, #vista-abandono{display:none}
+    html.zm-pago-ok body, html.zm-abandono body, html.zm-oxxo body{visibility:visible}
+    #vista-confirmado, #vista-abandono, #vista-oxxo{display:none}
     html.zm-pago-ok #vista-confirmado{display:block}
     html.zm-abandono #vista-abandono{display:block}
+    html.zm-oxxo #vista-oxxo{display:block}
   </style>
   <noscript><style>body{visibility:visible}#vista-confirmado{display:block}</style></noscript>
   <!-- Gate de redirección: corre ANTES de pintar el body. -->
   <script>
   (function() {
-    // MercadoPago a veces redirige con parámetros como string literal
-    // "null"/"undefined" cuando se abandona el checkout sin pagar.
     var clean = function(v) {
       if (v == null) return ''
       var t = String(v).trim().toLowerCase()
@@ -30,16 +29,19 @@
     var params    = new URLSearchParams(window.location.search)
     var paymentId = clean(params.get('payment_id')) || clean(params.get('collection_id'))
     var status    = clean(params.get('status')) || clean(params.get('collection_status'))
+    var voucher   = clean(params.get('voucher'))
     var fallido   = ['failure', 'rejected', 'cancelled']
     var ok        = ['approved', 'pending', 'in_process']
 
-    // Pago válido = hay payment_id real, no falló, y el status es uno bueno
-    // (o viene vacío junto a un payment_id real).
+    // OXXO/SPEI: tenemos voucher_url → mostrar vista pendiente
+    if (voucher && paymentId) {
+      window.__zmVoucher = decodeURIComponent(voucher)
+      document.documentElement.classList.add('zm-oxxo')
+      return
+    }
+
     var statusBueno = status === '' || ok.indexOf(status) !== -1
     var valido = !!paymentId && fallido.indexOf(status) === -1 && statusBueno
-
-    // El <html> ya existe en este punto, así que podemos marcar la clase
-    // que el CSS usa para mostrar una vista u otra (sin flash, sin redirigir).
     window.__zmPagoOk = valido
     document.documentElement.classList.add(valido ? 'zm-pago-ok' : 'zm-abandono')
   })()
@@ -264,6 +266,42 @@
     </a>
   </div><!-- /vista-abandono -->
 
+  <!-- ============ VISTA C: OXXO / SPEI PENDIENTE ============ -->
+  <div id="vista-oxxo">
+    <div class="check-wrap">
+      <div class="check-circle" style="background:linear-gradient(135deg,#e63946,#c1121f);box-shadow:0 12px 40px rgba(230,57,70,0.30)">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h.01M11 15h2"/>
+        </svg>
+      </div>
+    </div>
+    <h1 style="font-size:1.6rem;font-weight:800;color:#2A1A0E;margin:0 0 8px">¡Tu pedido está apartado!</h1>
+    <p style="color:#5a4a40;font-size:1rem;margin:0 0 4px">Completa el pago en cualquier tienda <strong>OXXO</strong> o mediante <strong>transferencia bancaria</strong>.</p>
+    <p style="color:#888;font-size:0.82rem;margin:0 0 28px">Tu pedido se confirma automáticamente en cuanto recibamos el pago.</p>
+
+    <div style="background:#fff8f0;border:1.5px solid #f4d0a0;border-radius:16px;padding:20px 24px;max-width:420px;margin:0 auto 28px;text-align:left">
+      <p style="font-size:0.78rem;font-weight:700;color:#9a6a2a;text-transform:uppercase;letter-spacing:.6px;margin:0 0 10px">📋 ¿Qué sigue?</p>
+      <ol style="margin:0;padding-left:18px;color:#5a4a40;font-size:0.88rem;line-height:1.8">
+        <li>Descarga o anota tu ticket de pago.</li>
+        <li>Ve a cualquier OXXO y pide pagar un servicio.</li>
+        <li>Muestra el código de barras en caja.</li>
+        <li>¡Listo! Te llegará confirmación por correo en 1–2 horas.</li>
+      </ol>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;max-width:340px;margin:0 auto">
+      <a id="btn-ver-ticket" href="#" target="_blank" rel="noopener"
+         style="display:block;background:#e63946;color:#fff;font-weight:700;font-size:0.95rem;padding:14px 24px;border-radius:12px;text-decoration:none;text-align:center">
+        Ver ticket de pago (OXXO)
+      </a>
+      <a href="/"
+         style="display:block;background:#f5ede7;color:#2A1A0E;font-weight:600;font-size:0.9rem;padding:13px 24px;border-radius:12px;text-decoration:none;text-align:center">
+        ← Regresar a Zapatillas May
+      </a>
+    </div>
+    <p style="margin-top:20px;font-size:0.75rem;color:#aaa">¿Tienes dudas? Escríbenos por WhatsApp 💬</p>
+  </div><!-- /vista-oxxo -->
+
 </div>
 
 <footer style="text-align:center;padding:1.5rem;font-size:0.78rem;color:#aaa;border-top:1px solid #f0f0f0">
@@ -395,6 +433,15 @@ function copiarLink() {
 }
 
 // (Google Customer Reviews opt-in eliminado — generaba un pop-up molesto tras el pago)
+
+// Vista OXXO/SPEI: conectar botón con la URL del ticket
+;(function() {
+  if (!window.__zmVoucher) return
+  var btn = document.getElementById('btn-ver-ticket')
+  if (btn) btn.href = window.__zmVoucher
+  // Limpiar carrito (pedido quedó registrado)
+  try { localStorage.removeItem('zm_carrito') } catch(e) {}
+})()
 </script>
 </body>
 </html>
