@@ -720,8 +720,17 @@ async function pagarConBrick(pedidoId, total, email) {
       initialization: { amount: Number(total), payer: { email } },
       customization: { paymentMethods: { creditCard:'all', debitCard:'all', ticket:'all', bankTransfer:'all', maxInstallments: 12 } },
       callbacks: {
-        onReady: () => { setTimeout(() => { try { cont.scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){} }, 350) },
-        onError: (err) => { console.error('Brick error', err); mostrarToast('Revisa los datos de tu tarjeta') },
+        onReady: () => {
+          const loader = document.getElementById('mp-brick-loader')
+          if (loader) loader.style.display = 'none'
+          setTimeout(() => { try { cont.scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){} }, 350)
+        },
+        onError: (err) => {
+          console.error('Brick error', err)
+          const loader = document.getElementById('mp-brick-loader')
+          if (loader) loader.style.display = 'none'
+          mostrarToast('Revisa los datos de tu tarjeta')
+        },
         onSubmit: ({ formData }) => fetch(`${API}/pagos/procesar`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
@@ -945,7 +954,7 @@ async function _buscarCP(cp) {
     if (estadoEl && !estadoEl.value.trim() && estado) { estadoEl.value = estado; estadoEl.style.borderColor = '#22c55e' }
     // Poblar datalist de colonias
     const colonias = [...new Set(places.map(p => (p['place name'] || '').trim()).filter(Boolean))]
-    if (listEl) listEl.innerHTML = colonias.map(c => `<option value="${c}">`).join('')
+    if (listEl) listEl.innerHTML = colonias.map(c => `<option value="${c}">${c}</option>`).join('')
     // Si solo hay una colonia, pre-llenar
     if (colonias.length === 1 && coloniaEl && !coloniaEl.value.trim()) {
       coloniaEl.value = colonias[0]
