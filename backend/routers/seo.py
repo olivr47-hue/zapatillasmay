@@ -123,12 +123,12 @@ def _producto_ssr_inner(sku: str):
     palabras    = (p.get("palabras_clave") or "").strip()
     desc_raw  = (p.get("descripcion") or nombre).strip()
     desc      = (meta_desc or desc_raw)[:160]
-    titulo_seo = meta_titulo or f"{nombre} | Zapatillas May — León, Guanajuato"
+    sku_canon = (p.get("sku_interno") or sku).strip()
+    titulo_seo = meta_titulo or f"{nombre} {sku_canon} | Zapatillas May"
     precio    = (p.get("precio_menudeo") or 0)
     precio_display = precio if p.get("es_oferta") else precio + 80
     imagen    = p.get("imagen_principal") or ""
     categoria = (p.get("categoria") or "calzado").strip()
-    sku_canon = p.get("sku_interno") or sku
     canonical = f"https://zapatillasmay.mx/producto/{sku_canon}"
 
     # Imágenes para SEO de imágenes (Google Images / Shopping): principal + variantes
@@ -181,8 +181,8 @@ def _producto_ssr_inner(sku: str):
         _partes.append("Disponible en " + ", ".join(colores[:6]) + ".")
     _partes.append("Mayoreo automático desde 3 pares y envíos a todo México.")
     desc_unica = " ".join(_partes)
-    # Meta description única: prioriza la del panel; si no, la generada (nunca la genérica compartida)
-    desc = (meta_desc or desc_unica)[:160]
+    # Meta description única: prioriza la del panel si es suficientemente larga; si no, usa la generada automáticamente
+    desc = (meta_desc if (meta_desc and len(meta_desc) >= 110) else desc_unica)[:160]
 
     def _esc(s):
         return _html.escape(str(s or ""), quote=True)
@@ -413,11 +413,11 @@ _PAGINAS_SEO = {
              "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, mayoreo desde 3 pares. Envíos a todo México."),
     "accesorios": ("Accesorios — Zapatillas May León, Guanajuato",
                    "Accesorios para complementar tu look en Zapatillas May. Fabricado en León, Guanajuato. Mayoreo y menudeo con envíos a todo México."),
-    "mayoreo": ("Mayoreo de Calzado sin Mínimo — desde 3 Pares | Zapatillas May",
+    "mayoreo": ("Mayoreo de Calzado desde 3 Pares | Zapatillas May",
                 "Compra calzado de dama a precio de mayoreo desde 3 pares, sin registro especial. Fabricado en León, Guanajuato. Envíos a todo México."),
     "ofertas": ("Ofertas de Calzado de Dama | Zapatillas May",
                 "Aprovecha las ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México."),
-    "nosotros": ("Sobre Nosotras — Fábrica de Calzado en León | Zapatillas May",
+    "nosotros": ("Sobre Nosotras — Fábrica de Calzado | Zapatillas May",
                  "Conoce Zapatillas May, fabricante de calzado femenino de moda en León, Guanajuato. Calidad artesanal a precio de mayoreo y menudeo."),
     "envios": ("Envíos a todo México | Zapatillas May",
                "Información de envíos de Zapatillas May: cobertura nacional, tiempos y costos, con envío gratis desde cierto monto. León, Guanajuato."),

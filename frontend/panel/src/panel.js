@@ -8992,9 +8992,13 @@ window.sugerirCorrida = (productoId, color) => {
   } else {
     // Solo enteros: distribuir 6 pares duplicando tallas centrales
     const tallas = seleccionadas.slice(0, 5)
-    if (tallas.length >= 4) {
+    if (tallas.length === 4) {
       tallas.forEach((v, i) => {
         window._corridaCantidades[v.id] = (i === 1 || i === 2) ? 2 : 1
+      })
+    } else if (tallas.length === 5) {
+      tallas.forEach((v, i) => {
+        window._corridaCantidades[v.id] = (i === 2) ? 2 : 1
       })
     } else {
       seleccionadas.slice(0, 6).forEach(v => {
