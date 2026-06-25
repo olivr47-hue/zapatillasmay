@@ -10193,22 +10193,22 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         body {
           font-family: 'Courier New', monospace;
           font-size: 12px;
-          width: 280px;
-          padding: 10px;
+          font-weight: bold;
+          width: 72mm;
+          padding: 3mm;
           color: #000;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .center { text-align: center; }
-        .bold { font-weight: bold; }
-        .logo { font-size: 18px; font-weight: bold; margin-bottom: 2px; }
-        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+        .logo { font-size: 16px; margin-bottom: 2px; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
         .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .item-nombre { font-weight: bold; margin-bottom: 1px; }
-        .item-detalle { color: #444; font-size: 11px; }
-        .total-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
-        .footer { margin-top: 10px; font-size: 11px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 14px; }
+        .footer { margin-top: 8px; font-size: 10px; }
         @media print {
-          body { width: 280px; }
-          @page { margin: 0; size: 80mm auto; }
+          @page { size: 80mm auto; margin: 0; }
+          body { width: 80mm; padding: 4mm; }
         }
       </style>
     </head>
@@ -10241,11 +10241,13 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   items.forEach(item => {
     const variante = item.variantes || {}
     const producto = variante.productos || {}
-    const key = (producto.nombre || '—') + '|' + (variante.color || '')
+    const _clave = (producto.nombre || '—').split(' ')[0]
+    const key = _clave + '|' + (variante.color || '')
     if (!grupos[key]) {
       grupos[key] = {
-        nombre: producto.nombre || '—',
+        nombre: _clave,
         color: variante.color || '',
+        precio: item.precio_unitario || 0,
         cantidad: 0,
         subtotal: 0
       }
@@ -10256,16 +10258,16 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   return `
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <tr style="border-bottom:1px solid #000">
-        <td style="width:30px;text-align:right;padding-right:6px;font-weight:bold">Cant</td>
-        <td style="padding-right:4px;font-weight:bold">Modelo</td>
-        <td style="padding-right:4px;font-weight:bold">Color</td>
+        <td style="width:24px;text-align:right;padding-right:4px;font-weight:bold">Cant</td>
+        <td style="font-weight:bold">Modelo / Color</td>
+        <td style="text-align:right;padding-right:4px;font-weight:bold">P/U</td>
         <td style="text-align:right;font-weight:bold">Total</td>
       </tr>
       ${Object.values(grupos).map(g => `
         <tr>
-          <td style="width:30px;text-align:right;padding-right:6px">${g.cantidad}</td>
-          <td style="padding-right:4px">${g.nombre}</td>
-          <td style="padding-right:4px;color:#444">${g.color}</td>
+          <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
+          <td>${g.nombre}<br><span style="font-size:10px">${g.color}</span></td>
+          <td style="text-align:right;padding-right:4px">$${parseFloat(g.precio).toFixed(2)}</td>
           <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
         </tr>
       `).join('')}
@@ -10339,7 +10341,9 @@ window.generarPDFPedido = async (pedidoId) => {
         table { width:100%; border-collapse:collapse; margin-bottom:20px; }
         thead tr { background:#f5f5f5; }
         th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
-        td { padding:10px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; }
+        td { padding:8px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; vertical-align:middle; }
+        .td-foto { width:64px; padding:6px 8px; }
+        .foto-variante { width:56px; height:56px; object-fit:cover; border-radius:6px; display:block; background:#f5f5f5; }
         .text-right { text-align:right; }
         .total-section { display:flex; justify-content:flex-end; }
         .total-box { width:250px; }
@@ -10416,6 +10420,7 @@ window.generarPDFPedido = async (pedidoId) => {
       <table>
         <thead>
           <tr>
+            <th class="td-foto"></th>
             <th>Modelo</th>
             <th>Color</th>
             <th>Talla</th>
@@ -10429,8 +10434,10 @@ window.generarPDFPedido = async (pedidoId) => {
           ${items.map(item => {
             const variante = item.variantes || {}
             const producto = variante.productos || {}
+            const fotoUrl = variante.foto_url || ''
             return `
               <tr>
+                <td class="td-foto">${fotoUrl ? `<img class="foto-variante" src="${fotoUrl}" alt="${variante.color || ''}">` : '<div class="foto-variante" style="border:1px dashed #ddd"></div>'}</td>
                 <td>${producto.nombre || '—'}</td>
                 <td>${variante.color || '—'}</td>
                 <td>${variante.talla || '—'}</td>

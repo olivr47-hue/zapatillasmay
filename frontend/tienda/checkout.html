@@ -595,7 +595,7 @@ async function procesarPago() {
     } catch(e){}
     window.location.href = pago.init_point
   } catch(e) {
-    btn.disabled = false; btn.textContent = 'Pagar ahora'
+    btn.disabled = false; const _bpt = document.getElementById('btn-pagar-text'); if (_bpt) _bpt.textContent = `Pagar $${(window._totalFinal||0).toLocaleString('es-MX',{maximumFractionDigits:0})} MXN`
     if (stickyBtn) { stickyBtn.disabled = false; stickyBtn.textContent = 'Pagar ahora 🔒' }
     mostrarToast(e.message || 'Error al procesar. Intenta de nuevo.')
     console.error('Error pago:', e)
@@ -645,7 +645,7 @@ function mostrarPasoVisual(paso, updateState = true) {
     const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'block'
     
     const btn = document.getElementById('btn-pagar')
-    if (btn) { btn.style.display = 'flex'; btn.disabled = false; btn.textContent = 'Pagar ahora' }
+    if (btn) { btn.style.display = 'flex'; btn.disabled = false; const _bpt2 = document.getElementById('btn-pagar-text'); if (_bpt2) _bpt2.textContent = `Pagar $${(window._totalFinal||0).toLocaleString('es-MX',{maximumFractionDigits:0})} MXN` }
     
     const stickyBtn = document.getElementById('sticky-btn-pagar')
     if (stickyBtn) { stickyBtn.style.display = ''; stickyBtn.disabled = false; stickyBtn.textContent = 'Pagar ahora 🔒' }
@@ -1148,7 +1148,33 @@ async function _buscarCP(cp) {
     console.warn('Fallo SEPOMEX, usando Zippopotam de respaldo:', e)
   }
 
-  // FALLBACK: API de Zippopotam (solo estado y colonias)
+  // FALLBACK 2: IcaliaLabs SEPOMEX (tiene estado + municipio/ciudad + colonias)
+  try {
+    const ctrl2 = new AbortController()
+    const timer2 = setTimeout(() => ctrl2.abort(), 4000)
+    const r2 = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${cp}`, { signal: ctrl2.signal })
+    clearTimeout(timer2)
+    if (!r2.ok) throw new Error('IcaliaLabs failed')
+    const j2 = await r2.json()
+    const codes = Array.isArray(j2.zip_codes) ? j2.zip_codes : []
+    if (!codes.length) throw new Error('No data IcaliaLabs')
+
+    const estado2 = (codes[0].d_estado || '').trim()
+    const ciudad2 = (codes[0].D_mnpio || codes[0].d_ciudad || '').trim()
+    if (estadoEl && !estadoEl.value.trim() && estado2) { estadoEl.value = estado2; estadoEl.style.borderColor = '#22c55e' }
+    if (ciudadEl && !ciudadEl.value.trim() && ciudad2) { ciudadEl.value = ciudad2; ciudadEl.style.borderColor = '#22c55e' }
+
+    const valorActual2 = document.getElementById('co-colonia')?.value || ''
+    const colonias2 = [...new Set(codes.map(c => (c.d_asenta || '').trim()).filter(Boolean))]
+    actualizarColoniaElemento(colonias2, valorActual2)
+    const sel2 = document.getElementById('co-colonia')
+    if (colonias2.length === 1 && sel2?.tagName === 'SELECT' && !valorActual2) { sel2.value = colonias2[0]; sel2.style.borderColor = '#22c55e' }
+    return
+  } catch(e2) {
+    console.warn('Fallo IcaliaLabs, usando Zippopotam:', e2)
+  }
+
+  // FALLBACK 3: Zippopotam (solo estado y colonias — sin ciudad)
   try {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 3500)
