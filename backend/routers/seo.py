@@ -116,6 +116,9 @@ def _producto_ssr_inner(sku: str):
     nombre    = (p.get("nombre") or "Calzado").strip()
     # SEO generado en el panel (si existe) tiene prioridad sobre los datos crudos
     meta_titulo = (p.get("meta_titulo") or "").strip()
+    # Descartar meta_titulo corrupto generado con nombre parcial (ej: "M | Zapatillas May")
+    if meta_titulo and len(meta_titulo.split(' | ')[0].strip()) <= 3:
+        meta_titulo = ""
     meta_desc   = (p.get("meta_descripcion") or "").strip()
     palabras    = (p.get("palabras_clave") or "").strip()
     desc_raw  = (p.get("descripcion") or nombre).strip()
@@ -397,15 +400,15 @@ _PAGINAS_SEO = {
     "sandalias": ("Sandalias de Dama — Mayoreo y Menudeo | Zapatillas May",
                   "Sandalias de moda para dama hechas en León, Guanajuato. Precios de mayoreo desde 3 pares, casuales y de fiesta. Envíos a todo México."),
     "botas": ("Botas de Dama — Mayoreo y Menudeo | Zapatillas May León",
-              "Botas de moda para dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México."),
+              "Botas de moda para dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro, en cuero y sintético. Envíos a todo México."),
     "botines": ("Botines de Dama — Mayoreo y Menudeo | Zapatillas May",
-                "Botines de moda para dama hechos en León, Guanajuato. Precios de mayoreo desde 3 pares. Envíos a todo México."),
+                "Botines de moda para dama hechos en León, Guanajuato. Precios de mayoreo desde 3 pares sin registro, los últimos estilos. Envíos a todo México."),
     "flats": ("Flats y Zapatos Bajos de Dama — Mayoreo | Zapatillas May",
               "Flats y zapatos bajos de dama, cómodos y de moda, fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México."),
     "plataformas": ("Plataformas de Dama — Mayoreo y Menudeo | Zapatillas May",
                     "Plataformas de moda para dama hechas en León, Guanajuato. Altura con comodidad, mayoreo desde 3 pares. Envíos a todo México."),
     "tenis": ("Tenis de Dama — Mayoreo y Menudeo | Zapatillas May",
-              "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México."),
+              "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro, estilo urbano y deportivo. Envíos a todo México."),
     "nina": ("Calzado para Niña — Mayoreo y Menudeo | Zapatillas May",
              "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, mayoreo desde 3 pares. Envíos a todo México."),
     "accesorios": ("Accesorios — Zapatillas May León, Guanajuato",
@@ -419,13 +422,13 @@ _PAGINAS_SEO = {
     "envios": ("Envíos a todo México | Zapatillas May",
                "Información de envíos de Zapatillas May: cobertura nacional, tiempos y costos, con envío gratis desde cierto monto. León, Guanajuato."),
     "contacto": ("Contacto | Zapatillas May — León, Guanajuato",
-                 "Contáctanos por WhatsApp y redes sociales. Zapatillas May, calzado de dama de mayoreo y menudeo en León, Guanajuato."),
+                 "Contáctanos por WhatsApp, Instagram y redes sociales. Zapatillas May, fábrica de calzado de dama en León, Guanajuato. Mayoreo y menudeo."),
     "tabla-tallas": ("Tabla de Tallas | Zapatillas May",
                      "Consulta la tabla de tallas de Zapatillas May para elegir tu medida correcta. Calzado de dama fabricado en León, Guanajuato."),
     "como-comprar": ("Cómo Comprar — Menudeo y Mayoreo | Zapatillas May",
                      "Guía paso a paso para comprar en Zapatillas May: menudeo y mayoreo desde 3 pares, formas de pago y envíos a todo México."),
     "privacidad": ("Aviso de Privacidad | Zapatillas May",
-                   "Aviso de privacidad de Zapatillas May. Conoce cómo protegemos y usamos tus datos personales."),
+                   "Aviso de privacidad de Zapatillas May. Conoce cómo recopilamos, protegemos y usamos tus datos personales conforme a la ley mexicana."),
     "politica-de-devoluciones": ("Política de Devoluciones — 30 Días | Zapatillas May",
                                   "Política de cambios y devoluciones de Zapatillas May: 30 días sin complicaciones. Conoce las condiciones y el proceso paso a paso."),
 }
@@ -633,6 +636,12 @@ def pagina_ssr(slug: str):
 
     try:
         canonical = f"https://zapatillasmay.mx/{slug}"
+        # Demotar el H1 del hero a <div> — cada subpágina tiene su propio H1 inyectado más abajo
+        template = re.sub(
+            r'<h1(\s[^>]*class="hero-title"[^>]*)>(.*?)</h1>',
+            r'<div\1>\2</div>',
+            template, count=1, flags=re.DOTALL
+        )
         template = template.replace(f"<title>{_HOME_TITLE}</title>", f"<title>{_esc_pagina(titulo)}</title>")
         template = template.replace(f'content="{_HOME_DESC}"', f'content="{_esc_pagina(desc)}"')
         template = template.replace(

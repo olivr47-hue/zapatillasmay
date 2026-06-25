@@ -63,6 +63,6 @@
     { "source": "/checkout",       "destination": "/checkout.html" },
     { "source": "/links",          "destination": "/links.html" },
     { "source": "/ofertas",        "destination": "https://zapatillasmay-production.up.railway.app/seo/pagina/ofertas" },
-    { "source": "/(.*)",           "destination": "/index.html" }
+    { "source": "/((?!.*\\.).*)",   "destination": "/index.html" }
   ]
 }

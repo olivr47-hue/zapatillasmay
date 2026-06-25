@@ -5173,14 +5173,14 @@ if (!datos) window._coloresExistentes = null
               <span>Slug URL <span style="color:#888;font-size:0.72rem">(para SEO)</span></span>
               <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
             </label>
-            <input class="form-input" id="f-slug" placeholder="se genera del nombre del producto" value="${d.slug || ''}">
+            <input class="form-input" id="f-slug" placeholder="se genera del nombre del producto" value="${d.slug || ''}" oninput="this.dataset.autofilled='false'">
           </div>
           <div>
             <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
               <span>Meta titulo <span style="color:#888;font-size:0.72rem">(SEO)</span></span>
               <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
             </label>
-            <input class="form-input" id="f-metatitulo" placeholder="se genera del nombre del producto" value="${d.meta_titulo || ''}">
+            <input class="form-input" id="f-metatitulo" placeholder="se genera del nombre del producto" value="${d.meta_titulo || ''}" oninput="this.dataset.autofilled='false'">
           </div>
           <div>
             <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -5278,12 +5278,19 @@ window.actualizarSKU = async () => {
       skuInput.value = data.sku_base
     } catch(e) {}
   }
-  // Auto-fill SEO fields if still empty
+  // Auto-fill SEO fields: rellena si está vacío O si fue auto-rellenado anteriormente
+  // (data-autofilled='true' indica que el valor lo puso este código, no el usuario)
   if (nombre) {
     const slugInput = document.getElementById('f-slug')
-    if (slugInput && !slugInput.value) slugInput.value = _slugify(nombre)
+    if (slugInput && (!slugInput.value || slugInput.dataset.autofilled === 'true')) {
+      slugInput.value = _slugify(nombre)
+      slugInput.dataset.autofilled = 'true'
+    }
     const metaTitulo = document.getElementById('f-metatitulo')
-    if (metaTitulo && !metaTitulo.value) metaTitulo.value = nombre.trim() + ' | Zapatillas May'
+    if (metaTitulo && (!metaTitulo.value || metaTitulo.dataset.autofilled === 'true')) {
+      metaTitulo.value = nombre.trim() + ' | Zapatillas May'
+      metaTitulo.dataset.autofilled = 'true'
+    }
   }
 }
 
