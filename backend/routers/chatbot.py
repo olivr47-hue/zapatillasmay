@@ -703,16 +703,16 @@ def enviar_whatsapp(from_number, respuesta):
 def cargar_catalogo():
     return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
 
-def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
-    """Descarga el audio de WhatsApp y lo transcribe con Whisper (OpenAI)."""
+def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
+    """Descarga el audio de WhatsApp, lo sube a Storage y lo transcribe con Whisper.
+    Retorna (transcripcion, url_publica)."""
     try:
         audio_id = mensaje_data.get("audio", {}).get("id", "")
         if not audio_id:
-            return "[Audio no procesable]"
-        wa_token  = os.environ.get("WHATSAPP_TOKEN", "")
+            return ("[Audio no procesable]", "")
+        wa_token   = os.environ.get("WHATSAPP_TOKEN", "")
         openai_key = os.environ.get("OPENAI_API_KEY", "")
 
-        # Obtener URL del audio
         req = urllib.request.Request(
             f"https://graph.facebook.com/v25.0/{audio_id}",
             headers={"Authorization": f"Bearer {wa_token}"}
@@ -721,20 +721,18 @@ def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
             media_data = json.loads(r.read())
         audio_url = media_data.get("url", "")
         if not audio_url:
-            return "[Audio recibido — no se pudo obtener URL]"
+            return ("[Audio recibido]", "")
 
-        # Descargar el archivo de audio
         audio_req = urllib.request.Request(audio_url, headers={"Authorization": f"Bearer {wa_token}"})
         with urllib.request.urlopen(audio_req) as r:
             audio_bytes = r.read()
 
-        # Si no hay OpenAI key, solo registrar
+        pub_url = subir_imagen_storage(audio_bytes, f"{from_number}_{audio_id}.ogg", content_type="audio/ogg")
+
         if not openai_key:
             print(f"[audio] sin OPENAI_API_KEY, audio de {from_number} no transcrito")
-            return "[Audio de voz recibido]"
+            return ("[Audio de voz recibido]", pub_url)
 
-        # Transcribir con Whisper
-        import io
         boundary = "----WhisperBoundary"
         body_parts = [
             f"--{boundary}\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1".encode(),
@@ -755,11 +753,63 @@ def _transcribir_audio_wa(mensaje_data: dict, from_number: str) -> str:
         with urllib.request.urlopen(whisper_req) as r:
             result = json.loads(r.read())
         texto = result.get("text", "").strip()
-        return texto if texto else "[Audio sin contenido detectado]"
+        return (texto or "[Audio sin contenido]", pub_url)
 
     except Exception as e:
-        print(f"[audio-transcripcion] Error: {e}")
-        return "[Audio de voz recibido — no se pudo transcribir]"
+        print(f"[audio-wa] Error: {e}")
+        return ("[Audio de voz recibido]", "")
+
+
+def _procesar_documento_wa(mensaje_data: dict, from_number: str) -> tuple:
+    """Descarga un documento de WhatsApp y lo sube a Storage. Retorna (nombre, url)."""
+    try:
+        doc = mensaje_data.get("document", {})
+        doc_id = doc.get("id", "")
+        doc_filename = doc.get("filename", f"documento_{doc_id}")
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v25.0/{doc_id}",
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(req) as r:
+            meta = json.loads(r.read())
+        dl_url = meta.get("url", "")
+        if not dl_url:
+            return (doc_filename, "")
+        dl_req = urllib.request.Request(dl_url, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(dl_req) as r:
+            doc_bytes = r.read()
+        mime = doc.get("mime_type", "application/octet-stream")
+        pub_url = subir_imagen_storage(doc_bytes, f"{from_number}_{doc_id}_{doc_filename}", content_type=mime)
+        return (doc_filename, pub_url)
+    except Exception as e:
+        print(f"[documento-wa] Error: {e}")
+        return ("documento", "")
+
+
+def _procesar_video_wa(mensaje_data: dict, from_number: str) -> str:
+    """Descarga un video de WhatsApp y lo sube a Storage. Retorna la URL pública."""
+    try:
+        vid = mensaje_data.get("video", {})
+        vid_id = vid.get("id", "")
+        wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v25.0/{vid_id}",
+            headers={"Authorization": f"Bearer {wa_token}"}
+        )
+        with urllib.request.urlopen(req) as r:
+            meta = json.loads(r.read())
+        dl_url = meta.get("url", "")
+        if not dl_url:
+            return ""
+        dl_req = urllib.request.Request(dl_url, headers={"Authorization": f"Bearer {wa_token}"})
+        with urllib.request.urlopen(dl_req) as r:
+            vid_bytes = r.read()
+        mime = vid.get("mime_type", "video/mp4")
+        return subir_imagen_storage(vid_bytes, f"{from_number}_{vid_id}.mp4", content_type=mime)
+    except Exception as e:
+        print(f"[video-wa] Error: {e}")
+        return ""
 
 
 @router.post("/link-pago-manual")
@@ -967,8 +1017,35 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 except Exception:
                     pass
         elif tipo == "audio":
-            # ── Transcripción con Whisper ────────────────────────────
-            mensaje = _transcribir_audio_wa(mensaje_data, from_number)
+            # ── Audio: descargar a Storage + transcribir con Whisper ────────────
+            transcripcion, audio_pub_url = _procesar_audio_wa(mensaje_data, from_number)
+            if control:
+                guardar_conversacion(from_number, transcripcion, None, "audio", nombre_contacto, media_url=audio_pub_url)
+                cache_invalidate("chats_lista")
+                return {"status": "ok"}
+            resp_audio = None
+            if transcripcion and not transcripcion.startswith("["):
+                try:
+                    hist_audio = obtener_historial(from_number) + [{"role": "user", "content": transcripcion}]
+                    r_audio = llamar_claude(hist_audio, sistema)
+                    resp_audio = procesar_y_enviar_respuesta(from_number, r_audio)
+                except Exception as e:
+                    print(f"[chatbot] Error Claude audio: {e}")
+            guardar_conversacion(from_number, transcripcion, resp_audio, "audio", nombre_contacto, media_url=audio_pub_url)
+            cache_invalidate("chats_lista")
+            return {"status": "ok"}
+        elif tipo == "document":
+            # ── Documento: descargar a Storage ───────────────────────────────────
+            fname, doc_url = _procesar_documento_wa(mensaje_data, from_number)
+            guardar_conversacion(from_number, f"[Documento] {fname}", None, "documento", nombre_contacto, media_url=doc_url)
+            cache_invalidate("chats_lista")
+            return {"status": "ok"}
+        elif tipo == "video":
+            # ── Video: descargar a Storage ───────────────────────────────────────
+            vid_url = _procesar_video_wa(mensaje_data, from_number)
+            guardar_conversacion(from_number, "[Video]", None, "video", nombre_contacto, media_url=vid_url)
+            cache_invalidate("chats_lista")
+            return {"status": "ok"}
         elif tipo == "interactive":
             # ── Respuesta a botón o lista interactiva ────────────────
             inter = mensaje_data.get("interactive", {})
@@ -1151,14 +1228,14 @@ async def listar_chats():
                 "conversaciones_whatsapp"
                 "?order=created_at.desc"
                 "&limit=400"
-                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
+                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url"
             )
         except Exception:
             conversaciones = supabase_get(
                 "conversaciones_whatsapp"
                 "?order=created_at.desc"
                 "&limit=400"
-                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo"
+                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
             )
         chats = {}
         for m in conversaciones:
@@ -1206,6 +1283,22 @@ async def listar_chats():
         return result
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/chats/{telefono}/mensajes")
+async def listar_mensajes_chat(telefono: str):
+    """Historial individual de un chat (últimos 150 mensajes, con media_url)."""
+    try:
+        msgs = supabase_get(
+            f"conversaciones_whatsapp"
+            f"?telefono=eq.{telefono}"
+            f"&order=created_at.desc"
+            f"&limit=150"
+            f"&select=id,telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url"
+        )
+        return msgs or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 @router.get("/conversaciones")
 async def listar_conversaciones():

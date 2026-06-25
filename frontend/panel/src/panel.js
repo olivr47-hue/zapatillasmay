@@ -11894,8 +11894,17 @@ window._recargarChats = async () => {
   try {
     const raw = await fetch(API + '/chatbot/chats').then(r => r.json())
     const chats = Array.isArray(raw) ? raw : []
-    window._chatsData = {}
-    chats.forEach(c => window._chatsData[c.telefono] = c)
+    const nuevo = {}
+    chats.forEach(c => {
+      const existente = window._chatsData[c.telefono]
+      // Preserve individually-loaded full history if it's larger than the bulk fetch
+      if (existente && existente._historial_completo && existente.mensajes.length > c.mensajes.length) {
+        nuevo[c.telefono] = { ...c, mensajes: existente.mensajes, _historial_completo: true }
+      } else {
+        nuevo[c.telefono] = c
+      }
+    })
+    window._chatsData = nuevo
     return chats
   } catch(_) { return [] }
 }
@@ -11961,7 +11970,7 @@ window._renderBurbujas = (chat) => {
     const tieneZona = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)
     return new Date(tieneZona ? s : s.replace(' ', 'T') + 'Z')
   }
-  const mensajesOrden = [...chat.mensajes].reverse()
+  const mensajesOrden = [...(chat.mensajes || [])].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
     const esSal = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
@@ -11970,8 +11979,9 @@ window._renderBurbujas = (chat) => {
 
   return mensajesOrden.map((m, idx) => {
     const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
-    const senderName = esSaliente ? (m.mensaje.match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
-    const ts = parseUTC(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+    const senderName = esSaliente ? ((m.mensaje || '').match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
+    const _parsedAt = parseUTC(m.created_at)
+    const ts = _parsedAt ? _parsedAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : ''
     const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
 
     // Construir body de la burbuja según tipo
@@ -12052,6 +12062,30 @@ window._renderBurbujas = (chat) => {
       } else {
         msgBody = `<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>`
       }
+    } else if (m.tipo === 'audio') {
+      const audioSrc = m.media_url || (m.mensaje || '').match(/https?:\/\/\S+/)?.[0] || ''
+      const transcripcion = textoLimpio.replace('[Audio de voz recibido]','').replace('[Audio sin contenido]','').replace('[Audio no procesable]','').trim()
+      msgBody = audioSrc
+        ? `<div>
+            <audio src="${audioSrc}" controls style="max-width:220px;width:100%;margin-bottom:${transcripcion?'4px':'0'}"></audio>
+            ${transcripcion ? `<p style="font-size:0.8rem;color:#475569;margin:0;font-style:italic">${transcripcion}</p>` : ''}
+           </div>`
+        : `<p style="color:#64748b;font-size:0.8rem">🎵 ${transcripcion || 'Audio de voz'}</p>`
+    } else if (m.tipo === 'documento') {
+      const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
+      const docSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
+      const fname = (m.mensaje || '').replace('[Documento]','').replace(/https?:\/\/\S+/g,'').trim() || 'documento'
+      msgBody = docSrc
+        ? `<a href="${docSrc}" target="_blank" class="wa-doc-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${fname}</a>`
+        : `<p style="color:#64748b;font-size:0.8rem">📄 ${fname || 'Documento recibido'}</p>`
+    } else if (m.tipo === 'video') {
+      const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
+      const vidSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
+      msgBody = vidSrc
+        ? `<video src="${vidSrc}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
+        : `<p style="color:#64748b;font-size:0.8rem">🎬 Video recibido</p>`
     } else {
       msgBody = `<p>${textoLimpio}</p>`
     }
@@ -12077,7 +12111,7 @@ window._renderBurbujas = (chat) => {
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     </button>`
 
-    const rendered = m.mensaje ? `
+    const rendered = (m.mensaje || m.media_url) ? `
       <div class="wa-msg-row ${esSaliente ? 'saliente' : 'entrante'}" data-idx="${idx}">
         ${!esSaliente ? replyBtn : ''}
         <div class="wa-msg-row-inner">
@@ -12105,8 +12139,10 @@ window._renderBurbujas = (chat) => {
 }
 
 window.abrirChat = async (telefono) => {
-  const chat = window._chatsData[telefono]
-  if (!chat) return
+  let chat = window._chatsData[telefono] || {
+    telefono, nombre: telefono, mensajes: [], en_control: false,
+    etiqueta: 'sin_etiqueta', estado: 'abierto', no_leidos: 0
+  }
 
   document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const item = document.querySelector(`[data-tel="${telefono}"]`)
@@ -12256,10 +12292,33 @@ area.style.minHeight = '0'
     </div>
   `
 
-  setTimeout(() => {
+  // Scroll inicial con los mensajes en caché
+  const _scrollMensajes = () => {
     const ma = document.getElementById('mensajes-area')
     if (ma) ma.scrollTop = ma.scrollHeight
-  }, 800)
+  }
+  setTimeout(_scrollMensajes, 100)
+
+  // Cargar historial individual completo si no lo tenemos aún
+  if (!chat._historial_completo) {
+    try {
+      const msgs = await fetch(`${API}/chatbot/chats/${telefono}/mensajes`).then(r => r.json())
+      if (Array.isArray(msgs) && msgs.length > 0) {
+        const nombre = msgs.find(m => m.nombre_contacto && m.nombre_contacto !== telefono)?.nombre_contacto || chat.nombre
+        window._chatsData[telefono] = { ...chat, nombre, mensajes: msgs, _historial_completo: true }
+        chat = window._chatsData[telefono]
+        // Actualizar contador en sub-header
+        const sub = document.querySelector(`#chat-area .wa-header-sub`)
+        if (sub) sub.textContent = `${chat.telefono} · ${msgs.length} msg`
+        // Re-renderizar burbujas con historial completo
+        const ma = document.getElementById('mensajes-area')
+        if (ma) {
+          ma.innerHTML = window._renderBurbujas(chat)
+          setTimeout(() => { ma.scrollTop = ma.scrollHeight }, 50)
+        }
+      }
+    } catch(_) { /* silencioso */ }
+  }
 
   fetch(API + '/chatbot/chats/' + telefono + '/leido', { method: 'PATCH' })
   window._chatActivo = telefono
