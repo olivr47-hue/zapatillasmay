@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -206,43 +206,7 @@
   </div>
 </div>
 
-<!-- CHECKOUT OVERLAY -->
-<div class="overlay" id="checkout-overlay">
-  <div class="modal-box">
-    <div class="modal-head">
-      <button class="close" onclick="cerrarCheckout()" aria-label="Cerrar">✕</button>
-      <p class="modal-eyebrow">Finalizar compra</p>
-      <p class="modal-title">Datos de envío</p>
-      <p class="modal-subtitle">Total a pagar: <strong id="modal-total"></strong></p>
-    </div>
-    <div class="modal-body">
-      <div class="field"><input id="co-nombre" placeholder="Nombre completo *"></div>
-      <div class="field"><input id="co-email" type="email" placeholder="Email *"></div>
-      <div class="field"><input id="co-telefono" type="tel" placeholder="Teléfono *"></div>
-      <div class="field"><input id="co-calle" placeholder="Calle y número *"></div>
-      <div class="field field-row">
-        <input id="co-colonia" placeholder="Colonia *">
-        <input id="co-cp" placeholder="Código postal *">
-      </div>
-      <div class="field field-row">
-        <input id="co-ciudad" placeholder="Ciudad *">
-        <input id="co-estado" placeholder="Estado *">
-      </div>
-      <div class="field"><textarea id="co-notas" placeholder="Notas adicionales (opcional)" rows="2"></textarea></div>
-      <p class="pagos-label">Pago 100% seguro con</p>
-      <div class="pagos-grid">
-        <span class="pago-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#1a56db" stroke-width="2"/><path d="M2 10h20" stroke="#1a56db" stroke-width="2"/></svg>Tarjeta</span>
-        <span class="pago-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#0a7c3e" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#0a7c3e" stroke-width="2"/></svg>SPEI</span>
-        <span class="pago-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="#e63946" stroke-width="2" rx="2"/><path d="M8 8h8M8 12h5" stroke="#e63946" stroke-width="1.5"/></svg>OXXO</span>
-        <span class="pago-badge"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#009ee3" stroke-width="2"/><path d="M8 12.5l2.5 2.5L16 9" stroke="#009ee3" stroke-width="2" stroke-linecap="round"/></svg>MercadoPago</span>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="cancel" onclick="cerrarCheckout()">Cancelar</button>
-      <button class="confirm" id="btn-confirmar" onclick="procesarPago()">Pagar ahora</button>
-    </div>
-  </div>
-</div>
+
 
 <div class="toast" id="toast"></div>
 
@@ -500,102 +464,6 @@ function abrirCheckout() {
   if (!carrito.length) return
   // Navega a la página dedicada /checkout (para tracking de funnel Meta/TikTok/Google)
   window.location.href = '/checkout'
-}
-
-function cerrarCheckout() {
-  document.getElementById('checkout-overlay').classList.remove('active')
-}
-
-async function procesarPago() {
-  const nombre   = document.getElementById('co-nombre').value.trim()
-  const email    = document.getElementById('co-email').value.trim()
-  const telefono = document.getElementById('co-telefono').value.trim()
-  const calle    = document.getElementById('co-calle').value.trim()
-  const colonia  = document.getElementById('co-colonia').value.trim()
-  const cp       = document.getElementById('co-cp').value.trim()
-  const ciudad   = document.getElementById('co-ciudad').value.trim()
-  const estado   = document.getElementById('co-estado').value.trim()
-  const notas    = document.getElementById('co-notas').value.trim()
-
-  if (!nombre || !email || !telefono || !calle || !colonia || !cp || !ciudad || !estado) {
-    mostrarToast('Completa todos los campos requeridos')
-    return
-  }
-
-  const btn = document.getElementById('btn-confirmar')
-  btn.disabled = true
-  btn.textContent = 'Procesando...'
-
-  try {
-    const pTotal = totalPares(carrito)
-    const totalFinal    = window._carritoTotal    || 0
-    const costoEnvio    = window._costoEnvio      || 0
-    const subtotalProds = window._subtotalProductos || 0
-
-    // Crear pedido (total incluye envío)
-    const resPedido = await fetch(`${API}/pedidos/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: carrito.map(i => ({
-          variante_id: i.variante_id,
-          cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-          precio_unitario: calcularPrecioUnitario(i, pTotal),
-          nombre: i.nombre, color: i.color, talla: i.talla
-        })),
-        total: totalFinal,
-        costo_envio: costoEnvio,
-        status: 'borrador',
-        nombre_cliente: nombre, email_cliente: email,
-        telefono_cliente: telefono,
-        direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`,
-        notas
-      })
-    })
-    const pedido = await resPedido.json()
-    if (!pedido.id) throw new Error('Error creando pedido')
-
-    // Armar items para MercadoPago (productos + envío si aplica)
-    const mpItems = carrito.map(i => ({
-      nombre: i.nombre + ' - ' + i.color + (i.talla ? ' T:' + i.talla : ''),
-      cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-      precio: calcularPrecioUnitario(i, pTotal)
-    }))
-    if (costoEnvio > 0) {
-      mpItems.push({ nombre: 'Envío a domicilio', cantidad: 1, precio: costoEnvio })
-    }
-
-    // Crear preferencia de pago
-    const resPago = await fetch(`${API}/pagos/crear-preferencia`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        pedido_id: pedido.id,
-        items: mpItems,
-        cliente: { nombre, email },
-        total: totalFinal
-      })
-    })
-    const pago = await resPago.json()
-    if (!pago.init_point) throw new Error('Error creando pago')
-
-    // Guardar IDs para evento Purchase
-    try {
-      const ids = carrito.map(i => i.sku_interno || i.producto_id)
-      sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(ids))
-    } catch(e) {}
-
-    // Pixels
-    if (window.fbq) fbq('track', 'InitiateCheckout', { value: totalFinal, currency: 'MXN', num_items: total })
-    if (window.ttq) ttq.track('InitiateCheckout', { value: totalFinal, currency: 'MXN' })
-    if (typeof gtag === 'function') gtag('event', 'begin_checkout', { currency: 'MXN', value: totalFinal })
-
-    window.location.href = pago.init_point
-  } catch(e) {
-    btn.disabled = false
-    btn.textContent = 'Pagar ahora'
-    mostrarToast('Error al procesar. Intenta de nuevo.')
-  }
 }
 
 // Coincidencias avanzadas: datos del cliente (hasheados por el pixel) para subir el EMQ

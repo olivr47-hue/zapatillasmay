@@ -3080,6 +3080,8 @@
       <p>Tu carrito esta vacio</p>
     </div>
   </div>
+  <!-- Contenedor dinámico de incentivos (envío gratis + mayoreo) -->
+  <div id="cart-incentives" style="background:white;padding:14px 20px;border-top:1px solid rgba(200,150,122,0.1);border-bottom:1px solid rgba(200,150,122,0.1);display:none"></div>
   <div class="cart-footer">
     <div style="text-align:right;margin-bottom:6px">
       <button id="btn-vaciar-carrito" onclick="vaciarCarrito()" style="display:none;background:none;border:none;color:#bbb;font-size:0.72rem;cursor:pointer;text-decoration:underline">Vaciar carrito</button>
@@ -3812,8 +3814,11 @@ cargarConfigSEO()
         </div>
         <p class="product-name">${p.nombre}</p>
         <div class="product-prices">
-          ${_precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
-          ${_precioMay3 ? `<div class="price-mayoreo-hint">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            ${_precioMenu ? `<span class="price-main">$${_precioMenu.toLocaleString('es-MX')} MXN</span>` : ''}
+            ${_ahorro > 0 ? `<span class="badge-saving" style="font-size:0.68rem;background:rgba(181,104,122,0.1);color:#b5687a;padding:2px 7px;border-radius:100px;font-weight:700;white-space:nowrap">Ahorras $${_ahorro}</span>` : ''}
+          </div>
+          ${_precioMay3 ? `<div class="price-mayoreo-hint" style="margin-top:2px">🛍️ 3+ pares: <strong>$${_precioMay3.toLocaleString('es-MX')}</strong> c/u</div>` : ''}
         </div>
       </a>`
   }
@@ -4396,6 +4401,78 @@ if (window.ttq) {
     document.getElementById('cart-tipo-label').textContent = tipoPrecio
     document.getElementById('cart-pares-label').textContent = totalPares + ' ' + (totalPares===1?'par':'pares')
     guardarCarrito()
+    actualizarIncentivosCarrito(totalPares, total)
+  }
+
+  function actualizarIncentivosCarrito(totalPares, subtotal) {
+    const container = document.getElementById('cart-incentives')
+    if (!container) return
+    if (totalPares === 0) {
+      container.style.display = 'none'
+      return
+    }
+    container.style.display = 'block'
+
+    // 1. Envío Gratis
+    const gratisDesde = 1299
+    const faltanEnvio = Math.max(0, gratisDesde - subtotal)
+    const pctEnvio = Math.min(100, Math.round((subtotal / gratisDesde) * 100))
+
+    let envioHTML = ''
+    if (faltanEnvio > 0) {
+      envioHTML = `
+        <div style="margin-bottom:10px">
+          <p style="font-size:0.75rem;color:#8B6A54;margin-bottom:5px;font-weight:600">
+            🚚 Faltan <strong style="color:#b5687a">$${faltanEnvio.toFixed(0)} MXN</strong> para <strong>Envío Gratis</strong>
+          </p>
+          <div style="background:#FAF8F6;height:6px;border-radius:100px;overflow:hidden;border:1px solid rgba(200,150,122,0.12)">
+            <div style="background:linear-gradient(135deg,#C8967A,#b5687a);width:${pctEnvio}%;height:100%;border-radius:100px;transition:width 0.3s ease"></div>
+          </div>
+        </div>
+      `
+    } else {
+      envioHTML = `
+        <div style="margin-bottom:10px">
+          <p style="font-size:0.75rem;color:#22c55e;margin-bottom:5px;font-weight:700">
+            🎉 ¡Envío gratis desbloqueado!
+          </p>
+          <div style="background:#FAF8F6;height:6px;border-radius:100px;overflow:hidden;border:1px solid rgba(200,150,122,0.12)">
+            <div style="background:#22c55e;width:100%;height:100%;border-radius:100px;"></div>
+          </div>
+        </div>
+      `
+    }
+
+    // 2. Mayoreo Alerts
+    let mayoreoHTML = ''
+    if (totalPares === 1) {
+      mayoreoHTML = `
+        <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
+          🎁 Agrega <strong style="color:#b5687a">2 pares más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $80 por par.
+        </div>
+      `
+    } else if (totalPares === 2) {
+      mayoreoHTML = `
+        <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
+          🎁 Agrega <strong style="color:#b5687a">1 par más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $80 por par.
+        </div>
+      `
+    } else if (totalPares >= 3 && totalPares < 6) {
+      const faltanMayoreo = 6 - totalPares
+      mayoreoHTML = `
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#166534;line-height:1.4">
+          ✨ ¡Precio <strong>Mayoreo 3+</strong> activado! Agrega <strong style="color:#22c55e">${faltanMayoreo} ${faltanMayoreo===1?'par':'pares'} más</strong> para obtener precio <strong>Mayoreo 6+</strong>.
+        </div>
+      `
+    } else if (totalPares >= 6) {
+      mayoreoHTML = `
+        <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#166534;line-height:1.4;font-weight:600">
+          🎉 ¡Felicidades! Tienes activado el precio <strong>Mayoreo 6+</strong> (máximo descuento).
+        </div>
+      `
+    }
+
+    container.innerHTML = envioHTML + mayoreoHTML
   }
 
   function renderCarrito() {
@@ -5055,246 +5132,9 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
     document.getElementById('productos-section').scrollIntoView({behavior:'smooth', block:'start'})
   }
 
-  async function irACheckout() {
+  function irACheckout() {
     if (!carrito.length) { mostrarToast('Tu carrito esta vacio'); return }
-
-    const totalFinal = carrito.reduce((s, i) => {
-      const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
-      return s + (pares * i.precio_unitario)
-    }, 0)
-
-    // Resumen de items del carrito
-    const itemsResumen = carrito.map(i => {
-      const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
-      const sub = pares * i.precio_unitario
-      return `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1)">
-          ${i.imagen ? `<img src="${zmImg(i.imagen, 120)}" alt="${i.nombre}" style="width:48px;height:60px;object-fit:cover;border-radius:8px;background:#f5f0eb;flex-shrink:0">` : `<div style="width:48px;height:60px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">👠</div>`}
-          <div style="flex:1;min-width:0">
-            <p style="font-size:0.82rem;font-weight:600;color:#2A1A0E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.nombre}</p>
-            <p style="font-size:0.7rem;color:#C4A38A;text-transform:uppercase;letter-spacing:0.4px">${i.color} · ${i.es_corrida?'Corrida':'Talla '+i.talla} · ${pares} ${pares>1?'pares':'par'}</p>
-          </div>
-          <span style="font-family:'DM Mono',monospace;font-weight:700;color:#A07860;font-size:0.85rem">$${sub.toLocaleString('es-MX',{maximumFractionDigits:0})}</span>
-        </div>`
-    }).join('')
-
-    // Mostrar modal de datos del cliente
-    const overlay = document.createElement('div')
-    overlay.id = 'checkout-overlay'
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(42,26,14,0.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)'
-    overlay.innerHTML = `
-      <div style="background:#FAF8F6;border-radius:24px;width:100%;max-width:480px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(42,26,14,0.3);animation:coSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)">
-
-        <!-- Header con gradiente -->
-        <div style="background:linear-gradient(135deg,#C8967A,#b5687a);padding:24px 28px 20px;position:relative;flex-shrink:0">
-          <button onclick="document.getElementById('checkout-overlay').remove()" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:white;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
-          <p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.7);margin-bottom:6px">Finalizar compra</p>
-          <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:400;color:white;line-height:1">Datos de envío</h3>
-          <p style="font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:8px">Total a pagar: <strong style="font-family:'DM Mono',monospace;font-size:1.05rem">$${totalFinal.toLocaleString('es-MX',{minimumFractionDigits:2})} MXN</strong></p>
-        </div>
-
-        <!-- Cuerpo scrolleable -->
-        <div style="padding:20px 24px;overflow-y:auto;flex:1">
-
-          <!-- Resumen del pedido -->
-          <div style="background:white;border:1px solid rgba(200,150,122,0.12);border-radius:14px;padding:14px 16px;margin-bottom:18px;box-shadow:0 2px 8px rgba(90,40,10,0.04)">
-            <p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#C8967A;margin-bottom:6px">Tu pedido (${carrito.length} ${carrito.length>1?'artículos':'artículo'})</p>
-            ${itemsResumen}
-          </div>
-
-          <!-- Login hint -->
-          <div style="background:rgba(200,150,122,0.07);border:1px solid rgba(200,150,122,0.18);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:0.8rem;color:#8B6A54;text-align:center;line-height:1.5">
-            ¿Ya tienes cuenta?
-            <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin()" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a>
-            <span style="margin:0 6px;color:#d4b8a8">·</span>
-            <a href="#" onclick="document.getElementById('checkout-overlay').remove();abrirLogin();setTimeout(()=>mostrarTab('registro'),300)" style="color:#b5687a;font-weight:700;text-decoration:none">Crear cuenta</a>
-          </div>
-
-          <!-- Campos -->
-          <div style="display:flex;flex-direction:column;gap:11px">
-            <input id="co-nombre" class="co-input" placeholder="Nombre completo *">
-            <input id="co-email" type="email" class="co-input" placeholder="Email *"
-              onblur="zmRegistrarCarritoAbandonado()">
-            <input id="co-telefono" type="tel" class="co-input" placeholder="Teléfono *">
-            <input id="co-calle" class="co-input" placeholder="Calle y número *">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <input id="co-colonia" class="co-input" placeholder="Colonia *">
-              <input id="co-cp" class="co-input" placeholder="Código postal *">
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <input id="co-ciudad" class="co-input" placeholder="Ciudad *">
-              <input id="co-estado" class="co-input" placeholder="Estado *">
-            </div>
-            <textarea id="co-notas" class="co-input" placeholder="Notas adicionales (opcional)" rows="2" style="resize:none"></textarea>
-          </div>
-
-          <!-- Métodos de pago -->
-          <div style="margin-top:16px;background:white;border:1px solid rgba(200,150,122,0.12);border-radius:12px;padding:14px">
-            <p style="font-size:0.62rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Métodos de pago aceptados</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">💳 Tarjeta</span>
-              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">🏦 SPEI</span>
-              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">🏪 OXXO</span>
-              <span style="background:rgba(200,150,122,0.07);border-radius:8px;padding:7px 10px;font-size:0.74rem;font-weight:500;color:#5a4030">💰 MercadoPago</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Footer fijo con botones -->
-        <div style="padding:14px 24px;background:white;border-top:1px solid rgba(200,150,122,0.12);display:flex;gap:10px;flex-shrink:0">
-          <button onclick="document.getElementById('checkout-overlay').remove()" style="flex:1;padding:14px;background:transparent;border:1.5px solid rgba(200,150,122,0.3);border-radius:100px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;color:#8B6A54;cursor:pointer;transition:all 0.2s">Cancelar</button>
-          <button onclick="procesarCheckout()" id="btn-procesar-checkout" style="flex:2;padding:14px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;border-radius:100px;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(200,150,122,0.4);transition:all 0.2s">Pagar ahora</button>
-        </div>
-      </div>
-    `
-    document.body.appendChild(overlay)
-
-    // Si hay usuario logueado, prellenar datos
-    if (usuarioActual) {
-      document.getElementById('co-nombre').value = usuarioActual.nombre || ''
-      document.getElementById('co-email').value = usuarioActual.email || ''
-    }
-  }
-
-  // ── Carrito abandonado ────────────────────────────────────────────────────
-  async function zmRegistrarCarritoAbandonado() {
-    const email  = document.getElementById('co-email')?.value.trim()
-    const nombre = document.getElementById('co-nombre')?.value.trim()
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return
-    if (!carrito.length) return
-    try {
-      const total = carrito.reduce((s, i) => s + ((i.es_corrida ? i.cantidad*6 : i.cantidad) * i.precio_unitario), 0)
-      const items = carrito.map(i => ({
-        nombre:   i.nombre,
-        color:    i.color,
-        talla:    i.talla,
-        cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-        imagen:   i.imagen || '',
-        precio:   i.precio_unitario
-      }))
-      await fetch(API + '/carrito-abandonado/guardar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, nombre, items, total })
-      })
-      try { localStorage.setItem('zm_checkout_email', email) } catch(e){}
-    } catch(e) {}
-  }
-
-  async function procesarCheckout() {
-    const nombre = document.getElementById('co-nombre').value.trim()
-    const email = document.getElementById('co-email').value.trim()
-    const telefono = document.getElementById('co-telefono').value.trim()
-    const calle = document.getElementById('co-calle').value.trim()
-    const colonia = document.getElementById('co-colonia').value.trim()
-    const cp = document.getElementById('co-cp').value.trim()
-    const ciudad = document.getElementById('co-ciudad').value.trim()
-    const estado = document.getElementById('co-estado').value.trim()
-    const notas = document.getElementById('co-notas').value.trim()
-
-    if (!nombre || !email || !telefono || !calle || !colonia || !cp || !ciudad || !estado) {
-      mostrarToast('Por favor completa todos los campos requeridos')
-      return
-    }
-
-    const btn = document.getElementById('btn-procesar-checkout')
-    btn.textContent = 'Procesando...'
-    btn.disabled = true
-
-    try {
-      const totalFinal = carrito.reduce((s, i) => {
-        const pares = i.es_corrida ? i.cantidad * 6 : i.cantidad
-        return s + (pares * i.precio_unitario)
-      }, 0)
-
-      const resPedido = await fetch(API + '/pedidos/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cliente_id: usuarioActual?.cliente_id || null,
-          items: carrito.map(item => ({
-            variante_id: item.variante_id,
-            cantidad: item.es_corrida ? item.cantidad * 6 : item.cantidad,
-            precio_unitario: item.precio_unitario,
-            nombre: item.nombre,
-            color: item.color,
-            talla: item.talla
-          })),
-          total: totalFinal,
-          status: 'borrador',
-          nombre_cliente: nombre,
-          email_cliente: email,
-          telefono_cliente: telefono,
-          direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`,
-          notas: notas
-        })
-      })
-      const pedido = await resPedido.json()
-      if (!pedido.id) throw new Error('Error creando pedido')
-
-      const resPago = await fetch(API + '/pagos/crear-preferencia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pedido_id: pedido.id,
-          items: carrito.map(i => ({
-            nombre: i.nombre + ' - ' + i.color + ' T:' + i.talla,
-            cantidad: i.es_corrida ? i.cantidad * 6 : i.cantidad,
-            precio: i.precio_unitario
-          })),
-          cliente: { nombre, email },
-          total: totalFinal
-        })
-      })
-      const pago = await resPago.json()
-      if (!pago.init_point) throw new Error('Error creando pago')
-      // Evento pago iniciado
-       if (window.fbq) {
-        const _catalogIds = carrito.map(i => {
-          const _sku = i.sku_interno || i.producto_id
-          const _cn = (i.color||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
-          const _t = (i.talla||'').trim()
-          return _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
-        })
-        fbq('track', 'InitiateCheckout', {
-          content_ids: _catalogIds,
-          content_type: 'product',
-          num_items: carrito.reduce((s,i) => s + (i.es_corrida ? i.cantidad*6 : i.cantidad), 0),
-          value: totalFinal,
-          currency: 'MXN'
-        })
-}
-      if (window.ttq) ttq.track('InitiateCheckout', {
-        content_type: 'product',
-        value: totalFinal,
-        currency: 'MXN'
-})
-      // GA4: begin_checkout
-      if (typeof gtag === 'function') gtag('event', 'begin_checkout', {
-        currency: 'MXN',
-        value: totalFinal,
-        items: carrito.map(i => ({ item_id: i.sku_interno || i.producto_id, item_name: i.nombre, price: i.precio_unitario, quantity: i.es_corrida ? i.cantidad * 6 : i.cantidad }))
-      })
-
-      // Guardar IDs del catálogo para el evento Purchase tras volver de MercadoPago
-      try {
-        const _ids = carrito.map(i => {
-          const _sku = i.sku_interno || i.producto_id
-          const _cn = (i.color||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
-          const _t = (i.talla||'').trim()
-          return _t ? `${_sku}-${_cn}-${_t}` : `${_sku}-${_cn}`
-        })
-        sessionStorage.setItem('fbq_checkout_ids', JSON.stringify(_ids))
-      } catch(e){}
-      setTimeout(() => {
-  window.location.href = pago.init_point
-}, 500)
-
-    } catch(e) {
-      mostrarToast('Error al procesar el pago. Intenta de nuevo.')
-      btn.textContent = 'Pagar con MercadoPago'
-      btn.disabled = false
-    }
+    window.location.href = '/checkout'
   }
 
 function toggleMenu() {

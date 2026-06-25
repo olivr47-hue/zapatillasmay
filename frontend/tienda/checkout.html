@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -136,6 +136,7 @@
       .checkout-sticky { display:block; }
       body { padding-bottom:90px; }
     }
+    @keyframes mpSpin { to { transform: rotate(360deg); } }
   </style>
   <script>
     if (localStorage.getItem('zm_consent') !== 'rejected') {
@@ -220,16 +221,19 @@
       <!-- PASO 2: Dirección (oculto hasta que pasen el paso 1) -->
       <div class="card" id="step-direccion" style="display:none">
         <p class="card-title">Dirección de <em>envío</em></p>
-        <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
-          <div><label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro" list="colonias-list"><datalist id="colonias-list"></datalist></div>
           <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
+          <div><label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label><input id="co-colonia" autocomplete="address-line2" placeholder="Centro" list="colonias-list"><datalist id="colonias-list"></datalist></div>
         </div>
+        <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
         <div class="field field-row">
           <div><label>Ciudad *</label><input id="co-ciudad" autocomplete="address-level2" placeholder="León"></div>
           <div><label>Estado *</label><input id="co-estado" autocomplete="address-level1" placeholder="Guanajuato"></div>
         </div>
         <div class="field"><label>Notas (opcional)</label><textarea id="co-notas" placeholder="Referencias, indicaciones de entrega..." rows="2"></textarea></div>
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:flex-start">
+          <button type="button" onclick="_volverAContacto()" style="background:none;border:none;color:var(--gray);text-decoration:underline;font-size:0.8rem;cursor:pointer;font-family:inherit">← Editar datos de contacto</button>
+        </div>
       </div>
     </div>
 
@@ -511,6 +515,30 @@ async function procesarPago() {
     primerVacio.el?.focus()
     return
   }
+
+  // Validaciones de formato adicionales en el envío final
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const el = document.getElementById('co-email')
+    if (el) el.style.borderColor = '#e74c3c'
+    mostrarToast('Email inválido (ej: nombre@correo.com)')
+    el?.focus()
+    return
+  }
+  if (telefono.replace(/\D/g,'').length < 10) {
+    const el = document.getElementById('co-telefono')
+    if (el) el.style.borderColor = '#e74c3c'
+    mostrarToast('Teléfono debe tener 10 dígitos')
+    el?.focus()
+    return
+  }
+  if (cp.replace(/\D/g,'').length !== 5) {
+    const el = document.getElementById('co-cp')
+    if (el) el.style.borderColor = '#e74c3c'
+    mostrarToast('Código postal debe tener exactamente 5 dígitos')
+    el?.focus()
+    return
+  }
+
   const btn = document.getElementById('btn-pagar')
   const stickyBtn = document.getElementById('sticky-btn-pagar')
   btn.disabled = true; btn.textContent = 'Procesando...'
@@ -599,12 +627,48 @@ async function procesarPago() {
 // ── PAGO EMBEBIDO (MercadoPago Checkout Bricks) ──────────────────
 let _brickController = null
 function _volverAEditar() {
-  const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = ''
-  const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = ''
+  const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
+  const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'block'
   const cont = document.getElementById('brick-container'); if (cont) cont.style.display = 'none'
   document.querySelector('.layout')?.classList.remove('brick-activo')
   const btn = document.getElementById('btn-pagar'); if (btn) { btn.style.display = ''; btn.disabled = false; btn.textContent = 'Pagar ahora' }
+  
+  // Restablecer títulos y stepper a Dirección
+  document.getElementById('checkout-h1').innerHTML = 'Dirección de <em style="font-style:italic;color:var(--mauve)">envío</em>'
+  document.getElementById('checkout-subtitle').textContent = 'Paso 2 de 2 · Ya casi terminamos'
+  try {
+    document.getElementById('step-3-label')?.classList.remove('done')
+    document.getElementById('step-3-label')?.classList.add('active')
+    document.getElementById('step-3-dot').textContent = '3'
+    document.getElementById('step-4-label')?.classList.remove('active')
+  } catch(e){}
+  
   try { document.getElementById('step-direccion').scrollIntoView({ behavior:'smooth', block:'start' }) } catch(e){}
+}
+function _volverAContacto() {
+  document.getElementById('step-direccion').style.display = 'none'
+  document.getElementById('step-contacto').style.display = 'block'
+  document.getElementById('btn-pagar').style.display = 'none'
+  const stickyBtn = document.getElementById('sticky-btn-pagar')
+  if (stickyBtn) stickyBtn.style.display = 'none'
+  const stickyEl = document.getElementById('checkout-sticky')
+  if (stickyEl) stickyEl.style.display = 'none'
+
+  // Restablecer Stepper
+  try {
+    document.getElementById('step-2-label')?.classList.remove('done')
+    document.getElementById('step-2-label')?.classList.add('active')
+    document.getElementById('step-2-dot').textContent = '2'
+    document.getElementById('step-3-label')?.classList.remove('active')
+  } catch(e){}
+  
+  // Restablecer Título
+  document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">contacto</em>'
+  document.getElementById('checkout-subtitle').textContent = 'Paso 1 de 2 · Entrega en 1–3 días hábiles 🚚'
+  const hint1 = document.getElementById('paso1-hint')
+  if (hint1) hint1.style.display = 'block'
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 async function _cargarMpSdk() {
   if (window.MercadoPago) return
@@ -631,7 +695,7 @@ async function pagarConBrick(pedidoId, total, email) {
       else (document.querySelector('.resumen-side') || document.body).appendChild(cont)
     }
     cont.style.display = ''
-    cont.innerHTML = '<p class="card-title" style="margin:4px 0 10px">Datos de <em style="font-style:italic;color:var(--mauve)">pago</em></p><div id="paymentBrick_container"></div><button type="button" onclick="_volverAEditar()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--gray);font-size:0.8rem;text-decoration:underline;cursor:pointer">← Editar mis datos de envío</button>'
+    cont.innerHTML = '<p class="card-title" style="margin:4px 0 10px">Datos de <em style="font-style:italic;color:var(--mauve)">pago</em></p><div id="paymentBrick_container"><div id="mp-brick-loader" style="padding:40px 20px;text-align:center;color:var(--gray);font-size:0.85rem;display:flex;flex-direction:column;align-items:center;gap:12px"><div style="width:28px;height:28px;border:3px solid var(--border-med);border-top-color:var(--pink);border-radius:50%;animation:mpSpin 0.8s linear infinite"></div>Cargando métodos de pago seguros...</div></div><button type="button" onclick="_volverAEditar()" style="width:100%;margin-top:12px;background:none;border:none;color:var(--gray);font-size:0.8rem;text-decoration:underline;cursor:pointer">← Editar mis datos de envío</button>'
     if (btn) btn.style.display = 'none'
     if (stickyBtn) stickyBtn.style.display = 'none'
     const paso1 = document.getElementById('paso1-hint'); if (paso1) paso1.style.display = 'none'
@@ -639,6 +703,16 @@ async function pagarConBrick(pedidoId, total, email) {
     const sc = document.getElementById('step-contacto'); if (sc) sc.style.display = 'none'
     const sd = document.getElementById('step-direccion'); if (sd) sd.style.display = 'none'
     document.querySelector('.layout')?.classList.add('brick-activo')  // PC: 1 columna centrada
+    
+    // Actualizar títulos e indicadores del Stepper para Pago
+    document.getElementById('checkout-h1').innerHTML = 'Datos de <em style="font-style:italic;color:var(--mauve)">pago</em>'
+    document.getElementById('checkout-subtitle').textContent = 'Paso final · Pago seguro 🔒'
+    try {
+      document.getElementById('step-3-label')?.classList.remove('active')
+      document.getElementById('step-3-label')?.classList.add('done')
+      document.getElementById('step-3-dot').textContent = '✓'
+      document.getElementById('step-4-label')?.classList.add('active')
+    } catch(e){}
 
     const mp = new MercadoPago(cfg.public_key, { locale: 'es-MX' })
     if (_brickController) { try { _brickController.unmount() } catch(e){} }
@@ -883,7 +957,9 @@ function _wireCP() {
   const cpEl = document.getElementById('co-cp')
   if (!cpEl) return
   cpEl.addEventListener('input', () => {
-    const cp = cpEl.value.replace(/\D/g,'')
+    let cp = cpEl.value.replace(/\D/g,'')
+    if (cp.length > 5) cp = cp.substring(0, 5)
+    cpEl.value = cp
     if (cp.length === 5) _buscarCP(cp)
   })
 }
@@ -907,7 +983,12 @@ function _wireValidaciones() {
     telEl.style.borderColor = ok ? '#22c55e' : '#e74c3c'
     if (!ok) mostrarToast('Teléfono debe tener al menos 10 dígitos')
   })
-  telEl?.addEventListener('input', () => { if (telEl.style.borderColor === 'rgb(231, 76, 60)') telEl.style.borderColor = '' })
+  telEl?.addEventListener('input', () => {
+    let v = telEl.value.replace(/\D/g,'')
+    if (v.length > 10) v = v.substring(0, 10)
+    telEl.value = v
+    if (telEl.style.borderColor === 'rgb(231, 76, 60)') telEl.style.borderColor = ''
+  })
 }
 
 function _wireCarritoAbandonado() {
