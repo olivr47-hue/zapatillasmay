@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -600,7 +600,7 @@
     @keyframes fadeInFilter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .filtro-grupo { margin-bottom: 18px; }
     .filtro-grupo:last-child { margin-bottom: 0; }
-    .filtro-grupo h5 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gray-600); margin-bottom: 10px; }
+    .filtro-grupo h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gray-600); margin-bottom: 10px; }
     .filtro-chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .filtro-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1.5px solid var(--cream-dark); border-radius: 100px; background: white; font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-800); cursor: pointer; transition: var(--transition); user-select: none; }
     .filtro-chip:hover { border-color: var(--pink); }
@@ -2626,7 +2626,7 @@
     <!-- Header del menú -->
     <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#ffffff;position:sticky;top:0;z-index:1">
       <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;color:#0a0a0a">Zapatillas <span style="color:#C8967A">May</span></span>
-      <button onclick="cerrarMenu()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#333;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+      <button onclick="cerrarMenu()" aria-label="Cerrar" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#333;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span aria-hidden="true">✕</span></button>
     </div>
 
     <!-- Categorías -->
@@ -2832,7 +2832,8 @@
         <span class="fb-count" id="fb-count" style="display:none">0</span>
       </button>
       <span class="filtros-resultado" id="filtros-resultado"></span>
-      <select class="filtros-orden" id="filtros-orden" aria-label="Ordenar productos" onchange="aplicarFiltros()">
+      <label for="filtros-orden" style="display:none">Ordenar productos</label>
+      <select class="filtros-orden" id="filtros-orden" onchange="aplicarFiltros()">
         <option value="relevancia">Relevancia</option>
         <option value="precio-asc">Precio: menor a mayor</option>
         <option value="precio-desc">Precio: mayor a menor</option>
@@ -2841,19 +2842,19 @@
     </div>
     <div class="filtros-panel" id="filtros-panel">
       <div class="filtro-grupo" id="fg-categoria">
-        <h5>Categoría</h5>
+        <h3>Categoría</h3>
         <div class="filtro-chips" id="fc-categoria"></div>
       </div>
       <div class="filtro-grupo" id="fg-talla">
-        <h5>Talla</h5>
+        <h3>Talla</h3>
         <div class="filtro-chips" id="fc-talla"></div>
       </div>
       <div class="filtro-grupo" id="fg-color">
-        <h5>Color</h5>
+        <h3>Color</h3>
         <div class="filtro-chips" id="fc-color"></div>
       </div>
       <div class="filtro-grupo" id="fg-precio">
-        <h5>Precio</h5>
+        <h3>Precio</h3>
         <div class="filtro-chips" id="fc-precio"></div>
       </div>
       <div class="filtros-acciones">
@@ -2933,7 +2934,7 @@
 <!-- POPUP CAPTURA DE EMAIL -->
 <div id="zm-email-popup" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
   <div style="background:white;border-radius:16px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.25);position:relative">
-    <button onclick="zmCerrarPopup()" style="position:absolute;top:12px;right:14px;background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;color:#555;display:flex;align-items:center;justify-content:center;z-index:1">✕</button>
+    <button onclick="zmCerrarPopup()" aria-label="Cerrar" style="position:absolute;top:12px;right:14px;background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;color:#555;display:flex;align-items:center;justify-content:center;z-index:1"><span aria-hidden="true">✕</span></button>
     <div style="background:linear-gradient(135deg,#b5687a,#c8967a);padding:32px 28px 24px;color:white;text-align:center">
       <p style="font-size:2rem;margin-bottom:8px">👠</p>
       <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:400;margin-bottom:6px">$50 de descuento en tu primer pedido</h3>
@@ -3033,14 +3034,14 @@
 <!-- MODAL PRODUCTO -->
 <div class="modal-overlay" id="modal-overlay" onclick="cerrarModal(event)">
   <div class="modal" id="modal-producto" role="dialog" aria-modal="true" aria-labelledby="modal-name">
-    <button class="modal-close" onclick="cerrarModalBtn()" aria-label="Cerrar">✕</button>
+    <button class="modal-close" onclick="cerrarModalBtn()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
     <div class="modal-img" id="modal-img-wrap">
       <div class="modal-img-placeholder">👠</div>
     </div>
     <div id="modal-thumb-row" style="display:none"></div>
     <div class="modal-info">
       <p class="modal-sku" id="modal-sku"></p>
-      <h2 class="modal-name" id="modal-name" aria-label="Producto seleccionado"></h2>
+      <h2 class="modal-name" id="modal-name" aria-label="Producto seleccionado">Detalle del Producto</h2>
       <p class="modal-price-main" id="modal-price"></p>
       <div class="modal-prices-mayoreo" id="modal-mayoreo"></div>
       <div class="modal-section-label">Color</div>
@@ -3057,7 +3058,7 @@
 
 <!-- LIGHTBOX -->
 <div id="lightbox-overlay" onclick="lightboxClickFondo(event)">
-  <button class="lightbox-close" onclick="cerrarLightbox()">✕</button>
+  <button class="lightbox-close" onclick="cerrarLightbox()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
   <button class="lightbox-nav prev" id="lightbox-prev" onclick="lightboxNav(-1)">‹</button>
   <img id="lightbox-img" src="" alt="Foto ampliada">
   <button class="lightbox-nav next" id="lightbox-next" onclick="lightboxNav(1)">›</button>
@@ -3099,7 +3100,7 @@
 <!-- AUTH MODAL -->
 <div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
   <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
-    <button onclick="cerrarAuthBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
+    <button onclick="cerrarAuthBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
     <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
       <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
       <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
@@ -3143,8 +3144,8 @@
         <input type="tel" id="reg-telefono" autocomplete="tel" inputmode="tel" placeholder="477 123 4567" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
       </div>
       <div style="margin-bottom:16px">
-        <label style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
-        <select id="reg-tipo" aria-label="Tipo de cuenta" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
+        <label for="reg-tipo" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
+        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
           <option value="menudeo">Menudeo y mayoreo variado</option>
           <option value="zapateria">Zapateria (corrida completa)</option>
         </select>
@@ -3179,7 +3180,7 @@
 <!-- CUENTA MODAL -->
 <div id="cuenta-overlay" onclick="cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
   <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
-    <button onclick="cerrarCuentaBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666">✕</button>
+    <button onclick="cerrarCuentaBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
     <h3 style="font-family:var(--font-display);font-size:1.4rem;font-weight:400;margin-bottom:24px;padding-right:32px">Mi cuenta</h3>
     <div id="cuenta-contenido"><p style="color:#aaa;text-align:center;padding:24px">Cargando...</p></div>
   </div>
@@ -4727,7 +4728,7 @@ if (window.ttq) {
     contenido.innerHTML = `
       <div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:linear-gradient(160deg,#ffeef0,#fce4e4)">
         <div style="position:relative;text-align:center;max-width:480px;background:white;border-radius:24px;padding:48px 36px;box-shadow:0 16px 48px rgba(90,40,10,0.10);border:1px solid rgba(200,100,100,0.15)">
-          <button onclick="window.location.href='/'" style="position:absolute;top:14px;right:18px;background:none;border:none;cursor:pointer;font-size:1.3rem;color:#bbb;line-height:1;padding:4px" aria-label="Cerrar">✕</button>
+          <button onclick="window.location.href='/'" style="position:absolute;top:14px;right:18px;background:none;border:none;cursor:pointer;font-size:1.3rem;color:#bbb;line-height:1;padding:4px" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           <div style="width:84px;height:84px;margin:0 auto 24px;border-radius:50%;background:linear-gradient(135deg,#ef5350,#c62828);display:flex;align-items:center;justify-content:center;font-size:2.4rem;box-shadow:0 8px 24px rgba(239,83,80,0.35);animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)">😕</div>
           <p style="font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#ef5350;margin-bottom:10px">Pago no completado</p>
           <h2 style="font-family:var(--font-display);font-size:2.2rem;font-weight:400;margin-bottom:14px;color:#2A1A0E;line-height:1.1">Algo salió <em style="font-style:italic;color:#c62828">mal</em></h2>
@@ -5086,7 +5087,7 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
 
         <!-- Header con gradiente -->
         <div style="background:linear-gradient(135deg,#C8967A,#b5687a);padding:24px 28px 20px;position:relative;flex-shrink:0">
-          <button onclick="document.getElementById('checkout-overlay').remove()" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:white;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+          <button onclick="document.getElementById('checkout-overlay').remove()" style="position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;font-size:1rem;color:white;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
           <p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,0.7);margin-bottom:6px">Finalizar compra</p>
           <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.9rem;font-weight:400;color:white;line-height:1">Datos de envío</h3>
           <p style="font-size:0.85rem;color:rgba(255,255,255,0.85);margin-top:8px">Total a pagar: <strong style="font-family:'DM Mono',monospace;font-size:1.05rem">$${totalFinal.toLocaleString('es-MX',{minimumFractionDigits:2})} MXN</strong></p>

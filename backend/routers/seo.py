@@ -114,17 +114,47 @@ def _producto_ssr_inner(sku: str):
 
     p = datos[0]
     nombre    = (p.get("nombre") or "Calzado").strip()
-    # SEO generado en el panel (si existe) tiene prioridad sobre los datos crudos
     meta_titulo = (p.get("meta_titulo") or "").strip()
-    # Descartar meta_titulo corrupto generado con nombre parcial (ej: "M | Zapatillas May")
-    if meta_titulo and len(meta_titulo.split(' | ')[0].strip()) <= 3:
-        meta_titulo = ""
     meta_desc   = (p.get("meta_descripcion") or "").strip()
     palabras    = (p.get("palabras_clave") or "").strip()
     desc_raw  = (p.get("descripcion") or nombre).strip()
     desc      = (meta_desc or desc_raw)[:160]
     sku_canon = (p.get("sku_interno") or sku).strip()
-    titulo_seo = meta_titulo or f"{nombre} {sku_canon} | Zapatillas May"
+
+    # Armar título SEO robusto entre 30 y 60 caracteres y con SKU único para evitar duplicados
+    prefix = nombre
+    if meta_titulo:
+        parts = meta_titulo.split(' | ', 1)
+        db_prefix = parts[0].strip()
+        if len(db_prefix) > 3:
+            prefix = db_prefix
+
+    if sku_canon.lower() not in prefix.lower():
+        prefix = f"{prefix} {sku_canon}"
+
+    titulo_seo = f"{prefix} | Zapatillas May"
+
+    if len(titulo_seo) > 60:
+        allowed_prefix_len = 60 - len(" | Zapatillas May")
+        if prefix.endswith(sku_canon):
+            desc_part = prefix[:-len(sku_canon)].strip()
+            max_desc_len = allowed_prefix_len - len(sku_canon) - 1
+            if max_desc_len > 5:
+                desc_part = desc_part[:max_desc_len].strip()
+                prefix = f"{desc_part} {sku_canon}"
+            else:
+                prefix = sku_canon
+        else:
+            prefix = prefix[:allowed_prefix_len].strip()
+        titulo_seo = f"{prefix} | Zapatillas May"
+
+    if len(titulo_seo) < 30:
+        prefix = f"Calzado de Dama {prefix}"
+        titulo_seo = f"{prefix} | Zapatillas May"
+        if len(titulo_seo) < 30:
+            prefix = f"{prefix} León GTO"
+            titulo_seo = f"{prefix} | Zapatillas May"
+
     precio    = (p.get("precio_menudeo") or 0)
     precio_display = precio if p.get("es_oferta") else precio + 80
     imagen    = p.get("imagen_principal") or ""
@@ -182,7 +212,7 @@ def _producto_ssr_inner(sku: str):
     _partes.append("Mayoreo automático desde 3 pares y envíos a todo México.")
     desc_unica = " ".join(_partes)
     # Meta description única: prioriza la del panel si es suficientemente larga; si no, usa la generada automáticamente
-    desc = (meta_desc if (meta_desc and len(meta_desc) >= 110) else desc_unica)[:160]
+    desc = (meta_desc if (meta_desc and len(meta_desc) >= 130) else desc_unica)[:160]
 
     def _esc(s):
         return _html.escape(str(s or ""), quote=True)
@@ -709,7 +739,7 @@ def pagina_ssr(slug: str):
                     f'<li style="flex:0 0 auto"><a href="/producto/{_esc_pagina(_pp.get("sku_interno") or "")}"'
                     f' style="display:block;padding:6px 12px;background:#fff;border:1px solid #e8e0da;'
                     f'border-radius:20px;text-decoration:none;color:#5a4a40;font-size:0.78rem;white-space:nowrap">'
-                    f'{_esc_pagina((_pp.get("meta_titulo") or _pp.get("nombre") or "").strip())}</a></li>'
+                    f'{_esc_pagina((_pp.get("nombre") or "").strip())}</a></li>'
                     for _pp in _cat_productos[:15] if _pp.get("sku_interno")
                 )
             _ssr_inner = _h1_tag
@@ -727,7 +757,7 @@ def pagina_ssr(slug: str):
             _items_ld = []
             for _i, _pp in enumerate(_cat_productos, 1):
                 _psku = _pp.get("sku_interno") or str(_pp.get("id", ""))
-                _pnombre = (_pp.get("meta_titulo") or _pp.get("nombre") or _psku).strip()
+                _pnombre = (_pp.get("nombre") or _psku).strip()
                 _pprecio = (_pp.get("precio_menudeo") or 0)
                 _pprecio_d = _pprecio if _pp.get("es_oferta") else round(float(_pprecio) + 80)
                 _items_ld.append({
