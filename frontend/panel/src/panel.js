@@ -281,7 +281,8 @@ function _arrancarPollPedidos() {
   }
 }
 _arrancarPollPedidos()
-setInterval(_pollPedidosPorEnviar, 30000)
+if (window._pedidosInterval) clearInterval(window._pedidosInterval)
+window._pedidosInterval = setInterval(_pollPedidosPorEnviar, 30000)
 
  window.navegarA = (id) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
@@ -4133,14 +4134,12 @@ async function cargarSucursales() {
 async function cargarInventario() {
   const content = document.getElementById('content')
   try {
-    const resSucursales = await fetch(API + '/sucursales/')
-    const sucursales = await resSucursales.json()
-    const resProductos = await fetch(API + '/productos/')
-    const productos = await resProductos.json()
-    const resVariantes = await fetch(API + '/variantes/')
-    let variantes = await resVariantes.json()
-    const resInv = await fetch(API + '/inventario/')
-    const inventario = await resInv.json()
+    const [sucursales, productos, variantes, inventario] = await Promise.all([
+      fetch(API + '/sucursales/').then(r => r.json()),
+      fetch(API + '/productos/').then(r => r.json()),
+      fetch(API + '/variantes/').then(r => r.json()),
+      fetch(API + '/inventario/').then(r => r.json())
+    ])
 
     // Complementar variantes con las que vienen anidadas en inventario
     // (cubre variantes con activa=null que el endpoint /variantes/ filtra)
@@ -7600,8 +7599,8 @@ window.guardarPedido = async () => {
       return
     }
 
-    for (const item of window._pedidoItems) {
-      await fetch(API + '/pedidos/' + pedidoId + '/items', {
+    await Promise.all(window._pedidoItems.map(item =>
+      fetch(API + '/pedidos/' + pedidoId + '/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -7611,7 +7610,7 @@ window.guardarPedido = async () => {
           subtotal: item.cantidad * item.precio_unitario
         })
       })
-    }
+    ))
 
     if (forma_pago !== 'spei' && forma_pago !== 'mercadopago') {
       await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
@@ -7881,25 +7880,37 @@ window.activarEdicionPedido = async (pedidoId) => {
   const lista = document.getElementById('items-lista')
   if (!panel) return
 
-  // Cargar variantes y productos para el buscador (items ya los tenemos del verPedido)
-  const [resVariantes, resProductos] = await Promise.all([
+  // Cargar variantes, productos e inventario para el buscador
+  const [resVariantes, resProductos, resInv] = await Promise.all([
     fetch(API + '/variantes/').then(r => r.json()),
-    fetch(API + '/productos/').then(r => r.json())
+    fetch(API + '/productos/').then(r => r.json()),
+    fetch(API + '/inventario/').then(r => r.json()).catch(() => [])
   ])
 
   window._editPedidoId = pedidoId
   window._editItems = (window._currentPedido?.pedido_items || []).map(i => ({...i}))
   window._editVariantes = resVariantes
   window._editProductos = resProductos
+  window._editInventario = resInv
+
+  // Recalcular precios de los items variados al cargar la edicion
+  window.recalcularPreciosEdicion()
 
   lista.style.display = 'none'
   panel.style.display = 'block'
 
   const renderEdicion = () => {
     const items = window._editItems
+    const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+    const tierLabel = totalPares >= 6 ? 'Mayoreo 6+ pares' : totalPares >= 3 ? 'Mayoreo 3-5 pares' : 'Menudeo'
+    
     panel.innerHTML = `
       <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:1rem;margin-bottom:1rem">
-        <p style="font-weight:600;color:#f57f17;margin-bottom:1rem">✏️ Modo edición — los cambios ajustan inventario automáticamente</p>
+        <p style="font-weight:600;color:#f57f17;margin-bottom:0.4rem">✏️ Modo edición — los cambios ajustan inventario automáticamente</p>
+        <p style="font-size:0.82rem;color:#64748b;margin:0 0 1rem 0">
+          Total en pedido: <strong>${totalPares} pares</strong> 
+          · Esquema aplicado: <span style="background:#fff3cd;padding:2px 8px;border-radius:100px;font-weight:700;color:#856404">${tierLabel}</span>
+        </p>
 
         ${items.map((item, idx) => {
           const variante = item.variantes || {}
@@ -7907,6 +7918,7 @@ window.activarEdicionPedido = async (pedidoId) => {
           const nombre = producto.nombre || item.nombre || '—'
           const color = variante.color || item.color || ''
           const talla = variante.talla || item.talla || ''
+          const esCorridaBadge = item.es_corrida ? `<span style="background:#f3e5f5;color:#6a1b9a;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:100px;margin-left:6px">📦 Corrida</span>` : ''
           let imagen = producto.imagen_principal || null
           if (!imagen && item.variante_id && window._editVariantes && window._editProductos) {
             const v = window._editVariantes.find(x => x.id === item.variante_id)
@@ -7916,17 +7928,17 @@ window.activarEdicionPedido = async (pedidoId) => {
             <div style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
               ${imagen ? '<img src="' + imagen + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #eee">' : '<div style="width:48px;height:48px;background:#f0f0f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem">👟</div>'}
               <div style="flex:1;min-width:120px">
-                <p style="font-weight:600;font-size:0.85rem;margin:0">${nombre}${color ? ' · ' + color : ''}${talla ? ' T' + talla : ''}</p>
+                <p style="font-weight:600;font-size:0.85rem;margin:0">${nombre}${color ? ' · ' + color : ''}${talla ? ' T' + talla : ''}${esCorridaBadge}</p>
               </div>
               <div style="display:flex;align-items:center;gap:6px">
                 <label style="font-size:0.78rem;color:#888">Cant.</label>
                 <input type="number" min="1" value="${item.cantidad}" style="width:60px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
-                  onchange="window._editItems[${idx}].cantidad = parseInt(this.value)||1; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario">
+                  onchange="window._editItems[${idx}].cantidad = parseInt(this.value)||1; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario; window.recalcularPreciosEdicion(); window._renderEdicion()">
               </div>
               <div style="display:flex;align-items:center;gap:6px">
                 <label style="font-size:0.78rem;color:#888">Precio</label>
                 <input type="number" min="0" value="${item.precio_unitario}" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
-                  onchange="window._editItems[${idx}].precio_unitario = parseFloat(this.value)||0; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario">
+                  onchange="window._editItems[${idx}]._precio_manual = true; window._editItems[${idx}].precio_unitario = parseFloat(this.value)||0; window._editItems[${idx}].subtotal = window._editItems[${idx}].cantidad * window._editItems[${idx}].precio_unitario; window.recalcularPreciosEdicion(); window._renderEdicion()">
               </div>
               <button onclick="eliminarItemEdicion('${item.id}', ${idx})" style="background:none;border:none;cursor:pointer;color:#c62828;font-size:1.1rem;padding:4px" title="Eliminar">🗑</button>
             </div>
@@ -7934,18 +7946,35 @@ window.activarEdicionPedido = async (pedidoId) => {
         }).join('')}
 
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #ffe082">
-          <p style="font-weight:600;font-size:0.85rem;margin-bottom:8px;color:#333">Agregar producto</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select id="edit-variante-sel" style="flex:1;min-width:200px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
-              <option value="">— Selecciona producto / talla —</option>
-              ${window._editVariantes.map(v => {
-                const prod = window._editProductos.find(p => p.id === v.producto_id)
-                return `<option value="${v.id}">${prod ? prod.nombre : '?'} — ${v.color || ''} T${v.talla || ''}</option>`
-              }).join('')}
-            </select>
-            <input type="number" id="edit-nueva-cant" min="1" value="1" placeholder="Cant." style="width:60px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
-            <input type="number" id="edit-nuevo-precio" min="0" placeholder="Precio" style="width:80px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
-            <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px" onclick="agregarItemEdicion()">+ Agregar</button>
+          <p style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:#333">Agregar producto</p>
+          
+          <div style="position:relative;margin-bottom:12px">
+            <input class="form-input" id="edit-buscar-prod" placeholder="🔍 Busca el modelo (nombre o SKU)…" oninput="window.buscarProductoEdicion(this.value)" autocomplete="off" style="font-size:0.9rem;width:100%"
+              onfocus="window.posicionarDropdownCarrito('edit-prod-resultados','edit-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('edit-prod-resultados');if(el)el.style.display='none'},250)">
+            <div id="edit-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;min-width:320px"></div>
+          </div>
+
+          <div id="edit-corrida-tallas" style="display:none;background:#f8fafc;border-radius:12px;padding:12px;margin-top:8px;border:1px solid #edf2f7">
+            <p style="font-size:0.8rem;font-weight:700;color:#0f172a;margin-bottom:8px" id="edit-tallas-titulo">Selecciona tallas a agregar:</p>
+            
+            <div id="edit-precios-info" style="font-size:0.75rem;color:#64748b;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px"></div>
+            
+            <div id="edit-corrida-tallas-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+            
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+              <div style="width:110px">
+                <label style="font-size:0.7rem;color:#64748b;display:block;margin-bottom:4px;font-weight:600">Precio unitario ($)</label>
+                <input type="number" class="form-input" id="edit-nuevo-precio" placeholder="Manual" style="font-size:0.9rem;padding:6px;height:36px">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:16px">
+                <button class="btn btn-secondary" style="background:#E91E8C;color:white;border:1px solid #E91E8C;font-size:0.8rem;padding:8px 14px" onclick="window.agregarItemsEdicionBulk(false)">
+                  👟 Agregar Variado(s)
+                </button>
+                <button class="btn btn-primary" style="background:#6a1b9a;border-color:#6a1b9a;font-size:0.8rem;padding:8px 14px" onclick="window.agregarItemsEdicionBulk(true)">
+                  📦 Agregar Corrida
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -7967,6 +7996,234 @@ window.activarEdicionPedido = async (pedidoId) => {
   window._renderEdicion = renderEdicion
 }
 
+window.buscarProductoEdicion = (texto) => {
+  const variantes = window._editVariantes || []
+  const productos = window._editProductos || []
+  const res = document.getElementById('edit-prod-resultados')
+  if (!res) return
+  window.posicionarDropdownCarrito('edit-prod-resultados', 'edit-buscar-prod')
+  if (!texto || texto.length < 2) { res.style.display = 'none'; return }
+
+  const grupos = {}
+  variantes.forEach(v => {
+    const prod = productos.find(p => p.id === v.producto_id)
+    if (!prod) return
+    const txt = ((prod.nombre || '') + ' ' + (v.color || '') + ' ' + (prod.sku_interno || '')).toLowerCase()
+    if (!texto.toLowerCase().split(' ').every(t => txt.includes(t))) return
+    const key = prod.id + '|' + (v.color || '')
+    if (!grupos[key]) grupos[key] = { prod, color: v.color || '', variantes: [] }
+    grupos[key].variantes.push(v)
+  })
+
+  const entradas = Object.values(grupos).slice(0, 6)
+  if (!entradas.length) {
+    res.innerHTML = '<div style="padding:10px;font-size:0.85rem;color:#888">Sin resultados</div>'
+    res.style.display = 'block'
+    return
+  }
+  res.style.display = 'block'
+  res.innerHTML = entradas.map(g => `
+    <div onclick="window.seleccionarProductoEdicion('${g.prod.id}','${g.color.replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+         onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
+      ${g.prod.imagen_principal ? `<img src="${g.prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">` : '<div style="width:36px;height:36px;background:#eee;border-radius:6px"></div>'}
+      <div>
+        <p style="font-size:0.85rem;font-weight:600;margin:0;color:#0f172a">${g.prod.nombre} · ${g.color}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${g.variantes.length} tallas disponibles</p>
+      </div>
+    </div>
+  `).join('')
+}
+
+window.seleccionarProductoEdicion = (productoId, color) => {
+  const variantes = window._editVariantes || []
+  const productos = window._editProductos || []
+  const inventario = window._editInventario || []
+  const sucursalId = window._currentPedido?.sucursal_id || ''
+
+  const prod = productos.find(p => p.id === productoId)
+  document.getElementById('edit-buscar-prod').value = `${prod ? prod.nombre : ''} · ${color}`
+  document.getElementById('edit-prod-resultados').style.display = 'none'
+
+  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+  const varsColor = variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  window._editSeleccionado = { productoId, color, variantes: varsColor, prod }
+
+  // Prefilar precio
+  const base = parseFloat(prod ? prod.precio_menudeo : 0) || 0
+  const precioCorrida = parseFloat(prod ? prod.precio_corrida : 0) || (base > 0 ? Math.round(base - 100) : 0)
+  document.getElementById('edit-nuevo-precio').value = base || ''
+
+  // Precios de referencia
+  const infoPrecios = document.getElementById('edit-precios-info')
+  if (infoPrecios && prod) {
+    infoPrecios.innerHTML = `
+      <span style="background:#e2e8f0;color:#334155;padding:3px 8px;border-radius:6px">Menudeo: <strong>$${base}</strong></span>
+      <span style="background:#e2e8f0;color:#334155;padding:3px 8px;border-radius:6px">Mayoreo 3+: <strong>$${prod.precio_mayoreo3 || (base - 30)}</strong></span>
+      <span style="background:#e2e8f0;color:#334155;padding:3px 8px;border-radius:6px">Mayoreo 6+: <strong>$${prod.precio_mayoreo6 || (base - 70)}</strong></span>
+      <span style="background:#f3e5f5;color:#6a1b9a;padding:3px 8px;border-radius:6px">Corrida: <strong>$${precioCorrida}</strong></span>
+    `
+  }
+
+  const grid = document.getElementById('edit-corrida-tallas-grid')
+  grid.innerHTML = varsColor.map(v => {
+    const inv = inventario.find(i => i.variante_id === v.id && (sucursalId ? i.sucursal_id === sucursalId : true))
+    const stock = inv ? inv.cantidad : null
+    const agotada = stock !== null && stock === 0
+    const qty = 0 // Inicializar en 0 por precisión
+    const cardId = `edit-card-${v.id}`
+    const inputId = `edit-qty-${v.id}`
+    const activeBg = qty > 0 ? '#fdf2f8' : '#ffffff'
+    const activeBorder = qty > 0 ? '#E91E8C' : '#e2e8f0'
+
+    return `
+      <div id="${cardId}" class="size-card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;border:2px solid ${agotada ? '#fecaca' : activeBorder};border-radius:12px;background:${agotada ? '#fef2f2' : activeBg};min-width:70px;transition:all 0.2s ease;position:relative;opacity:${agotada ? 0.6 : 1}">
+        <span style="font-weight:800;font-size:0.9rem;color:#0f172a">T${v.talla}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" onclick="const inp=document.getElementById('${inputId}');inp.value=Math.max(0,parseInt(inp.value||0)-1);inp.dispatchEvent(new Event('input'))"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${agotada ? 'disabled' : ''}>−</button>
+          
+          <input type="number" value="${qty}" min="0" max="${stock !== null ? stock : 999}" id="${inputId}" data-variante="${v.id}"
+            style="width:36px;height:24px;text-align:center;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;outline:none"
+            oninput="const val=Math.min(parseInt(this.max)||999,Math.max(0,parseInt(this.value)||0));this.value=val;const card=document.getElementById('${cardId}');if(val>0){card.style.borderColor='#E91E8C';card.style.background='#fdf2f8'}else{card.style.borderColor='#e2e8f0';card.style.background='#ffffff'}"
+            ${agotada ? 'disabled' : ''}>
+          
+          <button type="button" onclick="const inp=document.getElementById('${inputId}');const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max){inp.value=cur+1;inp.dispatchEvent(new Event('input'))}else{inp.style.borderColor='#ef4444';setTimeout(()=>inp.style.borderColor='#cbd5e1',800)}"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${agotada ? 'disabled' : ''}>+</button>
+        </div>
+        <span style="font-size:0.65rem;font-weight:600;color:${stock === null ? '#94a3b8' : stock > 0 ? '#10b981' : '#ef4444'}">
+          ${stock === null ? 'Stock: ?' : stock > 0 ? `${stock} disp.` : 'Agotado'}
+        </span>
+      </div>
+    `
+  }).join('')
+
+  document.getElementById('edit-tallas-titulo').textContent = `Tallas disponibles para ${prod ? prod.nombre : ''} (${color}):`
+  document.getElementById('edit-corrida-tallas').style.display = 'block'
+}
+
+window.agregarItemsEdicionBulk = async (asCorrida) => {
+  const sel = window._editSeleccionado
+  if (!sel) { alert('Selecciona un modelo primero'); return }
+  const { productoId, color, prod } = sel
+  const pedidoId = window._editPedidoId
+  
+  // Obtener el precio a aplicar
+  const precioInput = document.getElementById('edit-nuevo-precio')
+  let precio = parseFloat(precioInput.value)
+  
+  if (isNaN(precio) || precio <= 0) {
+    if (asCorrida) {
+      precio = parseFloat(prod.precio_corrida) || (parseFloat(prod.precio_menudeo) - 100)
+    } else {
+      precio = parseFloat(prod.precio_menudeo) || 0
+    }
+  }
+  
+  const inputs = document.querySelectorAll('#edit-corrida-tallas-grid input[type=number][data-variante]')
+  const itemsToAdd = []
+  inputs.forEach(inp => {
+    const cant = parseInt(inp.value) || 0
+    if (cant > 0) {
+      const varId = inp.dataset.variante
+      const v = window._editVariantes.find(x => x.id === varId)
+      itemsToAdd.push({
+        variante_id: varId,
+        cantidad: cant,
+        precio_unitario: precio,
+        subtotal: cant * precio,
+        nombre: prod.nombre,
+        color: color,
+        talla: v ? v.talla : '',
+        es_corrida: asCorrida
+      })
+    }
+  })
+  
+  if (itemsToAdd.length === 0) {
+    alert('Ingresa al menos 1 par en alguna talla')
+    return
+  }
+  
+  const btn = event.currentTarget
+  const origText = btn.textContent
+  btn.textContent = 'Agregando...'
+  btn.disabled = true
+  
+  try {
+    await Promise.all(itemsToAdd.map(item =>
+      fetch(API + '/pedidos/' + pedidoId + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item)
+      })
+    ))
+    
+    // Recargar items con join completo
+    const resItems = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json())
+    window._editItems = resItems.map(i => ({...i}))
+    
+    // Recalcular precios de toda la edición si son variados
+    window.recalcularPreciosEdicion()
+    
+    // Limpiar buscador y selección
+    document.getElementById('edit-buscar-prod').value = ''
+    document.getElementById('edit-corrida-tallas').style.display = 'none'
+    window._editSeleccionado = null
+    
+    window._renderEdicion()
+  } catch(e) {
+    alert('Error agregando productos: ' + e.message)
+  } finally {
+    btn.textContent = origText
+    btn.disabled = false
+  }
+}
+
+window.recalcularPreciosEdicion = () => {
+  const items = window._editItems || []
+  const productos = window._editProductos || []
+  const variantes = window._editVariantes || []
+  
+  const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+  const tier = totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo'
+  
+  items.forEach(item => {
+    if (item.es_corrida) return
+    
+    const v = variantes.find(x => x.id === item.variante_id)
+    const prod = v ? productos.find(p => p.id === v.producto_id) : null
+    if (!prod) return
+    
+    const base = parseFloat(prod.precio_menudeo) || 0
+    const p3 = parseFloat(prod.precio_mayoreo3) || (base - 30)
+    const p6 = parseFloat(prod.precio_mayoreo6) || (base - 70)
+    
+    if (item._precio_manual === undefined) {
+      if (item.precio_unitario !== base && item.precio_unitario !== p3 && item.precio_unitario !== p6) {
+        item._precio_manual = true
+      }
+    }
+    
+    if (item._precio_manual) return
+    
+    let nuevoPrecio = base
+    if (tier === 'mayoreo6') {
+      nuevoPrecio = p6
+    } else if (tier === 'mayoreo3') {
+      nuevoPrecio = p3
+    }
+    
+    item.precio_unitario = nuevoPrecio
+    item.subtotal = item.cantidad * nuevoPrecio
+  })
+}
+
 window.eliminarItemEdicion = async (itemId, idx) => {
   if (!confirm('¿Eliminar este producto del pedido?')) return
   const pedidoId = window._editPedidoId
@@ -7974,33 +8231,10 @@ window.eliminarItemEdicion = async (itemId, idx) => {
   const data = await res.json()
   if (data.ok) {
     window._editItems.splice(idx, 1)
+    window.recalcularPreciosEdicion()
     window._renderEdicion()
   } else {
     alert('Error eliminando ítem: ' + JSON.stringify(data))
-  }
-}
-
-window.agregarItemEdicion = async () => {
-  const varianteId = document.getElementById('edit-variante-sel').value
-  const cantidad = parseInt(document.getElementById('edit-nueva-cant').value) || 1
-  const precio = parseFloat(document.getElementById('edit-nuevo-precio').value) || 0
-  if (!varianteId) { alert('Selecciona un producto'); return }
-  if (!precio) { alert('Ingresa el precio'); return }
-  const pedidoId = window._editPedidoId
-
-  const res = await fetch(API + '/pedidos/' + pedidoId + '/items', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ variante_id: varianteId, cantidad, precio_unitario: precio, subtotal: cantidad * precio })
-  })
-  const data = await res.json()
-  if (data && data[0] && data[0].id) {
-    // Recargar items con join completo
-    const resItems = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json())
-    window._editItems = resItems.map(i => ({...i}))
-    window._renderEdicion()
-  } else {
-    alert('Error agregando ítem')
   }
 }
 
@@ -8009,14 +8243,14 @@ window.guardarEdicionPedido = async () => {
   const items = window._editItems
   const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0
 
-  // Actualizar cada ítem
-  for (const item of items) {
-    await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id, {
+  // Actualizar cada ítem en paralelo
+  await Promise.all(items.map(item =>
+    fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cantidad: item.cantidad, precio_unitario: item.precio_unitario })
     })
-  }
+  ))
 
   // Recalcular total con descuento
   const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento)
@@ -8152,16 +8386,13 @@ async function cargarPOS() {
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando punto de venta...</p>'
 
   try {
-    const resProductos = await fetch(API + '/productos/')
-    const productos = await resProductos.json()
-    const resVariantes = await fetch(API + '/variantes/')
-    const variantes = await resVariantes.json()
-    const resSucursales = await fetch(API + '/sucursales/')
-    const sucursales = await resSucursales.json()
-    const resClientes = await fetch(API + '/clientes/')
-    const clientes = await resClientes.json()
-    const resInv = await fetch(API + '/inventario/')
-    const inventario = await resInv.json()
+    const [productos, variantes, sucursales, clientes, inventario] = await Promise.all([
+      fetch(API + '/productos/').then(r => r.json()),
+      fetch(API + '/variantes/').then(r => r.json()),
+      fetch(API + '/sucursales/').then(r => r.json()),
+      fetch(API + '/clientes/').then(r => r.json()),
+      fetch(API + '/inventario/').then(r => r.json())
+    ])
 
     window._posData = { productos, variantes, sucursales, clientes, inventario }
     // Restaurar carrito guardado en el navegador para que no se pierda al recargar
@@ -18013,19 +18244,31 @@ window.seleccionarModeloCorrida = (productoId, color) => {
     const inv = inventario.find(i => i.variante_id === v.id && (sucursalId ? i.sucursal_id === sucursalId : true))
     const stock = inv ? inv.cantidad : null
     const agotada = stock !== null && stock === 0
+    const qty = agotada ? 0 : 1
+    const cardId = `c-card-${v.id}`
+    const inputId = `c-qty-${v.id}`
+    const activeBg = qty > 0 ? '#fdf2f8' : '#ffffff'
+    const activeBorder = qty > 0 ? '#E91E8C' : '#e2e8f0'
+    
     return `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 10px;border:2px solid ${agotada ? '#fde' : '#ddd'};border-radius:8px;background:${agotada ? '#fff5f5' : 'white'};min-width:64px;opacity:${agotada ? 0.5 : 1}">
-        <span style="font-weight:700;font-size:0.88rem;color:#333">T${v.talla}</span>
-        <div style="display:flex;align-items:center;gap:3px">
-          <button type="button" onclick="this.nextElementSibling.value=Math.max(0,parseInt(this.nextElementSibling.value||0)-1);this.nextElementSibling.dispatchEvent(new Event('input'))"
-            style="background:#eee;border:none;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:0.85rem;line-height:1" ${agotada?'disabled':''}>−</button>
-          <input type="number" value="${agotada ? 0 : 1}" min="0" max="${stock !== null ? stock : 999}" data-variante="${v.id}"
-            style="width:32px;text-align:center;border:1px solid ${agotada?'#fdd':'#ddd'};border-radius:4px;padding:2px;font-size:0.85rem;font-weight:700" ${agotada?'disabled':''}>
-          <button type="button" onclick="const inp=this.previousElementSibling;const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max)inp.value=cur+1;else{inp.style.borderColor='#c62828';setTimeout(()=>inp.style.borderColor='',800)}"
-            style="background:#eee;border:none;border-radius:3px;width:20px;height:20px;cursor:pointer;font-size:0.85rem;line-height:1" ${agotada?'disabled':''}>+</button>
+      <div id="${cardId}" class="size-card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;border:2px solid ${agotada ? '#fecaca' : activeBorder};border-radius:12px;background:${agotada ? '#fef2f2' : activeBg};min-width:70px;transition:all 0.2s ease;position:relative;opacity:${agotada ? 0.6 : 1}">
+        <span style="font-weight:800;font-size:0.9rem;color:#0f172a">T${v.talla}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" onclick="const inp=document.getElementById('${inputId}');inp.value=Math.max(0,parseInt(inp.value||0)-1);inp.dispatchEvent(new Event('input'))"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${agotada ? 'disabled' : ''}>−</button>
+          
+          <input type="number" value="${qty}" min="0" max="${stock !== null ? stock : 999}" id="${inputId}" data-variante="${v.id}"
+            style="width:36px;height:24px;text-align:center;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;outline:none"
+            oninput="const val=Math.min(parseInt(this.max)||999,Math.max(0,parseInt(this.value)||0));this.value=val;const card=document.getElementById('${cardId}');if(val>0){card.style.borderColor='#E91E8C';card.style.background='#fdf2f8'}else{card.style.borderColor='#e2e8f0';card.style.background='#ffffff'}"
+            ${agotada ? 'disabled' : ''}>
+          
+          <button type="button" onclick="const inp=document.getElementById('${inputId}');const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max){inp.value=cur+1;inp.dispatchEvent(new Event('input'))}else{inp.style.borderColor='#ef4444';setTimeout(()=>inp.style.borderColor='#cbd5e1',800)}"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${agotada ? 'disabled' : ''}>+</button>
         </div>
-        <span style="font-size:0.62rem;color:${stock === null ? '#aaa' : stock > 0 ? '#2e7d32' : '#c62828'}">
-          ${stock === null ? 'stock ?' : 'stock: '+stock}
+        <span style="font-size:0.65rem;font-weight:600;color:${stock === null ? '#94a3b8' : stock > 0 ? '#10b981' : '#ef4444'}">
+          ${stock === null ? 'Stock: ?' : stock > 0 ? `${stock} disp.` : 'Agotado'}
         </span>
       </div>
     `
