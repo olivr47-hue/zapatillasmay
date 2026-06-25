@@ -77,7 +77,7 @@
     .item-price-each { font-size: 0.7rem; color: var(--gray-light); font-family: var(--font-mono); font-weight: 400; }
     .item-corrida-badge { display: inline-block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; background: rgba(200,150,122,0.12); color: var(--tan); border-radius: 100px; padding: 3px 9px; margin-bottom: 6px; }
     .item-qty { display: flex; align-items: center; gap: 6px; margin-top: 10px; background: var(--surface-2); border-radius: 100px; padding: 3px; width: fit-content; }
-    .qty-btn { width: 28px; height: 28px; border: none; border-radius: 50%; background: transparent; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; color: var(--gray); transition: all 0.15s; font-family: var(--font-body); font-weight: 700; }
+    .qty-btn { width: 28px; height: 28px; border: none; border-radius: 50%; background: transparent; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; color: var(--gray); transition: color 0.15s, background-color 0.15s, transform 0.15s; font-family: var(--font-body); font-weight: 700; }
     .qty-btn:hover { background: white; color: var(--mauve); transform: scale(1.1); }
     .qty-val { font-size: 0.88rem; font-weight: 700; font-family: var(--font-mono); min-width: 22px; text-align: center; color: var(--black); }
     .item-remove { position: absolute; top: 12px; right: 12px; background: none; border: none; cursor: pointer; color: var(--gray-light); font-size: 0.95rem; transition: color 0.15s; padding: 4px; }
@@ -102,11 +102,11 @@
     .btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(200,150,122,0.55); }
     .btn-checkout:active { transform: scale(0.98); }
     .btn-checkout:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-    .btn-seguir { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 14px; background: var(--surface); color: var(--gray); border: 1.5px solid var(--border-med); border-radius: 100px; font-family: var(--font-body); font-size: 0.88rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+    .btn-seguir { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 14px; background: var(--surface); color: var(--gray); border: 1.5px solid var(--border-med); border-radius: 100px; font-family: var(--font-body); font-size: 0.88rem; font-weight: 600; cursor: pointer; text-decoration: none; transition: color 0.2s, background-color 0.2s, border-color 0.2s; }
     .btn-seguir:hover { border-color: var(--pink); color: var(--pink); background: var(--surface-2); }
 
     /* TOAST */
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2A1A0E; color: white; padding: 11px 22px; border-radius: 100px; font-size: 0.83rem; font-weight: 600; opacity: 0; transition: all 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap; box-shadow: 0 8px 24px rgba(42,26,14,0.3); }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #2A1A0E; color: white; padding: 11px 22px; border-radius: 100px; font-size: 0.83rem; font-weight: 600; opacity: 0; transition: transform 0.25s, opacity 0.25s; pointer-events: none; z-index: 9999; white-space: nowrap; box-shadow: 0 8px 24px rgba(42,26,14,0.3); }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* CHECKOUT OVERLAY */
@@ -131,7 +131,7 @@
     .pago-badge { display:flex; align-items:center; gap:6px; background: #fff; border:1.5px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 0.74rem; font-weight: 600; color: #3d2b1f; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
     .pago-badge svg { flex-shrink:0; }
     .modal-actions { display: flex; gap: 10px; padding: 14px 24px; background: white; border-top: 1px solid var(--border); flex-shrink: 0; }
-    .modal-actions .cancel { flex: 1; padding: 14px; background: transparent; border: 1.5px solid var(--border-med); border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; color: var(--gray); cursor: pointer; transition: all 0.2s; }
+    .modal-actions .cancel { flex: 1; padding: 14px; background: transparent; border: 1.5px solid var(--border-med); border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; color: var(--gray); cursor: pointer; transition: color 0.2s, background-color 0.2s, border-color 0.2s; }
     .modal-actions .cancel:hover { background: var(--surface-2); }
     .modal-actions .confirm { flex: 2; padding: 14px; background: linear-gradient(135deg,#C8967A,#b5687a); color: white; border: none; border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 16px rgba(200,150,122,0.4); transition: transform 0.2s, box-shadow 0.2s; }
     .modal-actions .confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,150,122,0.5); }
@@ -164,7 +164,7 @@
 
 <div class="page">
   <h1>Mi carrito</h1>
-  <p class="subtitle" id="carrito-subtitle">Cargando...</p>
+  <p class="subtitle" id="carrito-subtitle">Cargando…</p>
 
   <div id="carrito-vacio" class="empty" style="display:none">
     <div class="empty-icon">🛍️</div>
@@ -317,7 +317,7 @@ function render() {
     const precioUnit = calcularPrecioUnitario(item, total)
     const subtotal = precioUnit * pares
     const imgHTML = item.imagen
-      ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" onerror="this.style.display='none'">`
+      ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" width="84" height="100" onerror="this.style.display='none'">`
       : `<div class="item-img-placeholder">👠</div>`
     const corridaBadge = item.es_corrida ? `<div class="item-corrida-badge">Corrida completa</div>` : ''
     return `

@@ -27,7 +27,7 @@
       --font-display: 'Cormorant Garamond', serif;
       --font-body: 'DM Sans', sans-serif;
       --font-mono: 'DM Mono', monospace;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.3s cubic-bezier(0.23, 1, 0.32, 1), color 0.3s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.3s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.3s cubic-bezier(0.23, 1, 0.32, 1);
     }
 
     body {
@@ -314,11 +314,11 @@
     </div>
     <span class="flipbook-counter" id="fb-counter"></span>
     <div style="display:flex;gap:8px;align-items:center">
-      <button class="flipbook-close" onclick="abrirZoom()" title="Ampliar página" style="font-size:1rem">🔍</button>
+      <button class="flipbook-close" onclick="abrirZoom()" title="Ampliar página" aria-label="Ampliar página" style="font-size:1rem">🔍</button>
       <button id="btn-pdf-tienda" onclick="descargarPDF()" title="Descargar PDF" style="background:rgba(200,150,122,0.25);border:1px solid rgba(200,150,122,0.5);color:white;border-radius:20px;padding:7px 14px;font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--font-body);transition:var(--transition)">
         📥 PDF
       </button>
-      <button class="flipbook-close" onclick="cerrarFlipbook()">✕</button>
+      <button class="flipbook-close" onclick="cerrarFlipbook()" aria-label="Cerrar">✕</button>
     </div>
   </div>
 
@@ -337,9 +337,9 @@
 </div>
 
 <!-- Zoom overlay -->
-<div id="zoom-overlay" onclick="cerrarZoom()">
-  <button id="zoom-close" onclick="cerrarZoom()">✕</button>
-  <img id="zoom-img" src="" alt="Página ampliada">
+<div id="zoom-overlay" onclick="cerrarZoom()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarZoom()">
+  <button id="zoom-close" onclick="cerrarZoom()" aria-label="Cerrar">✕</button>
+  <img id="zoom-img" src="" alt="Página ampliada" width="800" height="1130">
 </div>
 
 <!-- StPageFlip -->
@@ -367,9 +367,9 @@
         return
       }
       grid.innerHTML = catalogos.map(c => `
-        <div class="catalogo-card" onclick="abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\'")}')">
+        <div class="catalogo-card" onclick="abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\'")}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') abrirCatalogo('${c.id}', '${(c.nombre || '').replace(/'/g,"\\\\'")}')">
           ${c.portada_url
-            ? `<img class="catalogo-cover" src="${c.portada_url}" alt="${c.nombre}" loading="lazy">`
+            ? `<img class="catalogo-cover" src="${c.portada_url}" alt="${c.nombre}" width="300" height="400" loading="lazy">`
             : `<div class="catalogo-cover-placeholder">📖</div>`}
           <div class="catalogo-info">
             ${c.temporada ? `<div class="catalogo-temporada">${c.temporada}</div>` : ''}
@@ -388,7 +388,7 @@
     const overlay = document.getElementById('flipbook-overlay')
     const stage   = document.getElementById('flipbook-stage')
     document.getElementById('fb-titulo').textContent = nombre
-    document.getElementById('fb-counter').textContent = 'Cargando...'
+    document.getElementById('fb-counter').textContent = 'Cargando…'
     overlay.classList.add('active')
     document.body.style.overflow = 'hidden'
     _catalogoActual = { id: catalogoId, nombre }
@@ -530,7 +530,7 @@
     cont.style.display = window.innerWidth < 700 ? 'flex' : 'none'
     cont.innerHTML = urls.map((u, i) => `
       <img class="flipbook-thumb ${i === activo ? 'active' : ''}"
-           src="${u}" onclick="irPagina(${i})">`).join('')
+           src="${u}" alt="Miniatura página ${i + 1}" width="44" height="60" onclick="irPagina(${i})">`).join('')
   }
 
   function actualizarEstado(idx) {
@@ -604,7 +604,7 @@
   async function descargarPDF() {
     if (!_paginas.length) return
     const btn = document.getElementById('btn-pdf-tienda')
-    if (btn) { btn.disabled = true; btn.textContent = '⏳...' }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳…' }
 
     try {
       if (!window.jspdf) {

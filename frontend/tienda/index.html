@@ -111,7 +111,7 @@
   --radius: 2px;
   --pink-dark: #a6795f;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  --transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s cubic-bezier(0.23, 1, 0.32, 1), background-color 0.2s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
     *, *::before, *::after {
@@ -1028,7 +1028,7 @@
       padding: 6px 4px;
       border-radius: 8px;
       border: 2px solid transparent;
-      transition: all 0.2s ease;
+      transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
     }
 
     .color-opt:hover { border-color: var(--gray-200); }
@@ -1300,7 +1300,7 @@
       text-transform: uppercase;
       letter-spacing: 1.5px;
       cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.23,1,0.32,1);
+      transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
       box-shadow: 0 6px 24px rgba(200,150,122,0.4);
       position: relative;
       overflow: hidden;
@@ -1459,7 +1459,7 @@
       text-decoration: none;
       font-size: 0.72rem;
       font-weight: 700;
-      transition: all 0.2s;
+      transition: border-color 0.2s, color 0.2s, background-color 0.2s, transform 0.2s;
       letter-spacing: 0;
     }
 
@@ -1593,7 +1593,7 @@
       padding:13px 28px;background:linear-gradient(135deg,#C8967A,#b5687a);
       color:white;border-radius:100px;font-size:0.85rem;font-weight:700;
       text-decoration:none;border:none;cursor:pointer;font-family:var(--font-body);
-      box-shadow:0 4px 16px rgba(200,150,122,0.35);transition:all 0.2s;
+      box-shadow:0 4px 16px rgba(200,150,122,0.35);transition: transform 0.2s, box-shadow 0.2s;
     }
     .pg-cta:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,150,122,0.45); }
     .pg-table { width:100%;border-collapse:collapse;font-size:0.85rem; }
@@ -2620,8 +2620,8 @@
 
 <!-- MENU MOVIL -->
 <div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none">
-  <div id="mobile-menu-overlay" onclick="cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
-  <div id="mobile-menu-panel" style="position:fixed;top:0;right:0;bottom:0;width:82%;max-width:300px;background:#ffffff;z-index:10001;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);box-shadow:-8px 0 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div id="mobile-menu-overlay" onclick="cerrarMenu()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
+  <div id="mobile-menu-panel" style="position:fixed;top:0;right:0;bottom:0;width:82%;max-width:300px;background:#ffffff;z-index:10001;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);box-shadow:-8px 0 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
     <!-- Header del menú -->
     <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#ffffff;position:sticky;top:0;z-index:1">
@@ -2717,7 +2717,7 @@
       padding: 8px 15px; border-radius: 100px;
       border: 1.5px solid rgba(200,150,122,0.25); background: white;
       color: #8B6A54; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap; transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1);
+      cursor: pointer; white-space: nowrap; transition: color 0.18s cubic-bezier(0.34,1.56,0.64,1), background-color 0.18s cubic-bezier(0.34,1.56,0.64,1), border-color 0.18s cubic-bezier(0.34,1.56,0.64,1), transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
       -webkit-tap-highlight-color: transparent;
     }
     .zm-chip:active { transform: scale(0.92); background: linear-gradient(135deg,#C8967A,#b5687a); color: white; border-color: transparent; }
@@ -2812,7 +2812,7 @@
     <h2 class="section-title">Explora por <em>categoria</em></h2>
   </div>
   <div class="cats-grid" id="cats-grid">
-    <div class="loading">Cargando categorias...</div>
+    <div class="loading">Cargando categorías…</div>
   </div>
 </div>
 
@@ -2865,7 +2865,7 @@
   </div>
 
   <div class="products-grid" id="products-grid">
-    <div class="loading">Cargando productos...</div>
+    <div class="loading">Cargando productos…</div>
   </div>
 </div>
 
@@ -2881,15 +2881,15 @@
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(245,240,232,0.06);border-left:2px solid rgba(245,240,232,0.2);border-radius:0 8px 8px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(245,240,232,0.06);border-left:1px solid rgba(245,240,232,0.2);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">1 par</span>
         <span style="font-size:0.95rem;font-weight:600;color:rgba(245,240,232,0.8)">Precio menudeo</span>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:2px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:1px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">3 — 5 pares</span>
         <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$80 por par</span>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:2px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:1px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">6+ pares</span>
         <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$150 por par</span>
       </div>
@@ -3032,7 +3032,7 @@
 </script>
 
 <!-- MODAL PRODUCTO -->
-<div class="modal-overlay" id="modal-overlay" onclick="cerrarModal(event)">
+<div class="modal-overlay" id="modal-overlay" onclick="cerrarModal(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarModal(event)">
   <div class="modal" id="modal-producto" role="dialog" aria-modal="true" aria-labelledby="modal-name">
     <button class="modal-close" onclick="cerrarModalBtn()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
     <div class="modal-img" id="modal-img-wrap">
@@ -3057,16 +3057,16 @@
 </div>
 
 <!-- LIGHTBOX -->
-<div id="lightbox-overlay" onclick="lightboxClickFondo(event)">
+<div id="lightbox-overlay" onclick="lightboxClickFondo(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') lightboxClickFondo(event)">
   <button class="lightbox-close" onclick="cerrarLightbox()" aria-label="Cerrar"><span aria-hidden="true">✕</span></button>
-  <button class="lightbox-nav prev" id="lightbox-prev" onclick="lightboxNav(-1)">‹</button>
-  <img id="lightbox-img" src="" alt="Foto ampliada">
-  <button class="lightbox-nav next" id="lightbox-next" onclick="lightboxNav(1)">›</button>
+  <button class="lightbox-nav prev" id="lightbox-prev" onclick="lightboxNav(-1)" aria-label="Foto anterior">‹</button>
+  <img id="lightbox-img" src="" alt="Foto ampliada" width="1000" height="1000">
+  <button class="lightbox-nav next" id="lightbox-next" onclick="lightboxNav(1)" aria-label="Siguiente foto">›</button>
   <div class="lightbox-dots" id="lightbox-dots"></div>
 </div>
 
 <!-- CARRITO DRAWER -->
-<div class="cart-overlay" id="cart-overlay" onclick="cerrarCarrito()"></div>
+<div class="cart-overlay" id="cart-overlay" onclick="cerrarCarrito()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarCarrito()"></div>
 <div class="cart-drawer" id="cart-drawer">
   <div class="cart-header">
     <h3>Tu carrito</h3>
@@ -3100,8 +3100,8 @@
 
 
 <!-- AUTH MODAL -->
-<div id="auth-overlay" onclick="cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
+<div id="auth-overlay" onclick="cerrarAuth(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
     <button onclick="cerrarAuthBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
     <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
       <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
@@ -3180,11 +3180,11 @@
 </div>
 
 <!-- CUENTA MODAL -->
-<div id="cuenta-overlay" onclick="cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-  <div onclick="event.stopPropagation()" style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
+<div id="cuenta-overlay" onclick="cerrarCuenta(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
     <button onclick="cerrarCuentaBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
     <h3 style="font-family:var(--font-display);font-size:1.4rem;font-weight:400;margin-bottom:24px;padding-right:32px">Mi cuenta</h3>
-    <div id="cuenta-contenido"><p style="color:#aaa;text-align:center;padding:24px">Cargando...</p></div>
+    <div id="cuenta-contenido"><p style="color:#aaa;text-align:center;padding:24px">Cargando…</p></div>
   </div>
 </div>
 
@@ -3204,7 +3204,7 @@
 
     <div class="footer-top">
       <div class="footer-brand">
-        <a class="footer-logo" href="#" onclick="mostrarInicio()">Zapatillas <span>May</span></a>
+        <a class="footer-logo" href="#" onclick="mostrarInicio()" role="button" onkeydown="if(event.key==='Enter'||event.key===' ') mostrarInicio()">Zapatillas <span>May</span></a>
         <p>Hecho en León, Guanajuato — la capital mundial del calzado. Mayoreo y menudeo sin mínimo de registro. Enviamos a todo México, Estados Unidos y Canadá.</p>
         <div class="footer-social">
           <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" title="WhatsApp">WA</a>
@@ -3753,7 +3753,7 @@ cargarConfigSEO()
     accesorios:  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
   }
   grid.innerHTML = cats.map(c => `
-    <div class="cat-wrap" onclick="filtrarCategoria('${c}')">
+    <div class="cat-wrap" role="button" tabindex="0" onclick="filtrarCategoria('${c}')" onkeydown="if(event.key==='Enter'||event.key===' ') filtrarCategoria('${c}')">
       <div class="cat-card">
         <img src="${IMG_CATS[c] || ''}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
         <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(90,30,45,0.75) 0%, rgba(180,100,100,0.15) 60%, transparent 100%)"></div>
@@ -3961,7 +3961,7 @@ if (window.ttq) ttq.track('ViewContent', {
     // Con colores: se preselecciona el color principal más abajo (seleccionarColor arma las fotos).
     if (colores.length === 0) {
       if (p.imagen_principal) {
-        imgWrap.innerHTML = `<div style="padding:0 12px;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" class="modal-foto-main modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
+        imgWrap.innerHTML = `<div style="padding:0 12px;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" class="modal-foto-main modal-foto-clickeable" onclick="abrirLightbox([this.src],0)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') abrirLightbox([this.src],0)" width="400" height="400"></div>`
       } else {
         imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
       }
@@ -3989,7 +3989,7 @@ if (window.ttq) ttq.track('ViewContent', {
       // Renderizar bolitas de colores
       seccionColor.innerHTML = colores.map(c => {
         const v = varsProd.find(v => v.color === c)
-        return `<div class="color-opt" onclick="seleccionarColor('${c.replace(/'/g,"\\'")}')" id="color-opt-${c.replace(/\s/g,'_').replace(/'/g,'')}">
+        return `<div class="color-opt" role="button" tabindex="0" onclick="seleccionarColor('${c.replace(/'/g,"\\'")}')" onkeydown="if(event.key==='Enter'||event.key===' ') seleccionarColor('${c.replace(/'/g,"\\'")}')" id="color-opt-${c.replace(/\s/g,'_').replace(/'/g,'')}">
           <div class="dot" style="background:${v?v.color_hex:'#888'}"></div>
           <span class="label">${c}</span>
         </div>`
@@ -4122,10 +4122,13 @@ if (window.ttq) ttq.track('ViewContent', {
                ontouchend="event.stopPropagation();if(Math.abs(event.changedTouches[0].clientX-window._swipeStartX)>40)window.cambiarFoto(event.changedTouches[0].clientX<window._swipeStartX?1:-1)">
             <img src="${zmImg(fotos[idx], 800)}" alt="${color}"
               class="modal-foto-main modal-foto-clickeable"
-              onclick="abrirLightbox(window._fotosActuales, ${idx})">
+              onclick="abrirLightbox(window._fotosActuales, ${idx})"
+              role="button" tabindex="0"
+              onkeydown="if(event.key==='Enter'||event.key===' ') abrirLightbox(window._fotosActuales, ${idx})"
+              width="400" height="400">
             ${fotos.length > 1 ? `
-              <button onclick="event.stopPropagation();window.cambiarFoto(-1)" style="position:absolute;left:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
-              <button onclick="event.stopPropagation();window.cambiarFoto(1)" style="position:absolute;right:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
+              <button onclick="event.stopPropagation();window.cambiarFoto(-1)" aria-label="Foto anterior" style="position:absolute;left:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">‹</button>
+              <button onclick="event.stopPropagation();window.cambiarFoto(1)" aria-label="Siguiente foto" style="position:absolute;right:18px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.38);color:white;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center">›</button>
               <div style="position:absolute;bottom:6px;right:18px;background:rgba(0,0,0,0.45);color:white;font-size:0.68rem;padding:2px 7px;border-radius:10px">${idx+1}/${fotos.length}</div>
             ` : ''}
             ${window._videoUrl ? `<button onclick="event.stopPropagation();_mostrarVideoModal()" class="btn-ver-video">▶ Video</button>` : ''}
@@ -4134,7 +4137,7 @@ if (window.ttq) ttq.track('ViewContent', {
         if (fotos.length > 1) {
           thumbRow.style.display = 'flex'
           thumbRow.innerHTML = fotos.map((f, i) => `
-            <div onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)"
+            <div role="button" tabindex="0" onclick="event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.stopPropagation();window._fotoIdx=${i};window.cambiarFoto(0)}"
               style="width:44px;height:44px;flex-shrink:0;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid ${i===idx?'#E91E8C':'#ddd'};transition:border 0.2s">
               <img src="${f}" alt="${color} — ${productoSeleccionado.nombre}" style="width:100%;height:100%;object-fit:cover">
             </div>`).join('')
@@ -4155,7 +4158,7 @@ if (window.ttq) ttq.track('ViewContent', {
       const inv = inventario.find(i => i.variante_id === v.id)
       const cantidad = inv ? inv.cantidad : 0
       const agotada = cantidad === 0
-      return `<div class="talla-opt ${agotada?'agotada':''}" id="talla-opt-${v.talla.replace('.','_')}" onclick="${!agotada?`seleccionarTalla('${v.id}','${v.talla}')`:''}">${v.talla}</div>`
+      return `<div class="talla-opt ${agotada?'agotada':''}" id="talla-opt-${v.talla.replace('.','_')}" role="button" tabindex="${agotada?'-1':'0'}" onclick="${!agotada?`seleccionarTalla('${v.id}','${v.talla}')`:''}" onkeydown="${!agotada?`if(event.key==='Enter'||event.key===' ') seleccionarTalla('${v.id}','${v.talla}')`:''}">${v.talla}</div>`
     }).join('')
 
     document.getElementById('btn-agregar').disabled = true
@@ -4490,7 +4493,7 @@ if (window.ttq) {
 
     container.innerHTML = carrito.map((item, idx) => `
       <div class="cart-item">
-        ${item.imagen ? `<img class="cart-item-img" src="${zmImg(item.imagen, 120)}" alt="${item.nombre}">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
+        ${item.imagen ? `<img class="cart-item-img" src="${zmImg(item.imagen, 120)}" alt="${item.nombre}" width="80" height="96">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
         <div class="cart-item-info">
           <p class="cart-item-name">${item.nombre}</p>
           ${item.es_corrida
@@ -4500,11 +4503,11 @@ if (window.ttq) {
           <div class="cart-item-controls">
             <div style="display:flex;align-items:center;gap:6px">
               <div class="qty-controls">
-                <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},-1)">−</button>
+                <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},-1)" aria-label="Disminuir cantidad">−</button>
                 <span class="qty-num">${item.cantidad}</span>
-                <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},1)">+</button>
+                <button class="qty-btn" onclick="cambiarCantidadCarrito(${idx},1)" aria-label="Aumentar cantidad">+</button>
               </div>
-              <button onclick="eliminarDelCarrito(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:4px;line-height:1" title="Eliminar">🗑</button>
+              <button onclick="eliminarDelCarrito(${idx})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1rem;padding:4px;line-height:1" title="Eliminar" aria-label="Eliminar del carrito">🗑</button>
             </div>
             <span class="item-price" style="${item.es_corrida?'color:#C8967A;font-weight:600':''}">$${(item.es_corrida ? item.cantidad*6*item.precio_unitario : item.cantidad*item.precio_unitario).toFixed(2)}</span>
           </div>
@@ -4641,12 +4644,12 @@ if (window.ttq) {
       }).filter(cf => cf.foto)
       if (colorFotos.length > 1) {
         imgWrap.innerHTML = `<div class="color-foto-grid">${colorFotos.map(cf => `
-          <div class="color-foto-card" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy">
+          <div class="color-foto-card" role="button" tabindex="0" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" onkeydown="if(event.key==='Enter'||event.key===' ') seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
+            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy" width="150" height="150">
             <div class="color-foto-label"><span class="color-foto-dot" style="background:${cf.hex}"></span>${cf.color}</div>
           </div>`).join('')}</div>`
       } else if (p.imagen_principal) {
-        imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)"></div>`
+        imgWrap.innerHTML = `<div style="padding:12px 12px 0;box-sizing:border-box"><img src="${zmImg(p.imagen_principal, 800)}" alt="${p.nombre}" style="width:100%;max-height:clamp(220px,43vh,390px);height:auto;display:block;object-fit:contain;background:white;border-radius:8px;" class="modal-foto-clickeable" onclick="abrirLightbox([this.src],0)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') abrirLightbox([this.src],0)" width="400" height="400"></div>`
       } else {
         imgWrap.innerHTML = `<div class="modal-img-placeholder">👠</div>`
       }
@@ -4698,7 +4701,7 @@ if (window.ttq) {
     next.style.display = _lbFotos.length > 1 ? 'flex' : 'none'
     const dots = document.getElementById('lightbox-dots')
     dots.innerHTML = _lbFotos.length > 1
-      ? _lbFotos.map((_, i) => `<button class="lightbox-dot ${i===_lbIdx?'active':''}" onclick="event.stopPropagation();_lbIdx=${i};_renderLightbox()"></button>`).join('')
+      ? _lbFotos.map((_, i) => `<button class="lightbox-dot ${i===_lbIdx?'active':''}" onclick="event.stopPropagation();_lbIdx=${i};_renderLightbox()" aria-label="Ir a foto ${i + 1}"></button>`).join('')
       : ''
   }
   // ─────────────────────────────────────────────────────────
@@ -4872,7 +4875,7 @@ if (window.ttq) {
 
   function filtrarCategoria(categoria) {
     if (!productos || !productos.length) {
-      mostrarToast('Cargando catalogo...')
+      mostrarToast('Cargando catálogo…')
       inicializar().then(() => filtrarCategoria(categoria))
       return
     }
@@ -5064,7 +5067,7 @@ function _construirChipsFiltro() {
   const fcCat = document.getElementById('fc-categoria')
   if (fcCat) {
     fcCat.innerHTML = catsPresentes.map(c =>
-      `<div class="filtro-chip ${_filtros.categoria===c?'active':''}" onclick="_toggleCat('${c}')">${_CAT_LABELS[c]||c}</div>`
+      `<div class="filtro-chip ${_filtros.categoria===c?'active':''}" role="button" tabindex="0" onclick="_toggleCat('${c}')" onkeydown="if(event.key==='Enter'||event.key===' ') _toggleCat('${c}')">${_CAT_LABELS[c]||c}</div>`
     ).join('')
     document.getElementById('fg-categoria').style.display = catsPresentes.length > 1 ? '' : 'none'
   }
@@ -5077,7 +5080,7 @@ function _construirChipsFiltro() {
   })
   const fcTalla = document.getElementById('fc-talla')
   fcTalla.innerHTML = tallas.map(t =>
-    `<div class="filtro-chip ${_filtros.tallas.includes(t)?'active':''}" onclick="_toggleTalla('${t}')">${t}</div>`
+    `<div class="filtro-chip ${_filtros.tallas.includes(t)?'active':''}" role="button" tabindex="0" onclick="_toggleTalla('${t}')" onkeydown="if(event.key==='Enter'||event.key===' ') _toggleTalla('${t}')">${t}</div>`
   ).join('')
   document.getElementById('fg-talla').style.display = tallas.length ? '' : 'none'
   // Colores presentes (deduplicados case-insensitive)
@@ -5087,12 +5090,12 @@ function _construirChipsFiltro() {
   const fcColor = document.getElementById('fc-color')
   fcColor.innerHTML = colores.map(k => {
     const m = _colorMeta[k]
-    return `<div class="filtro-chip ${_filtros.colores.includes(k)?'active':''}" onclick="_toggleColor(this.dataset.c)" data-c="${k.replace(/"/g,'&quot;')}"><span class="chip-dot" style="background:${m.hex}"></span>${m.display}</div>`
+    return `<div class="filtro-chip ${_filtros.colores.includes(k)?'active':''}" role="button" tabindex="0" onclick="_toggleColor(this.dataset.c)" onkeydown="if(event.key==='Enter'||event.key===' ') _toggleColor(this.dataset.c)" data-c="${k.replace(/"/g,'&quot;')}"><span class="chip-dot" style="background:${m.hex}"></span>${m.display}</div>`
   }).join('')
   document.getElementById('fg-color').style.display = colores.length ? '' : 'none'
   // Precio
   document.getElementById('fc-precio').innerHTML = _RANGOS_PRECIO.map((r,i) =>
-    `<div class="filtro-chip ${_filtros.precioRango===i?'active':''}" onclick="_togglePrecio(${i})">${r.label}</div>`
+    `<div class="filtro-chip ${_filtros.precioRango===i?'active':''}" role="button" tabindex="0" onclick="_togglePrecio(${i})" onkeydown="if(event.key==='Enter'||event.key===' ') _togglePrecio(${i})">${r.label}</div>`
   ).join('')
 }
 
@@ -5398,7 +5401,7 @@ async function solicitarRecuperacion() {
   const btn = document.getElementById('btn-recuperar')
   const msg = document.getElementById('rec-msg')
   if (!email) { mostrarToast('Por favor ingresa tu email'); return }
-  btn.textContent = 'Buscando...'
+  btn.textContent = 'Buscando…'
   btn.disabled = true
   try {
     const res = await fetch(API + '/auth/recuperar', {
@@ -5439,7 +5442,7 @@ async function solicitarRecuperacion() {
 async function cargarCuenta() {
   const contenido = document.getElementById('cuenta-contenido')
   if (!usuarioActual) return
-  contenido.innerHTML = '<p style="color:#aaa;text-align:center;padding:24px">Cargando...</p>'
+  contenido.innerHTML = '<p style="color:#aaa;text-align:center;padding:24px">Cargando…</p>'
   try {
     const resPedidos = usuarioActual.cliente_id
       ? await fetch(API + '/auth/pedidos/' + usuarioActual.cliente_id)
@@ -5517,7 +5520,7 @@ async function cargarCuenta() {
         <p style="font-weight:600;margin-bottom:4px">🎁 Invita y gana $50</p>
         <p style="font-size:0.78rem;color:#aaa;margin-bottom:14px">Comparte tu código. Cuando alguien se registre con él, ambos reciben $50 de descuento en su próxima compra.</p>
         <div id="ref-datos" style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px">
-          <p style="font-size:0.78rem;color:#aaa;text-align:center">Cargando...</p>
+          <p style="font-size:0.78rem;color:#aaa;text-align:center">Cargando…</p>
         </div>
       </div>` : ''}
 
@@ -5962,7 +5965,7 @@ const PAGINAS = {
           ['¿Puedo ver los productos antes de comprar?','Sí, puedes visitar nuestra tienda en León, Guanajuato. También te mandamos fotos y videos por WhatsApp.'],
         ].map(([q,a]) => `
           <div style="border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
-            <div style="padding:16px 20px;font-weight:600;font-size:0.9rem;background:var(--white);cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--black)" onclick="const ans=this.nextElementSibling;const arr=this.querySelector('span');ans.style.display=ans.style.display==='none'?'block':'none';arr.textContent=ans.style.display==='none'?'＋':'－'">
+            <div style="padding:16px 20px;font-weight:600;font-size:0.9rem;background:var(--white);cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:var(--black)" role="button" tabindex="0" onclick="const ans=this.nextElementSibling;const arr=this.querySelector('span');ans.style.display=ans.style.display==='none'?'block':'none';arr.textContent=ans.style.display==='none'?'＋':'－'" onkeydown="if(event.key==='Enter'||event.key===' '){ const ans=this.nextElementSibling;const arr=this.querySelector('span');ans.style.display=ans.style.display==='none'?'block':'none';arr.textContent=ans.style.display==='none'?'＋':'－' }">
               ${q}
               <span style="color:var(--pink);font-size:1.2rem;font-weight:400;flex-shrink:0;margin-left:8px">＋</span>
             </div>
@@ -6164,7 +6167,7 @@ async function registrarMayorista() {
   }
   const btn = document.getElementById('may-btn')
   btn.disabled = true
-  btn.textContent = 'Enviando...'
+  btn.textContent = 'Enviando…'
   // Eventos
   if (typeof gtag === 'function') gtag('event', 'generate_lead', { event_category: 'mayorista' })
   if (window.fbq) fbq('track', 'Lead', { content_name: 'mayorista' })

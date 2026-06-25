@@ -58,7 +58,7 @@
     .gallery-main:hover { transform: scale(1.03); }
     .gallery-thumbs { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 1px solid var(--border); }
     .gallery-thumbs::-webkit-scrollbar { display: none; }
-    .gallery-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; background: #f3f3f3; }
+    .gallery-thumb { width: 64px; height: 64px; flex-shrink: 0; border-radius: 8px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s; background: #f3f3f3; }
     .gallery-thumb:hover { transform: scale(1.05); }
     .gallery-thumb.active { border-color: var(--tan); box-shadow: 0 2px 8px rgba(200,150,122,0.4); }
 
@@ -78,12 +78,12 @@
     .section-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #aaa; margin: 20px 0 10px; }
     .section-label strong { color: var(--tan); font-weight: 700; }
     .color-grid { display: flex; flex-wrap: wrap; gap: 10px; }
-    .color-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px 8px 10px; border: 1.5px solid #ede8e3; border-radius: 100px; cursor: pointer; font-size: 0.82rem; font-family: var(--font-body); background: white; transition: all 0.2s cubic-bezier(0.23,1,0.32,1); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .color-btn { display: flex; align-items: center; gap: 8px; padding: 8px 16px 8px 10px; border: 1.5px solid #ede8e3; border-radius: 100px; cursor: pointer; font-size: 0.82rem; font-family: var(--font-body); background: white; transition: border-color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background-color 0.2s var(--ease-out), color 0.2s var(--ease-out); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
     .color-btn:hover { border-color: var(--tan); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,150,122,0.2); }
     .color-btn.active { border-color: var(--tan); background: linear-gradient(white,white) padding-box, linear-gradient(135deg,#C8967A,#b5687a) border-box; border: 2px solid transparent; font-weight: 700; box-shadow: 0 4px 16px rgba(200,150,122,0.3); }
     .color-dot { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,0.12); flex-shrink: 0; box-shadow: inset 0 1px 2px rgba(255,255,255,0.5); }
     .talla-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
-    .talla-btn { padding: 10px 8px; border: 1.5px solid #ede8e3; border-radius: 10px; font-size: 0.88rem; font-weight: 600; cursor: pointer; background: white; font-family: var(--font-body); transition: all 0.2s cubic-bezier(0.23,1,0.32,1); text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .talla-btn { padding: 10px 8px; border: 1.5px solid #ede8e3; border-radius: 10px; font-size: 0.88rem; font-weight: 600; cursor: pointer; background: white; font-family: var(--font-body); transition: border-color 0.2s var(--ease-out), transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background-color 0.2s var(--ease-out), color 0.2s var(--ease-out); text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
     .talla-btn:hover:not(.agotada) { border-color: var(--tan); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(200,150,122,0.25); }
     .talla-btn.active { border-color: transparent; background: linear-gradient(135deg,#C8967A,#b5687a); color: white; box-shadow: 0 6px 20px rgba(200,150,122,0.45); transform: translateY(-2px); }
     .talla-btn.agotada { color: #d0d0d0; border-color: #f5f5f5; cursor: not-allowed; text-decoration: line-through; background: #fafafa; box-shadow: none; }
@@ -169,7 +169,7 @@
     #stock-urgency { display: none; position: fixed; bottom: calc(74px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 199; background: rgba(255,248,240,0.97); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-top: 1px solid rgba(224,122,48,0.2); padding: 5px 16px; text-align: center; font-size: 0.72rem; color: #e07a30; font-weight: 700; letter-spacing: 0.2px; }
     .sticky-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(200,150,122,0.15); padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 200; display: flex; gap: 12px; align-items: center; box-shadow: 0 -8px 32px rgba(0,0,0,0.06); }
     .sticky-bar-info { display: none; }
-    .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A 0%,#b5687a 100%); color: white; border: none; border-radius: 100px; padding: 16px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.23,1,0.32,1); letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(200,150,122,0.45); position: relative; overflow: hidden; white-space: nowrap; }
+    .btn-agregar { flex: 1; background: linear-gradient(135deg,#C8967A 0%,#b5687a 100%); color: white; border: none; border-radius: 100px; padding: 16px; font-family: var(--font-body); font-size: 0.92rem; font-weight: 700; cursor: pointer; transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), background-color 0.25s var(--ease-out), color 0.25s var(--ease-out); letter-spacing: 0.5px; box-shadow: 0 6px 24px rgba(200,150,122,0.45); position: relative; overflow: hidden; white-space: nowrap; }
     .btn-agregar::after { content:''; position:absolute; inset:0; background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent); pointer-events:none; }
     .btn-agregar:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(200,150,122,0.55); }
     .btn-agregar:active { transform: scale(0.97); }
@@ -370,7 +370,7 @@
 
 <!-- GALLERY -->
 <div class="gallery">
-  <img id="gallery-main" class="gallery-main" src="" alt="" onclick="abrirLightbox()">
+  <img id="gallery-main" class="gallery-main" src="" alt="Imagen principal del producto" width="500" height="500" onclick="abrirLightbox()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') abrirLightbox()">
   <div class="gallery-thumbs" id="gallery-thumbs"></div>
 </div>
 
@@ -381,7 +381,7 @@
 
 <!-- INFO CARDS -->
 <div id="desc-card" style="display:none" class="info-card">
-  <div class="info-card-header" onclick="toggleCard('desc')">
+  <div class="info-card-header" onclick="toggleCard('desc')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('desc')">
     <span class="info-card-title">Descripción</span>
     <svg class="info-card-chevron" id="desc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
@@ -389,7 +389,7 @@
 </div>
 
 <div id="details-card" style="display:none" class="info-card">
-  <div class="info-card-header" onclick="toggleCard('details')">
+  <div class="info-card-header" onclick="toggleCard('details')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('details')">
     <span class="info-card-title">Detalles del producto</span>
     <svg class="info-card-chevron" id="details-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
@@ -397,8 +397,8 @@
 </div>
 
 <!-- POLÍTICA DE DEVOLUCIÓN EXPANDIBLE -->
-<div class="info-card" style="border-left:3px solid #10b981">
-  <div class="info-card-header" onclick="toggleCard('devolucion')">
+<div class="info-card" style="border-left:1px solid #10b981">
+  <div class="info-card-header" onclick="toggleCard('devolucion')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('devolucion')">
     <span class="info-card-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">↩</span> Garantía y devoluciones</span>
     <svg class="info-card-chevron" id="devolucion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
@@ -493,9 +493,9 @@
 </div>
 
 <!-- LIGHTBOX -->
-<div id="lightbox" onclick="cerrarLightbox(event)">
+<div id="lightbox" onclick="cerrarLightbox(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarLightbox(event)">
   <button id="lightbox-close" onclick="cerrarLightbox()" aria-label="Cerrar">✕</button>
-  <img id="lightbox-img" src="" alt="">
+  <img id="lightbox-img" src="" alt="Foto ampliada en pantalla completa" width="1000" height="1000">
 </div>
 
 <!-- TOAST -->
@@ -708,7 +708,7 @@ function renderProducto() {
 
     <p class="section-label" id="talla-section-label" style="display:flex;align-items:center;justify-content:space-between">
       <span style="display:inline-flex;align-items:center">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#ddd;color:#999;border-radius:50%;font-size:0.6rem;font-weight:700;margin-right:6px;flex-shrink:0;transition:all 0.3s" id="talla-step-num">${colores.length ? '2' : '1'}</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#ddd;color:#999;border-radius:50%;font-size:0.6rem;font-weight:700;margin-right:6px;flex-shrink:0;transition:background-color 0.3s, color 0.3s" id="talla-step-num">${colores.length ? '2' : '1'}</span>
         Talla <span id="talla-hint-text" style="text-transform:none;letter-spacing:0;font-size:0.72rem;font-weight:400;color:var(--gray);margin-left:4px">${colores.length ? '— primero elige un color' : ''}</span>
       </span>
       <button onclick="abrirGuiaTallas()" style="background:none;border:none;font-size:0.72rem;color:var(--tan);font-weight:600;cursor:pointer;text-decoration:underline;font-family:var(--font-body);padding:0">📏 Guía de tallas</button>
@@ -1035,7 +1035,7 @@ async function cargarSimilares() {
       const dest = p.sku_interno || p.slug
       if (!dest) return ''
       return `<a class="similar-card" href="/producto/${dest}">
-        <img src="${zmImg(p.imagen_principal || '', 600)}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" loading="lazy">
+        <img src="${zmImg(p.imagen_principal || '', 600)}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" width="140" height="186" loading="lazy">
         <p class="similar-card-name">${p.nombre}</p>
         <p class="similar-card-price">$${precio} MXN</p>
       </a>`
@@ -1251,7 +1251,7 @@ function zmRechazarCookies() {
 })()
 </script>
 <!-- MODAL GUÍA DE TALLAS -->
-<div id="modal-tallas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:flex-end;justify-content:center" onclick="if(event.target===this)cerrarGuiaTallas()">
+<div id="modal-tallas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:flex-end;justify-content:center" onclick="if(event.target===this)cerrarGuiaTallas()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') { if(event.target===this) cerrarGuiaTallas(); }">
   <div style="background:white;border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <span style="font-size:0.9rem;font-weight:700;color:#333">📏 Guía de tallas</span>
