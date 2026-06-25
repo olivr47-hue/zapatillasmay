@@ -8968,6 +8968,20 @@ window.sugerirCorrida = (productoId, color) => {
   const rangoDeseado = tiene26 ? RANGOS.con26 : RANGOS.sin26
 
   let seleccionadas = rangoDeseado.map(t => conStock.find(v => v.talla === t)).filter(Boolean)
+
+  // Si el rango no completó 6, rellenar con las tallas disponibles más cercanas hacia abajo
+  if (seleccionadas.length < 6) {
+    const idsYa = new Set(seleccionadas.map(v => v.id))
+    const rangoMinIdx = TALLAS_ORDEN.indexOf(rangoDeseado[rangoDeseado.length - 1])
+    const extras = conStock
+      .filter(v => !idsYa.has(v.id) && TALLAS_ORDEN.indexOf(v.talla) < rangoMinIdx)
+      .sort((a, b) => TALLAS_ORDEN.indexOf(b.talla) - TALLAS_ORDEN.indexOf(a.talla)) // desc: más cercanas primero
+    for (const v of extras) {
+      if (seleccionadas.length >= 6) break
+      seleccionadas.push(v)
+    }
+  }
+
   if (!seleccionadas.length) seleccionadas = conStock.slice(0, tieneMedias ? 6 : 5)
 
   if (tieneMedias) {
