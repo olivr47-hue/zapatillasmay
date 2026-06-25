@@ -4765,23 +4765,26 @@ function renderVariante(i, datos) {
   const esNuevo = !datos  // new color starts expanded, existing starts collapsed
 
   let fotosHTML = ''
-  if (d.imagenes && d.imagenes.length > 0) {
-    fotosHTML = d.imagenes.map((url, fIdx) => {
-      const esPortada = fIdx === 0
-      return `<div style="position:relative;cursor:pointer" data-url="${url}" data-es-portada="${esPortada}" data-file-idx="${fIdx}">
-  <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}" onclick="seleccionarPortadaExistente(${i}, ${fIdx})">
-        ${esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>' : ''}
-        <button onclick="eliminarFotoExistente(${i}, this)" style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
-      </div>`
+  const fotos = (window._variantesFotos && window._variantesFotos[i]) || []
+  if (fotos.length > 0) {
+    fotosHTML = fotos.map((foto, fIdx) => {
+      const src = foto.type === 'url' ? foto.value : foto.previewUrl
+      const esPortada = foto.isPortada
+      return `
+        <div style="position:relative;cursor:pointer" data-fidx="${fIdx}">
+          <img src="${src}" 
+               style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}"
+               onclick="seleccionarPortadaClave(${i}, ${fIdx})">
+          ${esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>' : ''}
+          <button type="button" onclick="eliminarFotoClave(${i}, ${fIdx})" 
+                  style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
+      `
     }).join('')
-  } else if (d.foto_url) {
-    fotosHTML = `<div style="position:relative" data-url="${d.foto_url}" data-es-portada="true" data-file-idx="0">
-      <img src="${d.foto_url}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid #E91E8C">
-      <span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>
-    </div>`
   }
 
-  const thumbSrc = (d.imagenes && d.imagenes[0]) || d.foto_url || ''
+  const portadaFoto = fotos.find(f => f.isPortada) || fotos[0]
+  const thumbSrc = portadaFoto ? (portadaFoto.type === 'url' ? portadaFoto.value : portadaFoto.previewUrl) : ''
   const thumbHTML = thumbSrc
     ? `<img src="${thumbSrc}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
     : `<div style="width:36px;height:36px;background:#f0f0f0;border-radius:6px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#ccc;flex-shrink:0">📷</div>`
@@ -4834,7 +4837,6 @@ function renderVariante(i, datos) {
                  oninput="actualizarTablaStock();var lbl=document.getElementById('v${i}-header-label');if(lbl)lbl.textContent=this.value||'Color ${i+1}'">
         </div>
 
-        <!-- Photo uploader -->
         <div style="background:white;border-radius:10px;padding:0.875rem;border:1px dashed #ddd">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
             <div>
@@ -4855,6 +4857,7 @@ function renderVariante(i, datos) {
     </div>
   `
 }
+
 window.eliminarColorVariante = async (idx, btn) => {
   const nombreInput = document.getElementById('v' + idx + '-nombre')
   const color = nombreInput ? nombreInput.value : null
@@ -4862,7 +4865,6 @@ window.eliminarColorVariante = async (idx, btn) => {
   if (color && window._productoEditandoId && window._coloresExistentes) {
     if (!confirm('Eliminar el color ' + color + ' y todas sus variantes?')) return
 
-    // Eliminar variantes de este color en la base de datos
     try {
       const resVars = await fetch(API + '/variantes/producto/' + window._productoEditandoId)
       const variantes = await resVars.json()
@@ -4871,14 +4873,13 @@ window.eliminarColorVariante = async (idx, btn) => {
       for (const v of varsColor) {
         await fetch(API + '/variantes/' + v.id + '/eliminar', {
           method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      })
+          headers: { 'Content-Type': 'application/json' }
+        })
       }
 
-      // Quitar de coloresExistentes
       window._coloresExistentes = window._coloresExistentes.filter(c => c.color !== color)
       if (!window._coloresEliminados) window._coloresEliminados = []
-     window._coloresEliminados.push(color)
+      window._coloresEliminados.push(color)
       
       alert('Color eliminado correctamente')
     } catch(e) {
@@ -4887,28 +4888,82 @@ window.eliminarColorVariante = async (idx, btn) => {
     }
   }
 
-  // Quitar del DOM
   btn.closest('.variante-item').remove()
+  
+  if (window._variantesFotos && window._variantesFotos[idx]) {
+    window._variantesFotos[idx].forEach(f => {
+      if (f.type === 'file' && f.previewUrl) URL.revokeObjectURL(f.previewUrl)
+    })
+    delete window._variantesFotos[idx]
+  }
+
   actualizarTablaStock()
 }
-window.eliminarFotoExistente = (idx, btn) => {
-  const div = btn.parentElement
-  const url = div.dataset.url
-  const preview = document.getElementById('v' + idx + '-preview')
-  
-  // Quitar del DOM
-  div.remove()
 
-  // Quitar del coloresExistentes
+window.actualizarVistaPreviews = (idx) => {
+  const preview = document.getElementById('v' + idx + '-preview')
+  if (!preview) return
+
+  const fotos = window._variantesFotos[idx] || []
+  if (fotos.length === 0) {
+    preview.innerHTML = `<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>`
+    return
+  }
+
+  preview.innerHTML = fotos.map((foto, fIdx) => {
+    const src = foto.type === 'url' ? foto.value : foto.previewUrl
+    const esPortada = foto.isPortada
+    return `
+      <div style="position:relative;cursor:pointer" data-fidx="${fIdx}">
+        <img src="${src}" 
+             style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}"
+             onclick="seleccionarPortadaClave(${idx}, ${fIdx})">
+        ${esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>' : ''}
+        <button type="button" onclick="eliminarFotoClave(${idx}, ${fIdx})" 
+                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+    `
+  }).join('')
+
+  const headerThumb = document.getElementById('v' + idx + '-header-thumb')
+  if (headerThumb) {
+    const portadaFoto = fotos.find(f => f.isPortada) || fotos[0]
+    const thumbSrc = portadaFoto ? (portadaFoto.type === 'url' ? portadaFoto.value : portadaFoto.previewUrl) : ''
+    headerThumb.innerHTML = thumbSrc 
+      ? `<img src="${thumbSrc}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
+      : `<div style="width:36px;height:36px;background:#f0f0f0;border-radius:6px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#ccc;flex-shrink:0">📷</div>`
+  }
+}
+
+window.seleccionarPortadaClave = (idx, fIdx) => {
+  const fotos = window._variantesFotos[idx] || []
+  fotos.forEach((foto, i) => {
+    foto.isPortada = (i === fIdx)
+  })
+  
+  const portadaItem = fotos.splice(fIdx, 1)[0]
+  fotos.unshift(portadaItem)
+  
+  window.actualizarVistaPreviews(idx)
+}
+
+window.eliminarFotoClave = (idx, fIdx) => {
+  const fotos = window._variantesFotos[idx] || []
+  const removed = fotos.splice(fIdx, 1)[0]
+  
+  if (removed && removed.type === 'file' && removed.previewUrl) {
+    URL.revokeObjectURL(removed.previewUrl)
+  }
+
   const nombreInput = document.getElementById('v' + idx + '-nombre')
-  if (nombreInput && window._coloresExistentes) {
+  if (nombreInput && window._coloresExistentes && removed && removed.type === 'url') {
     const color = nombreInput.value
     const colorExistente = window._coloresExistentes.find(c => c.color === color)
     if (colorExistente) {
       if (colorExistente.imagenes) {
-        colorExistente.imagenes = colorExistente.imagenes.filter(u => u !== url)
+        colorExistente.imagenes = colorExistente.imagenes.filter(u => u !== removed.value)
       }
-      if (colorExistente.foto_url === url) {
+      if (colorExistente.foto_url === removed.value) {
         colorExistente.foto_url = colorExistente.imagenes && colorExistente.imagenes.length > 0 
           ? colorExistente.imagenes[0] 
           : null
@@ -4916,36 +4971,11 @@ window.eliminarFotoExistente = (idx, btn) => {
     }
   }
 
-  // Si era portada, hacer portada la siguiente
-  if (div.dataset.esPortada === 'true' && preview) {
-    const siguiente = preview.querySelector('div[data-url]')
-    if (siguiente) {
-      siguiente.dataset.esPortada = 'true'
-      siguiente.querySelector('img').style.border = '2px solid #E91E8C'
-      const badge = document.createElement('span')
-      badge.className = 'portada-badge'
-      badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
-      badge.textContent = 'PORTADA'
-      siguiente.appendChild(badge)
-    }
+  if (removed && removed.isPortada && fotos.length > 0) {
+    fotos[0].isPortada = true
   }
-}
-window.seleccionarPortadaExistente = (idx, fotoIdx) => {
-  const preview = document.getElementById('v' + idx + '-preview')
-  if (!preview) return
-  preview.querySelectorAll('.portada-badge').forEach(b => b.remove())
-  preview.querySelectorAll('img').forEach(img => img.style.border = '3px solid #eee')
-  preview.querySelectorAll('[data-es-portada]').forEach(d => d.dataset.esPortada = 'false')
-  const divs = preview.querySelectorAll('div[data-file-idx]')
-  if (divs[fotoIdx]) {
-    divs[fotoIdx].dataset.esPortada = 'true'
-    divs[fotoIdx].querySelector('img').style.border = '3px solid #E91E8C'
-    const badge = document.createElement('span')
-    badge.className = 'portada-badge'
-    badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none'
-    badge.textContent = 'PORTADA'
-    divs[fotoIdx].appendChild(badge)
-  }
+
+  window.actualizarVistaPreviews(idx)
 }
 
 window.mostrarFormProducto = (datos) => {
@@ -4954,11 +4984,24 @@ window.mostrarFormProducto = (datos) => {
   ? window._coloresExistentes.length 
   : 1
   const d = datos || {}
+
+  window._variantesFotos = {}
+  if (window._coloresExistentes && window._coloresExistentes.length > 0) {
+    window._coloresExistentes.forEach((c, idx) => {
+      window._variantesFotos[idx] = []
+      if (c.imagenes && c.imagenes.length > 0) {
+        c.imagenes.forEach((url, fIdx) => {
+          window._variantesFotos[idx].push({ type: 'url', value: url, isPortada: fIdx === 0 })
+        })
+      } else if (c.foto_url) {
+        window._variantesFotos[idx].push({ type: 'url', value: c.foto_url, isPortada: true })
+      }
+    })
+  } else {
+    window._variantesFotos[0] = []
+  }
+
   const content = document.getElementById('content')
-  varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0
-  ? window._coloresExistentes.length
-  : 1
-if (!datos) window._coloresExistentes = null
   content.innerHTML = `
     <div class="table-card" style="padding:2rem;overflow:visible">
       <div style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;margin:-2rem -2rem 1.5rem -2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
@@ -5470,6 +5513,8 @@ window.agregarVariante = () => {
     }
   })
   const i = varianteCount++
+  window._variantesFotos = window._variantesFotos || {}
+  window._variantesFotos[i] = []
   const container = document.getElementById('variantes-container')
   const div = document.createElement('div')
   div.innerHTML = renderVariante(i, null)
@@ -5480,34 +5525,29 @@ window.agregarVariante = () => {
 }
 
 window.previsualizarImagenes = (input, idx) => {
-  const preview = document.getElementById('v' + idx + '-preview')
-  if (!preview) return
-  
-  // Mantener fotos existentes
-  const existentes = preview.querySelectorAll('[data-existente]')
-  const nuevas = []
+  if (!input.files || !input.files.length) return
 
-  Array.from(input.files).forEach((file, fileIdx) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const div = document.createElement('div')
-      div.style.cssText = 'position:relative;cursor:pointer'
-      div.dataset.fileIdx = fileIdx
-      div.innerHTML = `
-        <img src="${e.target.result}" 
-             style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #ddd"
-             onclick="seleccionarPortada(${idx}, this)">
-        <button onclick="this.parentElement.remove()" 
-                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:16px;height:16px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
-      `
-      preview.appendChild(div)
-      // Primera foto nueva es portada automáticamente si no hay portada
-      if (preview.querySelectorAll('.portada-badge').length === 0) {
-        seleccionarPortada(idx, div.querySelector('img'))
-      }
-    }
-    reader.readAsDataURL(file)
+  window._variantesFotos = window._variantesFotos || {}
+  if (!window._variantesFotos[idx]) window._variantesFotos[idx] = []
+
+  const fotos = window._variantesFotos[idx]
+
+  Array.from(input.files).forEach(file => {
+    fotos.push({
+      type: 'file',
+      value: file,
+      previewUrl: URL.createObjectURL(file),
+      isPortada: false
+    })
   })
+
+  // Si ninguna tiene portada, marcar la primera
+  if (!fotos.some(f => f.isPortada) && fotos.length > 0) fotos[0].isPortada = true
+
+  // Limpiar el input para poder abrir el selector otra vez (distintas carpetas)
+  input.value = ''
+
+  window.actualizarVistaPreviews(idx)
 }
 
 window.seleccionarPortada = (idx, imgEl) => {
@@ -5606,76 +5646,48 @@ window.actualizarTotalColor = (colorId) => {
 async function subirImagenesVariantes() {
   const variantes = document.querySelectorAll('.variante-item')
   const resultado = []
-  const coloresExistentes = window._coloresExistentes || []
 
   for (const v of variantes) {
-    const id = v.id.replace('variante-', '')
-    const hex = document.getElementById('v' + id + '-hex')
-    const nombre = document.getElementById('v' + id + '-nombre')
-    const inputImgs = document.getElementById('v' + id + '-imgs')
-    const preview = document.getElementById('v' + id + '-preview')
+    const idx = parseInt(v.id.replace('variante-', ''))
+    const hex = document.getElementById('v' + idx + '-hex')
+    const nombre = document.getElementById('v' + idx + '-nombre')
 
     if (!nombre || !nombre.value) continue
 
-    const urls = []
+    const fotos = window._variantesFotos[idx] || []
+    console.log(`[Fotos] Color "${nombre.value}": procesando ${fotos.length} foto(s)`)
 
-    // Conservar fotos existentes desde el DOM — portada seleccionada va primero
-if (preview) {
-  const portadaDiv = preview.querySelector('[data-es-portada="true"]')
-  const portadaUrl = portadaDiv ? portadaDiv.dataset.url : null
-  if (portadaUrl) urls.push(portadaUrl)
-  preview.querySelectorAll('div[data-url]').forEach(div => {
-    const url = div.dataset.url
-    if (url && !urls.includes(url)) urls.push(url)
-  })
-}
-
-    // Subir fotos nuevas — todas en PARALELO
-    if (inputImgs && inputImgs.files.length > 0) {
-      const portadaDiv = preview ? preview.querySelector('[data-es-portada="true"]') : null
-      const portadaFileIdx = portadaDiv ? parseInt(portadaDiv.dataset.fileIdx ?? '0') : 0
-      const files = Array.from(inputImgs.files)
-      console.log(`[Fotos] Color "${nombre.value}": subiendo ${files.length} foto(s) en paralelo`)
-
-      const subir = async (file, fi) => {
+    const promesasSubida = fotos.map(async (foto) => {
+      if (foto.type === 'url') {
+        return foto.value
+      } else {
+        const formData = new FormData()
+        formData.append('archivo', foto.value)
         for (let intento = 1; intento <= 3; intento++) {
-          const formData = new FormData()
-          formData.append('archivo', file)
           try {
             const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
-            if (!res.ok) {
-              if (intento < 3) await new Promise(r => setTimeout(r, 1200))
-              continue
+            if (res.ok) {
+              const data = await res.json()
+              if (data.url) return data.url
             }
-            const data = await res.json()
-            if (data.url) return { fi, url: data.url }
-          } catch(e) {
-            if (intento < 3) await new Promise(r => setTimeout(r, 1200))
-          }
+          } catch(e) {}
+          if (intento < 3) await new Promise(r => setTimeout(r, 1200))
         }
-        console.error(`[Fotos] FALLÓ foto ${fi+1} de "${nombre.value}" tras 3 intentos`)
-        return { fi, url: null }
+        console.error(`[Fotos] FALLÓ subir foto de "${nombre.value}" tras 3 intentos`)
+        return null
       }
+    })
 
-      // Subir todas a la vez
-      const resultados = await Promise.all(files.map((f, fi) => subir(f, fi)))
+    const urlsResultados = await Promise.all(promesasSubida)
+    const urlsValidas = urlsResultados.filter(Boolean)
 
-      // Agregar a urls: portada primero, luego el resto en orden
-      const portadaRes = resultados.find(r => r.fi === portadaFileIdx)
-      if (portadaRes?.url) urls.push(portadaRes.url)
-      for (const r of resultados) {
-        if (r.fi !== portadaFileIdx && r.url) urls.push(r.url)
-      }
-
-      const fallidas = resultados.filter(r => !r.url).length
-      if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) de "${nombre.value}" no se pudieron subir. Intenta de nuevo.`)
-      console.log(`[Fotos] Color "${nombre.value}": ${urls.length} URL(s) listas`)
-    }
+    const fallidas = urlsResultados.length - urlsValidas.length
+    if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) de "${nombre.value}" no se pudieron subir. Intenta de nuevo.`)
 
     resultado.push({ 
       color: nombre.value, 
       color_hex: hex ? hex.value : '#000000', 
-      imagenes: urls 
+      imagenes: urlsValidas
     })
   }
   return resultado
@@ -5892,64 +5904,53 @@ if (hayStockCapturado && !sucursalStock) {
 } else if (sucursalStock && pid) {
   const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
 
-  // Esperar a que Supabase confirme todas las variantes recién creadas
-  await new Promise(r => setTimeout(r, 800))
-
-  // Reintentar hasta 3 veces si no aparecen todas las variantes esperadas
-  let varsActualizadas = []
-  const totalEsperadas = variantesData.length * tallasGuardar.length
-  for (let intento = 0; intento < 3; intento++) {
-    varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
-    if (varsActualizadas.length >= totalEsperadas) break
-    await new Promise(r => setTimeout(r, 600))
-  }
+  // Las variantes ya están guardadas (await Promise.all arriba): obtener IDs una sola vez
+  const varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
 
   const invActual = await fetch(API + '/inventario/').then(r => r.json())
   const varIdsConInv = new Set(invActual.filter(i => i.sucursal_id === sucursalStock).map(i => i.variante_id))
 
-  // Iterar sobre variantes reales de la BD (no sobre checkboxes)
-  // Esto evita crear variantes incorrectas si los checkboxes no coinciden exactamente
+  // Construir todas las peticiones de stock en paralelo
+  const stockPromesas = []
   for (const varMatch of varsActualizadas) {
-    // Encontrar el color en el DOM para saber el id del input de stock
     const colorMatch = colores.find(c =>
       c.nombre.trim().toLowerCase() === (varMatch.color || '').trim().toLowerCase()
     )
-    if (!colorMatch) continue  // color no está en el formulario actual → saltar
+    if (!colorMatch) continue
 
     const tallaId = String(varMatch.talla || '').replace('.', '_')
     const inputStock = document.getElementById('stock-ini-' + colorMatch.id + '-' + tallaId)
     const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
 
     if (cantidad > 0) {
-      // Guardar entrada de stock
-      const resStock = await fetch(API + '/movimientos/ajuste', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          variante_id: varMatch.id,
-          sucursal_id: sucursalStock,
-          cantidad,
-          motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
-        })
-      })
-      if (!resStock.ok) {
-        const errTxt = await resStock.text()
-        console.error(`[Stock] Error ${varMatch.color} T${varMatch.talla}:`, errTxt)
-        stockErrores.push(`${varMatch.color} T${varMatch.talla}`)
-      } else {
-        stockGuardado++
-        console.log(`[Stock] ✓ ${varMatch.color} T${varMatch.talla} +${cantidad}`)
-      }
+      stockPromesas.push(
+        fetch(API + '/movimientos/ajuste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            variante_id: varMatch.id,
+            sucursal_id: sucursalStock,
+            cantidad,
+            motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
+          })
+        }).then(r => {
+          if (!r.ok) { stockErrores.push(`${varMatch.color} T${varMatch.talla}`); return }
+          stockGuardado++
+          console.log(`[Stock] ✓ ${varMatch.color} T${varMatch.talla} +${cantidad}`)
+        }).catch(() => stockErrores.push(`${varMatch.color} T${varMatch.talla}`))
+      )
     } else if (!varIdsConInv.has(varMatch.id)) {
-      // Sin stock capturado y sin registro en inventario → crear con 0 para que aparezca en inventario
-      await fetch(API + '/movimientos/ajuste', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
-      })
-      console.log(`[Stock] Registro 0 creado: ${varMatch.color} T${varMatch.talla}`)
+      stockPromesas.push(
+        fetch(API + '/movimientos/ajuste', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
+        }).then(() => console.log(`[Stock] Registro 0: ${varMatch.color} T${varMatch.talla}`))
+        .catch(() => {})
+      )
     }
   }
+  await Promise.all(stockPromesas)
 }
       if (prod && prod.error) {
         alert('Error: ' + prod.error)
