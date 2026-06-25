@@ -8952,22 +8952,32 @@ window.sugerirCorrida = (productoId, color) => {
   // Limpiar cantidades actuales de este color
   varsColor.forEach(v => { window._corridaCantidades[v.id] = 0 })
 
+  // Rango preferido: del 26 hacia abajo (la mayoría pide hasta 26).
+  // Si no hay 26 en stock, recorrer un número hacia abajo.
+  const tiene26 = conStock.some(v => v.talla === '26')
+  const RANGOS = tieneMedias
+    ? { con26: ['26','25.5','25','24.5','24','23.5'], sin26: ['25.5','25','24.5','24','23.5','23'] }
+    : { con26: ['26','25','24','23'], sin26: ['25','24','23','22'] }
+  const rangoDeseado = tiene26 ? RANGOS.con26 : RANGOS.sin26
+
+  let seleccionadas = rangoDeseado.map(t => conStock.find(v => v.talla === t)).filter(Boolean)
+  if (!seleccionadas.length) seleccionadas = conStock.slice(0, tieneMedias ? 6 : 5)
+
   if (tieneMedias) {
-    // Corrida normal: 1 por talla
-    conStock.slice(0, 6).forEach(v => {
+    // Corrida normal: 1 por talla del rango
+    seleccionadas.slice(0, 6).forEach(v => {
       window._corridaCantidades[v.id] = 1
     })
   } else {
     // Solo enteros: distribuir 6 pares duplicando tallas centrales
-    const tallas = conStock.slice(0, 5)
+    const tallas = seleccionadas.slice(0, 5)
     if (tallas.length >= 4) {
       tallas.forEach((v, i) => {
         window._corridaCantidades[v.id] = (i === 1 || i === 2) ? 2 : 1
       })
     } else {
-      // Pocas tallas, distribuir uniformemente
-      conStock.slice(0, 6).forEach(v => {
-        window._corridaCantidades[v.id] = Math.ceil(6 / conStock.length)
+      seleccionadas.slice(0, 6).forEach(v => {
+        window._corridaCantidades[v.id] = Math.ceil(6 / seleccionadas.length)
       })
     }
   }
