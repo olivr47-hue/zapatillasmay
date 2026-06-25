@@ -164,6 +164,30 @@ def salud():
 def health():
     return {"ok": True}
 
+@app.get("/utils/cp/{cp}")
+def buscar_cp(cp: str):
+    """Proxy SEPOMEX: devuelve estado, ciudad y colonias para un CP mexicano."""
+    import urllib.request, json, re
+    cp = re.sub(r'\D', '', cp)[:5]
+    if len(cp) != 5:
+        return {"error": "CP inválido"}
+    try:
+        req = urllib.request.Request(
+            f"https://sepomex.nitrostudio.com.mx/api/latest/cp/{cp}.json",
+            headers={"User-Agent": "ZapatillasMay/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read())
+        posts = data.get("data", {}).get("postcodes", [])
+        if not posts:
+            return {"error": "CP no encontrado"}
+        estado = (posts[0].get("d_estado") or "").strip()
+        ciudad = (posts[0].get("d_mnpio") or posts[0].get("d_ciudad") or "").strip()
+        colonias = sorted({(p.get("d_asenta") or "").strip() for p in posts if p.get("d_asenta")})
+        return {"estado": estado, "ciudad": ciudad, "colonias": colonias}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.get("/cache/stats")
 def cache_estado():
     """Ver qué hay en caché y cuánto tiempo le queda a cada clave."""
