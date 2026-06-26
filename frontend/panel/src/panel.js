@@ -10794,6 +10794,196 @@ window.generarPDFPedido = async (pedidoId) => {
   `)
   ventana.document.close()
 }
+
+window.generarCotizacionCarrito = async (pedidoId) => {
+  const res = await fetch(API + '/pedidos/' + pedidoId)
+  const data = await res.json()
+  if (!data || data.length === 0) return
+  const pedido = data[0]
+  const items = pedido.pedido_items || []
+  const cliente = pedido.clientes || {}
+  const fecha = new Date(pedido.created_at || Date.now()).toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+  const fechaVence = new Date(Date.now() + 7 * 86400000).toLocaleDateString('es-MX', { year:'numeric', month:'long', day:'numeric' })
+  const total = items.reduce((s, i) => s + (i.cantidad * (i.precio_unitario || 0)), 0)
+  const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+
+  const ventana = window.open('', '_blank')
+  ventana.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Cotización ${pedidoId.substring(0,8).toUpperCase()}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; font-size:13px; color:#333; padding:40px; }
+        .header { display:flex; justify-content:space-between; align-items:start; margin-bottom:30px; }
+        .logo { font-size:24px; font-weight:bold; color:#E91E8C; }
+        .logo span { color:#333; }
+        .empresa-datos { font-size:11px; color:#666; margin-top:4px; line-height:1.6; }
+        .cot-info { text-align:right; }
+        .cot-titulo { font-size:22px; font-weight:bold; color:#555; letter-spacing:2px; text-transform:uppercase; }
+        .cot-num { font-size:14px; font-weight:bold; color:#333; margin-top:4px; }
+        .cot-fecha { font-size:12px; color:#888; margin-top:2px; }
+        .vence { display:inline-block; margin-top:8px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:4px 10px; font-size:11px; color:#f57f17; font-weight:600; }
+        .divider { border-top:2px solid #E91E8C; margin:20px 0; }
+        .divider-light { border-top:1px solid #eee; margin:15px 0; }
+        .section-title { font-weight:bold; font-size:12px; color:#888; text-transform:uppercase; margin-bottom:8px; }
+        .cliente-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+        .campo { margin-bottom:6px; }
+        .campo-label { font-size:11px; color:#888; }
+        .campo-valor { font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        thead tr { background:#f5f5f5; }
+        th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
+        td { padding:8px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; vertical-align:middle; }
+        .td-foto { width:64px; padding:6px 8px; }
+        .foto-variante { width:56px; height:56px; object-fit:cover; border-radius:6px; display:block; background:#f5f5f5; }
+        .text-right { text-align:right; }
+        .total-section { display:flex; justify-content:flex-end; }
+        .total-box { width:250px; }
+        .total-row { display:flex; justify-content:space-between; padding:6px 0; }
+        .total-final { display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid #E91E8C; font-size:16px; font-weight:bold; color:#E91E8C; }
+        .nota-validez { margin-top:24px; background:#f8fafc; border-left:3px solid #E91E8C; padding:10px 14px; font-size:12px; color:#555; border-radius:0 6px 6px 0; }
+        .footer { margin-top:40px; padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+        .firma-box { margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+        .firma-linea { border-top:1px solid #ccc; padding-top:6px; font-size:11px; color:#888; text-align:center; margin-top:40px; }
+        @media print { body { padding:20px; } @page { margin:15mm; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo">Zapatillas <span>May</span></div>
+          <div class="empresa-datos">
+            RFC: SAPL620614JD7<br>
+            Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
+            Tel: 477 530 8983 | zapatillasmay.mx
+          </div>
+        </div>
+        <div class="cot-info">
+          <div class="cot-titulo">Cotización</div>
+          <div class="cot-num">COT-${pedidoId.substring(0,8).toUpperCase()}</div>
+          <div class="cot-fecha">Fecha: ${fecha}</div>
+          <div class="vence">⏳ Válida hasta: ${fechaVence}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="cliente-grid">
+        <div>
+          <div class="section-title">Datos del cliente</div>
+          <div class="campo">
+            <div class="campo-label">Nombre</div>
+            <div class="campo-valor">${cliente.nombre || 'Cliente general'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Teléfono</div>
+            <div class="campo-valor">${cliente.telefono || '—'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Email</div>
+            <div class="campo-valor">${cliente.email || '—'}</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Condiciones</div>
+          <div class="campo">
+            <div class="campo-label">Forma de pago</div>
+            <div class="campo-valor">${pedido.forma_pago || 'Por definir'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Sucursal</div>
+            <div class="campo-valor">${pedido.sucursales ? pedido.sucursales.nombre : '—'}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Total de pares</div>
+            <div class="campo-valor">${totalPares} pares</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-light"></div>
+
+      <div class="section-title">Productos cotizados</div>
+      <table>
+        <thead>
+          <tr>
+            <th class="td-foto"></th>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Talla</th>
+            <th class="text-right">Cant</th>
+            <th class="text-right">Precio unit</th>
+            <th class="text-right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(item => {
+            const variante = item.variantes || {}
+            const producto = variante.productos || {}
+            const fotoUrl = variante.foto_url || ''
+            return `
+              <tr>
+                <td class="td-foto">${fotoUrl ? `<img class="foto-variante" src="${fotoUrl}" alt="">` : '<div class="foto-variante" style="border:1px dashed #ddd"></div>'}</td>
+                <td>${producto.nombre || item.nombre || '—'}</td>
+                <td>${variante.color || item.color || '—'}</td>
+                <td>${variante.talla || item.talla || '—'}</td>
+                <td class="text-right">${item.cantidad}</td>
+                <td class="text-right">$${parseFloat(item.precio_unitario || 0).toFixed(2)}</td>
+                <td class="text-right"><strong>$${parseFloat(item.subtotal || item.cantidad * item.precio_unitario || 0).toFixed(2)}</strong></td>
+              </tr>
+            `
+          }).join('')}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-box">
+          <div class="total-row">
+            <span>Total pares:</span>
+            <span>${totalPares}</span>
+          </div>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>$${total.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      ${pedido.comentarios ? `
+        <div class="divider-light"></div>
+        <div class="section-title">Notas</div>
+        <p style="font-size:12px;color:#555">${pedido.comentarios}</p>
+      ` : ''}
+
+      <div class="nota-validez">
+        ⚠️ Esta cotización es válida por <strong>7 días</strong> a partir de la fecha de emisión. Los precios están sujetos a disponibilidad de inventario. Para confirmar el pedido comuníquese a Tel: 477 530 8983.
+      </div>
+
+      <div class="firma-box">
+        <div>
+          <div class="firma-linea">Elaboró — Zapatillas May</div>
+        </div>
+        <div>
+          <div class="firma-linea">Autorización del cliente</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>Zapatillas May — zapatillasmay.mx</span>
+        <span>RFC: SAPL620614JD7</span>
+        <span>Generado el ${new Date().toLocaleDateString('es-MX')}</span>
+      </div>
+
+      <script>window.onload = () => { window.print() }<\/script>
+    </body>
+    </html>
+  `)
+  ventana.document.close()
+}
+
 async function cargarHistorial() {
   const content = document.getElementById('content')
   try {
@@ -17693,6 +17883,9 @@ function renderCarritoAbierto(p) {
         </div>
         <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
           ✅ Confirmar venta
+        </button>
+        <button class="btn btn-secondary" onclick="generarCotizacionCarrito('${pedidoId}')">
+          📄 Cotización PDF
         </button>
         <button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="liberarCarrito('${pedidoId}')">
           🗑 Liberar
