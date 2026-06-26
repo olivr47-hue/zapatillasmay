@@ -503,6 +503,7 @@
 
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
+const targetImgWidth = (window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth) < 600 ? 500 : 900;
 // Redimensiona/optimiza imágenes de Cloudinary al vuelo (WebP/AVIF + ancho objetivo).
 // No altera el original en Cloudinary ni lo que se manda a MercadoLibre.
 function zmImg(url, w){
@@ -629,7 +630,7 @@ function renderProducto() {
   const imgMain = document.getElementById('gallery-main')
   const imgPrincipal = p.imagen_principal || ''
   fotosActuales = imgPrincipal ? [imgPrincipal] : []
-  imgMain.src = zmImg(imgPrincipal, 900)
+  imgMain.src = zmImg(imgPrincipal, targetImgWidth)
   imgMain.alt = (p.nombre && p.nombre.split(' ').length > 2)
     ? `${p.nombre.trim()} — Zapatillas May`
     : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim();
@@ -851,7 +852,7 @@ function seleccionarColor(color) {
     if (Array.isArray(v.imagenes)) v.imagenes.forEach(u => { if (u && u !== v.foto_url) fotosActuales.push(u) })
     if (!fotosActuales.length && producto.imagen_principal) fotosActuales.push(producto.imagen_principal)
     const imgMain = document.getElementById('gallery-main')
-    imgMain.src = zmImg(fotosActuales[0] || '', 900)
+    imgMain.src = zmImg(fotosActuales[0] || '', targetImgWidth)
     imgMain.alt = `${producto.nombre} ${color} ${producto.categoria || ''} — Zapatillas May`.replace(/\s+/g, ' ').trim()
     renderThumbs()
   }
@@ -901,13 +902,13 @@ function renderThumbs() {
   if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
   row.style.display = 'flex'
   row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${zmImg(url, 128)}" alt="${(producto?.nombre && producto.nombre.split(' ').length > 2) ? `${producto.nombre.trim()} — foto ${i+1}` : `${producto?.nombre || 'Calzado'} ${producto?.categoria || ''} — foto ${i+1}`}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
-  // Precargar fotos secundarias en 900px para que el click sea instantáneo
-  fotosActuales.slice(1).forEach(url => { const _p = new Image(); _p.src = zmImg(url, 900) })
+  // Precargar fotos secundarias en targetImgWidth para que el click sea instantáneo
+  fotosActuales.slice(1).forEach(url => { const _p = new Image(); _p.src = zmImg(url, targetImgWidth) })
 }
 
 function cambiarFoto(idx) {
   const imgMain = document.getElementById('gallery-main')
-  const nextSrc = zmImg(fotosActuales[idx], 900)
+  const nextSrc = zmImg(fotosActuales[idx], targetImgWidth)
   document.querySelectorAll('.gallery-thumb').forEach((t,i) => t.classList.toggle('active', i===idx))
   const img = new Image()
   img.onload = () => {

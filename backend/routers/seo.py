@@ -14,6 +14,18 @@ router = APIRouter(tags=["SEO"])
 def _get_api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "")
 
+
+def _img_web(url: str, w: int) -> str:
+    """Optimiza imágenes de Cloudinary para la web (ancho específico, auto formato y calidad)."""
+    u = (url or "").strip()
+    if not u or "res.cloudinary.com" not in u or "/upload/" not in u:
+        return u
+    if "/upload/f_auto" in u or ",f_auto" in u:
+        return u
+    cabeza, _, cola = u.partition("/upload/")
+    return f"{cabeza}/upload/w_{w},f_auto,q_auto/{cola}"
+
+
 @router.post("/productos/generar-seo")
 def generar_seo(datos: dict):
     """Genera slug, meta título y meta descripción SEO usando IA a partir de los datos del producto."""
@@ -217,21 +229,33 @@ def _producto_ssr_inner(sku: str):
     def _esc(s):
         return _html.escape(str(s or ""), quote=True)
 
-    # 2. Obtener template producto.html desde Vercel (cacheado)
+    # 2. Obtener template producto.html (local o desde Vercel)
     cache_key = "tpl_producto_html"
     template  = cache_get(cache_key)
     if template is None:
-        try:
-            req = urllib.request.Request(
-                "https://zapatillasmay.mx/producto.html",
-                headers={"User-Agent": "ZapatillasSSR/1.0"}
-            )
-            with urllib.request.urlopen(req, timeout=8) as r:
-                template = r.read().decode("utf-8")
-            cache_set(cache_key, template, ttl=3600)
-        except Exception as e:
-            # Fallback: HTML mínimo con meta tags
-            template = None
+        # Intentar cargar localmente primero para reducir TTFB (~1ms vs ~500ms)
+        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "tienda", "producto.html"))
+        if os.path.exists(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    template = f.read()
+                cache_set(cache_key, template, ttl=3600)
+            except Exception as e:
+                print(f"[seo] Error leyendo producto.html local: {e}")
+
+        if template is None:
+            try:
+                req = urllib.request.Request(
+                    "https://zapatillasmay.mx/producto.html",
+                    headers={"User-Agent": "ZapatillasSSR/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=8) as r:
+                    template = r.read().decode("utf-8")
+                cache_set(cache_key, template, ttl=3600)
+            except Exception as e:
+                # Fallback: HTML mínimo con meta tags
+                template = None
+
 
     # aggregateRating real desde reseñas de clientes (si existen)
     _rating_data = None
@@ -314,7 +338,7 @@ def _producto_ssr_inner(sku: str):
 </body></html>"""
         return HTMLResponse(content=html)
 
-    # 3. Inyectar meta tags producto-específicos
+    # 3. Inyectar meta tags producto-específicos y optimización de LCP
     template = template.replace(
         "<title>Zapatillas May</title>",
         f"<title>{_esc(titulo_seo)}</title>"
@@ -324,7 +348,31 @@ def _producto_ssr_inner(sku: str):
         f'content="{_esc(desc)}"'
     )
 
-    schema = f"""
+    # Pre-renderizar imagen principal en el HTML para evitar LCP retrasado
+    if imagen:
+        img_url_900 = _img_web(imagen, 900)
+        img_url_500 = _img_web(imagen, 500)
+        src_replacement = (
+            f'src="{_esc(img_url_900)}" '
+            f'srcset="{_esc(img_url_500)} 500w, {_esc(img_url_900)} 900w" '
+            f'sizes="(max-width: 599px) 500px, 900px" '
+            f'alt="{_esc(nombre)}"'
+        )
+        template = template.replace(
+            'src="" alt="Imagen principal del producto"',
+            src_replacement
+        )
+
+    image_preloads = ""
+    if imagen:
+        img_500 = _img_web(imagen, 500)
+        img_900 = _img_web(imagen, 900)
+        image_preloads = (
+            f'\n  <link rel="preload" as="image" fetchpriority="high" href="{_esc(img_500)}" media="(max-width: 599px)">'
+            f'\n  <link rel="preload" as="image" fetchpriority="high" href="{_esc(img_900)}" media="(min-width: 600px)">'
+        )
+
+    schema = f"""{image_preloads}
   <link rel="canonical" href="{canonical}">
   <meta name="keywords" content="{_esc(palabras)}">
   <meta property="og:title" content="{_esc(titulo_seo)}">
@@ -342,6 +390,7 @@ def _producto_ssr_inner(sku: str):
   <script>window.__ZM_PRODUCT__ = {json.dumps(p, ensure_ascii=False)}; window.__ZM_LOADED__ = true;</script>"""
 
     template = template.replace("</head>", schema + "\n</head>")
+
 
     # #4 — Contenido visible renderizado en servidor (descripción + ficha técnica),
     # para que cuente en SEO sin depender de que el robot ejecute JavaScript.
@@ -649,16 +698,28 @@ def pagina_ssr(slug: str):
 
     template = cache_get("tpl_index_html")
     if template is None:
-        try:
-            req = urllib.request.Request(
-                "https://zapatillasmay.mx/index.html",
-                headers={"User-Agent": "ZapatillasSSR/1.0"}
-            )
-            with urllib.request.urlopen(req, timeout=8) as r:
-                template = r.read().decode("utf-8")
-            cache_set("tpl_index_html", template, ttl=3600)
-        except Exception:
-            template = None
+        # Intentar cargar localmente primero para reducir TTFB (~1ms vs ~500ms)
+        local_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "tienda", "index.html"))
+        if os.path.exists(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    template = f.read()
+                cache_set("tpl_index_html", template, ttl=3600)
+            except Exception as e:
+                print(f"[seo] Error leyendo index.html local: {e}")
+
+        if template is None:
+            try:
+                req = urllib.request.Request(
+                    "https://zapatillasmay.mx/index.html",
+                    headers={"User-Agent": "ZapatillasSSR/1.0"}
+                )
+                with urllib.request.urlopen(req, timeout=8) as r:
+                    template = r.read().decode("utf-8")
+                cache_set("tpl_index_html", template, ttl=3600)
+            except Exception:
+                template = None
+
 
     if not template:
         # No se pudo obtener la plantilla: caer al archivo estático (no genera bucle)

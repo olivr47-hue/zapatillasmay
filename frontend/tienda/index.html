@@ -44,9 +44,16 @@
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <!-- Preload del Splash Shoe (muy liviano, acelera la pantalla de bienvenida) -->
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_120,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png">
   <!-- Preload del LCP: fondo del hero (descubrible desde el HTML y optimizado con Cloudinary) -->
-  <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png">
-  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato">
+  <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(max-width: 767px)">
+  <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(min-width: 768px)">
+  <!-- Preload del zapato principal del hero: responsivo -->
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(max-width: 767px)">
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(min-width: 768px)">
+
   <!-- Preload de las fuentes del título/cuerpo: llegan antes del primer pintado → el swap no provoca CLS -->
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K4.woff2">
@@ -1683,7 +1690,7 @@
   height: 140%;
   /* Fondo por defecto = imagen del hero, para que el navegador la descubra en el HTML
      y la cargue de inmediato (el JS la re-confirma desde la config). */
-  background-image: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
+  background-image: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
   background-size: cover;
   background-position: center center;
   will-change: transform;
@@ -1693,6 +1700,13 @@
   transform: scale(1.1) translateY(30px);
   transition: opacity 0.5s ease;
 }
+
+@media (min-width: 768px) {
+  .hero-bg {
+    background-image: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
+  }
+}
+
 
 .hero.loaded .hero-bg {
   opacity: 1;
@@ -2746,10 +2760,13 @@
     <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
       <img id="hero-shoe-img"
         src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
+        srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato 480w, https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato 900w"
+        sizes="(max-width: 767px) 480px, 900px"
         fetchpriority="high" width="900" height="900"
         onerror="this.parentElement.parentElement.style.display='none'"
         alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
       <div class="hero-shoe-shadow"></div>
+
     </div>
   </div>
 
@@ -3632,7 +3649,9 @@ window.addEventListener('load', () => {
   const bg = document.getElementById('hero-bg')
   if (bg) {
     // Optimiza la imagen del hero (mismo transform que el preload → sin doble descarga)
-    const heroUrl = config.hero_imagen.replace('/image/upload/', '/image/upload/w_1400,f_auto,q_auto/')
+    const screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    const heroWidth = screenWidth < 768 ? 700 : 1400;
+    const heroUrl = config.hero_imagen.replace('/image/upload/', `/image/upload/w_${heroWidth},f_auto,q_auto/`)
     bg.style.backgroundImage = `url('${heroUrl}')`
   }
 }
