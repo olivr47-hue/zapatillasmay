@@ -14,19 +14,17 @@ Variable requerida en ambos casos:
 """
 
 import os, json, time, urllib.request, urllib.parse, urllib.error
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
+import google_sa as _gsa
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, RedirectResponse
-
-try:
-    import jwt as pyjwt
-    JWT_OK = True
-except ImportError:
-    JWT_OK = False
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 GA4_PROPERTY_ID  = os.getenv("GA4_PROPERTY_ID", "")
-GA4_CREDENTIALS  = os.getenv("GA4_CREDENTIALS_JSON", "")
+# Acepta GA4_CREDENTIALS_JSON o cae a GSC_CREDENTIALS_JSON (misma service account)
+GA4_CREDENTIALS  = os.getenv("GA4_CREDENTIALS_JSON", "") or os.getenv("GSC_CREDENTIALS_JSON", "")
 GA4_CLIENT_ID    = os.getenv("GA4_CLIENT_ID", "")
 GA4_CLIENT_SECRET= os.getenv("GA4_CLIENT_SECRET", "")
 GA4_REFRESH_TOKEN= os.getenv("GA4_REFRESH_TOKEN", "")
@@ -70,8 +68,8 @@ def _access_token_oauth2() -> str | None:
 
 
 def _access_token_jwt() -> str | None:
-    """Obtiene access token usando JWT del service account."""
-    if not JWT_OK or not GA4_CREDENTIALS:
+    """Obtiene access token usando la service account (python puro, sin PyJWT)."""
+    if not GA4_CREDENTIALS:
         return None
 
     now = int(time.time())
@@ -79,34 +77,16 @@ def _access_token_jwt() -> str | None:
         return _token_cache["token"]
 
     try:
-        creds = json.loads(GA4_CREDENTIALS)
-        payload = {
-            "iss":   creds["client_email"],
-            "sub":   creds["client_email"],
-            "scope": "https://www.googleapis.com/auth/analytics.readonly",
-            "aud":   "https://oauth2.googleapis.com/token",
-            "iat":   now,
-            "exp":   now + 3600,
-        }
-        signed = pyjwt.encode(payload, creds["private_key"], algorithm="RS256")
-
-        data = f"grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion={signed}".encode()
-        req  = urllib.request.Request(
-            "https://oauth2.googleapis.com/token",
-            data=data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            method="POST"
+        token = _gsa.get_access_token(
+            GA4_CREDENTIALS,
+            "https://www.googleapis.com/auth/analytics.readonly",
         )
-        with urllib.request.urlopen(req) as r:
-            resp = json.loads(r.read())
-
-        token = resp.get("access_token")
-        _token_cache["token"]   = token
-        _token_cache["expires"] = now + resp.get("expires_in", 3600)
+        if token:
+            _token_cache["token"]   = token
+            _token_cache["expires"] = now + 3600
         return token
-
     except Exception as e:
-        print(f"[analytics] Error JWT service account: {e}")
+        print(f"[analytics] Error service account: {e}")
         return None
 
 
@@ -177,7 +157,6 @@ def diagnostico():
             oauth2_error = str(e)
 
     return {
-        "jwt_ok": JWT_OK,
         "tiene_property_id": bool(GA4_PROPERTY_ID),
         "property_id": GA4_PROPERTY_ID,
         "tiene_credentials_json": bool(GA4_CREDENTIALS),
@@ -190,8 +169,8 @@ def diagnostico():
 
 def _esta_configurado() -> bool:
     tiene_oauth2 = bool(GA4_CLIENT_ID and GA4_CLIENT_SECRET and GA4_REFRESH_TOKEN)
-    tiene_jwt    = bool(GA4_CREDENTIALS)
-    return bool(GA4_PROPERTY_ID) and (tiene_oauth2 or tiene_jwt)
+    tiene_sa     = bool(GA4_CREDENTIALS)
+    return bool(GA4_PROPERTY_ID) and (tiene_oauth2 or tiene_sa)
 
 
 def _no_credenciales():
