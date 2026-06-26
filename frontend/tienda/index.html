@@ -2706,37 +2706,8 @@
   <button class="zm-chip zm-chip-ofertas" onclick="mostrarOfertas()">🔥 Ofertas</button>
 </div>
 <style>
-  #zm-chips { display: none; }
-  @media (max-width: 768px) {
-    /* Solo visible flotante sobre el hero al hacer scroll un poco */
-    #zm-chips {
-      display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
-      padding: 10px 14px;
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(200,150,122,0.18);
-      scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
-      position: fixed; left: 0; right: 0;
-      top: calc(36px + 56px + 52px); /* debajo del search */
-      z-index: 90;
-      transform: translateY(-110%);
-      transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
-      box-shadow: 0 4px 16px rgba(90,40,10,0.06);
-    }
-    #zm-chips.visible { transform: translateY(0); }
-    #zm-chips::-webkit-scrollbar { display: none; }
-    .zm-chip {
-      flex-shrink: 0; scroll-snap-align: start;
-      padding: 8px 15px; border-radius: 100px;
-      border: 1.5px solid rgba(200,150,122,0.25); background: white;
-      color: #8B6A54; font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; white-space: nowrap; transition: color 0.18s cubic-bezier(0.34,1.56,0.64,1), background-color 0.18s cubic-bezier(0.34,1.56,0.64,1), border-color 0.18s cubic-bezier(0.34,1.56,0.64,1), transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .zm-chip:active { transform: scale(0.92); background: linear-gradient(135deg,#C8967A,#b5687a); color: white; border-color: transparent; }
-    .zm-chip-ofertas { border-color: rgba(181,104,122,0.4); color: #b5687a; }
-    html.ruta-interna #zm-chips { display: none !important; }
-  }
+  /* SEO links — ocultos visualmente en todos los dispositivos, indexables por Google */
+  #zm-chips { display: none !important; }
 </style>
 
 <!-- HERO -->
