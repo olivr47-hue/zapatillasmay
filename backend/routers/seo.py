@@ -1459,7 +1459,8 @@ def feed_meta():
                         talla_feed = str(talla)
                     es_oferta = p.get("es_oferta", False)
                     base_precio = float(p.get("precio_menudeo") or 0)
-                    precio_menudeo = base_precio if es_oferta else round(base_precio + 80)
+                    precio_normal = round(base_precio + 80)
+                    precio_oferta = round(base_precio)
                     precio_mayoreo = round(base_precio)  # precio mayoreo (3+ pares)
                     mat = (p.get("material") or "").strip()
                     cat_label = (p.get("categoria") or "").strip().lower()
@@ -1474,9 +1475,9 @@ def feed_meta():
                     xml += f'  <g:image_link>{_img_feed(imagen)}</g:image_link>\n'
                     for img_extra in imagenes_extra[:9]:
                         xml += f'  <g:additional_image_link>{_img_feed(img_extra)}</g:additional_image_link>\n'
-                    xml += f'  <g:price>{precio_menudeo} MXN</g:price>\n'
+                    xml += f'  <g:price>{precio_normal} MXN</g:price>\n'
                     if es_oferta:
-                        xml += f'  <g:sale_price>{precio_menudeo} MXN</g:sale_price>\n'
+                        xml += f'  <g:sale_price>{precio_oferta} MXN</g:sale_price>\n'
                     xml += f'  <g:availability>{availability}</g:availability>\n'
                     xml += f'  <g:quantity>{max(int(cantidad or 0), 0)}</g:quantity>\n'
                     xml += f'  <g:condition>new</g:condition>\n'
@@ -1503,7 +1504,8 @@ def feed_meta():
                 desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
                 es_oferta2 = p.get("es_oferta", False)
                 base2 = float(p.get("precio_menudeo") or 0)
-                precio2 = base2 if es_oferta2 else round(base2 + 80)
+                precio_normal2 = round(base2 + 80)
+                precio_oferta2 = round(base2)
                 mat2 = (p.get("material") or "").strip()
                 cat_label2 = (p.get("categoria") or "").strip().lower()
                 xml += '<item>\n'
@@ -1512,9 +1514,9 @@ def feed_meta():
                 xml += f'  <g:description>{desc2}</g:description>\n'
                 xml += f'  <g:link>{url}</g:link>\n'
                 xml += f'  <g:image_link>{_img_feed(imagen_p)}</g:image_link>\n'
-                xml += f'  <g:price>{precio2} MXN</g:price>\n'
+                xml += f'  <g:price>{precio_normal2} MXN</g:price>\n'
                 if es_oferta2:
-                    xml += f'  <g:sale_price>{precio2} MXN</g:sale_price>\n'
+                    xml += f'  <g:sale_price>{precio_oferta2} MXN</g:sale_price>\n'
                 xml += f'  <g:availability>out of stock</g:availability>\n'
                 xml += f'  <g:condition>new</g:condition>\n'
                 xml += f'  <g:brand>Zapatillas May</g:brand>\n'
@@ -1666,31 +1668,142 @@ def feed_google():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
+        inventario = supabase_get_all("inventario?select=variante_id,cantidad")
+
+        inv_por_variante = {}
+        for i in inventario:
+            inv_por_variante[i['variante_id']] = i.get('cantidad', 0)
+
+        variantes_por_producto = {}
+        for v in variantes:
+            pid = v['producto_id']
+            if pid not in variantes_por_producto:
+                variantes_por_producto[pid] = []
+            variantes_por_producto[pid].append(v)
+
         xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
         xml += '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:g="http://base.google.com/ns/1.0">\n'
         for p in productos:
             sku = p.get('sku_interno') or p.get('id')
             url = f"https://zapatillasmay.mx/producto/{sku}"
-            xml += '<entry>\n'
-            xml += f'  <g:id>{sku}</g:id>\n'
-            xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
-            xml += f'  <g:description>{p.get("descripcion","") or p.get("nombre","")}</g:description>\n'
-            xml += f'  <g:link>{url}</g:link>\n'
-            xml += f'  <g:image_link>{_img_feed(p.get("imagen_principal",""))}</g:image_link>\n'
-            xml += f'  <g:price>{(p.get("precio_menudeo") or 0) + 80} MXN</g:price>\n'
-            xml += f'  <g:availability>in stock</g:availability>\n'
-            xml += f'  <g:condition>new</g:condition>\n'
-            xml += f'  <g:brand>Zapatillas May</g:brand>\n'
-            xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
-            xml += f'  <g:google_product_category>187</g:google_product_category>\n'
-            xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
-            xml += f'  <g:color>Multicolor</g:color>\n'
-            xml += f'  <g:gender>female</g:gender>\n'
-            xml += f'  <g:age_group>adult</g:age_group>\n'
-            xml += f'  <g:size>One Size</g:size>\n'
-            xml += f'  <g:size_system>MEX</g:size_system>\n'
-            xml += '</entry>\n'
+            vars_prod = variantes_por_producto.get(p['id'], [])
+
+            if vars_prod:
+                # Agrupar por color para no repetir imágenes
+                colores_vistos = {}
+                for v in vars_prod:
+                    color = v.get('color', '')
+                    if color not in colores_vistos:
+                        colores_vistos[color] = v
+
+                for v in vars_prod:
+                    color = (v.get('color', '') or '').strip()
+                    talla = (v.get('talla', '') or '').strip()
+                    cantidad = inv_por_variante.get(v['id'], 0)
+                    availability = 'in stock' if cantidad > 0 else 'out of stock'
+
+                    # Imagen principal del color
+                    v_color = colores_vistos.get(color, v)
+                    imagen = v_color.get('foto_url') or p.get('imagen_principal', '')
+
+                    # Imágenes adicionales
+                    imagenes_extra = v_color.get('imagenes') or []
+                    if isinstance(imagenes_extra, list):
+                        imagenes_extra = [img for img in imagenes_extra if img and img != imagen]
+                    else:
+                        imagenes_extra = []
+
+                    titulo_base = _titulo_feed(p)
+                    color_title = color.title()
+                    color_norm = color.replace(' ', '_').replace('/', '_').replace('-', '_').strip('_')
+                    var_id = f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
+                    desc = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                    color_encoded = color_norm
+
+                    if not talla or str(talla).strip() == '':
+                        talla_feed = 'Única'
+                    elif talla in ('Unica', 'Única', 'unica', 'única'):
+                        talla_feed = 'One Size'
+                    else:
+                        talla_feed = str(talla)
+
+                    es_oferta = p.get("es_oferta", False)
+                    base_precio = float(p.get("precio_menudeo") or 0)
+                    precio_normal = round(base_precio + 80)
+                    precio_oferta = round(base_precio)
+                    mat = (p.get("material") or "").strip()
+                    cat_label = (p.get("categoria") or "").strip().lower()
+
+                    xml += '<entry>\n'
+                    xml += f'  <g:id>{var_id}</g:id>\n'
+                    xml += f'  <g:item_group_id>{sku}</g:item_group_id>\n'
+                    xml += f'  <g:title>{_html.escape(titulo_base + (" - " + color_title if color_title else ""), quote=True)}</g:title>\n'
+                    xml += f'  <g:description>{desc}</g:description>\n'
+                    xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
+                    xml += f'  <g:image_link>{_img_feed(imagen)}</g:image_link>\n'
+                    for img_extra in imagenes_extra[:9]:
+                        xml += f'  <g:additional_image_link>{_img_feed(img_extra)}</g:additional_image_link>\n'
+                    xml += f'  <g:price>{precio_normal} MXN</g:price>\n'
+                    if es_oferta:
+                        xml += f'  <g:sale_price>{precio_oferta} MXN</g:sale_price>\n'
+                    xml += f'  <g:availability>{availability}</g:availability>\n'
+                    xml += f'  <g:condition>new</g:condition>\n'
+                    xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                    xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
+                    xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+                    xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+                    xml += f'  <g:color>{color or "Multicolor"}</g:color>\n'
+                    xml += f'  <g:gender>female</g:gender>\n'
+                    xml += f'  <g:age_group>adult</g:age_group>\n'
+                    xml += f'  <g:size>{talla_feed}</g:size>\n'
+                    xml += f'  <g:size_system>MEX</g:size_system>\n'
+                    xml += f'  <g:size_type>regular</g:size_type>\n'
+                    xml += f'  <g:size_chart>https://zapatillasmay.mx/tabla-tallas</g:size_chart>\n'
+                    if mat:
+                        xml += f'  <g:material>{_html.escape(mat, quote=True)}</g:material>\n'
+                    xml += f'  <g:custom_label_0>mayoreo_disponible</g:custom_label_0>\n'
+                    xml += f'  <g:custom_label_1>{cat_label}</g:custom_label_1>\n'
+                    xml += f'  <g:custom_label_2>{"oferta" if es_oferta else "precio_regular"}</g:custom_label_2>\n'
+                    xml += '</entry>\n'
+            else:
+                imagen_p = p.get('imagen_principal', '')
+                desc2 = (p.get("descripcion","") or p.get("nombre","")).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
+                es_oferta2 = p.get("es_oferta", False)
+                base2 = float(p.get("precio_menudeo") or 0)
+                precio_normal2 = round(base2 + 80)
+                precio_oferta2 = round(base2)
+                mat2 = (p.get("material") or "").strip()
+                cat_label2 = (p.get("categoria") or "").strip().lower()
+
+                xml += '<entry>\n'
+                xml += f'  <g:id>{sku}</g:id>\n'
+                xml += f'  <g:title>{_html.escape(_titulo_feed(p), quote=True)}</g:title>\n'
+                xml += f'  <g:description>{desc2}</g:description>\n'
+                xml += f'  <g:link>{url}</g:link>\n'
+                xml += f'  <g:image_link>{_img_feed(imagen_p)}</g:image_link>\n'
+                xml += f'  <g:price>{precio_normal2} MXN</g:price>\n'
+                if es_oferta2:
+                    xml += f'  <g:sale_price>{precio_oferta2} MXN</g:sale_price>\n'
+                xml += f'  <g:availability>out of stock</g:availability>\n'
+                xml += f'  <g:condition>new</g:condition>\n'
+                xml += f'  <g:brand>Zapatillas May</g:brand>\n'
+                xml += f'  <g:identifier_exists>no</g:identifier_exists>\n'
+                xml += f'  <g:google_product_category>187</g:google_product_category>\n'
+                xml += f'  <g:product_type>{p.get("categoria","Calzado")}</g:product_type>\n'
+                xml += f'  <g:color>Multicolor</g:color>\n'
+                xml += f'  <g:gender>female</g:gender>\n'
+                xml += f'  <g:age_group>adult</g:age_group>\n'
+                xml += f'  <g:size>One Size</g:size>\n'
+                xml += f'  <g:size_system>MEX</g:size_system>\n'
+                if mat2:
+                    xml += f'  <g:material>{_html.escape(mat2, quote=True)}</g:material>\n'
+                xml += f'  <g:custom_label_0>mayoreo_disponible</g:custom_label_0>\n'
+                xml += f'  <g:custom_label_1>{cat_label2}</g:custom_label_1>\n'
+                xml += f'  <g:custom_label_2>{"oferta" if es_oferta2 else "precio_regular"}</g:custom_label_2>\n'
+                xml += '</entry>\n'
+
         xml += '</feed>'
         cache_set("feed_google", xml, ttl=TTL_ESTATICO)
         return Response(content=xml, media_type="application/xml")
