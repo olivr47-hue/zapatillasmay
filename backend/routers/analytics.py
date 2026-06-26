@@ -427,3 +427,147 @@ def metricas_semana():
         })
 
     return {"configurado": True, "dias": dias}
+
+
+@router.get("/mes")
+def metricas_mes():
+    """Sesiones de los últimos 30 días para la gráfica mensual."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": "30daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"}],
+        "dimensions": [{"name": "date"}],
+        "orderBys":   [{"dimension": {"dimensionName": "date"}}],
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos de GA4", "dias": []}
+
+    dias = []
+    for row in resp.get("rows", []):
+        fecha    = row["dimensionValues"][0]["value"]
+        sesiones = int(row["metricValues"][0]["value"])
+        usuarios = int(row["metricValues"][1]["value"])
+        dias.append({
+            "fecha":    f"{fecha[6:8]}/{fecha[4:6]}",
+            "sesiones": sesiones,
+            "usuarios": usuarios,
+        })
+
+    return {"configurado": True, "dias": dias}
+
+
+@router.get("/fuentes")
+def fuentes_trafico():
+    """Top fuentes/medios de tráfico de los últimos 7 días."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "newUsers"}],
+        "dimensions": [{"name": "sessionSource"}, {"name": "sessionMedium"}],
+        "orderBys":   [{"metric": {"metricName": "sessions"}, "desc": True}],
+        "limit":      15,
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos", "fuentes": []}
+
+    total = 0
+    fuentes = []
+    for row in resp.get("rows", []):
+        dims     = row.get("dimensionValues", [])
+        metr     = row.get("metricValues", [])
+        source   = dims[0].get("value", "(direct)") if len(dims) > 0 else "(direct)"
+        medium   = dims[1].get("value", "(none)")   if len(dims) > 1 else "(none)"
+        sesiones = int(metr[0].get("value", 0))     if len(metr) > 0 else 0
+        usuarios = int(metr[1].get("value", 0))     if len(metr) > 1 else 0
+        nuevos   = int(metr[2].get("value", 0))     if len(metr) > 2 else 0
+        if source == "(not set)": continue
+        fuentes.append({
+            "source":   source,
+            "medium":   medium,
+            "sesiones": sesiones,
+            "usuarios": usuarios,
+            "nuevos":   nuevos,
+        })
+        total += sesiones
+
+    # Agrupar por source para simplificar (sumar mediums del mismo origen)
+    agrupado: dict = {}
+    for f in fuentes:
+        key = f["source"]
+        if key not in agrupado:
+            agrupado[key] = {"source": key, "medium": f["medium"],
+                             "sesiones": 0, "usuarios": 0, "nuevos": 0}
+        agrupado[key]["sesiones"] += f["sesiones"]
+        agrupado[key]["usuarios"] += f["usuarios"]
+        agrupado[key]["nuevos"]   += f["nuevos"]
+
+    result = sorted(agrupado.values(), key=lambda x: -x["sesiones"])
+    return {"configurado": True, "total_sesiones": total, "fuentes": result[:12]}
+
+
+@router.get("/ciudades")
+def top_ciudades():
+    """Top ciudades de los últimos 7 días."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"}],
+        "dimensions": [{"name": "city"}, {"name": "region"}],
+        "orderBys":   [{"metric": {"metricName": "sessions"}, "desc": True}],
+        "limit":      15,
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos", "ciudades": []}
+
+    ciudades = []
+    for row in resp.get("rows", []):
+        dims     = row.get("dimensionValues", [])
+        metr     = row.get("metricValues", [])
+        ciudad   = dims[0].get("value", "Desconocida") if len(dims) > 0 else "Desconocida"
+        region   = dims[1].get("value", "")            if len(dims) > 1 else ""
+        sesiones = int(metr[0].get("value", 0))        if len(metr) > 0 else 0
+        usuarios = int(metr[1].get("value", 0))        if len(metr) > 1 else 0
+        if ciudad in ("(not set)", "not set"): continue
+        ciudades.append({
+            "ciudad":   ciudad,
+            "region":   region,
+            "sesiones": sesiones,
+            "usuarios": usuarios,
+        })
+
+    return {"configurado": True, "ciudades": ciudades[:12]}
+
+
+@router.get("/horario")
+def horario_trafico():
+    """Tráfico por hora del día (últimos 7 días)."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "sessions"}],
+        "dimensions": [{"name": "hour"}],
+        "orderBys":   [{"dimension": {"dimensionName": "hour"}}],
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos", "horas": []}
+
+    por_hora: dict = {str(h).zfill(2): 0 for h in range(24)}
+    for row in resp.get("rows", []):
+        hora     = row["dimensionValues"][0]["value"].zfill(2)
+        sesiones = int(row["metricValues"][0]["value"])
+        por_hora[hora] = por_hora.get(hora, 0) + sesiones
+
+    horas = [{"hora": f"{h}:00", "sesiones": por_hora[h]} for h in sorted(por_hora)]
+    return {"configurado": True, "horas": horas}

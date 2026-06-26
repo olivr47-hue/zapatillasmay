@@ -7188,8 +7188,8 @@ async function cargarPedidos() {
     // checkout_iniciado = abandonó el pago (fue a MP y no eligió método ni pagó). No es venta.
     const NO_VENTA = ['cancelado', 'borrador', 'checkout_iniciado']
     const pedidosActivos = data.filter(p => !NO_VENTA.includes(p.status))
-    // La tabla "Todos" muestra solo ventas/intentos reales, no los abandonados
-    const dataVisible = data.filter(p => p.status !== 'checkout_iniciado')
+    // La tabla "Todos" muestra solo ventas reales: sin borradores (están en Carritos) ni abandonados
+    const dataVisible = data.filter(p => p.status !== 'checkout_iniciado' && p.status !== 'borrador')
     const pedidosHoy = pedidosActivos.filter(p => new Date(p.created_at) >= inicioHoy)
     const totalHoy = pedidosHoy.reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
@@ -7287,8 +7287,8 @@ window.filtrarPedidos = () => {
 
 window.cargarPedidosFiltro = (filtro) => {
   const data = window._pedidosData || []
-  // "Todos" (sin filtro) oculta los abandonados; solo se ven en su propio filtro
-  let filtrados = data.filter(p => p.status !== 'checkout_iniciado')
+  // "Todos" oculta borradores (están en Carritos) y abandonados
+  let filtrados = data.filter(p => p.status !== 'checkout_iniciado' && p.status !== 'borrador')
   if (filtro === 'pendiente_pago') {
     filtrados = data.filter(p => p.status === 'pendiente_pago')
   } else if (filtro === 'abandonado') {
@@ -17341,12 +17341,15 @@ async function cargarAnalyticsGA() {
       .ga-stat { text-align:center; }
       .ga-stat-num { font-size:1.6rem; font-weight:700; line-height:1.2; }
       .ga-stat-lbl { font-size:0.7rem; color:#888; margin-top:2px; }
+      .ga-bar-bg { background:#f0f0f0;border-radius:4px;height:8px;flex:1 }
+      .ga-bar-fill { height:100%;border-radius:4px;background:#3483fa;transition:width .4s }
       @media(max-width:600px){
         .ga-wrap { padding:0.75rem; }
         .ga-top { grid-template-columns:1fr; }
         .ga-stats { grid-template-columns:repeat(3,1fr); gap:0.4rem; }
         .ga-stat-num { font-size:1.25rem; }
         .ga-stat-lbl { font-size:0.65rem; }
+        .ga-2col { grid-template-columns:1fr !important; }
       }
     </style>
     <div class="ga-wrap">
@@ -17377,10 +17380,36 @@ async function cargarAnalyticsGA() {
         </div>
       </div>
 
-      <!-- Gráfica 7 días -->
+      <!-- Gráfica tabs 7d / 30d -->
       <div class="card" style="margin-bottom:1rem;padding:1rem">
-        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Últimos 7 días</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em" id="ga-chart-label">Últimos 7 días</div>
+          <div style="display:flex;gap:4px">
+            <button id="ga-tab-7d" onclick="window._gaSetPeriodo('7d')"
+              style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #3483fa;background:#3483fa;color:white;cursor:pointer">7 días</button>
+            <button id="ga-tab-30d" onclick="window._gaSetPeriodo('30d')"
+              style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">30 días</button>
+          </div>
+        </div>
         <canvas id="ga-chart" height="90"></canvas>
+      </div>
+
+      <!-- Fuentes + Ciudades lado a lado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem" class="ga-2col">
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Fuentes de tráfico</div>
+          <div id="ga-fuentes"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Top ciudades (7 días)</div>
+          <div id="ga-ciudades"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+      </div>
+
+      <!-- Horario de visitas -->
+      <div class="card" style="margin-bottom:1rem;padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Horario de visitas (últimos 7 días)</div>
+        <canvas id="ga-chart-horario" height="70"></canvas>
       </div>
 
       <!-- Top páginas -->
@@ -17421,11 +17450,13 @@ async function _gaFetchConTimeout(url, ms = 8000) {
 }
 
 async function _gaCargarTodo() {
-  // Cargar las 3 secciones independientemente — si una falla no bloquea las demás
   const tareas = [
     _gaActualizarRealtime().catch(() => _gaSeccionError('ga-activos', '—')),
     _gaCargarHoy().catch(() => _gaSeccionError('ga-sesiones', '—')),
-    _gaCargarSemana().catch(() => _gaSeccionError('ga-chart', null))
+    _gaCargarSemana().catch(() => _gaSeccionError('ga-chart', null)),
+    _gaCargarFuentes().catch(() => {}),
+    _gaCargarCiudades().catch(() => {}),
+    _gaCargarHorario().catch(() => {}),
   ]
   await Promise.allSettled(tareas)
   const el = document.getElementById('ga-ultima-act')
@@ -17510,37 +17541,127 @@ async function _gaCargarSemana() {
     const r = await _gaFetchConTimeout(`${API}/analytics/semana`)
     const d = await r.json()
     if (!d.configurado || !d.dias?.length) return
+    _gaRenderChart(d.dias)
+  } catch(e) { console.warn('GA semana:', e.message) }
+}
 
-    const canvas = document.getElementById('ga-chart')
+// ── Toggle 7d / 30d ──────────────────────────────────────────────
+window._gaPeriodoActivo = '7d'
+window._gaSetPeriodo = async function(p) {
+  window._gaPeriodoActivo = p
+  const btn7  = document.getElementById('ga-tab-7d')
+  const btn30 = document.getElementById('ga-tab-30d')
+  const lbl   = document.getElementById('ga-chart-label')
+  if (btn7)  { btn7.style.background  = p==='7d'  ? '#3483fa' : 'white'; btn7.style.color  = p==='7d'  ? 'white' : '#888'; btn7.style.borderColor  = p==='7d'  ? '#3483fa' : '#ddd' }
+  if (btn30) { btn30.style.background = p==='30d' ? '#3483fa' : 'white'; btn30.style.color = p==='30d' ? 'white' : '#888'; btn30.style.borderColor = p==='30d' ? '#3483fa' : '#ddd' }
+  if (lbl) lbl.textContent = p==='7d' ? 'Últimos 7 días' : 'Últimos 30 días'
+  if (p === '7d') await _gaCargarSemana()
+  else await _gaCargarMes()
+}
+
+async function _gaCargarMes() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/mes`)
+    const d = await r.json()
+    if (!d.configurado || !d.dias?.length) return
+    _gaRenderChart(d.dias)
+  } catch(e) { console.warn('GA mes:', e.message) }
+}
+
+function _gaRenderChart(dias) {
+  const canvas = document.getElementById('ga-chart')
+  if (!canvas || !window.Chart) return
+  if (canvas._chartInstance) canvas._chartInstance.destroy()
+  canvas._chartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels:   dias.map(x => x.fecha),
+      datasets: [
+        { label:'Sesiones', data: dias.map(x=>x.sesiones), backgroundColor:'rgba(52,131,250,0.7)', borderRadius:4 },
+        { label:'Usuarios', data: dias.map(x=>x.usuarios), backgroundColor:'rgba(34,197,94,0.5)',  borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive:true,
+      plugins:{ legend:{ position:'top' } },
+      scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+    }
+  })
+}
+
+async function _gaCargarFuentes() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/fuentes`)
+    const d = await r.json()
+    const el = document.getElementById('ga-fuentes')
+    if (!el) return
+    if (!d.configurado || d.error || !d.fuentes?.length) { el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>'; return }
+
+    const total = d.total_sesiones || 1
+    const iconos = { google:'🔍', instagram:'📸', facebook:'👥', direct:'🔗', '(direct)':'🔗', tiktok:'🎵', youtube:'▶️', bing:'🔍', email:'📧', whatsapp:'💬' }
+    el.innerHTML = d.fuentes.map(f => {
+      const pct = Math.round((f.sesiones / total) * 100)
+      const ico = iconos[f.source?.toLowerCase()] || '🌐'
+      return `<div style="margin-bottom:0.55rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${f.source}</span>
+          <span style="font-size:0.75rem;color:#888">${f.sesiones} ses · ${pct}%</span>
+        </div>
+        <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
+      </div>`
+    }).join('')
+  } catch(e) { console.warn('GA fuentes:', e.message) }
+}
+
+async function _gaCargarCiudades() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/ciudades`)
+    const d = await r.json()
+    const el = document.getElementById('ga-ciudades')
+    if (!el) return
+    if (!d.configurado || d.error || !d.ciudades?.length) { el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>'; return }
+
+    const max = d.ciudades[0].sesiones || 1
+    el.innerHTML = d.ciudades.map((c, i) => {
+      const pct = Math.round((c.sesiones / max) * 100)
+      return `<div style="margin-bottom:0.55rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'  '} ${c.ciudad}</span>
+          <span style="font-size:0.75rem;color:#888">${c.sesiones} ses</span>
+        </div>
+        <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%;background:#E91E8C"></div></div>
+      </div>`
+    }).join('')
+  } catch(e) { console.warn('GA ciudades:', e.message) }
+}
+
+async function _gaCargarHorario() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/horario`)
+    const d = await r.json()
+    if (!d.configurado || !d.horas?.length) return
+
+    const canvas = document.getElementById('ga-chart-horario')
     if (!canvas || !window.Chart) return
-
     if (canvas._chartInstance) canvas._chartInstance.destroy()
+
+    // Highlight hora pico
+    const maxSes = Math.max(...d.horas.map(h => h.sesiones))
+    const colores = d.horas.map(h => h.sesiones === maxSes ? 'rgba(233,30,140,0.8)' : 'rgba(52,131,250,0.55)')
+
     canvas._chartInstance = new Chart(canvas, {
       type: 'bar',
       data: {
-        labels:   d.dias.map(x => x.fecha),
-        datasets: [
-          {
-            label:           'Sesiones',
-            data:            d.dias.map(x => x.sesiones),
-            backgroundColor: 'rgba(52,131,250,0.7)',
-            borderRadius:    4,
-          },
-          {
-            label:           'Usuarios',
-            data:            d.dias.map(x => x.usuarios),
-            backgroundColor: 'rgba(34,197,94,0.5)',
-            borderRadius:    4,
-          }
-        ]
+        labels:   d.horas.map(h => h.hora.replace(':00','')),
+        datasets: [{ label:'Sesiones', data: d.horas.map(h=>h.sesiones), backgroundColor: colores, borderRadius:3 }]
       },
       options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        responsive:true,
+        plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ title: items => `${items[0].label}:00 hs` } } },
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } }, x:{ ticks:{ font:{ size:10 } } } }
       }
     })
-  } catch(e) { console.warn('GA semana:', e.message) }
+  } catch(e) { console.warn('GA horario:', e.message) }
 }
 
 function _gaMostrarSetup(d) {
