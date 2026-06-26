@@ -243,7 +243,7 @@ def _producto_ssr_inner(sku: str):
             try:
                 with open(local_path, "r", encoding="utf-8") as f:
                     template = f.read()
-                cache_set(cache_key, template, ttl=3600)
+                cache_set(cache_key, template, ttl=300)
             except Exception as e:
                 print(f"[seo] Error leyendo producto.html local: {e}")
 
@@ -255,7 +255,7 @@ def _producto_ssr_inner(sku: str):
                 )
                 with urllib.request.urlopen(req, timeout=8) as r:
                     template = r.read().decode("utf-8")
-                cache_set(cache_key, template, ttl=3600)
+                cache_set(cache_key, template, ttl=300)
             except Exception as e:
                 # Fallback: HTML mínimo con meta tags
                 template = None
@@ -2226,3 +2226,11 @@ def tiktok_stock_excel():
         )
     except Exception as e:
         return Response(content=str(e), status_code=500)
+
+
+@router.post("/seo/purge-template")
+def purge_template_cache():
+    """Limpia el cache del template de producto.html para que Railway lo vuelva a leer."""
+    cache_invalidate_prefix("tpl_producto")
+    cache_invalidate_prefix("tpl_index")
+    return {"ok": True, "msg": "Cache de templates eliminado."}
