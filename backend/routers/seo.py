@@ -830,10 +830,22 @@ def _img_feed(url):
 
 
 def _titulo_feed(p):
-    codigo = (p.get("nombre") or p.get("sku_interno") or "").strip()
+    nombre = (p.get("nombre") or p.get("sku_interno") or "").strip()
     cat = (p.get("categoria") or "").strip().lower()
     tipo = _TIPO_SINGULAR.get(cat) or (_cap(p.get("categoria")) or "Calzado")
-    partes = [codigo, tipo, "de dama"]
+
+    # Si el nombre ya es descriptivo (más de una palabra), lo usamos directamente
+    # y nos aseguramos de que mencione la categoría/tipo y "de dama"
+    if len(nombre.split()) > 1:
+        titulo = nombre
+        if tipo.lower() not in titulo.lower():
+            titulo = f"{titulo} {tipo}"
+        if "dama" not in titulo.lower() and "niña" not in titulo.lower() and "nina" not in titulo.lower():
+            titulo = f"{titulo} de dama"
+        return re.sub(r"\s+", " ", titulo).strip()[:150]
+
+    # Fallback para nombres cortos o códigos puros
+    partes = [nombre, tipo, "de dama"]
 
     # Tacón: tipo (aguja, bloque, …) + altura en cm
     heel = []
@@ -957,11 +969,34 @@ def sitemap():
             img = (p.get('imagen_principal') or '').strip()
             if img:
                 img_esc = _html.escape(img, quote=True)
-                # Título de imagen descriptivo: usa el SEO generado; si no, nombre + categoría
-                titulo_base = (p.get('meta_titulo') or '').strip()
-                if not titulo_base:
-                    titulo_base = f"{(p.get('nombre') or '').strip()} {(p.get('categoria') or '').strip()}".strip()
-                titulo_base = (titulo_base or 'Zapatillas May')[:200]
+                # Título de imagen descriptivo: usa el SEO generado (limpiando marca); si no, nombre descriptivo
+                meta_titulo = (p.get('meta_titulo') or '').strip()
+                if meta_titulo:
+                    for suffix in [' | Zapatillas May León GTO', ' | Zapatillas May', '| Zapatillas May']:
+                        if meta_titulo.endswith(suffix):
+                            meta_titulo = meta_titulo[:-len(suffix)].strip()
+                            break
+                titulo_base = meta_titulo
+                # Fallback si el meta_titulo es nulo o demasiado corto para ser útil (ej: "2", "C", "I")
+                if not titulo_base or len(titulo_base) < 3:
+                    nombre = (p.get('nombre') or '').strip()
+                    categoria = (p.get('categoria') or '').strip().lower()
+                    cat_label = _TIPO_SINGULAR.get(categoria, (categoria or 'Calzado').capitalize())
+                    
+                    if len(nombre.split()) <= 1:
+                        titulo_base = f"{nombre} {cat_label}".strip()
+                    else:
+                        titulo_base = nombre
+                        if len(titulo_base.split()) < 3 and cat_label.lower() not in titulo_base.lower():
+                            titulo_base = f"{titulo_base} {cat_label}".strip()
+                else:
+                    # Si viene de meta_titulo pero es corto, le agregamos la categoría para más relevancia SEO
+                    categoria = (p.get('categoria') or '').strip().lower()
+                    cat_label = _TIPO_SINGULAR.get(categoria, (categoria or 'Calzado').capitalize())
+                    if len(titulo_base.split()) < 3 and cat_label.lower() not in titulo_base.lower():
+                        titulo_base = f"{titulo_base} {cat_label}".strip()
+                
+                titulo_base = (titulo_base or 'Zapatillas May')[:150]
                 titulo_img = _html.escape(titulo_base, quote=True)
                 xml += (f'    <image:image>\n      <image:loc>{img_esc}</image:loc>\n'
                         f'      <image:title>{titulo_img}</image:title>\n    </image:image>\n')

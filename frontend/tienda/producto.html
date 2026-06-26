@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -630,7 +630,9 @@ function renderProducto() {
   const imgPrincipal = p.imagen_principal || ''
   fotosActuales = imgPrincipal ? [imgPrincipal] : []
   imgMain.src = zmImg(imgPrincipal, 900)
-  imgMain.alt = `${p.nombre} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()
+  imgMain.alt = (p.nombre && p.nombre.split(' ').length > 2)
+    ? `${p.nombre.trim()} — Zapatillas May`
+    : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim();
   renderThumbs()
 
   // Info section
@@ -898,7 +900,7 @@ function renderThumbs() {
   const row = document.getElementById('gallery-thumbs')
   if (fotosActuales.length <= 1) { row.style.display = 'none'; return }
   row.style.display = 'flex'
-  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${zmImg(url, 128)}" alt="${(producto?.nombre||'Calzado')} ${producto?.categoria||''} — foto ${i+1}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
+  row.innerHTML = fotosActuales.map((url, i) => `<img class="gallery-thumb ${i===0?'active':''}" src="${zmImg(url, 128)}" alt="${(producto?.nombre && producto.nombre.split(' ').length > 2) ? `${producto.nombre.trim()} — foto ${i+1}` : `${producto?.nombre || 'Calzado'} ${producto?.categoria || ''} — foto ${i+1}`}" width="64" height="64" onclick="cambiarFoto(${i})" loading="lazy">`).join('')
   // Precargar fotos secundarias en 900px para que el click sea instantáneo
   fotosActuales.slice(1).forEach(url => { const _p = new Image(); _p.src = zmImg(url, 900) })
 }
