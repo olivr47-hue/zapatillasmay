@@ -2601,7 +2601,7 @@
 <header>
   <div class="header-inner">
     <a class="logo" href="#" onclick="mostrarInicio()">
-  <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" fetchpriority="high" width="240" height="120" style="height:250px;width:auto;object-fit:contain">
+  <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_240,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png 240w, https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png 480w" sizes="(max-width: 768px) 240px, 480px" alt="Zapatillas May" fetchpriority="high" width="240" height="120" style="height:250px;width:auto;object-fit:contain">
 </a>
     <ul class="nav-cats">
       <li><a href="/tacones">Tacones</a></li>
@@ -3814,7 +3814,7 @@ cargarConfigSEO()
       <a class="product-card fade-in" href="/producto/${p.sku_interno||p.id}">
         <div class="product-img-wrap">
           ${p.imagen_principal
-            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
+            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
             : `<div class="product-placeholder">👠</div>`}
           ${(p.nuevo || (p.fecha_creacion && new Date(p.fecha_creacion) > new Date(Date.now() - 21*24*60*60*1000))) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}

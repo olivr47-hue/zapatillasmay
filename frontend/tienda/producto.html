@@ -1038,7 +1038,7 @@ async function cargarSimilares() {
       const dest = p.sku_interno || p.slug
       if (!dest) return ''
       return `<a class="similar-card" href="/producto/${dest}">
-        <img src="${zmImg(p.imagen_principal || '', 600)}" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" width="140" height="186" loading="lazy">
+        <img src="${zmImg(p.imagen_principal || '', 400)}" srcset="${zmImg(p.imagen_principal || '', 200)} 200w, ${zmImg(p.imagen_principal || '', 300)} 300w, ${zmImg(p.imagen_principal || '', 400)} 400w" sizes="(max-width: 599px) 140px, 200px" alt="${p.nombre} ${p.categoria||''} — Zapatillas May" width="140" height="186" loading="lazy">
         <p class="similar-card-name">${p.nombre}</p>
         <p class="similar-card-price">$${precio} MXN</p>
       </a>`
