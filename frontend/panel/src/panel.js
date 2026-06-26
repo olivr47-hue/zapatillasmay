@@ -5277,6 +5277,19 @@ window.mostrarFormProducto = (datos) => {
 }
 window.seleccionarColorPortada = (idx) => {
   if (!window._coloresExistentes) return
+
+  // Reordenar _variantesFotos para que quede sincronizado con el nuevo orden de colores
+  // (color en idx pasa a posición 0, los demás se desplazan)
+  const n = window._coloresExistentes.length
+  const fotosSincronizadas = {}
+  fotosSincronizadas[0] = window._variantesFotos[idx] || []
+  let nuevoIdx = 1
+  for (let i = 0; i < n; i++) {
+    if (i === idx) continue
+    fotosSincronizadas[nuevoIdx++] = window._variantesFotos[i] || []
+  }
+  window._variantesFotos = fotosSincronizadas
+
   // Mover el color seleccionado al inicio
   const color = window._coloresExistentes.splice(idx, 1)[0]
   window._coloresExistentes.unshift(color)
