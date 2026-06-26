@@ -50,9 +50,10 @@
   <!-- Preload del LCP: fondo del hero (descubrible desde el HTML y optimizado con Cloudinary) -->
   <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(max-width: 767px)">
   <link rel="preload" as="image" fetchpriority="high" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_1400,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png" media="(min-width: 768px)">
-  <!-- Preload del zapato principal del hero: responsivo -->
-  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(max-width: 767px)">
-  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato" media="(min-width: 768px)">
+  <!-- Preload del zapato principal del hero: responsivo (usamos la zapatilla roja de alta calidad para evitar 404) -->
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" media="(max-width: 767px)">
+  <link rel="preload" as="image" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png" media="(min-width: 768px)">
+
 
   <!-- Preload de las fuentes del título/cuerpo: llegan antes del primer pintado → el swap no provoca CLS -->
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2">
@@ -2360,7 +2361,7 @@
   .btn-ver-mas-count {
     font-size: 0.72rem;
     font-weight: 400;
-    opacity: 0.45;
+    opacity: 0.75;
     text-transform: none;
     letter-spacing: 0;
   }
@@ -2528,9 +2529,9 @@
     position: fixed; inset: 0; z-index: 100000;
     background: linear-gradient(160deg, #f7ede4 0%, #f2e4d8 45%, #ecdbd0 100%);
     display: flex; align-items: center; justify-content: center;
-    transition: opacity 0.6s ease, visibility 0.6s ease;
+    transition: opacity 0.6s ease;
   }
-  #zm-splash.hide { opacity: 0; visibility: hidden; }
+  #zm-splash.hide { opacity: 0; pointer-events: none; }
   .zm-splash-inner { text-align: center; }
   .zm-splash-shoe {
     width: 88px; height: 88px; margin: 0 auto 18px;
@@ -2759,8 +2760,8 @@
   <div id="hero-shoe-scroll" style="position:absolute;right:5%;bottom:0;width:48%;max-width:640px;height:100%;pointer-events:none;z-index:3;">
     <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
       <img id="hero-shoe-img"
-        src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
-        srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato 480w, https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato 900w"
+        src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png"
+        srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png 480w, https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1780174687/Pngtree_womens_red_transparent_high_heels_9062648_gffufl.png 900w"
         sizes="(max-width: 767px) 480px, 900px"
         fetchpriority="high" width="900" height="900"
         onerror="this.parentElement.parentElement.style.display='none'"
@@ -2925,7 +2926,7 @@
       <p style="font-size:0.9rem;color:#444;line-height:1.7;flex:1">"Me llegaron rapidísimo y la calidad es increíble. Ya pedí dos pares más. Los tacones son exactamente como en las fotos."</p>
       <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
         <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.85rem;flex-shrink:0">MG</div>
-        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Mariana G.</p><p style="font-size:0.72rem;color:#999;margin:0">Guadalajara · Cliente verificada</p></div>
+        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Mariana G.</p><p style="font-size:0.72rem;color:#6b5c55;margin:0">Guadalajara · Cliente verificada</p></div>
       </div>
     </div>
     <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:14px">
@@ -2933,7 +2934,7 @@
       <p style="font-size:0.9rem;color:#444;line-height:1.7;flex:1">"Compro para revender y el precio de mayoreo es muy bueno. Sin complicaciones, el descuento sale solo en el carrito. Siempre tengo modelos nuevos para mis clientas."</p>
       <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
         <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.85rem;flex-shrink:0">CR</div>
-        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Claudia R.</p><p style="font-size:0.72rem;color:#999;margin:0">CDMX · Revendedora verificada</p></div>
+        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Claudia R.</p><p style="font-size:0.72rem;color:#6b5c55;margin:0">CDMX · Revendedora verificada</p></div>
       </div>
     </div>
     <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 2px 16px rgba(0,0,0,0.07);display:flex;flex-direction:column;gap:14px">
@@ -2941,11 +2942,11 @@
       <p style="font-size:0.9rem;color:#444;line-height:1.7;flex:1">"Por fin una tienda donde el mayoreo es real y sin mínimos absurdos. Las sandalias que pedí estaban perfectas y el envío llegó en 3 días."</p>
       <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
         <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#C8967A,#b5687a);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:0.85rem;flex-shrink:0">FL</div>
-        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Fernanda L.</p><p style="font-size:0.72rem;color:#999;margin:0">Monterrey · Cliente verificada</p></div>
+        <div><p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">Fernanda L.</p><p style="font-size:0.72rem;color:#6b5c55;margin:0">Monterrey · Cliente verificada</p></div>
       </div>
     </div>
   </div>
-  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#aaa">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" rel="noopener noreferrer" style="color:var(--pink);font-weight:600;text-decoration:underline">Déjanos tu reseña por WhatsApp →</a></p>
+  <p style="text-align:center;margin-top:28px;font-size:0.8rem;color:#6b5c55">¿Ya compraste con nosotras? <a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20dejar%20mi%20reseña" target="_blank" rel="noopener noreferrer" style="color:var(--pink);font-weight:600;text-decoration:underline">Déjanos tu reseña por WhatsApp →</a></p>
 </div>
 
 <!-- POPUP CAPTURA DE EMAIL -->
@@ -3083,7 +3084,7 @@
 </div>
 
 <!-- CARRITO DRAWER -->
-<div class="cart-overlay" id="cart-overlay" onclick="cerrarCarrito()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarCarrito()"></div>
+<div class="cart-overlay" id="cart-overlay" onclick="cerrarCarrito()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarCarrito()" aria-label="Cerrar carrito"></div>
 <div class="cart-drawer" id="cart-drawer">
   <div class="cart-header">
     <h3>Tu carrito</h3>
@@ -3815,7 +3816,7 @@ cargarConfigSEO()
       <a class="product-card fade-in" href="/producto/${p.sku_interno||p.id}">
         <div class="product-img-wrap">
           ${p.imagen_principal
-            ? `<img src="${zmImg(p.imagen_principal, 600)}" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
+            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
             : `<div class="product-placeholder">👠</div>`}
           ${(p.nuevo || (p.fecha_creacion && new Date(p.fecha_creacion) > new Date(Date.now() - 21*24*60*60*1000))) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
@@ -4664,7 +4665,7 @@ if (window.ttq) {
       if (colorFotos.length > 1) {
         imgWrap.innerHTML = `<div class="color-foto-grid">${colorFotos.map(cf => `
           <div class="color-foto-card" role="button" tabindex="0" onclick="seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" onkeydown="if(event.key==='Enter'||event.key===' ') seleccionarColor('${cf.color.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">
-            <img src="${zmImg(cf.foto, 600)}" alt="${cf.color}" loading="lazy" width="150" height="150">
+            <img src="${zmImg(cf.foto, 300)}" alt="${cf.color}" loading="lazy" width="150" height="150">
             <div class="color-foto-label"><span class="color-foto-dot" style="background:${cf.hex}"></span>${cf.color}</div>
           </div>`).join('')}</div>`
       } else if (p.imagen_principal) {
@@ -6343,8 +6344,8 @@ function zmRechazarCookies() {
 <!-- ── CURSOR ZAPATILLA ── -->
 
 <!-- ── GSAP + ScrollTrigger ─────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 <script>
 (function() {
   if (typeof gsap === 'undefined') return;
