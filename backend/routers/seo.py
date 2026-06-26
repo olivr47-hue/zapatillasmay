@@ -685,6 +685,118 @@ _PAGINAS_CONTENT = {
 </section>""",
 }
 
+_FAQS: dict[str, list[dict]] = {
+    "tacones": [
+        {"q": "¿Qué tipos de tacones venden?",
+         "a": "Vendemos tacones de aguja, bloque, cuña, plataforma y kitten heel para dama, todos fabricados en León, Guanajuato. Contamos con modelos para oficina, eventos especiales y uso diario en una amplia variedad de colores y materiales."},
+        {"q": "¿Puedo comprar tacones al mayoreo sin registro?",
+         "a": "Sí. El mayoreo es automático desde 3 pares: no necesitas registro, RFC ni trámite especial. Con 3–5 pares el descuento es $80 MXN por par; con 6–11 pares, $150 MXN; y con 12 o más pares (corrida completa), $180 MXN por par."},
+        {"q": "¿Qué tallas manejan en tacones?",
+         "a": "La mayoría de nuestros modelos de tacones están disponibles en tallas del 22 al 27 (numeración mexicana), equivalentes a las tallas 5 a 10 US. Algunos modelos especiales pueden tener rango reducido; consulta la ficha de cada producto."},
+        {"q": "¿Hacen envíos de tacones a todo México?",
+         "a": "Sí, enviamos a toda la República Mexicana en 1 a 3 días hábiles. El costo de envío parte de $99 MXN por 1 par y es gratis en pedidos de $1,299 MXN o más."},
+    ],
+    "sandalias": [
+        {"q": "¿Qué estilos de sandalias tienen disponibles?",
+         "a": "Contamos con sandalias casuales, de fiesta, de cuña, planas y con tiras para dama, fabricadas en León, Guanajuato. Tenemos modelos para playa, uso diario y eventos en materiales como cuero sintético, textil y charol."},
+        {"q": "¿Puedo comprar sandalias al mayoreo?",
+         "a": "Sí, vendemos sandalias al mayoreo desde 3 pares sin registro especial. El descuento de mayoreo se aplica automáticamente en el carrito: $80 MXN menos por par desde 3 pares, y hasta $180 MXN menos en corrida completa."},
+        {"q": "¿Las sandalias están disponibles en talla grande?",
+         "a": "Manejamos tallas del 22 al 27 (MX) en la mayoría de modelos de sandalias. Si necesitas una talla especial o tienes dudas sobre disponibilidad, escríbenos por WhatsApp antes de realizar tu pedido."},
+        {"q": "¿Cuánto tarda en llegar un pedido de sandalias?",
+         "a": "Los pedidos se procesan el mismo día si se realizan antes de las 2 pm hora del centro. La entrega es de 1 a 3 días hábiles a toda la República Mexicana."},
+    ],
+    "botas": [
+        {"q": "¿Qué tipos de botas para dama tienen?",
+         "a": "Manejamos botas altas, medianas y cortas para dama en materiales como cuero sintético, charol y textil. Nuestros modelos van desde botas de moda urbana hasta botas vaqueras y de temporada, fabricadas en León, Guanajuato."},
+        {"q": "¿Venden botas al mayoreo?",
+         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 pares sin ningún trámite: $80 MXN de descuento por par con 3–5 pares, $150 MXN con 6–11 pares y $180 MXN por par con corrida completa (12 o más)."},
+        {"q": "¿Las botas tienen garantía de fabricación?",
+         "a": "Sí. Aceptamos devoluciones y cambios dentro de los 30 días naturales si el producto presenta defecto de fabricación. En ese caso cubrimos el costo del envío de devolución."},
+        {"q": "¿Tienen botas para temporada de frío?",
+         "a": "Sí, actualizamos el catálogo cada temporada con nuevos modelos de botas. Puedes revisar las novedades en nuestra tienda en línea o preguntarnos por WhatsApp por los modelos más recientes."},
+    ],
+    "botines": [
+        {"q": "¿Qué estilos de botines manejan?",
+         "a": "Tenemos botines con tacón, botines planos, con hebilla, con cremallera y con elástico para dama. Todos fabricados en León, Guanajuato en materiales de calidad: cuero sintético, ante, charol y textil."},
+        {"q": "¿Puedo comprar botines al mayoreo sin ser tienda?",
+         "a": "Sí, cualquier persona puede comprar a precio de mayoreo. Solo necesitas agregar 3 o más pares al carrito y el descuento se aplica solo. No se requiere RFC, registro de negocio ni trámite previo."},
+        {"q": "¿Los botines vienen en corrida completa de tallas?",
+         "a": "Sí, puedes agregar una corrida completa (un mismo modelo en todas las tallas disponibles) desde la página del producto. La corrida da el mejor precio por par: $180 MXN menos que el precio de menudeo."},
+        {"q": "¿Hacen envíos de botines a todo México?",
+         "a": "Sí. Enviamos botines a toda la República en 1 a 3 días hábiles. El envío es gratis en pedidos de $1,299 MXN o más."},
+    ],
+    "flats": [
+        {"q": "¿Qué son los flats y qué modelos tienen?",
+         "a": "Los flats son zapatos de piso sin tacón, cómodos para uso diario. En Zapatillas May manejamos flats tipo bailarina, mocasín, loafer y puntiagudos para dama, fabricados en León, Guanajuato en cuero sintético, charol y textil."},
+        {"q": "¿Tienen flats al mayoreo?",
+         "a": "Sí, los flats también aplican para el mayoreo automático desde 3 pares. El precio baja $80 MXN por par con 3–5 pares, $150 con 6–11, y $180 con corrida completa."},
+        {"q": "¿Los flats son cómodos para usar todo el día?",
+         "a": "Sí. Nuestros flats están diseñados para uso prolongado con plantilla acolchada y horma cómoda. Son ideales para oficina, school y uso cotidiano. Puedes consultar los detalles de materiales y suela en la ficha de cada modelo."},
+        {"q": "¿Puedo devolver unos flats si no son de mi talla?",
+         "a": "Sí. Aceptamos devoluciones dentro de los 30 días naturales si el producto está en su estado original y sin uso. El costo del envío de devolución por cambio de talla corre por cuenta del cliente."},
+    ],
+    "plataformas": [
+        {"q": "¿Qué altura tienen las plataformas que venden?",
+         "a": "Nuestras plataformas para dama varían entre 3 y 10 cm de altura de base, dependiendo del modelo. Puedes ver la altura exacta en la ficha técnica de cada producto. Fabricadas en León, Guanajuato."},
+        {"q": "¿Las plataformas son cómodas para uso prolongado?",
+         "a": "Sí. La plataforma distribuye el peso del pie de forma más uniforme que un tacón alto tradicional, lo que las hace más cómodas para caminar. Nuestros modelos incluyen plantilla acolchada y suela antiderrapante."},
+        {"q": "¿Tienen plataformas al mayoreo?",
+         "a": "Sí. Mayoreo automático desde 3 pares sin registro: $80 MXN de descuento por par con 3–5 pares, $150 con 6–11 y $180 en corrida completa."},
+        {"q": "¿En qué materiales están disponibles las plataformas?",
+         "a": "Manejamos plataformas en cuero sintético, charol, ante y textil en distintos colores de temporada. Consulta el catálogo actualizado en nuestra tienda en línea."},
+    ],
+    "tenis": [
+        {"q": "¿Qué tipo de tenis para dama venden?",
+         "a": "Vendemos tenis de moda urbana y casual para dama, fabricados en León, Guanajuato. Nuestros modelos incluyen tenis plataforma, tenis chunky y tenis ligeros para uso diario en materiales textiles y sintéticos."},
+        {"q": "¿Los tenis aplican para mayoreo?",
+         "a": "Sí. El mayoreo automático aplica desde 3 pares: $80 MXN menos por par con 3–5 pares, $150 con 6–11 y $180 con corrida completa. Sin registro ni trámite previo."},
+        {"q": "¿Tienen tenis deportivos o solo de moda?",
+         "a": "Nuestro catálogo está enfocado en tenis de moda y estilo urbano para dama. No manejamos tenis deportivos de alto rendimiento. Son ideales para uso casual, escolar y street style."},
+        {"q": "¿Cuánto tarda el envío de tenis?",
+         "a": "El envío es de 1 a 3 días hábiles a toda la República Mexicana. Enviamos también a Estados Unidos y Canadá (consultar costo por WhatsApp)."},
+    ],
+    "nina": [
+        {"q": "¿Qué tipos de calzado para niña manejan?",
+         "a": "Tenemos zapatillas, sandalias, botines y zapatos escolares para niña, fabricados en León, Guanajuato. Los modelos están diseñados para ser cómodos, resistentes y de moda para las más pequeñas."},
+        {"q": "¿Venden calzado de niña al mayoreo?",
+         "a": "Sí, el mayoreo automático aplica desde 3 pares sin registro. Ideal para revendedoras, tiendas de calzado y compras familiares en volumen. El descuento es de $80 a $180 MXN por par según la cantidad."},
+        {"q": "¿Qué tallas manejan en calzado para niña?",
+         "a": "Manejamos tallas infantiles desde el 14 hasta el 21 (MX) aproximadamente, dependiendo del modelo. Consulta la ficha de cada producto o escríbenos por WhatsApp para verificar disponibilidad en tallas específicas."},
+        {"q": "¿El calzado de niña es de buena calidad y resistente?",
+         "a": "Sí. Nuestro calzado infantil está fabricado con materiales seleccionados para resistir el uso activo de las niñas, con suelas antiderrapantes y puntas reforzadas. Fabricado directamente en León, Guanajuato."},
+    ],
+    "accesorios": [
+        {"q": "¿Qué tipo de accesorios venden?",
+         "a": "Manejamos accesorios de moda para complementar tus outfits: bolsas, cinturones y complementos de moda fabricados o distribuidos desde León, Guanajuato. El catálogo se actualiza con cada temporada."},
+        {"q": "¿Los accesorios tienen precio de mayoreo?",
+         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 piezas en el carrito. Descuentos de $80 a $180 MXN por pieza según cantidad, sin registro especial."},
+        {"q": "¿Hacen envíos de accesorios a todo México?",
+         "a": "Sí. Enviamos accesorios a toda la República Mexicana en 1 a 3 días hábiles. El envío es gratis en pedidos de $1,299 MXN o más."},
+    ],
+    "mayoreo": [
+        {"q": "¿Cuántos pares necesito comprar para obtener precio de mayoreo?",
+         "a": "Solo necesitas 3 pares para activar el precio de mayoreo. El descuento es automático en el carrito: $80 MXN menos por par con 3–5 pares, $150 MXN con 6–11 pares, y $180 MXN por par con 12 o más (corrida completa). No se requiere registro."},
+        {"q": "¿Necesito RFC o estar registrada como negocio para comprar al mayoreo?",
+         "a": "No. En Zapatillas May el mayoreo es abierto para cualquier persona. No necesitas RFC, registro especial ni aprobación previa. Solo agrega 3 o más pares al carrito y el precio baja automáticamente."},
+        {"q": "¿Puedo mezclar modelos y tallas en mi pedido de mayoreo?",
+         "a": "Sí. Puedes combinar diferentes modelos, colores y tallas en un mismo pedido. El precio de mayoreo se calcula sobre el total de pares en el carrito, no por modelo."},
+        {"q": "¿Qué es una corrida completa?",
+         "a": "Una corrida es un mismo modelo en todos sus colores y tallas disponibles. Es la opción ideal para tiendas y revendedoras, y da el mejor precio: $180 MXN menos por par vs. precio de menudeo."},
+        {"q": "¿Hacen envíos de pedidos de mayoreo a todo México?",
+         "a": "Sí. Enviamos a toda la República Mexicana en 1 a 3 días hábiles. Los pedidos grandes de mayoreo se envían por paquetería terrestre con número de guía para rastreo. También despachamos a EE.UU. y Canadá."},
+    ],
+    "ofertas": [
+        {"q": "¿Cómo puedo aprovechar las ofertas de Zapatillas May?",
+         "a": "Las ofertas se aplican automáticamente en el carrito — no necesitas cupones ni códigos. Los productos en oferta ya muestran su precio especial directamente en el catálogo. Además, combinando ofertas con el mayoreo de 3+ pares maximizas el ahorro."},
+        {"q": "¿Las ofertas incluyen todos los modelos?",
+         "a": "No. Las ofertas aplican a modelos seleccionados de temporada o de liquidación. El catálogo de ofertas se actualiza continuamente. Te recomendamos revisarlo seguido para encontrar los mejores precios."},
+        {"q": "¿Puedo comprar calzado en oferta al mayoreo?",
+         "a": "Sí. Los modelos en oferta también aplican para el precio de mayoreo desde 3 pares. El descuento de mayoreo se suma al precio de oferta, dando el mejor precio final posible."},
+    ],
+}
+
+
 @router.get("/seo/pagina/{slug}")
 def pagina_ssr(slug: str):
     """Sirve index.html con título/descripción/canónica propios por ruta (categorías
@@ -846,6 +958,22 @@ def pagina_ssr(slug: str):
                 f'<script type="application/ld+json">{json.dumps(ld_list, ensure_ascii=False)}</script>\n'
                 f'<script type="application/ld+json">{json.dumps(ld_breadcrumb_cat, ensure_ascii=False)}</script>'
             )
+            # FAQPage schema — rich snippet "Preguntas frecuentes" en la SERP
+            _faq_items = _FAQS.get(slug)
+            if _faq_items:
+                ld_faq = {
+                    "@context": "https://schema.org",
+                    "@type": "FAQPage",
+                    "mainEntity": [
+                        {
+                            "@type": "Question",
+                            "name": f["q"],
+                            "acceptedAnswer": {"@type": "Answer", "text": f["a"]},
+                        }
+                        for f in _faq_items
+                    ],
+                }
+                schemas_json += f'\n<script type="application/ld+json">{json.dumps(ld_faq, ensure_ascii=False)}</script>'
             template = template.replace("</head>", schemas_json + "\n</head>", 1)
     except Exception as e:
         print(f"[seo] pagina_ssr replace error ({slug}): {e}")
