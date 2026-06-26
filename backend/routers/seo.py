@@ -117,10 +117,14 @@ def _producto_ssr_inner(sku: str):
     _cached = cache_get(_ck_ssr)
     if _cached is not None:
         return HTMLResponse(content=_cached)
-    # 1. Buscar producto
+    # 1. Buscar producto por SKU; solo intenta por id si parece UUID (evita 400 de PostgREST)
+    import re as _re
     datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
-    if not datos:
-        datos = supabase_get(f"productos?id=eq.{sku}&activo=eq.true&limit=1")
+    if not datos and _re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', sku, _re.I):
+        try:
+            datos = supabase_get(f"productos?id=eq.{sku}&activo=eq.true&limit=1")
+        except Exception:
+            datos = None
     if not datos:
         return RedirectResponse(url="https://zapatillasmay.mx/", status_code=302)
 

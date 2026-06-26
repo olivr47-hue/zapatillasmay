@@ -26,8 +26,8 @@
   <meta name="description" content="Calzado de moda para dama. León, Guanajuato.">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap"></noscript>
   <style>
     :root {
       --pink: #E91E8C;
@@ -343,6 +343,28 @@
       .gallery { perspective: 1200px; }
       .gallery-main { transform-style: preserve-3d; will-change: transform; }
     }
+
+    /* ── FOOTER ── */
+    footer { background: linear-gradient(160deg,#1e0e08 0%,#2A1A0E 50%,#1a0c0a 100%); color: rgba(255,255,255,0.45); position: relative; overflow: hidden; }
+    footer::before { content:''; display:block; height:1px; background:linear-gradient(90deg,transparent,rgba(200,150,122,0.5),#C8967A,rgba(181,104,122,0.5),transparent); }
+    footer::after { content:''; position:absolute; bottom:-60px; right:-60px; width:280px; height:280px; background:radial-gradient(circle,rgba(200,150,122,0.06) 0%,transparent 70%); pointer-events:none; }
+    .footer-inner { max-width:1400px; margin:0 auto; padding:64px 40px 132px; position:relative; z-index:1; }
+    .footer-eyebrow { text-align:center; margin-bottom:52px; }
+    .footer-eyebrow span { font-family:'Cormorant Garamond',Georgia,serif; font-size:clamp(1.6rem,3vw,2.2rem); font-weight:300; font-style:italic; color:rgba(200,150,122,0.7); letter-spacing:0.5px; }
+    .footer-top { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:48px; margin-bottom:48px; }
+    .footer-brand .footer-logo { font-family:'Cormorant Garamond',Georgia,serif; font-size:1.8rem; font-weight:400; color:white; text-decoration:none; display:block; margin-bottom:14px; letter-spacing:0.3px; }
+    .footer-brand .footer-logo span { color:#C8967A; font-style:italic; }
+    .footer-brand p { font-size:0.83rem; line-height:1.75; color:rgba(255,255,255,0.38); margin-bottom:20px; }
+    .footer-social { display:flex; gap:10px; flex-wrap:wrap; }
+    .footer-social a { width:34px; height:34px; border-radius:50%; border:1px solid rgba(200,150,122,0.25); display:flex; align-items:center; justify-content:center; color:rgba(200,150,122,0.6); text-decoration:none; font-size:0.72rem; font-weight:700; transition:border-color .2s,color .2s,background-color .2s,transform .2s; letter-spacing:0; }
+    .footer-social a:hover { border-color:#C8967A; color:#C8967A; background:rgba(200,150,122,0.08); transform:translateY(-2px); }
+    .footer-col h4 { font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:rgba(200,150,122,0.8); margin-bottom:18px; }
+    .footer-col a { display:block; font-size:0.83rem; color:rgba(255,255,255,0.35); text-decoration:none; margin-bottom:10px; transition:color .2s,transform .2s; }
+    .footer-col a:hover { color:#C8967A; transform:translateX(3px); }
+    .footer-bottom { border-top:1px solid rgba(255,255,255,0.06); padding-top:24px; display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:rgba(255,255,255,0.2); }
+    .footer-bottom span:last-child { color:rgba(200,150,122,0.4); }
+    @media (max-width:900px) { .footer-top { grid-template-columns:1fr 1fr; gap:32px; } .footer-eyebrow { margin-bottom:32px; } .footer-inner { padding:40px 20px 132px; } }
+    @media (max-width:480px) { .footer-top { grid-template-columns:1fr; gap:24px; } }
   </style>
 </head>
 <body>
@@ -500,6 +522,53 @@
 
 <!-- TOAST -->
 <div id="toast"></div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-eyebrow">
+      <span>Calzado de moda para dama · León, Guanajuato</span>
+    </div>
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="footer-logo" href="/">Zapatillas <span>May</span></a>
+        <p>Hecho en León, Guanajuato — la capital mundial del calzado. Mayoreo y menudeo sin mínimo de registro. Enviamos a todo México, Estados Unidos y Canadá.</p>
+        <div class="footer-social">
+          <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" title="WhatsApp">WA</a>
+          <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" title="Instagram">IG</a>
+          <a href="https://www.facebook.com/MAYZapatillas/" target="_blank" rel="noopener" title="Facebook">FB</a>
+          <a href="https://tiktok.com/@zapatillasmay" target="_blank" rel="noopener" title="TikTok">TT</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Catálogo</h4>
+        <a href="/tacones">Tacones</a>
+        <a href="/sandalias">Sandalias</a>
+        <a href="/plataformas">Plataformas</a>
+        <a href="/botas">Botas</a>
+        <a href="/botines">Botines</a>
+        <a href="/nina">Calzado de Niña</a>
+      </div>
+      <div class="footer-col">
+        <h4>Información</h4>
+        <a href="/como-comprar">Cómo comprar</a>
+        <a href="/mayoreo">Precios mayoreo</a>
+        <a href="/envios">Envíos</a>
+        <a href="/tabla-tallas">Tabla de tallas</a>
+        <a href="/nosotros">Nosotros</a>
+        <a href="/contacto">Contacto</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="/privacidad">Política de privacidad</a>
+        <a href="/politica-de-devoluciones">Política de devoluciones</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Zapatillas May · Todos los derechos reservados.</span>
+      <span>Zapatillasmay.mx · León, Gto.</span>
+    </div>
+  </div>
+</footer>
 
 <script>
 const API = 'https://zapatillasmay-production.up.railway.app'
@@ -1026,7 +1095,7 @@ function _actualizarBadgeCarrito(carrito) {
 async function cargarSimilares() {
   if (!producto || !producto.categoria) return
   try {
-    const res = await fetch(`${API}/productos/?categoria=eq.${producto.categoria}&activo=eq.true&order=destacado.desc,nuevo.desc&limit=12`)
+    const res = await fetch(`${API}/productos/categoria/${encodeURIComponent(producto.categoria)}`)
     const todos = await res.json()
     const similares = todos.filter(p => p.id !== producto.id).slice(0, 8)
     if (!similares.length) return
