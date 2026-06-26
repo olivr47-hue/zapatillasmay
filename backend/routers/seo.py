@@ -922,9 +922,8 @@ def pagina_ssr(slug: str):
             _ssr_inner = _h1_tag
             if _prod_links:
                 _ssr_inner += (
-                    f'<section style="padding:4px 20px 8px">'
-                    f'<p style="font-size:0.78rem;color:#6b5c55;margin:4px 0 8px">{_esc_pagina(_cat_desc_txt)}</p>'
-                    f'<ul style="list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px">'
+                    f'<section aria-hidden="true" style="display:none">'
+                    f'<ul style="list-style:none;padding:0;margin:0">'
                     f'{_prod_links}</ul></section>'
                 )
             template = template.replace('<div class="section" id="productos-section"',
