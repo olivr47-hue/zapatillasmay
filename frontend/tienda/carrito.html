@@ -286,7 +286,7 @@ function render() {
     hint.style.background = 'linear-gradient(135deg,rgba(200,150,122,0.12),rgba(181,104,122,0.08))'
     hint.style.border = '1px solid rgba(200,150,122,0.3)'
     const falta = 3 - total
-    const ahorroTotal = 80 * (total + falta)
+    const ahorroTotal = 110 * (total + falta)
     hintText.innerHTML = `🛍️ Agrega <strong>${falta} par${falta > 1 ? 'es' : ''} más</strong> y baja el precio de todos — ahorras <strong style="color:#b5687a">$${ahorroTotal} MXN</strong> en total. <a href="/" style="color:var(--tan);font-weight:700;text-decoration:none;white-space:nowrap">+ Ver modelos →</a>`
   } else if (total === 5) {
     // Caso especial: a 1 par de desbloquear el mejor precio — mostrar ahorro real

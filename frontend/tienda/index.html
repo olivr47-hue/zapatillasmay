@@ -3836,7 +3836,7 @@ cargarConfigSEO()
     const _precioMenu = p.precio_menudeo ? (p.es_oferta ? parseFloat(p.precio_menudeo) : parseFloat(p.precio_menudeo) + 80) : null
     const _precioMay3 = p.precio_mayoreo3
       ? parseFloat(p.precio_mayoreo3)
-      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) : null)
+      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) - 30 : null)
     const _ahorro = _precioMay3 && _precioMenu ? Math.round(_precioMenu - _precioMay3) : 0
 
     return `
@@ -3987,7 +3987,7 @@ if (window.ttq) ttq.track('ViewContent', {
       _mayoreoEl.style.display = 'none'
     } else {
       _mayoreoEl.style.display = ''
-      const precioM3 = p.precio_mayoreo3 || p.precio_menudeo
+      const precioM3 = p.precio_mayoreo3 || (p.precio_menudeo - 30)
       const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
       const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
       _mayoreoEl.innerHTML = `
@@ -4252,7 +4252,7 @@ if (window.ttq) ttq.track('ViewContent', {
         talla: tallaSeleccionada,
         cantidad: 1,
         precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || parseFloat(p.precio_menudeo),
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
@@ -4393,7 +4393,7 @@ if (window.ttq) {
         tallas_corrida: tallasCorrida,
         cantidad: 1,
         precio_menudeo: (parseFloat(p.precio_menudeo)||0) + 80,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo)),
+        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo) - 30),
         precio_mayoreo6: parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70),
         precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-100),
         es_oferta: p.es_oferta||false,
