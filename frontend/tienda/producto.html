@@ -963,6 +963,11 @@ function seleccionarTalla(talla) {
     const v = varsProd2.find(vv => vv.color === colorSeleccionado && String(vv.talla) === String(talla))
     const stock = v ? (inventario.find(i => i.variante_id === v.id)?.cantidad ?? 0) : 0
     const mostrarUrg = (stock > 0 && stock <= 3)
+    if (mostrarUrg) {
+      urgEl.innerHTML = stock === 1
+        ? `⚡ ¡Última disponible en talla ${talla}!`
+        : `⚡ ¡Solo quedan ${stock} en talla ${talla}!`
+    }
     urgEl.style.display = mostrarUrg ? 'block' : 'none'
     // Subir el botón flotante de WhatsApp para que no tape el mensaje de "últimas unidades"
     const waBtn = document.getElementById('btn-float-wa')
