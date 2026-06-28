@@ -7031,6 +7031,12 @@ function zmRechazarCookies() {
   #hero-bg, .hero-spotlight, .hero-particles,
   .hero-shoe-shadow, .hero-eyebrow, .hero-subtitle { display: none !important; }
 
+  /* Fondo blanco en móvil — evita que el visor parezca tarjeta sobre fondo crema */
+  .hero {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
   /* Hero: columna */
   #hero-section {
     display: flex !important;
@@ -7152,16 +7158,17 @@ function zmRechazarCookies() {
   }
   .hero-title .leon-gto::after { display: none !important; }
 
-  /* Pill oferta — va casi al final de la sección hero (abajo del todo) */
+  /* Pill oferta — va al fondo de la sección, ancho completo */
   .hero-offer {
-    align-self: flex-start !important; /* Izquierda */
-    max-width: 100% !important;
-    margin: auto 0 0px !important; /* margin-top: auto empuja el elemento al fondo; 0px abajo */
+    align-self: stretch !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: auto 0 0px !important;
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
-    gap: 3px 5px !important;
-    font-size: 0.68rem !important;
-    padding: 6px 12px !important;
+    gap: 2px 4px !important;
+    font-size: 0.62rem !important;
+    padding: 7px 14px !important;
   }
   .hero-offer strong { white-space: nowrap !important; }
 
