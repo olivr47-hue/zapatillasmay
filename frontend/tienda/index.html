@@ -3326,6 +3326,13 @@
   }
   // Manejar URLs directas
 window.addEventListener('load', () => {
+  // Ocultar hero inmediatamente en rutas de categoría/interna (antes de cualquier async)
+  const _pathLoad = window.location.pathname
+  const _catPathsLoad = ['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios','/catalogo','/ofertas','/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/pedido-exitoso','/pedido-pendiente','/pedido-fallido']
+  if (_catPathsLoad.includes(_pathLoad)) {
+    const _hLoad = document.getElementById('hero-section')
+    if (_hLoad) _hLoad.style.setProperty('display','none','important')
+  }
   document.getElementById('hero-section').classList.add('loaded')
   const path = window.location.pathname
   const hash = window.location.hash
@@ -4982,7 +4989,7 @@ function mostrarNuevos() {
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
   pagina.style.display = 'none'
-  if (hero) hero.style.display = 'none'
+  if (hero) hero.style.setProperty('display','none','important')
   productosSection.style.display = ''
   if (cats) cats.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
@@ -5064,7 +5071,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   document.documentElement.classList.remove('ruta-interna')
   document.documentElement.classList.add('ruta-categoria')
   const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
-  const hero = document.getElementById('hero-section'); if (hero) hero.style.display='none'
+  const hero = document.getElementById('hero-section'); if (hero) hero.style.setProperty('display','none','important')
   const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
   const banner = document.querySelector('.banner-mayoreo'); if (banner) banner.style.display='none'
   const strip = document.querySelector('.cro-trust-strip'); if (strip) strip.style.display='none'
@@ -7033,6 +7040,10 @@ function zmRechazarCookies() {
 
 /* ── MÓVIL: layout columna — zapato arriba, lifestyle abajo ── */
 @media (max-width: 768px) {
+
+  /* En rutas de categoría/interna el hero nunca se muestra en móvil */
+  html.ruta-categoria #hero-section,
+  html.ruta-interna #hero-section { display: none !important; }
 
   /* Ocultar elementos desktop-only */
   #hero-bg, .hero-spotlight, .hero-particles,
