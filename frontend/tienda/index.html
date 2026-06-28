@@ -7031,10 +7031,13 @@ function zmRechazarCookies() {
   #hero-bg, .hero-spotlight, .hero-particles,
   .hero-shoe-shadow, .hero-eyebrow, .hero-subtitle { display: none !important; }
 
-  /* Fondo blanco en móvil — evita que el visor parezca tarjeta sobre fondo crema */
+  /* Fondo completamente blanco en móvil — sin gradientes ni líneas decorativas */
   .hero {
     background: #ffffff !important;
     background-image: none !important;
+  }
+  .hero::before, .hero::after {
+    display: none !important;
   }
 
   /* Hero: columna */
@@ -7291,10 +7294,23 @@ function zmRechazarCookies() {
   window.addEventListener('mousemove',     function(e) { move(e.clientX); });
   window.addEventListener('mouseup',       end);
 
-  /* Touch */
-  container.addEventListener('touchstart', function(e) { begin(e.touches[0].clientX); }, { passive: true });
-  container.addEventListener('touchmove',  function(e) { move(e.touches[0].clientX); },  { passive: true });
-  container.addEventListener('touchend',   end);
+  /* Touch — detecta arrastre horizontal antes de cancelar el autogiro */
+  var _tx0 = 0, _ty0 = 0, _tdragging = false;
+  container.addEventListener('touchstart', function(e) {
+    _tx0 = e.touches[0].clientX;
+    _ty0 = e.touches[0].clientY;
+    _tdragging = false;
+  }, { passive: true });
+  container.addEventListener('touchmove', function(e) {
+    var dx = Math.abs(e.touches[0].clientX - _tx0);
+    var dy = Math.abs(e.touches[0].clientY - _ty0);
+    if (!_tdragging && dx > dy && dx > 8) {
+      _tdragging = true;
+      begin(_tx0); /* cancela autogiro solo si es arrastre horizontal */
+    }
+    if (_tdragging) move(e.touches[0].clientX);
+  }, { passive: true });
+  container.addEventListener('touchend', function() { _tdragging = false; end(); });
 
   /* Pre-cargar imágenes y disparar autogiro una vez completado */
   var loadedCount = 0;
