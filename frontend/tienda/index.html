@@ -6883,81 +6883,146 @@ function zmRechazarCookies() {
 ════════════════════════════════════════════════════════════════════ -->
 <style id="zm-hero-styles">
 
-/* ── Imagen lifestyle del hero móvil — CAMBIAR AQUÍ ── */
+/* ── Imagen lifestyle del hero — CAMBIAR AQUÍ o subir desde el panel ── */
 :root {
-  --hero-lifestyle-url: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
+  --hero-lifestyle-url: url('images/hero-lifestyle.png');
 }
 
 /* GSAP inyecta <canvas> en #hero-section para partículas — siempre oculto */
 #hero-section > canvas { display: none !important; }
 
-/* ── DESKTOP: posición del visor (antes era inline style en el HTML) ── */
+/* ── DESKTOP: foto lifestyle izquierda + visor derecha ── */
 @media (min-width: 769px) {
-  /* Ocultar foto lifestyle en desktop — el hero usa su gradiente crema propio */
   #hero-bg { display: none !important; }
 
-  #hero-shoe-scroll {
-    position: absolute;
-    top: 0; bottom: 0; right: 0; left: 46%;
-    width: auto; height: 100%;
-    background: #ffffff;
-    pointer-events: auto;
-    z-index: 3;
-    cursor: grab;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* Hero altura */
+  .hero {
+    height: 65vh !important;
+    min-height: 520px !important;
+    max-height: 720px !important;
   }
-  #hero-shoe-scroll:active { cursor: grabbing; }
 
-  /* Deshabilitar tilt 3D de GSAP — el visor solo gira con arrastre horizontal */
+  /* Visor: mitad derecha, fondo blanco — flush sin sombra ni borde */
+  #hero-shoe-scroll {
+    position: absolute !important;
+    top: 0 !important; bottom: 0 !important; right: 0 !important; left: 50% !important;
+    width: auto !important; height: 100% !important;
+    background: #ffffff !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
+    cursor: grab !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+  }
+  #hero-shoe-scroll:active { cursor: grabbing !important; }
   #hero-shoe-img { transform: none !important; }
 
   .viewer-360-badge {
-    position: absolute;
-    bottom: 16px; right: 16px;
-    font-family: var(--font-sans);
-    font-size: 0.65rem; font-weight: 700;
-    letter-spacing: 0.08em;
-    color: rgba(165,103,128,0.85);
-    background: rgba(255,255,255,0.92);
-    border: 1px solid rgba(165,103,128,0.22);
-    padding: 4px 10px; border-radius: 100px;
-    pointer-events: none; z-index: 4;
+    position: absolute !important;
+    bottom: 16px !important; right: 16px !important;
+    font-size: 0.65rem !important; font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    color: rgba(165,103,128,0.85) !important;
+    background: rgba(255,255,255,0.92) !important;
+    border: 1px solid rgba(165,103,128,0.22) !important;
+    padding: 4px 10px !important; border-radius: 100px !important;
+    pointer-events: none !important; z-index: 4 !important;
   }
 
-  /* Hero desktop: altura compacta (sin espacio vacío excesivo) */
-  .hero {
-    height: 60vh !important;
-    min-height: 500px !important;
-    max-height: 680px !important;
-  }
-
-  /* Texto: posicionado en la mitad izquierda (antes de donde empieza el visor) */
+  /* Mitad izquierda: foto lifestyle como fondo, texto encima */
   #hero-content, .hero-content {
     position: absolute !important;
-    top: 50% !important;
-    left: 0 !important;
-    width: 46% !important;
-    max-width: 46% !important;
-    transform: translateY(-50%) !important;
-    text-align: left !important;
-    padding: 0 40px 0 5% !important;
+    top: 0 !important; bottom: 0 !important; left: 0 !important;
+    width: 50% !important;
+    max-width: 50% !important;
+    transform: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    padding: clamp(28px, 5vh, 56px) clamp(24px, 5%, 56px) !important;
+    background-image: var(--hero-lifestyle-url) !important;
+    background-size: cover !important;
+    background-position: center center !important;
     z-index: 2 !important;
+    text-align: left !important;
   }
+  #hero-content::before { display: none !important; }
 
-  /* Colores de texto para fondo crema claro (sin foto lifestyle) */
-  .hero-title {
-    color: var(--black) !important;
-    font-size: clamp(2rem, 3.2vw, 4rem) !important;
-  }
-  .hero-title em { color: var(--pink) !important; text-shadow: none !important; }
-  .hero-eyebrow { color: var(--pink) !important; }
-  .hero-subtitle { color: #666 !important; }
-
-  /* Ocultar barra gris de la tarjeta corrida en desktop */
+  /* Ocultar elementos que no van en desktop */
+  .hero-eyebrow { display: none !important; }
+  .hero-subtitle { display: none !important; }
   .leon-gto::after { display: none !important; }
+
+  /* Título */
+  .hero-title {
+    font-family: 'Cormorant Garamond', Georgia, serif !important;
+    font-size: clamp(1.7rem, 2.6vw, 2.8rem) !important;
+    font-weight: 300 !important;
+    line-height: 1.15 !important;
+    letter-spacing: 0.5px !important;
+    color: #433235 !important;
+    text-shadow: 0 1px 14px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.6) !important;
+    margin: 0 !important;
+  }
+  .hero-title em {
+    font-style: normal !important;
+    font-weight: 400 !important;
+    color: #a8728a !important;
+    text-shadow: none !important;
+  }
+
+  /* preserve-3d rompe overflow:hidden — aplanar para que no sangre la sombra */
+  #hero-shoe-scroll .hero-shoe-wrap {
+    animation: none !important;
+    transform-style: flat !important;
+    perspective: none !important;
+    transform: none !important;
+  }
+
+  /* Sombra suave en desktop */
+  #hero-shoe-scroll .hero-shoe-wrap img {
+    filter: drop-shadow(0 6px 18px rgba(160,100,80,0.10)) !important;
+    transform: none !important;
+  }
+
+  /* Botones: columna, tamaño desktop, izquierda */
+  .hero-cta {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    margin-top: 28px !important;
+    padding: 0 !important;
+    width: auto !important;
+  }
+  .hero-cta .btn-primary,
+  .hero-cta .btn-outline {
+    flex: none !important;
+    padding: 13px 30px !important;
+    font-size: 0.84rem !important;
+    letter-spacing: 0.5px !important;
+    height: auto !important;
+    width: auto !important;
+  }
+  .hero-cta .btn-outline {
+    border-color: rgba(30,20,21,0.25) !important;
+    color: var(--black) !important;
+  }
+
+  /* Pill: al fondo de la mitad izquierda */
+  .hero-offer {
+    margin-top: auto !important;
+    align-self: flex-start !important;
+    font-size: 0.88rem !important;
+    padding: 10px 20px !important;
+  }
 }
 
 /* ── MÓVIL: layout columna — zapato arriba, lifestyle abajo ── */
@@ -6975,7 +7040,7 @@ function zmRechazarCookies() {
     justify-content: flex-start !important;
     height: auto !important;
     min-height: auto !important;
-    margin-top: 145px !important;  /* 36px ticker + 57px header + 52px buscador */
+    margin-top: 110px !important;
     padding: 0 !important;
     gap: 0 !important;
     overflow: visible !important;
@@ -6987,28 +7052,29 @@ function zmRechazarCookies() {
     top: auto !important; bottom: auto !important;
     left: auto !important; right: auto !important;
     width: 100% !important;
-    height: 38vh !important; /* Altura ajustada a 38vh */
-    min-height: 260px !important;
+    height: 24vh !important;
+    min-height: 180px !important;
     background: #ffffff !important;
     pointer-events: auto !important;
     z-index: 2 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
     cursor: grab !important;
     touch-action: pan-y !important;
     order: 1 !important;
-    transform: none !important; /* anular parallax GSAP */
+    transform: none !important;
   }
   #hero-shoe-scroll:active { cursor: grabbing !important; }
 
-  /* Badge 360° en esquina superior derecha */
+  /* Badge 360° en esquina inferior derecha del visor */
   .viewer-360-badge {
     display: block !important;
     position: absolute !important;
-    top: 12px !important; right: 12px !important;
-    font-family: var(--font-sans);
+    bottom: 10px !important; right: 12px !important;
+    top: auto !important;
     font-size: 0.62rem !important; font-weight: 700 !important;
     letter-spacing: 0.06em;
     color: rgba(165,103,128,0.9) !important;
@@ -7027,7 +7093,7 @@ function zmRechazarCookies() {
     padding-bottom: 8px !important;
     animation: none !important;
     pointer-events: none !important;
-    transform: scale(0.6) !important;
+    transform: scale(0.85) !important;
     transform-origin: center bottom !important;
   }
   .hero-shoe-wrap img {
@@ -7047,7 +7113,7 @@ function zmRechazarCookies() {
     left: auto !important; right: auto !important;
     width: 100% !important; max-width: 100% !important;
     margin-top: -16px !important;
-    padding: 0 24px 0 !important;
+    padding: 0 24px 0px !important;
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -7086,7 +7152,7 @@ function zmRechazarCookies() {
   }
   .hero-title .leon-gto::after { display: none !important; }
 
-  /* Botones en columna a la izquierda — justo debajo del título */
+  /* Botones en columna a la izquierda */
   .hero-cta {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -7095,22 +7161,23 @@ function zmRechazarCookies() {
     width: auto !important;
     padding: 0 !important;
     margin-top: 48px !important;
+    margin-left: -8px !important;
   }
   .hero-cta .btn-primary,
   .hero-cta .btn-outline {
     flex: none !important;
     max-width: none !important;
-    padding: 6px 14px !important;
-    font-size: 0.65rem !important;
+    padding: 6px 12px !important;
+    font-size: 0.56rem !important;
     letter-spacing: 1px !important;
-    height: 30px !important;
+    height: 28px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     width: auto !important;
   }
   .hero-cta .btn-outline {
-    border-color: rgba(30,20,21,0.25) !important;
+    border-color: rgba(30,20,21,0.2) !important;
     color: var(--black) !important;
   }
 
