@@ -766,7 +766,6 @@
       font-weight: 700;
       color: var(--mauve);
       font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
     }
 
     .price-mayoreo {
@@ -2744,10 +2743,10 @@
 
   <div class="hero-content fade-in" id="hero-content">
     <p class="hero-eyebrow">Directo del fabricante · León, Guanajuato</p>
-    <h1 class="hero-title">Calzado de dama<br>desde <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, GTO</em></h1>
+    <h1 class="hero-title">Calzado de dama<br>desde <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, Gto</em></h1>
     <p class="hero-subtitle">Tacones, sandalias y botas desde <strong style="color:#e8c4a0">$360 MXN</strong> · Directo del fabricante · Envío a todo México</p>
     <div class="hero-cta">
-      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades →</button>
+      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades</button>
       <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()">Ver ofertas</button>
     </div>
     <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.82rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25)">🏷️ Compra <strong>3 pares</strong> y paga <strong>precio de mayoreo</strong> + <strong style="color:#7CFFB2">envío GRATIS</strong></p>
@@ -3678,7 +3677,6 @@ window.addEventListener('load', () => {
   const screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
   const heroWidth = screenWidth < 768 ? 700 : 1400;
   const heroUrl = config.hero_imagen.replace('/image/upload/', `/image/upload/w_${heroWidth},f_auto,q_auto/`)
-  // Hero clásico (fondo completo, diseño anterior)
   const bg = document.getElementById('hero-bg')
   if (bg) bg.style.backgroundImage = `url('${heroUrl}')`
   // Nuevo diseño hero: foto lifestyle en lado izquierdo desktop / fondo móvil
@@ -6960,7 +6958,7 @@ function zmRechazarCookies() {
   .hero-subtitle { display: none !important; }
   .leon-gto::after { display: none !important; }
 
-  /* Título */
+  /* Título: mismo estilo que móvil */
   .hero-title {
     font-family: 'Cormorant Garamond', Georgia, serif !important;
     font-size: clamp(1.7rem, 2.6vw, 2.8rem) !important;
@@ -6978,7 +6976,8 @@ function zmRechazarCookies() {
     text-shadow: none !important;
   }
 
-  /* preserve-3d rompe overflow:hidden — aplanar para que no sangre la sombra */
+  /* Deshabilitar animación y preserve-3d en el visor desktop
+     (preserve-3d rompe overflow:hidden, haciendo que el drop-shadow sangre fuera del visor) */
   #hero-shoe-scroll .hero-shoe-wrap {
     animation: none !important;
     transform-style: flat !important;
@@ -6986,7 +6985,7 @@ function zmRechazarCookies() {
     transform: none !important;
   }
 
-  /* Sombra suave en desktop */
+  /* Zapato: sin sombra grande en desktop (causaba efecto tarjeta sobre fondo blanco) */
   #hero-shoe-scroll .hero-shoe-wrap img {
     filter: drop-shadow(0 6px 18px rgba(160,100,80,0.10)) !important;
     transform: none !important;
@@ -7075,6 +7074,7 @@ function zmRechazarCookies() {
     position: absolute !important;
     bottom: 10px !important; right: 12px !important;
     top: auto !important;
+    font-family: var(--font-sans);
     font-size: 0.62rem !important; font-weight: 700 !important;
     letter-spacing: 0.06em;
     color: rgba(165,103,128,0.9) !important;
@@ -7113,16 +7113,16 @@ function zmRechazarCookies() {
     left: auto !important; right: auto !important;
     width: 100% !important; max-width: 100% !important;
     margin-top: -16px !important;
-    padding: 0 24px 0px !important;
+    padding: 0 24px 0px !important; /* Reducido a 0px para pegar la oferta al fondo */
     display: flex !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: flex-start !important; /* Alinear todo a la izquierda */
     justify-content: flex-start !important;
     min-height: 72vw !important;
     background-image: var(--hero-lifestyle-url) !important;
     background-size: cover !important;
     background-position: center 50% !important;
-    text-align: left !important;
+    text-align: left !important; /* Texto alineado a la izquierda */
     z-index: 1 !important;
   }
 
@@ -7130,15 +7130,15 @@ function zmRechazarCookies() {
   #hero-content::before { display: none !important; }
   #hero-content > * { position: relative !important; z-index: 1 !important; }
 
-  /* Título: Cormorant Garamond ligero, pequeño, con halo blanco para contraste */
+  /* Título con tipografía geométrica premium (Montserrat) */
   .hero-title {
     font-family: 'Cormorant Garamond', Georgia, serif !important;
-    font-size: 1.45rem !important;
-    font-weight: 300 !important;
-    line-height: 1.2 !important;
-    letter-spacing: 0.5px !important;
-    color: #433235 !important;
-    text-shadow: 0 1px 14px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.6) !important;
+    font-size: 1.45rem !important; /* Letras aún más pequeñas */
+    font-weight: 300 !important; /* Peso ligero elegante */
+    line-height: 1.2 !important; /* Más separación entre líneas para suavizar */
+    letter-spacing: 0.5px !important; /* Separación suave para respirar */
+    color: #433235 !important; /* Café espresso suave en lugar de negro */
+    text-shadow: 0 2px 12px rgba(255,255,255,0.85), 0 0 5px rgba(255,255,255,0.5) !important; /* Sombra difuminada suave */
     margin: 16px 0 8px !important;
     padding: 0 !important;
     text-align: left !important;
@@ -7146,31 +7146,44 @@ function zmRechazarCookies() {
   .hero-title em {
     font-family: 'Cormorant Garamond', Georgia, serif !important;
     font-style: normal !important;
-    font-weight: 400 !important;
-    color: #a8728a !important;
+    font-weight: 400 !important; /* Peso más suave */
+    color: #a8728a !important; /* Rosa viejo más suave */
     text-shadow: none !important;
   }
   .hero-title .leon-gto::after { display: none !important; }
 
-  /* Botones en columna a la izquierda */
+  /* Pill oferta — va casi al final de la sección hero (abajo del todo) */
+  .hero-offer {
+    align-self: flex-start !important; /* Izquierda */
+    max-width: 100% !important;
+    margin: auto 0 0px !important; /* margin-top: auto empuja el elemento al fondo; 0px abajo */
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 3px 5px !important;
+    font-size: 0.68rem !important;
+    padding: 6px 12px !important;
+  }
+  .hero-offer strong { white-space: nowrap !important; }
+
+  /* Botones en columna a la izquierda y aún más pequeños */
   .hero-cta {
     flex-direction: column !important;
-    align-items: flex-start !important;
+    align-items: flex-start !important; /* Alinear a la izquierda */
     justify-content: flex-start !important;
     gap: 6px !important;
     width: auto !important;
     padding: 0 !important;
-    margin-top: 48px !important;
-    margin-left: -8px !important;
+    margin-top: 48px !important; /* Más margen arriba para bajar los botones */
+    margin-left: -8px !important; /* Desplazar más a la izquierda */
   }
   .hero-cta .btn-primary,
   .hero-cta .btn-outline {
-    flex: none !important;
+    flex: none !important; /* No estirar */
     max-width: none !important;
-    padding: 6px 12px !important;
-    font-size: 0.56rem !important;
+    padding: 6px 12px !important; /* Más pequeños y compactos */
+    font-size: 0.56rem !important; /* Letras más pequeñas y elegantes */
     letter-spacing: 1px !important;
-    height: 28px !important;
+    height: 28px !important; /* Altura más baja */
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -7180,19 +7193,6 @@ function zmRechazarCookies() {
     border-color: rgba(30,20,21,0.2) !important;
     color: var(--black) !important;
   }
-
-  /* Pill oferta — margin-top:auto la empuja al borde inferior */
-  .hero-offer {
-    align-self: flex-start !important;
-    max-width: 100% !important;
-    margin: auto 0 8px !important;
-    flex-wrap: wrap !important;
-    justify-content: flex-start !important;
-    gap: 3px 5px !important;
-    font-size: 0.68rem !important;
-    padding: 6px 12px !important;
-  }
-  .hero-offer strong { white-space: nowrap !important; }
 }
 </style>
 
