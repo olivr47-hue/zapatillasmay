@@ -15107,14 +15107,83 @@ async function cargarSEO() {
           </div>
         </div>
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
-  <h3 style="margin-bottom:1.5rem">Imagen Hero (portada)</h3>
-  <div style="display:grid;gap:1rem">
-    <div>
-      <label class="form-label">URL de imagen de fondo</label>
-      <input class="form-input" id="seo-hero-img" value="${(config.hero_imagen||'').replace(/"/g, '')}" placeholder="https://res.cloudinary.com/...">
-      <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Pega la URL de Cloudinary de la imagen que quieres como fondo de la portada</p>
+  <h3 style="margin-bottom:0.25rem">Portada del sitio (Hero)</h3>
+  <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.75rem">
+    Personaliza las imágenes que aparecen en la portada de tu tienda en línea.
+  </p>
+
+  <!-- ── FOTO LIFESTYLE ── -->
+  <div style="margin-bottom:2rem">
+    <div style="display:flex;align-items:baseline;gap:0.75rem;margin-bottom:0.4rem">
+      <h4 style="font-size:0.9rem;font-weight:700;color:var(--text-primary);margin:0">Foto lifestyle</h4>
+      <span style="font-size:0.72rem;background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:100px;font-weight:600">Desktop: lado izquierdo · Móvil: fondo</span>
     </div>
-    ${(config.hero_imagen || '') !== '' ? '<img src="' + (config.hero_imagen||'') + '" style="max-height:160px;object-fit:cover;border-radius:8px;border:1px solid #eee">' : ''}
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">
+      En escritorio se ve a la izquierda del visor 360°. En celular es el fondo detrás del título.
+      Recomendado: <b>1400 × 900 px</b> o mayor · JPG o WebP.
+    </p>
+
+    <!-- Drop zone -->
+    <div id="hero-drop-zone"
+      style="border:2px dashed var(--border);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:1rem;background:var(--bg-secondary);position:relative;overflow:hidden"
+      onclick="document.getElementById('hero-file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--purple)';this.style.background='#f5f3ff'"
+      ondragleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-secondary)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='var(--bg-secondary)';_heroHandleDrop(event)">
+      <div id="hero-preview-wrap">
+        ${(config.hero_imagen||'') !== ''
+          ? `<img id="hero-img-preview"
+               src="${(config.hero_imagen||'').replace('/image/upload/','/image/upload/w_600,f_auto,q_auto/')}"
+               style="max-height:200px;width:100%;object-fit:cover;border-radius:8px;display:block">`
+          : `<div style="color:var(--text-muted);padding:1rem 0">
+               <div style="font-size:2.2rem;margin-bottom:0.5rem">🖼️</div>
+               <p style="font-weight:600;margin-bottom:4px;font-size:0.88rem">Arrastra tu foto aquí</p>
+               <p style="font-size:0.78rem">o haz clic para seleccionar desde tu equipo</p>
+               <p style="font-size:0.72rem;margin-top:0.5rem;color:var(--text-muted)">JPG · PNG · WebP · máx 10 MB</p>
+             </div>`
+        }
+      </div>
+      <input type="file" id="hero-file-input" accept="image/*" style="display:none" onchange="_heroHandleFile(this.files[0])">
+    </div>
+
+    <!-- Barra progreso (oculta por defecto) -->
+    <div id="hero-upload-bar" style="display:none;margin-bottom:0.75rem">
+      <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div id="hero-bar-fill" style="height:100%;width:0%;background:#7c3aed;transition:width 0.3s;border-radius:2px"></div>
+      </div>
+      <p id="hero-bar-label" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Subiendo...</p>
+    </div>
+
+    <!-- URL + botón manual -->
+    <div style="display:flex;gap:0.5rem;align-items:stretch">
+      <input class="form-input" id="seo-hero-img"
+        value="${(config.hero_imagen||'').replace(/"/g, '')}"
+        placeholder="https://res.cloudinary.com/..."
+        style="flex:1;font-size:0.8rem;font-family:monospace">
+      <button onclick="_heroAplicarUrl()"
+        style="padding:0 1rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--text-primary)">
+        Usar URL
+      </button>
+    </div>
+    <p style="font-size:0.72rem;color:var(--text-muted);margin-top:6px">
+      También puedes pegar directamente la URL de Cloudinary si ya tienes la imagen subida.
+    </p>
+  </div>
+
+  <!-- ── VISOR 360° (info) ── -->
+  <div style="padding:1.25rem;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+      <span style="font-size:1rem">🔄</span>
+      <h4 style="font-size:0.88rem;font-weight:700;margin:0;color:var(--text-primary)">Visor 360° (lado derecho)</h4>
+      <span style="font-size:0.7rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:100px;font-weight:600">Requiere deploy</span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem">
+      El visor usa <b>17 fotos</b> del zapato en distintos ángulos para el efecto de rotación.
+      Para cambiar el modelo, procesa las fotos y actualiza el array <code style="background:var(--border);padding:1px 5px;border-radius:4px">FRAMES</code> en el código.
+    </p>
+    <p style="font-size:0.72rem;color:var(--text-muted)">
+      Archivos actuales: <code style="font-size:0.7rem">images/360/_DSC0846 … _DSC0862-Editar.webp</code>
+    </p>
   </div>
 </div>
 <div>
@@ -15219,6 +15288,53 @@ window.guardarSEO = async () => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+
+// ── HERO IMAGE UPLOAD ───────────────────────────────────
+
+async function _heroSubirArchivo(file) {
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) { alert('La imagen pesa más de 10 MB. Comprimela y vuelve a intentar.'); return }
+
+  const bar = document.getElementById('hero-upload-bar')
+  const fill = document.getElementById('hero-bar-fill')
+  const label = document.getElementById('hero-bar-label')
+  if (bar) { bar.style.display = 'block'; fill.style.width = '20%'; label.textContent = 'Subiendo a Cloudinary...' }
+
+  try {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    formData.append('carpeta', 'hero')
+    if (fill) fill.style.width = '50%'
+    const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+    if (fill) fill.style.width = '80%'
+    const data = await res.json()
+    if (data.url) {
+      const input = document.getElementById('seo-hero-img')
+      if (input) input.value = data.url
+      _heroActualizarPreview(data.url)
+      if (fill) { fill.style.width = '100%'; label.textContent = '✓ Imagen subida correctamente' }
+      setTimeout(() => { if (bar) bar.style.display = 'none'; if (fill) fill.style.width = '0' }, 2500)
+    } else {
+      if (label) label.textContent = '✗ Error al subir la imagen'
+    }
+  } catch (e) {
+    if (label) label.textContent = '✗ Error de conexión'
+  }
+}
+
+function _heroActualizarPreview(url) {
+  const wrap = document.getElementById('hero-preview-wrap')
+  if (!wrap) return
+  const thumb = url.replace('/image/upload/', '/image/upload/w_600,f_auto,q_auto/')
+  wrap.innerHTML = `<img id="hero-img-preview" src="${thumb}" style="max-height:200px;width:100%;object-fit:cover;border-radius:8px;display:block">`
+}
+
+window._heroHandleFile = function(file) { if (file) _heroSubirArchivo(file) }
+window._heroHandleDrop = function(e) { const f = e.dataTransfer?.files?.[0]; if (f) _heroSubirArchivo(f) }
+window._heroAplicarUrl  = function() {
+  const url = (document.getElementById('seo-hero-img')?.value || '').trim()
+  if (url) _heroActualizarPreview(url)
 }
 
 // ═══════════════════════════════════════════════════════

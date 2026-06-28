@@ -60,8 +60,8 @@
   <meta name="keywords" content="zapatillas mayoreo, calzado León Guanajuato, zapatos moda dama, mayoreo calzado sin mínimo, tacones mayoreo México, sandalias mayoreo, calzado femenino mayoreo">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <!-- Fuentes cargadas sin bloquear el render (media=print → all al cargar). Con display=swap el texto se ve de inmediato. -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600;700&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap"></noscript>
   <style>
     /* Fuentes de respaldo con métricas ajustadas (size-adjust) para que el texto
        ocupe el mismo espacio que la fuente web → sin reacomodo (CLS ~0) al cargarla. */
@@ -75,11 +75,11 @@
       font-display: swap;
     }
     @font-face {
-      font-family: 'Outfit Fallback';
+      font-family: 'DM Sans Fallback';
       src: local('Arial'), local('Helvetica');
-      size-adjust: 96%;
-      ascent-override: 106%;
-      descent-override: 30%;
+      size-adjust: 97.19%;
+      ascent-override: 102.06%;
+      descent-override: 31.90%;
       line-gap-override: 0%;
       font-display: swap;
     }
@@ -112,8 +112,8 @@
   --gray-600: #8B6A54;
   --gray-800: #3D2A1C;
   --font-display: 'Cormorant Garamond', 'Cormorant Fallback', Georgia, serif;
-  --font-body: 'Outfit', 'Outfit Fallback', Arial, sans-serif;
-  --font-mono: 'Outfit', 'Outfit Fallback', Arial, sans-serif;
+  --font-body: 'DM Sans', 'DM Sans Fallback', Arial, sans-serif;
+  --font-mono: 'DM Mono', monospace;
   --radius: 2px;
   --pink-dark: #a6795f;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -766,7 +766,6 @@
       font-weight: 700;
       color: var(--mauve);
       font-family: var(--font-mono);
-      font-variant-numeric: tabular-nums;
     }
 
     .price-mayoreo {
@@ -2727,30 +2726,30 @@
     <span class="hp hp8"></span>
   </div>
 
-  <!-- ─────────────────────────────────────────────────────────────────
-       VISOR 360° — para cambiar las fotos edita SOLO estas rutas:
-       Frames: images/360/_DSC0846-Editar.webp … _DSC0862-Editar.webp (17 frames)
-       ───────────────────────────────────────────────────────────────── -->
-  <div id="hero-shoe-scroll">
-    <div class="hero-shoe-wrap" id="hero-shoe-wrap">
+  <!-- Zapatilla 3D — wrapper scroll + wrapper levitate separados -->
+  <div id="hero-shoe-scroll" style="position:absolute;right:5%;bottom:0;width:48%;max-width:640px;height:100%;pointer-events:none;z-index:3;">
+    <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
       <img id="hero-shoe-img"
-        src="images/360/_DSC0846-Editar.webp"
-        fetchpriority="high" width="1300" height="1300"
+        src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
+        srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato 480w, https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato 900w"
+        sizes="(max-width: 767px) 480px, 900px"
+        fetchpriority="high" width="900" height="900"
+        onerror="this.parentElement.parentElement.style.display='none'"
         alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
       <div class="hero-shoe-shadow"></div>
+
     </div>
-    <div class="viewer-360-badge" aria-hidden="true">360°</div>
   </div>
 
   <div class="hero-content fade-in" id="hero-content">
     <p class="hero-eyebrow">Directo del fabricante · León, Guanajuato</p>
     <h1 class="hero-title">Calzado de dama<br>desde <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, GTO</em></h1>
     <p class="hero-subtitle">Tacones, sandalias y botas desde <strong style="color:#e8c4a0">$360 MXN</strong> · Directo del fabricante · Envío a todo México</p>
+    <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.82rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25)">🏷️ Compra <strong>3 pares</strong> y paga <strong>precio de mayoreo</strong> + <strong style="color:#7CFFB2">envío GRATIS</strong></p>
     <div class="hero-cta">
-      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades →</button>
+      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades esta semana →</button>
       <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()">Ver ofertas</button>
     </div>
-    <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.82rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25)">🏷️ Compra <strong>3 pares</strong> y paga <strong>precio de mayoreo</strong> + <strong style="color:#7CFFB2">envío GRATIS</strong></p>
   </div>
 </section>
 
@@ -2774,7 +2773,7 @@
         <span class="cro-tier-icon">🛍️</span>
         <div>
           <span class="cro-tier-qty">3–5 pares</span>
-          <span class="cro-tier-label">-$110 por par</span>
+          <span class="cro-tier-label">-$80 por par</span>
         </div>
       </div>
       <div class="cro-tier cro-tier-highlight">
@@ -2876,7 +2875,7 @@
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:1px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">3 — 5 pares</span>
-        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$110 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$80 por par</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:1px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">6+ pares</span>
@@ -2987,9 +2986,9 @@
       <p style="font-size:0.85rem;opacity:0.9">Suscríbete y recibe el código al instante. Más: modelos nuevos cada semana antes que nadie.</p>
     </div>
     <div style="padding:24px 28px 28px">
-      <input id="zm-popup-email" type="email" aria-label="Correo electrónico" autocomplete="email" placeholder="Tu correo electrónico" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:10px">
-      <input id="zm-popup-nombre" type="text" aria-label="Tu nombre" autocomplete="name" placeholder="Tu nombre (opcional)" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box;margin-bottom:14px">
-      <button onclick="zmSuscribir()" style="width:100%;padding:13px;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer">Obtener mi $50 de descuento →</button>
+      <input id="zm-popup-email" type="email" aria-label="Correo electrónico" autocomplete="email" placeholder="Tu correo electrónico" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:10px">
+      <input id="zm-popup-nombre" type="text" aria-label="Tu nombre" autocomplete="name" placeholder="Tu nombre (opcional)" style="width:100%;border:1.5px solid #e5e5e5;border-radius:8px;padding:11px 14px;font-size:0.88rem;font-family:'DM Sans',sans-serif;outline:none;box-sizing:border-box;margin-bottom:14px">
+      <button onclick="zmSuscribir()" style="width:100%;padding:13px;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer">Obtener mi $50 de descuento →</button>
       <p style="text-align:center;font-size:0.72rem;color:#bbb;margin-top:10px">Sin spam. Un correo a la semana máximo. Cancela cuando quieras.</p>
     </div>
   </div>
@@ -3035,7 +3034,7 @@
         <p style="font-size:2.5rem;margin-bottom:12px">🎉</p>
         <h4 style="font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;margin-bottom:8px">¡Listo, ya quedaste!</h4>
         <p style="font-size:0.85rem;color:#777;margin-bottom:20px">Revisa tu correo — te enviamos la bienvenida. 📩</p>
-        <button onclick="zmCerrarPopup()" style="padding:11px 28px;background:var(--pink,#C8967A);color:white;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer">Ver catálogo →</button>
+        <button onclick="zmCerrarPopup()" style="padding:11px 28px;background:var(--pink,#C8967A);color:white;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer">Ver catálogo →</button>
       </div>`
     // Suscribir en backend (guarda en Supabase + envía welcome email via Resend)
     try {
@@ -3675,14 +3674,14 @@ window.addEventListener('load', () => {
       if (waBtn) waBtn.href = `https://wa.me/${config.whatsapp_flotante}`
     }
     if (config.hero_imagen) {
-  const screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-  const heroWidth = screenWidth < 768 ? 700 : 1400;
-  const heroUrl = config.hero_imagen.replace('/image/upload/', `/image/upload/w_${heroWidth},f_auto,q_auto/`)
-  // Hero clásico (fondo completo, diseño anterior)
   const bg = document.getElementById('hero-bg')
-  if (bg) bg.style.backgroundImage = `url('${heroUrl}')`
-  // Nuevo diseño hero: foto lifestyle en lado izquierdo desktop / fondo móvil
-  document.documentElement.style.setProperty('--hero-lifestyle-url', `url('${heroUrl}')`)
+  if (bg) {
+    // Optimiza la imagen del hero (mismo transform que el preload → sin doble descarga)
+    const screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+    const heroWidth = screenWidth < 768 ? 700 : 1400;
+    const heroUrl = config.hero_imagen.replace('/image/upload/', `/image/upload/w_${heroWidth},f_auto,q_auto/`)
+    bg.style.backgroundImage = `url('${heroUrl}')`
+  }
 }
 // Scroll parallax manejado por el bloque 3D al final del body
 if (config.favicon_url) {
@@ -4499,13 +4498,13 @@ if (window.ttq) {
     if (totalPares === 1) {
       mayoreoHTML = `
         <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
-          🎁 Agrega <strong style="color:#b5687a">2 pares más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $110 por par.
+          🎁 Agrega <strong style="color:#b5687a">2 pares más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $80 por par.
         </div>
       `
     } else if (totalPares === 2) {
       mayoreoHTML = `
         <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
-          🎁 Agrega <strong style="color:#b5687a">1 par más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $110 por par.
+          🎁 Agrega <strong style="color:#b5687a">1 par más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $80 por par.
         </div>
       `
     } else if (totalPares >= 3 && totalPares < 6) {
@@ -5957,7 +5956,7 @@ const PAGINAS = {
   <div class="pg-body">
     <div class="pg-grid">
       <div class="pg-stat"><div class="pg-stat-val">Base</div><div class="pg-stat-label">1 par · Precio menudeo del producto</div></div>
-      <div class="pg-stat"><div class="pg-stat-val">-$110</div><div class="pg-stat-label">3–5 pares · Pares variados</div></div>
+      <div class="pg-stat"><div class="pg-stat-val">-$80</div><div class="pg-stat-label">3–5 pares · Pares variados</div></div>
       <div class="pg-stat"><div class="pg-stat-val">-$150</div><div class="pg-stat-label">6+ pares · Pares variados</div></div>
       <div class="pg-stat" style="border:1.5px solid rgba(200,150,122,0.4)"><div class="pg-stat-val">-$180</div><div class="pg-stat-label">Corrida completa · Mismo modelo/color</div></div>
     </div>
@@ -5968,7 +5967,7 @@ const PAGINAS = {
       <div style="display:flex;flex-direction:column;gap:10px">
         ${[
           ['1 par','$400 c/u','$400 total','rgba(245,240,232,0.05)','rgba(245,240,232,0.7)'],
-          ['3 pares','$290 c/u','$870 total','rgba(184,124,130,0.12)','#C4A89A'],
+          ['3 pares','$320 c/u','$960 total','rgba(184,124,130,0.12)','#C4A89A'],
           ['6 pares','$250 c/u','$1,500 total','rgba(184,124,130,0.2)','#B87C82'],
           ['Corrida (6 tallas)','$220 c/u','$1,320 total','rgba(184,124,130,0.3)','#FAF8F6'],
         ].map(([c,p,t,bg,col]) => `
@@ -6769,7 +6768,7 @@ function zmRechazarCookies() {
     .bn-item {
       flex: 1; background: none; border: none; cursor: pointer;
       display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 6px 2px; color: #8B6A54; font-family: 'Outfit', sans-serif;
+      padding: 6px 2px; color: #8B6A54; font-family: 'DM Sans', sans-serif;
       font-size: 0.6rem; font-weight: 600; text-decoration: none;
       text-transform: uppercase; letter-spacing: 0.4px;
       transition: color 0.18s, transform 0.18s;
@@ -6792,7 +6791,7 @@ function zmRechazarCookies() {
       background: linear-gradient(135deg,#b5687a,#C8967A); color: white;
       min-width: 16px; height: 16px; border-radius: 100px; padding: 0 4px;
       font-size: 0.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
-      font-family: 'Outfit', sans-serif; box-shadow: 0 2px 6px rgba(181,104,122,0.5);
+      font-family: 'DM Mono', monospace; box-shadow: 0 2px 6px rgba(181,104,122,0.5);
     }
     /* Espacio para que el bottom-nav no tape contenido */
     body { padding-bottom: 68px; }
@@ -6868,382 +6867,5 @@ function zmRechazarCookies() {
     .product-badge { animation: none !important; }
   }
 </style>
-
-<!-- ════════════════════════════════════════════════════════════════════
-     HERO — BLOQUE CENTRAL DE CONFIGURACIÓN
-
-     ✏️  PARA CAMBIAR LA FOTO LIFESTYLE (sección debajo del zapato en móvil):
-         Cambia la URL en --hero-lifestyle-url dentro de :root aquí abajo.
-
-     ✏️  PARA CAMBIAR LOS FRAMES DEL VISOR 360:
-         Ve al <script id="zm-hero-360"> más abajo y edita el array FRAMES.
-
-     ✏️  PARA CAMBIAR EL ZAPATO EN DESKTOP (si quisieras imagen estática):
-         Cambia el src en el <img id="hero-shoe-img"> del HTML (línea ~2730).
-════════════════════════════════════════════════════════════════════ -->
-<style id="zm-hero-styles">
-
-/* ── Imagen lifestyle del hero móvil — CAMBIAR AQUÍ ── */
-:root {
-  --hero-lifestyle-url: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
-}
-
-/* GSAP inyecta <canvas> en #hero-section para partículas — siempre oculto */
-#hero-section > canvas { display: none !important; }
-
-/* ── DESKTOP: posición del visor (antes era inline style en el HTML) ── */
-@media (min-width: 769px) {
-  /* Ocultar foto lifestyle en desktop — el hero usa su gradiente crema propio */
-  #hero-bg { display: none !important; }
-
-  #hero-shoe-scroll {
-    position: absolute;
-    top: 0; bottom: 0; right: 0; left: 46%;
-    width: auto; height: 100%;
-    background: #ffffff;
-    pointer-events: auto;
-    z-index: 3;
-    cursor: grab;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #hero-shoe-scroll:active { cursor: grabbing; }
-
-  /* Deshabilitar tilt 3D de GSAP — el visor solo gira con arrastre horizontal */
-  #hero-shoe-img { transform: none !important; }
-
-  .viewer-360-badge {
-    position: absolute;
-    bottom: 16px; right: 16px;
-    font-family: var(--font-sans);
-    font-size: 0.65rem; font-weight: 700;
-    letter-spacing: 0.08em;
-    color: rgba(165,103,128,0.85);
-    background: rgba(255,255,255,0.92);
-    border: 1px solid rgba(165,103,128,0.22);
-    padding: 4px 10px; border-radius: 100px;
-    pointer-events: none; z-index: 4;
-  }
-
-  /* Hero desktop: altura compacta (sin espacio vacío excesivo) */
-  .hero {
-    height: 60vh !important;
-    min-height: 500px !important;
-    max-height: 680px !important;
-  }
-
-  /* Texto: posicionado en la mitad izquierda (antes de donde empieza el visor) */
-  #hero-content, .hero-content {
-    position: absolute !important;
-    top: 50% !important;
-    left: 0 !important;
-    width: 46% !important;
-    max-width: 46% !important;
-    transform: translateY(-50%) !important;
-    text-align: left !important;
-    padding: 0 40px 0 5% !important;
-    z-index: 2 !important;
-  }
-
-  /* Colores de texto para fondo crema claro (sin foto lifestyle) */
-  .hero-title {
-    color: var(--black) !important;
-    font-size: clamp(2rem, 3.2vw, 4rem) !important;
-  }
-  .hero-title em { color: var(--pink) !important; text-shadow: none !important; }
-  .hero-eyebrow { color: var(--pink) !important; }
-  .hero-subtitle { color: #666 !important; }
-
-  /* Ocultar barra gris de la tarjeta corrida en desktop */
-  .leon-gto::after { display: none !important; }
-}
-
-/* ── MÓVIL: layout columna — zapato arriba, lifestyle abajo ── */
-@media (max-width: 768px) {
-
-  /* Ocultar elementos desktop-only */
-  #hero-bg, .hero-spotlight, .hero-particles,
-  .hero-shoe-shadow, .hero-eyebrow, .hero-subtitle { display: none !important; }
-
-  /* Hero: columna */
-  #hero-section {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: flex-start !important;
-    height: auto !important;
-    min-height: auto !important;
-    margin-top: 145px !important;  /* 36px ticker + 57px header + 52px buscador */
-    padding: 0 !important;
-    gap: 0 !important;
-    overflow: visible !important;
-  }
-
-  /* Sección 1: visor 360 — fondo blanco, full width */
-  #hero-shoe-scroll {
-    position: relative !important;
-    top: auto !important; bottom: auto !important;
-    left: auto !important; right: auto !important;
-    width: 100% !important;
-    height: 38vh !important; /* Altura ajustada a 38vh */
-    min-height: 260px !important;
-    background: #ffffff !important;
-    pointer-events: auto !important;
-    z-index: 2 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
-    cursor: grab !important;
-    touch-action: pan-y !important;
-    order: 1 !important;
-    transform: none !important; /* anular parallax GSAP */
-  }
-  #hero-shoe-scroll:active { cursor: grabbing !important; }
-
-  /* Badge 360° en esquina superior derecha */
-  .viewer-360-badge {
-    display: block !important;
-    position: absolute !important;
-    top: 12px !important; right: 12px !important;
-    font-family: var(--font-sans);
-    font-size: 0.62rem !important; font-weight: 700 !important;
-    letter-spacing: 0.06em;
-    color: rgba(165,103,128,0.9) !important;
-    background: rgba(255,255,255,0.92) !important;
-    border: 1px solid rgba(165,103,128,0.22) !important;
-    padding: 3px 8px !important; border-radius: 100px !important;
-    pointer-events: none !important; z-index: 3 !important;
-  }
-
-  /* Zapato: llenar el visor, pegado al borde inferior */
-  .hero-shoe-wrap {
-    width: 100% !important; height: 100% !important;
-    display: flex !important;
-    align-items: flex-end !important;
-    justify-content: center !important;
-    padding-bottom: 8px !important;
-    animation: none !important;
-    pointer-events: none !important;
-    transform: scale(0.6) !important;
-    transform-origin: center bottom !important;
-  }
-  .hero-shoe-wrap img {
-    max-width: 100% !important;
-    max-height: 100% !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-    transform: none !important;
-    filter: drop-shadow(0 12px 22px rgba(160,100,80,0.12)) !important;
-  }
-
-  /* Sección 2: lifestyle foto + texto — ORDER 2 */
-  #hero-content {
-    order: 2 !important;
-    position: relative !important;
-    left: auto !important; right: auto !important;
-    width: 100% !important; max-width: 100% !important;
-    margin-top: -16px !important;
-    padding: 0 24px 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-    min-height: 72vw !important;
-    background-image: var(--hero-lifestyle-url) !important;
-    background-size: cover !important;
-    background-position: center 50% !important;
-    text-align: left !important;
-    z-index: 1 !important;
-  }
-
-  /* Sin gradiente — la imagen lifestyle se ve completa y limpia */
-  #hero-content::before { display: none !important; }
-  #hero-content > * { position: relative !important; z-index: 1 !important; }
-
-  /* Título: Cormorant Garamond ligero, pequeño, con halo blanco para contraste */
-  .hero-title {
-    font-family: 'Cormorant Garamond', Georgia, serif !important;
-    font-size: 1.45rem !important;
-    font-weight: 300 !important;
-    line-height: 1.2 !important;
-    letter-spacing: 0.5px !important;
-    color: #433235 !important;
-    text-shadow: 0 1px 14px rgba(255,255,255,0.9), 0 0 6px rgba(255,255,255,0.6) !important;
-    margin: 16px 0 8px !important;
-    padding: 0 !important;
-    text-align: left !important;
-  }
-  .hero-title em {
-    font-family: 'Cormorant Garamond', Georgia, serif !important;
-    font-style: normal !important;
-    font-weight: 400 !important;
-    color: #a8728a !important;
-    text-shadow: none !important;
-  }
-  .hero-title .leon-gto::after { display: none !important; }
-
-  /* Botones en columna a la izquierda — justo debajo del título */
-  .hero-cta {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-    gap: 6px !important;
-    width: auto !important;
-    padding: 0 !important;
-    margin-top: 48px !important;
-  }
-  .hero-cta .btn-primary,
-  .hero-cta .btn-outline {
-    flex: none !important;
-    max-width: none !important;
-    padding: 6px 14px !important;
-    font-size: 0.65rem !important;
-    letter-spacing: 1px !important;
-    height: 30px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: auto !important;
-  }
-  .hero-cta .btn-outline {
-    border-color: rgba(30,20,21,0.25) !important;
-    color: var(--black) !important;
-  }
-
-  /* Pill oferta — margin-top:auto la empuja al borde inferior */
-  .hero-offer {
-    align-self: flex-start !important;
-    max-width: 100% !important;
-    margin: auto 0 8px !important;
-    flex-wrap: wrap !important;
-    justify-content: flex-start !important;
-    gap: 3px 5px !important;
-    font-size: 0.68rem !important;
-    padding: 6px 12px !important;
-  }
-  .hero-offer strong { white-space: nowrap !important; }
-}
-</style>
-
-<!-- ════ VISOR 360° — para cambiar frames edita el array FRAMES ════ -->
-<script id="zm-hero-360">
-(function() {
-  /* ✏️  FRAMES DEL VISOR 360 — cambiar rutas aquí si se reprocesa el zapato */
-  var FRAMES = [
-    'images/360/_DSC0846-Editar.webp',
-    'images/360/_DSC0847-Editar.webp',
-    'images/360/_DSC0848-Editar.webp',
-    'images/360/_DSC0849-Editar.webp',
-    'images/360/_DSC0850-Editar.webp',
-    'images/360/_DSC0851-Editar.webp',
-    'images/360/_DSC0852-Editar.webp',
-    'images/360/_DSC0853-Editar.webp',
-    'images/360/_DSC0854-Editar.webp',
-    'images/360/_DSC0855-Editar.webp',
-    'images/360/_DSC0856-Editar.webp',
-    'images/360/_DSC0857-Editar.webp',
-    'images/360/_DSC0858-Editar.webp',
-    'images/360/_DSC0859-Editar.webp',
-    'images/360/_DSC0860-Editar.webp',
-    'images/360/_DSC0861-Editar.webp',
-    'images/360/_DSC0862-Editar.webp'
-  ];
-  var PX_PER_FRAME = 5; /* sensibilidad: px de drag por frame */
-
-  var img = document.getElementById('hero-shoe-img');
-  var container = document.getElementById('hero-shoe-scroll');
-  if (!img || !container || !FRAMES.length) return;
-
-  var total = FRAMES.length;
-  var frame = 0;
-  var startX = 0;
-  var active = false;
-  var travelled = 0;
-  var introInterval = null;
-  var introFired = false;
-
-  function goTo(n) {
-    var idx = ((n % total) + total) % total;
-    if (frame === idx) return;
-    frame = idx;
-    img.src = FRAMES[idx];
-  }
-
-  function stopIntro() {
-    if (introInterval) {
-      clearInterval(introInterval);
-      introInterval = null;
-    }
-  }
-
-  function runIntro() {
-    var step = 0;
-    introInterval = setInterval(function() {
-      step++;
-      if (step >= total) {
-        stopIntro();
-        goTo(0);
-      } else {
-        goTo(step);
-      }
-    }, 60); // 60ms por frame para un giro suave de intro
-  }
-
-  function begin(x) {
-    stopIntro(); // Cancelar el autogiro si el usuario interactúa
-    startX = x; active = true; travelled = 0;
-    container.style.cursor = 'grabbing';
-  }
-  function move(x) {
-    if (!active) return;
-    var delta = x - startX;
-    var steps = Math.round((delta - travelled) / PX_PER_FRAME);
-    if (steps !== 0) {
-      goTo(frame - steps);
-      travelled += steps * PX_PER_FRAME;
-    }
-  }
-  function end() {
-    active = false;
-    container.style.cursor = '';
-  }
-
-  /* Mouse */
-  container.addEventListener('mousedown',  function(e) { e.preventDefault(); begin(e.clientX); });
-  window.addEventListener('mousemove',     function(e) { move(e.clientX); });
-  window.addEventListener('mouseup',       end);
-
-  /* Touch */
-  container.addEventListener('touchstart', function(e) { begin(e.touches[0].clientX); }, { passive: true });
-  container.addEventListener('touchmove',  function(e) { move(e.touches[0].clientX); },  { passive: true });
-  container.addEventListener('touchend',   end);
-
-  /* Pre-cargar imágenes y disparar autogiro una vez completado */
-  var loadedCount = 0;
-  var fallbackTimeout = setTimeout(function() {
-    if (!introFired) {
-      introFired = true;
-      runIntro();
-    }
-  }, 1500); // Lanzar de todos modos a los 1.5s si tarda mucho
-
-  FRAMES.forEach(function(src) {
-    var temp = new Image();
-    temp.onload = function() {
-      loadedCount++;
-      if (loadedCount === total && !introFired) {
-        clearTimeout(fallbackTimeout);
-        introFired = true;
-        runIntro();
-      }
-    };
-    temp.src = src;
-  });
-})();
-</script>
 </body>
 </html>

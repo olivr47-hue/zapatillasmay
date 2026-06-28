@@ -4,3 +4,4 @@ __pycache__/
 get_ga4_token.py
 .vercel
 .env*.local
+_360_originales/
