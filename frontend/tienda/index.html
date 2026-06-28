@@ -5089,7 +5089,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   const cats = document.querySelector('.section'); if (cats) cats.style.display='none'
   const banner = document.querySelector('.banner-mayoreo'); if (banner) banner.style.display='none'
   const strip = document.querySelector('.cro-trust-strip'); if (strip) strip.style.display='none'
-  document.getElementById('productos-section').style.display=''
+  document.getElementById('productos-section').style.setProperty('display','block','important')
   _filtroBase = baseLista
   _filtros = { categoria: catPreset || '', tallas: [], colores: [], precioRango: null }
   document.getElementById('productos-titulo').innerHTML = titulo
@@ -6469,6 +6469,8 @@ function zmRechazarCookies() {
     }
 
     function runHeroEntry() {
+      if (document.documentElement.classList.contains('ruta-categoria') ||
+          document.documentElement.classList.contains('ruta-interna')) return;
       gsap.fromTo(
         '.hero-eyebrow, .hero-title, .hero-subtitle, .hero-offer, .hero-cta',
         { opacity: 0, y: 50 },
