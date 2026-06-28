@@ -2513,6 +2513,8 @@
         document.documentElement.classList.add('ruta-interna');
       } else if (categorias.indexOf(location.pathname) !== -1) {
         document.documentElement.classList.add('ruta-categoria');
+      } else if (location.pathname === '/') {
+        document.documentElement.classList.add('ruta-home');
       }
     })();
   </script>
@@ -2714,8 +2716,20 @@
   <button class="zm-chip zm-chip-ofertas" onclick="mostrarOfertas()">🔥 Ofertas</button>
 </div>
 <style>
-  /* SEO links — ocultos visualmente en todos los dispositivos, indexables por Google */
-  #zm-chips { display: none !important; }
+  #zm-chips { display: none; gap: 6px; overflow-x: auto; padding: 8px 14px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #zm-chips::-webkit-scrollbar { display: none; }
+  .zm-chip { flex-shrink: 0; padding: 7px 16px; border: 1.5px solid #e8e0da; border-radius: 100px; background: white; font-family: inherit; font-size: 0.78rem; font-weight: 600; color: #2A1A0E; cursor: pointer; white-space: nowrap; transition: border-color 0.2s, background 0.2s, box-shadow 0.2s; -webkit-tap-highlight-color: transparent; }
+  .zm-chip:hover { border-color: #C8967A; }
+  .zm-chip:active { transform: scale(0.96); }
+  .zm-chip.active { background: #2A1A0E; color: white; border-color: #2A1A0E; }
+  .zm-chip-ofertas { border-color: #E91E8C; color: #E91E8C; background: #fff0f5; }
+  @media (max-width: 768px) {
+    #zm-chips { display: flex; }
+    #zm-chips:not(.visible) { display: none; }
+  }
+  @media (min-width: 769px) {
+    #zm-chips { display: none !important; }
+  }
 </style>
 
 <!-- HERO -->
@@ -4956,16 +4970,16 @@ if (window.ttq) {
   const hero = document.getElementById('hero-section')
   const bannerMayoreo = document.querySelector('.banner-mayoreo')
 
-  document.documentElement.classList.remove('ruta-interna')
+  document.documentElement.classList.remove('ruta-interna', 'ruta-categoria')
   pagina.style.display = 'none'
   if (hero) hero.style.display = ''
+  document.documentElement.classList.add('ruta-home')
   // Re-mostrar todas las secciones del home
   document.querySelectorAll('.section').forEach(s => s.style.display = '')
   if (bannerMayoreo) bannerMayoreo.style.display = ''
 
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   const _fb0 = document.getElementById('filtros-bar'); if (_fb0) _fb0.classList.remove('visible')
-  document.documentElement.classList.remove('ruta-categoria')
   // Restaurar strip mayoreo al volver al home
   const _strip = document.querySelector('.cro-trust-strip'); if (_strip) _strip.style.display = ''
   // Restaurar título SEO del home
@@ -4981,7 +4995,7 @@ function mostrarCatalogo() {
 }
 
 function mostrarNuevos() {
-  document.documentElement.classList.remove('ruta-interna')
+  document.documentElement.classList.remove('ruta-interna', 'ruta-home')
   const pagina = document.getElementById('pagina-interna')
   const hero = document.getElementById('hero-section')
   const productosSection = document.getElementById('productos-section')
@@ -5068,7 +5082,7 @@ const _SEO_DESCRIPTIONS = {
 }
 
 function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
-  document.documentElement.classList.remove('ruta-interna')
+  document.documentElement.classList.remove('ruta-interna', 'ruta-home')
   document.documentElement.classList.add('ruta-categoria')
   const pagina = document.getElementById('pagina-interna'); if (pagina) pagina.style.display='none'
   const hero = document.getElementById('hero-section'); if (hero) hero.style.setProperty('display','none','important')
@@ -6198,6 +6212,7 @@ function mostrarPagina(id) {
   if (ssrBlock) ssrBlock.style.display = 'none'
 
   // Mostrar página
+  document.documentElement.classList.remove('ruta-home')
   document.documentElement.classList.add('ruta-interna')
   contenido.innerHTML = PAGINAS[id]
   setTimeout(function(){ animarPaginaInterna(contenido); }, 30)
@@ -7058,8 +7073,8 @@ function zmRechazarCookies() {
     display: none !important;
   }
 
-  /* Hero: columna (solo cuando está en home, no en rutas de categoría) */
-  html:not(.ruta-categoria):not(.ruta-interna) #hero-section {
+  /* Hero: columna — SOLO en home (opt-in: ruta-home debe estar presente) */
+  html.ruta-home #hero-section {
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
