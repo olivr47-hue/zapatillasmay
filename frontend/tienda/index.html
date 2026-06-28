@@ -7058,8 +7058,8 @@ function zmRechazarCookies() {
     display: none !important;
   }
 
-  /* Hero: columna */
-  #hero-section {
+  /* Hero: columna (solo cuando está en home, no en rutas de categoría) */
+  html:not(.ruta-categoria):not(.ruta-interna) #hero-section {
     display: flex !important;
     flex-direction: column !important;
     align-items: stretch !important;
