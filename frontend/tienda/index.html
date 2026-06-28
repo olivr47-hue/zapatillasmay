@@ -7054,26 +7054,28 @@ function zmRechazarCookies() {
     overflow: visible !important;
   }
 
-  /* Sección 1: visor 360 — fondo blanco, full width */
+  /* Sección 1: visor 360 — fondo blanco puro, sin borde ni sombra */
   #hero-shoe-scroll {
     position: relative !important;
     top: auto !important; bottom: auto !important;
     left: auto !important; right: auto !important;
     width: 100% !important;
-    height: 24vh !important;
-    min-height: 180px !important;
+    height: 26vh !important;
+    min-height: 190px !important;
     background: #ffffff !important;
     pointer-events: auto !important;
     z-index: 2 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow-x: hidden !important;
-    overflow-y: visible !important;
+    overflow: hidden !important;
     cursor: grab !important;
     touch-action: pan-y !important;
     order: 1 !important;
     transform: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
   }
   #hero-shoe-scroll:active { cursor: grabbing !important; }
 
@@ -7083,7 +7085,6 @@ function zmRechazarCookies() {
     position: absolute !important;
     bottom: 10px !important; right: 12px !important;
     top: auto !important;
-    font-family: var(--font-sans);
     font-size: 0.62rem !important; font-weight: 700 !important;
     letter-spacing: 0.06em;
     color: rgba(165,103,128,0.9) !important;
@@ -7093,8 +7094,11 @@ function zmRechazarCookies() {
     pointer-events: none !important; z-index: 3 !important;
   }
 
-  /* Zapato: llenar el visor, pegado al borde inferior */
-  .hero-shoe-wrap {
+  /* Zapato: opacidad 1 (base móvil lo pone en 0.5), sin posición rara */
+  .hero-shoe-wrap,
+  #hero-shoe-wrap {
+    opacity: 1 !important;
+    right: auto !important;
     width: 100% !important; height: 100% !important;
     display: flex !important;
     align-items: flex-end !important;
@@ -7112,7 +7116,7 @@ function zmRechazarCookies() {
     height: auto !important;
     object-fit: contain !important;
     transform: none !important;
-    filter: drop-shadow(0 12px 22px rgba(160,100,80,0.12)) !important;
+    filter: none !important;
   }
 
   /* Sección 2: lifestyle foto + texto — ORDER 2 */
@@ -7259,15 +7263,18 @@ function zmRechazarCookies() {
 
   function runIntro() {
     var step = 0;
+    var rounds = 0;
+    var maxRounds = window.innerWidth < 769 ? 2 : 1; /* 2 vueltas en móvil */
+    var ms = window.innerWidth < 769 ? 90 : 60; /* más lento en móvil = más visible */
     introInterval = setInterval(function() {
       step++;
       if (step >= total) {
-        stopIntro();
-        goTo(0);
-      } else {
-        goTo(step);
+        rounds++;
+        if (rounds >= maxRounds) { stopIntro(); goTo(0); return; }
+        step = 0;
       }
-    }, 60); // 60ms por frame para un giro suave de intro
+      goTo(step);
+    }, ms);
   }
 
   function begin(x) {
@@ -7314,12 +7321,13 @@ function zmRechazarCookies() {
 
   /* Pre-cargar imágenes y disparar autogiro una vez completado */
   var loadedCount = 0;
+  var fallbackMs = window.innerWidth < 769 ? 4000 : 1500; /* más tiempo en móvil */
   var fallbackTimeout = setTimeout(function() {
     if (!introFired) {
       introFired = true;
       runIntro();
     }
-  }, 1500); // Lanzar de todos modos a los 1.5s si tarda mucho
+  }, fallbackMs);
 
   FRAMES.forEach(function(src) {
     var temp = new Image();
