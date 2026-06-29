@@ -402,9 +402,9 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
 
         # 1. Crear pedido en Supabase
+        email_cliente = datos_pedido.get("email", "").strip() or "cliente@zapatillasmay.mx"
         try:
-            email_cliente = datos_pedido.get("email", "").strip() or "cliente@zapatillasmay.mx"
-        pedido_db = supabase_post("pedidos", {
+            pedido_db = supabase_post("pedidos", {
                 "nombre_cliente":   nombre,
                 "telefono_cliente": telefono,
                 "email_cliente":    email_cliente,
