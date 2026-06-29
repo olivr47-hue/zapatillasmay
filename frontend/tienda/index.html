@@ -1583,6 +1583,7 @@
       position: relative;
       overflow: hidden;
     }
+    @media(max-width:768px){ .pg-hero { padding-top: 18px; } }
     .pg-hero::before {
       content:'';position:absolute;inset:0;
       background: radial-gradient(ellipse 70% 60% at 50% 100%, rgba(200,150,122,0.15) 0%, transparent 70%);
@@ -2685,6 +2686,7 @@
           <div class="nav-mega-divider"></div>
           <div class="nav-mega-col">
             <p>Información</p>
+            <a href="#" onclick="mostrarPagina('como-comprar');cerrarNavDD();return false">🛒 Cómo comprar</a>
             <a href="#" onclick="mostrarPagina('mayoreo');cerrarNavDD();return false">💰 Precios mayoreo</a>
             <a href="#" onclick="mostrarPagina('envios');cerrarNavDD();return false">🚚 Envíos</a>
             <a href="#" onclick="mostrarPagina('tabla-tallas');cerrarNavDD();return false">📏 Tabla de tallas</a>
@@ -2743,6 +2745,7 @@
     <!-- Info -->
     <div style="padding:8px 12px">
       <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Info</p>
+      <a href="#" onclick="mostrarPagina('como-comprar');cerrarMenu();return false" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🛒 Cómo comprar</a>
       <a href="/mayoreo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">💰 Precios mayoreo</a>
       <a href="/envios" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🚚 Envíos</a>
       <a href="/contacto" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📞 Contacto</a>
