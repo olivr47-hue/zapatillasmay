@@ -29,7 +29,25 @@ export default async function handler(req, res) {
     "priceCurrency": "MXN",
     "price": precio,
     "availability": "https://schema.org/InStock",
-    "url": `https://zapatillasmay.mx/producto/${slug}`
+    "url": `https://zapatillasmay.mx/producto/${slug}`,
+    "shippingDetails": {
+      "@type": "OfferShippingDetails",
+      "shippingRate": { "@type": "MonetaryAmount", "value": "0", "currency": "MXN" },
+      "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "MX" },
+      "deliveryTime": {
+        "@type": "ShippingDeliveryTime",
+        "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
+        "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 5, "unitCode": "DAY" }
+      }
+    },
+    "hasMerchantReturnPolicy": {
+      "@type": "MerchantReturnPolicy",
+      "applicableCountry": "MX",
+      "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+      "merchantReturnDays": 7,
+      "returnMethod": "https://schema.org/ReturnByMail",
+      "returnFees": "https://schema.org/FreeReturn"
+    }
   }
 })
 
