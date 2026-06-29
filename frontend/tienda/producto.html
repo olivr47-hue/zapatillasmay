@@ -929,22 +929,48 @@ function renderProducto() {
 
   // Tabla de envío dinámica — se actualiza al cambiar cantidad en carrito
   const _cfg = window._cfgEnvio || { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }
-  const envioHTML = () => {
+  // simular=true: calcula como si agregaras este par (+1). simular=false: usa el carrito tal cual (después de agregar)
+  const envioHTML = (simular = true) => {
     const carritoActual = (() => { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } })()
-    const pares = carritoActual.reduce((s, i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0) + 1 // +1 par que está viendo
+    const paresCarrito = carritoActual.reduce((s, i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0)
+    const totalPares = paresCarrito + (simular ? 1 : 0)
+
+    // Precio de este producto al tier que correspondería con el total de pares
+    const precioEste = simular ? (
+      totalPares >= 6 ? parseFloat(p.precio_mayoreo6 || precioDisplay) :
+      totalPares >= 3 ? parseFloat(p.precio_mayoreo3 || precioDisplay) :
+      precioDisplay
+    ) : 0
+
+    // Recalcular cada item del carrito al tier correcto (el precio baja cuando cruza umbral de mayoreo)
     const subtotal = carritoActual.reduce((s, i) => {
       const pp = i.es_corrida ? i.cantidad * 6 : i.cantidad
-      return s + (i.precio_unitario || i.precio_menudeo) * pp
-    }, 0) + precioDisplay
+      const precio = totalPares >= 6
+        ? parseFloat(i.precio_mayoreo6 || i.precio_menudeo)
+        : totalPares >= 3
+          ? parseFloat(i.precio_mayoreo3 || i.precio_menudeo)
+          : parseFloat(i.precio_menudeo)
+      return s + precio * pp
+    }, 0) + precioEste
+
+    const costoEnvio = totalPares >= 3 ? _cfg.tier3 : totalPares >= 2 ? _cfg.tier2 : _cfg.tier1
+
     if (subtotal >= _cfg.gratis_desde) {
-      return `<p style="font-size:0.74rem;color:#22c55e;font-weight:700;margin-top:8px;display:flex;align-items:center;gap:5px">🚚 <span>¡Envío <strong>gratis</strong> con este pedido!</span></p>`
+      const msg = simular
+        ? `🚚 <span>Si agregas este par, ¡tu <strong>envío es GRATIS</strong>! 🎉</span>`
+        : `🚚 <span>¡Envío <strong>gratis</strong> con este pedido!</span>`
+      return `<p style="font-size:0.74rem;color:#22c55e;font-weight:700;margin-top:8px;display:flex;align-items:center;gap:5px">${msg}</p>`
     }
-    const costoActual = pares >= 3 ? _cfg.tier3 : pares >= 2 ? _cfg.tier2 : _cfg.tier1
-    const faltan = _cfg.gratis_desde - subtotal
+
+    const faltan = Math.round(_cfg.gratis_desde - subtotal)
+    const textoFaltan = simular
+      ? `Si agregas este par, faltarían <strong>$${faltan}</strong> para envío gratis 🎯`
+      : `Faltan <strong>$${faltan}</strong> para envío gratis 🎯`
+
     return `<div style="margin-top:8px;font-size:0.73rem;color:#666;line-height:1.7">
-      <p>🚚 Envío estimado: <strong style="color:var(--tan)">$${costoActual} MXN</strong>
+      <p>🚚 Envío estimado: <strong style="color:var(--tan)">$${costoEnvio} MXN</strong>
         <span style="color:#aaa;font-size:0.66rem"> · Gratis a partir de $${_cfg.gratis_desde}</span></p>
-      ${faltan > 0 ? `<p style="color:#f97316;font-size:0.68rem">Faltan <strong>$${Math.round(faltan)}</strong> para envío gratis 🎯</p>` : ''}
+      ${faltan > 0 ? `<p style="color:#f97316;font-size:0.68rem">${textoFaltan}</p>` : ''}
     </div>`
   }
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
@@ -1270,7 +1296,7 @@ function irACarrito() {
     localStorage.setItem('zm_carrito', JSON.stringify(carrito))
     _actualizarBadgeCarrito(carrito)
     const noteEl = document.getElementById('envio-note-producto')
-    if (noteEl) noteEl.innerHTML = envioHTML()
+    if (noteEl) noteEl.innerHTML = envioHTML(false)
   } catch(e) {}
 
   // Pixels
