@@ -136,6 +136,7 @@
   overflow-x: hidden;
   max-width: 100%;
   position: relative;
+  overflow-anchor: none;
 }
 
     /* HEADER */
@@ -5238,6 +5239,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   const panel = document.getElementById('filtros-panel'); if (panel) panel.classList.remove('open')
   aplicarFiltros()
   window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0
+  requestAnimationFrame(function(){ window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0 })
   if (urlPath) history.pushState({}, '', urlPath)
 
   // ── SEO dinámico por categoría ──────────────────────────────────────────
