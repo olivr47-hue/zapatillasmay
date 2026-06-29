@@ -354,15 +354,13 @@ function render() {
   const ahorro = subtotalSinDesc - subtotalProductos
 
   // Envío escalonado por número de pares
-  // Se compara contra subtotalSinDesc (precio menudeo) para que el descuento mayoreo
-  // no quite el beneficio de envío gratis al cliente
-  function calcularEnvio(pares, subtotalLista) {
-    if (subtotalLista >= cfgEnvio.gratis_desde) return 0
+  function calcularEnvio(pares, subtotal) {
+    if (subtotal >= cfgEnvio.gratis_desde) return 0
     if (pares >= 3) return cfgEnvio.tier3
     if (pares >= 2) return cfgEnvio.tier2
     return cfgEnvio.tier1
   }
-  const costoEnvio = calcularEnvio(total, subtotalSinDesc)
+  const costoEnvio = calcularEnvio(total, subtotalProductos)
   const totalFinal = subtotalProductos + costoEnvio
 
   let tipoDesc = ''
