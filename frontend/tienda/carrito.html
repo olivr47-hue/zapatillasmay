@@ -377,8 +377,8 @@ function render() {
   if (costoEnvio === 0) {
     resumenHTML += `<div class="resumen-row" style="color:#22c55e"><span>Envío 🚚</span><span style="font-weight:700">¡GRATIS!</span></div>`
   } else {
-    const faltanParaGratis = Math.max(0, cfgEnvio.gratis_desde - subtotalSinDesc)
-    const pct = Math.min(100, Math.round((subtotalSinDesc / cfgEnvio.gratis_desde) * 100))
+    const faltanParaGratis = Math.max(0, cfgEnvio.gratis_desde - subtotalProductos)
+    const pct = Math.min(100, Math.round((subtotalProductos / cfgEnvio.gratis_desde) * 100))
     resumenHTML += `
       <div class="resumen-row" style="flex-direction:column;align-items:stretch;gap:6px">
         <div style="display:flex;justify-content:space-between;align-items:center">
