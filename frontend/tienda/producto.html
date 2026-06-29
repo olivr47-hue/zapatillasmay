@@ -966,9 +966,18 @@ function renderProducto() {
     }
 
     const faltan = Math.round(_cfg.gratis_desde - subtotal)
-    const textoFaltan = simular
-      ? `Si agregas este par, faltarían <strong>$${faltan}</strong> para envío gratis 🎯`
-      : `Faltan <strong>$${faltan}</strong> para envío gratis 🎯`
+    // Detectar si agregar este par cruza un umbral de mayoreo
+    const cruzaMayoreo3 = simular && paresCarrito === 2  // 2→3 pares: baja a precio mayoreo
+    const cruzaMayoreo6 = simular && paresCarrito === 5  // 5→6 pares: baja a precio mayoreo6
+    const nuevoPrecio = cruzaMayoreo6 ? _pM6 : cruzaMayoreo3 ? _pM3 : null
+    let textoFaltan
+    if (simular && nuevoPrecio) {
+      textoFaltan = `Si agregas este par, el precio baja a <strong>$${nuevoPrecio}/par</strong> y faltarían <strong>$${faltan}</strong> para envío gratis 🎯`
+    } else if (simular) {
+      textoFaltan = `Si agregas este par, faltarían <strong>$${faltan}</strong> para envío gratis 🎯`
+    } else {
+      textoFaltan = `Faltan <strong>$${faltan}</strong> para envío gratis 🎯`
+    }
 
     return `<div style="margin-top:8px;font-size:0.73rem;color:#666;line-height:1.7">
       <p>🚚 Envío estimado: <strong style="color:var(--tan)">$${costoEnvio} MXN</strong>
