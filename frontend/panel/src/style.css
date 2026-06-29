@@ -876,82 +876,96 @@ select.form-input   { cursor:pointer; }
 }
 
 .wa-sidebar-header {
-  padding: 16px;
-  background: #09090e;
+  padding: 14px 16px 12px;
+  background: white;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
 }
 .wa-sidebar-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .wa-sidebar-title span {
-  color: white;
+  color: var(--text-1);
   font-weight: 700;
   font-size: 0.95rem;
+  letter-spacing: -0.01em;
 }
 .wa-new-badge {
   background: #E91E8C;
   color: white;
-  padding: 2px 10px;
+  padding: 2px 9px;
   border-radius: 100px;
-  font-size: 0.67rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  box-shadow: 0 0 10px rgba(233, 30, 140, 0.4);
+}
+.wa-search-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+.wa-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+  display: flex;
 }
 .wa-search-input {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 7px 12px 7px 32px;
   font-size: 0.82rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
+  background: var(--surface);
+  color: var(--text-1);
   outline: none;
-  margin-bottom: 8px;
   box-sizing: border-box;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  font-family: inherit;
 }
 .wa-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
+  color: #94a3b8;
 }
 .wa-search-input:focus {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(233, 30, 140, 0.5);
-  box-shadow: 0 0 8px rgba(233, 30, 140, 0.2);
+  border-color: #E91E8C;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(233, 30, 140, 0.08);
 }
 .wa-filters {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
 }
 .wa-pill {
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 100px;
   font-size: 0.68rem;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-family: inherit;
 }
 .wa-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-color: #cbd5e1;
 }
 .wa-pill.activa {
   background: #E91E8C;
   border-color: transparent;
   color: white;
-  box-shadow: 0 2px 8px rgba(233, 30, 140, 0.3);
+  box-shadow: 0 1px 6px rgba(233, 30, 140, 0.25);
 }
 
 .wa-chat-list {
@@ -1311,9 +1325,9 @@ html, body { height:100%; overflow-y:auto !important; }
 
 /* ── ESTADO TABS (Abierto / Espera / Cerrado) ── */
 .wa-estado-tabs { display:flex; gap:4px; margin-bottom:8px; }
-.wa-estado-tab { flex:1; padding:5px 4px; border:1px solid rgba(255,255,255,0.12); border-radius:6px; background:transparent; color:rgba(255,255,255,0.45); font-size:0.68rem; font-weight:600; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s; }
-.wa-estado-tab.activa { background:rgba(255,255,255,0.12); color:#fff; border-color:rgba(255,255,255,0.25); }
-.wa-estado-tab:hover { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.75); }
+.wa-estado-tab { flex:1; padding:5px 4px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-3); font-size:0.68rem; font-weight:600; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:4px; transition:all 0.15s; }
+.wa-estado-tab.activa { background:#E91E8C; color:white; border-color:transparent; box-shadow:0 1px 6px rgba(233,30,140,0.25); }
+.wa-estado-tab:hover:not(.activa) { background:var(--surface-2); color:var(--text-2); border-color:#cbd5e1; }
 .wa-estado-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
 .wa-estado-dot.abierto { background:#10b981; }
 .wa-estado-dot.espera  { background:#f59e0b; }

@@ -1176,7 +1176,23 @@ async def recibir_mensaje_whatsapp(datos: dict):
             return {"status": "ok"}
 
         texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
-        guardar_conversacion(from_number, mensaje_final, texto_guardado or respuesta_claude, "texto", nombre_contacto)
+        # Actualizar la fila existente con la respuesta (evita duplicar el mensaje del cliente)
+        try:
+            latest = supabase_get(
+                f"conversaciones_whatsapp?telefono=eq.{from_number}"
+                f"&tipo=eq.texto&respuesta=is.null&order=created_at.desc&limit=1"
+            )
+            if latest:
+                supabase_patch(
+                    f"conversaciones_whatsapp?id=eq.{latest[0]['id']}",
+                    {"respuesta": texto_guardado or respuesta_claude}
+                )
+                cache_invalidate("chats_lista")
+            else:
+                guardar_conversacion(from_number, mensaje_final, texto_guardado or respuesta_claude, "texto", nombre_contacto)
+        except Exception as patch_err:
+            print(f"[chatbot] Error actualizando respuesta en fila existente: {patch_err}")
+            guardar_conversacion(from_number, mensaje_final, texto_guardado or respuesta_claude, "texto", nombre_contacto)
         return {"status": "ok"}
 
     except Exception as e:

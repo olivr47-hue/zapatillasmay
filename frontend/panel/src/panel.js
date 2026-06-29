@@ -11729,20 +11729,23 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     <div id="wa-container">
       <div id="wa-sidebar">
         <div class="wa-sidebar-header">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div>
-              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp Cloud API</p>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp</p>
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-weight:800;color:white;font-size:1rem;letter-spacing:-0.01em">Conversaciones</span>
+                <span style="font-weight:700;color:var(--text-1);font-size:0.95rem;letter-spacing:-0.01em">Conversaciones</span>
                 ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos}</span>` : ''}
               </div>
             </div>
             <div style="display:flex;gap:4px">
-              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
-              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.55);font-family:inherit">Config</button>
+              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
+              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Config</button>
             </div>
           </div>
-          <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          <div class="wa-search-wrap">
+            <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+            <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          </div>
           <div class="wa-estado-tabs">
             <button class="wa-estado-tab activa" onclick="filtrarEstado('',this)">Todos</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
@@ -11791,15 +11794,15 @@ window.mostrarTabWA = async (tab) => {
   const btnConfig = document.getElementById('tab-config')
   if (btnChats) {
     const active = tab === 'chats'
-    btnChats.style.background = active ? '#E91E8C' : 'transparent'
-    btnChats.style.color = active ? 'white' : 'rgba(255,255,255,0.55)'
-    btnChats.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
+    btnChats.style.background = active ? '#E91E8C' : 'var(--surface)'
+    btnChats.style.color = active ? 'white' : 'var(--text-2)'
+    btnChats.style.borderColor = active ? '#E91E8C' : 'var(--border)'
   }
   if (btnConfig) {
     const active = tab === 'config'
-    btnConfig.style.background = active ? '#E91E8C' : 'transparent'
-    btnConfig.style.color = active ? 'white' : 'rgba(255,255,255,0.55)'
-    btnConfig.style.borderColor = active ? '#E91E8C' : 'rgba(255,255,255,0.15)'
+    btnConfig.style.background = active ? '#E91E8C' : 'var(--surface)'
+    btnConfig.style.color = active ? 'white' : 'var(--text-2)'
+    btnConfig.style.borderColor = active ? '#E91E8C' : 'var(--border)'
   }
   if (tab === 'chats') {
     await window.cargarConversaciones()
