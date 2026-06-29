@@ -2765,7 +2765,7 @@ if (!window.fbq){
     </ul>
     <div class="header-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="search" placeholder="Buscar modelos..." id="search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProductos(this.value)}" autocomplete="off" name="q">
+      <input type="text" inputmode="search" placeholder="Buscar modelos..." id="search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProductos(this.value)}" autocomplete="off">
       <div class="search-results" id="search-results"></div>
     </div>
     <div class="header-actions">
@@ -2841,7 +2841,7 @@ if (!window.fbq){
 <div class="mobile-search-bar" id="mobile-search-bar">
   <div class="msb-inner">
     <svg class="msb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-    <input type="search" placeholder="Buscar modelos..." id="mobile-search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProductos(this.value)}" autocomplete="off" name="q" inputmode="search">
+    <input type="text" inputmode="search" placeholder="Buscar modelos..." id="mobile-search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarProductos(this.value)}" autocomplete="off">
     <div class="search-results" id="mobile-search-results" style="max-height:55vh"></div>
   </div>
 </div>
