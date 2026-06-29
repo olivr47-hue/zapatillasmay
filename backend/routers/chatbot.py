@@ -159,27 +159,29 @@ Cuando tengas modelo + color + talla:
 - "¡Listo! Para tu pedido necesito 📦:
   • Tu nombre completo
   • Dirección de envío (calle, número, colonia, ciudad, CP)
+  • Tu correo electrónico (para tu comprobante)
   • ¿Cómo prefieres pagar?"
 
 PASO 5 — CERRAR PEDIDO Y GENERAR LINK DE PAGO:
-Cuando tengas TODOS los datos (nombre completo + dirección + modelos + colores + tallas + precios):
+Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + colores + tallas + precios):
 - Calcula el subtotal sumando todos los pares
 - Calcula el envío según las reglas de ENVÍOS (1 par=$99, 2=$150, 3-5=$199, gratis si subtotal≥$1,299)
 - Resume el pedido con subtotal + envío + total
 - Usa el marcador GENERAR_PAGO con JSON exacto (sin espacios extra, sin saltos de línea dentro):
-  GENERAR_PAGO:{{"nombre":"NOMBRE","direccion":"DIRECCION","modelo":"DESCRIPCION_PEDIDO","sku":"SKU_PRINCIPAL","color":"COLOR","talla":"TALLAS","precio":SUBTOTAL_NUMERO,"pares":TOTAL_PARES}}
-- Ejemplo pedido 3 pares $430 c/u: GENERAR_PAGO:{{"nombre":"Lupita García","direccion":"Av. Hidalgo 123, CDMX 06600","modelo":"EF1203 LATTE T23.5 + EF1203 NEGRO T23.5 + CR3385 ORO T23","sku":"EF1203","color":"varios","talla":"varios","precio":1290,"pares":3}}
+  GENERAR_PAGO:{{"nombre":"NOMBRE","email":"EMAIL_CLIENTE","direccion":"DIRECCION","modelo":"DESCRIPCION_PEDIDO","sku":"SKU_PRINCIPAL","color":"COLOR","talla":"TALLAS","precio":SUBTOTAL_NUMERO,"pares":TOTAL_PARES}}
+- Ejemplo pedido 3 pares $430 c/u: GENERAR_PAGO:{{"nombre":"Lupita García","email":"lupita@email.com","direccion":"Av. Hidalgo 123, CDMX 06600","modelo":"EF1203 LATTE T23.5 + EF1203 NEGRO T23.5 + CR3385 ORO T23","sku":"EF1203","color":"varios","talla":"varios","precio":1290,"pares":3}}
 - El sistema calculará el envío correcto y mandará el link de Mercado Pago automáticamente
 - NO pongas LINK_PAGO, usa GENERAR_PAGO con el JSON
+- Si el cliente quiere AGREGAR más pares a un pedido ya en proceso, incluye TODOS los productos (los anteriores + los nuevos) en UN SOLO GENERAR_PAGO con el subtotal acumulado
 
 === REGLAS IMPORTANTES ===
 - Habla como vendedora mexicana amigable y natural (amiga, no robot)
 - Máximo 3-4 líneas por mensaje, nunca textos largos de golpe
 - NUNCA inventes precios ni modelos fuera del catálogo
 - NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
-- Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre y dirección para envío.
+- Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre, dirección y email para envío.
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
-- Si preguntan por mayoreo, explica los precios y pregunta cuántos pares buscan
+- Si preguntan por mayoreo o corrida: usa el precio exacto del catálogo para ese modelo y explica las opciones. NUNCA digas que no sabes el precio — siempre tienes el catálogo con precios de corrida.
 - Sé diferente en cada mensaje, no repitas el mismo texto
 - Responde siempre en español mexicano natural
 
@@ -401,10 +403,11 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
 
         # 1. Crear pedido en Supabase
         try:
-            pedido_db = supabase_post("pedidos", {
+            email_cliente = datos_pedido.get("email", "").strip() or "cliente@zapatillasmay.mx"
+        pedido_db = supabase_post("pedidos", {
                 "nombre_cliente":   nombre,
                 "telefono_cliente": telefono,
-                "email_cliente":    "cliente@zapatillasmay.mx",
+                "email_cliente":    email_cliente,
                 "total":            total,
                 "status":           "checkout_iniciado",
                 "canal":            "whatsapp",
@@ -432,7 +435,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                     {"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"},
                     {"title": "Envío",           "quantity": 1, "unit_price": envio,  "currency_id": "MXN"},
                 ],
-                "payer":              {"name": nombre, "email": "cliente@zapatillasmay.mx"},
+                "payer":              {"name": nombre, "email": email_cliente},
                 "external_reference": str(pedido_id),
                 "back_urls": {
                     "success": "https://zapatillasmay.com/gracias",
