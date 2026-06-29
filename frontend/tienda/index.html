@@ -5237,7 +5237,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   document.getElementById('filtros-bar').classList.add('visible')
   const panel = document.getElementById('filtros-panel'); if (panel) panel.classList.remove('open')
   aplicarFiltros()
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  window.scrollTo({ top: 0, behavior: 'instant' })
   if (urlPath) history.pushState({}, '', urlPath)
 
   // ── SEO dinámico por categoría ──────────────────────────────────────────
@@ -6267,22 +6267,22 @@ const PAGINAS = {
       <h2 style="font-family:var(--font-display);font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:400;text-align:center;margin-bottom:8px;color:var(--black)">Zapatos dama por <em style="font-style:normal;color:var(--pink)">mayoreo en Mexico</em></h2>
       <p style="text-align:center;color:var(--gray-600);font-size:0.86rem;margin-bottom:30px">Por que cientos de revendedoras nos eligen</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">
-        <div class="may-why">
+        <div class="may-why s1" data-animate>
           <div class="may-why-icon">👠</div>
           <p style="font-weight:700;font-size:0.9rem;color:var(--black);margin-bottom:6px">Fabrica propia en Leon</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Sin intermediarios. Calidad directa de la capital del calzado de Mexico.</p>
         </div>
-        <div class="may-why">
+        <div class="may-why s2" data-animate>
           <div class="may-why-icon">🔄</div>
           <p style="font-weight:700;font-size:0.9rem;color:var(--black);margin-bottom:6px">Sin minimo ni registro</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Empieza desde 1 par. El descuento se activa solo. Sin contratos ni tramites.</p>
         </div>
-        <div class="may-why">
+        <div class="may-why s3" data-animate>
           <div class="may-why-icon">✨</div>
           <p style="font-weight:700;font-size:0.9rem;color:var(--black);margin-bottom:6px">Modelos de temporada</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Tacones, sandalias, botas y botines que se venden. Material fotografico incluido.</p>
         </div>
-        <div class="may-why">
+        <div class="may-why s4" data-animate>
           <div class="may-why-icon">📦</div>
           <p style="font-weight:700;font-size:0.9rem;color:var(--black);margin-bottom:6px">Entrega en 3 a 5 dias</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Fedex, DHL y Estafeta a toda la Republica. Empaque individual por par.</p>
@@ -6295,7 +6295,7 @@ const PAGINAS = {
       <h2 style="font-family:var(--font-display);font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:400;text-align:center;margin-bottom:28px;color:var(--black)">Lo que dicen nuestras <em style="font-style:normal;color:var(--pink)">revendedoras</em></h2>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
 
-        <div class="may-testi">
+        <div class="may-testi s1" data-animate>
           <div style="display:flex;gap:2px;margin-bottom:12px"><span style="color:#C8967A;font-size:0.85rem">&#9733;&#9733;&#9733;&#9733;&#9733;</span></div>
           <p style="font-size:0.84rem;color:#5a4030;line-height:1.75;margin-bottom:16px;flex:1">"Llevo 2 anos comprando con May. Los tacones se venden solos en mi tienda. Lo mejor es que no piden minimo ni registro, empece con 3 pares y ahora pido corridas completas."</p>
           <div style="display:flex;align-items:center;gap:10px">
@@ -6307,7 +6307,7 @@ const PAGINAS = {
           </div>
         </div>
 
-        <div class="may-testi">
+        <div class="may-testi s2" data-animate>
           <div style="display:flex;gap:2px;margin-bottom:12px"><span style="color:#C8967A;font-size:0.85rem">&#9733;&#9733;&#9733;&#9733;&#9733;</span></div>
           <p style="font-size:0.84rem;color:#5a4030;line-height:1.75;margin-bottom:16px;flex:1">"Me conviene mezclar modelos para llegar al precio de mayoreo. Las sandalias de temporada se agotan rapidisimo. Muy buen surtido y la atencion es excelente."</p>
           <div style="display:flex;align-items:center;gap:10px">
@@ -6319,7 +6319,7 @@ const PAGINAS = {
           </div>
         </div>
 
-        <div class="may-testi">
+        <div class="may-testi s3" data-animate>
           <div style="display:flex;gap:2px;margin-bottom:12px"><span style="color:#C8967A;font-size:0.85rem">&#9733;&#9733;&#9733;&#9733;&#9733;</span></div>
           <p style="font-size:0.84rem;color:#5a4030;line-height:1.75;margin-bottom:16px;flex:1">"Me ayudan por WhatsApp a elegir los modelos que mas se venden en Guadalajara. Ya voy por mi cuarto pedido. El envio llega rapido y bien empacado."</p>
           <div style="display:flex;align-items:center;gap:10px">
@@ -6335,30 +6335,30 @@ const PAGINAS = {
     </div>
 
     <!-- QUE INCLUYE -->
-    <div style="margin-bottom:56px">
+    <div data-animate style="margin-bottom:56px">
       <h2 style="font-family:var(--font-display);font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:400;margin-bottom:28px;text-align:center">Que <em style="font-style:normal;color:var(--pink)">incluye</em> tu pedido</h2>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px">
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
+        <div data-animate class="s1" style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">📦</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Empaque cuidadoso</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Cada par en su caja individual protegida para llegar en perfectas condiciones.</p>
         </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
+        <div data-animate class="s2" style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">🚚</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Envio a toda la Republica</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Fedex, DHL y Estafeta. Entrega en 3 a 5 dias habiles a todo Mexico.</p>
         </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
+        <div data-animate class="s3" style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">💬</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Asesoria por WhatsApp</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Te ayudamos a elegir los modelos que mejor se venden en tu zona.</p>
         </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
+        <div data-animate class="s4" style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">🔄</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Mezcla de modelos</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Combina estilos y colores en un pedido para alcanzar el precio de mayoreo.</p>
         </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
+        <div data-animate class="s4" style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">📸</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Fotos profesionales</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Material fotografico de los productos para venderlos en redes sociales.</p>
@@ -6423,7 +6423,7 @@ const PAGINAS = {
     </div>
 
     <!-- FORM REVENDEDORA - BOTON CORREGIDO -->
-    <div style="background:linear-gradient(135deg,#2A1A0E,#4a2c1a);border-radius:16px;padding:clamp(28px,5vw,48px);margin-bottom:40px">
+    <div data-animate style="background:linear-gradient(135deg,#2A1A0E,#4a2c1a);border-radius:16px;padding:clamp(28px,5vw,48px);margin-bottom:40px">
       <h2 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2.2rem);font-weight:400;color:var(--white);text-align:center;margin-bottom:6px">Conviertete en <em style="font-style:normal;font-weight:500;color:var(--pink)">revendedora</em></h2>
       <p style="color:rgba(245,240,232,0.55);font-size:0.84rem;text-align:center;margin-bottom:28px;max-width:440px;margin-left:auto;margin-right:auto">Dejanos tus datos y te contactamos por WhatsApp para asesorarte con los modelos que mejor se venden en tu zona.</p>
       <div id="may-form" style="max-width:460px;margin:0 auto;display:grid;gap:12px">
