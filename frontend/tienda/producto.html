@@ -38,7 +38,20 @@
       --gray: #888;
       --font-body: 'Outfit', sans-serif;
       --font-mono: 'Outfit', sans-serif;
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --white: #FBF7F3;
+      --cream: #F5ECE2;
+      --cream-dark: #EDE0D2;
+      --gray-100: #F5ECE2;
+      --gray-200: #EDE0D2;
+      --gray-400: #C8A88C;
+      --gray-600: #8B6A54;
+      --pink-light: rgba(200,150,122,0.09);
+      --pink-soft: #C8967A;
+      --ease-out: cubic-bezier(0.23,1,0.32,1);
+      --transition: transform 0.2s var(--ease-out), color 0.2s var(--ease-out), background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
     }
+    @keyframes bannerSlide { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     a, button, input, select, textarea, [onclick], [role="button"] { touch-action: manipulation; }
     :focus-visible { outline: 2px solid #8B6A54; outline-offset: 2px; border-radius: 3px; }
@@ -46,11 +59,66 @@
     body { font-family: var(--font-body); background: var(--bg); color: var(--black); -webkit-font-smoothing: antialiased; padding-bottom: 100px; }
 
     /* ── HEADER ── */
-    .header { position: sticky; top: 0; z-index: 100; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 4px 16px; height: auto; }
-    .header-logo { font-size: 1.05rem; font-weight: 700; letter-spacing: 1px; text-decoration: none; color: var(--black); }
-    .header-logo span { color: var(--pink); }
-    .header-back { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--gray); text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--font-body); padding: 8px 0; }
-    .header-back svg { flex-shrink: 0; }
+    #promo-banner{background:linear-gradient(90deg,#b5687a 0%,#c8967a 40%,#b5687a 70%,#9e5468 100%);color:white;text-align:center;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101;overflow:hidden;height:36px;display:flex;align-items:center}
+    #promo-banner>div{display:flex;animation:bannerSlide 20s linear infinite;white-space:nowrap}
+    header{position:fixed;top:36px;left:0;right:0;z-index:100;background:rgba(250,248,246,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--cream-dark)}
+    .header-inner{max-width:1400px;margin:0 auto;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .logo{display:flex;align-items:center;text-decoration:none;flex-shrink:0}
+    .logo img{height:40px;width:auto;object-fit:contain}
+    .nav-cats{display:none;gap:4px;list-style:none;align-items:center}
+    .nav-cats>li>a,.nav-cats>li>button.nav-dd-btn{font-size:0.78rem;font-weight:500;color:var(--gray-600);text-decoration:none;text-transform:uppercase;letter-spacing:1px;transition:color 0.2s;padding:6px 12px;border-radius:8px;background:none;border:none;font-family:var(--font-body);cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap}
+    .nav-cats>li>a:hover,.nav-cats>li>button.nav-dd-btn:hover{color:var(--tan)}
+    .nav-dd{position:relative}
+    .nav-dd::after{content:'';position:absolute;top:100%;left:0;right:0;height:14px}
+    .nav-dd-btn svg{width:10px;height:10px;transition:transform 0.2s}
+    .nav-dd:hover .nav-dd-btn svg,.nav-dd.open .nav-dd-btn svg{transform:rotate(180deg)}
+    .nav-mega{display:none;position:absolute;top:calc(100% + 10px);left:0;background:white;border:1px solid rgba(200,150,122,0.2);border-radius:16px;box-shadow:0 16px 48px rgba(42,26,14,0.14);padding:20px;min-width:480px;z-index:8000;gap:8px}
+    .nav-mega::before{content:'';position:absolute;top:-6px;left:24px;width:12px;height:12px;background:white;border-left:1px solid rgba(200,150,122,0.2);border-top:1px solid rgba(200,150,122,0.2);rotate:45deg}
+    .nav-dd:hover .nav-mega,.nav-dd.open .nav-mega{display:flex}
+    .nav-mega-col{flex:1}
+    .nav-mega-col p{font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#C8967A;margin:0 0 6px 8px}
+    .nav-mega-col a{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;font-size:0.83rem;font-weight:500;text-decoration:none;color:#2A1A0E;transition:background 0.15s;white-space:nowrap}
+    .nav-mega-col a:hover{background:#f7f0ea;color:var(--tan)}
+    .nav-mega-divider{width:1px;background:rgba(200,150,122,0.15);margin:0 4px}
+    .header-search{flex:1;max-width:280px;position:relative;display:none}
+    .header-search input{width:100%;padding:8px 16px 8px 36px;border:1px solid var(--gray-200);border-radius:100px;font-family:var(--font-body);font-size:0.82rem;background:var(--gray-100);color:var(--black);outline:none;transition:var(--transition)}
+    .header-search input:focus{border-color:var(--tan);background:white;box-shadow:0 0 0 3px var(--pink-light)}
+    .header-search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none}
+    .search-results{position:absolute;top:calc(100% + 8px);left:0;right:0;background:white;border:1px solid var(--gray-200);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:360px;overflow-y:auto;display:none;z-index:50}
+    .search-results.show{display:block}
+    .search-result-item{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;text-decoration:none;color:inherit;transition:background 0.15s;border-bottom:1px solid var(--gray-100)}
+    .search-result-item:last-child{border-bottom:none}
+    .search-result-item:hover{background:var(--gray-100)}
+    .search-result-img{width:40px;height:40px;border-radius:4px;object-fit:cover;background:var(--gray-100);flex-shrink:0}
+    .search-result-info .name{font-size:0.85rem;font-weight:500}
+    .search-result-info .price{font-size:0.75rem;color:var(--tan);font-family:var(--font-mono)}
+    .header-actions{display:flex;align-items:center;gap:12px}
+    .btn-icon{background:none;border:none;cursor:pointer;padding:8px;border-radius:4px;color:var(--gray-600);transition:color 0.2s;position:relative;display:flex;align-items:center;justify-content:center}
+    .btn-icon:hover{color:var(--tan)}
+    .cart-badge{position:absolute;top:2px;right:2px;background:var(--tan);color:white;font-size:0.6rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .btn-hamburger{display:flex}
+    /* Mobile search bar */
+    .mobile-search-bar{display:none;position:fixed;top:92px;left:0;right:0;z-index:99;background:rgba(250,248,246,0.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--cream-dark);padding:8px 16px;box-sizing:border-box;height:52px}
+    .mobile-search-bar .msb-inner{position:relative}
+    .mobile-search-bar input{width:100%;padding:9px 16px 9px 36px;border:1px solid var(--gray-200);border-radius:100px;background:var(--gray-100);font-size:0.88rem;font-family:inherit;outline:none;color:var(--black);box-sizing:border-box}
+    .mobile-search-bar .msb-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none}
+    /* Bottom nav */
+    #zm-bottomnav{display:none}
+    @media(max-width:767px){
+      header{top:36px}
+      .mobile-search-bar{display:block}
+      #zm-bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9000;background:rgba(255,255,255,0.92);backdrop-filter:blur(20px);border-top:1px solid rgba(200,150,122,0.18);padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 24px rgba(90,40,10,0.08)}
+      .bn-item{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:#8B6A54;font-family:'Outfit',sans-serif;font-size:0.6rem;font-weight:600;text-decoration:none;text-transform:uppercase;letter-spacing:0.4px}
+      .bn-item svg{width:22px;height:22px;stroke-width:1.6}
+      .bn-cart-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+      .bn-badge{position:absolute;top:-4px;right:-6px;background:var(--tan);color:white;font-size:0.55rem;font-weight:700;min-width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0 2px}
+    }
+    @media(min-width:768px){
+      .btn-hamburger{display:none}
+      .nav-cats{display:flex}
+      .header-search{display:block}
+      .header-inner{padding:0 40px;height:72px}
+    }
 
     /* ── GALLERY ── */
     .gallery { background: white; position: relative; overflow: hidden; }
@@ -212,21 +280,21 @@
       #btn-float-wa { bottom: 32px !important; }
       body { padding-bottom: 0; background: #faf8f6; }
 
-      .header {
-        position: fixed;
-        top: 0; left: 52%; right: 0;
+      header {
+        top: 36px;
+        left: 0; right: 0;
         z-index: 150;
         background: rgba(255,255,255,0.95);
         backdrop-filter: blur(20px);
         border-bottom: 1px solid rgba(200,150,122,0.12);
       }
 
-      /* Gallery: full-height fixed left */
+      /* Gallery: full-height fixed left, below promo+header */
       .gallery {
         position: fixed;
-        top: 0; left: 0;
+        top: 108px; left: 0;
         width: 52%;
-        height: 100vh;
+        height: calc(100vh - 108px);
         overflow: hidden;
         background: #f5f0eb;
       }
@@ -265,7 +333,7 @@
       .product-section {
         margin-left: 52% !important;
         max-width: 100% !important;
-        padding: 96px 64px 40px !important;
+        padding: 40px 64px 40px !important;
         background: #faf8f6;
       }
 
@@ -373,22 +441,114 @@
 <body>
 <a href="#contenido-principal" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden" onfocus="this.style.cssText='position:fixed;top:8px;left:8px;width:auto;height:auto;padding:8px 16px;background:#0A0A0A;color:white;z-index:9999;font-size:0.85rem;border-radius:4px;text-decoration:none'">Saltar al contenido</a>
 
+<!-- BANNER PROMO -->
+<div id="promo-banner">
+  <div>
+    <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
+    <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
+    <span style="padding:0 40px">🏷️ Mayoreo sin mínimo de registro</span>
+    <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+    <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
+    <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
+    <span style="padding:0 40px">🏷️ Mayoreo sin mínimo de registro</span>
+    <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+  </div>
+</div>
+
 <!-- HEADER -->
-<header class="header">
-  <button class="header-back" onclick="history.length>1 ? history.back() : window.location.href='/'">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    Atrás
-  </button>
-  <a href="/" style="display:flex;align-items:center;text-decoration:none">
-    <img src="https://res.cloudinary.com/dybdtehhs/image/upload/w_300,f_auto,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png" alt="Zapatillas May" width="150" height="104" style="height:104px;width:auto;object-fit:contain">
-  </a>
-  <div style="width:60px;text-align:right">
-    <a id="header-cart-btn" href="/carrito" style="display:none;align-items:center;gap:5px;text-decoration:none;font-size:0.82rem;font-weight:700;color:var(--black);background:#f5f0ea;border-radius:100px;padding:7px 13px;white-space:nowrap">
-      🛒 <span id="header-cart-count">0</span>
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/">
+      <img src="/images/logosolo.png" alt="Zapatillas May" width="240" height="80" fetchpriority="high">
     </a>
-    <a id="header-catalog-link" href="/#catalogo" style="font-size:0.78rem;color:var(--tan);text-decoration:none;font-weight:600">Ver más</a>
+    <ul class="nav-cats">
+      <li><a href="/">Inicio</a></li>
+      <li class="nav-dd" id="nav-dd-cat">
+        <button class="nav-dd-btn" onclick="toggleNavDD()" aria-expanded="false" aria-haspopup="true">
+          Catálogo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-mega" role="menu">
+          <div class="nav-mega-col">
+            <p>Categorías</p>
+            <a href="/tacones">👠 Tacones</a>
+            <a href="/sandalias">🩴 Sandalias</a>
+            <a href="/plataformas">👡 Plataformas</a>
+            <a href="/botas">🥾 Botas</a>
+            <a href="/botines">👢 Botines</a>
+            <a href="/nina">🎀 Niña</a>
+            <a href="/ofertas" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a>
+          </div>
+          <div class="nav-mega-divider"></div>
+          <div class="nav-mega-col">
+            <p>Información</p>
+            <a href="/como-comprar">🛒 Cómo comprar</a>
+            <a href="/mayoreo">💰 Precios mayoreo</a>
+            <a href="/envios">🚚 Envíos</a>
+            <a href="/tabla-tallas">📏 Tabla de tallas</a>
+            <a href="/contacto">📞 Contacto</a>
+            <a href="/nosotros">🏪 Nosotros</a>
+            <a href="/catalogo">📖 Ver catálogo</a>
+          </div>
+        </div>
+      </li>
+      <li><a href="/ofertas" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a></li>
+    </ul>
+    <div class="header-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" inputmode="search" placeholder="Buscar modelos..." id="search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" autocomplete="off" data-lpignore="true">
+      <div class="search-results" id="search-results"></div>
+    </div>
+    <div class="header-actions">
+      <a class="btn-icon" href="/carrito" title="Carrito" aria-label="Carrito" style="text-decoration:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="cart-badge" id="cart-count" style="display:none">0</span>
+      </a>
+      <button class="btn-icon btn-hamburger" onclick="toggleMenu()" aria-label="Menú">
+        <svg id="icon-menu" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg id="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- MENÚ MÓVIL -->
+  <div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none">
+    <div id="mobile-menu-overlay" onclick="cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
+    <div id="mobile-menu-panel" style="position:fixed;top:0;right:0;bottom:0;width:82%;max-width:300px;background:#fff;z-index:10001;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);box-shadow:-8px 0 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow-y:auto">
+      <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:1">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500">Zapatillas <span style="color:#C8967A">May</span></span>
+        <button onclick="cerrarMenu()" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <div style="padding:16px 12px 8px">
+        <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
+        <a href="/tacones" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👠 Tacones</a>
+        <a href="/sandalias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🩴 Sandalias</a>
+        <a href="/botas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥾 Botas</a>
+        <a href="/botines" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👢 Botines</a>
+        <a href="/nina" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🎀 Niña</a>
+        <a href="/ofertas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">🏷️ Ofertas</a>
+      </div>
+      <div style="height:1px;background:#f0f0f0;margin:4px 12px"></div>
+      <div style="padding:8px 12px 80px">
+        <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Info</p>
+        <a href="/mayoreo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">💰 Precios mayoreo</a>
+        <a href="/envios" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🚚 Envíos</a>
+        <a href="/tabla-tallas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📏 Tabla de tallas</a>
+        <a href="/contacto" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">📞 Contacto</a>
+        <a href="/nosotros" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;text-decoration:none;color:#444;margin-bottom:4px;background:#f8f8f8">🏪 Nosotros</a>
+      </div>
+    </div>
   </div>
 </header>
+
+<!-- BUSCADOR MÓVIL -->
+<div class="mobile-search-bar">
+  <div class="msb-inner">
+    <svg class="msb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" inputmode="search" placeholder="Buscar modelos..." id="mobile-search-input" aria-label="Buscar modelos" oninput="buscarProductos(this.value)" autocomplete="off" data-lpignore="true">
+    <div class="search-results" id="mobile-search-results" style="max-height:55vh"></div>
+  </div>
+</div>
 
 <!-- MAIN CONTENT -->
 <main id="contenido-principal">
@@ -1605,6 +1765,131 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }, 800);
 });
+</script>
+
+<!-- BOTTOM NAV MÓVIL -->
+<nav class="bottom-nav">
+  <a href="/" class="bnav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Inicio</span>
+  </a>
+  <a href="/#catalogo" class="bnav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <span>Catálogo</span>
+  </a>
+  <a href="/mayoreo" class="bnav-item">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    <span>Mayoreo</span>
+  </a>
+  <a href="/carrito" class="bnav-item" id="bnav-carrito">
+    <div style="position:relative;display:inline-flex">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span class="cart-badge" id="bnav-cart-count" style="display:none">0</span>
+    </div>
+    <span>Carrito</span>
+  </a>
+</nav>
+
+<script>
+// ── HEADER FUNCTIONS ──────────────────────────────────────────────
+function toggleMenu() {
+  const menu = document.getElementById('mobile-menu')
+  const overlay = document.getElementById('mobile-menu-overlay')
+  const panel = document.getElementById('mobile-menu-panel')
+  const iconMenu = document.getElementById('icon-menu')
+  const iconClose = document.getElementById('icon-close')
+  const isOpen = panel.style.transform === 'translateX(0%)'
+  if (isOpen) {
+    cerrarMenu()
+  } else {
+    menu.style.display = 'block'
+    menu.style.pointerEvents = 'auto'
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1'
+      panel.style.transform = 'translateX(0%)'
+    })
+    iconMenu.style.display = 'none'
+    iconClose.style.display = ''
+    document.body.style.overflow = 'hidden'
+  }
+}
+
+function cerrarMenu() {
+  const menu = document.getElementById('mobile-menu')
+  const overlay = document.getElementById('mobile-menu-overlay')
+  const panel = document.getElementById('mobile-menu-panel')
+  const iconMenu = document.getElementById('icon-menu')
+  const iconClose = document.getElementById('icon-close')
+  overlay.style.opacity = '0'
+  panel.style.transform = 'translateX(100%)'
+  iconMenu.style.display = ''
+  iconClose.style.display = 'none'
+  document.body.style.overflow = ''
+  setTimeout(() => { if (panel.style.transform === 'translateX(100%)') menu.style.display = 'none' }, 300)
+}
+
+function toggleNavDD() {
+  const dd = document.getElementById('nav-dd-cat')
+  const btn = dd?.querySelector('.nav-dd-btn')
+  if (!dd) return
+  const isOpen = dd.classList.contains('open')
+  document.querySelectorAll('.nav-dd').forEach(d => d.classList.remove('open'))
+  document.querySelectorAll('.nav-dd-btn').forEach(b => b.setAttribute('aria-expanded','false'))
+  if (!isOpen) {
+    dd.classList.add('open')
+    btn?.setAttribute('aria-expanded','true')
+  }
+}
+
+function cerrarNavDD() {
+  document.querySelectorAll('.nav-dd').forEach(d => d.classList.remove('open'))
+  document.querySelectorAll('.nav-dd-btn').forEach(b => b.setAttribute('aria-expanded','false'))
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.nav-dd')) cerrarNavDD()
+})
+
+// ── SEARCH ────────────────────────────────────────────────────────
+let _searchTimer = null
+let _searchCache = {}
+
+async function buscarProductos(q) {
+  const term = (q || '').trim()
+  const containers = ['search-results', 'mobile-search-results']
+  if (term.length < 2) {
+    containers.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = '' })
+    return
+  }
+  if (_searchCache[term]) {
+    containers.forEach(id => renderSearchResults(_searchCache[term], id))
+    return
+  }
+  clearTimeout(_searchTimer)
+  _searchTimer = setTimeout(async () => {
+    try {
+      const API = 'https://zapatillasmay-production.up.railway.app'
+      const res = await fetch(`${API}/productos/?nombre=ilike.*${encodeURIComponent(term)}*&activo=eq.true&select=sku_interno,nombre,imagen_principal,precio_menudeo&limit=8`)
+      const data = await res.json()
+      _searchCache[term] = data
+      containers.forEach(id => renderSearchResults(data, id))
+    } catch(e) {}
+  }, 300)
+}
+
+function renderSearchResults(data, containerId) {
+  const el = document.getElementById(containerId)
+  if (!el) return
+  if (!data.length) { el.innerHTML = '<div style="padding:12px 16px;font-size:0.82rem;color:#999">Sin resultados</div>'; return }
+  el.innerHTML = data.map(p => {
+    const precio = p.precio_menudeo ? `$${p.precio_menudeo + 80} MXN` : ''
+    const img = p.imagen_principal ? p.imagen_principal.replace('/upload/', '/upload/w_80,f_auto,q_auto/') : ''
+    return `<a href="/producto/${p.sku_interno}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;text-decoration:none;color:inherit;border-bottom:1px solid #f5f0ea">
+      ${img ? `<img src="${img}" width="40" height="40" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" alt="${p.nombre}">` : ''}
+      <span style="flex:1;min-width:0"><span style="display:block;font-size:0.82rem;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</span><span style="font-size:0.75rem;color:var(--tan)">${precio}</span></span>
+    </a>`
+  }).join('')
+}
 </script>
 </body>
 </html>
