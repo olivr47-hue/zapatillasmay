@@ -935,10 +935,13 @@ function renderProducto() {
     const paresCarrito = carritoActual.reduce((s, i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0)
     const totalPares = paresCarrito + (simular ? 1 : 0)
 
+    // Precios mayoreo de este producto (misma lógica que el bloque de mayoreoHTML)
+    const _pM3 = parseFloat(p.precio_mayoreo3 || (parseFloat(p.precio_menudeo) - 30))
+    const _pM6 = parseFloat(p.precio_mayoreo6 || (parseFloat(p.precio_menudeo) - 70))
     // Precio de este producto al tier que correspondería con el total de pares
     const precioEste = simular ? (
-      totalPares >= 6 ? parseFloat(p.precio_mayoreo6 || precioDisplay) :
-      totalPares >= 3 ? parseFloat(p.precio_mayoreo3 || precioDisplay) :
+      totalPares >= 6 ? _pM6 :
+      totalPares >= 3 ? _pM3 :
       precioDisplay
     ) : 0
 
