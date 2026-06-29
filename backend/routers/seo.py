@@ -1667,7 +1667,7 @@ def feed_meta():
                 xml += '</item>\n'
 
         xml += '</channel>\n</rss>'
-        cache_set("feed_meta", xml, ttl=TTL_ESTATICO)
+        cache_set("feed_meta", xml, ttl=TTL_FEEDS)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
@@ -1936,7 +1936,7 @@ def feed_google():
                 xml += '</entry>\n'
 
         xml += '</feed>'
-        cache_set("feed_google", xml, ttl=TTL_ESTATICO)
+        cache_set("feed_google", xml, ttl=TTL_FEEDS)
         return Response(content=xml, media_type="application/xml")
     except Exception as e:
         return Response(content=str(e), status_code=500)
