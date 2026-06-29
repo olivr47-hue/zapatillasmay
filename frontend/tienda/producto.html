@@ -976,6 +976,7 @@ function renderProducto() {
       ${faltan > 0 ? `<p style="color:#f97316;font-size:0.68rem">${textoFaltan}</p>` : ''}
     </div>`
   }
+  window._envioHTML = envioHTML  // exponer para irACarrito() y storage listener
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
   if (!p.es_oferta) {
@@ -1299,7 +1300,7 @@ function irACarrito() {
     localStorage.setItem('zm_carrito', JSON.stringify(carrito))
     _actualizarBadgeCarrito(carrito)
     const noteEl = document.getElementById('envio-note-producto')
-    if (noteEl) noteEl.innerHTML = envioHTML(false)
+    if (noteEl && window._envioHTML) noteEl.innerHTML = window._envioHTML(false)
   } catch(e) {}
 
   // Pixels
@@ -1481,7 +1482,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) window.location.re
 window.addEventListener('storage', e => {
   if (e.key !== 'zm_carrito') return
   const noteEl = document.getElementById('envio-note-producto')
-  if (noteEl) noteEl.innerHTML = envioHTML()
+  if (noteEl && window._envioHTML) noteEl.innerHTML = window._envioHTML()
   try { _actualizarBadgeCarrito(JSON.parse(e.newValue || '[]')) } catch(err) {}
 })
 
