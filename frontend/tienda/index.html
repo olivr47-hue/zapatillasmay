@@ -6740,17 +6740,18 @@ const PAGINAS = {
 
 // ── ANIMACIONES PÁGINAS INTERNAS ──────────────
 function initScrollAnimations(container) {
-  if (!('IntersectionObserver' in window)) {
-    container.querySelectorAll('[data-animate]').forEach(el => el.classList.add('in-view'));
-    return;
-  }
   const items = container.querySelectorAll('[data-animate]');
   if (!items.length) return;
+  // Fallback: no IntersectionObserver support OR zero-viewport environment
+  if (!('IntersectionObserver' in window) || window.innerHeight <= 1) {
+    items.forEach(function(el) { el.classList.add('in-view'); });
+    return;
+  }
   const obs = new IntersectionObserver(function(entries) {
     entries.forEach(function(e) {
       if (e.isIntersecting) { e.target.classList.add('in-view'); obs.unobserve(e.target); }
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  }, { threshold: 0.08, rootMargin: '0px 0px -20px 0px' });
   items.forEach(function(el) { obs.observe(el); });
 }
 
