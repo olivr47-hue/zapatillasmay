@@ -3587,70 +3587,14 @@ window.addEventListener('load', () => {
   } else if (pSlug) {
     const colorParam = params.get('color')
     const tallaParam = params.get('talla')
-    const doAddToCart = params.get('addtocart') === '1'
-    ;(window._initPromise || Promise.resolve()).then(() => {
-      const prod = productos.find(p => p.sku_interno === pSlug || p.id === pSlug || p.slug === pSlug)
-      if (!prod) return
-      if (doAddToCart && colorParam && tallaParam) {
-        // Limpiar URL inmediatamente para evitar que bfcache repita la acción
-        history.replaceState(null, '', '/')
-        // Agregar directo al carrito sin abrir modal
-        abrirProducto(prod.id)
-        setTimeout(() => {
-          const colorEl = document.getElementById('color-opt-' + colorParam)
-          if (colorEl) {
-            colorEl.click()
-            setTimeout(() => {
-              const tallaEl = document.getElementById('talla-opt-' + tallaParam.replace('.','_'))
-              if (tallaEl && !tallaEl.classList.contains('agotada')) {
-                tallaEl.click()
-                setTimeout(() => {
-                  agregarAlCarrito()
-                  cerrarModalBtn()
-                  abrirCarrito()
-                }, 300)
-              }
-            }, 400)
-          }
-        }, 300)
-      } else {
-        abrirProducto(prod.id)
-      }
-    })
+    let _dest = '/producto/' + pSlug
+    const _q = []
+    if (colorParam) _q.push('color=' + encodeURIComponent(colorParam))
+    if (tallaParam) _q.push('talla=' + encodeURIComponent(tallaParam))
+    if (_q.length) _dest += '?' + _q.join('&')
+    window.location.replace(_dest)
   } else if (path.startsWith('/producto/')) {
-    const sku = path.replace('/producto/', '')
-    const colorParam = params.get('color')
-    const tallaParam = params.get('talla')
-    ;(window._initPromise || Promise.resolve()).then(() => {
-      const prod = productos.find(p => p.sku_interno === sku || p.id === sku || p.slug === sku)
-      if (prod) {
-        abrirProducto(prod.id)
-        if (colorParam) {
-          setTimeout(() => {
-            const colorEl = document.getElementById('color-opt-' + colorParam)
-            if (colorEl) {
-              colorEl.click()
-              if (tallaParam) {
-                setTimeout(() => {
-                  const tallaEl = document.getElementById('talla-opt-' + tallaParam.replace('.','_'))
-                  if (tallaEl && !tallaEl.classList.contains('agotada')) {
-                    tallaEl.click()
-                    if (params.get('addtocart') === '1') {
-                      history.replaceState(null, '', '/')
-                      setTimeout(() => {
-                        agregarAlCarrito()
-                        cerrarModalBtn()
-                        abrirCarrito()
-                      }, 300)
-                    }
-                  }
-                }, 400)
-              }
-            }
-          }, 300)
-        }
-      }
-    }, 800)
+    window.location.replace(path + (window.location.search || ''))
     // ── Rutas limpias para páginas de información ──
   } else if (path === '/mayoreo' || path === '/precios-mayoreo') {
     ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('mayoreo'))
