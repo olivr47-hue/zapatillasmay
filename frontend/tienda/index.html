@@ -3028,7 +3028,7 @@ if (!window.fbq){
       <p>Comprando mas pares obtienes mejor precio automaticamente. Sin registro especial, sin codigos, el sistema lo calcula solo.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">
         <button class="btn-primary" onclick="mostrarPagina('mayoreo')">Más sobre mayoreo</button>
-        <button class="btn-outline" onclick="navegarInicio()">Ver catálogo</button>
+        <button class="btn-outline" onclick="mostrarCatalogo()">Ver catálogo</button>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -6747,19 +6747,24 @@ const PAGINAS = {
 
 // ── ANIMACIONES PÁGINAS INTERNAS ──────────────
 function initScrollAnimations(container) {
-  const items = container.querySelectorAll('[data-animate]');
-  if (!items.length) return;
-  // Fallback: no IntersectionObserver support OR zero-viewport environment
-  if (!('IntersectionObserver' in window) || window.innerHeight <= 1) {
-    items.forEach(function(el) { el.classList.add('in-view'); });
-    return;
-  }
-  const obs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) { e.target.classList.add('in-view'); obs.unobserve(e.target); }
+  var pending = Array.from(container.querySelectorAll('[data-animate]'));
+  if (!pending.length) return;
+  var vh = window.innerHeight || document.documentElement.clientHeight || 600;
+  function check() {
+    if (!pending.length) return;
+    pending = pending.filter(function(el) {
+      var r = el.getBoundingClientRect();
+      if (r.top < vh - 40) { el.classList.add('in-view'); return false; }
+      return true;
     });
-  }, { threshold: 0.08, rootMargin: '0px 0px -20px 0px' });
-  items.forEach(function(el) { obs.observe(el); });
+    if (!pending.length) window.removeEventListener('scroll', onScroll);
+  }
+  var ticking = false;
+  function onScroll() {
+    if (!ticking) { ticking = true; requestAnimationFrame(function(){ check(); ticking = false; }); }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  check(); // revisar inmediatamente los que ya están en viewport
 }
 
 function animarPaginaInterna(contenido) {
