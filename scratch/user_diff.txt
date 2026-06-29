@@ -1,0 +1,371 @@
+diff --git a/frontend/tienda/index.html b/frontend/tienda/index.html
+index 2aab09c..9eb8a17 100644
+--- a/frontend/tienda/index.html
++++ b/frontend/tienda/index.html
+@@ -2726,30 +2726,30 @@
+     <span class="hp hp8"></span>
+   </div>
+ 
+-  <!-- Zapatilla 3D — wrapper scroll + wrapper levitate separados -->
+-  <div id="hero-shoe-scroll" style="position:absolute;right:5%;bottom:0;width:48%;max-width:640px;height:100%;pointer-events:none;z-index:3;">
+-    <div class="hero-shoe-wrap" id="hero-shoe-wrap" aria-hidden="true">
++  <!-- ─────────────────────────────────────────────────────────────────
++       VISOR 360° — para cambiar las fotos edita SOLO estas rutas:
++       Frames: images/360/_DSC0846-Editar.webp … _DSC0862-Editar.webp (17 frames)
++       ───────────────────────────────────────────────────────────────── -->
++  <div id="hero-shoe-scroll">
++    <div class="hero-shoe-wrap" id="hero-shoe-wrap">
+       <img id="hero-shoe-img"
+-        src="https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato"
+-        srcset="https://res.cloudinary.com/dybdtehhs/image/upload/w_480,f_auto,q_auto/v1/zapatillasmay/hero-zapato 480w, https://res.cloudinary.com/dybdtehhs/image/upload/w_900,f_auto,q_auto/v1/zapatillasmay/hero-zapato 900w"
+-        sizes="(max-width: 767px) 480px, 900px"
+-        fetchpriority="high" width="900" height="900"
+-        onerror="this.parentElement.parentElement.style.display='none'"
++        src="images/360/_DSC0846-Editar.webp"
++        fetchpriority="high" width="1300" height="1300"
+         alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
+       <div class="hero-shoe-shadow"></div>
+-
+     </div>
++    <div class="viewer-360-badge" aria-hidden="true">360°</div>
+   </div>
+ 
+   <div class="hero-content fade-in" id="hero-content">
+     <p class="hero-eyebrow">Directo del fabricante · León, Guanajuato</p>
+     <h1 class="hero-title">Calzado de dama<br>desde <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, GTO</em></h1>
+     <p class="hero-subtitle">Tacones, sandalias y botas desde <strong style="color:#e8c4a0">$360 MXN</strong> · Directo del fabricante · Envío a todo México</p>
+-    <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.82rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25)">🏷️ Compra <strong>3 pares</strong> y paga <strong>precio de mayoreo</strong> + <strong style="color:#7CFFB2">envío GRATIS</strong></p>
+     <div class="hero-cta">
+-      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades esta semana →</button>
++      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades →</button>
+       <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()">Ver ofertas</button>
+     </div>
++    <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.82rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25)">🏷️ Compra <strong>3 pares</strong> y paga <strong>precio de mayoreo</strong> + <strong style="color:#7CFFB2">envío GRATIS</strong></p>
+   </div>
+ </section>
+ 
+@@ -6867,5 +6867,323 @@ function zmRechazarCookies() {
+     .product-badge { animation: none !important; }
+   }
+ </style>
++
++<!-- ════════════════════════════════════════════════════════════════════
++     HERO — BLOQUE CENTRAL DE CONFIGURACIÓN
++
++     ✏️  PARA CAMBIAR LA FOTO LIFESTYLE (sección debajo del zapato en móvil):
++         Cambia la URL en --hero-lifestyle-url dentro de :root aquí abajo.
++
++     ✏️  PARA CAMBIAR LOS FRAMES DEL VISOR 360:
++         Ve al <script id="zm-hero-360"> más abajo y edita el array FRAMES.
++
++     ✏️  PARA CAMBIAR EL ZAPATO EN DESKTOP (si quisieras imagen estática):
++         Cambia el src en el <img id="hero-shoe-img"> del HTML (línea ~2730).
++════════════════════════════════════════════════════════════════════ -->
++<style id="zm-hero-styles">
++
++/* ── Imagen lifestyle del hero móvil — CAMBIAR AQUÍ ── */
++:root {
++  --hero-lifestyle-url: url('https://res.cloudinary.com/dybdtehhs/image/upload/w_700,f_auto,q_auto/v1777668328/ChatGPT_Image_1_may_2026_14_43_58_kkgzs9.png');
++}
++
++/* GSAP inyecta <canvas> en #hero-section para partículas — siempre oculto */
++#hero-section > canvas { display: none !important; }
++
++/* ── DESKTOP: posición del visor (antes era inline style en el HTML) ── */
++@media (min-width: 769px) {
++  /* Ocultar foto lifestyle en desktop — el hero usa su gradiente crema propio */
++  #hero-bg { display: none !important; }
++
++  #hero-shoe-scroll {
++    position: absolute;
++    top: 0; bottom: 0; right: 0; left: 46%;
++    width: auto; height: 100%;
++    background: #ffffff;
++    pointer-events: auto;
++    z-index: 3;
++    cursor: grab;
++    overflow: hidden;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++  }
++  #hero-shoe-scroll:active { cursor: grabbing; }
++
++  /* Deshabilitar tilt 3D de GSAP — el visor solo gira con arrastre horizontal */
++  #hero-shoe-img { transform: none !important; }
++
++  .viewer-360-badge {
++    position: absolute;
++    bottom: 16px; right: 16px;
++    font-family: var(--font-sans);
++    font-size: 0.65rem; font-weight: 700;
++    letter-spacing: 0.08em;
++    color: rgba(165,103,128,0.85);
++    background: rgba(255,255,255,0.92);
++    border: 1px solid rgba(165,103,128,0.22);
++    padding: 4px 10px; border-radius: 100px;
++    pointer-events: none; z-index: 4;
++  }
++
++  /* Hero desktop: altura compacta (sin espacio vacío excesivo) */
++  .hero {
++    height: 60vh !important;
++    min-height: 500px !important;
++    max-height: 680px !important;
++  }
++
++  /* Texto: posicionado en la mitad izquierda (antes de donde empieza el visor) */
++  #hero-content, .hero-content {
++    position: absolute !important;
++    top: 50% !important;
++    left: 0 !important;
++    width: 46% !important;
++    max-width: 46% !important;
++    transform: translateY(-50%) !important;
++    text-align: left !important;
++    padding: 0 40px 0 5% !important;
++    z-index: 2 !important;
++  }
++
++  /* Colores de texto para fondo crema claro (sin foto lifestyle) */
++  .hero-title {
++    color: var(--black) !important;
++    font-size: clamp(2rem, 3.2vw, 4rem) !important;
++  }
++  .hero-title em { color: var(--pink) !important; text-shadow: none !important; }
++  .hero-eyebrow { color: var(--pink) !important; }
++  .hero-subtitle { color: #666 !important; }
++
++  /* Ocultar barra gris de la tarjeta corrida en desktop */
++  .leon-gto::after { display: none !important; }
++}
++
++/* ── MÓVIL: layout columna — zapato arriba, lifestyle abajo ── */
++@media (max-width: 768px) {
++
++  /* Ocultar elementos desktop-only */
++  #hero-bg, .hero-spotlight, .hero-particles,
++  .hero-shoe-shadow, .hero-eyebrow, .hero-subtitle { display: none !important; }
++
++  /* Hero: columna */
++  #hero-section {
++    display: flex !important;
++    flex-direction: column !important;
++    align-items: stretch !important;
++    justify-content: flex-start !important;
++    height: auto !important;
++    min-height: auto !important;
++    margin-top: 145px !important;  /* 36px ticker + 57px header + 52px buscador */
++    padding: 0 !important;
++    gap: 0 !important;
++    overflow: visible !important;
++  }
++
++  /* Sección 1: visor 360 — fondo blanco, full width */
++  #hero-shoe-scroll {
++    position: relative !important;
++    top: auto !important; bottom: auto !important;
++    left: auto !important; right: auto !important;
++    width: 100% !important;
++    height: 48vh !important;
++    min-height: 240px !important;
++    background: #ffffff !important;
++    pointer-events: auto !important;
++    z-index: 2 !important;
++    display: flex !important;
++    align-items: center !important;
++    justify-content: center !important;
++    overflow: hidden !important;
++    cursor: grab !important;
++    touch-action: pan-y !important;
++    order: 1 !important;
++    transform: none !important; /* anular parallax GSAP */
++  }
++  #hero-shoe-scroll:active { cursor: grabbing !important; }
++
++  /* Badge 360° en esquina superior derecha */
++  .viewer-360-badge {
++    display: block !important;
++    position: absolute !important;
++    top: 12px !important; right: 12px !important;
++    font-family: var(--font-sans);
++    font-size: 0.62rem !important; font-weight: 700 !important;
++    letter-spacing: 0.06em;
++    color: rgba(165,103,128,0.9) !important;
++    background: rgba(255,255,255,0.92) !important;
++    border: 1px solid rgba(165,103,128,0.22) !important;
++    padding: 3px 8px !important; border-radius: 100px !important;
++    pointer-events: none !important; z-index: 3 !important;
++  }
++
++  /* Zapato: llenar el visor, pegado al borde inferior */
++  .hero-shoe-wrap {
++    width: 100% !important; height: 100% !important;
++    display: flex !important;
++    align-items: flex-end !important;
++    justify-content: center !important;
++    padding-bottom: 8px !important;
++    animation: none !important;
++    pointer-events: none !important;
++  }
++  .hero-shoe-wrap img {
++    max-width: 95% !important;
++    max-height: 90% !important;
++    width: auto !important;
++    height: auto !important;
++    object-fit: contain !important;
++    filter: drop-shadow(0 12px 22px rgba(160,100,80,0.12)) !important;
++  }
++
++  /* Sección 2: lifestyle foto + texto — ORDER 2 */
++  #hero-content {
++    order: 2 !important;
++    position: relative !important;
++    left: auto !important; right: auto !important;
++    width: 100% !important; max-width: 100% !important;
++    margin-top: -16px !important;
++    padding: 0 0 12px !important;
++    display: flex !important;
++    flex-direction: column !important;
++    align-items: center !important;
++    justify-content: flex-start !important;
++    min-height: 72vw !important;
++    background-image: var(--hero-lifestyle-url) !important;
++    background-size: cover !important;
++    background-position: center 50% !important;
++    text-align: center !important;
++    z-index: 1 !important;
++  }
++
++  /* Sin gradiente — la imagen lifestyle se ve completa y limpia */
++  #hero-content::before { display: none !important; }
++  #hero-content > * { position: relative !important; z-index: 1 !important; }
++
++  /* Título */
++  .hero-title {
++    font-size: 2.4rem !important;
++    line-height: 1.06 !important;
++    letter-spacing: -0.02em !important;
++    color: var(--black) !important;
++    text-shadow: none !important;
++    margin: 16px 20px 8px !important;
++    padding: 0 !important;
++  }
++  .hero-title em { text-shadow: none !important; }
++  .hero-title .leon-gto::after { display: none !important; }
++
++  /* Pill oferta — va debajo de los botones (al final absoluto) */
++  .hero-offer {
++    align-self: center !important;
++    max-width: calc(100% - 32px) !important;
++    margin: 8px auto 0 !important;
++    flex-wrap: wrap !important;
++    justify-content: center !important;
++    gap: 3px 5px !important;
++    font-size: 0.72rem !important;
++    padding: 7px 14px !important;
++  }
++  .hero-offer strong { white-space: nowrap !important; }
++
++  /* Botones en fila — margin-top:auto los empuja al fondo de la sección */
++  .hero-cta {
++    flex-direction: row !important;
++    justify-content: center !important;
++    gap: 10px !important;
++    width: 100% !important;
++    padding: 0 20px !important;
++    margin-top: auto !important;
++  }
++  .hero-cta .btn-primary,
++  .hero-cta .btn-outline {
++    flex: 1 !important;
++    max-width: 145px !important;
++    padding: 10px 12px !important;
++    font-size: 0.71rem !important;
++    justify-content: center !important;
++    width: auto !important;
++  }
++  .hero-cta .btn-outline {
++    border-color: rgba(156,90,82,0.5) !important;
++    color: var(--black) !important;
++  }
++}
++</style>
++
++<!-- ════ VISOR 360° — para cambiar frames edita el array FRAMES ════ -->
++<script id="zm-hero-360">
++(function() {
++  /* ✏️  FRAMES DEL VISOR 360 — cambiar rutas aquí si se reprocesa el zapato */
++  var FRAMES = [
++    'images/360/_DSC0846-Editar.webp',
++    'images/360/_DSC0847-Editar.webp',
++    'images/360/_DSC0848-Editar.webp',
++    'images/360/_DSC0849-Editar.webp',
++    'images/360/_DSC0850-Editar.webp',
++    'images/360/_DSC0851-Editar.webp',
++    'images/360/_DSC0852-Editar.webp',
++    'images/360/_DSC0853-Editar.webp',
++    'images/360/_DSC0854-Editar.webp',
++    'images/360/_DSC0855-Editar.webp',
++    'images/360/_DSC0856-Editar.webp',
++    'images/360/_DSC0857-Editar.webp',
++    'images/360/_DSC0858-Editar.webp',
++    'images/360/_DSC0859-Editar.webp',
++    'images/360/_DSC0860-Editar.webp',
++    'images/360/_DSC0861-Editar.webp',
++    'images/360/_DSC0862-Editar.webp'
++  ];
++  var PX_PER_FRAME = 5; /* sensibilidad: px de drag por frame */
++
++  var img = document.getElementById('hero-shoe-img');
++  var container = document.getElementById('hero-shoe-scroll');
++  if (!img || !container || !FRAMES.length) return;
++
++  /* Pre-cargar todos los frames en background */
++  FRAMES.forEach(function(src) { (new Image()).src = src; });
++
++  var total = FRAMES.length;
++  var frame = 0;
++  var startX = 0;
++  var active = false;
++  var travelled = 0;
++
++  function goTo(n) {
++    var idx = ((n % total) + total) % total;
++    if (frame === idx) return;
++    frame = idx;
++    img.src = FRAMES[idx];
++  }
++
++  function begin(x) {
++    startX = x; active = true; travelled = 0;
++    container.style.cursor = 'grabbing';
++  }
++  function move(x) {
++    if (!active) return;
++    var delta = x - startX;
++    var steps = Math.round((delta - travelled) / PX_PER_FRAME);
++    if (steps !== 0) {
++      goTo(frame - steps);
++      travelled += steps * PX_PER_FRAME;
++    }
++  }
++  function end() {
++    active = false;
++    container.style.cursor = '';
++  }
++
++  /* Mouse */
++  container.addEventListener('mousedown',  function(e) { e.preventDefault(); begin(e.clientX); });
++  window.addEventListener('mousemove',     function(e) { move(e.clientX); });
++  window.addEventListener('mouseup',       end);
++
++  /* Touch */
++  container.addEventListener('touchstart', function(e) { begin(e.touches[0].clientX); }, { passive: true });
++  container.addEventListener('touchmove',  function(e) { move(e.touches[0].clientX); },  { passive: true });
++  container.addEventListener('touchend',   end);
++})();
++</script>
+ </body>
+ </html>
+\ No newline at end of file

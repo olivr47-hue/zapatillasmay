@@ -1,0 +1,125 @@
+257:       align-items: center;
+258:       justify-content: center;
+259:       font-family: var(--font-mono);
+260:     }
+261: 
+262:     /* HERO */
+263:     .hero {
+264:   margin-top: calc(36px + 72px);
+265:   height: calc(100vh - 108px);
+266:   min-height: calc(100vh - 108px);
+267:   background:
+268:     radial-gradient(ellipse 80% 60% at 20% 30%,  rgba(200,150,122,0.18) 0%, transparent 55%),
+269:     radial-gradient(ellipse 60% 50% at 80% 70%,  rgba(181,104,122,0.12) 0%, transparent 55%),
+270:     radial-gradient(ellipse 50% 40% at 55% 20%,  rgba(232,208,185,0.20) 0%, transparent 50%),
+271:     linear-gradient(145deg, #f7ede4 0%, #f2e4d8 35%, #ecdbd0 60%, #f5ece4 100%);
+272:   display: flex;
+273:   align-items: center;
+274:   justify-content: center;
+275:   position: relative;
+276:   overflow: hidden;
+277: }
+278: 
+279:     .hero::before {
+280:   content: '';
+281:   position: absolute;
+282:   inset: 0;
+283:   background:
+284:     radial-gradient(ellipse at 30% 50%, rgba(200,150,122,0.12) 0%, transparent 60%),
+285:     radial-gradient(ellipse at 70% 80%, rgba(200,150,122,0.07) 0%, transparent 50%);
+286: }
+287: 
+288: /* Líneas decorativas tipo editorial fashion */
+289: .hero::after {
+290:   content: '';
+291:   position: absolute;
+292:   top: 8%; right: 6%;
+293:   width: 1px;
+294:   height: 140px;
+295:   background: linear-gradient(to bottom, transparent, rgba(200,150,122,0.35), transparent);
+296:   pointer-events: none;
+297: }
+298: 
+299:     .hero-content {
+300:       text-align: center;
+301:       position: relative;
+302:       z-index: 1;
+303:       padding: 40px;
+304:     }
+305: 
+306:     .hero-eyebrow {
+307:       font-size: 0.72rem;
+308:       font-weight: 600;
+309:       text-transform: uppercase;
+310:       letter-spacing: 3px;
+311:       color: var(--pink);
+312:       margin-bottom: 20px;
+313:     }
+314: 
+315:     .hero-title {
+316:       font-family: var(--font-display);
+317:       font-size: clamp(3rem, 8vw, 7rem);
+318:       font-weight: 300;
+319:       color: var(--white);
+320:       line-height: 1;
+321:       letter-spacing: -1px;
+322:       margin-bottom: 12px;
+323:     }
+324: 
+325:     .hero-title em {
+326:       font-style: normal;
+327:       font-weight: 500;
+328:       color: var(--pink);
+329:     }
+330: 
+331:     .hero-subtitle {
+332:       font-size: 1rem;
+333:       color: rgba(255,255,255,0.5);
+334:       margin-bottom: 40px;
+335:       font-weight: 300;
+336:     }
+337: 
+338:     .hero-cta {
+339:       display: inline-flex;
+340:       gap: 16px;
+341:       flex-wrap: wrap;
+342:       justify-content: center;
+343:     }
+344: 
+345:     .btn-primary {
+346:   display: inline-flex;
+347:   align-items: center;
+348:   gap: 8px;
+349:   padding: 14px 36px;
+350:   background: linear-gradient(135deg, #C8967A 0%, #b5687a 100%);
+351:   color: white;
+352:   font-family: var(--font-body);
+353:   font-size: 0.82rem;
+354:   font-weight: 600;
+355:   text-transform: uppercase;
+356:   letter-spacing: 1.5px;
+357:   border: none;
+358:   border-radius: 100px;
+359:   cursor: pointer;
+360:   text-decoration: none;
+361:   transition: var(--transition);
+362:   box-shadow: 0 4px 16px rgba(200,150,122,0.35);
+363: }
+364: 
+365: .btn-primary:hover {
+366:   background: linear-gradient(135deg, #d4a48a 0%, #c27888 100%);
+367:   box-shadow: 0 8px 28px rgba(200,150,122,0.5);
+368:   transform: translateY(-2px);
+369: }
+370: .btn-primary:active { transform: scale(0.97); }
+371: 
+372:     .btn-outline {
+373:   display: inline-flex;
+374:   align-items: center;
+375:   gap: 8px;
+376:   padding: 13px 36px;
+377:   background: transparent;
+378:   color: white;
+379:   font-family: var(--font-body);
+380:   font-size: 0.82rem;
+381:   font-weight: 600;

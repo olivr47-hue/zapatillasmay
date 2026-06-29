@@ -1,0 +1,938 @@
+Found 10 style blocks.
+
+Block 1 | Selector: .skip-link
+Body: position: absolute; left: -9999px; top: 0; z-index: 1000; background: #2A1A0E; color: #fff; padding: 10px 16px; border-radius: 0 0 8px 0; text-decoration: none; font-size: 0.85rem;
+
+Block 1 | Selector: :focus-visible
+Body: outline: 2px solid #8B6A54; outline-offset: 2px; border-radius: 3px;
+
+Block 1 | Selector: /* HEADER */
+    header
+Body: position: fixed;
+  top: 36px;
+  left: 0; right: 0;
+  z-index: 100;
+  background: rgba(250,248,246,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--cream-dark);
+  transition: var(--transition);
+
+Block 1 | Selector: .header-search input
+Body: width: 100%;
+      padding: 8px 16px 8px 36px;
+      border: 1px solid var(--gray-200);
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      background: var(--gray-100);
+      color: var(--black);
+      outline: none;
+      transition: var(--transition);
+
+Block 1 | Selector: .header-search input:focus
+Body: border-color: var(--pink);
+      background: white;
+      box-shadow: 0 0 0 3px var(--pink-light);
+
+Block 1 | Selector: .btn-icon
+Body: background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: var(--radius);
+      color: var(--gray-600);
+      transition: color 0.2s;
+      position: relative;
+
+Block 1 | Selector: .cart-badge
+Body: position: absolute;
+      top: 2px; right: 2px;
+      background: var(--pink);
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 700;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+
+Block 1 | Selector: .btn-primary
+Body: display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 36px;
+      background: linear-gradient(135deg, #C8967A 0%, #b5687a 100%);
+      color: white;
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border: none;
+      border-radius: 100px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: var(--transition);
+      box-shadow: 0 4px 16px rgba(200,150,122,0.35);
+
+Block 1 | Selector: .btn-primary:hover
+Body: background: linear-gradient(135deg, #d4a48a 0%, #c27888 100%);
+      box-shadow: 0 8px 28px rgba(200,150,122,0.5);
+      transform: translateY(-2px);
+
+Block 1 | Selector: .btn-outline
+Body: display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 36px;
+      background: transparent;
+      color: var(--black);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      border: 1.5px solid var(--black);
+      border-radius: 100px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: var(--transition);
+      backdrop-filter: blur(4px);
+
+Block 1 | Selector: /* Botn flotante de zoom */
+    .btn-zoom
+Body: position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #FBF7F3;
+      border: 1px solid rgba(200, 150, 122, 0.2);
+      color: #2A1A0E;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+
+Block 1 | Selector: .viewer-360-badge
+Body: position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(42, 26, 14, 0.05);
+      color: var(--gray-600);
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      pointer-events: none;
+      border: 1px solid rgba(42, 26, 14, 0.08);
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+      z-index: 4;
+
+Block 1 | Selector: /*  CRO: TRUST STRIP  */
+    .cro-trust-strip
+Body: background: var(--cream);
+      border-top: 1px solid var(--cream-dark);
+      border-bottom: 1px solid var(--cream-dark);
+      padding: 28px 40px;
+
+Block 1 | Selector: .cro-tier
+Body: display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: white;
+      border: 1px solid var(--cream-dark);
+
+Block 1 | Selector: /*  CRO: BADGE STOCK BAJO  */
+    .badge-stock
+Body: position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(42,26,14,0.85);
+      color: #FBF7F3;
+      font-size: 0.58rem;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 100px;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(4px);
+
+Block 1 | Selector: .cro-social-proof
+Body: width: 100%; justify-content: center; border-bottom: 1px solid var(--cream-dark); padding-bottom: 16px;
+
+Block 1 | Selector: .cat-wrap
+Body: position: relative;
+      width: 155px;
+      height: 207px; /* 155  4/3 */
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+
+Block 1 | Selector: .filtros-btn
+Body: display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: 1.5px solid var(--cream-dark); background: white; border-radius: 100px; font-family: var(--font-body); font-size: 0.82rem; font-weight: 600; color: var(--gray-800); cursor: pointer; transition: var(--transition);
+
+Block 1 | Selector: .filtros-btn .fb-count
+Body: background: var(--pink); color: white; border-radius: 100px; font-size: 0.68rem; padding: 1px 7px; min-width: 18px; text-align: center;
+
+Block 1 | Selector: .filtros-orden
+Body: padding: 8px 14px; border: 1.5px solid var(--cream-dark); border-radius: 100px; background: white; font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-800); cursor: pointer; outline: none;
+
+Block 1 | Selector: .filtros-panel
+Body: display: none; background: white; border: 1px solid var(--cream-dark); border-radius: 14px; padding: 20px; margin-top: 4px;
+
+Block 1 | Selector: .filtro-chip
+Body: display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1.5px solid var(--cream-dark); border-radius: 100px; background: white; font-family: var(--font-body); font-size: 0.8rem; color: var(--gray-800); cursor: pointer; transition: var(--transition); user-select: none;
+
+Block 1 | Selector: .filtro-chip .chip-dot
+Body: width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0;
+
+Block 1 | Selector: .filtros-acciones
+Body: display: flex; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--cream);
+
+Block 1 | Selector: .filtros-aplicar
+Body: flex: 1; padding: 11px; background: var(--pink); color: white; border: none; border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; cursor: pointer;
+
+Block 1 | Selector: .filtros-limpiar
+Body: padding: 11px 20px; background: white; border: 1.5px solid var(--cream-dark); border-radius: 100px; font-family: var(--font-body); font-size: 0.85rem; color: var(--gray-600); cursor: pointer;
+
+Block 1 | Selector: .product-card
+Body: cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                  opacity 0.75s ease;
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      overflow: hidden;
+      border-radius: 12px;
+
+Block 1 | Selector: .product-img-wrap
+Body: position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--gray-100);
+  aspect-ratio: 1/1;
+  margin-bottom: 12px;
+
+Block 1 | Selector: .product-badge
+Body: position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+
+Block 1 | Selector: .btn-add-cart
+Body: width: 100%;
+      display: block;
+      text-align: center;
+      box-sizing: border-box;
+      padding: 10px;
+      background: linear-gradient(135deg, #C8967A, #b5687a);
+      color: white;
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 2px 10px rgba(200,150,122,0.35);
+
+Block 1 | Selector: .btn-add-cart:hover
+Body: background: linear-gradient(135deg,#d4a48a,#c27888); box-shadow: 0 4px 16px rgba(200,150,122,0.5);
+
+Block 1 | Selector: .color-dot
+Body: width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: transform 0.15s;
+
+Block 1 | Selector: .banner-mayoreo .btn-primary
+Body: background: linear-gradient(135deg,#C8967A,#b5687a) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 100px !important;
+
+Block 1 | Selector: .banner-mayoreo .btn-outline
+Body: background: transparent !important;
+  color: white !important;
+  border: 1px solid rgba(245,240,232,0.4) !important;
+
+Block 1 | Selector: .mayoreo-price-card
+Body: border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+
+Block 1 | Selector: .modal
+Body: position: relative;
+      background: white;
+      border-radius: 12px;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      transform: translateY(20px);
+      transition: transform 0.3s;
+
+Block 1 | Selector: .modal-img
+Body: position: relative;
+      grid-row: 1 / span 2;
+      border-radius: 12px 0 0 12px;
+      overflow: hidden;
+      background: var(--gray-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+
+Block 1 | Selector: .modal-close
+Body: position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      border: none;
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      cursor: pointer;
+      font-size: 1rem;
+      color: var(--gray-600);
+      transition: var(--transition);
+
+Block 1 | Selector: .btn-ver-video
+Body: position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.72);
+      color: white;
+      border: none;
+      border-radius: 100px;
+      padding: 6px 18px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      z-index: 3;
+      white-space: nowrap;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s;
+      pointer-events: all;
+
+Block 1 | Selector: .modal-prices-mayoreo
+Body: display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 24px;
+      padding: 12px 14px;
+      background: var(--pink-light);
+      border-radius: 6px;
+      border: 1px solid rgba(200,150,122,0.2);
+
+Block 1 | Selector: .color-opt
+Body: display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      padding: 6px 4px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+
+Block 1 | Selector: .color-opt .dot
+Body: width: 24px; height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.1);
+
+Block 1 | Selector: .talla-opt
+Body: padding: 6px 14px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      background: white;
+
+Block 1 | Selector: .btn-agregar
+Body: width: 100%;
+      padding: 14px;
+      background: var(--black);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-bottom: 10px;
+
+Block 1 | Selector: .btn-agregar:hover:not(:disabled)
+Body: background: var(--pink);
+      box-shadow: 0 8px 24px var(--pink-glow);
+
+Block 1 | Selector: .btn-corrida
+Body: width: 100%;
+      padding: 12px;
+      background: transparent;
+      color: var(--black);
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+
+Block 1 | Selector: /* CARRITO DRAWER */
+    .cart-drawer
+Body: position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 420px;
+      background: #faf8f6;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+      box-shadow: -8px 0 60px rgba(0,0,0,0.12);
+
+Block 1 | Selector: .cart-header
+Body: padding: 24px 24px 20px;
+      border-bottom: 1px solid rgba(200,150,122,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+
+Block 1 | Selector: .cart-item
+Body: display: flex;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      background: white;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+
+Block 1 | Selector: .cart-item:hover
+Body: transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+
+Block 1 | Selector: .cart-item-img
+Body: width: 80px; height: 96px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: #f5f0eb;
+      flex-shrink: 0;
+
+Block 1 | Selector: .qty-controls
+Body: display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f5f0eb;
+      border-radius: 100px;
+      padding: 4px 10px;
+
+Block 1 | Selector: .qty-btn
+Body: background: none;
+      border: none;
+      width: 22px; height: 22px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, transform 0.15s;
+      color: #8B6A54;
+      font-weight: 700;
+      border-radius: 50%;
+
+Block 1 | Selector: .cart-footer
+Body: padding: 16px 20px 20px;
+      border-top: 1px solid rgba(200,150,122,0.15);
+      background: white;
+
+Block 1 | Selector: .cart-tipo-precio
+Body: display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg,rgba(200,150,122,0.08),rgba(181,104,122,0.06));
+      border-radius: 10px;
+      border: 1px solid rgba(200,150,122,0.2);
+
+Block 1 | Selector: .btn-checkout
+Body: width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #C8967A 0%, #b5687a 100%);
+      color: white;
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+      box-shadow: 0 6px 24px rgba(200,150,122,0.4);
+      position: relative;
+      overflow: hidden;
+
+Block 1 | Selector: .btn-checkout:hover
+Body: transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(200,150,122,0.5);
+
+Block 1 | Selector: /* SEARCH RESULTS */
+    .search-results
+Body: position: absolute;
+      top: calc(100% + 8px);
+      left: 0; right: 0;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      max-height: 360px;
+      overflow-y: auto;
+      display: none;
+      z-index: 50;
+
+Block 1 | Selector: .search-result-item
+Body: display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s;
+      border-bottom: 1px solid var(--gray-100);
+
+Block 1 | Selector: .search-result-item:last-child
+Body: border-bottom: none;
+
+Block 1 | Selector: .search-result-img
+Body: width: 40px; height: 40px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: var(--gray-100);
+      flex-shrink: 0;
+
+Block 1 | Selector: .footer-social a
+Body: width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(200,150,122,0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(200,150,122,0.6);
+      text-decoration: none;
+      font-size: 0.72rem;
+      font-weight: 700;
+      transition: border-color 0.2s, color 0.2s, background-color 0.2s, transform 0.2s;
+      letter-spacing: 0;
+
+Block 1 | Selector: .footer-bottom
+Body: border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.2);
+
+Block 1 | Selector: .pg-card
+Body: background:white;border-radius:16px;padding:clamp(20px,4vw,36px);
+      margin-bottom:20px;
+      box-shadow:0 2px 16px rgba(0,0,0,0.05),0 1px 4px rgba(0,0,0,0.03);
+      border:1px solid rgba(200,150,122,0.1);
+
+Block 1 | Selector: .pg-stat
+Body: background:linear-gradient(135deg,#f7ede4,#f2e4d8);
+      border-radius:12px;padding:22px 18px;text-align:center;
+      border:1px solid rgba(200,150,122,0.15);
+
+Block 1 | Selector: .pg-list li
+Body: padding:10px 0;border-bottom:1px solid rgba(200,150,122,0.1);
+      font-size:0.88rem;color:#5a4030;line-height:1.6;
+      display:flex;gap:10px;
+
+Block 1 | Selector: .pg-badge
+Body: display:inline-block;padding:4px 12px;border-radius:100px;
+      font-size:0.68rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+      background:rgba(200,150,122,0.12);color:#a07060;border:1px solid rgba(200,150,122,0.2);
+      margin-right:6px;margin-bottom:6px;
+
+Block 1 | Selector: .pg-cta
+Body: display:inline-flex;align-items:center;gap:8px;
+      padding:13px 28px;background:linear-gradient(135deg,#C8967A,#b5687a);
+      color:white;border-radius:100px;font-size:0.85rem;font-weight:700;
+      text-decoration:none;border:none;cursor:pointer;font-family:var(--font-body);
+      box-shadow:0 4px 16px rgba(200,150,122,0.35);transition: transform 0.2s, box-shadow 0.2s;
+
+Block 1 | Selector: .pg-cta:hover
+Body: transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,150,122,0.45);
+
+Block 1 | Selector: .pg-table th
+Body: background:rgba(200,150,122,0.1);color:#a07060;font-weight:700;
+      font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;padding:10px 14px;
+      text-align:left;border-bottom:1px solid rgba(200,150,122,0.2);
+
+Block 1 | Selector: .pg-table td
+Body: padding:10px 14px;border-bottom:1px solid rgba(200,150,122,0.08);color:#5a4030;
+
+Block 1 | Selector: .pg-table tr:last-child td
+Body: border-bottom:none;
+
+Block 1 | Selector: /*  CHECKOUT INPUTS  */
+    .co-input
+Body: border: 1.5px solid rgba(200,150,122,0.2);
+      border-radius: 10px;
+      padding: 11px 14px;
+      width: 100%;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      outline: none;
+      box-sizing: border-box;
+      background: white;
+      color: #2A1A0E;
+      transition: border-color 0.2s, box-shadow 0.2s;
+
+Block 1 | Selector: .co-input:focus
+Body: border-color: #C8967A;
+      box-shadow: 0 0 0 3px rgba(200,150,122,0.12);
+
+Block 1 | Selector: #checkout-overlay button[onclick*="procesarCheckout"]:hover
+Body: transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,150,122,0.5);
+
+Block 1 | Selector: /* TOAST */
+    .toast
+Body: position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--black);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      z-index: 999;
+      transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+      white-space: nowrap;
+      border: 1px solid rgba(200, 150, 122, 0.3);
+
+Block 1 | Selector: .hero-shoe-shadow
+Body: position: absolute;
+  bottom: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 55%;
+  height: 24px;
+  background: radial-gradient(ellipse, rgba(120,70,50,0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: shadow-breathe 5s ease-in-out infinite;
+  pointer-events: none;
+
+Block 1 | Selector: /* Visor interactivo de fondo en mvil */
+  #hero-shoe-scroll
+Body: position: absolute !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    margin: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff !important; /* Todo blanco */
+    border: none !important;
+    pointer-events: auto !important;
+    z-index: 1 !important; /* Por detrs del texto */
+    padding: 0 !important;
+
+Block 1 | Selector: /*  Buscador mvil  */
+  .mobile-search-bar
+Body: display: block;
+    position: fixed;
+    top: calc(36px + 56px);
+    left: 0; right: 0;
+    z-index: 99;
+    background: rgba(250,248,246,0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--cream-dark);
+    padding: 8px 16px;
+    box-sizing: border-box;
+    height: 52px;
+
+Block 1 | Selector: .mobile-search-bar input
+Body: width: 100%;
+    padding: 9px 16px 9px 36px;
+    border: 1px solid var(--gray-200);
+    border-radius: 100px;
+    background: var(--gray-100);
+    font-size: 0.88rem;
+    font-family: inherit;
+    outline: none;
+    color: var(--black);
+    transition: var(--transition);
+    box-sizing: border-box;
+
+Block 1 | Selector: .mobile-search-bar input:focus
+Body: border-color: var(--pink);
+    background: white;
+    box-shadow: 0 0 0 3px var(--pink-light);
+
+Block 1 | Selector: .modal-img
+Body: flex: 0 0 auto; border-radius: 12px 12px 0 0; max-height: clamp(240px, 46vh, 420px); overflow: hidden; padding: 0; background: white;
+
+Block 1 | Selector: #modal-producto
+Body: position: relative; border-radius: 16px 16px 0 0; height: 88vh; max-height: 88vh; width: 100%;
+
+Block 1 | Selector: .modal-actions
+Body: flex-shrink: 0; padding: 12px 20px 20px; background: white; border-top: 1px solid var(--gray-100);
+
+Block 1 | Selector: #mobile-menu-panel
+Body: position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    width: 82% !important;
+    max-width: 300px !important;
+    background:#ffffff !important;
+    z-index: 10001 !important;
+    transform:translateX(100%);
+    transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);
+    box-shadow:-8px 0 40px rgba(0,0,0,0.3) !important;
+    display:flex !important;
+    flex-direction:column !important;
+    overflow-y:auto !important;
+    -webkit-overflow-scrolling: touch !important;
+
+Block 1 | Selector: /* Hover en tarjetas */
+    .product-card
+Body: transition: transform 0.3s var(--ease-out),
+                  box-shadow 0.3s var(--ease-out);
+
+Block 1 | Selector: .product-card:hover
+Body: box-shadow: 0 12px 24px rgba(30, 20, 21, 0.08);
+
+Block 1 | Selector: 0%
+Body: box-shadow:0 0 0 0 rgba(200,150,122,0.55);
+
+Block 1 | Selector: 70%
+Body: box-shadow:0 0 0 10px rgba(200,150,122,0);
+
+Block 1 | Selector: 100%
+Body: box-shadow:0 0 0 0 rgba(200,150,122,0);
+
+Block 1 | Selector: from
+Body: box-shadow:none;
+
+Block 1 | Selector: to
+Body: box-shadow:0 2px 20px rgba(200,150,122,0.12);
+
+Block 1 | Selector: /* Botones internos  hover lift */
+  #pagina-contenido a[style*="background"],
+  #pagina-contenido button[style*="background"]
+Body: transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease !important;
+    will-change: transform;
+
+Block 1 | Selector: #pagina-contenido a[style*="background"]:hover,
+  #pagina-contenido button[style*="background"]:hover
+Body: transform: translateY(-3px) scale(1.025) !important;
+    box-shadow: 0 10px 28px rgba(200,150,122,0.28) !important;
+    filter: brightness(1.05);
+
+Block 1 | Selector: /* Inputs  glow rosado al focus */
+  #pagina-contenido input,
+  #pagina-contenido textarea,
+  #pagina-contenido select
+Body: transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
+
+Block 1 | Selector: #pagina-contenido input:focus,
+  #pagina-contenido textarea:focus
+Body: box-shadow: 0 0 0 3px rgba(200,150,122,0.22) !important;
+    border-color: var(--pink) !important;
+    outline: none !important;
+
+Block 1 | Selector: #lightbox-img
+Body: max-width: 92vw;
+    max-height: 82vh;
+    object-fit: contain;
+    border-radius: 8px;
+    user-select: none;
+    -webkit-user-drag: none;
+
+Block 1 | Selector: .lightbox-close
+Body: position: absolute;
+    top: 16px; right: 20px;
+    background: none; border: none;
+    color: white; font-size: 2rem;
+    cursor: pointer; line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+
+Block 1 | Selector: .lightbox-nav
+Body: position: absolute;
+    top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.15);
+    border: none; color: white;
+    font-size: 2rem; width: 48px; height: 48px;
+    border-radius: 50%; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+
+Block 1 | Selector: .lightbox-dot
+Body: width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.35); cursor: pointer;
+    transition: background 0.2s;
+    border: none;
+
+Block 1 | Selector: /* Foto principal del modal  escritorio: contain; mvil: cuadrada 1:1 (cover) como el inicio.
+     Selector con img.modal-foto-main para ganar a .modal-img img (object-fit:contain) por especificidad */
+  .modal-img img.modal-foto-main
+Body: width: calc(100% - 24px);
+    max-height: clamp(220px, 43vh, 390px);
+    height: auto;
+    display: block;
+    object-fit: contain;
+    background: white;
+    border-radius: 10px;
+    margin: 12px auto 0;
+
+Block 1 | Selector: .color-foto-card
+Body: border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    aspect-ratio: 1;
+    background: #f5f5f5;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+
+Block 1 | Selector: .color-foto-card:hover
+Body: transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+
+Block 1 | Selector: .color-foto-dot
+Body: width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0; border: 1px solid rgba(255,255,255,0.5);
+
+Block 1 | Selector: /*  BOTN VER MS  */
+  .btn-ver-mas
+Body: display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 36px;
+    background: transparent;
+    color: var(--black);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border: 1.5px solid var(--black);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: var(--transition);
+
+Block 1 | Selector: .product-card:hover
+Body: transform: translateY(-6px); box-shadow: 0 16px 40px rgba(160,120,96,0.18);
+
+Block 1 | Selector: .color-foto-card:hover
+Body: transform: none; box-shadow: none;
+
+Block 3 | Selector: .zm-splash-bar
+Body: width: 120px; height: 3px; margin: 18px auto 0;
+    background: rgba(200,150,122,0.2); border-radius: 100px; overflow: hidden;
+    opacity: 0; animation: splashFade 0.5s ease 0.5s both;
+
+Block 3 | Selector: .zm-splash-bar span
+Body: display: block; width: 40%; height: 100%;
+    background: linear-gradient(90deg, #C8967A, #b5687a); border-radius: 100px;
+    animation: splashLoad 1.1s ease 0.6s infinite;
+
+Block 8 | Selector: .cookie-btn-aceptar
+Body: background:#0A0A0A; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:0.82rem; font-weight:600; cursor:pointer; flex:1; min-width:120px
+
+Block 8 | Selector: .cookie-btn-rechazar
+Body: background:#fff; color:#555; border:1px solid #ddd; border-radius:8px; padding:10px 20px; font-size:0.82rem; font-weight:600; cursor:pointer; flex:1; min-width:120px
+
+Block 9 | Selector: #zm-bottomnav
+Body: display: flex;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(200,150,122,0.18);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+      box-shadow: 0 -4px 24px rgba(90,40,10,0.08);
+
+Block 9 | Selector: .bn-item
+Body: flex: 1; background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 6px 2px; color: #8B6A54; font-family: 'DM Sans', sans-serif;
+      font-size: 0.6rem; font-weight: 600; text-decoration: none;
+      text-transform: uppercase; letter-spacing: 0.4px;
+      transition: color 0.18s, transform 0.18s;
+      -webkit-tap-highlight-color: transparent;
+
+Block 9 | Selector: /* Botn Buscar destacado (centro) */
+    .bn-search svg
+Body: background: linear-gradient(135deg,#C8967A,#b5687a); color: white;
+      border-radius: 50%; padding: 7px; width: 38px; height: 38px;
+      box-shadow: 0 4px 14px rgba(200,150,122,0.45); margin-top: -16px;
+
+Block 9 | Selector: .bn-badge
+Body: position: absolute; top: -6px; right: -8px;
+      background: linear-gradient(135deg,#b5687a,#C8967A); color: white;
+      min-width: 16px; height: 16px; border-radius: 100px; padding: 0 4px;
+      font-size: 0.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace; box-shadow: 0 2px 6px rgba(181,104,122,0.5);
+
+Block 10 | Selector: /* Press feedback en tarjetas de producto */
+    .product-card
+Body: transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s; -webkit-tap-highlight-color: transparent;
+
+Block 10 | Selector: .product-card:active .product-img-wrap
+Body: box-shadow: 0 4px 16px rgba(160,120,96,0.25);
+
+Block 10 | Selector: /*  CARRITO COMO BOTTOM SHEET  */
+    .cart-drawer
+Body: top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+      width: 100% !important; height: auto !important; max-height: 88vh !important;
+      transform: translateY(100%) !important;
+      border-radius: 24px 24px 0 0 !important;
+      box-shadow: 0 -8px 40px rgba(42,26,14,0.25) !important;
+
+Block 10 | Selector: /* Handle visual del bottom sheet */
+    .cart-drawer::before
+Body: content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      width: 40px; height: 4px; border-radius: 100px; background: rgba(200,150,122,0.3); z-index: 10;
+

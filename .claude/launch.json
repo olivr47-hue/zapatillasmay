@@ -11,8 +11,8 @@
     {
       "name": "tienda",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "3000", "--directory", "frontend/tienda"],
-      "port": 3000
+      "runtimeArgs": ["-m", "http.server", "3001", "--directory", "frontend/tienda"],
+      "port": 3001
     },
     {
       "name": "portal",

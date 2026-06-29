@@ -1,0 +1,611 @@
+URL: http://localhost:3007/
+Viewport dimensions: 912x925px
+
+--- ELEMENTS WITH BOX SHADOW ---
+Tag: DIV, Class: search-results, ID: search-results
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.12) 0px 8px 24px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 8px
+  Border: 1px solid rgb(237, 224, 210)
+
+Tag: DIV, Class: , ID: mobile-menu-panel
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.3) -8px 0px 40px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 0px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: search-results, ID: mobile-search-results
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.12) 0px 8px 24px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 8px
+  Border: 1px solid rgb(237, 224, 210)
+
+Tag: BUTTON, Class: btn-zoom, ID: btn-zoom
+  Dim: {'x': 843, 'y': 124, 'w': 38, 'h': 38}
+  Shadow: rgba(0, 0, 0, 0.05) 0px 2px 8px 0px
+  BG: rgb(251, 247, 243)
+  Radius: 50%
+  Border: 1px solid rgba(200, 150, 122, 0.2)
+
+Tag: DIV, Class: viewer-360-badge, ID: 
+  Dim: {'x': 338, 'y': 869, 'w': 170, 'h': 28}
+  Shadow: rgba(0, 0, 0, 0.02) 0px 2px 8px 0px
+  BG: rgba(42, 26, 14, 0.05)
+  Radius: 100px
+  Border: 1px solid rgba(42, 26, 14, 0.08)
+
+Tag: P, Class: hero-offer, ID: 
+  Dim: {'x': 40, 'y': 560, 'w': 444, 'h': 38}
+  Shadow: rgba(120, 70, 60, 0.25) 0px 4px 14px 0px
+  BG: rgba(0, 0, 0, 0)
+  Radius: 100px
+  Border: 1px solid rgba(232, 196, 160, 0.55)
+
+Tag: BUTTON, Class: btn-primary, ID: 
+  Dim: {'x': 40, 'y': 613, 'w': 359, 'h': 50}
+  Shadow: rgba(200, 150, 122, 0.35) 0px 4px 16px 0px
+  BG: rgba(0, 0, 0, 0)
+  Radius: 100px
+  Border: 0px none rgb(255, 255, 255)
+
+Tag: BUTTON, Class: btn-primary, ID: 
+  Dim: {'x': -10, 'y': 2409, 'w': 238, 'h': 45}
+  Shadow: rgba(200, 150, 122, 0.35) 0px 4px 16px 0px
+  BG: rgba(0, 0, 0, 0)
+  Radius: 100px
+  Border: 0px none rgb(255, 255, 255)
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 547, 'y': 2642, 'w': 310, 'h': 36}
+  Shadow: rgba(0, 0, 0, 0.06) 0px 2px 10px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 100px
+  Border: 1px solid rgb(234, 223, 213)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 2712, 'w': 399, 'h': 263}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 2712, 'w': 399, 'h': 263}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 2995, 'w': 399, 'h': 214}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 2995, 'w': 399, 'h': 214}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 3230, 'w': 399, 'h': 190}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 3230, 'w': 399, 'h': 190}
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.25) 0px 24px 60px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: BUTTON, Class: modal-close, ID: 
+  Dim: {'x': 765, 'y': 271, 'w': 32, 'h': 32}
+  Shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px 0px
+  BG: rgba(255, 255, 255, 0.92)
+  Radius: 50%
+  Border: 0px none rgb(139, 106, 84)
+
+Tag: DIV, Class: cart-drawer, ID: cart-drawer
+  Dim: {'x': 897, 'y': 0, 'w': 420, 'h': 925}
+  Shadow: rgba(0, 0, 0, 0.12) -8px 0px 60px 0px
+  BG: rgb(250, 248, 246)
+  Radius: 0px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: BUTTON, Class: btn-checkout, ID: 
+  Dim: {'x': 917, 'y': 855, 'w': 380, 'h': 50}
+  Shadow: rgba(200, 150, 122, 0.4) 0px 6px 24px 0px
+  BG: rgba(0, 0, 0, 0)
+  Radius: 100px
+  Border: 0px none rgb(255, 255, 255)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.3) 0px 20px 60px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.3) 0px 20px 60px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 16px
+  Border: 0px none rgb(42, 26, 14)
+
+Tag: A, Class: , ID: whatsapp-flotante
+  Dim: {'x': 829, 'y': 857, 'w': 52, 'h': 52}
+  Shadow: rgba(0, 0, 0, 0.15) 0px 2px 10px 0px, rgba(37, 211, 102, 0.2) 0px 0px 0px 1px
+  BG: rgb(37, 211, 102)
+  Radius: 50%
+  Border: 0px none rgb(255, 255, 255)
+
+Tag: DIV, Class: , ID: cookie-banner
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Shadow: rgba(0, 0, 0, 0.1) 0px -4px 24px 0px
+  BG: rgb(255, 255, 255)
+  Radius: 0px
+  Border: 1px solid rgb(232, 224, 216)
+
+--- ELEMENTS WITH BORDER RADIUS ---
+Tag: INPUT, Class: , ID: search-input
+  Dim: {'x': 852, 'y': 55, 'w': 54, 'h': 35}
+  Radius: 100px
+  BG: rgb(245, 236, 226)
+  Shadow: none
+
+Tag: DIV, Class: search-results, ID: search-results
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.12) 0px 8px 24px 0px
+
+Tag: A, Class: btn-icon, ID: 
+  Dim: {'x': 930, 'y': 52, 'w': 36, 'h': 41}
+  Radius: 2px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-icon, ID: btn-cuenta
+  Dim: {'x': 982, 'y': 53, 'w': 36, 'h': 39}
+  Radius: 2px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-icon btn-hamburger, ID: btn-hamburger
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 2px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(245, 236, 226)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(245, 236, 226)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 12px
+  BG: rgb(37, 211, 102)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 10px
+  BG: rgb(248, 248, 248)
+  Shadow: none
+
+Tag: DIV, Class: search-results, ID: mobile-search-results
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.12) 0px 8px 24px 0px
+
+Tag: DIV, Class: viewer-360-badge, ID: 
+  Dim: {'x': 338, 'y': 869, 'w': 170, 'h': 28}
+  Radius: 100px
+  BG: rgba(42, 26, 14, 0.05)
+  Shadow: rgba(0, 0, 0, 0.02) 0px 2px 8px 0px
+
+Tag: P, Class: hero-offer, ID: 
+  Dim: {'x': 40, 'y': 560, 'w': 444, 'h': 38}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: rgba(120, 70, 60, 0.25) 0px 4px 14px 0px
+
+Tag: BUTTON, Class: btn-primary, ID: 
+  Dim: {'x': 40, 'y': 613, 'w': 359, 'h': 50}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: rgba(200, 150, 122, 0.35) 0px 4px 16px 0px
+
+Tag: BUTTON, Class: btn-outline, ID: 
+  Dim: {'x': 40, 'y': 679, 'w': 155, 'h': 48}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: DIV, Class: cro-tier, ID: 
+  Dim: {'x': 338, 'y': 1025, 'w': 145, 'h': 46}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: DIV, Class: cro-tier cro-tier-highlight, ID: 
+  Dim: {'x': 337, 'y': 1093, 'w': 128, 'h': 46}
+  Radius: 8px
+  BG: rgba(200, 150, 122, 0.06)
+  Shadow: none
+
+Tag: DIV, Class: cro-tier cro-tier-highlight, ID: 
+  Dim: {'x': 337, 'y': 1161, 'w': 131, 'h': 46}
+  Radius: 8px
+  BG: rgba(200, 150, 122, 0.06)
+  Shadow: none
+
+Tag: BUTTON, Class: filtros-btn, ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 100px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: SPAN, Class: fb-count, ID: fb-count
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 100px
+  BG: rgb(156, 90, 82)
+  Shadow: none
+
+Tag: SELECT, Class: filtros-orden, ID: filtros-orden
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 100px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: DIV, Class: filtros-panel, ID: filtros-panel
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 14px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: filtros-aplicar, ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 100px
+  BG: rgb(156, 90, 82)
+  Shadow: none
+
+Tag: BUTTON, Class: filtros-limpiar, ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 100px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-primary, ID: 
+  Dim: {'x': -10, 'y': 2409, 'w': 238, 'h': 45}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: rgba(200, 150, 122, 0.35) 0px 4px 16px 0px
+
+Tag: BUTTON, Class: btn-outline, ID: 
+  Dim: {'x': -10, 'y': 2466, 'w': 190, 'h': 45}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: A, Class: , ID: 
+  Dim: {'x': 547, 'y': 2642, 'w': 310, 'h': 36}
+  Radius: 100px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.06) 0px 2px 10px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 2712, 'w': 399, 'h': 263}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 2712, 'w': 399, 'h': 263}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 2995, 'w': 399, 'h': 214}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 2995, 'w': 399, 'h': 214}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 40, 'y': 3230, 'w': 399, 'h': 190}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 459, 'y': 3230, 'w': 399, 'h': 190}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.07) 0px 2px 16px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.25) 0px 24px 60px 0px
+
+Tag: INPUT, Class: , ID: zm-popup-email
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: zm-popup-nombre
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: DIV, Class: modal, ID: modal-producto
+  Dim: {'x': 89, 'y': 259, 'w': 720, 'h': 448}
+  Radius: 12px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: DIV, Class: modal-img, ID: modal-img-wrap
+  Dim: {'x': 89, 'y': 259, 'w': 360, 'h': 448}
+  Radius: 12px
+  BG: rgb(245, 236, 226)
+  Shadow: none
+
+Tag: DIV, Class: modal-prices-mayoreo, ID: modal-mayoreo
+  Dim: {'x': 489, 'y': 367, 'w': 280, 'h': 26}
+  Radius: 6px
+  BG: rgba(200, 150, 122, 0.09)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-agregar, ID: btn-agregar
+  Dim: {'x': 489, 'y': 568, 'w': 280, 'h': 45}
+  Radius: 2px
+  BG: rgb(42, 26, 14)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-corrida, ID: btn-corrida
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 2px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: IMG, Class: , ID: lightbox-img
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-icon, ID: 
+  Dim: {'x': 1257, 'y': 24, 'w': 36, 'h': 39}
+  Radius: 2px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: DIV, Class: cart-tipo-precio, ID: 
+  Dim: {'x': 917, 'y': 759, 'w': 380, 'h': 37}
+  Radius: 10px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: none
+
+Tag: BUTTON, Class: btn-checkout, ID: 
+  Dim: {'x': 917, 'y': 855, 'w': 380, 'h': 50}
+  Radius: 100px
+  BG: rgba(0, 0, 0, 0)
+  Shadow: rgba(200, 150, 122, 0.4) 0px 6px 24px 0px
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.3) 0px 20px 60px 0px
+
+Tag: INPUT, Class: , ID: login-email
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: login-password
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(42, 26, 14)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: reg-nombre
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: reg-email
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: reg-password
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: reg-telefono
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: SELECT, Class: , ID: reg-tipo
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: reg-referido
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(42, 26, 14)
+  Shadow: none
+
+Tag: INPUT, Class: , ID: rec-email
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+Tag: BUTTON, Class: , ID: btn-recuperar
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(156, 90, 82)
+  Shadow: none
+
+Tag: DIV, Class: , ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 16px
+  BG: rgb(255, 255, 255)
+  Shadow: rgba(0, 0, 0, 0.3) 0px 20px 60px 0px
+
+Tag: DIV, Class: toast, ID: toast
+  Dim: {'x': 424, 'y': 975, 'w': 50, 'h': 26}
+  Radius: 100px
+  BG: rgb(42, 26, 14)
+  Shadow: none
+
+Tag: BUTTON, Class: cookie-btn-aceptar, ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(10, 10, 10)
+  Shadow: none
+
+Tag: BUTTON, Class: cookie-btn-rechazar, ID: 
+  Dim: {'x': 0, 'y': 0, 'w': 0, 'h': 0}
+  Radius: 8px
+  BG: rgb(255, 255, 255)
+  Shadow: none
+
+--- ELEMENTS WITH WHITE BG AND DIMENSIONS > 1000px ---
