@@ -3709,12 +3709,15 @@ window.addEventListener('load', () => {
   // Advanced Matching: datos del comprador (que el pixel encripta solo) para mejorar la coincidencia
   window._fbAM = function() {
     try {
-      const d = JSON.parse(localStorage.getItem('zm_form_datos') || 'null')
-      if (!d) return {}
+      const d = JSON.parse(localStorage.getItem('zm_form_datos') || 'null') || {}
+      const sub = JSON.parse(localStorage.getItem('zm_subscriber') || 'null') || {}
+      const ckEmail = (localStorage.getItem('zm_checkout_email') || '').trim().toLowerCase()
       const am = {}
-      if (d.email)    am.em = String(d.email).trim().toLowerCase()
+      const email = d.email || sub.email || ckEmail
+      if (email)      am.em = String(email).trim().toLowerCase()
       if (d.telefono) am.ph = String(d.telefono).replace(/\D/g, '')
-      if (d.nombre)   { const p = String(d.nombre).trim().split(/\s+/); if (p[0]) am.fn = p[0].toLowerCase(); if (p.length > 1) am.ln = p[p.length-1].toLowerCase() }
+      const nombre = d.nombre || sub.nombre || ''
+      if (nombre)     { const p = String(nombre).trim().split(/\s+/); if (p[0]) am.fn = p[0].toLowerCase(); if (p.length > 1) am.ln = p[p.length-1].toLowerCase() }
       if (d.ciudad)   am.ct = String(d.ciudad).toLowerCase().replace(/\s/g,'')
       if (d.estado)   am.st = String(d.estado).toLowerCase().replace(/\s/g,'')
       if (d.cp)       am.zp = String(d.cp).replace(/\D/g,'')
