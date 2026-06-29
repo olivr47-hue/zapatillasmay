@@ -4163,28 +4163,10 @@ if (window.ttq) ttq.track('ViewContent', {
       const precioM3 = p.precio_mayoreo3 || (p.precio_menudeo - 30)
       const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
       const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
-      const _skuNombre = (p.sku_interno ? p.sku_interno + ' ' : '') + p.nombre
-      const _waTexto = encodeURIComponent('Hola, me interesa el ' + _skuNombre + '. ¿Me pueden ayudar con mi pedido?')
       _mayoreoEl.innerHTML = `
-        <div style="background:rgba(200,150,122,0.08);border:1px solid rgba(200,150,122,0.22);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#8B5E4A;margin-bottom:8px">🏷️ Precio mayoreo automático</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="background:white;border-radius:8px;padding:10px 12px;border:1px solid rgba(200,150,122,0.18)">
-              <p style="font-size:0.68rem;color:#8B5E4A;font-weight:600;margin-bottom:3px">3–5 pares</p>
-              <p style="font-size:1rem;font-weight:700;color:var(--black);margin-bottom:2px">$${precioM3} MXN</p>
-              <p style="font-size:0.68rem;color:#C8967A;font-weight:600">Ahorras $${Math.round((p.precio_menudeo||0)+80 - precioM3)}/par</p>
-            </div>
-            <div style="background:white;border-radius:8px;padding:10px 12px;border:1px solid rgba(200,150,122,0.18)">
-              <p style="font-size:0.68rem;color:#8B5E4A;font-weight:600;margin-bottom:3px">6+ pares</p>
-              <p style="font-size:1rem;font-weight:700;color:var(--black);margin-bottom:2px">$${precioM6} MXN</p>
-              <p style="font-size:0.68rem;color:#C8967A;font-weight:600">Ahorras $${Math.round((p.precio_menudeo||0)+80 - precioM6)}/par</p>
-            </div>
-          </div>
-        </div>
-        <a href="https://wa.me/5214792244560?text=${_waTexto}" target="_blank" rel="noopener"
-          style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:#25D366;color:white;border-radius:10px;text-decoration:none;font-weight:600;font-size:0.85rem;margin-bottom:10px">
-          💬 ¿Tienes dudas? Escríbenos
-        </a>
+        <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
+        <p>Mayoreo 6+ pares: <strong>$${precioM6} MXN</strong> por par</p>
+        ${p.corrida_activa ? `<p>Media corrida: <strong>$${precioCorrida} MXN</strong> por par</p>` : ''}
       `
     }
 
