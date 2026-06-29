@@ -1667,20 +1667,25 @@
     .pg-table tr:hover td { background:rgba(200,150,122,0.04); }
 
     /* ── SCROLL ANIMATIONS ── */
+    /* opacity/transform fuera del media query: elementos SIEMPRE arrancan invisibles */
+    [data-animate] {
+      opacity: 0;
+      transform: translateY(44px);
+      will-change: opacity, transform;
+    }
+    [data-animate="left"] { transform: translateX(-44px); }
+    [data-animate="right"] { transform: translateX(44px); }
+    [data-animate="scale"] { transform: scale(0.88); }
+    [data-animate].in-view { opacity: 1; transform: none; }
+    /* transición solo si el usuario NO prefiere reduced-motion */
     @media (prefers-reduced-motion: no-preference) {
       [data-animate] {
-        opacity: 0;
-        transform: translateY(28px);
-        transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1), transform 0.55s cubic-bezier(0.16,1,0.3,1);
+        transition: opacity 0.65s cubic-bezier(0.16,1,0.3,1), transform 0.65s cubic-bezier(0.16,1,0.3,1);
       }
-      [data-animate="left"] { transform: translateX(-28px); }
-      [data-animate="right"] { transform: translateX(28px); }
-      [data-animate="scale"] { transform: scale(0.93); }
-      [data-animate].in-view { opacity: 1; transform: none; }
-      .s1 { transition-delay: 60ms; }
-      .s2 { transition-delay: 120ms; }
-      .s3 { transition-delay: 180ms; }
-      .s4 { transition-delay: 240ms; }
+      .s1 { transition-delay: 90ms; }
+      .s2 { transition-delay: 180ms; }
+      .s3 { transition-delay: 270ms; }
+      .s4 { transition-delay: 360ms; }
     }
     html.ruta-interna #pagina-interna { animation: pgFadeIn 0.35s ease-out; }
     @keyframes pgFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
