@@ -175,11 +175,12 @@
 
     .nav-cats {
       display: flex;
-      gap: 24px;
+      gap: 4px;
       list-style: none;
+      align-items: center;
     }
 
-    .nav-cats a {
+    .nav-cats > li > a, .nav-cats > li > button.nav-dd-btn {
       font-size: 0.78rem;
       font-weight: 500;
       color: var(--gray-600);
@@ -187,9 +188,59 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       transition: color 0.2s;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: none;
+      border: none;
+      font-family: var(--font-body);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
     }
 
-    .nav-cats a:hover { color: var(--pink); }
+    .nav-cats > li > a:hover, .nav-cats > li > button.nav-dd-btn:hover { color: var(--pink); }
+
+    /* Dropdown */
+    .nav-dd { position: relative; }
+    .nav-dd-btn svg { width:10px;height:10px;transition:transform 0.2s; }
+    .nav-dd:hover .nav-dd-btn svg, .nav-dd.open .nav-dd-btn svg { transform:rotate(180deg); }
+
+    .nav-mega {
+      display: none;
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      transform: none;
+      background: white;
+      border: 1px solid rgba(200,150,122,0.2);
+      border-radius: 16px;
+      box-shadow: 0 16px 48px rgba(42,26,14,0.14);
+      padding: 20px;
+      min-width: 480px;
+      z-index: 8000;
+      gap: 8px;
+    }
+    .nav-mega::before {
+      content:'';position:absolute;top:-6px;left:24px;transform:none;
+      width:12px;height:12px;background:white;border-left:1px solid rgba(200,150,122,0.2);
+      border-top:1px solid rgba(200,150,122,0.2);rotate:45deg;
+    }
+    .nav-dd:hover .nav-mega, .nav-dd.open .nav-mega { display: flex; gap: 0; }
+
+    .nav-mega-col { flex: 1; }
+    .nav-mega-col p {
+      font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;
+      color:#C8967A;margin:0 0 6px 8px;
+    }
+    .nav-mega-col a {
+      display: flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;
+      font-size:0.83rem;font-weight:500;text-decoration:none;color:#2A1A0E;
+      transition:background 0.15s;white-space:nowrap;
+    }
+    .nav-mega-col a:hover { background:#f7f0ea;color:var(--pink); }
+    .nav-mega-divider { width:1px;background:rgba(200,150,122,0.15);margin:0 4px; }
 
     .header-search {
       flex: 1;
@@ -2614,13 +2665,36 @@
   <img src="/images/logosolo.png" alt="Zapatillas May" fetchpriority="high" width="240" height="80">
 </a>
     <ul class="nav-cats">
-      <li><a href="/tacones">Tacones</a></li>
-      <li><a href="/sandalias">Sandalias</a></li>
-      <li><a href="/botas">Botas</a></li>
-      <li><a href="/botines">Botines</a></li>
-      <li><a href="/nina">Niña</a></li>
-      <li><a href="/catalogo">Catálogos</a></li>
-      <li><a href="#" onclick="mostrarOfertas()">Ofertas</a></li>
+      <li><a href="#" onclick="mostrarInicio();return false">Inicio</a></li>
+      <li class="nav-dd" id="nav-dd-cat">
+        <button class="nav-dd-btn" onclick="toggleNavDD()" aria-expanded="false" aria-haspopup="true">
+          Catálogo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="nav-mega" role="menu">
+          <div class="nav-mega-col">
+            <p>Categorías</p>
+            <a href="#" onclick="filtrarCategoria('tacones');cerrarNavDD();return false">👠 Tacones</a>
+            <a href="#" onclick="filtrarCategoria('sandalias');cerrarNavDD();return false">🩴 Sandalias</a>
+            <a href="#" onclick="filtrarCategoria('plataformas');cerrarNavDD();return false">👡 Plataformas</a>
+            <a href="#" onclick="filtrarCategoria('botas');cerrarNavDD();return false">🥾 Botas</a>
+            <a href="#" onclick="filtrarCategoria('botines');cerrarNavDD();return false">👢 Botines</a>
+            <a href="#" onclick="filtrarCategoria('nina');cerrarNavDD();return false">🎀 Niña</a>
+            <a href="#" onclick="mostrarOfertas();cerrarNavDD();return false" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a>
+          </div>
+          <div class="nav-mega-divider"></div>
+          <div class="nav-mega-col">
+            <p>Información</p>
+            <a href="#" onclick="mostrarPagina('mayoreo');cerrarNavDD();return false">💰 Precios mayoreo</a>
+            <a href="#" onclick="mostrarPagina('envios');cerrarNavDD();return false">🚚 Envíos</a>
+            <a href="#" onclick="mostrarPagina('tabla-tallas');cerrarNavDD();return false">📏 Tabla de tallas</a>
+            <a href="#" onclick="mostrarPagina('contacto');cerrarNavDD();return false">📞 Contacto</a>
+            <a href="#" onclick="mostrarPagina('nosotros');cerrarNavDD();return false">🏪 Nosotros</a>
+            <a href="#" onclick="mostrarPagina('catalogo');cerrarNavDD();return false">📖 Catálogos</a>
+          </div>
+        </div>
+      </li>
+      <li><a href="#" onclick="mostrarOfertas();return false" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a></li>
     </ul>
     <div class="header-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -5214,6 +5288,21 @@ function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.pre
     window.location.href = '/checkout'
   }
 
+function toggleNavDD() {
+  const dd = document.getElementById('nav-dd-cat');
+  const btn = dd.querySelector('.nav-dd-btn');
+  const isOpen = dd.classList.toggle('open');
+  btn.setAttribute('aria-expanded', isOpen);
+}
+function cerrarNavDD() {
+  const dd = document.getElementById('nav-dd-cat');
+  if (dd) { dd.classList.remove('open'); dd.querySelector('.nav-dd-btn').setAttribute('aria-expanded','false'); }
+}
+document.addEventListener('click', function(e) {
+  const dd = document.getElementById('nav-dd-cat');
+  if (dd && !dd.contains(e.target)) cerrarNavDD();
+});
+
 function toggleMenu() {
   const menu = document.getElementById('mobile-menu')
   const panel = document.getElementById('mobile-menu-panel')
@@ -5992,7 +6081,7 @@ const PAGINAS = {
     }
   </style>
 
-  <div class="pg-hero">
+  <div class="pg-hero" style="padding-top:20px">
     <p class="pg-hero-eyebrow">Calzado de Leon, Gto. · Para revendedoras y zapaterias</p>
     <h2 class="pg-hero-title">Mayoreo de calzado<br><em>sin complicaciones</em></h2>
     <p class="pg-hero-sub">Descuentos automaticos desde 3 pares. Sin registro, sin codigos. El sistema lo calcula solo al agregar al carrito.</p>
@@ -6151,11 +6240,6 @@ const PAGINAS = {
           <div style="font-size:1.5rem;margin-bottom:10px">📦</div>
           <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Empaque cuidadoso</p>
           <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Cada par en su caja individual protegida para llegar en perfectas condiciones.</p>
-        </div>
-        <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
-          <div style="font-size:1.5rem;margin-bottom:10px">🧾</div>
-          <p style="font-weight:700;margin-bottom:5px;font-size:0.88rem;color:var(--black)">Factura disponible</p>
-          <p style="font-size:0.79rem;color:var(--gray-600);line-height:1.65">Emitimos factura para tus compras de mayoreo. Precios sin IVA.</p>
         </div>
         <div style="background:var(--gray-100);border-radius:10px;padding:20px 18px;border:1px solid var(--gray-200)">
           <div style="font-size:1.5rem;margin-bottom:10px">🚚</div>
