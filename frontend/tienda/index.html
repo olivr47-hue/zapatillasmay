@@ -6126,7 +6126,7 @@ const PAGINAS = {
     .may-avatar{width:36px;height:36px;background:linear-gradient(135deg,#C8967A,#b5687a);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.85rem;flex-shrink:0}
     .may-input{border:1.5px solid rgba(245,240,232,0.2);background:rgba(245,240,232,0.07);border-radius:10px;padding:14px 16px;font-family:var(--font-body);font-size:0.9rem;color:var(--white);outline:none;width:100%;box-sizing:border-box}
     .may-input::placeholder{color:rgba(245,240,232,0.4)}
-    .may-sticky{display:none;position:fixed;bottom:0;left:0;right:0;z-index:990;padding:10px 16px 16px;background:rgba(250,248,246,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(200,150,122,0.18);box-shadow:0 -4px 24px rgba(42,26,14,0.1);gap:10px}
+    .may-sticky{display:none;position:fixed;left:0;right:0;z-index:9001;padding:10px 16px 12px;background:rgba(250,248,246,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(200,150,122,0.18);box-shadow:0 -4px 24px rgba(42,26,14,0.1);gap:10px;bottom:calc(60px + env(safe-area-inset-bottom))}
     @media(max-width:767px){
       .may-sticky{display:flex}
       .may-mobile-col{flex-direction:column!important}
