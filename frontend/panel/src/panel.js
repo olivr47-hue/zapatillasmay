@@ -7712,7 +7712,7 @@ window.abrirPreviewPedido = async (id) => {
             const nombre = pr.nombre || item.nombre || '—'
             const color = v.color || item.color || ''
             const talla = v.talla || item.talla || ''
-            const imagen = pr.imagen_principal || null
+            const imagen = v.foto_url || pr.imagen_principal || null
             return `
               <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;min-width:220px;flex:1">
                 ${imagen ? `<img src="${imagen}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:56px;height:56px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem">👟</div>`}
