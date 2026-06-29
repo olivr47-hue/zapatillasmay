@@ -4535,20 +4535,23 @@ Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu
     <div id="wa-container">
       <div id="wa-sidebar">
         <div class="wa-sidebar-header">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div>
-              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp Cloud API</p>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp</p>
               <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-weight:800;color:white;font-size:1rem;letter-spacing:-0.01em">Conversaciones</span>
+                <span style="font-weight:700;color:var(--text-1);font-size:0.95rem;letter-spacing:-0.01em">Conversaciones</span>
                 ${s>0?`<span class="wa-new-badge">${s}</span>`:""}
               </div>
             </div>
             <div style="display:flex;gap:4px">
-              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
-              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:5px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,0.15);background:transparent;color:rgba(255,255,255,0.55);font-family:inherit">Config</button>
+              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
+              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Config</button>
             </div>
           </div>
-          <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          <div class="wa-search-wrap">
+            <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+            <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          </div>
           <div class="wa-estado-tabs">
             <button class="wa-estado-tab activa" onclick="filtrarEstado('',this)">Todos</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
@@ -4580,7 +4583,7 @@ Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu
       </div>
     </div>
   </div>
-    `,window.innerWidth<=900){const d=document.getElementById("chat-area");d&&(d.style.display="none")}}catch(a){t.innerHTML='<p style="padding:2rem;color:red">Error: '+a.message+"</p>"}};window.mostrarTabWA=async e=>{const t=document.getElementById("tab-chats"),o=document.getElementById("tab-config");if(t){const a=e==="chats";t.style.background=a?"#E91E8C":"transparent",t.style.color=a?"white":"rgba(255,255,255,0.55)",t.style.borderColor=a?"#E91E8C":"rgba(255,255,255,0.15)"}if(o){const a=e==="config";o.style.background=a?"#E91E8C":"transparent",o.style.color=a?"white":"rgba(255,255,255,0.55)",o.style.borderColor=a?"#E91E8C":"rgba(255,255,255,0.15)"}e==="chats"?await window.cargarConversaciones():await mostrarConfigWA()};window.filtrarEtiqueta=e=>{document.querySelectorAll(".wa-pill").forEach(t=>t.classList.remove("activa")),event.target.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(t=>{const o=t.dataset.etiqueta||"";t.style.display=!e||o===e?"":"none"})};window.filtrarEstado=(e,t)=>{document.querySelectorAll(".wa-estado-tab").forEach(o=>o.classList.remove("activa")),t&&t.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(o=>{const a=o.dataset.estado||"abierto";o.style.display=!e||a===e?"":"none"})};window.cambiarEstadoChat=async(e,t)=>{try{await fetch(b+"/chatbot/chats/"+e+"/estado",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado:t})}),await window._recargarChats(),abrirChat(e)}catch(o){alert("Error: "+o.message)}};window.mostrarConfigWA=async()=>{const e=document.getElementById("content");try{const[t,o]=await Promise.all([fetch(b+"/chatbot/config").then(n=>n.json()),fetch(b+"/chatbot/respuestas-rapidas").then(n=>n.json())]),a=document.getElementById("wa-tab-content")||e;a.innerHTML=`
+    `,window.innerWidth<=900){const d=document.getElementById("chat-area");d&&(d.style.display="none")}}catch(a){t.innerHTML='<p style="padding:2rem;color:red">Error: '+a.message+"</p>"}};window.mostrarTabWA=async e=>{const t=document.getElementById("tab-chats"),o=document.getElementById("tab-config");if(t){const a=e==="chats";t.style.background=a?"#E91E8C":"var(--surface)",t.style.color=a?"white":"var(--text-2)",t.style.borderColor=a?"#E91E8C":"var(--border)"}if(o){const a=e==="config";o.style.background=a?"#E91E8C":"var(--surface)",o.style.color=a?"white":"var(--text-2)",o.style.borderColor=a?"#E91E8C":"var(--border)"}e==="chats"?await window.cargarConversaciones():await mostrarConfigWA()};window.filtrarEtiqueta=e=>{document.querySelectorAll(".wa-pill").forEach(t=>t.classList.remove("activa")),event.target.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(t=>{const o=t.dataset.etiqueta||"";t.style.display=!e||o===e?"":"none"})};window.filtrarEstado=(e,t)=>{document.querySelectorAll(".wa-estado-tab").forEach(o=>o.classList.remove("activa")),t&&t.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(o=>{const a=o.dataset.estado||"abierto";o.style.display=!e||a===e?"":"none"})};window.cambiarEstadoChat=async(e,t)=>{try{await fetch(b+"/chatbot/chats/"+e+"/estado",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado:t})}),await window._recargarChats(),abrirChat(e)}catch(o){alert("Error: "+o.message)}};window.mostrarConfigWA=async()=>{const e=document.getElementById("content");try{const[t,o]=await Promise.all([fetch(b+"/chatbot/config").then(n=>n.json()),fetch(b+"/chatbot/respuestas-rapidas").then(n=>n.json())]),a=document.getElementById("wa-tab-content")||e;a.innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:1000px">
 
         <!-- CONFIG GENERAL -->
