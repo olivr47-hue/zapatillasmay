@@ -7798,7 +7798,19 @@ window.verPedido = async (id) => {
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
             <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
-            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${p.total || '0'}</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C" id="pedido-total-display">$${p.total || '0'}</p>
+            ${(() => {
+              // Verificar si el total difiere de la suma real de items
+              const sumaItems = (items || []).reduce((s, i) => s + ((i.cantidad || 0) * (i.precio_unitario || 0)), 0)
+              const totalActual = parseFloat(p.total || 0)
+              const diff = Math.abs(sumaItems - totalActual)
+              if (diff > 0.5 && sumaItems > 0) {
+                return `<button onclick="recalcularTotalPedido('${p.id}', ${sumaItems.toFixed(2)})" style="margin-top:6px;padding:3px 8px;font-size:0.7rem;background:#fff3cd;border:1px solid #ffe082;border-radius:6px;cursor:pointer;color:#856404;font-weight:600">
+                  ⚠️ Recalcular: $${sumaItems.toFixed(2)}
+                </button>`
+              }
+              return ''
+            })()}
           </div>
         </div>
 
@@ -8349,6 +8361,19 @@ window.guardarEdicionPedido = async () => {
 
   alert('Pedido actualizado correctamente')
   verPedido(pedidoId)
+}
+
+window.recalcularTotalPedido = async (pedidoId, nuevoTotal) => {
+  await fetch(API + '/pedidos/' + pedidoId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ total: parseFloat(nuevoTotal) })
+  })
+  const el = document.getElementById('pedido-total-display')
+  if (el) el.textContent = '$' + parseFloat(nuevoTotal).toFixed(2)
+  // Quitar el botón de recalcular
+  const btn = el?.nextElementSibling
+  if (btn && btn.tagName === 'BUTTON') btn.remove()
 }
 
 window.cancelarEdicionPedido = (pedidoId) => {
