@@ -1,8 +1,10 @@
 import './style.css'
 document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%;flex:1'
 import { renderPanel } from './panel.js'
+import { renderPortalCliente } from './portal-cliente.js'
 
-const SESSION_KEY = 'erp_empleado'
+const SESSION_KEY    = 'erp_empleado'
+const PC_SESSION_KEY = 'pc_sesion'
 
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
@@ -94,10 +96,11 @@ function renderLogin() {
     const email = document.getElementById('login-email').value
     const password = document.getElementById('login-password').value
     const btn = document.getElementById('btn-login')
-    const error = document.getElementById('login-error')
     if (!email || !password) { mostrarError('Por favor completa todos los campos'); return }
     btn.textContent = 'Verificando...'
     btn.disabled = true
+
+    // 1. Intentar login como empleado
     try {
       const res = await fetch('/api/empleados/login', {
         method: 'POST',
@@ -110,16 +113,37 @@ function renderLogin() {
         if (data.token) sessionStorage.setItem('erp_token', data.token)
         window._empleadoActual = data
         renderPanel()
-      } else {
-        mostrarError(data.error || 'Email o contrasena incorrectos')
-        btn.textContent = 'Iniciar sesion'
-        btn.disabled = false
+        return
       }
-    } catch(e) {
-      mostrarError('Error conectando con el servidor')
-      btn.textContent = 'Iniciar sesion'
-      btn.disabled = false
-    }
+    } catch(e) {}
+
+    // 2. Intentar login como cliente
+    try {
+      const res2 = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data2 = await res2.json()
+      if (res2.ok) {
+        if (data2.tipo === 'zapateria' || data2.tipo === 'mayoreo') {
+          const sesionCliente = { ...data2, email }
+          sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+          if (data2.token) sessionStorage.setItem('erp_token', data2.token)
+          renderPortalCliente(sesionCliente)
+          return
+        } else {
+          mostrarError('Esta cuenta no tiene acceso al portal mayoreo')
+          btn.textContent = 'Iniciar sesión'
+          btn.disabled = false
+          return
+        }
+      }
+    } catch(e) {}
+
+    mostrarError('Email o contraseña incorrectos')
+    btn.textContent = 'Iniciar sesión'
+    btn.disabled = false
   }
 
   function mostrarError(msg) {
@@ -136,10 +160,18 @@ window.authHeaders = () => {
 }
 
 const sesion = sessionStorage.getItem(SESSION_KEY)
+const sesionCliente = sessionStorage.getItem(PC_SESSION_KEY)
+
 if (sesion) {
   try {
     window._empleadoActual = JSON.parse(sesion)
     renderPanel()
+  } catch(e) {
+    renderLogin()
+  }
+} else if (sesionCliente) {
+  try {
+    renderPortalCliente(JSON.parse(sesionCliente))
   } catch(e) {
     renderLogin()
   }
