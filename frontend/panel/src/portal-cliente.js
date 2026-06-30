@@ -182,12 +182,15 @@ function pcToggleSidebar() {
 async function cargarDatosPC() {
   try {
     const [resProd, resPed, resRef, resCli] = await Promise.all([
-      fetch(`${PC_API}/productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,es_oferta,categoria,nuevo,imagen_principal,imagenes_extra`),
+      fetch(`${PC_API}/productos/`),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/mi-codigo/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`) : Promise.resolve(null),
     ])
-    if (resProd.ok) pc.productos = await resProd.json()
+    if (resProd.ok) {
+      const todos = await resProd.json()
+      pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : []
+    }
     if (resPed?.ok) pc.pedidos = await resPed.json()
     if (resRef?.ok) pc.referido = await resRef.json()
     if (resCli?.ok) { const d = await resCli.json(); pc.clienteData = Array.isArray(d) ? d[0] : d }
