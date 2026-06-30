@@ -80,7 +80,28 @@ function renderLogin() {
             Iniciar sesión
           </button>
 
-          <p id="login-error" style="color:#f87171;font-size:0.8rem;text-align:center;margin-top:14px;display:none;background:rgba(248,113,113,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(248,113,113,0.2)"></p>
+          <p style="text-align:center;margin-top:16px">
+            <a href="#" onclick="mostrarRecuperar(event)"
+               style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </p>
+
+          <p id="login-error" style="color:#f87171;font-size:0.8rem;text-align:center;margin-top:10px;display:none;background:rgba(248,113,113,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(248,113,113,0.2)"></p>
+          <p id="login-ok" style="color:#4ade80;font-size:0.8rem;text-align:center;margin-top:10px;display:none;background:rgba(74,222,128,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(74,222,128,0.2)"></p>
+
+          <!-- Sección recuperar contraseña (oculta por defecto) -->
+          <div id="recuperar-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid #1e1e30">
+            <p style="font-size:0.8rem;color:#8888aa;margin:0 0 12px;text-align:center">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+            <input type="email" id="recuperar-email" placeholder="tu@correo.com"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;margin-bottom:10px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <button onclick="enviarRecuperar()"
+              style="width:100%;padding:11px;background:transparent;color:#E91E8C;border:1.5px solid #E91E8C;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">
+              Enviar enlace
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -147,8 +168,42 @@ function renderLogin() {
   }
 
   function mostrarError(msg) {
-    const error = document.getElementById('login-error')
-    if (error) { error.textContent = msg; error.style.display = 'block' }
+    const el = document.getElementById('login-error')
+    const ok = document.getElementById('login-ok')
+    if (el) { el.textContent = msg; el.style.display = 'block' }
+    if (ok) ok.style.display = 'none'
+  }
+
+  function mostrarOk(msg) {
+    const el = document.getElementById('login-ok')
+    const err = document.getElementById('login-error')
+    if (el) { el.textContent = msg; el.style.display = 'block' }
+    if (err) err.style.display = 'none'
+  }
+
+  window.mostrarRecuperar = (e) => {
+    e.preventDefault()
+    const sec = document.getElementById('recuperar-section')
+    if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none'
+    const inp = document.getElementById('recuperar-email')
+    if (inp) inp.value = document.getElementById('login-email').value || ''
+  }
+
+  window.enviarRecuperar = async () => {
+    const email = (document.getElementById('recuperar-email').value || '').trim()
+    if (!email) { mostrarError('Ingresa tu correo electrónico'); return }
+    try {
+      const res = await fetch('/api/auth/recuperar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      mostrarOk('Si existe una cuenta con ese correo, recibirás las instrucciones.')
+      const sec = document.getElementById('recuperar-section')
+      if (sec) sec.style.display = 'none'
+    } catch(e) {
+      mostrarError('Error al enviar. Intenta de nuevo.')
+    }
   }
 }
 

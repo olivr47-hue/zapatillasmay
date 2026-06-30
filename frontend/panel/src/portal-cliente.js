@@ -373,7 +373,7 @@ window.pcAbrirProducto = function(prodId) {
       <button onclick="document.getElementById('pc-modal').remove()" style="position:absolute;top:14px;right:14px;background:#0f0f1c;border:none;color:#a0a0c0;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem">✕</button>
 
       <div style="display:flex;gap:16px;margin-bottom:20px">
-        ${img ? `<img src="${esc(img)}" style="width:100px;height:100px;object-fit:cover;border-radius:10px;flex-shrink:0;background:#0c0c17">` : ''}
+        ${img ? `<img src="${esc(img)}" id="pc-modal-img" onclick="abrirLightboxPC(this.src)" style="width:100px;height:100px;object-fit:cover;border-radius:10px;flex-shrink:0;background:#0c0c17;cursor:zoom-in" title="Toca para ver en grande">` : ''}
         <div>
           <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 4px">${esc(p.sku_interno||'')}</p>
           <p style="font-size:1rem;font-weight:700;color:#e2e2f0;margin:0 0 10px">${esc(p.nombre)}</p>
@@ -421,6 +421,21 @@ window.pcAbrirProducto = function(prodId) {
 
   // Listener de cantidad
   document.getElementById('pc-cant').addEventListener('input', () => pcActualizarSubtotal(m3, m6))
+}
+
+window.abrirLightboxPC = function(src) {
+  if (!src) return
+  const prev = document.getElementById('pc-lightbox')
+  if (prev) prev.remove()
+  const lb = document.createElement('div')
+  lb.id = 'pc-lightbox'
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:19999;display:flex;align-items:center;justify-content:center;cursor:zoom-out'
+  lb.innerHTML = `
+    <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    <img src="${src}" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.8)">
+  `
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+  document.body.appendChild(lb)
 }
 
 window.pcSelTalla = function(t, btn) {

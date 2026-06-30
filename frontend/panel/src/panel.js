@@ -9028,7 +9028,7 @@ if (modalAnterior) modalAnterior.remove()
 
       <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #eee;flex-shrink:0">
         <div style="display:flex;align-items:flex-start;gap:12px">
-          ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0">` : ''}
+          ${producto.imagen_principal ? `<img id="pos-modal-img" src="${producto.imagen_principal}" onclick="abrirLightboxPOS(this.src)" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in" title="Toca para ver en grande">` : ''}
           <div style="flex:1;min-width:0">
             <p style="font-weight:700;font-size:1rem;line-height:1.25">${producto.nombre}</p>
             <p style="font-size:0.8rem;color:#888">${producto.sku_interno || ''}</p>
@@ -9121,6 +9121,22 @@ if (modalAnterior) modalAnterior.remove()
   window._corridaCantidades = {}
   // Auto-seleccionar el primer color para mostrar las tallas de inmediato (un tap menos)
   if (colores.length) posSeleccionarColor(productoId, colores[0])
+}
+
+// ── Lightbox para ver foto del producto en grande ──
+window.abrirLightboxPOS = (src) => {
+  if (!src) return
+  const prev = document.getElementById('pos-lightbox')
+  if (prev) prev.remove()
+  const lb = document.createElement('div')
+  lb.id = 'pos-lightbox'
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2000;display:flex;align-items:center;justify-content:center;cursor:zoom-out'
+  lb.innerHTML = `
+    <button onclick="document.getElementById('pos-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+    <img src="${src}" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6)">
+  `
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+  document.body.appendChild(lb)
 }
 
 // ── POS modal: selección de color compartida entre los dos modos ──
