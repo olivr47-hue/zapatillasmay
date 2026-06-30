@@ -74,25 +74,98 @@
     a:hover { text-decoration: underline; }
     input, select, button, textarea { font-family: var(--font-body); }
 
-    /* ── Header ── */
-    .mc-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; background: white;
-      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+    /* ── Header completo ── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(250,248,246,0.95); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--cream-dark);
     }
-    .mc-logo {
-      font-family: var(--font-display); font-size: 1.35rem; font-weight: 400;
-      color: var(--black); letter-spacing: 0.02em;
+    .header-inner {
+      max-width: 1400px; margin: 0 auto; padding: 0 40px;
+      height: 72px; display: flex; align-items: center;
+      justify-content: space-between; gap: 24px;
     }
-    .mc-logo span { color: var(--pink); }
-    .mc-back { font-size: 0.82rem; color: var(--gray); display: flex; align-items: center; gap: 5px; }
-    .mc-back svg { flex-shrink: 0; }
+    .logo { font-family: var(--font-display); font-size: 1.6rem; font-weight: 500;
+      color: var(--black); text-decoration: none; letter-spacing: 0.5px; white-space: nowrap; }
+    .logo span { color: var(--pink); }
+    .nav-cats { display: flex; gap: 4px; list-style: none; align-items: center; }
+    .nav-cats > li > a, .nav-cats > li > button.nav-dd-btn {
+      font-size: 0.78rem; font-weight: 500; color: #6b5744; text-decoration: none;
+      text-transform: uppercase; letter-spacing: 1px; padding: 6px 12px;
+      border-radius: 8px; background: none; border: none; font-family: var(--font-body);
+      cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap;
+      transition: color 0.2s;
+    }
+    .nav-cats > li > a:hover, .nav-cats > li > button.nav-dd-btn:hover { color: var(--pink); }
+    .nav-dd { position: relative; }
+    .nav-dd::after { content:''; position:absolute; top:100%; left:0; right:0; height:14px; }
+    .nav-dd-btn svg { width:10px; height:10px; transition:transform 0.2s; }
+    .nav-dd:hover .nav-dd-btn svg, .nav-dd.open .nav-dd-btn svg { transform:rotate(180deg); }
+    .nav-mega {
+      display: none; position: absolute; top: calc(100% + 10px); left: 0;
+      background: white; border: 1px solid rgba(200,150,122,0.2);
+      border-radius: 16px; box-shadow: 0 16px 48px rgba(42,26,14,0.14);
+      padding: 20px; min-width: 480px; z-index: 8000;
+    }
+    .nav-dd:hover .nav-mega, .nav-dd.open .nav-mega { display: flex; gap: 0; }
+    .nav-mega-col { flex: 1; }
+    .nav-mega-col p { font-size:0.6rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:0.14em; color:#C8967A; margin:0 0 6px 8px; }
+    .nav-mega-col a { display:flex; align-items:center; gap:8px; padding:9px 10px;
+      border-radius:8px; font-size:0.83rem; font-weight:500; text-decoration:none;
+      color:#2A1A0E; transition:background 0.15s; white-space:nowrap; }
+    .nav-mega-col a:hover { background:#f7f0ea; color:var(--pink); }
+    .nav-mega-divider { width:1px; background:rgba(200,150,122,0.15); margin:0 4px; }
+    .header-search { flex:1; max-width:320px; position:relative; }
+    .header-search input {
+      width:100%; padding:8px 16px 8px 36px; border:1px solid var(--cream-dark);
+      border-radius:100px; font-family:var(--font-body); font-size:0.82rem;
+      background:var(--gray-100); color:var(--black); outline:none;
+    }
+    .header-search input:focus { border-color:var(--pink); background:white;
+      box-shadow:0 0 0 3px var(--pink-light); }
+    .header-search svg { position:absolute; left:12px; top:50%;
+      transform:translateY(-50%); color:#8B6A54; pointer-events:none; }
+    .header-actions { display:flex; align-items:center; gap:16px; }
+    .btn-icon { background:none; border:none; cursor:pointer; padding:8px;
+      border-radius:var(--radius); color:#6b5744; transition:color 0.2s; position:relative; }
+    .btn-icon:hover { color:var(--pink); }
+    .cart-badge { position:absolute; top:2px; right:2px; background:var(--pink);
+      color:white; font-size:0.6rem; font-weight:700; width:16px; height:16px;
+      border-radius:50%; display:flex; align-items:center; justify-content:center; }
+    @media (max-width: 900px) {
+      .nav-cats, .header-search { display: none; }
+      .header-inner { padding: 0 20px; }
+    }
+    /* Bottom nav móvil */
+    #zm-bottomnav { display: none; }
+    @media (max-width: 768px) {
+      #zm-bottomnav {
+        display: flex; position:fixed; left:0; right:0; bottom:0; z-index:9000;
+        background:rgba(255,255,255,0.92); backdrop-filter:blur(20px);
+        border-top:1px solid rgba(200,150,122,0.18);
+        padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+        box-shadow:0 -4px 24px rgba(90,40,10,0.08);
+      }
+      .bn-item { flex:1; background:none; border:none; cursor:pointer;
+        display:flex; flex-direction:column; align-items:center; gap:3px;
+        padding:6px 2px; color:#8B6A54; font-family:'Outfit',sans-serif;
+        font-size:0.6rem; font-weight:600; text-decoration:none;
+        text-transform:uppercase; letter-spacing:0.4px;
+        transition:color 0.18s; -webkit-tap-highlight-color:transparent; }
+      .bn-item svg { width:23px; height:23px; }
+      .bn-item.activo { color: var(--pink); }
+      .bn-search svg { background:linear-gradient(135deg,#C8967A,#b5687a); color:white;
+        border-radius:50%; padding:7px; width:38px; height:38px;
+        box-shadow:0 4px 14px rgba(200,150,122,0.45); margin-top:-16px; }
+    }
 
     /* ── Layout ── */
     .mc-main {
       flex: 1; display: flex; justify-content: center;
-      padding: 32px 16px 60px;
+      padding: 96px 16px 80px;
     }
+    @media (max-width: 768px) { .mc-main { padding-bottom: 90px; } }
     .mc-card {
       width: 100%; max-width: 440px;
     }
@@ -331,14 +404,92 @@
 </head>
 <body>
 
-  <!-- Header -->
-  <header class="mc-header">
-    <a href="/" class="mc-logo">Zapatillas <span>May</span></a>
-    <a href="/" class="mc-back">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-      Volver a la tienda
-    </a>
+  <header>
+    <div class="header-inner">
+      <a class="logo" href="/">Zapatillas <span>May</span></a>
+      <ul class="nav-cats">
+        <li><a href="/">Inicio</a></li>
+        <li class="nav-dd" id="nav-dd-cat">
+          <button class="nav-dd-btn" onclick="toggleNavDD()" aria-expanded="false" aria-haspopup="true">
+            Catálogo
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="nav-mega" role="menu">
+            <div class="nav-mega-col">
+              <p>Categorías</p>
+              <a href="/tacones">👠 Tacones</a>
+              <a href="/sandalias">🩴 Sandalias</a>
+              <a href="/plataformas">👡 Plataformas</a>
+              <a href="/botas">🥾 Botas</a>
+              <a href="/botines">👢 Botines</a>
+              <a href="/nina">🎀 Niña</a>
+              <a href="/ofertas" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a>
+            </div>
+            <div class="nav-mega-divider"></div>
+            <div class="nav-mega-col">
+              <p>Información</p>
+              <a href="/como-comprar">🛒 Cómo comprar</a>
+              <a href="/mayoreo">💰 Precios mayoreo</a>
+              <a href="/envios">🚚 Envíos</a>
+              <a href="/tabla-tallas">📏 Tabla de tallas</a>
+              <a href="/contacto">📞 Contacto</a>
+              <a href="/nosotros">🏪 Nosotros</a>
+              <a href="/catalogo">📖 Ver catálogo</a>
+            </div>
+          </div>
+        </li>
+        <li><a href="/ofertas" style="color:#b5687a;font-weight:600">🏷️ Ofertas</a></li>
+      </ul>
+      <div class="header-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Buscar modelos..." aria-label="Buscar modelos"
+          onkeydown="if(event.key==='Enter'){window.location.href='/?q='+encodeURIComponent(this.value)}">
+      </div>
+      <div class="header-actions">
+        <a class="btn-icon" href="/carrito" title="Carrito" aria-label="Carrito" style="text-decoration:none">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </a>
+        <a href="/mi-cuenta" class="btn-icon" title="Mi cuenta" aria-label="Mi cuenta" style="text-decoration:none;color:var(--pink)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </a>
+        <button class="btn-icon" onclick="toggleMenu()" aria-label="Abrir menu" id="btn-hamburger">
+          <svg id="icon-menu" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <svg id="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
   </header>
+
+  <!-- Menú móvil -->
+  <div id="mobile-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;pointer-events:none">
+    <div id="mobile-menu-overlay" onclick="cerrarMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);opacity:0;transition:opacity 0.25s;pointer-events:auto"></div>
+    <div id="mobile-menu-panel" style="position:fixed;top:0;right:0;bottom:0;width:82%;max-width:300px;background:#ffffff;z-index:10001;transform:translateX(100%);transition:transform 0.28s cubic-bezier(0.32,0.72,0,1);box-shadow:-8px 0 40px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow-y:auto">
+      <div style="padding:20px 16px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center;background:#fff;position:sticky;top:0;z-index:1">
+        <span style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:500;color:#0a0a0a">Zapatillas <span style="color:#C8967A">May</span></span>
+        <button onclick="cerrarMenu()" aria-label="Cerrar" style="background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#333;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+      <div style="padding:16px 12px 8px">
+        <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
+        <a href="/tacones" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👠 Tacones</a>
+        <a href="/sandalias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🩴 Sandalias</a>
+        <a href="/botas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥾 Botas</a>
+        <a href="/botines" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">👢 Botines</a>
+        <a href="/nina" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🎀 Niña</a>
+        <a href="/ofertas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">🏷️ Ofertas</a>
+        <a href="/catalogo" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#C8967A;margin-bottom:4px;background:#F5ECE2">📖 Catálogos</a>
+      </div>
+      <div style="padding:8px 12px 16px;border-top:1px solid #f0f0f0;margin-top:8px">
+        <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:8px 0 8px 4px">Info</p>
+        <a href="/envios" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:0.85rem;font-weight:500;text-decoration:none;color:#444;margin-bottom:3px">🚚 Envíos</a>
+        <a href="/mayoreo" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:0.85rem;font-weight:500;text-decoration:none;color:#444;margin-bottom:3px">💰 Mayoreo</a>
+        <a href="/tabla-tallas" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:0.85rem;font-weight:500;text-decoration:none;color:#444;margin-bottom:3px">📏 Tallas</a>
+        <a href="/contacto" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:0.85rem;font-weight:500;text-decoration:none;color:#444;margin-bottom:3px">📞 Contacto</a>
+      </div>
+      <div style="padding:12px 16px;margin-top:auto;border-top:1px solid #f0f0f0">
+        <a href="/mi-cuenta" style="display:block;text-align:center;background:#9c5a52;color:white;border-radius:10px;padding:12px;font-size:0.88rem;font-weight:600;text-decoration:none">Mi cuenta</a>
+      </div>
+    </div>
+  </div>
 
   <main class="mc-main">
     <div class="mc-card">
@@ -988,6 +1139,69 @@ async function init() {
 }
 
 init()
+
+function toggleNavDD() {
+  const dd = document.getElementById('nav-dd-cat')
+  dd.classList.toggle('open')
+}
+function toggleMenu() {
+  const menu = document.getElementById('mobile-menu')
+  const panel = document.getElementById('mobile-menu-panel')
+  const overlay = document.getElementById('mobile-menu-overlay')
+  const iconMenu = document.getElementById('icon-menu')
+  const iconClose = document.getElementById('icon-close')
+  const isOpen = panel.style.transform === 'translateX(0%)'
+  if (isOpen) {
+    cerrarMenu()
+  } else {
+    menu.style.display = 'block'
+    menu.style.pointerEvents = 'auto'
+    setTimeout(() => {
+      panel.style.transform = 'translateX(0%)'
+      overlay.style.opacity = '1'
+    }, 10)
+    iconMenu.style.display = 'none'
+    iconClose.style.display = 'block'
+    document.body.style.overflow = 'hidden'
+  }
+}
+function cerrarMenu() {
+  const menu = document.getElementById('mobile-menu')
+  const panel = document.getElementById('mobile-menu-panel')
+  const overlay = document.getElementById('mobile-menu-overlay')
+  const iconMenu = document.getElementById('icon-menu')
+  const iconClose = document.getElementById('icon-close')
+  panel.style.transform = 'translateX(100%)'
+  overlay.style.opacity = '0'
+  iconMenu.style.display = 'block'
+  iconClose.style.display = 'none'
+  document.body.style.overflow = ''
+  setTimeout(() => { menu.style.display = 'none'; menu.style.pointerEvents = 'none' }, 300)
+}
 </script>
+
+<nav id="zm-bottomnav" aria-label="Navegación principal">
+  <a class="bn-item" href="/" aria-label="Inicio" style="text-decoration:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    <span>Inicio</span>
+  </a>
+  <a class="bn-item" href="/catalogo" aria-label="Catálogo" style="text-decoration:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span>Catálogo</span>
+  </a>
+  <a class="bn-item bn-search" href="/" aria-label="Buscar" style="text-decoration:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <span>Buscar</span>
+  </a>
+  <a class="bn-item" href="/carrito" aria-label="Carrito" style="text-decoration:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <span>Carrito</span>
+  </a>
+  <a href="/mi-cuenta" class="bn-item activo" aria-label="Mi cuenta" style="text-decoration:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+    <span>Cuenta</span>
+  </a>
+</nav>
+
 </body>
 </html>
