@@ -4340,6 +4340,37 @@ if (window.ttq) {
         })
       }).catch(() => {})
     } catch(e) {}
+    // Meta CAPI: AddToCart (server-side) — el backend extrae la IP real del request
+    try {
+      const _metaAtcPrice = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80
+      const _metaAtcSku   = p.sku_interno || p.id
+      const _metaAtcCn    = (colorSeleccionado||'').trim().replace(/\s/g,'_').replace(/\//g,'_').replace(/-/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')
+      const _metaAtcT     = (tallaSeleccionada||'').trim()
+      const _metaAtcVarId = _metaAtcT ? `${_metaAtcSku}-${_metaAtcCn}-${_metaAtcT}` : `${_metaAtcSku}-${_metaAtcCn}`
+      fetch(API + '/pagos/meta/evento', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name:         'AddToCart',
+          event_source_url:   location.href,
+          event_id:           'atc-meta-' + _metaAtcVarId + '-' + Date.now(),
+          value:              _metaAtcPrice,
+          currency:           'MXN',
+          content_ids:        [_metaAtcVarId],
+          content_name:       p.nombre,
+          content_type:       'product',
+          num_items:          1,
+          fbc:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
+          fbp:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
+          fbclid: (()=>{ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })(),
+          client_user_agent:  navigator.userAgent,
+          email:    usuarioActual?.email   || '',
+          telefono: usuarioActual?.telefono || '',
+          nombre:   usuarioActual?.nombre   || '',
+          cliente_id: usuarioActual?.cliente_id || '',
+        })
+      }).catch(() => {})
+    } catch(e) {}
     cerrarModalBtn()
     recalcularCarrito()
     renderCarrito()

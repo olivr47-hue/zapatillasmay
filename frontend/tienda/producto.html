@@ -1315,6 +1315,25 @@ function irACarrito() {
   // Pixels
   if (window.fbq) fbq('track', 'AddToCart', { content_ids: [p.sku_interno || p.id], content_type: 'product', content_name: p.nombre, value: precioBase, currency: 'MXN' })
   if (window.ttq) ttq.track('AddToCart', { content_id: p.sku_interno || p.id, content_type: 'product', content_name: p.nombre, value: precioBase, price: precioBase, currency: 'MXN' })
+  // Meta CAPI: AddToCart server-side
+  try {
+    const _usuarioProd = (() => { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } })()
+    fetch('/api/pagos/meta/evento', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: 'AddToCart', event_source_url: location.href,
+        event_id: 'atc-meta-' + (p.sku_interno || p.id) + '-' + Date.now(),
+        value: precioBase, currency: 'MXN',
+        content_ids: [p.sku_interno || p.id], content_name: p.nombre, content_type: 'product', num_items: 1,
+        fbc:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
+        fbp:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
+        fbclid: (()=>{ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })(),
+        client_user_agent: navigator.userAgent,
+        email: _usuarioProd?.email || '', telefono: _usuarioProd?.telefono || '',
+        nombre: _usuarioProd?.nombre || '', cliente_id: _usuarioProd?.cliente_id || '',
+      })
+    }).catch(() => {})
+  } catch(e) {}
 
   // Toast + animación + reset talla
   mostrarToast('✓ Agregado al carrito')

@@ -241,6 +241,112 @@ def enviar_evento_meta(event_name, pedido, payment):
         print(f"[CAPI] Error enviando evento {event_name}: {e}")
 
 
+@router.post("/meta/evento")
+async def meta_evento_frontend(body: dict, request: Request):
+    """
+    Recibe eventos del frontend (AddToCart, ViewContent, InitiateCheckout, etc.)
+    y los reenvía a Meta CAPI con la IP real del cliente extraída del request.
+    El frontend ya no puede conocer su propia IP — el backend la añade aquí.
+    """
+    if not META_PIXEL_ID or not META_ACCESS_TOKEN:
+        return JSONResponse({"ok": False, "error": "Meta CAPI no configurado"})
+
+    try:
+        event_name       = body.get("event_name", "")
+        event_source_url = body.get("event_source_url", "")
+        event_id         = body.get("event_id", f"{event_name}-{int(time.time())}")
+        value            = float(body.get("value", 0))
+        currency         = body.get("currency", "MXN")
+        content_ids      = body.get("content_ids", [])
+        content_name     = body.get("content_name", "")
+        content_type     = body.get("content_type", "product")
+        num_items        = int(body.get("num_items", 1))
+
+        # Datos de usuario del frontend
+        fbc          = body.get("fbc", "")
+        fbp          = body.get("fbp", "")
+        user_agent   = body.get("client_user_agent", "")
+        email        = body.get("email", "")
+        telefono     = body.get("telefono", "")
+        nombre       = body.get("nombre", "")
+        cliente_id   = body.get("cliente_id", "")
+        fbclid       = body.get("fbclid", "")
+
+        # Construir fbc desde fbclid si no hay cookie _fbc
+        if not fbc and fbclid:
+            fbc = f"fb.1.{int(time.time() * 1000)}.{fbclid}"
+
+        # IP real — el frontend no puede saber la suya; la obtenemos del request
+        client_ip = (
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or request.headers.get("x-real-ip", "")
+            or (request.client.host if request.client else "")
+        )
+
+        nombre_parts = nombre.strip().split(" ", 1)
+        fn = nombre_parts[0] if nombre_parts else ""
+        ln = nombre_parts[1] if len(nombre_parts) > 1 else ""
+
+        user_data: dict = {
+            "country": [hash_data("mx")],
+        }
+        if email:
+            user_data["em"] = [hash_data(email)]
+        if telefono:
+            user_data["ph"] = [hash_data(telefono)]
+        if fn:
+            user_data["fn"] = [hash_data(fn)]
+        if ln:
+            user_data["ln"] = [hash_data(ln)]
+        if cliente_id:
+            user_data["external_id"] = [hash_data(str(cliente_id))]
+        if fbc:
+            user_data["fbc"] = fbc
+        if fbp:
+            user_data["fbp"] = fbp
+        if client_ip:
+            user_data["client_ip_address"] = client_ip
+        if user_agent:
+            user_data["client_user_agent"] = user_agent
+
+        payload = {
+            "data": [{
+                "event_name": event_name,
+                "event_time": int(time.time()),
+                "event_id": event_id,
+                "event_source_url": event_source_url,
+                "action_source": "website",
+                "user_data": user_data,
+                "custom_data": {
+                    "currency": currency,
+                    "value": value,
+                    "content_ids": content_ids,
+                    "content_name": content_name,
+                    "content_type": content_type,
+                    "num_items": num_items,
+                }
+            }]
+        }
+
+        url = f"https://graph.facebook.com/v21.0/{META_PIXEL_ID}/events"
+        req_obj = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+            },
+            method="POST"
+        )
+        urllib.request.urlopen(req_obj)
+        print(f"[CAPI] {event_name} enviado desde frontend OK")
+        return JSONResponse({"ok": True})
+
+    except Exception as e:
+        print(f"[CAPI] Error evento frontend {body.get('event_name')}: {e}")
+        return JSONResponse({"ok": False, "error": str(e)})
+
+
 def _confirmar_pago_whatsapp(pedido: dict):
     try:
         telefono = pedido.get("telefono_cliente", "")
