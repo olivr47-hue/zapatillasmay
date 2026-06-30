@@ -309,18 +309,20 @@ async def crear_pedido(pedido: dict, request: Request):
                 print(f"[pedidos] Error upsert cliente web: {e}")
 
         # Los campos de atribución/rastreo son opcionales (analítica Meta CAPI / GA4).
-        # Si la API REST aún no reconoce esas columnas (cache de esquema de PostgREST
-        # desfasado tras agregarlas), NO debe romperse la venta: reintentamos sin ellos.
+        # Si PostgREST tiene el schema cache desactualizado retorna PGRST204; en ese caso
+        # insertamos sin esos campos y luego hacemos PATCH para no perder la atribución.
         ATRIBUCION_KEYS = (
             "ga_client_id", "fbc", "fbp", "fbclid", "gclid",
             "client_user_agent", "client_ip_address",
             "ciudad_cliente", "estado_cliente", "cp_cliente",
         )
+        atribucion_para_patch = None
         try:
             resultado = supabase_post("pedidos", pedido)
         except Exception as e:
             msg = str(e)
             if "PGRST204" in msg or "schema cache" in msg:
+                atribucion_para_patch = {k: v for k, v in pedido.items() if k in ATRIBUCION_KEYS and v}
                 pedido_min = {k: v for k, v in pedido.items() if k not in ATRIBUCION_KEYS}
                 print("[pedidos] Cache de esquema desfasado; reintentando sin campos de atribución")
                 resultado = supabase_post("pedidos", pedido_min)
@@ -328,6 +330,13 @@ async def crear_pedido(pedido: dict, request: Request):
                 raise
         if resultado and len(resultado) > 0:
             pedido_id = resultado[0]["id"]
+            # Si el insert fue sin atribución (fallback), parchamos ahora para no perderla
+            if atribucion_para_patch:
+                try:
+                    supabase_patch(f"pedidos?id=eq.{pedido_id}", atribucion_para_patch)
+                    print(f"[pedidos] Atribución guardada via PATCH para pedido {pedido_id}")
+                except Exception as pe:
+                    print(f"[pedidos] No se pudo guardar atribución via PATCH: {pe}")
             for item in items:
                 item["pedido_id"] = pedido_id
                 supabase_post("pedido_items", item)
