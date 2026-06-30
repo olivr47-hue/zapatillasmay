@@ -962,12 +962,36 @@ function dispararInitiateCheckout() {
   const total = totalPares(carrito)
   const valor = window._totalFinal || 0
   const ids = carrito.map(i => i.sku_interno || i.producto_id).filter(Boolean)
-  // Meta
+  // Meta pixel (browser)
   if (window.fbq) fbq('track','InitiateCheckout',{ value: valor, currency:'MXN', num_items: total, content_ids: ids, content_type:'product' })
   // TikTok
   if (window.ttq) ttq.track('InitiateCheckout',{ value: valor, currency:'MXN', contents: ids.map(id=>({content_id:id})) })
   // Google Analytics 4
   if (typeof gtag === 'function') gtag('event','begin_checkout',{ currency:'MXN', value: valor })
+  // Meta CAPI (server-side) — el backend extrae la IP real del request
+  try {
+    fetch(`${API}/pagos/meta/evento`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name:        'InitiateCheckout',
+        event_source_url:  location.href,
+        event_id:          'ic-meta-' + Date.now(),
+        value:             valor,
+        currency:          'MXN',
+        content_ids:       ids,
+        content_type:      'product',
+        num_items:         total,
+        fbc:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
+        fbp:    document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
+        fbclid: (()=>{ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })(),
+        client_user_agent: navigator.userAgent,
+        email:     usuarioActual?.email    || '',
+        telefono:  usuarioActual?.telefono || '',
+        nombre:    usuarioActual?.nombre   || '',
+        cliente_id: usuarioActual?.cliente_id || '',
+      })
+    }).catch(() => {})
+  } catch(e) {}
 }
 
 // ── SESIÓN: autocompletar datos del cliente logueado ─────────────

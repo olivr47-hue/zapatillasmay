@@ -7847,11 +7847,11 @@ window.verPedido = async (id) => {
             const nombre = producto.nombre || item.nombre || '—'
             const color = variante.color || item.color || ''
             const talla = variante.talla || item.talla || ''
-            // imagen: del join si existe, si no busca en caché de productos por variante_id
-            let imagen = producto.imagen_principal || null
+            // imagen: foto_url de la variante (color específico), luego imagen_principal del producto
+            let imagen = variante.foto_url || producto.imagen_principal || null
             if (!imagen && item.variante_id && window._productosCache && window._variantesCache) {
               const v = window._variantesCache.find(x => x.id === item.variante_id)
-              if (v) { const pr = window._productosCache.find(x => x.id === v.producto_id); if (pr) imagen = pr.imagen_principal || null }
+              if (v) { imagen = v.foto_url || null; const pr = window._productosCache.find(x => x.id === v.producto_id); if (pr && !imagen) imagen = pr.imagen_principal || null }
             }
             return `
               <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
@@ -8310,6 +8310,16 @@ window.eliminarItemEdicion = async (itemId, idx) => {
     window._editItems.splice(idx, 1)
     window.recalcularPreciosEdicion()
     window._renderEdicion()
+    // Actualizar el total en la BD inmediatamente al borrar un ítem
+    const nuevoTotal = Math.max(0, (window._editItems || []).reduce((s, i) => s + (i.cantidad * (i.precio_unitario || 0)), 0))
+    fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    }).catch(() => {})
+    // Actualizar el total visible en la cabecera del pedido (fuera del panel de edición)
+    const totalEl = document.querySelector('[style*="color:#E91E8C"][style*="font-size:1.2rem"]')
+    if (totalEl) totalEl.textContent = '$' + nuevoTotal.toFixed(2)
   } else {
     alert('Error eliminando ítem: ' + JSON.stringify(data))
   }
