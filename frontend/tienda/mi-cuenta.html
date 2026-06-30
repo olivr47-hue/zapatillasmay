@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi cuenta — Zapatillas May</title>
+  <meta name="description" content="Accede a tu cuenta para ver tus pedidos y rastrear tu envío.">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Outfit:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      --black: #2A1A0E;
+      --pink: #9c5a52;
+      --pink-soft: #C8967A;
+      --pink-light: rgba(200,150,122,0.09);
+      --pink-glow: rgba(200,150,122,0.28);
+      --cream: #F5ECE2;
+      --cream-dark: #EDE0D2;
+      --gray: #8B6A54;
+      --gray-100: #F5ECE2;
+      --gray-200: #EDE0D2;
+      --white: #FBF7F3;
+      --border: rgba(200,150,122,0.18);
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-body: 'Outfit', Arial, sans-serif;
+      --radius: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--white); color: var(--black); font-family: var(--font-body); }
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    a { color: var(--pink); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    input, select, button, textarea { font-family: var(--font-body); }
+
+    /* ── Header ── */
+    .mc-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: white;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+    }
+    .mc-logo {
+      font-family: var(--font-display); font-size: 1.35rem; font-weight: 400;
+      color: var(--black); letter-spacing: 0.02em;
+    }
+    .mc-logo span { color: var(--pink); }
+    .mc-back { font-size: 0.82rem; color: var(--gray); display: flex; align-items: center; gap: 5px; }
+    .mc-back svg { flex-shrink: 0; }
+
+    /* ── Layout ── */
+    .mc-main {
+      flex: 1; display: flex; justify-content: center;
+      padding: 32px 16px 60px;
+    }
+    .mc-card {
+      width: 100%; max-width: 440px;
+    }
+
+    /* ── Tabs login/registro ── */
+    .mc-tabs {
+      display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px;
+    }
+    .mc-tab {
+      flex: 1; padding: 12px 8px; border: none; background: none; cursor: pointer;
+      font-family: var(--font-body); font-size: 0.88rem; font-weight: 600;
+      color: #aaa; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .mc-tab.activo { color: var(--pink); border-bottom-color: var(--pink); }
+
+    /* ── Campos ── */
+    .mc-field { margin-bottom: 14px; }
+    .mc-label {
+      display: block; font-size: 0.7rem; font-weight: 600; color: var(--gray);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px;
+    }
+    .mc-input {
+      width: 100%; border: 1.5px solid var(--cream-dark); border-radius: 8px;
+      padding: 10px 14px; font-size: 0.88rem; outline: none; background: white;
+      color: var(--black); transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .mc-input:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(156,90,82,0.1); }
+    .mc-select {
+      width: 100%; border: 1.5px solid var(--cream-dark); border-radius: 8px;
+      padding: 10px 14px; font-size: 0.88rem; outline: none; background: white;
+      color: var(--black);
+    }
+
+    /* ── Botones ── */
+    .mc-btn-primary {
+      width: 100%; padding: 13px; background: var(--black); color: white;
+      border: none; border-radius: 8px; font-family: var(--font-body);
+      font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .mc-btn-primary:hover { background: #3d2a1c; }
+    .mc-btn-primary:active { transform: scale(0.98); }
+    .mc-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+    .mc-divider {
+      display: flex; align-items: center; gap: 10px; margin: 14px 0;
+    }
+    .mc-divider::before, .mc-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--cream-dark);
+    }
+    .mc-divider span { font-size: 0.75rem; color: #bbb; font-weight: 500; }
+
+    #g-btn-container { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+
+    .mc-link-row { text-align: center; margin-top: 12px; font-size: 0.82rem; color: var(--gray); }
+    .mc-link-row a { color: var(--pink); font-weight: 600; }
+
+    .mc-msg { font-size: 0.82rem; margin-top: 10px; text-align: center; padding: 8px 12px; border-radius: 6px; display: none; }
+    .mc-msg.error { background: #fff0ef; color: #b91c1c; border: 1px solid #fca5a5; }
+    .mc-msg.ok { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+
+    /* ── Sección recuperar ── */
+    #sec-recuperar { display: none; }
+    .mc-back-btn {
+      background: none; border: none; color: #aaa; cursor: pointer;
+      font-size: 0.8rem; padding: 0; margin-bottom: 16px; display: flex; align-items: center; gap: 4px;
+    }
+
+    /* ── Vista de cuenta ── */
+    #sec-cuenta { display: none; }
+    .mc-user-card {
+      background: white; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .mc-avatar-lg {
+      width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--pink-soft), var(--pink));
+      color: white; font-size: 1.3rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mc-user-name { font-weight: 700; font-size: 1rem; color: var(--black); }
+    .mc-user-email { font-size: 0.8rem; color: var(--gray); margin-top: 2px; }
+    .mc-user-tipo {
+      display: inline-block; margin-top: 4px; padding: 2px 10px;
+      border-radius: 100px; font-size: 0.65rem; font-weight: 700;
+      background: var(--cream); color: var(--gray);
+    }
+    .mc-btn-out {
+      margin-left: auto; flex-shrink: 0; padding: 7px 14px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: none; color: var(--gray); font-family: var(--font-body);
+      font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .mc-btn-out:hover { border-color: var(--pink); color: var(--pink); }
+
+    /* Sección sub-tabs cuenta */
+    .mc-sub-tabs {
+      display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border);
+    }
+    .mc-sub-tab {
+      padding: 9px 12px; border: none; background: none; cursor: pointer;
+      font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+      color: #aaa; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .mc-sub-tab.activo { color: var(--pink); border-bottom-color: var(--pink); }
+
+    /* ── Pedidos ── */
+    .mc-pedido-card {
+      background: white; border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 14px; overflow: hidden;
+    }
+    .mc-pedido-head {
+      padding: 14px 16px; display: flex; align-items: center;
+      justify-content: space-between; gap: 10px; cursor: pointer;
+    }
+    .mc-pedido-num { font-weight: 700; font-size: 0.9rem; color: var(--black); }
+    .mc-pedido-fecha { font-size: 0.72rem; color: var(--gray); margin-top: 2px; }
+    .mc-status-badge {
+      padding: 3px 10px; border-radius: 100px; font-size: 0.68rem;
+      font-weight: 700; flex-shrink: 0;
+    }
+    .mc-status-badge.pendiente_pago { background: #fff7ed; color: #c2410c; }
+    .mc-status-badge.pagado        { background: #f0fdf4; color: #15803d; }
+    .mc-status-badge.preparando    { background: #eff6ff; color: #1d4ed8; }
+    .mc-status-badge.enviado       { background: #f5f3ff; color: #6d28d9; }
+    .mc-status-badge.entregado     { background: #ecfdf5; color: #065f46; }
+    .mc-status-badge.cancelado     { background: #fef2f2; color: #991b1b; }
+
+    .mc-pedido-body { display: none; border-top: 1px solid var(--cream-dark); }
+    .mc-pedido-body.open { display: block; }
+
+    /* Timeline */
+    .mc-timeline {
+      padding: 16px; display: flex; gap: 0;
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+    }
+    .mc-timeline-step {
+      display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 64px;
+    }
+    .mc-timeline-step:not(:last-child) .mc-tl-line {
+      flex: 1; height: 2px; background: var(--cream-dark); margin-top: -1px; align-self: stretch;
+    }
+    .mc-tl-row { display: flex; align-items: center; width: 100%; }
+    .mc-tl-dot {
+      width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--cream-dark);
+      background: white; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 0.6rem; transition: all 0.2s; z-index: 1;
+    }
+    .mc-tl-dot.done { background: var(--pink); border-color: var(--pink); color: white; }
+    .mc-tl-dot.active { background: white; border-color: var(--pink); box-shadow: 0 0 0 3px rgba(156,90,82,0.15); }
+    .mc-tl-line { flex: 1; height: 2px; background: var(--cream-dark); }
+    .mc-tl-line.done { background: var(--pink); }
+    .mc-tl-label { font-size: 0.6rem; color: var(--gray); text-align: center; margin-top: 5px; line-height: 1.3; }
+    .mc-tl-label.active { color: var(--pink); font-weight: 700; }
+
+    /* Items */
+    .mc-items { padding: 0 16px 16px; }
+    .mc-item-row {
+      display: flex; gap: 12px; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--cream-dark);
+    }
+    .mc-item-row:last-child { border-bottom: none; }
+    .mc-item-img {
+      width: 52px; height: 52px; border-radius: 8px; object-fit: cover;
+      background: var(--cream); flex-shrink: 0;
+    }
+    .mc-item-img-ph {
+      width: 52px; height: 52px; border-radius: 8px; background: var(--cream);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      font-size: 1.3rem;
+    }
+    .mc-item-name { font-size: 0.82rem; font-weight: 600; color: var(--black); }
+    .mc-item-sub { font-size: 0.72rem; color: var(--gray); margin-top: 2px; }
+    .mc-item-price { margin-left: auto; font-size: 0.85rem; font-weight: 700; color: var(--black); flex-shrink: 0; }
+
+    /* Totales */
+    .mc-totales { padding: 0 16px 12px; }
+    .mc-total-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--gray); padding: 3px 0; }
+    .mc-total-row.final { font-weight: 700; font-size: 0.92rem; color: var(--black); border-top: 1px solid var(--cream-dark); margin-top: 6px; padding-top: 8px; }
+
+    /* Tracking */
+    .mc-tracking {
+      margin: 0 16px 16px; padding: 14px; background: var(--cream);
+      border-radius: 10px; border: 1px solid var(--cream-dark);
+    }
+    .mc-tracking-title { font-size: 0.72rem; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .mc-tracking-guia { font-size: 0.88rem; font-weight: 700; color: var(--black); letter-spacing: 1px; }
+    .mc-tracking-pak { font-size: 0.75rem; color: var(--gray); margin-top: 2px; }
+    .mc-btn-tracking {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+      padding: 8px 16px; background: var(--pink); color: white; border: none;
+      border-radius: 8px; font-family: var(--font-body); font-size: 0.8rem;
+      font-weight: 600; cursor: pointer; text-decoration: none; transition: background 0.15s;
+    }
+    .mc-btn-tracking:hover { background: #7a4540; text-decoration: none; color: white; }
+
+    /* Empty state */
+    .mc-empty {
+      text-align: center; padding: 48px 16px; color: var(--gray);
+    }
+    .mc-empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .mc-empty-title { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: var(--black); }
+    .mc-empty-sub { font-size: 0.82rem; }
+
+    /* ── Datos ── */
+    #sec-datos { display: none; }
+    .mc-section-title {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--gray); margin-bottom: 14px;
+    }
+
+    /* ── Toast ── */
+    .mc-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--black); color: white; padding: 10px 20px; border-radius: 100px;
+      font-size: 0.82rem; font-weight: 600; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s; z-index: 100; white-space: nowrap;
+    }
+    .mc-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Skeleton ── */
+    .mc-skeleton {
+      background: linear-gradient(90deg, var(--cream) 25%, var(--cream-dark) 50%, var(--cream) 75%);
+      background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    @media (max-width: 480px) {
+      .mc-user-card { flex-wrap: wrap; }
+      .mc-btn-out { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="mc-header">
+    <a href="/" class="mc-logo">Zapatillas <span>May</span></a>
+    <a href="/" class="mc-back">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      Volver a la tienda
+    </a>
+  </header>
+
+  <main class="mc-main">
+    <div class="mc-card">
+
+      <!-- ══ SECCIÓN: LOGIN / REGISTRO ══ -->
+      <div id="sec-auth">
+        <h1 style="font-family:var(--font-display);font-size:1.9rem;font-weight:400;margin-bottom:6px;color:var(--black)">Mi cuenta</h1>
+        <p style="font-size:0.85rem;color:var(--gray);margin-bottom:24px">Inicia sesión para ver tus pedidos y rastrear tu envío.</p>
+
+        <div class="mc-tabs">
+          <button class="mc-tab activo" id="tab-login" onclick="cambiarTab('login')">Iniciar sesión</button>
+          <button class="mc-tab" id="tab-registro" onclick="cambiarTab('registro')">Crear cuenta</button>
+        </div>
+
+        <!-- Login -->
+        <div id="form-login">
+          <div class="mc-field">
+            <label class="mc-label" for="l-email">Email</label>
+            <input class="mc-input" type="email" id="l-email" autocomplete="email" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="l-pass">Contraseña</label>
+            <input class="mc-input" type="password" id="l-pass" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+          <div id="msg-login" class="mc-msg"></div>
+          <button class="mc-btn-primary" id="btn-login" onclick="hacerLogin()">Iniciar sesión</button>
+          <div class="mc-divider"><span>o</span></div>
+          <div id="g-btn-container"></div>
+          <div class="mc-link-row" style="margin-top:14px">
+            <a href="#" onclick="mostrarRecuperar();return false">¿Olvidaste tu contraseña?</a>
+          </div>
+          <div class="mc-link-row" style="margin-top:8px">
+            ¿Prefieres continuar sin cuenta? <a href="/">Ir a la tienda</a>
+          </div>
+        </div>
+
+        <!-- Registro -->
+        <div id="form-registro" style="display:none">
+          <div class="mc-field">
+            <label class="mc-label" for="r-nombre">Nombre completo</label>
+            <input class="mc-input" type="text" id="r-nombre" autocomplete="name" placeholder="Tu nombre">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="r-email">Email</label>
+            <input class="mc-input" type="email" id="r-email" autocomplete="email" placeholder="correo@ejemplo.com">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="r-pass">Contraseña</label>
+            <input class="mc-input" type="password" id="r-pass" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="r-tel">Teléfono <span style="font-weight:400;text-transform:none;color:#bbb">(opcional)</span></label>
+            <input class="mc-input" type="tel" id="r-tel" autocomplete="tel" inputmode="tel" placeholder="477 123 4567">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="r-tipo">Tipo de compra</label>
+            <select class="mc-select" id="r-tipo">
+              <option value="menudeo">Menudeo y mayoreo variado</option>
+              <option value="zapateria">Zapatería (corrida completa)</option>
+            </select>
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="r-ref">Código de referido <span style="font-weight:400;text-transform:none;color:#bbb">(opcional)</span></label>
+            <input class="mc-input" type="text" id="r-ref" maxlength="8" placeholder="Ej: AB12CD34" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div id="msg-registro" class="mc-msg"></div>
+          <button class="mc-btn-primary" id="btn-registro" onclick="hacerRegistro()">Crear cuenta</button>
+          <div class="mc-divider"><span>o</span></div>
+          <div id="g-btn-container-reg"></div>
+        </div>
+
+        <!-- Recuperar contraseña -->
+        <div id="sec-recuperar">
+          <button class="mc-back-btn" onclick="ocultarRecuperar()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            Volver
+          </button>
+          <h2 style="font-size:1.1rem;font-weight:600;margin-bottom:6px">Recuperar contraseña</h2>
+          <p style="font-size:0.82rem;color:var(--gray);margin-bottom:18px">Te enviaremos una contraseña temporal a tu correo.</p>
+          <div class="mc-field">
+            <label class="mc-label" for="rec-email">Tu email</label>
+            <input class="mc-input" type="email" id="rec-email" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')recuperar()">
+          </div>
+          <div id="msg-recuperar" class="mc-msg"></div>
+          <button class="mc-btn-primary" id="btn-recuperar" onclick="recuperar()">Enviar contraseña temporal</button>
+        </div>
+      </div>
+
+      <!-- ══ SECCIÓN: CUENTA ══ -->
+      <div id="sec-cuenta">
+
+        <!-- Tarjeta de usuario -->
+        <div class="mc-user-card">
+          <div class="mc-avatar-lg" id="c-avatar"></div>
+          <div>
+            <div class="mc-user-name" id="c-nombre"></div>
+            <div class="mc-user-email" id="c-email"></div>
+            <span class="mc-user-tipo" id="c-tipo"></span>
+          </div>
+          <button class="mc-btn-out" onclick="cerrarSesion()">Cerrar sesión</button>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="mc-sub-tabs">
+          <button class="mc-sub-tab activo" id="stab-pedidos" onclick="cambiarSubTab('pedidos')">Mis pedidos</button>
+          <button class="mc-sub-tab" id="stab-datos" onclick="cambiarSubTab('datos')">Mis datos</button>
+          <button class="mc-sub-tab" id="stab-pass" onclick="cambiarSubTab('pass')">Contraseña</button>
+        </div>
+
+        <!-- Pedidos -->
+        <div id="sec-pedidos">
+          <div id="lista-pedidos">
+            <!-- skeleton -->
+            <div class="mc-skeleton" style="height:80px;margin-bottom:12px"></div>
+            <div class="mc-skeleton" style="height:80px;margin-bottom:12px"></div>
+          </div>
+        </div>
+
+        <!-- Datos personales -->
+        <div id="sec-datos">
+          <p class="mc-section-title">Datos personales</p>
+          <div class="mc-field">
+            <label class="mc-label" for="d-nombre">Nombre</label>
+            <input class="mc-input" type="text" id="d-nombre" autocomplete="name">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="d-email">Email</label>
+            <input class="mc-input" type="email" id="d-email" autocomplete="email" disabled style="background:var(--cream);color:var(--gray)">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="d-tel">Teléfono</label>
+            <input class="mc-input" type="tel" id="d-tel" autocomplete="tel" inputmode="tel">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="d-dir">Dirección de envío</label>
+            <input class="mc-input" type="text" id="d-dir" autocomplete="street-address" placeholder="Calle, número, colonia">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="d-ciudad">Ciudad</label>
+            <input class="mc-input" type="text" id="d-ciudad" autocomplete="address-level2">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="d-cp">Código postal</label>
+            <input class="mc-input" type="text" id="d-cp" autocomplete="postal-code" inputmode="numeric" maxlength="5">
+          </div>
+          <div id="msg-datos" class="mc-msg"></div>
+          <button class="mc-btn-primary" onclick="guardarDatos()">Guardar cambios</button>
+        </div>
+
+        <!-- Cambiar contraseña -->
+        <div id="sec-pass" style="display:none">
+          <p class="mc-section-title">Cambiar contraseña</p>
+          <div class="mc-field">
+            <label class="mc-label" for="p-actual">Contraseña actual</label>
+            <input class="mc-input" type="password" id="p-actual" autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="p-nueva">Nueva contraseña</label>
+            <input class="mc-input" type="password" id="p-nueva" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="p-confirm">Confirmar nueva contraseña</label>
+            <input class="mc-input" type="password" id="p-confirm" autocomplete="new-password" placeholder="••••••••">
+          </div>
+          <div id="msg-pass" class="mc-msg"></div>
+          <button class="mc-btn-primary" onclick="cambiarPassword()">Actualizar contraseña</button>
+        </div>
+
+      </div><!-- /sec-cuenta -->
+
+    </div><!-- /mc-card -->
+  </main>
+
+  <div class="mc-toast" id="mc-toast"></div>
+
+<script>
+const API = 'https://zapatillasmay-production.up.railway.app'
+const LS_KEY = 'usuario'
+let usuario = null
+let googleClientId = null
+
+// ── Utilidades ──────────────────────────────────────────────────
+function leerUsuario() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null') } catch(e) { return null }
+}
+function guardarUsuario(u) {
+  localStorage.setItem(LS_KEY, JSON.stringify(u))
+  usuario = u
+}
+function toast(msg, dur = 3000) {
+  const el = document.getElementById('mc-toast')
+  el.textContent = msg
+  el.classList.add('show')
+  setTimeout(() => el.classList.remove('show'), dur)
+}
+function mostrarMsg(id, texto, tipo) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.textContent = texto
+  el.className = 'mc-msg ' + tipo
+  el.style.display = 'block'
+}
+function limpiarMsg(id) {
+  const el = document.getElementById(id)
+  if (el) { el.style.display = 'none'; el.textContent = '' }
+}
+function setBtn(id, texto, disabled) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.textContent = texto
+  el.disabled = !!disabled
+}
+function fmt(n) {
+  return '$' + parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+function fmtFecha(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch(e) { return iso.slice(0,10) }
+}
+
+// ── Tabs login/registro ──────────────────────────────────────────
+function cambiarTab(tab) {
+  const esLogin = tab === 'login'
+  document.getElementById('form-login').style.display = esLogin ? 'block' : 'none'
+  document.getElementById('form-registro').style.display = esLogin ? 'none' : 'block'
+  document.getElementById('sec-recuperar').style.display = 'none'
+  document.getElementById('tab-login').classList.toggle('activo', esLogin)
+  document.getElementById('tab-registro').classList.toggle('activo', !esLogin)
+  if (!esLogin) initGoogleBtn('g-btn-container-reg')
+  else initGoogleBtn('g-btn-container')
+}
+
+// ── Recuperar contraseña ─────────────────────────────────────────
+function mostrarRecuperar() {
+  document.getElementById('form-login').style.display = 'none'
+  document.getElementById('mc-tabs') // tabs ya visibles
+  document.getElementById('sec-recuperar').style.display = 'block'
+  limpiarMsg('msg-recuperar')
+  document.getElementById('rec-email').value = document.getElementById('l-email').value || ''
+  document.getElementById('rec-email').focus()
+}
+function ocultarRecuperar() {
+  document.getElementById('sec-recuperar').style.display = 'none'
+  document.getElementById('form-login').style.display = 'block'
+}
+async function recuperar() {
+  const email = document.getElementById('rec-email').value.trim()
+  if (!email) { mostrarMsg('msg-recuperar', 'Ingresa tu email', 'error'); return }
+  setBtn('btn-recuperar', 'Enviando…', true)
+  limpiarMsg('msg-recuperar')
+  try {
+    const res = await fetch(API + '/auth/recuperar', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      mostrarMsg('msg-recuperar', 'Te enviamos una contraseña temporal. Revisa tu correo.', 'ok')
+      setBtn('btn-recuperar', 'Enviado ✓', true)
+    } else {
+      mostrarMsg('msg-recuperar', data.error || 'No se encontró esa cuenta', 'error')
+      setBtn('btn-recuperar', 'Enviar contraseña temporal', false)
+    }
+  } catch(e) {
+    mostrarMsg('msg-recuperar', 'Error conectando con el servidor', 'error')
+    setBtn('btn-recuperar', 'Enviar contraseña temporal', false)
+  }
+}
+
+// ── Login ────────────────────────────────────────────────────────
+async function hacerLogin() {
+  const email = document.getElementById('l-email').value.trim()
+  const password = document.getElementById('l-pass').value
+  if (!email || !password) { mostrarMsg('msg-login', 'Completa todos los campos', 'error'); return }
+  setBtn('btn-login', 'Entrando…', true)
+  limpiarMsg('msg-login')
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ email, password })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      guardarUsuario(data)
+      if (typeof gtag === 'function') gtag('event', 'login', { method: 'email' })
+      entrarACuenta()
+    } else {
+      mostrarMsg('msg-login', data.error || 'Email o contraseña incorrectos', 'error')
+      setBtn('btn-login', 'Iniciar sesión', false)
+    }
+  } catch(e) {
+    mostrarMsg('msg-login', 'Error conectando con el servidor', 'error')
+    setBtn('btn-login', 'Iniciar sesión', false)
+  }
+}
+
+// ── Registro ─────────────────────────────────────────────────────
+async function hacerRegistro() {
+  const nombre = document.getElementById('r-nombre').value.trim()
+  const email = document.getElementById('r-email').value.trim()
+  const password = document.getElementById('r-pass').value
+  const telefono = document.getElementById('r-tel').value.trim()
+  const tipo = document.getElementById('r-tipo').value
+  const codigo_referido = document.getElementById('r-ref').value.trim().toUpperCase()
+  if (!nombre || !email || !password) { mostrarMsg('msg-registro', 'Nombre, email y contraseña son obligatorios', 'error'); return }
+  if (password.length < 6) { mostrarMsg('msg-registro', 'La contraseña debe tener al menos 6 caracteres', 'error'); return }
+  setBtn('btn-registro', 'Creando cuenta…', true)
+  limpiarMsg('msg-registro')
+  try {
+    const res = await fetch(API + '/auth/registro', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ nombre, email, password, telefono, tipo, codigo_referido })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      guardarUsuario(data)
+      if (typeof gtag === 'function') gtag('event', 'sign_up', { method: 'email' })
+      if (window.fbq) fbq('track', 'CompleteRegistration')
+      entrarACuenta()
+    } else {
+      mostrarMsg('msg-registro', data.error || 'Error al crear la cuenta', 'error')
+      setBtn('btn-registro', 'Crear cuenta', false)
+    }
+  } catch(e) {
+    mostrarMsg('msg-registro', 'Error conectando con el servidor', 'error')
+    setBtn('btn-registro', 'Crear cuenta', false)
+  }
+}
+
+// ── Google Sign-In ───────────────────────────────────────────────
+function initGoogleBtn(containerId) {
+  if (!googleClientId || typeof google === 'undefined') return
+  const container = document.getElementById(containerId)
+  if (!container) return
+  try {
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: handleGoogleLogin,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    })
+    google.accounts.id.renderButton(container, {
+      theme: 'outline', size: 'large',
+      width: container.offsetWidth || 360,
+      locale: 'es_MX', text: 'signin_with'
+    })
+  } catch(e) {}
+}
+async function handleGoogleLogin(credentialResponse) {
+  const idToken = credentialResponse.credential
+  if (!idToken) { toast('Error al conectar con Google'); return }
+  try {
+    const res = await fetch(API + '/auth/google', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id_token: idToken })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      guardarUsuario(data)
+      if (typeof gtag === 'function') gtag('event', 'login', { method: 'google' })
+      entrarACuenta()
+    } else {
+      toast(data.error || 'Error al iniciar sesión con Google')
+    }
+  } catch(e) {
+    toast('Error conectando con el servidor')
+  }
+}
+
+// ── Vista de cuenta ──────────────────────────────────────────────
+function entrarACuenta() {
+  const redir = new URLSearchParams(window.location.search).get('redirect')
+  if (redir) { window.location.href = redir; return }
+
+  document.getElementById('sec-auth').style.display = 'none'
+  document.getElementById('sec-cuenta').style.display = 'block'
+
+  const u = usuario
+  const inicial = (u.nombre || u.email || '?')[0].toUpperCase()
+  document.getElementById('c-avatar').textContent = inicial
+  document.getElementById('c-nombre').textContent = u.nombre || ''
+  document.getElementById('c-email').textContent = u.email || ''
+  document.getElementById('c-tipo').textContent = u.tipo === 'zapateria' ? 'Zapatería' : 'Menudeo / Mayoreo'
+
+  cargarPedidos()
+  cargarDatosCliente()
+}
+
+function cerrarSesion() {
+  localStorage.removeItem(LS_KEY)
+  usuario = null
+  document.getElementById('sec-cuenta').style.display = 'none'
+  document.getElementById('sec-auth').style.display = 'block'
+  document.getElementById('form-login').style.display = 'block'
+  document.getElementById('form-registro').style.display = 'none'
+  document.getElementById('sec-recuperar').style.display = 'none'
+  cambiarSubTab('pedidos')
+  toast('Sesión cerrada')
+}
+
+// ── Sub-tabs cuenta ──────────────────────────────────────────────
+function cambiarSubTab(tab) {
+  ['pedidos','datos','pass'].forEach(t => {
+    document.getElementById('sec-' + t).style.display = t === tab ? 'block' : 'none'
+    document.getElementById('stab-' + t).classList.toggle('activo', t === tab)
+  })
+}
+
+// ── Pedidos ──────────────────────────────────────────────────────
+const STATUS_STEPS = ['pendiente_pago','pagado','preparando','enviado','entregado']
+const STATUS_LABELS = {
+  pendiente_pago: 'Pago\npendiente',
+  pagado:         'Pago\nconfirmado',
+  preparando:     'Preparando',
+  enviado:        'En\ncamino',
+  entregado:      'Entregado'
+}
+const STATUS_TEXT = {
+  pendiente_pago: 'Pago pendiente',
+  pagado:         'Pago confirmado',
+  preparando:     'Preparando',
+  enviado:        'En camino',
+  entregado:      'Entregado',
+  cancelado:      'Cancelado'
+}
+
+async function cargarPedidos() {
+  const contenedor = document.getElementById('lista-pedidos')
+  if (!usuario?.cliente_id) {
+    contenedor.innerHTML = `<div class="mc-empty"><div class="mc-empty-icon">📦</div><div class="mc-empty-title">Sin pedidos aún</div><div class="mc-empty-sub">Cuando realices una compra, aparecerá aquí.</div></div>`
+    return
+  }
+  try {
+    const res = await fetch(API + '/auth/pedidos/' + usuario.cliente_id)
+    const pedidos = await res.json()
+    if (!Array.isArray(pedidos) || pedidos.length === 0) {
+      contenedor.innerHTML = `<div class="mc-empty"><div class="mc-empty-icon">📦</div><div class="mc-empty-title">Sin pedidos aún</div><div class="mc-empty-sub">Cuando realices una compra, aparecerá aquí.</div></div>`
+      return
+    }
+    contenedor.innerHTML = pedidos.map((p, idx) => renderPedido(p, idx)).join('')
+  } catch(e) {
+    contenedor.innerHTML = `<div class="mc-empty"><div class="mc-empty-icon">⚠️</div><div class="mc-empty-title">No se pudieron cargar tus pedidos</div><div class="mc-empty-sub"><a href="" onclick="location.reload();return false">Intentar de nuevo</a></div></div>`
+  }
+}
+
+function renderPedido(p, idx) {
+  const status = p.status || 'pendiente_pago'
+  const isCancelado = status === 'cancelado'
+  const stepIdx = STATUS_STEPS.indexOf(status)
+
+  // Timeline
+  const timeline = STATUS_STEPS.map((s, i) => {
+    const done = !isCancelado && i < stepIdx
+    const active = !isCancelado && i === stepIdx
+    const isLast = i === STATUS_STEPS.length - 1
+    const dotClass = done ? 'done' : active ? 'active' : ''
+    const lineClass = done ? 'done' : ''
+    return `<div class="mc-timeline-step">
+      <div class="mc-tl-row">
+        <div class="mc-tl-dot ${dotClass}">${done ? '✓' : ''}</div>
+        ${!isLast ? `<div class="mc-tl-line ${lineClass}"></div>` : ''}
+      </div>
+      <div class="mc-tl-label ${active ? 'active' : ''}">${STATUS_LABELS[s].replace('\n','<br>')}</div>
+    </div>`
+  }).join('')
+
+  // Items
+  const items = (p.pedido_items || []).map(item => {
+    const v = item.variantes || {}
+    const pr = v.productos || {}
+    const nombre = pr.nombre || item.nombre_producto || 'Producto'
+    const img = v.foto_url || pr.imagen_principal || null
+    const imgEl = img
+      ? `<img class="mc-item-img" src="${img}" alt="${nombre}" loading="lazy">`
+      : `<div class="mc-item-img-ph">👟</div>`
+    const cant = item.es_corrida ? item.cantidad * 6 : item.cantidad
+    const subtotal = parseFloat(item.precio_unitario || 0) * cant
+    return `<div class="mc-item-row">
+      ${imgEl}
+      <div>
+        <div class="mc-item-name">${nombre}</div>
+        <div class="mc-item-sub">${v.color || ''} · ${item.es_corrida ? `Corrida ×${item.cantidad}` : `Talla ${item.talla || ''} ×${cant}`}</div>
+      </div>
+      <div class="mc-item-price">${fmt(subtotal)}</div>
+    </div>`
+  }).join('')
+
+  // Tracking
+  let trackingHtml = ''
+  if (p.numero_guia) {
+    trackingHtml = `<div class="mc-tracking">
+      <div class="mc-tracking-title">🚚 Información de envío</div>
+      <div class="mc-tracking-guia">${p.numero_guia}</div>
+      <div class="mc-tracking-pak">${p.paqueteria || 'Paquetería'}</div>
+      ${p.tracking_url ? `<a class="mc-btn-tracking" href="${p.tracking_url}" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Rastrear en ${p.paqueteria || 'sitio de paquetería'}
+      </a>` : ''}
+    </div>`
+  }
+
+  // Totales
+  const envio = parseFloat(p.costo_envio || 0)
+  const desc = parseFloat(p.descuento || 0)
+  const total = parseFloat(p.total || 0)
+  const subtotalItems = total - envio + desc
+
+  return `<div class="mc-pedido-card">
+    <div class="mc-pedido-head" onclick="togglePedido(${idx})">
+      <div>
+        <div class="mc-pedido-num">${p.numero_pedido || ('#' + p.id.slice(0,8).toUpperCase())}</div>
+        <div class="mc-pedido-fecha">${fmtFecha(p.created_at)} · ${(p.pedido_items||[]).length} producto(s)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-weight:700;font-size:0.92rem">${fmt(total)}</span>
+        <span class="mc-status-badge ${status}">${STATUS_TEXT[status] || status}</span>
+        <svg id="arr-${idx}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray);transition:transform 0.2s;flex-shrink:0"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+    <div class="mc-pedido-body" id="body-${idx}">
+      <div class="mc-timeline" style="padding:16px 16px 8px">${isCancelado ? '<p style="color:#991b1b;font-size:0.82rem;font-weight:600">Pedido cancelado</p>' : timeline}</div>
+      <div class="mc-items">${items}</div>
+      <div class="mc-totales">
+        ${desc > 0 ? `<div class="mc-total-row"><span>Descuento</span><span>-${fmt(desc)}</span></div>` : ''}
+        <div class="mc-total-row"><span>Envío</span><span>${envio === 0 ? 'Gratis' : fmt(envio)}</span></div>
+        <div class="mc-total-row final"><span>Total</span><span>${fmt(total)}</span></div>
+      </div>
+      ${trackingHtml}
+    </div>
+  </div>`
+}
+
+function togglePedido(idx) {
+  const body = document.getElementById('body-' + idx)
+  const arr = document.getElementById('arr-' + idx)
+  const isOpen = body.classList.contains('open')
+  body.classList.toggle('open', !isOpen)
+  if (arr) arr.style.transform = isOpen ? '' : 'rotate(180deg)'
+}
+
+// ── Datos personales ─────────────────────────────────────────────
+async function cargarDatosCliente() {
+  if (!usuario?.cliente_id) return
+  try {
+    const res = await fetch(API + '/clientes/' + usuario.cliente_id)
+    const c = await res.json()
+    document.getElementById('d-nombre').value = c.nombre || ''
+    document.getElementById('d-email').value = c.email || usuario.email || ''
+    document.getElementById('d-tel').value = c.telefono || ''
+    document.getElementById('d-dir').value = c.direccion || ''
+    document.getElementById('d-ciudad').value = c.ciudad || ''
+    document.getElementById('d-cp').value = c.codigo_postal || ''
+  } catch(e) {}
+}
+async function guardarDatos() {
+  if (!usuario?.cliente_id) return
+  limpiarMsg('msg-datos')
+  const body = {
+    nombre: document.getElementById('d-nombre').value.trim(),
+    telefono: document.getElementById('d-tel').value.trim(),
+    direccion: document.getElementById('d-dir').value.trim(),
+    ciudad: document.getElementById('d-ciudad').value.trim(),
+    codigo_postal: document.getElementById('d-cp').value.trim(),
+  }
+  try {
+    const res = await fetch(API + '/clientes/' + usuario.cliente_id, {
+      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    })
+    if (res.ok) {
+      mostrarMsg('msg-datos', 'Datos actualizados correctamente', 'ok')
+      // Actualizar nombre en sesión local
+      if (body.nombre) {
+        usuario.nombre = body.nombre
+        guardarUsuario(usuario)
+        document.getElementById('c-nombre').textContent = body.nombre
+        document.getElementById('c-avatar').textContent = body.nombre[0].toUpperCase()
+      }
+    } else {
+      const data = await res.json()
+      mostrarMsg('msg-datos', data.error || 'Error al guardar', 'error')
+    }
+  } catch(e) {
+    mostrarMsg('msg-datos', 'Error conectando con el servidor', 'error')
+  }
+}
+
+// ── Cambiar contraseña ────────────────────────────────────────────
+async function cambiarPassword() {
+  const actual = document.getElementById('p-actual').value
+  const nueva = document.getElementById('p-nueva').value
+  const confirm = document.getElementById('p-confirm').value
+  limpiarMsg('msg-pass')
+  if (!actual || !nueva || !confirm) { mostrarMsg('msg-pass', 'Completa todos los campos', 'error'); return }
+  if (nueva.length < 6) { mostrarMsg('msg-pass', 'La nueva contraseña debe tener al menos 6 caracteres', 'error'); return }
+  if (nueva !== confirm) { mostrarMsg('msg-pass', 'Las contraseñas no coinciden', 'error'); return }
+  try {
+    const res = await fetch(API + '/auth/cambiar-password', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ usuario_id: usuario.id, password_actual: actual, password_nueva: nueva })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      mostrarMsg('msg-pass', 'Contraseña actualizada', 'ok')
+      document.getElementById('p-actual').value = ''
+      document.getElementById('p-nueva').value = ''
+      document.getElementById('p-confirm').value = ''
+    } else {
+      mostrarMsg('msg-pass', data.error || 'Error al cambiar la contraseña', 'error')
+    }
+  } catch(e) {
+    mostrarMsg('msg-pass', 'Error conectando con el servidor', 'error')
+  }
+}
+
+// ── Inicialización ────────────────────────────────────────────────
+async function init() {
+  // Leer parámetros de URL
+  const params = new URLSearchParams(window.location.search)
+  const tabInicial = params.get('tab') // 'registro' para abrir en registro
+
+  // Cargar google_client_id desde backend
+  try {
+    const res = await fetch(API + '/seo/config')
+    const cfg = await res.json()
+    const config = Array.isArray(cfg) ? Object.fromEntries(cfg.map(x => [x.clave, x.valor])) : cfg
+    googleClientId = config.google_client_id || null
+  } catch(e) {}
+
+  // Comprobar sesión existente
+  usuario = leerUsuario()
+  if (usuario) {
+    entrarACuenta()
+    return
+  }
+
+  // Sin sesión: mostrar auth
+  if (tabInicial === 'registro') cambiarTab('registro')
+  else {
+    cambiarTab('login')
+    // Pre-rellenar email si viene del checkout
+    const emailParam = params.get('email')
+    if (emailParam) document.getElementById('l-email').value = emailParam
+  }
+}
+
+init()
+</script>
+</body>
+</html>

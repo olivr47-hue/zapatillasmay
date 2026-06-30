@@ -1015,7 +1015,7 @@ async function cargarSesion() {
     banner.style.border = '1px solid rgba(200,150,122,0.16)'
     banner.style.color = '#8B6A54'
     banner.innerHTML = `<span style="font-size:1.05rem">🔑</span>
-      <span>¿Ya tienes cuenta? <a href="/?login=1&redirect=/checkout" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a> para autocompletar tus datos y guardar tu dirección.</span>`
+      <span>¿Ya tienes cuenta? <a href="/mi-cuenta?redirect=/checkout" style="color:#b5687a;font-weight:700;text-decoration:none">Inicia sesión</a> para autocompletar tus datos y guardar tu dirección.</span>`
 
     // Pre-llenar con datos de la última compra anónima (localStorage)
     try {

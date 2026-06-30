@@ -39,7 +39,6 @@
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_64,h_64,c_fit,f_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="https://res.cloudinary.com/dybdtehhs/image/upload/w_180,h_180,c_pad,b_white,f_png,q_auto/v1776836428/Proyecto_nuevo_wpdwus.png">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <meta name="apple-mobile-web-app-title" content="Zapatillas May">
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
@@ -2773,9 +2772,9 @@ if (!window.fbq){
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
     <span class="cart-badge" id="cart-count" style="display:none" aria-hidden="true">0</span>
   </a>
-  <button class="btn-icon" onclick="abrirLogin()" title="Mi cuenta" aria-label="Mi cuenta" id="btn-cuenta">
+  <a href="/mi-cuenta" class="btn-icon" title="Mi cuenta" aria-label="Mi cuenta" id="btn-cuenta" style="text-decoration:none">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-  </button>
+  </a>
   <button class="btn-icon btn-hamburger" onclick="toggleMenu()" title="Menu" id="btn-hamburger" aria-label="Abrir menu">
     <svg id="icon-menu" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     <svg id="icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -3308,95 +3307,6 @@ if (!window.fbq){
 </div>
 
 
-<!-- AUTH MODAL -->
-<div id="auth-overlay" onclick="cerrarAuth(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarAuth(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-  <div style="background:white;border-radius:16px;width:90%;max-width:420px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
-    <button onclick="cerrarAuthBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
-    <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:1px solid #eee">
-      <button id="tab-login" onclick="mostrarTab('login')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid var(--pink);color:var(--pink)">Iniciar sesion</button>
-      <button id="tab-registro" onclick="mostrarTab('registro')" style="flex:1;padding:12px;border:none;background:none;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:#aaa">Crear cuenta</button>
-    </div>
-    <div id="form-login">
-      <div style="margin-bottom:16px">
-        <label for="login-email" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
-        <input type="email" id="login-email" autocomplete="email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:16px">
-        <label for="login-password" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
-        <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <button onclick="hacerLogin()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer">Iniciar sesion</button>
-      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
-        <div style="flex:1;height:1px;background:#eee"></div>
-        <span style="font-size:0.75rem;color:#bbb;font-weight:500">O</span>
-        <div style="flex:1;height:1px;background:#eee"></div>
-      </div>
-      <div id="g-login-btn" style="width:100%;height:44px;display:flex;align-items:center;justify-content:center"></div>
-      <p style="text-align:center;margin-top:12px;font-size:0.82rem">
-        <a href="#" onclick="mostrarRecuperacion()" style="color:var(--pink);text-decoration:underline;font-weight:500;font-size:0.8rem">¿Olvidaste tu contraseña?</a>
-      </p>
-      <p style="text-align:center;margin-top:8px;font-size:0.82rem;color:#aaa">O continua como <a href="#" onclick="cerrarAuthBtn()" style="color:var(--pink);text-decoration:underline;font-weight:600">invitado</a></p>
-    </div>
-    <div id="form-registro" style="display:none">
-      <div style="margin-bottom:12px">
-        <label for="reg-nombre" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Nombre completo</label>
-        <input type="text" id="reg-nombre" autocomplete="name" placeholder="Tu nombre" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:12px">
-        <label for="reg-email" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email</label>
-        <input type="email" id="reg-email" autocomplete="email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:12px">
-        <label for="reg-password" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Contraseña</label>
-        <input type="password" id="reg-password" autocomplete="new-password" placeholder="••••••••" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:12px">
-        <label for="reg-telefono" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Telefono (opcional)</label>
-        <input type="tel" id="reg-telefono" autocomplete="tel" inputmode="tel" placeholder="477 123 4567" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <div style="margin-bottom:16px">
-        <label for="reg-tipo" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipo de cuenta</label>
-        <select id="reg-tipo" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;background:white;box-sizing:border-box">
-          <option value="menudeo">Menudeo y mayoreo variado</option>
-          <option value="zapateria">Zapateria (corrida completa)</option>
-        </select>
-      </div>
-      <div style="margin-bottom:16px">
-        <label for="reg-referido" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Código de referido <span style="font-weight:400;text-transform:none;color:#bbb">(opcional)</span></label>
-        <input type="text" id="reg-referido" placeholder="Ej: AB12CD34" maxlength="8" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onblur="validarCodigoReferido(this.value)">
-        <p id="ref-msg" style="font-size:0.78rem;margin-top:4px;display:none"></p>
-      </div>
-      <button onclick="hacerRegistro()" style="width:100%;padding:13px;background:var(--black);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;cursor:pointer;transition:background 0.2s">Crear cuenta</button>
-      <div style="display:flex;align-items:center;gap:10px;margin:14px 0">
-        <div style="flex:1;height:1px;background:#eee"></div>
-        <span style="font-size:0.75rem;color:#bbb;font-weight:500">O</span>
-        <div style="flex:1;height:1px;background:#eee"></div>
-      </div>
-      <div id="g-registro-btn" style="width:100%;height:44px;display:flex;align-items:center;justify-content:center"></div>
-    </div>
-    <div id="form-recuperacion" style="display:none">
-      <button onclick="mostrarTab('login')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:0.8rem;margin-bottom:16px;padding:0">← Volver al login</button>
-      <h3 style="font-size:1.1rem;margin-bottom:8px">Recuperar contraseña</h3>
-      <p style="font-size:0.82rem;color:#888;margin-bottom:20px">Te enviamos una contraseña temporal a tu email.</p>
-      <div style="margin-bottom:16px">
-        <label for="rec-email" style="display:block;font-size:0.72rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Email de tu cuenta</label>
-        <input type="email" id="rec-email" placeholder="correo@ejemplo.com" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.875rem;outline:none;box-sizing:border-box">
-      </div>
-      <button onclick="solicitarRecuperacion()" id="btn-recuperar" style="width:100%;padding:13px;background:var(--pink);color:white;border:none;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Recuperar contraseña</button>
-      <p id="rec-msg" style="text-align:center;margin-top:12px;font-size:0.82rem;display:none"></p>
-    </div>
-  </div>
-</div>
-
-<!-- CUENTA MODAL -->
-<div id="cuenta-overlay" onclick="cerrarCuenta(event)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') cerrarCuenta(event)" style="display:none;opacity:0;transition:opacity 0.3s;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:500;backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-  <div style="background:white;border-radius:16px;width:90%;max-width:480px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;max-height:90vh;overflow-y:auto">
-    <button onclick="cerrarCuentaBtn()" aria-label="Cerrar" style="position:absolute;top:16px;right:16px;background:#f5f5f5;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;color:#666"><span aria-hidden="true">✕</span></button>
-    <h3 style="font-family:var(--font-display);font-size:1.4rem;font-weight:400;margin-bottom:24px;padding-right:32px">Mi cuenta</h3>
-    <div id="cuenta-contenido"><p style="color:#aaa;text-align:center;padding:24px">Cargando…</p></div>
-  </div>
-</div>
-
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 <div id="pagina-interna" style="display:none;margin-top:64px;min-height:calc(100vh - 64px);padding-bottom:60px">
@@ -3500,9 +3410,10 @@ window.addEventListener('load', () => {
   recalcularCarrito()
   renderCarrito()
 
-  // Abrir login automáticamente si viene de checkout con ?login=1
-  if (params.get('login') === '1' && !usuarioActual) {
-    setTimeout(() => abrirLogin(), 300)
+  // Redirigir a mi-cuenta si viene con ?login=1
+  if (params.get('login') === '1') {
+    const redir = params.get('redirect') || ''
+    window.location.href = '/mi-cuenta' + (redir ? '?redirect=' + encodeURIComponent(redir) : '')
   }
 
   // Abrir carrito automáticamente si viene de "Ver carrito" en página de producto
@@ -5373,385 +5284,25 @@ function cerrarMenu() {
     menu.style.pointerEvents = 'none'
   }, 300)
 }
+// ── Sesión de cliente (solo para colorear el btn-cuenta) ─────────
 let usuarioActual = null
-
-function abrirLogin() {
-  if (usuarioActual) { abrirCuenta(); return }
-  const overlay = document.getElementById('auth-overlay')
-  overlay.style.display = 'flex'
-  overlay.style.opacity = '0'
-  setTimeout(() => { overlay.style.opacity = '1'; initGoogleButtons() }, 10)
-  document.body.style.overflow = 'hidden'
-}
-
-function cerrarAuth(event) {
-  if (event.target === document.getElementById('auth-overlay')) cerrarAuthBtn()
-}
-
-function cerrarAuthBtn() {
-  const overlay = document.getElementById('auth-overlay')
-  overlay.style.opacity = '0'
-  setTimeout(() => { overlay.style.display = 'none' }, 300)
-  document.body.style.overflow = ''
-}
-
-function mostrarTab(tab) {
-  document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none'
-  document.getElementById('form-registro').style.display = tab === 'registro' ? 'block' : 'none'
-  if (tab === 'registro') setTimeout(_aplicarRefPendiente, 50)
-  document.getElementById('form-recuperacion').style.display = 'none'
-  
-  // Reset mensaje y botón de recuperación
-  const msg = document.getElementById('rec-msg')
-  const btn = document.getElementById('btn-recuperar')
-  if (msg) { msg.style.display = 'none'; msg.textContent = '' }
-  if (btn) { 
-    btn.textContent = 'Recuperar contraseña'
-    btn.disabled = false
-    btn.onclick = solicitarRecuperacion
-  }
-  const recEmail = document.getElementById('rec-email')
-  if (recEmail) recEmail.value = ''
-
-  document.getElementById('tab-login').style.borderBottomColor = tab === 'login' ? 'var(--pink)' : 'transparent'
-  document.getElementById('tab-login').style.color = tab === 'login' ? 'var(--pink)' : '#aaa'
-  document.getElementById('tab-registro').style.borderBottomColor = tab === 'registro' ? 'var(--pink)' : 'transparent'
-  document.getElementById('tab-registro').style.color = tab === 'registro' ? 'var(--pink)' : '#aaa'
-}
-
-function initGoogleButtons() {
-  const clientId = (window._zmSeoConfig || {}).google_client_id
-  if (!clientId || typeof google === 'undefined') return
-  const opts = {
-    client_id: clientId,
-    callback: handleGoogleLogin,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-  }
-  google.accounts.id.initialize(opts)
-  const btnLogin = document.getElementById('g-login-btn')
-  const btnReg = document.getElementById('g-registro-btn')
-  if (btnLogin) google.accounts.id.renderButton(btnLogin, { theme: 'outline', size: 'large', width: btnLogin.offsetWidth || 320, locale: 'es_MX', text: 'signin_with' })
-  if (btnReg) google.accounts.id.renderButton(btnReg, { theme: 'outline', size: 'large', width: btnReg.offsetWidth || 320, locale: 'es_MX', text: 'signup_with' })
-}
-
-async function handleGoogleLogin(credentialResponse) {
-  const idToken = credentialResponse.credential
-  if (!idToken) { mostrarToast('Error al conectar con Google'); return }
-  try {
-    const res = await fetch(API + '/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_token: idToken })
-    })
-    const data = await res.json()
-    if (res.ok) {
-      usuarioActual = data
-      localStorage.setItem('usuario', JSON.stringify(data))
-      cerrarAuthBtn()
-      actualizarBtnCuenta()
-      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
-      if (redirectUrl) { window.location.href = redirectUrl; return }
-      mostrarToast('Bienvenido, ' + data.nombre)
-    } else {
-      mostrarToast(data.error || 'Error al iniciar sesion con Google')
-    }
-  } catch(e) {
-    mostrarToast('Error conectando con el servidor')
-  }
-}
-
-async function hacerLogin() {
-  const email = document.getElementById('login-email').value
-  const password = document.getElementById('login-password').value
-  if (!email || !password) { mostrarToast('Por favor completa todos los campos'); return }
-  try {
-    const res = await fetch(API + '/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
-    const data = await res.json()
-    if (res.ok) {
-      usuarioActual = data
-      localStorage.setItem('usuario', JSON.stringify(data))
-      cerrarAuthBtn()
-      actualizarBtnCuenta()
-      const redirectUrl = new URLSearchParams(window.location.search).get('redirect')
-      if (redirectUrl) { window.location.href = redirectUrl; return }
-      mostrarToast('Bienvenido, ' + data.nombre)
-    } else {
-      mostrarToast(data.error || 'Error al iniciar sesion')
-    }
-  } catch(e) {
-    mostrarToast('Error conectando con el servidor')
-  }
-}
-
-async function validarCodigoReferido(codigo) {
-  const msg = document.getElementById('ref-msg')
-  if (!msg) return
-  const c = (codigo || '').trim().toUpperCase()
-  if (!c) { msg.style.display = 'none'; return }
-  try {
-    const res = await fetch(API + '/referidos/validar', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ codigo: c }) })
-    const data = await res.json()
-    if (data.valido) {
-      msg.style.display = 'block'; msg.style.color = '#2e7d32'
-      msg.textContent = `✅ Código válido — ${data.nombre_referidor} te regala $50 de descuento en tu primera compra`
-    } else {
-      msg.style.display = 'block'; msg.style.color = '#c62828'
-      msg.textContent = '❌ Código inválido'
-    }
-  } catch(e) { msg.style.display = 'none' }
-}
-
-async function hacerRegistro() {
-  const nombre = document.getElementById('reg-nombre').value
-  const email = document.getElementById('reg-email').value
-  const password = document.getElementById('reg-password').value
-  const tipo = document.getElementById('reg-tipo').value
-  if (!nombre || !email || !password) { mostrarToast('Por favor completa todos los campos'); return }
-  try {
-    const res = await fetch(API + '/auth/registro', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, email, password, tipo, telefono: document.getElementById('reg-telefono').value || '', codigo_referido: (document.getElementById('reg-referido')?.value || '').trim().toUpperCase() || undefined })
-    })
-    const data = await res.json()
-    if (res.ok) {
-      usuarioActual = data
-      localStorage.setItem('usuario', JSON.stringify(data))
-      cerrarAuthBtn()
-      actualizarBtnCuenta()
-      mostrarToast('Cuenta creada. Bienvenido, ' + data.nombre)
-    } else {
-      mostrarToast(data.error || 'Error al crear cuenta')
-    }
-  } catch(e) {
-    mostrarToast('Error conectando con el servidor')
-  }
-}
+const _usuarioGuardado = localStorage.getItem('usuario')
+if (_usuarioGuardado) { try { usuarioActual = JSON.parse(_usuarioGuardado) } catch(e) {} }
 
 function actualizarBtnCuenta() {
   const btn = document.getElementById('btn-cuenta')
   if (!btn) return
-  if (usuarioActual) {
-    btn.style.color = 'var(--pink)'
-    btn.title = usuarioActual.nombre
-  } else {
-    btn.style.color = ''
-    btn.title = 'Mi cuenta'
-  }
+  if (usuarioActual) { btn.style.color = 'var(--pink)'; btn.title = usuarioActual.nombre }
+  else { btn.style.color = ''; btn.title = 'Mi cuenta' }
 }
+actualizarBtnCuenta()
 
-function abrirCuenta() {
-  const overlay = document.getElementById('cuenta-overlay')
-  overlay.style.display = 'flex'
-  setTimeout(() => overlay.style.opacity = '1', 10)
-  document.body.style.overflow = 'hidden'
-  cargarCuenta()
-}
+// ── (Eliminado: modal auth — ahora en /mi-cuenta) ────────────────
 
-function cerrarCuenta(event) {
-  if (event.target === document.getElementById('cuenta-overlay')) cerrarCuentaBtn()
-}
+// cerrarAuth eliminado
 
-function cerrarCuentaBtn() {
-  const overlay = document.getElementById('cuenta-overlay')
-  overlay.style.opacity = '0'
-  setTimeout(() => { overlay.style.display = 'none' }, 300)
-  document.body.style.overflow = ''
-}
+// (funciones de modal auth eliminadas — ahora en /mi-cuenta)
 
-
-function mostrarRecuperacion() {
-  document.getElementById('form-login').style.display = 'none'
-  document.getElementById('form-registro').style.display = 'none'
-  document.getElementById('form-recuperacion').style.display = 'block'
-  // Reset tabs visual
-  document.getElementById('tab-login').style.borderBottomColor = 'transparent'
-  document.getElementById('tab-login').style.color = '#aaa'
-  document.getElementById('tab-registro').style.borderBottomColor = 'transparent'
-  document.getElementById('tab-registro').style.color = '#aaa'
-}
-
-async function solicitarRecuperacion() {
-  const email = document.getElementById('rec-email').value.trim()
-  const btn = document.getElementById('btn-recuperar')
-  const msg = document.getElementById('rec-msg')
-  if (!email) { mostrarToast('Por favor ingresa tu email'); return }
-  btn.textContent = 'Buscando…'
-  btn.disabled = true
-  try {
-    const res = await fetch(API + '/auth/recuperar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    const data = await res.json()
-    if (res.ok) {
-     msg.textContent = '✅ ' + (data.mensaje || 'Revisa tu email, te enviamos tu contraseña temporal.')
-     msg.style.color = 'green'
-     msg.style.display = 'block'
-     btn.textContent = 'Listo, ir al login'
-     btn.disabled = false
-     btn.onclick = () => {
-    mostrarTab('login')
-    document.getElementById('rec-email').value = ''
-    msg.style.display = 'none'
-    btn.textContent = 'Recuperar contraseña'
-    btn.onclick = solicitarRecuperacion
-  }
-    } else {
-      msg.textContent = '❌ ' + (data.error || 'No se encontró una cuenta con ese email')
-      msg.style.color = '#e53e3e'
-      msg.style.display = 'block'
-      btn.textContent = 'Recuperar contraseña'
-      btn.disabled = false
-    }
-  } catch(e) {
-    msg.textContent = 'Error conectando con el servidor'
-    msg.style.color = '#e53e3e'
-    msg.style.display = 'block'
-    btn.textContent = 'Recuperar contraseña'
-    btn.disabled = false
-  }
-}
-
-async function cargarCuenta() {
-  const contenido = document.getElementById('cuenta-contenido')
-  if (!usuarioActual) return
-  contenido.innerHTML = '<p style="color:#aaa;text-align:center;padding:24px">Cargando…</p>'
-  try {
-    const resPedidos = usuarioActual.cliente_id
-      ? await fetch(API + '/auth/pedidos/' + usuarioActual.cliente_id)
-      : null
-    const pedidos = resPedidos && resPedidos.ok ? await resPedidos.json() : []
-
-    // Cargar datos del cliente para direccion y facturacion
-    const resCliente = usuarioActual.cliente_id
-      ? await fetch(API + '/clientes/' + usuarioActual.cliente_id)
-      : null
-    const clienteData = resCliente && resCliente.ok ? await resCliente.json() : []
-    const cliente = clienteData[0] || {}
-
-    contenido.innerHTML = `
-      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div>
-            <p style="font-weight:700;font-size:1.1rem;margin-bottom:2px">${usuarioActual.nombre}</p>
-            <p style="font-size:0.85rem;color:#888;margin-bottom:6px">${usuarioActual.email}</p>
-            <span style="display:inline-block;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${usuarioActual.tipo==='zapateria'?'#fff8e1':'#e8f5e9'};color:${usuarioActual.tipo==='zapateria'?'#f57f17':'#2e7d32'}">${usuarioActual.tipo}</span>
-          </div>
-          <button onclick="cerrarSesion()" style="background:none;border:1px solid #eee;border-radius:6px;padding:6px 14px;font-family:var(--font-body);font-size:0.78rem;cursor:pointer;color:#888">Cerrar sesion</button>
-        </div>
-      </div>
-
-      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
-        <p style="font-weight:600;margin-bottom:14px">Dirección de envío</p>
-        <div style="display:grid;gap:10px">
-          <input id="env-calle" placeholder="Calle y número" value="${cliente.calle||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <input id="env-colonia" placeholder="Colonia" value="${cliente.colonia||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-            <input id="env-cp" placeholder="Código postal" value="${cliente.codigo_postal||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <input id="env-ciudad" placeholder="Ciudad" value="${cliente.ciudad||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-            <input id="env-estado" placeholder="Estado" value="${cliente.estado||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-          </div>
-          <input id="env-telefono" placeholder="Teléfono de contacto" value="${cliente.telefono||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-        </div>
-        <button onclick="guardarDireccion()" style="margin-top:12px;background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Guardar dirección</button>
-        <p id="dir-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
-      </div>
-
-      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
-        <p style="font-weight:600;margin-bottom:6px">Datos de facturación</p>
-        <p style="font-size:0.78rem;color:#aaa;margin-bottom:14px">Solo si necesitas factura por tus compras</p>
-        <div style="display:grid;gap:10px">
-          <input id="fac-rfc" placeholder="RFC" value="${cliente.rfc||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box;text-transform:uppercase">
-          <input id="fac-razon" placeholder="Razón social" value="${cliente.razon_social||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-          <input id="fac-cp" placeholder="Código postal fiscal" value="${cliente.cp_fiscal||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-          <select id="fac-regimen" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;background:white;box-sizing:border-box">
-            <option value="">Régimen fiscal</option>
-            <option value="601" ${cliente.regimen_fiscal==='601'?'selected':''}>601 - General de Ley Personas Morales</option>
-            <option value="612" ${cliente.regimen_fiscal==='612'?'selected':''}>612 - Personas Físicas con Actividades Empresariales</option>
-            <option value="616" ${cliente.regimen_fiscal==='616'?'selected':''}>616 - Sin obligaciones fiscales</option>
-            <option value="621" ${cliente.regimen_fiscal==='621'?'selected':''}>621 - Incorporación Fiscal</option>
-            <option value="626" ${cliente.regimen_fiscal==='626'?'selected':''}>626 - Resico</option>
-          </select>
-          <input id="fac-email" placeholder="Email para recibir factura" value="${cliente.email_facturacion||''}" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;box-sizing:border-box">
-        </div>
-        <button onclick="guardarFacturacion()" style="margin-top:12px;background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Guardar datos fiscales</button>
-        <p id="fac-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
-      </div>
-
-      <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
-        <p style="font-weight:600;margin-bottom:14px">Cambiar contraseña</p>
-        <input type="password" id="pass-actual" placeholder="Contraseña actual" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px;box-sizing:border-box">
-        <input type="password" id="pass-nueva" placeholder="Nueva contraseña (min. 6 caracteres)" style="border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:0.85rem;outline:none;margin-bottom:8px;box-sizing:border-box">
-        <button onclick="cambiarPassword()" style="background:var(--black);color:white;border:none;border-radius:8px;padding:10px 20px;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Actualizar contraseña</button>
-        <p id="pass-msg" style="font-size:0.8rem;margin-top:8px;display:none"></p>
-      </div>
-
-      ${usuarioActual.tipo !== 'zapateria' ? `
-      <div id="ref-section" style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0f0f0">
-        <p style="font-weight:600;margin-bottom:4px">🎁 Invita y gana $50</p>
-        <p style="font-size:0.78rem;color:#aaa;margin-bottom:14px">Comparte tu código. Cuando alguien se registre con él, ambos reciben $50 de descuento en su próxima compra.</p>
-        <div id="ref-datos" style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px">
-          <p style="font-size:0.78rem;color:#aaa;text-align:center">Cargando…</p>
-        </div>
-      </div>` : ''}
-
-      <div>
-        <p style="font-weight:600;margin-bottom:14px">Mis pedidos (${pedidos.length})</p>
-        ${pedidos.length === 0
-          ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:24px">No tienes pedidos aun</p>'
-          : pedidos.map(p => `
-            <div style="border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <span style="font-size:0.75rem;font-family:monospace;color:#888">#${p.id.substring(0,8).toUpperCase()}</span>
-                <span style="padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${p.status==='confirmado'||p.status==='pagado'?'#e8f5e9':'#fff8e1'};color:${p.status==='confirmado'||p.status==='pagado'?'#2e7d32':'#f57f17'}">${p.status}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-size:0.82rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')}</span>
-                <strong>$${parseFloat(p.total||0).toFixed(2)} MXN</strong>
-              </div>
-            </div>
-          `).join('')}
-      </div>
-    `
-    // Cargar datos de referidos si aplica
-    if (usuarioActual.tipo !== 'zapateria' && usuarioActual.cliente_id) {
-      _cargarDatosReferido(usuarioActual.cliente_id)
-    }
-  } catch(e) {
-    contenido.innerHTML = '<p style="color:#e53e3e;text-align:center;padding:24px">Error cargando la cuenta. Intenta de nuevo.</p>'
-  }
-}
-
-async function _cargarDatosReferido(clienteId) {
-  const box = document.getElementById('ref-datos')
-  if (!box) return
-  try {
-    const res = await fetch(API + '/referidos/mi-codigo/' + clienteId)
-    if (!res.ok) { box.innerHTML = ''; return }
-    const d = await res.json()
-    const credito = parseFloat(d.credito_disponible || 0)
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <div>
-          <p style="font-size:0.7rem;font-weight:600;color:#A07860;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Tu código</p>
-          <p style="font-size:1.4rem;font-weight:700;letter-spacing:4px;color:#2A1A0E;font-family:monospace">${d.codigo}</p>
-        </div>
-        <button onclick="navigator.clipboard.writeText('${d.link}').then(()=>mostrarToast('¡Enlace copiado!'))" style="background:#C8967A;color:white;border:none;border-radius:8px;padding:8px 14px;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer">📋 Copiar enlace</button>
-      </div>
-      ${credito > 0 ? `<div style="background:#e8f5e9;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px"><span style="font-size:1rem">💰</span><p style="font-size:0.85rem;color:#2e7d32;font-weight:600">Tienes $${credito.toFixed(0)} MXN de crédito disponible</p></div>` : ''}
-      <p style="font-size:0.73rem;color:#bbb;margin-top:8px">Tu enlace: <span style="color:#C8967A">${d.link}</span></p>
-    `
-  } catch(e) { box.innerHTML = '' }
-}
 
 function navegarInicio() {
   mostrarInicio()
@@ -5764,114 +5315,6 @@ function navegarInicio() {
   }, 500)
 }
 
-async function guardarDireccion() {
-  const msg = document.getElementById('dir-msg')
-  const datos = {
-    calle: document.getElementById('env-calle').value,
-    colonia: document.getElementById('env-colonia').value,
-    codigo_postal: document.getElementById('env-cp').value,
-    ciudad: document.getElementById('env-ciudad').value,
-    estado: document.getElementById('env-estado').value,
-    telefono: document.getElementById('env-telefono').value
-  }
-  try {
-    const res = await fetch(API + '/clientes/' + usuarioActual.cliente_id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(datos)
-    })
-    if (res.ok) {
-      msg.textContent = '✅ Dirección guardada correctamente'
-      msg.style.color = 'green'
-    } else {
-      msg.textContent = '❌ No se pudo guardar'
-      msg.style.color = '#e53e3e'
-    }
-    msg.style.display = 'block'
-  } catch(e) {
-    msg.textContent = 'Error conectando con el servidor'
-    msg.style.color = '#e53e3e'
-    msg.style.display = 'block'
-  }
-}
-
-async function guardarFacturacion() {
-  const msg = document.getElementById('fac-msg')
-  const datos = {
-    rfc: document.getElementById('fac-rfc').value.toUpperCase(),
-    razon_social: document.getElementById('fac-razon').value,
-    cp_fiscal: document.getElementById('fac-cp').value,
-    regimen_fiscal: document.getElementById('fac-regimen').value,
-    email_facturacion: document.getElementById('fac-email').value
-  }
-  try {
-    const res = await fetch(API + '/clientes/' + usuarioActual.cliente_id, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(datos)
-    })
-    if (res.ok) {
-      msg.textContent = '✅ Datos fiscales guardados correctamente'
-      msg.style.color = 'green'
-    } else {
-      msg.textContent = '❌ No se pudo guardar'
-      msg.style.color = '#e53e3e'
-    }
-    msg.style.display = 'block'
-  } catch(e) {
-    msg.textContent = 'Error conectando con el servidor'
-    msg.style.color = '#e53e3e'
-    msg.style.display = 'block'
-  }
-}
-
-
-async function cambiarPassword() {
-  const actual = document.getElementById('pass-actual').value
-  const nueva = document.getElementById('pass-nueva').value
-  const msg = document.getElementById('pass-msg')
-  if (!actual || !nueva) { 
-    msg.textContent = 'Por favor completa ambos campos'
-    msg.style.color = '#e53e3e'
-    msg.style.display = 'block'
-    return 
-  }
-  try {
-    const res = await fetch(API + '/auth/cambiar-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario_id: usuarioActual.id, password_actual: actual, password_nueva: nueva })
-    })
-    const data = await res.json()
-    if (res.ok) {
-      msg.textContent = '✅ Contraseña actualizada correctamente'
-      msg.style.color = 'green'
-      document.getElementById('pass-actual').value = ''
-      document.getElementById('pass-nueva').value = ''
-    } else {
-      msg.textContent = '❌ ' + (data.error || 'No se pudo actualizar')
-      msg.style.color = '#e53e3e'
-    }
-    msg.style.display = 'block'
-  } catch(e) {
-    msg.textContent = 'Error conectando con el servidor'
-    msg.style.color = '#e53e3e'
-    msg.style.display = 'block'
-  }
-}
-
-function cerrarSesion() {
-  usuarioActual = null
-  localStorage.removeItem('usuario')
-  cerrarCuentaBtn()
-  actualizarBtnCuenta()
-  mostrarToast('Sesion cerrada')
-}
-
-const usuarioGuardado = localStorage.getItem('usuario')
-if (usuarioGuardado) {
-  try { usuarioActual = JSON.parse(usuarioGuardado); } catch(e) {}
-}
 
 // Auto-relleno de código de referido desde URL ?ref=XXXX
 ;(function() {
@@ -7302,7 +6745,7 @@ function zmRechazarCookies() {
     </span>
     <span>Carrito</span>
   </a>
-  <button class="bn-item" onclick="abrirLogin()" aria-label="Mi cuenta">
+  <a href="/mi-cuenta" class="bn-item" aria-label="Mi cuenta" style="text-decoration:none">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
     <span>Cuenta</span>
   </button>
