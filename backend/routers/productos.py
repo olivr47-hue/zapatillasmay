@@ -21,12 +21,22 @@ def siguiente_sku(categoria: str, proveedor: str):
     return {"sku_base": sku_base, "consecutivo": num}
 
 @router.get("/")
-def listar_productos():
+def listar_productos(categoria: str = None, activo: str = None):
     cached = cache_get(_CK + "_all")
     if cached is not None:
-        return cached
-    data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
-    cache_set(_CK + "_all", data)
+        data = cached
+    else:
+        data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
+        cache_set(_CK + "_all", data)
+        
+    if categoria:
+        cat_val = categoria.replace("eq.", "").strip().lower()
+        data = [p for p in data if p.get("categoria") and p.get("categoria").strip().lower() == cat_val]
+        
+    if activo:
+        act_val = activo.replace("eq.", "").strip().lower() == "true"
+        data = [p for p in data if p.get("activo") == act_val]
+        
     return data
 
 @router.get("/destacados")
