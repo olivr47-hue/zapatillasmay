@@ -146,8 +146,7 @@ function renderPC() {
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
 
-  // Pequeño delay para que el DOM se pinte antes de renderizar el contenido
-  setTimeout(() => pcIrA('inicio'), 0)
+  pcIrA('inicio')
 }
 
 function pcNavItem(tab, icon, label) {
