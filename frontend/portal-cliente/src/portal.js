@@ -811,11 +811,11 @@ async function renderCatalogos() {
     <div id="catalogos-categorias-content" style="display:none;">
       <p class="section-title">Generar catálogo PDF por categoría</p>
       <p class="muted" style="font-size:.8rem; line-height:1.4; margin-bottom:16px;">
-        Selecciona una categoría para generar un catálogo PDF de marca blanca con las fotos de portada de cada color y su código identificador (ej: EF1203 NEGRO). Ideal para compartir directamente con tus clientes por WhatsApp.
+        Selecciona una categoría para descargar un catálogo PDF de marca blanca (sin logotipos) con las fotos de portada de cada color y su código identificador (ej: EF1203 NEGRO). Ideal para compartir directamente con tus clientes.
       </p>
       <div class="category-grid" id="cat-pdf-btns">
         ${categoriasMap.map(([slug, label]) => `
-          <button class="category-btn" onclick="window.__descargarPdfCategorias('${slug}', '${label.replace(/^[^\\s]+\\s/, '')}', this)">
+          <button class="category-btn" data-categoria="${slug}" data-label="${label.replace(/^[^\s]+\s/, '')}" onclick="window.__descargarPdfCategorias(this)">
             <span class="icon">${label.split(' ')[0]}</span>
             <span class="label">${label.split(' ')[1]}</span>
           </button>
@@ -844,7 +844,9 @@ window.__switchSubTab = (tab) => {
   }
 }
 
-window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
+window.__descargarPdfCategorias = async (btn) => {
+  const catSlug = btn.getAttribute('data-categoria');
+  const catLabel = btn.getAttribute('data-label');
   const msgEl = document.getElementById('cat-pdf-msg');
   const btns = document.querySelectorAll('#cat-pdf-btns button');
   
@@ -855,7 +857,9 @@ window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
   }
   
   try {
-    const prods = state.data.productos.filter(p => p.categoria === catSlug);
+    const prods = state.data.productos.filter(p => 
+      p.categoria && String(p.categoria).trim().toLowerCase() === String(catSlug).trim().toLowerCase()
+    );
     if (!prods.length) {
       if (msgEl) msgEl.textContent = `Sin productos activos en ${catLabel}`;
       setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; }, 3000);
@@ -869,13 +873,13 @@ window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
       const colorsSeen = new Set();
       
       productVars.forEach(v => {
-        if (!v.color || colorsSeen.has(v.color.toUpperCase())) return;
-        colorsSeen.add(v.color.toUpperCase());
+        if (!v.color || colorsSeen.has(v.color.trim().toUpperCase())) return;
+        colorsSeen.add(v.color.trim().toUpperCase());
         const imgUrl = v.foto_url || p.imagen_principal;
         if (imgUrl) {
           items.push({
             sku: p.sku_interno || 'S/K',
-            color: v.color.toUpperCase(),
+            color: v.color.trim().toUpperCase(),
             imgUrl: imgUrl
           });
         }
@@ -995,23 +999,16 @@ window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
       ctx.fillStyle = '#FAFAF8';
       ctx.fillRect(0, 0, pageW, pageH);
       
-      ctx.fillStyle = '#C8967A';
-      ctx.fillRect(marginX, 38, pageW - marginX * 2, 1);
-      
+      // White-label Header (No logo text, only generic catalog name)
       ctx.fillStyle = '#2A1A0E';
-      ctx.font = '300 22px sans-serif';
+      ctx.font = '300 20px sans-serif';
       ctx.textAlign = 'center';
-      ctx.letterSpacing = '8px';
-      ctx.fillText('ZAPATILLAS MAY', pageW / 2, 30);
-      
-      ctx.letterSpacing = '2px';
-      ctx.font = '400 13px sans-serif';
-      ctx.fillStyle = '#A07860';
-      ctx.fillText(`CATÁLOGO DE ${catLabel.toUpperCase()}`, pageW / 2, 52);
+      ctx.letterSpacing = '4px';
+      ctx.fillText(`CATÁLOGO DE ${catLabel.toUpperCase()}`, pageW / 2, 38);
       ctx.letterSpacing = '0px';
       
       ctx.fillStyle = '#C8967A';
-      ctx.fillRect(marginX, 60, pageW - marginX * 2, 1);
+      ctx.fillRect(marginX, 48, pageW - marginX * 2, 1.5);
       
       for (let cellIdx = 0; cellIdx < pageItems.length; cellIdx++) {
         const item = pageItems[cellIdx];
@@ -1033,16 +1030,14 @@ window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
         ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 28);
       }
       
+      // White-label Footer (No brand name, no website url, only page number)
       ctx.fillStyle = '#C8967A';
-      ctx.fillRect(marginX, pageH - 56, pageW - marginX * 2, 1);
+      ctx.fillRect(marginX, pageH - 48, pageW - marginX * 2, 1);
       
       ctx.fillStyle = '#A07860';
       ctx.font = '300 14px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('zapatillasmay.mx', marginX, pageH - 38);
-      
-      ctx.textAlign = 'right';
-      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW - marginX, pageH - 38);
+      ctx.textAlign = 'center';
+      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30);
       
       const imgData = canvas.toDataURL('image/jpeg', 0.90);
       if (!isFirstPage) {
