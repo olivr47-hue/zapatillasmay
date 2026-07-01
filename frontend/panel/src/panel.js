@@ -18126,6 +18126,7 @@ window.crearNuevoCarrito = async () => {
   }
 }
 
+window.cargarCarritos = cargarCarritos
 window.abrirCarrito = async (pedidoId) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carrito...</p>'

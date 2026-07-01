@@ -37,7 +37,16 @@ export function renderPortalCliente(sesionData) {
   pc.sesion = sesionData
   try { pc.carrito = JSON.parse(localStorage.getItem(PC_CARRITO_KEY) || '[]') } catch { pc.carrito = [] }
   try { pc.borradores = JSON.parse(localStorage.getItem('pc_borradores') || '[]') } catch { pc.borradores = [] }
-  renderPC()
+  try {
+    renderPC()
+  } catch(err) {
+    const app = document.querySelector('#app')
+    const errDiv = document.createElement('div')
+    errDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc2626;color:white;padding:16px;z-index:9999;font-family:monospace;font-size:13px'
+    errDiv.textContent = 'renderPC ERROR: ' + (err?.message || String(err))
+    document.body.appendChild(errDiv)
+    return
+  }
   cargarDatosPC()
 }
 
@@ -55,7 +64,7 @@ function renderPC() {
           <span style="width:8px;height:8px;border-radius:50%;background:#E91E8C;flex-shrink:0"></span>
           <span style="font-size:0.65rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
         </div>
-        <p style="font-size:0.75rem;font-weight:600;color:#a0a0c0;margin:0">Portal Mayoreo</p>
+        <p style="font-size:0.75rem;font-weight:600;color:#a0a0c0;margin:0">Portal Mayoreo <span style="font-size:0.6rem;color:#3a3a5c">v5</span></p>
         <p style="font-size:0.72rem;color:#5a5a7a;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pc.sesion?.nombre || '')}</p>
       </div>
 
@@ -146,7 +155,14 @@ function renderPC() {
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
 
-  pcIrA('inicio')
+  // Reemplazar spinner de inmediato
+  const _initContent = document.getElementById('pc-content')
+  if (_initContent) {
+    try { renderInicio(_initContent) } catch(e) {
+      console.error('[pc] renderInicio init error', e)
+      _initContent.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444">Error al inicializar: ${e.message}</div>`
+    }
+  }
 }
 
 function pcNavItem(tab, icon, label) {
