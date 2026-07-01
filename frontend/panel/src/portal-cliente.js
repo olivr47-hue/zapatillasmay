@@ -13,9 +13,11 @@ const esc   = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── Estado global ────────────────────────────────────────────
 const pc = {
-  sesion:   null,   // { nombre, email, cliente_id, tipo, token }
+  sesion:   null,
   tab:      'inicio',
   productos: [],
+  variantes: [],
+  inventario: [],
   carrito:  [],
   pedidos:  [],
   referido: null,
@@ -201,18 +203,17 @@ function pcToggleSidebar() {
 // ── Carga inicial de datos ───────────────────────────────────
 async function cargarDatosPC() {
   try {
-    const [resProd, resPed, resRef, resCli] = await Promise.all([
+    const [resProd, resVar, resInv, resPed, resRef, resCli] = await Promise.all([
       fetch(`${PC_API}/productos/`),
+      fetch(`${PC_API}/variantes/?activa=eq.true`),
+      fetch(`${PC_API}/inventario/`),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/mi-codigo/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`) : Promise.resolve(null),
     ])
-    if (resProd.ok) {
-      const todos = await resProd.json()
-      pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : []
-    } else {
-      console.error('[portal] productos fetch error', resProd.status, await resProd.text().catch(() => ''))
-    }
+    if (resProd.ok) { const todos = await resProd.json(); pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : [] }
+    if (resVar.ok) { const d = await resVar.json(); pc.variantes = Array.isArray(d) ? d : [] }
+    if (resInv.ok) { const d = await resInv.json(); pc.inventario = Array.isArray(d) ? d : [] }
     if (resPed?.ok) pc.pedidos = await resPed.json()
     if (resRef?.ok) pc.referido = await resRef.json()
     if (resCli?.ok) { const d = await resCli.json(); pc.clienteData = Array.isArray(d) ? d[0] : d }
@@ -352,38 +353,66 @@ function renderCatalogo(el) {
 function pcProductoCard(p) {
   const m3 = parseFloat(p.precio_mayoreo3 || 0)
   const m6 = parseFloat(p.precio_mayoreo6 || 0)
-  const img = p.imagen_principal || 'https://via.placeholder.com/300x300?text=Sin+foto'
-  const enCarrito = pc.carrito.find(i => i.producto_id === p.id)
+  const vars = pc.variantes.filter(v => v.producto_id === p.id)
+  // Foto por color: primera foto_url encontrada por color
+  const coloresMap = {}
+  vars.forEach(v => {
+    if (!coloresMap[v.color]) coloresMap[v.color] = { hex: v.color_hex, foto: v.foto_url }
+    else if (!coloresMap[v.color].foto && v.foto_url) coloresMap[v.color].foto = v.foto_url
+  })
+  const coloresList = Object.entries(coloresMap) // [[color, {hex, foto}], ...]
+  const imgPrincipal = p.imagen_principal || (coloresList[0]?.[1]?.foto) || ''
+  const enCarrito = pc.carrito.filter(i => i.producto_id === p.id).reduce((s, i) => s + i.cantidad, 0)
 
   return `
-    <div class="pc-prod-card" onclick="pcAbrirProducto('${p.id}')">
-      <div style="position:relative;aspect-ratio:1;overflow:hidden;background:#0c0c17">
-        <img src="${esc(img)}" alt="${esc(p.nombre)}" loading="lazy"
-          style="width:100%;height:100%;object-fit:cover;transition:transform 0.3s"
-          onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+    <div class="pc-prod-card" onclick="pcAbrirProducto('${p.id}')" style="display:flex;flex-direction:column">
+      <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:#0c0c17">
+        <img id="pc-card-img-${p.id}" src="${esc(imgPrincipal)}" alt="${esc(p.nombre)}" loading="lazy"
+          style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
         ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
         ${p.nuevo ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
-        ${enCarrito ? '<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.9);color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">En pedido</span>' : ''}
+        ${enCarrito > 0 ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${enCarrito} par${enCarrito !== 1 ? 'es' : ''}</span>` : ''}
       </div>
-      <div style="padding:12px">
-        <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 3px;font-family:monospace">${esc(p.sku_interno||'')}</p>
-        <p style="font-size:0.85rem;font-weight:600;color:#c0c0e0;margin:0 0 10px;line-height:1.3">${esc(p.nombre)}</p>
-        ${m3 ? `<div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-size:0.7rem;color:#5a5a7a">3-5 pares</span>
-          <span style="font-size:0.85rem;font-weight:700;color:#e2e2f0">${money(m3)}</span>
-        </div>` : ''}
-        ${m6 ? `<div style="display:flex;justify-content:space-between;margin-bottom:10px">
-          <span style="font-size:0.7rem;color:#5a5a7a">6+ pares</span>
-          <span style="font-size:0.85rem;font-weight:700;color:#E91E8C">${money(m6)}</span>
-        </div>` : ''}
-        <button onclick="event.stopPropagation();pcAbrirProducto('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:8px;font-size:0.78rem">
-          + Agregar al pedido
+      <!-- Swatches de color -->
+      ${coloresList.length > 0 ? `
+      <div style="display:flex;gap:5px;padding:8px 10px;background:#0c0c17;flex-wrap:wrap" onclick="event.stopPropagation()">
+        ${coloresList.slice(0,8).map(([cn, cd]) => `
+          <div title="${esc(cn)}" onclick="pcCardColor('${p.id}','${esc(cd.foto||imgPrincipal)}',this)"
+            style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid #2a2a40;cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
+            onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='#2a2a40'">
+          </div>`).join('')}
+        ${coloresList.length > 8 ? `<span style="font-size:0.62rem;color:#5a5a7a;align-self:center">+${coloresList.length-8}</span>` : ''}
+      </div>` : ''}
+      <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column">
+        <p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;font-family:monospace">${esc(p.sku_interno||'')}</p>
+        <p style="font-size:0.83rem;font-weight:600;color:#c0c0e0;margin:0 0 8px;line-height:1.3;flex:1">${esc(p.nombre)}</p>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          ${m3 ? `<span style="font-size:0.72rem;color:#a0a0c0">3-5: <strong style="color:#e2e2f0">${money(m3)}</strong></span>` : ''}
+          ${m6 ? `<span style="font-size:0.72rem;color:#a0a0c0">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
+        </div>
+        <button onclick="event.stopPropagation();pcAbrirProducto('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:7px;font-size:0.78rem">
+          ${enCarrito > 0 ? `✓ ${enCarrito} par${enCarrito !== 1 ? 'es' : ''} · Editar` : '+ Seleccionar tallas'}
         </button>
       </div>
     </div>`
 }
 
-// Abrir modal de producto para elegir talla y cantidad
+window.pcCardColor = function(prodId, fotoUrl, swatchEl) {
+  const img = document.getElementById('pc-card-img-' + prodId)
+  if (img && fotoUrl) {
+    img.style.opacity = '0.5'
+    img.src = fotoUrl
+    img.onload = () => { img.style.opacity = '1' }
+  }
+  // Marcar swatch activo
+  swatchEl.closest('[onclick*="stopPropagation"]')?.querySelectorAll('div[data-sel]').forEach(d => {
+    delete d.dataset.sel; d.style.borderColor = '#2a2a40'
+  })
+  swatchEl.dataset.sel = '1'
+  swatchEl.style.borderColor = '#E91E8C'
+}
+
+// Abrir modal de producto — interfaz estilo POS: colores/chips/corrida
 window.pcAbrirProducto = function(prodId) {
   const p = pc.productos.find(x => x.id === prodId)
   if (!p) return
@@ -391,63 +420,193 @@ window.pcAbrirProducto = function(prodId) {
   const m6 = parseFloat(p.precio_mayoreo6 || 0)
   const img = p.imagen_principal || ''
 
+  // Agrupar variantes por color
+  const vars = pc.variantes.filter(v => v.producto_id === prodId)
+  const colores = {}
+  vars.forEach(v => {
+    const c = v.color || '—'
+    if (!colores[c]) colores[c] = { hex: v.color_hex, vars: [] }
+    colores[c].vars.push(v)
+  })
+  Object.values(colores).forEach(c => {
+    c.vars.sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+  })
+
+  const renderColorBlock = (colorName, colorData) => {
+    // Foto representativa del color
+    const fotoColor = colorData.vars.find(v => v.foto_url)?.foto_url || img
+    const chips = colorData.vars.map(v => {
+      const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s, i) => s + (i.cantidad || 0), 0)
+      const enCar = pc.carrito.filter(i => i.variante_id === v.id).reduce((s, i) => s + i.cantidad, 0)
+      const agotado = stock <= 0
+      return `
+        <button onclick="pcChipClick('${prodId}','${v.id}','${esc(v.talla)}','${esc(colorName)}')"
+          id="pc-chip-${v.id}"
+          ${agotado ? 'disabled' : ''}
+          style="position:relative;min-width:54px;padding:6px 10px;border:1.5px solid ${enCar > 0 ? '#E91E8C' : agotado ? '#1e1e30' : '#2a2a40'};border-radius:10px;background:${enCar > 0 ? 'rgba(233,30,140,0.12)' : '#0f0f1c'};font-family:inherit;cursor:${agotado ? 'not-allowed' : 'pointer'};opacity:${agotado ? 0.4 : 1};display:flex;flex-direction:column;align-items:center;gap:1px;transition:all 0.15s">
+          <span style="font-size:0.88rem;font-weight:800;color:${agotado ? '#5a5a7a' : '#e2e2f0'}">T${esc(v.talla)}</span>
+          <span style="font-size:0.58rem;font-weight:600;color:${agotado ? '#5a5a7a' : '#4ade80'}">${agotado ? 'agotado' : 'stock '+stock}</span>
+          ${enCar > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800">${enCar}</span>` : ''}
+        </button>`
+    }).join('')
+
+    const puedeCorreda = p.corrida_activa && colorData.vars.some(v => {
+      return pc.inventario.filter(i => i.variante_id === v.id).reduce((s, i) => s + (i.cantidad || 0), 0) > 0
+    })
+
+    return `
+      <div style="margin-bottom:16px;padding:12px;background:#0f0f1c;border-radius:10px;border:1px solid #1e1e30">
+        <!-- Header del color: foto miniatura + nombre + corrida -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer" onclick="pcModalFoto('${esc(fotoColor)}')">
+          ${fotoColor ? `<img src="${esc(fotoColor)}" style="width:42px;height:42px;object-fit:cover;border-radius:7px;flex-shrink:0;border:1.5px solid #2a2a40">` : colorData.hex ? `<span style="width:42px;height:42px;border-radius:7px;background:${colorData.hex};flex-shrink:0;border:1.5px solid #2a2a40;display:inline-block"></span>` : ''}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:6px">
+              ${colorData.hex ? `<span style="width:11px;height:11px;border-radius:50%;background:${colorData.hex};border:1px solid #2a2a40;flex-shrink:0"></span>` : ''}
+              <span style="font-size:0.82rem;font-weight:700;color:#c0c0e0;text-transform:uppercase;letter-spacing:0.05em">${esc(colorName)}</span>
+              <span style="font-size:0.62rem;color:#5a5a7a">👆 ver foto</span>
+            </div>
+          </div>
+          ${puedeCorreda ? `<button onclick="event.stopPropagation();pcAgregarCorrida('${prodId}','${esc(colorName)}')" style="padding:4px 10px;background:rgba(107,27,154,0.15);border:1px solid rgba(107,27,154,0.4);border-radius:100px;color:#b39ddb;font-size:0.68rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">📦 Corrida</button>` : ''}
+        </div>
+        <!-- Chips de talla -->
+        <div style="display:flex;flex-wrap:wrap;gap:7px">${chips}</div>
+      </div>`
+  }
+
   const overlay = document.createElement('div')
   overlay.id = 'pc-modal'
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:16px'
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:16px'
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove() }
+  // Foto principal del modal: usa foto de la primera variante con foto, o imagen_principal
+  const primeraFoto = Object.values(colores).find(c => c.vars.find(v => v.foto_url))?.vars.find(v => v.foto_url)?.foto_url || img
+
   overlay.innerHTML = `
-    <div style="background:#161625;border:1px solid #2a2a40;border-radius:16px;max-width:500px;width:100%;max-height:90vh;overflow-y:auto;padding:24px;position:relative">
-      <button onclick="document.getElementById('pc-modal').remove()" style="position:absolute;top:14px;right:14px;background:#0f0f1c;border:none;color:#a0a0c0;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:1rem">✕</button>
+    <div style="background:#161625;border:1px solid #2a2a40;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;position:relative">
+      <button onclick="document.getElementById('pc-modal').remove()" style="position:absolute;top:12px;right:12px;background:rgba(15,15,28,0.85);border:none;color:#a0a0c0;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem;z-index:10">✕</button>
 
-      <div style="display:flex;gap:16px;margin-bottom:20px">
-        ${img ? `<img src="${esc(img)}" id="pc-modal-img" onclick="abrirLightboxPC(this.src)" style="width:100px;height:100px;object-fit:cover;border-radius:10px;flex-shrink:0;background:#0c0c17;cursor:zoom-in" title="Toca para ver en grande">` : ''}
-        <div>
-          <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 4px">${esc(p.sku_interno||'')}</p>
-          <p style="font-size:1rem;font-weight:700;color:#e2e2f0;margin:0 0 10px">${esc(p.nombre)}</p>
-          ${m3 ? `<p style="font-size:0.78rem;color:#a0a0c0;margin:0 0 2px">3-5 pares: <strong style="color:#e2e2f0">${money(m3)}</strong> c/u</p>` : ''}
-          ${m6 ? `<p style="font-size:0.78rem;color:#a0a0c0;margin:0">6+ pares: <strong style="color:#E91E8C">${money(m6)}</strong> c/u</p>` : ''}
+      <!-- Foto grande -->
+      <div style="position:relative;aspect-ratio:4/3;overflow:hidden;background:#0c0c17;border-radius:16px 16px 0 0;cursor:zoom-in" onclick="abrirLightboxPC(document.getElementById('pc-modal-foto').src)">
+        <img id="pc-modal-foto" src="${esc(primeraFoto)}" style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
+        <div style="position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.5);color:white;font-size:0.62rem;padding:3px 8px;border-radius:100px">🔍 toca para ampliar</div>
+      </div>
+
+      <!-- Info + colores + chips -->
+      <div style="padding:18px 20px 20px">
+        <div style="margin-bottom:16px">
+          <p style="font-size:0.65rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${esc(p.sku_interno||'')}</p>
+          <p style="font-size:1rem;font-weight:700;color:#e2e2f0;margin:0 0 8px;line-height:1.3">${esc(p.nombre)}</p>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            ${m3 ? `<span style="font-size:0.75rem;color:#a0a0c0">3-5 pares: <strong style="color:#e2e2f0">${money(m3)}</strong> c/u</span>` : ''}
+            ${m6 ? `<span style="font-size:0.75rem;color:#a0a0c0">6+ pares: <strong style="color:#E91E8C">${money(m6)}</strong> c/u</span>` : ''}
+          </div>
+        </div>
+
+        ${Object.keys(colores).length === 0
+          ? `<p style="color:#5a5a7a;text-align:center;padding:20px">Sin variantes disponibles</p>`
+          : Object.entries(colores).map(([cn, cd]) => renderColorBlock(cn, cd)).join('')
+        }
+
+        <div id="pc-modal-resumen" style="margin-top:14px;padding:10px 14px;background:#0f0f1c;border-radius:10px;border:1px solid rgba(233,30,140,0.2);display:none">
+          <p style="font-size:0.72rem;color:#a0a0c0;margin:0 0 2px">En tu pedido:</p>
+          <p id="pc-modal-resumen-txt" style="font-size:0.9rem;font-weight:700;color:#E91E8C;margin:0"></p>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <button onclick="pcIrA('carrito');document.getElementById('pc-modal').remove()" class="pc-btn pc-btn-primary" style="flex:1">Ver pedido →</button>
+          <button onclick="document.getElementById('pc-modal').remove()" class="pc-btn pc-btn-secondary">Cerrar</button>
         </div>
       </div>
-
-      <div style="margin-bottom:16px">
-        <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Talla</label>
-        <div style="display:flex;flex-wrap:wrap;gap:6px" id="pc-tallas">
-          ${TALLAS_ORDEN.map(t => `
-            <button onclick="pcSelTalla('${t}',this)" data-talla="${t}"
-              style="padding:7px 12px;border-radius:8px;border:1.5px solid #2a2a40;background:#0f0f1c;color:#a0a0c0;cursor:pointer;font-family:inherit;font-size:0.82rem;transition:all 0.15s"
-              onmouseover="if(!this.classList.contains('sel')){this.style.borderColor='#E91E8C'}" onmouseout="if(!this.classList.contains('sel')){this.style.borderColor='#2a2a40'}"
-            >${t}</button>`).join('')}
-        </div>
-      </div>
-
-      <div style="margin-bottom:20px">
-        <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Cantidad (pares)</label>
-        <div style="display:flex;align-items:center;gap:12px">
-          <button onclick="pcCantidad(-1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #2a2a40;background:#0f0f1c;color:#e2e2f0;font-size:1.2rem;cursor:pointer">−</button>
-          <input type="number" id="pc-cant" value="3" min="1" class="pc-input" style="width:80px;text-align:center">
-          <button onclick="pcCantidad(1)" style="width:36px;height:36px;border-radius:8px;border:1.5px solid #2a2a40;background:#0f0f1c;color:#e2e2f0;font-size:1.2rem;cursor:pointer">+</button>
-          <span id="pc-subtotal" style="font-size:0.9rem;font-weight:700;color:#E91E8C;margin-left:8px"></span>
-        </div>
-        <p style="font-size:0.72rem;color:#5a5a7a;margin:8px 0 0">3-5 pares: ${money(m3)} c/u · 6+ pares: ${money(m6)} c/u</p>
-      </div>
-
-      <div style="margin-bottom:12px">
-        <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:6px">Color (opcional)</label>
-        <input type="text" id="pc-color" class="pc-input" placeholder="ej. Negro, Café, Nude...">
-      </div>
-
-      <div style="display:flex;gap:10px;margin-top:20px">
-        <button onclick="pcConfirmarAgregar('${prodId}')" class="pc-btn pc-btn-primary" style="flex:1">Agregar al pedido</button>
-        <button onclick="document.getElementById('pc-modal').remove()" class="pc-btn pc-btn-secondary">Cancelar</button>
-      </div>
-      <p id="pc-modal-err" style="color:#ef4444;font-size:0.78rem;margin-top:8px;display:none"></p>
     </div>`
 
   document.body.appendChild(overlay)
-  pcActualizarSubtotal(m3, m6)
+  pcRefrescarResumenModal(prodId)
+}
 
-  // Listener de cantidad
-  document.getElementById('pc-cant').addEventListener('input', () => pcActualizarSubtotal(m3, m6))
+// Chip click: agrega 1 par o quita si ya hay en carrito
+window.pcChipClick = function(prodId, varId, talla, color) {
+  const p = pc.productos.find(x => x.id === prodId)
+  if (!p) return
+  const idx = pc.carrito.findIndex(i => i.variante_id === varId)
+  if (idx >= 0) {
+    pc.carrito.splice(idx, 1)
+  } else {
+    const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0) + 1
+    const precio = totalPares >= 6 ? parseFloat(p.precio_mayoreo6 || p.precio_mayoreo3 || 0) : parseFloat(p.precio_mayoreo3 || 0)
+    pc.carrito.push({ producto_id: prodId, variante_id: varId, nombre: p.nombre, sku: p.sku_interno, imagen: p.imagen_principal, talla, color, cantidad: 1, precio_unitario: precio })
+  }
+  pcGuardarCarrito()
+  pcRefrescarChipModal(varId, prodId)
+  pcRefrescarResumenModal(prodId)
+  renderCatalogo() // actualiza badge "En pedido" en el grid
+}
+
+// Agregar corrida completa de un color
+window.pcAgregarCorrida = function(prodId, color) {
+  const p = pc.productos.find(x => x.id === prodId)
+  if (!p) return
+  const vars = pc.variantes.filter(v => v.producto_id === prodId && v.color === color)
+  let agregados = 0
+  vars.forEach(v => {
+    const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s, i) => s + (i.cantidad || 0), 0)
+    if (stock <= 0) return
+    const ya = pc.carrito.find(i => i.variante_id === v.id)
+    if (!ya) {
+      const precio = parseFloat(p.precio_corrida || p.precio_mayoreo3 || 0)
+      pc.carrito.push({ producto_id: prodId, variante_id: v.id, nombre: p.nombre, sku: p.sku_interno, imagen: p.imagen_principal, talla: v.talla, color, cantidad: 1, precio_unitario: precio, es_corrida: true })
+      agregados++
+    }
+  })
+  if (agregados > 0) {
+    pcGuardarCarrito()
+    // Refrescar todos los chips de este producto
+    pc.variantes.filter(v => v.producto_id === prodId).forEach(v => pcRefrescarChipModal(v.id, prodId))
+    pcRefrescarResumenModal(prodId)
+    renderCatalogo()
+  }
+}
+
+window.pcModalFoto = function(src) {
+  const el = document.getElementById('pc-modal-foto')
+  if (!el || !src) return
+  el.style.opacity = '0.5'
+  el.src = src
+  el.onload = () => { el.style.opacity = '1' }
+}
+
+function pcRefrescarChipModal(varId, prodId) {
+  const chip = document.getElementById('pc-chip-' + varId)
+  if (!chip) return
+  const v = pc.variantes.find(x => x.id === varId)
+  if (!v) return
+  const stock = pc.inventario.filter(i => i.variante_id === varId).reduce((s, i) => s + (i.cantidad || 0), 0)
+  const enCar = pc.carrito.filter(i => i.variante_id === varId).reduce((s, i) => s + i.cantidad, 0)
+  const agotado = stock <= 0
+  chip.style.borderColor = enCar > 0 ? '#E91E8C' : agotado ? '#1e1e30' : '#2a2a40'
+  chip.style.background = enCar > 0 ? 'rgba(233,30,140,0.12)' : '#0f0f1c'
+  // badge
+  let badge = chip.querySelector('span[data-badge]')
+  if (enCar > 0) {
+    if (!badge) {
+      badge = document.createElement('span')
+      badge.setAttribute('data-badge','1')
+      badge.style.cssText = 'position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800'
+      chip.appendChild(badge)
+    }
+    badge.textContent = enCar
+  } else if (badge) {
+    badge.remove()
+  }
+}
+
+function pcRefrescarResumenModal(prodId) {
+  const resumen = document.getElementById('pc-modal-resumen')
+  const txt = document.getElementById('pc-modal-resumen-txt')
+  if (!resumen || !txt) return
+  const items = pc.carrito.filter(i => i.producto_id === prodId)
+  if (items.length === 0) { resumen.style.display = 'none'; return }
+  const total = items.reduce((s, i) => s + i.cantidad, 0)
+  txt.textContent = `${total} par${total !== 1 ? 'es' : ''} agregado${total !== 1 ? 's' : ''} · ${money(items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0))}`
+  resumen.style.display = 'block'
 }
 
 window.abrirLightboxPC = function(src) {
@@ -465,69 +624,6 @@ window.abrirLightboxPC = function(src) {
   document.body.appendChild(lb)
 }
 
-window.pcSelTalla = function(t, btn) {
-  document.querySelectorAll('#pc-tallas button').forEach(b => {
-    b.classList.remove('sel')
-    b.style.background = '#0f0f1c'
-    b.style.borderColor = '#2a2a40'
-    b.style.color = '#a0a0c0'
-  })
-  btn.classList.add('sel')
-  btn.style.background = 'rgba(233,30,140,0.15)'
-  btn.style.borderColor = '#E91E8C'
-  btn.style.color = '#E91E8C'
-}
-
-window.pcCantidad = function(delta) {
-  const inp = document.getElementById('pc-cant')
-  if (!inp) return
-  inp.value = Math.max(1, parseInt(inp.value || 1) + delta)
-  // Necesitamos los precios, buscarlos del producto activo
-  const m = document.querySelector('#pc-modal')
-  if (!m) return
-  const subtotalEl = document.getElementById('pc-subtotal')
-  if (subtotalEl) {
-    const cant = parseInt(inp.value) || 1
-    // Extraer precios del texto en el modal
-    const lines = m.querySelectorAll('p')
-    let m3 = 0, m6 = 0
-    lines.forEach(l => {
-      if (l.textContent.includes('3-5 pares')) m3 = parseFloat(l.querySelector('strong')?.textContent?.replace(/[^0-9.]/g,'') || 0)
-      if (l.textContent.includes('6+ pares')) m6 = parseFloat(l.querySelector('strong')?.textContent?.replace(/[^0-9.]/g,'') || 0)
-    })
-    pcActualizarSubtotal(m3, m6)
-  }
-}
-
-function pcActualizarSubtotal(m3, m6) {
-  const cant = parseInt(document.getElementById('pc-cant')?.value || 1)
-  const precio = cant >= 6 ? m6 : m3
-  const sub = document.getElementById('pc-subtotal')
-  if (sub && precio) sub.textContent = `= ${money(precio * cant)}`
-}
-
-window.pcConfirmarAgregar = function(prodId) {
-  const p = pc.productos.find(x => x.id === prodId)
-  if (!p) return
-  const tallaBtn = document.querySelector('#pc-tallas button.sel')
-  const talla = tallaBtn?.dataset.talla || ''
-  const cant = parseInt(document.getElementById('pc-cant')?.value || 1)
-  const color = document.getElementById('pc-color')?.value?.trim() || ''
-  const m3 = parseFloat(p.precio_mayoreo3 || 0)
-  const m6 = parseFloat(p.precio_mayoreo6 || 0)
-  const precio = cant >= 6 ? m6 : m3
-
-  if (!talla) {
-    const err = document.getElementById('pc-modal-err')
-    if (err) { err.textContent = 'Selecciona una talla'; err.style.display = 'block' }
-    return
-  }
-
-  pc.carrito.push({ producto_id: prodId, nombre: p.nombre, sku: p.sku_interno, imagen: p.imagen_principal, talla, color, cantidad: cant, precio_unitario: precio })
-  pcGuardarCarrito()
-  document.getElementById('pc-modal')?.remove()
-  pcIrA('carrito')
-}
 
 function pcGuardarCarrito() {
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
@@ -537,6 +633,25 @@ function pcGuardarCarrito() {
 function renderCarrito(el) {
   el = el || document.getElementById('pc-content')
   if (!el) return
+  // Recalculate prices from live product data (fixes stale $0 from localStorage)
+  if (pc.productos.length > 0) {
+    const totalParesBefore = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
+    pc.carrito.forEach(item => {
+      const p = pc.productos.find(x => x.id === item.producto_id)
+      if (!p) return
+      const m3 = parseFloat(p.precio_mayoreo3 || 0)
+      const m6 = parseFloat(p.precio_mayoreo6 || 0)
+      const corrida = parseFloat(p.precio_corrida || 0)
+      if (item.es_corrida && corrida > 0) {
+        item.precio_unitario = corrida
+      } else if (totalParesBefore >= 6 && m6 > 0) {
+        item.precio_unitario = m6
+      } else if (m3 > 0) {
+        item.precio_unitario = m3
+      }
+    })
+    pcGuardarCarrito()
+  }
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
   const credito = parseFloat(pc.referido?.credito_disponible || 0)
