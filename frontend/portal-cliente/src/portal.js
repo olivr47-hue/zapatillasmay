@@ -769,26 +769,302 @@ async function renderCatalogos() {
   let cats = []
   try { cats = await fetch(API + '/catalogos/').then(r => r.json()) } catch {}
   cats = Array.isArray(cats) ? cats : []
-  if (!cats.length) {
-    page().innerHTML = `<div class="empty"><div class="ic">📖</div><p>No hay catálogos por ahora</p></div>`
-    return
-  }
+
+  const categoriasMap = [
+    ['tacones', '👠 Tacones'],
+    ['sandalias', '👡 Sandalias'],
+    ['flats', '🥿 Flats'],
+    ['botas', '🥾 Botas'],
+    ['botines', '👢 Botines'],
+    ['plataformas', '⬆️ Plataformas'],
+    ['tenis', '👟 Tenis'],
+    ['nina', '🎀 Niña'],
+    ['accesorios', '👜 Accesorios'],
+  ]
+
+  const catalogosHtml = cats.length ? cats.map(c => `
+    <div class="cat-card">
+      ${c.portada_url ? `<img src="${c.portada_url}" loading="lazy">` : `<div style="width:70px;height:90px;border-radius:9px;background:#f0f0f4"></div>`}
+      <div class="info">
+        <h3>${esc(c.nombre || 'Catálogo')}</h3>
+        <div class="muted" style="font-size:.78rem">${esc(c.temporada || '')}</div>
+        <div class="actions">
+          <button class="btn-mini" onclick="window.__verCatalogo('${c.id}','${esc(c.nombre || '')}')">Ver</button>
+          <button class="btn-mini ghost" onclick="window.__descargarCatalogo('${c.id}','${esc(c.nombre || '')}',this)">Descargar</button>
+        </div>
+      </div>
+    </div>`).join('') : `<div class="empty"><div class="ic">📖</div><p>No hay catálogos generales por ahora</p></div>`;
+
   page().innerHTML = `
-    <p class="section-title">Catálogos para descargar</p>
-    <div class="cat-list">
-      ${cats.map(c => `
-        <div class="cat-card">
-          ${c.portada_url ? `<img src="${c.portada_url}" loading="lazy">` : `<div style="width:70px;height:90px;border-radius:9px;background:#f0f0f4"></div>`}
-          <div class="info">
-            <h3>${esc(c.nombre || 'Catálogo')}</h3>
-            <div class="muted" style="font-size:.78rem">${esc(c.temporada || '')}</div>
-            <div class="actions">
-              <button class="btn-mini" onclick="window.__verCatalogo('${c.id}','${esc(c.nombre || '')}')">Ver</button>
-              <button class="btn-mini ghost" onclick="window.__descargarCatalogo('${c.id}','${esc(c.nombre || '')}',this)">Descargar</button>
-            </div>
-          </div>
-        </div>`).join('')}
+    <div class="catalogos-tabs">
+      <button class="sub-tab active" id="btn-cat-general" onclick="window.__switchSubTab('general')">Catálogos Generales</button>
+      <button class="sub-tab" id="btn-cat-categorias" onclick="window.__switchSubTab('categorias')">Descarga de catálogo de...</button>
+    </div>
+    
+    <div id="catalogos-general-content" style="display:block;">
+      <p class="section-title">Catálogos para descargar</p>
+      <div class="cat-list">
+        ${catalogosHtml}
+      </div>
+    </div>
+    
+    <div id="catalogos-categorias-content" style="display:none;">
+      <p class="section-title">Generar catálogo PDF por categoría</p>
+      <p class="muted" style="font-size:.8rem; line-height:1.4; margin-bottom:16px;">
+        Selecciona una categoría para generar un catálogo PDF de marca blanca con las fotos de portada de cada color y su código identificador (ej: EF1203 NEGRO). Ideal para compartir directamente con tus clientes por WhatsApp.
+      </p>
+      <div class="category-grid" id="cat-pdf-btns">
+        ${categoriasMap.map(([slug, label]) => `
+          <button class="category-btn" onclick="window.__descargarPdfCategorias('${slug}', '${label.replace(/^[^\\s]+\\s/, '')}', this)">
+            <span class="icon">${label.split(' ')[0]}</span>
+            <span class="label">${label.split(' ')[1]}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div id="cat-pdf-msg" class="cat-pdf-msg" style="display:none;"></div>
     </div>`
+}
+
+window.__switchSubTab = (tab) => {
+  const generalContent = document.getElementById('catalogos-general-content');
+  const categoriasContent = document.getElementById('catalogos-categorias-content');
+  const btnGeneral = document.getElementById('btn-cat-general');
+  const btnCategorias = document.getElementById('btn-cat-categorias');
+  
+  if (tab === 'categorias') {
+    if (generalContent) generalContent.style.display = 'none';
+    if (categoriasContent) categoriasContent.style.display = 'block';
+    if (btnGeneral) btnGeneral.classList.remove('active');
+    if (btnCategorias) btnCategorias.classList.add('active');
+  } else {
+    if (generalContent) generalContent.style.display = 'block';
+    if (categoriasContent) categoriasContent.style.display = 'none';
+    if (btnGeneral) btnGeneral.classList.add('active');
+    if (btnCategorias) btnCategorias.classList.remove('active');
+  }
+}
+
+window.__descargarPdfCategorias = async (catSlug, catLabel, btn) => {
+  const msgEl = document.getElementById('cat-pdf-msg');
+  const btns = document.querySelectorAll('#cat-pdf-btns button');
+  
+  btns.forEach(b => b.disabled = true);
+  if (msgEl) {
+    msgEl.style.display = 'block';
+    msgEl.textContent = `⏳ Cargando productos de ${catLabel}...`;
+  }
+  
+  try {
+    const prods = state.data.productos.filter(p => p.categoria === catSlug);
+    if (!prods.length) {
+      if (msgEl) msgEl.textContent = `Sin productos activos en ${catLabel}`;
+      setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; }, 3000);
+      btns.forEach(b => b.disabled = false);
+      return;
+    }
+    
+    const items = [];
+    prods.forEach(p => {
+      const productVars = state.data.variantes.filter(v => v.producto_id === p.id && v.activa !== false);
+      const colorsSeen = new Set();
+      
+      productVars.forEach(v => {
+        if (!v.color || colorsSeen.has(v.color.toUpperCase())) return;
+        colorsSeen.add(v.color.toUpperCase());
+        const imgUrl = v.foto_url || p.imagen_principal;
+        if (imgUrl) {
+          items.push({
+            sku: p.sku_interno || 'S/K',
+            color: v.color.toUpperCase(),
+            imgUrl: imgUrl
+          });
+        }
+      });
+      
+      if (colorsSeen.size === 0 && p.imagen_principal) {
+        items.push({
+          sku: p.sku_interno || 'S/K',
+          color: 'ÚNICO',
+          imgUrl: p.imagen_principal
+        });
+      }
+    });
+    
+    if (!items.length) {
+      if (msgEl) msgEl.textContent = `Sin fotos disponibles para ${catLabel}`;
+      setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; }, 3000);
+      btns.forEach(b => b.disabled = false);
+      return;
+    }
+    
+    if (msgEl) msgEl.textContent = `✏️ Generando catálogo PDF (${items.length} variantes)...`;
+    
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    
+    const { jsPDF } = window.jspdf;
+    const cols = 2;
+    const rows = 3;
+    const itemsPerPage = cols * rows;
+    const pageW = 1080;
+    const pageH = 1440;
+    
+    const marginX = 40;
+    const marginY = 80;
+    const gapX = 24;
+    const gapY = 32;
+    
+    const cellW = (pageW - marginX * 2 - gapX * (cols - 1)) / cols;
+    const cellH = (pageH - marginY * 2 - gapY * (rows - 1)) / rows;
+    const imgH = cellH - 50;
+    
+    const loadImage = (url) => new Promise(res => {
+      if (!url) return res(null);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => res(img);
+      img.onerror = () => res(null);
+      img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    });
+    
+    const drawCellImage = (ctx, img, x, y, w, h) => {
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(x, y, w, h);
+      
+      if (img) {
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        
+        const imgRatio = img.naturalWidth / img.naturalHeight;
+        const cellRatio = w / h;
+        
+        let drawW, drawH, drawX, drawY;
+        if (imgRatio > cellRatio) {
+          drawH = h;
+          drawW = h * imgRatio;
+          drawY = y;
+          drawX = x + (w - drawW) / 2;
+        } else {
+          drawW = w;
+          drawH = w / imgRatio;
+          drawX = x;
+          drawY = y + (h - drawH) / 2;
+        }
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      } else {
+        ctx.fillStyle = '#F3F4F6';
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Sin imagen', x + w / 2, y + h / 2);
+      }
+      ctx.restore();
+    };
+    
+    const pages = [];
+    for (let i = 0; i < items.length; i += itemsPerPage) {
+      pages.push(items.slice(i, i + itemsPerPage));
+    }
+    
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [pageW, pageH]
+    });
+    
+    let isFirstPage = true;
+    for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+      if (msgEl) msgEl.textContent = `✏️ Generando página ${pIdx + 1} de ${pages.length}...`;
+      
+      const pageItems = pages[pIdx];
+      const canvas = document.createElement('canvas');
+      canvas.width = pageW;
+      canvas.height = pageH;
+      const ctx = canvas.getContext('2d');
+      
+      ctx.fillStyle = '#FAFAF8';
+      ctx.fillRect(0, 0, pageW, pageH);
+      
+      ctx.fillStyle = '#C8967A';
+      ctx.fillRect(marginX, 38, pageW - marginX * 2, 1);
+      
+      ctx.fillStyle = '#2A1A0E';
+      ctx.font = '300 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '8px';
+      ctx.fillText('ZAPATILLAS MAY', pageW / 2, 30);
+      
+      ctx.letterSpacing = '2px';
+      ctx.font = '400 13px sans-serif';
+      ctx.fillStyle = '#A07860';
+      ctx.fillText(`CATÁLOGO DE ${catLabel.toUpperCase()}`, pageW / 2, 52);
+      ctx.letterSpacing = '0px';
+      
+      ctx.fillStyle = '#C8967A';
+      ctx.fillRect(marginX, 60, pageW - marginX * 2, 1);
+      
+      for (let cellIdx = 0; cellIdx < pageItems.length; cellIdx++) {
+        const item = pageItems[cellIdx];
+        const colIdx = cellIdx % cols;
+        const rowIdx = Math.floor(cellIdx / cols);
+        
+        const cellX = marginX + colIdx * (cellW + gapX);
+        const cellY = marginY + rowIdx * (cellH + gapY);
+        
+        const img = await loadImage(item.imgUrl);
+        drawCellImage(ctx, img, cellX, cellY, cellW, imgH);
+        
+        ctx.fillStyle = '#E8DDD5';
+        ctx.fillRect(cellX, cellY + imgH, cellW, 1);
+        
+        ctx.fillStyle = '#2A1A0E';
+        ctx.textAlign = 'center';
+        ctx.font = '600 18px sans-serif';
+        ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 28);
+      }
+      
+      ctx.fillStyle = '#C8967A';
+      ctx.fillRect(marginX, pageH - 56, pageW - marginX * 2, 1);
+      
+      ctx.fillStyle = '#A07860';
+      ctx.font = '300 14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('zapatillasmay.mx', marginX, pageH - 38);
+      
+      ctx.textAlign = 'right';
+      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW - marginX, pageH - 38);
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.90);
+      if (!isFirstPage) {
+        doc.addPage([pageW, pageH]);
+      }
+      doc.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+      isFirstPage = false;
+    }
+    
+    const filename = `catalogo_${catSlug}_${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(filename);
+    
+    if (msgEl) {
+      msgEl.textContent = `✅ ¡Catálogo descargado!`;
+      setTimeout(() => { msgEl.style.display = 'none'; }, 4000);
+    }
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    if (msgEl) msgEl.textContent = `❌ Error al generar el PDF: ${error.message}`;
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
 }
 
 async function _paginasCatalogo(id) {
