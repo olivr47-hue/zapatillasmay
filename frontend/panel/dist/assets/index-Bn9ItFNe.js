@@ -1,0 +1,7730 @@
+(function(){const t=document.createElement("link").relList;if(t&&t.supports&&t.supports("modulepreload"))return;for(const n of document.querySelectorAll('link[rel="modulepreload"]'))o(n);new MutationObserver(n=>{for(const i of n)if(i.type==="childList")for(const r of i.addedNodes)r.tagName==="LINK"&&r.rel==="modulepreload"&&o(r)}).observe(document,{childList:!0,subtree:!0});function a(n){const i={};return n.integrity&&(i.integrity=n.integrity),n.referrerPolicy&&(i.referrerPolicy=n.referrerPolicy),n.crossOrigin==="use-credentials"?i.credentials="include":n.crossOrigin==="anonymous"?i.credentials="omit":i.credentials="same-origin",i}function o(n){if(n.ep)return;n.ep=!0;const i=a(n);fetch(n.href,i)}})();const b="/api",Je=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],Ct=[{nombre:"Negro",hex:"#000000"},{nombre:"Blanco",hex:"#FFFFFF"},{nombre:"Hueso",hex:"#F5F0E8"},{nombre:"Nude claro",hex:"#F5DCC8"},{nombre:"Nude",hex:"#E8C4A0"},{nombre:"Nude oscuro",hex:"#C49A7A"},{nombre:"Nude rosa",hex:"#F2C4B0"},{nombre:"Palo de rosa",hex:"#D4A096"},{nombre:"Beige",hex:"#E8D5B0"},{nombre:"Camel",hex:"#C19A6B"},{nombre:"Miel",hex:"#B8860B"},{nombre:"Cafe claro",hex:"#A0785A"},{nombre:"Cafe medio",hex:"#7B4F2E"},{nombre:"Cafe oscuro",hex:"#4A2C1A"},{nombre:"Chocolate",hex:"#3B1F0E"},{nombre:"Cognac",hex:"#8B4513"},{nombre:"Taupe",hex:"#8B7D6B"},{nombre:"Gris claro",hex:"#C0C0C0"},{nombre:"Gris",hex:"#808080"},{nombre:"Gris oscuro",hex:"#404040"},{nombre:"Rojo",hex:"#CC0000"},{nombre:"Vino",hex:"#722F37"},{nombre:"Bordo",hex:"#800020"},{nombre:"Rosa claro",hex:"#FFB6C1"},{nombre:"Rosa",hex:"#FF69B4"},{nombre:"Fusha",hex:"#E91E8C"},{nombre:"Coral",hex:"#FF6B6B"},{nombre:"Salmon",hex:"#FA8072"},{nombre:"Naranja",hex:"#FF6600"},{nombre:"Amarillo",hex:"#FFD700"},{nombre:"Dorado",hex:"#C8A951"},{nombre:"Plateado",hex:"#A8A8A8"},{nombre:"Azul claro",hex:"#6CA0DC"},{nombre:"Azul",hex:"#0000CC"},{nombre:"Azul marino",hex:"#001F5B"},{nombre:"Turquesa",hex:"#40E0D0"},{nombre:"Verde",hex:"#006400"},{nombre:"Verde menta",hex:"#98FF98"},{nombre:"Morado",hex:"#800080"},{nombre:"Lila",hex:"#C8A2C8"},{nombre:"Multicolor",hex:"#FF69B4"}],zt=[{value:"tacones",label:"Tacones",prefix:"TAC"},{value:"sandalias",label:"Sandalias",prefix:"SAN"},{value:"botas",label:"Botas",prefix:"BOT"},{value:"botines",label:"Botines",prefix:"BTN"},{value:"flats",label:"Flats",prefix:"FLT"},{value:"plataformas",label:"Plataformas",prefix:"PLT"},{value:"tenis",label:"Tenis",prefix:"TEN"},{value:"nina",label:"Calzado de nina",prefix:"NIN"},{value:"accesorios",label:"Accesorios",prefix:"ACC"}],ge=[{id:"dashboard",icon:"📊",label:"Dashboard",section:"Principal",soloAdmin:!0},{id:"pos",icon:"🛒",label:"Punto de venta",section:"Principal"},{id:"productos",icon:"👠",label:"Productos",section:"Catalogo"},{id:"resenas",icon:"⭐",label:"Reseñas",section:"Catalogo",soloAdmin:!0},{id:"inventario",icon:"📦",label:"Inventario",section:"Catalogo"},{id:"carritos",icon:"🛒",label:"Carritos",section:"Ventas"},{id:"pedidos",icon:"🛍️",label:"Pedidos",section:"Ventas"},{id:"clientes",icon:"👥",label:"Clientes",section:"Ventas"},{id:"historial",icon:"📋",label:"Historial",section:"Ventas"},{id:"analisis",icon:"📈",label:"Analisis",section:"Ventas"},{id:"crm",icon:"🎯",label:"CRM",section:"Ventas"},{id:"finanzas",icon:"💰",label:"Finanzas",section:"Finanzas",soloAdmin:!0},{id:"proveedores",icon:"🏭",label:"Proveedores",section:"Finanzas",soloAdmin:!0},{id:"sucursales",icon:"🏪",label:"Sucursales",section:"Configuracion",soloAdmin:!0},{id:"empleados",icon:"👤",label:"Empleados",section:"Configuracion",soloAdmin:!0},{id:"seo",icon:"🔍",label:"SEO y Sitio",section:"Configuracion",soloAdmin:!0},{id:"envio",icon:"🚚",label:"Envíos",section:"Configuracion",soloAdmin:!0},{id:"ordenes",icon:"🛒",label:"Órdenes de compra",section:"Finanzas",soloAdmin:!0},{id:"conversaciones",icon:"💬",label:"Conversaciones",section:"Ventas"},{id:"envios",icon:"📣",label:"Envíos masivos",section:"Ventas"},{id:"catalogos",icon:"📖",label:"Catálogos",section:"Catalogo",soloAdmin:!0},{id:"orden-home",icon:"🏠",label:"Orden en Home",section:"Catalogo",soloAdmin:!0},{id:"generar-nombres",icon:"✏️",label:"Generar nombres",section:"Catalogo",soloAdmin:!0},{id:"mercadolibre",icon:"🛒",label:"MercadoLibre",section:"Integraciones",soloAdmin:!0},{id:"analytics",icon:"📊",label:"Google Analytics",section:"Integraciones",soloAdmin:!0},{id:"referidos",icon:"🎁",label:"Referidos",section:"Ventas",soloAdmin:!0},{id:"carritos-abandonados",icon:"🛒",label:"Carritos abandonados",section:"Ventas",soloAdmin:!0}];var Ue;let re=((Ue=window._empleadoActual)==null?void 0:Ue.rol)==="admin"?"dashboard":"pos",Xe=1;function We(){var d,l;const e=(()=>{try{return localStorage.getItem("zm_panel_modulo")}catch{return null}})(),t=((d=window._empleadoActual)==null?void 0:d.rol)==="admin"?"dashboard":"pos";re=e||t,document.querySelector("#app").innerHTML=`
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <h2>Zapatillas <span>May</span></h2>
+        <p>Panel de administracion</p>
+      </div>
+      <nav class="sidebar-nav">
+        ${St()}
+      </nav>
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:1rem">
+          <button class="hamburger" onclick="toggleSidebar()">☰</button>
+          <h1 id="topbar-title">${((l=ge.find(c=>c.id===re))==null?void 0:l.label)||"Dashboard"}</h1>
+        </div>
+        <div class="topbar-actions">
+          <span style="font-size:0.8rem;color:#888">${window._empleadoActual?window._empleadoActual.nombre:"Leon, Gto."}</span>
+          <button onclick="cerrarSesionPanel()" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#8892a4;cursor:pointer;font-family:DM Sans,sans-serif">Salir</button>
+        </div>
+      </div>
+      <div class="content" id="content">
+        ${It()}
+      </div>
+    </div>
+  `,window.toggleSidebar=()=>{const c=document.getElementById("sidebar"),p=document.getElementById("sidebar-overlay"),m=c.classList.toggle("open");p.classList.toggle("active",m),document.body.style.overflow=m?"hidden":""},window._conversacionesInterval&&clearInterval(window._conversacionesInterval),window._conversacionesInterval=setInterval(async()=>{try{const c=await window._recargarChats(),p=window._totalNoLeidos||0,m=c.reduce((g,u)=>g+(u.no_leidos||0),0);if(window._totalNoLeidos=m,m>p){document.title=`(${m}) Zapatillas May`;const g=document.querySelector('[data-modulo="conversaciones"]');if(g){let u=g.querySelector(".nav-badge");u||(u=document.createElement("span"),u.className="nav-badge",u.style.cssText="background:#e91e8c;color:white;border-radius:100px;padding:1px 6px;font-size:0.65rem;font-weight:700;margin-left:auto",g.appendChild(u)),u.textContent=m}try{const u=new(window.AudioContext||window.webkitAudioContext),y=u.createOscillator(),f=u.createGain();y.connect(f),f.connect(u.destination),y.frequency.value=523,f.gain.setValueAtTime(.5,u.currentTime),f.gain.exponentialRampToValueAtTime(.001,u.currentTime+.2),y.start(u.currentTime),y.stop(u.currentTime+.2);const v=u.createOscillator(),x=u.createGain();v.connect(x),x.connect(u.destination),v.frequency.value=783,x.gain.setValueAtTime(.5,u.currentTime+.2),x.gain.exponentialRampToValueAtTime(.001,u.currentTime+.5),v.start(u.currentTime+.2),v.stop(u.currentTime+.5)}catch{}}try{window._refrescarListaChats(c)}catch{}if(window._chatActivo&&window._chatsData[window._chatActivo]){const g=window._chatsData[window._chatActivo],u=document.getElementById("mensajes-area");if(u){const y=u.scrollHeight-u.scrollTop<=u.clientHeight+60;u.innerHTML=window._renderBurbujas(g),y&&(u.scrollTop=u.scrollHeight)}}}catch{}},8e3);const a="zm_badge_pedidos";let o=new Set;function n(c){const p=document.getElementById("badge-pedidos-enviar");p&&(p.textContent=c,p.style.display=c>0?"inline":"none")}async function i(){try{const c=await fetch(b+"/pedidos/?status=pagado");if(!c.ok)return;const m=(await c.json()).filter(f=>f.mp_preference_id||f.mp_payment_id),g=m.length;localStorage.setItem(a,g),n(g);const u=new Set(m.map(f=>f.id)),y=m.filter(f=>!o.has(f.id));y.length>0&&o.size>0&&y.forEach(f=>{const v=f.nombre_cliente||"Cliente",x=parseFloat(f.total||0).toLocaleString("es-MX",{maximumFractionDigits:0});r(`🛍️ Nuevo pedido de ${v} — $${x} MXN`)}),o=u}catch{}}function r(c){const p=document.createElement("div");p.style.cssText="position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:white;padding:14px 20px;border-radius:12px;font-size:0.85rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;cursor:pointer;max-width:320px;line-height:1.4;border-left:4px solid #e53935",p.textContent=c,p.onclick=()=>{navegarA("pedidos"),p.remove()},document.body.appendChild(p),setTimeout(()=>p.remove(),8e3),Notification.permission==="granted"?new Notification("Zapatillas May — Panel",{body:c,icon:"/favicon.ico"}):Notification.permission==="default"&&Notification.requestPermission();try{const m=new AudioContext,g=m.createOscillator(),u=m.createGain();g.connect(u),u.connect(m.destination),g.frequency.setValueAtTime(880,m.currentTime),g.frequency.setValueAtTime(1100,m.currentTime+.1),u.gain.setValueAtTime(.15,m.currentTime),u.gain.exponentialRampToValueAtTime(.001,m.currentTime+.4),g.start(),g.stop(m.currentTime+.4)}catch{}}window._limpiarBadgePedidos=function(){const c=document.getElementById("badge-pedidos-enviar");c&&(c.style.display="none"),o=new Set([...o])};function s(){if(document.getElementById("badge-pedidos-enviar")){const c=parseInt(localStorage.getItem(a)||"0",10);c>0&&n(c),i()}else setTimeout(s,400)}s(),window._pedidosInterval&&clearInterval(window._pedidosInterval),window._pedidosInterval=setInterval(i,3e4),window.navegarA=c=>{var y;const p=((y=window._empleadoActual)==null?void 0:y.rol)==="admin",m=ge.find(f=>f.id===c);if(m!=null&&m.soloAdmin&&!p){alert("No tienes permisos para acceder a este módulo");return}re=c;try{localStorage.setItem("zm_panel_modulo",c)}catch{}const g=document.getElementById("sidebar"),u=document.getElementById("sidebar-overlay");g.classList.contains("open")&&(g.classList.remove("open"),u.classList.remove("active")),document.querySelectorAll(".nav-item").forEach(f=>f.classList.remove("active")),document.querySelector('[data-modulo="'+c+'"]').classList.add("active"),document.getElementById("topbar-title").textContent=ge.find(f=>f.id===c).label,Ke(c)}}function St(){var a;const e=((a=window._empleadoActual)==null?void 0:a.rol)==="admin";return[...new Set(ge.filter(o=>e||!o.soloAdmin).map(o=>o.section))].map(o=>`
+    <div class="nav-section">${o}</div>
+    ${ge.filter(n=>n.section===o&&(e||!n.soloAdmin)).map(n=>`
+      <div class="nav-item ${n.id===re?"active":""}"
+           data-modulo="${n.id}"
+           onclick="navegarA('${n.id}')">
+        <span class="nav-icon">${n.icon}</span>
+        ${n.label}
+        ${n.id==="pedidos"?'<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>':""}
+      </div>
+    `).join("")}
+  `).join("")}async function Ke(e){var a;const t=document.getElementById("content");switch(t.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>',e){case"catalogos":await Oe();break;case"dashboard":t.innerHTML=Tt(),setTimeout(()=>Ot(),100);break;case"productos":await $e();break;case"resenas":await cargarResenasModeracion();break;case"clientes":await Qe();break;case"carritos":await Ee();break;case"pedidos":await at(),(a=window._limpiarBadgePedidos)==null||a.call(window);break;case"sucursales":await Pt();break;case"inventario":await Bt();break;case"pos":await nt();break;case"historial":await rt();break;case"empleados":await st();break;case"seo":await Ht();break;case"envio":await Ft();break;case"analisis":await jt();break;case"crm":await Ze();break;case"finanzas":await be();break;case"proveedores":await Ye();break;case"ordenes":await fe();break;case"conversaciones":await cargarConversaciones();break;case"envios":await cargarEnviosMasivos();break;case"mercadolibre":await Rt();break;case"analytics":await Vt();break;case"orden-home":await qt();break;case"generar-nombres":await Qt();break;case"referidos":await De();break;case"carritos-abandonados":await Dt();break}}function It(){return setTimeout(()=>{document.querySelectorAll(".nav-item").forEach(o=>o.classList.remove("active"));const e=document.querySelector('[data-modulo="'+re+'"]');e&&e.classList.add("active");const t=document.getElementById("topbar-title"),a=ge.find(o=>o.id===re);t&&a&&(t.textContent=a.label),Ke(re)},100),'<div style="padding:2rem;color:#888;text-align:center">Cargando...</div>'}async function fe(){var t;const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando sugerencias...</p>';try{const o=await(await fetch(b+"/sucursales/")).json(),n=(t=o[0])==null?void 0:t.id,[i,r]=await Promise.all([fetch(b+"/finanzas/sugerencias-recompra/"+n),fetch(b+"/finanzas/proveedores")]),s=await i.json(),d=await r.json(),l=JSON.parse(localStorage.getItem("ordenes_pospuestos")||"{}"),c=new Date().toISOString().split("T")[0],p=s.filter(f=>{const v=l[f.producto_id];return v?v.hasta===null||v.hasta===void 0?!1:v.hasta<=c:!0}),m=s.length-p.length;window._ordenesData={sugerencias:p,proveedores:d,sucursalId:n},window._ordenSeleccion={};const g=p.filter(f=>f.urgente),u=p.filter(f=>!f.urgente),y=p.reduce((f,v)=>f+v.cantidad_sugerida*v.costo_unitario,0);e.innerHTML=`
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🛒 Órdenes de compra</h2>
+          <p style="color:#888;font-size:0.85rem">Sugerencias de recompra basadas en rotación e inventario</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="ord-sucursal" style="max-width:200px" onchange="recargarOrdenes(this.value)">
+            ${o.map(f=>`<option value="${f.id}">${f.nombre}</option>`).join("")}
+          </select>
+          <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">${g.length}</p>
+          <p style="font-size:0.68rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🚨 Urgentes</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${u.length}</p>
+          <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⚠️ Por resurtir</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#333">${p.reduce((f,v)=>f+v.cantidad_sugerida,0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pares sugeridos</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${y.toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo estimado</p>
+        </div>
+        ${m>0?`
+        <div style="background:#f3e5f5;border-radius:12px;padding:1.25rem;border:1px solid #ce93d8;text-align:center;cursor:pointer" onclick="verPospuestos()">
+          <p style="font-size:1.6rem;font-weight:700;color:#6a1b9a">${m}</p>
+          <p style="font-size:0.68rem;color:#6a1b9a;text-transform:uppercase;letter-spacing:0.5px">⏸️ Pospuestos</p>
+        </div>`:""}
+      </div>
+
+      ${p.length===0?`<div style="background:white;border-radius:12px;padding:3rem;text-align:center;border:1px solid #eee">
+            <p style="font-size:2rem;margin-bottom:1rem">✅</p>
+            <p style="font-weight:700;font-size:1rem;margin-bottom:4px">Todo el inventario está bien</p>
+            <p style="color:#888;font-size:0.85rem">No hay productos que necesiten resurtido</p>
+          </div>`:`
+          <!-- SELECCIONAR TODOS -->
+          <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="sel-todos" onchange="seleccionarTodos(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C">
+                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${p.length})</p>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="font-size:0.78rem" onclick="filtrarOrdenes('todos')">Todos</button>
+                <button class="btn btn-secondary" style="font-size:0.78rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarOrdenes('urgente')">🚨 Urgentes</button>
+              </div>
+            </div>
+
+            ${p.map(f=>`
+              <div class="orden-item" data-urgente="${f.urgente}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                <input type="checkbox" class="orden-check" data-id="${f.producto_id}" onchange="actualizarSeleccion('${f.producto_id}', this.checked)"
+                       style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C;flex-shrink:0">
+                ${f.imagen?`<img src="${f.imagen}" style="width:52px;height:52px;object-fit:contain;background:#f5f5f5;border-radius:8px;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>'}
+                <div style="flex:1;min-width:140px">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                    <p style="font-weight:700;font-size:0.9rem">${f.nombre}</p>
+                    ${f.urgente?'<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:700">🚨 URGENTE</span>':'<span style="background:#fff8e1;color:#f57f17;padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:700">⚠️ BAJO</span>'}
+                  </div>
+                  <p style="font-size:0.75rem;color:#888">${f.sku||""} · Stock: ${f.stock_total} pares · Mín: ${f.stock_minimo}</p>
+                  <p style="font-size:0.72rem;color:#888">${f.velocidad_semanal} pares/sem · ${f.dias_inventario?f.dias_inventario+" días de stock":"Sin ventas recientes"}</p>
+                  ${f.proveedor?`<p style="font-size:0.72rem;color:#6a1b9a;margin-top:2px">🏭 ${f.proveedor.nombre}</p>`:'<p style="font-size:0.72rem;color:#aaa;margin-top:2px">Sin proveedor asignado</p>'}
+                  ${f.variantes&&f.variantes.length>0?`
+                  <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+                    ${f.variantes.map(v=>{const x=[v.talla,v.color].filter(Boolean).join(" / "),h=v.sin_stock;return`<span style="
+                        padding:2px 7px;border-radius:100px;font-size:0.68rem;font-weight:600;
+                        ${h?"background:#ffebee;color:#c62828;border:1px solid #ef9a9a":"background:#f5f5f5;color:#666;border:1px solid #e0e0e0"}
+                      " title="${h?"Sin stock":"Stock: "+v.stock}">${x}${h?" ✗":""}</span>`}).join("")}
+                  </div>`:""}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Sugerido</p>
+                    <input type="number" min="1" value="${f.cantidad_sugerida}"
+                           id="qty-orden-${f.producto_id}"
+                           style="width:60px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700"
+                           oninput="actualizarCostoOrden()">
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Costo/par</p>
+                    <p style="font-weight:700;color:#333;font-size:0.9rem">$${f.costo_unitario.toFixed(0)}</p>
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">Subtotal</p>
+                    <p id="sub-${f.producto_id}" style="font-weight:700;color:#E91E8C;font-size:0.9rem">$${(f.cantidad_sugerida*f.costo_unitario).toFixed(0)}</p>
+                  </div>
+                  <div style="text-align:center">
+                    <p style="font-size:0.68rem;color:#888;margin-bottom:2px">⏸️</p>
+                    <button onclick="posponerProducto('${f.producto_id}', '${f.nombre.replace(/'/g,"")}')"
+                            title="Posponer — no aparecerá por un tiempo"
+                            style="background:none;border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem;color:#999">Posponer</button>
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+
+            <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <span id="ord-seleccionados" style="font-size:0.85rem;color:#888">0 productos seleccionados</span>
+              <div style="display:flex;align-items:center;gap:16px">
+                <div>
+                  <span style="font-size:0.85rem;color:#888">Total estimado: </span>
+                  <span id="ord-total" style="font-weight:700;color:#E91E8C;font-size:1.1rem">$0</span>
+                </div>
+                <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden de compra</button>
+              </div>
+            </div>
+          </div>
+        `}
+    `}catch(a){e.innerHTML='<p style="padding:2rem;color:red">Error: '+a.message+"</p>"}}window.seleccionarTodos=e=>{document.querySelectorAll(".orden-check").forEach(t=>{t.checked=e;const a=t.dataset.id;window._ordenSeleccion[a]=e}),actualizarCostoOrden()};window.actualizarSeleccion=(e,t)=>{window._ordenSeleccion[e]=t,actualizarCostoOrden()};window.actualizarCostoOrden=()=>{const{sugerencias:e}=window._ordenesData;let t=0,a=0;e.forEach(i=>{var r;if(window._ordenSeleccion[i.producto_id]){const d=parseInt(((r=document.getElementById("qty-orden-"+i.producto_id))==null?void 0:r.value)||i.cantidad_sugerida)*i.costo_unitario;t+=d,a++;const l=document.getElementById("sub-"+i.producto_id);l&&(l.textContent="$"+d.toFixed(0))}});const o=document.getElementById("ord-total"),n=document.getElementById("ord-seleccionados");o&&(o.textContent="$"+t.toFixed(0)),n&&(n.textContent=a+" productos seleccionados")};window.filtrarOrdenes=e=>{document.querySelectorAll(".orden-item").forEach(t=>{t.style.display=e==="todos"||e==="urgente"&&t.dataset.urgente==="true"?"":"none"})};window.recargarOrdenes=async e=>{const t=await fetch(b+"/finanzas/sugerencias-recompra/"+e);window._ordenesData.sugerencias=await t.json(),window._ordenesData.sucursalId=e,fe()};window.generarOrden=()=>{const{sugerencias:e,proveedores:t,sucursalId:a}=window._ordenesData,o=e.filter(i=>window._ordenSeleccion[i.producto_id]);if(o.length===0){alert("Selecciona al menos un producto para generar la orden");return}window._ordenModal={seleccionados:o,sucursalId:a};const n=document.createElement("div");n.id="modal-orden",n.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto",n.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:780px;width:100%;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h3 style="font-size:1.1rem;font-weight:700">📋 Orden de compra</h3>
+        <button onclick="document.getElementById('modal-orden').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Sucursal destino</label>
+          <select class="form-input" id="orden-sucursal">
+            <option value="${a}">Sucursal actual</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Fecha de entrega estimada</label>
+          <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now()+7*24*60*60*1e3).toISOString().split("T")[0]}">
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.25rem">
+        <label class="form-label">Notas</label>
+        <textarea class="form-input" id="orden-notas" rows="2" placeholder="Condiciones de entrega, forma de pago..."></textarea>
+      </div>
+
+      ${o.map(i=>{const r=(i.variantes||[]).filter(l=>l.sin_stock),s=(i.variantes||[]).filter(l=>!l.sin_stock),d=[...r,...s];return`
+        <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <span style="font-weight:700;font-size:0.95rem">${i.nombre}</span>
+              <span style="color:#888;font-size:0.75rem;margin-left:8px">${i.sku||""}</span>
+              ${i.proveedor?`<span style="color:#6a1b9a;font-size:0.75rem;margin-left:8px">· 🏭 ${i.proveedor.nombre}</span>`:""}
+            </div>
+            <span style="font-size:0.8rem;color:#888;font-weight:600">$${i.costo_unitario.toFixed(0)}/par</span>
+          </div>
+          ${d.length>0?`
+          <table style="width:100%;font-size:0.8rem;border-collapse:collapse">
+            <thead>
+              <tr style="background:#eeeeee">
+                <th style="padding:5px 8px;text-align:left;font-weight:600;border-radius:4px 0 0 4px">Incluir</th>
+                <th style="padding:5px 8px;text-align:left;font-weight:600">Talla</th>
+                <th style="padding:5px 8px;text-align:left;font-weight:600">Color</th>
+                <th style="padding:5px 8px;text-align:center;font-weight:600">Stock actual</th>
+                <th style="padding:5px 8px;text-align:center;font-weight:600;border-radius:0 4px 4px 0">Pedir (pares)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${d.map(l=>`
+              <tr style="border-bottom:1px solid #f0f0f0;${l.sin_stock?"background:#fff8f8":""}">
+                <td style="padding:5px 8px">
+                  <input type="checkbox" id="chk-var-${l.id}" ${l.sin_stock?"checked":""}
+                         onchange="ordenToggleVar('${l.id}', this.checked)"
+                         style="accent-color:#E91E8C;cursor:pointer;width:15px;height:15px">
+                </td>
+                <td style="padding:5px 8px;font-weight:${l.sin_stock?"700":"400"}">${l.talla||"-"}</td>
+                <td style="padding:5px 8px;color:${l.sin_stock?"#c62828":"#555"}">${l.color||"-"}</td>
+                <td style="text-align:center;padding:5px 8px">
+                  <span style="background:${l.sin_stock?"#ffebee":"#e8f5e9"};color:${l.sin_stock?"#c62828":"#2e7d32"};padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600">${l.stock}</span>
+                </td>
+                <td style="text-align:center;padding:5px 8px">
+                  <input type="number" id="qty-var-${l.id}" min="0" value="${l.sin_stock?1:0}"
+                         ${l.sin_stock?"":"disabled"}
+                         onchange="ordenRecalcTotal()"
+                         style="width:55px;text-align:center;border:1px solid ${l.sin_stock?"#E91E8C":"#ddd"};border-radius:6px;padding:3px 5px;font-size:0.85rem;${l.sin_stock?"":"opacity:0.35"}">
+                </td>
+              </tr>`).join("")}
+            </tbody>
+          </table>`:`<p style="font-size:0.8rem;color:#aaa;margin-top:4px">Sin variantes registradas — pedir ${i.cantidad_sugerida} pares en total</p>`}
+        </div>`}).join("")}
+
+      <div style="background:#e8f5e9;border-radius:8px;padding:1rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <span style="font-weight:700">Total general</span>
+        <span id="orden-total-general" style="font-weight:700;font-size:1.2rem;color:#2e7d32">$0</span>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-orden').remove()">Cancelar</button>
+        <button class="btn btn-secondary" onclick="imprimirOrden()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">🖨️ Imprimir</button>
+        <button class="btn btn-primary" onclick="guardarOrdenCompra2()">💾 Guardar orden</button>
+      </div>
+    </div>
+  `,document.body.appendChild(n),n.addEventListener("click",i=>{i.target===n&&n.remove()}),setTimeout(ordenRecalcTotal,50)};window.guardarOrdenCompra=async e=>{var n,i,r;const t=(n=document.getElementById("orden-fecha"))==null?void 0:n.value,a=((i=document.getElementById("orden-notas"))==null?void 0:i.value)||"",o=window._ordenesData.sucursalId;try{const s=typeof e=="string"?JSON.parse(e):e;for(const[d,l]of s){const c=l.productos.reduce((u,y)=>u+y.cantidad_final*y.costo_unitario,0),g=(r=(await(await fetch(b+"/finanzas/ordenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({proveedor_id:d==="sin-proveedor"?null:d,sucursal_id:o,status:"borrador",total:c,notas:a,fecha_entrega_estimada:t||null})})).json())[0])==null?void 0:r.id;if(g)for(const u of l.productos)await fetch(b+"/finanzas/ordenes/"+g+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:null,cantidad:u.cantidad_final,costo_unitario:u.costo_unitario,subtotal:u.cantidad_final*u.costo_unitario})})}document.querySelector('div[style*="position:fixed"]').remove(),alert("Orden de compra guardada exitosamente"),fe()}catch(s){alert("Error guardando orden: "+s.message)}};window.ordenToggleVar=(e,t)=>{const a=document.getElementById("qty-var-"+e);a&&(a.disabled=!t,a.style.opacity=t?"1":"0.35",a.style.borderColor=t?"#E91E8C":"#ddd",t&&(!a.value||a.value==="0")?a.value=1:t||(a.value=0),ordenRecalcTotal())};window.ordenRecalcTotal=()=>{const{seleccionados:e}=window._ordenModal||{};if(!e)return;let t=0;e.forEach(o=>{var n;if((o.variantes||[]).forEach(i=>{var d;const r=document.getElementById("chk-var-"+i.id),s=parseInt(((d=document.getElementById("qty-var-"+i.id))==null?void 0:d.value)||0);r!=null&&r.checked&&s>0&&(t+=s*o.costo_unitario)}),!o.variantes||o.variantes.length===0){const i=parseInt(((n=document.getElementById("qty-orden-"+o.producto_id))==null?void 0:n.value)||o.cantidad_sugerida);t+=i*o.costo_unitario}});const a=document.getElementById("orden-total-general");a&&(a.textContent="$"+t.toFixed(0))};window.imprimirOrden=()=>{var s,d;const{seleccionados:e}=window._ordenModal||{};if(!e)return;const t=((s=document.getElementById("orden-fecha"))==null?void 0:s.value)||"",a=((d=document.getElementById("orden-notas"))==null?void 0:d.value)||"",o=new Date().toLocaleDateString("es-MX");let n="",i=0;e.forEach(l=>{var p;const c=l.variantes||[];if(c.length===0){const m=parseInt(((p=document.getElementById("qty-orden-"+l.producto_id))==null?void 0:p.value)||l.cantidad_sugerida),g=m*l.costo_unitario;i+=g,n+=`<tr><td>${l.nombre}</td><td>${l.sku||""}</td><td>—</td><td>—</td><td style="text-align:center">${m}</td><td style="text-align:right">$${g.toFixed(0)}</td></tr>`}else c.forEach(m=>{var f;const g=document.getElementById("chk-var-"+m.id);if(!(g!=null&&g.checked))return;const u=parseInt(((f=document.getElementById("qty-var-"+m.id))==null?void 0:f.value)||0);if(u<=0)return;const y=u*l.costo_unitario;i+=y,n+=`<tr style="${m.sin_stock?"background:#fff5f5":""}">
+          <td style="font-weight:${m.sin_stock?"bold":"normal"}">${l.nombre}</td>
+          <td style="color:#777">${l.sku||""}</td>
+          <td>${m.talla||"—"}</td>
+          <td>${m.color||"—"}</td>
+          <td style="text-align:center;font-weight:bold">${u}</td>
+          <td style="text-align:right">$${y.toFixed(0)}</td>
+        </tr>`})});const r=window.open("","_blank");r.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Orden de compra</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; padding: 24px; color: #222; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 11px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #f0f0f0; padding: 7px 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }
+  td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .total-row td { border-top: 2px solid #333; font-weight: bold; font-size: 13px; padding-top: 10px; }
+  @media print {
+    body { padding: 10px; }
+    button { display: none; }
+  }
+</style>
+</head><body>
+  <h1>📋 Orden de compra</h1>
+  <div class="meta">
+    Fecha de emisión: ${o}
+    ${t?" &nbsp;|&nbsp; Entrega estimada: "+t:""}
+    ${a?" &nbsp;|&nbsp; Notas: "+a:""}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Modelo</th><th>SKU</th><th>Talla</th><th>Color</th>
+        <th style="text-align:center">Pares</th><th style="text-align:right">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>${n}</tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="4">TOTAL GENERAL</td>
+        <td></td>
+        <td style="text-align:right">$${i.toFixed(0)}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <script>window.onload = () => window.print()<\/script>
+</body></html>`),r.document.close()};window.posponerProducto=(e,t)=>{const a=document.getElementById("modal-posponer");a&&a.remove();const o=document.createElement("div");o.id="modal-posponer",o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1100;display:flex;align-items:center;justify-content:center",o.innerHTML=`
+    <div style="background:white;border-radius:14px;padding:1.5rem;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+      <p style="font-weight:700;font-size:1rem;margin-bottom:4px">⏸️ Posponer producto</p>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">${t}</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${e}', 7)" style="text-align:left">📅 7 días — revisaré la próxima semana</button>
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${e}', 30)" style="text-align:left">📅 30 días — esperar el mes que entra</button>
+        <button class="btn btn-secondary" onclick="aplicarPosponer('${e}', null)" style="text-align:left;color:#c62828;border-color:#ef9a9a">🚫 No pedir por ahora (indefinido)</button>
+      </div>
+      <button onclick="document.getElementById('modal-posponer').remove()" style="margin-top:1rem;width:100%;background:none;border:none;color:#aaa;cursor:pointer;font-size:0.82rem">Cancelar</button>
+    </div>`,o.addEventListener("click",n=>{n.target===o&&o.remove()}),document.body.appendChild(o)};window.aplicarPosponer=(e,t)=>{var n;const a=JSON.parse(localStorage.getItem("ordenes_pospuestos")||"{}");let o=null;if(t!==null){const i=new Date;i.setDate(i.getDate()+t),o=i.toISOString().split("T")[0]}a[e]={hasta:o},localStorage.setItem("ordenes_pospuestos",JSON.stringify(a)),(n=document.getElementById("modal-posponer"))==null||n.remove(),fe()};window.verPospuestos=()=>{const e=JSON.parse(localStorage.getItem("ordenes_pospuestos")||"{}"),{sugerencias:t}=window._ordenesData;new Date().toISOString().split("T")[0];const a=Object.entries(e).map(([n,i])=>{const r=i.nombre||n,s=i.hasta?"hasta "+i.hasta:"indefinido";return`• ${r} — ${s}`}).join(`
+`);if(!a){alert("No hay productos pospuestos.");return}confirm(`Productos pospuestos:
+
+`+a+`
+
+¿Quieres reactivar todos?`)&&(localStorage.removeItem("ordenes_pospuestos"),fe())};window.guardarOrdenCompra2=async()=>{var i,r,s,d;const{seleccionados:e,sucursalId:t}=window._ordenModal||{};if(!e)return;const a=(i=document.getElementById("orden-fecha"))==null?void 0:i.value,o=((r=document.getElementById("orden-notas"))==null?void 0:r.value)||"",n={};e.forEach(l=>{var g,u;const c=l.proveedor_id||"sin-proveedor",p=((g=l.proveedor)==null?void 0:g.nombre)||"Sin proveedor";n[c]||(n[c]={nombre:p,items:[]});const m=l.variantes||[];if(m.length===0){const y=parseInt(((u=document.getElementById("qty-orden-"+l.producto_id))==null?void 0:u.value)||l.cantidad_sugerida);n[c].items.push({variante_id:null,cantidad:y,costo_unitario:l.costo_unitario})}else m.forEach(y=>{var x;const f=document.getElementById("chk-var-"+y.id);if(!(f!=null&&f.checked))return;const v=parseInt(((x=document.getElementById("qty-var-"+y.id))==null?void 0:x.value)||0);v<=0||n[c].items.push({variante_id:y.id,cantidad:v,costo_unitario:l.costo_unitario})})});try{for(const[l,c]of Object.entries(n)){if(c.items.length===0)continue;const p=c.items.reduce((y,f)=>y+f.cantidad*f.costo_unitario,0),u=(s=(await(await fetch(b+"/finanzas/ordenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({proveedor_id:l==="sin-proveedor"?null:l,sucursal_id:t,status:"borrador",total:p,notas:o,fecha_entrega_estimada:a||null})})).json())[0])==null?void 0:s.id;if(u)for(const y of c.items)await fetch(b+"/finanzas/ordenes/"+u+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...y,subtotal:y.cantidad*y.costo_unitario})})}(d=document.getElementById("modal-orden"))==null||d.remove(),alert("Orden de compra guardada"),fe()}catch(l){alert("Error guardando orden: "+l.message)}};function Tt(){var a;const e=new Date().toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"});return`
+    <div id="dashboard-contenido">
+
+      <!-- ROW 1: Banner + 2 KPI cards -->
+      <div class="dash-row-1" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;align-items:stretch">
+
+        <div class="dash-banner">
+          <div style="position:relative;z-index:1">
+            <p style="font-size:0.63rem;font-weight:700;letter-spacing:0.14em;color:var(--pink);text-transform:uppercase;margin:0 0 8px">Panel de control</p>
+            <h2 style="font-size:1.55rem;font-weight:800;color:#fff;line-height:1.15;margin:0 0 6px;letter-spacing:-0.01em">¡Bienvenida, ${(((a=window._empleadoActual)==null?void 0:a.nombre)||"May").split(" ")[0]}! 👋</h2>
+            <p style="font-size:0.76rem;color:rgba(255,255,255,0.35);margin:0 0 18px;text-transform:capitalize">${e}</p>
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+              <span style="font-size:1.9rem;font-weight:900;color:#fff;font-family:'DM Mono',monospace;letter-spacing:-0.03em" id="kpi-ventas-hoy">—</span>
+              <span style="font-size:0.73rem;color:rgba(255,255,255,0.45)">ventas hoy</span>
+            </div>
+            <p style="font-size:0.73rem;color:var(--pink);margin:0 0 20px" id="kpi-ventas-hoy-sub"></p>
+            <button onclick="navegarA('pedidos')" style="background:var(--pink);border:none;color:white;padding:8px 18px;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer">Ver pedidos →</button>
+          </div>
+          <div style="position:relative;z-index:1;flex-shrink:0">
+            <div style="width:96px;height:96px;background:rgba(200,150,122,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:1px solid rgba(200,150,122,0.20)">👠</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="dash-kpi-v" style="flex:1">
+            <div class="dash-kpi-icon" style="background:var(--pink-soft)">🛍️</div>
+            <p class="dash-kpi-lbl">Pedidos hoy</p>
+            <p class="dash-kpi-val" id="kpi-pedidos-hoy">—</p>
+            <p class="dash-kpi-sub" id="kpi-pedidos-hoy-sub"></p>
+          </div>
+          <div class="dash-kpi-v" style="flex:1;cursor:pointer" onclick="navegarA('inventario')">
+            <div class="dash-kpi-icon" style="background:var(--amber-soft)">📦</div>
+            <p class="dash-kpi-lbl">Stock bajo</p>
+            <p class="dash-kpi-val" id="kpi-stock-bajo">—</p>
+            <p class="dash-kpi-sub" id="kpi-stock-bajo-sub"></p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ROW 2: Gráfica ingresos + 4 mini KPIs -->
+      <div class="dash-row-2" style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header">
+            <div>
+              <p class="dash-card-title">Ingresos — últimos 7 días</p>
+              <p class="dash-card-sub">Tendencia de ventas recientes</p>
+            </div>
+            <button onclick="cargarDashboard()" class="dash-refresh-btn" title="Actualizar">↻</button>
+          </div>
+          <div style="height:190px;position:relative;margin-top:12px"><canvas id="chart-tendencia"></canvas></div>
+        </div>
+
+        <div class="dash-kpi-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Ventas 7 días</p>
+            <p class="dash-kpi-mini-val" id="kpi-ventas-7d">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-ventas-7d-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Ventas 30 días</p>
+            <p class="dash-kpi-mini-val" id="kpi-ventas-30d">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-ventas-30d-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Clientes nuevos</p>
+            <p class="dash-kpi-mini-val" id="kpi-clientes-nuevos">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-clientes-nuevos-sub"></p>
+          </div>
+          <div class="dash-kpi-mini">
+            <p class="dash-kpi-mini-lbl">Mejor día</p>
+            <p class="dash-kpi-mini-val" id="kpi-mejor-dia">—</p>
+            <p class="dash-kpi-mini-sub" id="kpi-mejor-dia-sub"></p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ROW 3: Canales + Tabs + Últimos pedidos -->
+      <div class="dash-row-3" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:16px">
+            <div>
+              <p class="dash-card-title">Canales de venta</p>
+              <p class="dash-card-sub">Distribución acumulada</p>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="height:110px;width:110px;flex-shrink:0;position:relative"><canvas id="chart-canales"></canvas></div>
+            <div id="dash-canales-lista" style="flex:1;min-width:0"></div>
+          </div>
+        </div>
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <p class="dash-card-title">Estadísticas</p>
+            <div style="display:flex;gap:4px">
+              <button class="dash-tab-btn active" onclick="dashSwitchTab('dias',this)">Días</button>
+              <button class="dash-tab-btn" onclick="dashSwitchTab('meses',this)">Meses</button>
+              <button class="dash-tab-btn" onclick="dashSwitchTab('pagos',this)">Pagos</button>
+            </div>
+          </div>
+          <div id="dash-tab-dias" style="height:160px;position:relative"><canvas id="chart-dias"></canvas></div>
+          <div id="dash-tab-meses" style="height:160px;position:relative;display:none"><canvas id="chart-meses"></canvas></div>
+          <div id="dash-tab-pagos" style="height:160px;position:relative;display:none"><canvas id="chart-pagos"></canvas></div>
+        </div>
+
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:14px">
+            <p class="dash-card-title">Últimos pedidos</p>
+            <button onclick="navegarA('pedidos')" style="font-size:0.72rem;color:var(--pink);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600;padding:0;white-space:nowrap">Ver todos →</button>
+          </div>
+          <div id="dash-ultimos-pedidos"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
+        </div>
+
+      </div>
+
+      <!-- ROW 4: Top clientes + Total clientes KPI -->
+      <div class="dash-row-4" style="display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+        <div class="dash-card" style="padding:20px 22px">
+          <div class="dash-card-header" style="margin-bottom:14px">
+            <p class="dash-card-title">Top clientes — 30 días</p>
+          </div>
+          <div id="dash-top-clientes"><div style="color:var(--text-3);font-size:0.85rem">Cargando...</div></div>
+        </div>
+        <div class="dash-kpi-v">
+          <div class="dash-kpi-icon" style="background:var(--cyan-soft)">👥</div>
+          <p class="dash-kpi-lbl">Total clientes</p>
+          <p class="dash-kpi-val" id="kpi-total-clientes">—</p>
+          <p class="dash-kpi-sub" id="kpi-total-clientes-sub"></p>
+        </div>
+      </div>
+
+    </div>
+  `}async function be(){var t,a,o,n,i,r;const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando finanzas...</p>';try{const d=await(await fetch(b+"/sucursales/")).json(),l=(t=d[0])==null?void 0:t.id,[c,p,m,g,u,y,f]=await Promise.all([fetch(b+"/finanzas/caja/hoy/"+l),fetch(b+"/finanzas/reporte/"+l),fetch(b+"/finanzas/gastos/"+l),fetch(b+"/finanzas/estado-resultados/"+l),fetch(b+"/finanzas/flujo/"+l),fetch(b+"/finanzas/cuentas-por-cobrar"),fetch(b+"/finanzas/gastos-categorias/"+l)]),v=await c.json(),x=await p.json(),h=await m.json(),$=await g.json(),w=await u.json(),C=await y.json(),A=await f.json(),k=v.find(I=>I.status==="abierta"),S=new Date().toISOString().split("T")[0],U=h.filter(I=>{var E;return(E=I.created_at)==null?void 0:E.startsWith(S)}),L=U.reduce((I,E)=>I+parseFloat(E.monto||0),0),F=C.reduce((I,E)=>I+parseFloat(E.total||0),0);e.innerHTML=`
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">💰 Finanzas</h2>
+          <p style="color:#888;font-size:0.85rem">Control de caja, gastos y reportes financieros</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="form-input" id="fin-sucursal" style="max-width:200px" onchange="recargarFinanzas(this.value)">
+            ${d.map(I=>`<option value="${I.id}">${I.nombre}</option>`).join("")}
+          </select>
+          ${k?`<button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="cerrarCaja('${k.id}')">🔒 Cerrar caja</button>`:`<button class="btn btn-primary" onclick="abrirCaja('${l}')">🔓 Abrir caja</button>`}
+        </div>
+      </div>
+
+      <!-- ESTADO CAJA -->
+      <div style="background:${k?"#e8f5e9":"#ffebee"};border-radius:12px;padding:1.25rem;border:1px solid ${k?"#a5d6a7":"#ffcdd2"};margin-bottom:1.5rem;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:2rem">${k?"🟢":"🔴"}</span>
+        <div style="flex:1">
+          <p style="font-weight:700;font-size:1rem;color:${k?"#2e7d32":"#c62828"}">Caja ${k?"ABIERTA":"CERRADA"}</p>
+          <p style="font-size:0.82rem;color:#888">${k?`Abierta a las ${new Date(k.hora_apertura).toLocaleTimeString("es-MX")} · Fondo: $${k.monto_apertura}`:"No hay caja abierta hoy"}</p>
+        </div>
+        ${k?`
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#2e7d32">$${(((a=w.hoy)==null?void 0:a.efectivo)||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Efectivo</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#1565c0">$${(((o=w.hoy)==null?void 0:o.tarjeta)||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Tarjeta</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#6a1b9a">$${(((n=w.hoy)==null?void 0:n.spei)||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">SPEI</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.2rem;font-weight:700;color:#E91E8C">$${(((i=w.hoy)==null?void 0:i.total)||0).toFixed(0)}</p>
+              <p style="font-size:0.65rem;color:#888">Total hoy</p>
+            </div>
+          </div>
+        `:""}
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#E91E8C">$${(x.total_ventas||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#b5651d">$${(x.cmv||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Costo mercancía</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#c62828">$${(x.total_gastos||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Gastos operativos</p>
+        </div>
+        <div style="background:${(x.utilidad_bruta||0)>=0?"#e3f2fd":"#ffebee"};border-radius:12px;padding:1.25rem;border:1px solid ${(x.utilidad_bruta||0)>=0?"#90caf9":"#ffcdd2"};text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#1565c0">$${(x.utilidad_bruta||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad bruta</p>
+          <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo</p>
+        </div>
+        <div style="background:${(x.utilidad||0)>=0?"#e8f5e9":"#ffebee"};border-radius:12px;padding:1.25rem;border:1px solid ${(x.utilidad||0)>=0?"#a5d6a7":"#ffcdd2"};text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:${(x.utilidad||0)>=0?"#2e7d32":"#c62828"}">$${(x.utilidad||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Utilidad neta</p>
+          <p style="font-size:0.6rem;color:#aaa;margin-top:2px">ventas − costo − gastos</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#333">$${(((r=w.semana)==null?void 0:r.ingresos)||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ingresos 7 días</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.5rem;font-weight:700;color:#333">$${(x.ticket_promedio||0).toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarCxC()">
+          <p style="font-size:1.5rem;font-weight:700;color:#f57f17">$${F.toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">Cuentas x cobrar</p>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn btn-primary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('gastos')">💸 Gastos</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cmv')">📦 Costo mercancía</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('estado')">📊 Estado de resultados</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('flujo')">💧 Flujo de efectivo</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('caja')">📋 Historial caja</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxc')">📑 Cuentas x cobrar</button>
+      </div>
+
+      <div id="fin-tab-contenido"></div>
+    `,window._finanzasData={sucursalId:l,gastosHoy:U,totalGastosHoy:L,estadoResultados:$,flujo:w,cxc:C,categorias:A,historial:[],reporte:x},window._finanzasSucursalId=l;const N=await(await fetch(b+"/finanzas/caja/historial/"+l)).json();window._finanzasData.historial=N,mostrarTabFinanzas("gastos")}catch(s){e.innerHTML='<p style="padding:2rem;color:red">Error cargando finanzas: '+s.message+"</p>"}}window.mostrarTabFinanzas=e=>{var c,p,m,g,u,y,f,v,x,h,$,w,C,A;const{gastosHoy:t,totalGastosHoy:a,estadoResultados:o,flujo:n,cxc:i,categorias:r,historial:s,sucursalId:d}=window._finanzasData,l=document.getElementById("fin-tab-contenido");if(l)if(e==="cmv"){const k=((c=window._finanzasData.reporte)==null?void 0:c.desglose_cmv)||[],S=window._finanzasData.reporte||{},U=k.reduce((I,E)=>I+E.subtotal_costo,0),L=k.reduce((I,E)=>I+E.subtotal_venta,0),F=L>0?(L-U)/L*100:0,j=S.num_pedidos_sin_desglose||0,N=S.total_sin_desglose||0;l.innerHTML=`
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <p style="font-weight:700;font-size:0.9rem">📦 Desglose de costo de mercancía — 30 días</p>
+          <div style="display:flex;gap:16px;font-size:0.82rem">
+            <span>Total vendido: <strong style="color:#E91E8C">$${L.toLocaleString("es-MX",{maximumFractionDigits:0})}</strong></span>
+            <span>Costo total: <strong style="color:#b5651d">$${U.toLocaleString("es-MX",{maximumFractionDigits:0})}</strong></span>
+            <span>Margen bruto: <strong style="color:${F>=0?"#2e7d32":"#c62828"}">${F.toFixed(1)}%</strong></span>
+          </div>
+        </div>
+        ${j>0?`
+        <div style="background:#fff8e1;border-bottom:1px solid #ffe082;padding:12px 20px;font-size:0.83rem;color:#6d4c00;display:flex;align-items:center;gap:10px">
+          <span style="font-size:1.1rem">⚠️</span>
+          <span><strong>${j} pedido${j>1?"s":""} ($${N.toLocaleString("es-MX",{maximumFractionDigits:0})} MXN)</strong> no tienen productos desglosados — por eso "Ventas 30 días" es mayor que "Venta total" aquí. Son ventas registradas sin items individuales (POS antiguo o pedidos manuales sin productos).</span>
+        </div>`:""}
+        ${k.length===0?'<p style="padding:2rem;text-align:center;color:#888">Sin ventas con costo registrado en los últimos 30 días</p>':`<div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+              <thead>
+                <tr style="background:#fafafa;border-bottom:2px solid #eee">
+                  <th style="padding:10px 14px;text-align:left;font-weight:600;color:#555">Producto</th>
+                  <th style="padding:10px 14px;text-align:left;font-weight:600;color:#555">Color / Talla</th>
+                  <th style="padding:10px 8px;text-align:center;font-weight:600;color:#555">Pares</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Costo/par</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Costo total</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Precio venta</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Venta total</th>
+                  <th style="padding:10px 8px;text-align:right;font-weight:600;color:#555">Margen</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${k.map(I=>{const E=I.subtotal_venta>0?(I.subtotal_venta-I.subtotal_costo)/I.subtotal_venta*100:0,B=E>=30?"#2e7d32":E>=15?"#f57f17":"#c62828";return`<tr style="border-bottom:1px solid #f5f5f5">
+                    <td style="padding:10px 14px">
+                      <p style="font-weight:600">${I.nombre}</p>
+                      <p style="font-size:0.72rem;color:#aaa;font-family:monospace">${I.sku}</p>
+                    </td>
+                    <td style="padding:10px 14px;color:#666">${[I.color,I.talla?"T"+I.talla:""].filter(Boolean).join(" · ")||"—"}</td>
+                    <td style="padding:10px 8px;text-align:center;font-weight:700">${I.cantidad}</td>
+                    <td style="padding:10px 8px;text-align:right;color:#b5651d">$${I.costo_unitario.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:#b5651d">$${I.subtotal_costo.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;color:#555">$${I.precio_venta.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:#E91E8C">$${I.subtotal_venta.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                    <td style="padding:10px 8px;text-align:right;font-weight:700;color:${B}">${E.toFixed(1)}%</td>
+                  </tr>`}).join("")}
+              </tbody>
+              <tfoot>
+                <tr style="background:#f9f9f9;border-top:2px solid #eee;font-weight:700">
+                  <td colspan="4" style="padding:10px 14px">TOTAL</td>
+                  <td style="padding:10px 8px;text-align:right;color:#b5651d">$${U.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                  <td></td>
+                  <td style="padding:10px 8px;text-align:right;color:#E91E8C">$${L.toLocaleString("es-MX",{maximumFractionDigits:0})}</td>
+                  <td style="padding:10px 8px;text-align:right;color:${F>=0?"#2e7d32":"#c62828"}">${F.toFixed(1)}%</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`}
+      </div>
+    `}else if(e==="gastos"){const k=r.reduce((S,U)=>S+U.total,0);l.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">💸 Gastos del día</p>
+            <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.78rem" onclick="agregarGasto('${d}')">+ Agregar</button>
+          </div>
+          ${t.length===0?'<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin gastos hoy</div>':t.map(S=>`
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${S.concepto}</p>
+                  <p style="font-size:0.72rem;color:#888">${S.categoria} · ${new Date(S.created_at).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})}</p>
+                </div>
+                <p style="font-weight:700;color:#c62828">-$${parseFloat(S.monto).toFixed(2)}</p>
+                <button onclick="eliminarGasto('${S.id}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.1rem">✕</button>
+              </div>
+            `).join("")}
+          <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;justify-content:space-between">
+            <span style="font-size:0.85rem;font-weight:600">Total gastos hoy</span>
+            <span style="font-weight:700;color:#c62828">-$${a.toFixed(2)}</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+            <p style="font-weight:700;font-size:0.9rem">📊 Gastos por categoría (30 días)</p>
+          </div>
+          <div style="padding:1rem">
+            ${r.length===0?'<p style="color:#888;text-align:center;padding:1rem">Sin gastos registrados</p>':r.map(S=>`
+                <div style="margin-bottom:12px">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+                    <span style="font-size:0.82rem;font-weight:600;text-transform:capitalize">${S.categoria}</span>
+                    <span style="font-size:0.82rem;color:#c62828;font-weight:700">$${S.total.toFixed(0)}</span>
+                  </div>
+                  <div style="background:#f5f5f5;border-radius:100px;height:8px;overflow:hidden">
+                    <div style="background:#E91E8C;height:100%;width:${k>0?(S.total/k*100).toFixed(0):0}%;border-radius:100px;transition:width 0.5s"></div>
+                  </div>
+                </div>
+              `).join("")}
+          </div>
+        </div>
+      </div>
+    `}else e==="estado"?l.innerHTML=`
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📊 Estado de resultados — últimos 6 meses</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Ventas</th>
+                <th>Gastos</th>
+                <th>Utilidad</th>
+                <th>Pedidos</th>
+                <th>Margen</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${o.map(k=>`
+                <tr>
+                  <td><strong>${k.mes}</strong></td>
+                  <td style="color:#E91E8C;font-weight:600">$${k.ventas.toFixed(0)}</td>
+                  <td style="color:#c62828">$${k.gastos.toFixed(0)}</td>
+                  <td style="color:${k.utilidad>=0?"#2e7d32":"#c62828"};font-weight:700">$${k.utilidad.toFixed(0)}</td>
+                  <td>${k.num_pedidos}</td>
+                  <td>
+                    <span style="padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600;background:${k.ventas>0&&k.utilidad/k.ventas>=.2?"#e8f5e9":k.utilidad>=0?"#fff8e1":"#ffebee"};color:${k.ventas>0&&k.utilidad/k.ventas>=.2?"#2e7d32":k.utilidad>=0?"#f57f17":"#c62828"}">
+                      ${k.ventas>0?(k.utilidad/k.ventas*100).toFixed(1):0}%
+                    </span>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+        <div style="padding:1rem 1.5rem;background:#f9f9f9;display:flex;gap:2rem;flex-wrap:wrap">
+          <div>
+            <p style="font-size:0.72rem;color:#888">Total ventas 6 meses</p>
+            <p style="font-weight:700;color:#E91E8C">$${o.reduce((k,S)=>k+S.ventas,0).toFixed(0)}</p>
+          </div>
+          <div>
+            <p style="font-size:0.72rem;color:#888">Total gastos 6 meses</p>
+            <p style="font-weight:700;color:#c62828">$${o.reduce((k,S)=>k+S.gastos,0).toFixed(0)}</p>
+          </div>
+          <div>
+            <p style="font-size:0.72rem;color:#888">Utilidad total</p>
+            <p style="font-weight:700;color:#2e7d32">$${o.reduce((k,S)=>k+S.utilidad,0).toFixed(0)}</p>
+          </div>
+        </div>
+      </div>
+    `:e==="flujo"?l.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">🌅 Hoy</p>
+          ${[{label:"Efectivo",val:((p=n.hoy)==null?void 0:p.efectivo)||0,color:"#2e7d32"},{label:"Tarjeta",val:((m=n.hoy)==null?void 0:m.tarjeta)||0,color:"#1565c0"},{label:"SPEI",val:((g=n.hoy)==null?void 0:g.spei)||0,color:"#6a1b9a"},{label:"Crédito",val:((u=n.hoy)==null?void 0:u.credito)||0,color:"#f57f17"}].map(k=>`
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+              <span style="font-size:0.82rem;color:#888">${k.label}</span>
+              <span style="font-weight:700;color:${k.color}">$${k.val.toFixed(0)}</span>
+            </div>
+          `).join("")}
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Total</span>
+            <span style="font-weight:700;color:#E91E8C;font-size:1.1rem">$${(((y=n.hoy)==null?void 0:y.total)||0).toFixed(0)}</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📅 Últimos 7 días</p>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Ingresos</span>
+            <span style="font-weight:700;color:#2e7d32">$${(((f=n.semana)==null?void 0:f.ingresos)||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Gastos</span>
+            <span style="font-weight:700;color:#c62828">-$${(((v=n.semana)==null?void 0:v.gastos)||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Neto</span>
+            <span style="font-weight:700;color:${(((x=n.semana)==null?void 0:x.neto)||0)>=0?"#2e7d32":"#c62828"};font-size:1.1rem">$${(((h=n.semana)==null?void 0:h.neto)||0).toFixed(0)}</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">📆 Últimos 30 días</p>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Ingresos</span>
+            <span style="font-weight:700;color:#2e7d32">$${((($=n.mes)==null?void 0:$.ingresos)||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5">
+            <span style="font-size:0.82rem;color:#888">Gastos</span>
+            <span style="font-weight:700;color:#c62828">-$${(((w=n.mes)==null?void 0:w.gastos)||0).toFixed(0)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;margin-top:4px">
+            <span style="font-size:0.85rem;font-weight:700">Neto</span>
+            <span style="font-weight:700;color:${(((C=n.mes)==null?void 0:C.neto)||0)>=0?"#2e7d32":"#c62828"};font-size:1.1rem">$${(((A=n.mes)==null?void 0:A.neto)||0).toFixed(0)}</span>
+          </div>
+        </div>
+      </div>
+    `:e==="caja"?l.innerHTML=`
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📋 Historial de cajas</p>
+        </div>
+        ${s.length===0?'<div style="padding:2rem;text-align:center;color:#888">Sin historial</div>':s.map(k=>`
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="flex:1">
+                <p style="font-size:0.85rem;font-weight:600">${new Date(k.fecha).toLocaleDateString("es-MX",{weekday:"short",day:"numeric",month:"short"})}</p>
+                <p style="font-size:0.72rem;color:#888">Apertura: $${parseFloat(k.monto_apertura||0).toFixed(0)} · Cierre: $${parseFloat(k.monto_cierre||0).toFixed(0)}</p>
+              </div>
+              <div style="text-align:center">
+                <p style="font-size:0.9rem;font-weight:700;color:#E91E8C">$${parseFloat(k.total_ventas||0).toFixed(0)}</p>
+                <p style="font-size:0.65rem;color:#888">Ventas</p>
+              </div>
+              <div style="text-align:center">
+                <p style="font-size:0.9rem;font-weight:700;color:${parseFloat(k.diferencia||0)>=0?"#2e7d32":"#c62828"}">${parseFloat(k.diferencia||0)>=0?"+":""}$${parseFloat(k.diferencia||0).toFixed(0)}</p>
+                <p style="font-size:0.65rem;color:#888">Diferencia</p>
+              </div>
+              <span style="padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:600;background:${k.status==="cerrada"?"#e8f5e9":"#fff8e1"};color:${k.status==="cerrada"?"#2e7d32":"#f57f17"}">${k.status}</span>
+            </div>
+          `).join("")}
+      </div>
+    `:e==="cxc"&&mostrarCxC()};window.mostrarCxC=()=>{const{cxc:e}=window._finanzasData,t=document.getElementById("fin-tab-contenido");if(!t)return;const a=new Date;t.innerHTML=`
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:700;font-size:0.9rem">📑 Cuentas por cobrar</p>
+        <span style="font-size:0.78rem;color:#888">${e.length} pendientes · $${e.reduce((o,n)=>o+parseFloat(n.total||0),0).toFixed(0)} total</span>
+      </div>
+      ${e.length===0?'<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por cobrar</div>':e.map(o=>{var i,r;const n=Math.floor((a-new Date(o.created_at))/864e5);return`
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="flex:1">
+                <p style="font-size:0.85rem;font-weight:600">${((i=o.clientes)==null?void 0:i.nombre)||"Sin cliente"}</p>
+                <p style="font-size:0.72rem;color:#888">${new Date(o.created_at).toLocaleDateString("es-MX")} · Pedido #${o.id.substring(0,8).toUpperCase()}</p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:700;color:#f57f17;font-size:1rem">$${parseFloat(o.total||0).toFixed(0)}</p>
+                <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${n>30?"#ffebee":"#fff8e1"};color:${n>30?"#c62828":"#f57f17"}">
+                  ${n} días
+                </span>
+              </div>
+              ${(r=o.clientes)!=null&&r.telefono?`
+                <a href="https://wa.me/52${o.clientes.telefono.replace(/\D/g,"")}" target="_blank"
+                   style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;text-decoration:none">
+                  💬 Cobrar
+                </a>
+              `:""}
+            </div>
+          `}).join("")}
+    </div>
+  `};window.abrirCaja=async e=>{var a;const t=prompt("¿Cuánto efectivo hay en caja para empezar? (fondo de caja)");if(t!==null)try{const n=await(await fetch(b+"/finanzas/caja/abrir",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sucursal_id:e,monto_apertura:parseFloat(t)||0,empleado:((a=window._empleadoActual)==null?void 0:a.nombre)||"Admin"})})).json();if(n.error){alert("Error: "+n.error);return}be()}catch{alert("Error abriendo caja")}};window.cerrarCaja=async e=>{var o,n;const t=prompt("¿Cuánto efectivo hay físicamente en caja al cerrar?");if(t===null)return;const a=prompt("Notas del cierre (opcional):")||"";try{const r=await(await fetch(b+"/finanzas/caja/"+e+"/cerrar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({monto_cierre:parseFloat(t)||0,notas:a})})).json();r.ok?(alert(`Caja cerrada.
+Total ventas: $${(o=r.total_ventas)==null?void 0:o.toFixed(2)}
+Diferencia: $${(n=r.diferencia)==null?void 0:n.toFixed(2)}`),be()):alert("Error: "+JSON.stringify(r))}catch{alert("Error cerrando caja")}};window.agregarGasto=e=>{const t=document.createElement("div");t.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",t.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%">
+      <h3 style="margin-bottom:1.5rem">💸 Agregar gasto</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Concepto *</label>
+          <input class="form-input" id="gasto-concepto" placeholder="Ej: Transporte, Papelería, Limpieza...">
+        </div>
+        <div>
+          <label class="form-label">Monto *</label>
+          <input class="form-input" id="gasto-monto" type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Categoría</label>
+          <select class="form-input" id="gasto-categoria">
+            <option value="general">General</option>
+            <option value="transporte">Transporte</option>
+            <option value="papeleria">Papelería</option>
+            <option value="limpieza">Limpieza</option>
+            <option value="servicios">Servicios</option>
+            <option value="comida">Comida</option>
+            <option value="renta">Renta</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarGasto('${e}', this)">Guardar</button>
+      </div>
+    </div>
+  `,document.body.appendChild(t),t.addEventListener("click",a=>{a.target===t&&t.remove()})};window.guardarGasto=async(e,t)=>{var i;const a=document.getElementById("gasto-concepto").value,o=document.getElementById("gasto-monto").value,n=document.getElementById("gasto-categoria").value;if(!a||!o){alert("Completa concepto y monto");return}try{await fetch(b+"/finanzas/gastos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sucursal_id:e,concepto:a,monto:parseFloat(o),categoria:n,empleado:((i=window._empleadoActual)==null?void 0:i.nombre)||"Admin"})}),t.closest('div[style*="position:fixed"]').remove(),be()}catch{alert("Error guardando gasto")}};window.eliminarGasto=async e=>{if(confirm("¿Eliminar este gasto?"))try{await fetch(b+"/finanzas/gastos/"+e,{method:"DELETE"}),be()}catch{alert("Error eliminando gasto")}};async function Ye(){const e=document.getElementById("content");try{const a=await(await fetch(b+"/finanzas/proveedores")).json();e.innerHTML=`
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Proveedores (${a.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormProveedor()">+ Nuevo proveedor</button>
+        </div>
+        ${a.length===0?'<div style="padding:3rem;text-align:center;color:#888">No hay proveedores registrados</div>':`<table>
+            <thead>
+              <tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+              ${a.map(o=>`
+                <tr>
+                  <td><strong>${o.nombre}</strong></td>
+                  <td>${o.contacto||"—"}</td>
+                  <td>${o.telefono||"—"}</td>
+                  <td>${o.ciudad||"—"}</td>
+                  <td>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProveedor('${o.id}')">Editar</button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>`}
+      </div>
+    `}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando proveedores</p>'}}window.mostrarFormProveedor=e=>{const t=e||{},a=document.createElement("div");a.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",a.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:1.5rem">${t.id?"Editar":"Nuevo"} proveedor</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div style="grid-column:1/-1">
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="prov-nombre" value="${t.nombre||""}" placeholder="Nombre del proveedor">
+        </div>
+        <div>
+          <label class="form-label">Contacto</label>
+          <input class="form-input" id="prov-contacto" value="${t.contacto||""}" placeholder="Nombre del contacto">
+        </div>
+        <div>
+          <label class="form-label">Teléfono</label>
+          <input class="form-input" id="prov-telefono" value="${t.telefono||""}" placeholder="477 123 4567">
+        </div>
+        <div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="prov-email" value="${t.email||""}" placeholder="correo@proveedor.com">
+        </div>
+        <div>
+          <label class="form-label">Ciudad</label>
+          <input class="form-input" id="prov-ciudad" value="${t.ciudad||""}" placeholder="Leon">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="form-label">Dirección</label>
+          <input class="form-input" id="prov-direccion" value="${t.direccion||""}" placeholder="Calle y número">
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="prov-notas" rows="2" placeholder="Condiciones de pago, tiempo de entrega...">${t.notas||""}</textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarProveedor('${t.id||""}')">Guardar</button>
+      </div>
+    </div>
+  `,document.body.appendChild(a),a.addEventListener("click",o=>{o.target===a&&a.remove()})};window.guardarProveedor=async e=>{const t={nombre:document.getElementById("prov-nombre").value,contacto:document.getElementById("prov-contacto").value,telefono:document.getElementById("prov-telefono").value,email:document.getElementById("prov-email").value,ciudad:document.getElementById("prov-ciudad").value,direccion:document.getElementById("prov-direccion").value,notas:document.getElementById("prov-notas").value};if(!t.nombre){alert("El nombre es requerido");return}try{e?await fetch(b+"/finanzas/proveedores/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)}):await fetch(b+"/finanzas/proveedores",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)}),document.querySelector('div[style*="position:fixed"]').remove(),Ye()}catch{alert("Error guardando proveedor")}};window.editarProveedor=async e=>{const o=(await(await fetch(b+"/finanzas/proveedores")).json()).find(n=>n.id===e);o&&mostrarFormProveedor(o)};async function jt(){const e=document.getElementById("content");e.innerHTML=`
+    <div style="margin-bottom:1.5rem">
+      <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
+      <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0 0 4px;letter-spacing:-0.3px">Análisis</h2>
+      <p style="color:#94a3b8;font-size:0.82rem">Cargando datos...</p>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:1.5rem">
+      ${["rotacion","tallas","variantes"].map(i=>'<div style="height:36px;width:110px;background:#f1f5f9;border-radius:8px;animation:pulse 1.5s infinite"></div>').join("")}
+    </div>
+    <div style="background:#f8fafc;border-radius:14px;height:300px;animation:pulse 1.5s infinite"></div>
+    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}</style>`;try{let I=function(_,D,O){return`<div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+          <div style="width:${D>0?Math.round(_/D*100):0}%;height:100%;background:${O};border-radius:3px;transition:width 0.4s ease"></div>
+        </div>
+        <span style="font-size:0.7rem;font-weight:700;color:#334155;min-width:22px;text-align:right">${_}</span>
+      </div>`},E=function(){return`
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="pill-filter pill-active" onclick="filtrarRotacion('todos')">Todos</button>
+          <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Rotan bien</button>
+          <button class="pill-filter pill-warning" onclick="filtrarRotacion('amarillo')">Lentos</button>
+          <button class="pill-filter pill-danger" onclick="filtrarRotacion('rojo')">Sin movimiento</button>
+        </div>
+        <div id="rotacion-lista" style="display:flex;flex-direction:column;gap:8px">
+          ${S.map(_=>{const D=N[_.semaforo],O=Math.max(...S.map(P=>P.ventas.d30),1);return`
+            <div class="rotacion-item" data-semaforo="${_.semaforo}"
+                 style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:box-shadow 0.15s"
+                 onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.07)'" onmouseout="this.style.boxShadow=''">
+              ${_.imagen_principal?`<img src="${_.imagen_principal}" style="width:48px;height:48px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">`:'<div style="width:48px;height:48px;background:#f8fafc;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;color:#cbd5e1">👠</div>'}
+              <div style="flex:1;min-width:130px">
+                <p style="font-weight:700;font-size:0.88rem;color:#0f172a;margin-bottom:2px">${_.nombre}</p>
+                <p style="font-size:0.72rem;color:#94a3b8;margin-bottom:6px">${_.sku_interno||""} · ${_.stockTotal} pares en stock</p>
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:0.67rem;font-weight:700;background:${D.bg};color:${D.color}">
+                  <span style="width:6px;height:6px;border-radius:50%;background:${D.dot};flex-shrink:0"></span>${D.txt}
+                </span>
+              </div>
+              <div style="min-width:160px;flex:1">
+                <p style="font-size:0.67rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Ventas últimos 30 días</p>
+                ${I(_.ventas.d30,O,"#E91E8C")}
+                <div style="display:flex;gap:12px;margin-top:6px">
+                  <span style="font-size:0.7rem;color:#64748b">60d: <strong>${_.ventas.d60}</strong></span>
+                  <span style="font-size:0.7rem;color:#64748b">90d: <strong>${_.ventas.d90}</strong></span>
+                  <span style="font-size:0.7rem;color:#64748b">${_.ventasSemana.toFixed(1)} /sem</span>
+                </div>
+              </div>
+              <div style="text-align:right;min-width:100px">
+                ${_.diasInventario?`<p style="font-size:1rem;font-weight:800;color:${_.diasInventario<14?"#dc2626":_.diasInventario<30?"#ca8a04":"#16a34a"}">${_.diasInventario}d</p>
+                     <p style="font-size:0.67rem;color:#94a3b8">stock restante</p>`:'<p style="font-size:0.72rem;color:#94a3b8">Sin ventas</p>'}
+                <p style="font-size:0.67rem;color:#64748b;margin-top:3px">${_.recomendacion}</p>
+              </div>
+            </div>`}).join("")}
+        </div>`},B=function(_){_=(_||"").toLowerCase();const D=S.filter(T=>(T.tallasDesglosadas.length>0||T.tallasData.some(R=>R.total>0))&&(!_||T.nombre.toLowerCase().includes(_)||(T.sku_interno||"").toLowerCase().includes(_))),O=S.filter(T=>T.tallasData.some(R=>R.total>0)).length,P=`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 14px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;flex-wrap:wrap">
+          <span style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0">Intensidad:</span>
+          ${[{bg:"#f8fafc",txt:"Sin ventas"},{bg:"#fce7f3",txt:"1–2 pares"},{bg:"#fbcfe8",txt:"Moderado"},{bg:"#f472b6",txt:"Buenas"},{bg:"#E91E8C",txt:"Muy buenas"}].map(T=>`
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:16px;height:16px;border-radius:3px;background:${T.bg};border:1px solid rgba(0,0,0,0.08);flex-shrink:0"></div>
+              <span style="font-size:0.68rem;color:#475569">${T.txt}</span>
+            </div>`).join("")}
+          <span style="font-size:0.68rem;color:#94a3b8;margin-left:2px">— Número = pares totales · (+X) = últimos 30 días</span>
+        </div>`;function H(T){const R=Math.max(...T.map(q=>q.total),1);return T.map(q=>{const V=Math.round(q.total/R*100),Y=V===0?"#f8fafc":V<20?"#fce7f3":V<50?"#fbcfe8":V<80?"#f472b6":"#E91E8C",W=V>=50?"white":V===0?"#cbd5e1":"#be185d",oe=V>=50?"rgba(255,255,255,0.75)":"#db2777";return`
+          <div style="background:${Y};border-radius:7px;padding:8px 5px;text-align:center;transition:transform 0.15s;min-width:58px;${V===0?"border:1px solid #e2e8f0":""}"
+               title="T${q.talla}: ${q.total} pares totales (${q.d30} en 30d)"
+               onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform=''">
+            <p style="font-size:0.9rem;font-weight:800;color:${W};line-height:1;margin-bottom:2px">${q.total}</p>
+            <p style="font-size:0.65rem;font-weight:700;color:${W}">T${q.talla}</p>
+            <p style="font-size:0.58rem;color:${q.d30>0?oe:"transparent"};margin-top:1px">${q.d30>0?"+"+q.d30:"·"}</p>
+          </div>`}).join("")}return`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input id="tallas-buscar" class="form-input" placeholder="Filtrar por modelo o SKU..."
+            style="max-width:260px;font-size:0.82rem" value="${_}"
+            oninput="document.getElementById('analisis-tab-content').innerHTML=window._renderTabTallas(this.value)">
+          <span style="font-size:0.75rem;color:#94a3b8">${D.length} de ${O} modelos</span>
+        </div>
+        ${P}
+        ${D.length===0?'<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No se encontraron modelos</div>':D.map(T=>{const R=T.tallasData.find(V=>V.total>0),q=T.tallasDesglosadas.length>0;return`
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+              <!-- cabecera del producto -->
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+                ${T.imagen_principal?`<img src="${T.imagen_principal}" style="width:40px;height:40px;object-fit:contain;border-radius:8px;background:#f8fafc;flex-shrink:0">`:""}
+                <div style="flex:1">
+                  <p style="font-weight:700;font-size:0.88rem;color:#0f172a">${T.nombre}</p>
+                  <p style="font-size:0.7rem;color:#94a3b8">${T.ventas.d90} pares en 90d · ${q?T.tallasDesglosadas.length+" colores con ventas":T.tallasData.filter(V=>V.total>0).length+" tallas con movimiento"}</p>
+                </div>
+                ${R?`
+                  <div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:5px 12px;text-align:center;flex-shrink:0">
+                    <p style="font-size:0.6rem;color:#9d174d;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Talla global top</p>
+                    <p style="font-size:1.05rem;font-weight:800;color:#be185d;line-height:1.2">T${R.talla}</p>
+                    <p style="font-size:0.62rem;color:#9d174d">${R.total} pares</p>
+                  </div>`:""}
+              </div>
+
+              ${q?T.tallasDesglosadas.map(V=>`
+                  <div style="margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+                      <span style="font-size:0.72rem;font-weight:700;color:#334155;min-width:0">${V.color}</span>
+                      <span style="font-size:0.65rem;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:100px">${V.total} pares totales</span>
+                      ${V.tallas.find(Y=>Y.total===Math.max(...V.tallas.map(W=>W.total)))?`<span style="font-size:0.65rem;color:#be185d;background:#fdf2f8;padding:1px 7px;border-radius:100px">
+                            top: T${V.tallas.find(Y=>Y.total===Math.max(...V.tallas.map(W=>W.total))).talla}
+                          </span>`:""}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      ${H(V.tallas)}
+                    </div>
+                  </div>`).join('<hr style="border:none;border-top:1px solid #f1f5f9;margin:4px 0 12px">'):`<div style="display:flex;gap:6px;flex-wrap:wrap">${H(T.tallasData)}</div>`}
+            </div>`}).join("")}
+      `},M=function(){const _=S.filter(D=>D.variantesData.some(O=>O.total>0));return _.length===0?'<div style="padding:3rem;text-align:center;color:#94a3b8;font-size:0.9rem">No hay datos de ventas por variante aún</div>':_.map(D=>{const O=D.variantesData.slice(0,8),P=Math.max(...O.map(T=>T.total),1),H=O[0];return`
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            ${D.imagen_principal?`<img src="${D.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8fafc">`:""}
+            <div style="flex:1">
+              <p style="font-weight:700;font-size:0.88rem;color:#0f172a">${D.nombre}</p>
+              <p style="font-size:0.7rem;color:#94a3b8">${D.variantesData.filter(T=>T.total>0).length} de ${D.variantesData.length} variantes con ventas</p>
+            </div>
+            ${H&&H.total>0?`<span style="background:#eff6ff;color:#1d4ed8;padding:4px 10px;border-radius:8px;font-size:0.72rem;font-weight:700">⭐ ${H.label} — ${H.total} vendidos</span>`:""}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${O.map((T,R)=>{const q=["#E91E8C","#7c3aed","#0ea5e9","#10b981","#f59e0b","#ef4444","#6366f1","#14b8a6"],V=q[R%q.length];return`
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.72rem;font-weight:600;color:#64748b;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${T.label}</span>
+                <div style="flex:1;height:20px;background:#f1f5f9;border-radius:4px;overflow:hidden;position:relative">
+                  <div style="width:${Math.round(T.total/P*100)}%;height:100%;background:${V};border-radius:4px;transition:width 0.5s ease;display:flex;align-items:center;padding-left:6px;box-sizing:border-box">
+                    ${T.total/P>.18?`<span style="font-size:0.65rem;font-weight:700;color:white">${T.total}</span>`:""}
+                  </div>
+                  ${T.total/P<=.18?`<span style="position:absolute;left:${Math.round(T.total/P*100)+1}%;top:50%;transform:translateY(-50%);font-size:0.65rem;font-weight:700;color:#334155">${T.total}</span>`:""}
+                </div>
+                <span style="font-size:0.67rem;color:#94a3b8;min-width:52px;text-align:right">Stock: ${T.stock}</span>
+              </div>`}).join("")}
+          </div>
+        </div>`}).join("")};var t=I,a=E,o=B,n=M;const[i,r,s,d]=await Promise.all([fetch(b+"/productos/"),fetch(b+"/variantes/?activa=eq.true"),fetch(b+"/movimientos/"),fetch(b+"/inventario/slim")]),l=await i.json(),c=await r.json(),p=await s.json(),m=await d.json(),g={},u={};c.forEach(_=>{g[_.id]=_,u[_.producto_id]||(u[_.producto_id]=[]),u[_.producto_id].push(_.id)});const y={};m.forEach(_=>{y[_.variante_id]=(y[_.variante_id]||0)+_.cantidad});const f=new Date,v=new Date(f-30*24*60*60*1e3),x=new Date(f-60*24*60*60*1e3),h=new Date(f-90*24*60*60*1e3),$={},w={},C={},A={};p.filter(_=>_.tipo==="venta").forEach(_=>{const D=g[_.variante_id];if(!D)return;const O=D.producto_id,P=Math.abs(_.cantidad),H=new Date(_.created_at);$[O]||($[O]={d30:0,d60:0,d90:0,total:0}),$[O].total+=P,H>=v&&($[O].d30+=P),H>=x&&($[O].d60+=P),H>=h&&($[O].d90+=P),w[_.variante_id]||(w[_.variante_id]={d30:0,d90:0,total:0}),w[_.variante_id].total+=P,H>=v&&(w[_.variante_id].d30+=P),H>=h&&(w[_.variante_id].d90+=P);const T=D.talla||"S/T",R=`${O}|${T}`;C[R]||(C[R]={talla:T,d30:0,d90:0,total:0}),C[R].total+=P,H>=v&&(C[R].d30+=P),H>=h&&(C[R].d90+=P);const q=D.color||"Sin color",V=`${O}|${q}|${T}`;A[V]||(A[V]={talla:T,color:q,d30:0,d90:0,total:0}),A[V].total+=P,H>=v&&(A[V].d30+=P),H>=h&&(A[V].d90+=P)});const S=l.map(_=>{const D=$[_.id]||{d30:0,d60:0,d90:0,total:0},O=u[_.id]||[],P=O.reduce((G,X)=>G+(y[X]||0),0),H=D.d30/4,T=H>0?Math.round(P/H*7):null;let R="gris",q="Sin ventas recientes";D.d30>=6?(R="verde",q="Rota bien — considerar resurtido"):D.d30>=2?(R="amarillo",q="Rotación moderada"):D.d90===0&&P>0?(R="rojo",q="Sin movimiento en 90 días — revisar"):D.d30>0&&(R="amarillo",q="Rotación lenta");const V=O.map(G=>{var X;return(X=g[G])==null?void 0:X.talla}).filter(Boolean).filter((G,X,ee)=>ee.indexOf(G)===X).map(G=>({talla:G,...C[`${_.id}|${G}`]||{d30:0,d90:0,total:0}})).sort((G,X)=>X.total-G.total),W=[...new Set(O.map(G=>{var X;return(X=g[G])==null?void 0:X.color}).filter(Boolean))].map(G=>{const X=O.filter(K=>{var te;return((te=g[K])==null?void 0:te.color)===G}).map(K=>{var te;return(te=g[K])==null?void 0:te.talla}).filter(Boolean).filter((K,te,_t)=>_t.indexOf(K)===te).map(K=>({talla:K,...A[`${_.id}|${G}|${K}`]||{d30:0,d90:0,total:0}})).sort((K,te)=>parseFloat(K.talla)-parseFloat(te.talla)),ee=X.reduce((K,te)=>K+te.total,0);return{color:G,tallas:X,total:ee}}).filter(G=>G.total>0).sort((G,X)=>X.total-G.total),oe=O.map(G=>{const X=g[G];if(!X)return null;const ee=w[G]||{d30:0,d90:0,total:0},K=y[G]||0;return{id:G,label:[X.talla,X.color].filter(Boolean).join(" / ")||G,stock:K,...ee}}).filter(Boolean).sort((G,X)=>X.total-G.total);return{..._,ventas:D,stockTotal:P,ventasSemana:H,diasInventario:T,semaforo:R,recomendacion:q,tallasData:V,tallasDesglosadas:W,variantesData:oe}}).sort((_,D)=>D.ventas.d30-_.ventas.d30);window._analisisData={productosConRotacion:S,ventasPorTalla:C};const U=S.reduce((_,D)=>_+D.ventas.d30,0),L=S.reduce((_,D)=>_+D.ventas.d90,0),F=S.filter(_=>_.semaforo==="verde").length,j=S.filter(_=>_.semaforo==="rojo").length,N={verde:{bg:"#dcfce7",color:"#166534",dot:"#16a34a",txt:"Rota bien"},amarillo:{bg:"#fef9c3",color:"#854d0e",dot:"#ca8a04",txt:"Rotación lenta"},rojo:{bg:"#fee2e2",color:"#991b1b",dot:"#dc2626",txt:"Sin movimiento"},gris:{bg:"#f1f5f9",color:"#64748b",dot:"#94a3b8",txt:"Sin datos"}};window._renderTabRotacion=E,window._renderTabTallas=B,window._renderTabVariantes=M,e.innerHTML=`
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
+          <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Análisis</h2>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem">
+        <div style="background:linear-gradient(135deg,#fff0f8,#ffe4f2);border:1px solid #f9a8d4;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#be185d;line-height:1;margin-bottom:3px">${U}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:0.06em">Pares 30 días</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#6d28d9;line-height:1;margin-bottom:3px">${L}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em">Pares 90 días</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#15803d;line-height:1;margin-bottom:3px">${F}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em">Rotan bien</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#fff1f2,#fee2e2);border:1px solid #fca5a5;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#b91c1c;line-height:1;margin-bottom:3px">${j}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em">Sin movimiento</p>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:0;margin-bottom:1.25rem;background:#f1f5f9;border-radius:10px;padding:3px;width:fit-content">
+        <button id="tab-rotacion" onclick="switchTabAnalisis('rotacion')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:white;color:#E91E8C;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+          Rotación
+        </button>
+        <button id="tab-tallas" onclick="switchTabAnalisis('tallas')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+          Tallas
+        </button>
+        <button id="tab-variantes" onclick="switchTabAnalisis('variantes')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+          Variantes
+        </button>
+      </div>
+
+      <div id="analisis-tab-content">
+        ${E()}
+      </div>
+    `,window._analisisTabActivo="rotacion"}catch(i){e.innerHTML='<p style="padding:2rem;color:red">Error cargando análisis</p>',console.error(i)}}window.switchTabAnalisis=e=>{["rotacion","tallas","variantes"].forEach(o=>{const n=document.getElementById("tab-"+o);n&&(o===e?(n.style.background="white",n.style.color="#E91E8C",n.style.boxShadow="0 1px 4px rgba(0,0,0,0.1)"):(n.style.background="transparent",n.style.color="#64748b",n.style.boxShadow="none"))});const a=document.getElementById("analisis-tab-content");a&&(window._analisisTabActivo=e,e==="rotacion"?a.innerHTML=window._renderTabRotacion():e==="tallas"?a.innerHTML=window._renderTabTallas():e==="variantes"&&(a.innerHTML=window._renderTabVariantes()))};window.filtrarRotacion=e=>{document.querySelectorAll(".rotacion-item").forEach(a=>{a.style.display=e==="todos"||a.dataset.semaforo===e?"":"none"}),document.querySelectorAll("#analisis-tab-content .pill-filter").forEach(a=>{a.classList.remove("pill-active")});const t=[...document.querySelectorAll("#analisis-tab-content .pill-filter")].find(a=>a.textContent.trim().toLowerCase().includes(e==="todos"?"todos":e==="verde"?"bien":e==="amarillo"?"lento":"movimiento"));t&&t.classList.add("pill-active")};async function Ze(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando CRM...</p>';try{const[t,a,o]=await Promise.all([fetch(b+"/clientes/"),fetch(b+"/pedidos/"),fetch(b+"/crm/seguimientos/pendientes/todos")]),n=await t.json(),i=await a.json(),r=await o.json(),s=new Date,d=new Date(s-30*24*60*60*1e3),l=new Date(s-60*24*60*60*1e3),c=new Date(s-90*24*60*60*1e3),p=n.map(x=>{const h=i.filter(S=>S.cliente_id===x.id&&(S.status==="confirmado"||S.status==="pagado")),$=h.reduce((S,U)=>S+parseFloat(U.total||0),0),w=h.length>0?new Date(h[0].created_at):null,C=w?Math.floor((s-w)/(1e3*60*60*24)):null,A=h.filter(S=>new Date(S.created_at)>=d).length;let k="nuevo";return h.length===0?k="nuevo":$>=5e3&&A>=1?k="vip":C>90?k="inactivo":C>30?k="riesgo":A>=2?k="frecuente":k="activo",{...x,totalGastado:$,ultimoPedido:w,diasSinComprar:C,pedidos30:A,segmento:k,totalPedidos:h.length}}),m=p.filter(x=>x.segmento==="vip"),g=p.filter(x=>x.segmento==="riesgo").sort((x,h)=>h.totalGastado-x.totalGastado),u=p.filter(x=>x.segmento==="inactivo").sort((x,h)=>h.totalGastado-x.totalGastado),y=[...p].sort((x,h)=>h.totalGastado-x.totalGastado).slice(0,10),f=i.filter(x=>new Date(x.created_at).toDateString()===s.toDateString()&&(x.status==="confirmado"||x.status==="pagado")).reduce((x,h)=>x+parseFloat(h.total||0),0),v=i.filter(x=>new Date(x.created_at)>=d&&(x.status==="confirmado"||x.status==="pagado")).reduce((x,h)=>x+parseFloat(h.total||0),0);e.innerHTML=`
+      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🎯 CRM — Centro de relaciones</h2>
+          <p style="color:#888;font-size:0.85rem">Gestión completa de clientes y oportunidades</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="mostrarPipeline()">📊 Pipeline</button>
+          <button class="btn btn-secondary" onclick="mostrarCampanas()">📣 Campañas</button>
+          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${f.toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas hoy</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${v.toFixed(0)}</p>
+          <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ventas 30 días</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarSegmento('vip')">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${m.length}</p>
+          <p style="font-size:0.7rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⭐ Clientes VIP</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarSegmento('riesgo')">
+          <p style="font-size:1.6rem;font-weight:700;color:#f57f17">${g.length}</p>
+          <p style="font-size:0.7rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">🟡 En riesgo</p>
+        </div>
+        <div style="background:#ffebee;border-radius:12px;padding:1.25rem;border:1px solid #ffcdd2;text-align:center;cursor:pointer" onclick="mostrarSegmento('inactivo')">
+          <p style="font-size:1.6rem;font-weight:700;color:#c62828">${u.length}</p>
+          <p style="font-size:0.7rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🔴 Inactivos</p>
+        </div>
+        <div style="background:#e3f2fd;border-radius:12px;padding:1.25rem;border:1px solid #90caf9;text-align:center">
+          <p style="font-size:1.6rem;font-weight:700;color:#1565c0">${r.length}</p>
+          <p style="font-size:0.7rem;color:#1565c0;text-transform:uppercase;letter-spacing:0.5px">📅 Recordatorios</p>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+
+        <!-- ALERTAS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">🟡 Clientes en riesgo</p>
+            <span style="font-size:0.75rem;color:#888">${g.length} clientes</span>
+          </div>
+          ${g.length===0?'<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin clientes en riesgo</div>':g.slice(0,5).map(x=>`
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+                   onclick="verCliente('${x.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+                <div style="width:36px;height:36px;border-radius:50%;background:#fff8e1;display:flex;align-items:center;justify-content:center;font-size:0.9rem;font-weight:700;color:#f57f17;flex-shrink:0">
+                  ${x.nombre.charAt(0).toUpperCase()}
+                </div>
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${x.nombre}</p>
+                  <p style="font-size:0.72rem;color:#888">Hace ${x.diasSinComprar} días sin comprar · $${x.totalGastado.toFixed(0)} total</p>
+                </div>
+                ${x.telefono?`<a href="https://wa.me/${x.lada||"52"}${x.telefono.replace(/\D/g,"")}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WA</a>`:""}
+              </div>
+            `).join("")}
+        </div>
+
+        <!-- RECORDATORIOS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">📅 Recordatorios pendientes</p>
+            <span style="font-size:0.75rem;color:#888">${r.length} pendientes</span>
+          </div>
+          ${r.length===0?'<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">Sin recordatorios pendientes 🎉</div>':r.slice(0,5).map(x=>{var h;return`
+              <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
+                <div style="flex:1">
+                  <p style="font-size:0.85rem;font-weight:600">${((h=x.clientes)==null?void 0:h.nombre)||"Cliente"}</p>
+                  <p style="font-size:0.72rem;color:#888">${x.contenido.substring(0,50)}</p>
+                  <p style="font-size:0.68rem;color:#f57f17">${new Date(x.fecha_recordatorio).toLocaleDateString("es-MX")}</p>
+                </div>
+                <button onclick="completarRecordatorio('${x.id}')" style="background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;border-radius:6px;padding:4px 10px;font-size:0.72rem;cursor:pointer">✓ Listo</button>
+              </div>
+            `}).join("")}
+        </div>
+      </div>
+
+      <!-- TOP CLIENTES -->
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">⭐ Top 10 clientes por volumen</p>
+        </div>
+        ${y.map((x,h)=>`
+          <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+               onclick="verCliente('${x.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <span style="font-size:0.85rem;font-weight:700;color:${h<3?"#f57f17":"#aaa"};min-width:20px">${h+1}</span>
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+              ${x.nombre.charAt(0).toUpperCase()}
+            </div>
+            <div style="flex:1">
+              <p style="font-size:0.85rem;font-weight:600">${x.nombre}</p>
+              <p style="font-size:0.72rem;color:#888">${x.totalPedidos} pedidos · ${x.diasSinComprar!==null?"Hace "+x.diasSinComprar+" días":"Sin pedidos"}</p>
+            </div>
+            <div style="text-align:right">
+              <p style="font-weight:700;color:#E91E8C">$${x.totalGastado.toFixed(0)}</p>
+              <span style="font-size:0.65rem;padding:2px 6px;border-radius:100px;background:${x.segmento==="vip"?"#fff8e1":x.segmento==="inactivo"?"#ffebee":"#e8f5e9"};color:${x.segmento==="vip"?"#f57f17":x.segmento==="inactivo"?"#c62828":"#2e7d32"}">${x.segmento}</span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+
+      <!-- SEGMENTO DETALLE (oculto por default) -->
+      <div id="crm-segmento-detalle" style="display:none"></div>
+    `,window._crmData={clientes:p,pedidos:i,recordatorios:r}}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error cargando CRM: '+t.message+"</p>"}}window.mostrarSegmento=e=>{const{clientes:t}=window._crmData||{};if(!t)return;const a=t.filter(i=>i.segmento===e).sort((i,r)=>r.totalGastado-i.totalGastado),o={vip:"⭐ Clientes VIP",riesgo:"🟡 En riesgo",inactivo:"🔴 Inactivos",frecuente:"🟢 Frecuentes"},n=document.getElementById("crm-segmento-detalle");n.style.display="block",n.innerHTML=`
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:700;font-size:0.9rem">${o[e]||e} (${a.length})</p>
+        <button onclick="document.getElementById('crm-segmento-detalle').style.display='none'" style="background:none;border:none;cursor:pointer;color:#888;font-size:1.2rem">✕</button>
+      </div>
+      ${a.map(i=>`
+        <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;cursor:pointer"
+             onclick="verCliente('${i.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+            ${i.nombre.charAt(0).toUpperCase()}
+          </div>
+          <div style="flex:1">
+            <p style="font-size:0.85rem;font-weight:600">${i.nombre}</p>
+            <p style="font-size:0.72rem;color:#888">$${i.totalGastado.toFixed(0)} · ${i.totalPedidos} pedidos · ${i.diasSinComprar!==null?"Hace "+i.diasSinComprar+" días":"Sin pedidos"}</p>
+          </div>
+          ${i.telefono?`<a href="https://wa.me/${i.lada||"52"}${i.telefono.replace(/\D/g,"")}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:4px 10px;border-radius:6px;font-size:0.72rem;text-decoration:none">WhatsApp</a>`:""}
+        </div>
+      `).join("")}
+    </div>
+  `,n.scrollIntoView({behavior:"smooth"})};window.completarRecordatorio=async e=>{try{await fetch(b+"/crm/seguimientos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({completado:!0})}),Ze()}catch{alert("Error al completar recordatorio")}};window.mostrarPipeline=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando pipeline...</p>';try{const a=await(await fetch(b+"/crm/oportunidades")).json(),o=[{id:"contacto",label:"📞 Contacto",color:"#e3f2fd",colorText:"#1565c0"},{id:"interes",label:"👀 Interés",color:"#f3e5f5",colorText:"#6a1b9a"},{id:"cotizacion",label:"📋 Cotización",color:"#fff8e1",colorText:"#f57f17"},{id:"negociacion",label:"🤝 Negociación",color:"#fce4f3",colorText:"#E91E8C"},{id:"ganado",label:"✅ Ganado",color:"#e8f5e9",colorText:"#2e7d32"},{id:"perdido",label:"❌ Perdido",color:"#ffebee",colorText:"#c62828"}];e.innerHTML=`
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="cargarCRM()">← Volver al CRM</button>
+        <h2 style="flex:1;font-size:1.1rem;font-weight:700">📊 Pipeline de oportunidades</h2>
+        <button class="btn btn-primary" onclick="nuevaOportunidad()">+ Nueva oportunidad</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+        ${o.map(n=>{const i=a.filter(s=>s.etapa===n.id),r=i.reduce((s,d)=>s+parseFloat(d.monto_estimado||0),0);return`
+            <div style="background:${n.color};border-radius:12px;padding:1rem;border:1px solid ${n.colorText}30">
+              <p style="font-weight:700;font-size:0.85rem;color:${n.colorText};margin-bottom:4px">${n.label}</p>
+              <p style="font-size:0.72rem;color:${n.colorText};margin-bottom:12px">${i.length} ops · $${r.toFixed(0)}</p>
+              ${i.map(s=>{var d;return`
+                <div style="background:white;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #eee;cursor:pointer"
+                     onclick="verOportunidad('${s.id}')">
+                  <p style="font-size:0.82rem;font-weight:600;margin-bottom:2px">${s.titulo}</p>
+                  <p style="font-size:0.72rem;color:#888">${((d=s.clientes)==null?void 0:d.nombre)||"—"}</p>
+                  <p style="font-size:0.82rem;font-weight:700;color:#E91E8C;margin-top:4px">$${parseFloat(s.monto_estimado||0).toFixed(0)}</p>
+                </div>
+              `}).join("")}
+            </div>
+          `}).join("")}
+      </div>
+    `}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando pipeline</p>'}};window.nuevaOportunidad=()=>{const e=document.createElement("div");e.id="modal-oportunidad",e.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",e.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:500px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:1.5rem">Nueva oportunidad</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Título</label>
+          <input class="form-input" id="op-titulo" placeholder="Ej: Pedido mayoreo sandalias">
+        </div>
+        <div>
+          <label class="form-label">Cliente</label>
+          <input class="form-input" id="op-cliente-buscar" placeholder="Buscar cliente..." oninput="buscarClienteOportunidad(this.value)">
+          <div id="op-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:150px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="op-cliente-id">
+        </div>
+        <div>
+          <label class="form-label">Monto estimado ($)</label>
+          <input class="form-input" id="op-monto" type="number" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Etapa</label>
+          <select class="form-input" id="op-etapa">
+            <option value="contacto">📞 Contacto</option>
+            <option value="interes">👀 Interés</option>
+            <option value="cotizacion">📋 Cotización</option>
+            <option value="negociacion">🤝 Negociación</option>
+            <option value="ganado">✅ Ganado</option>
+            <option value="perdido">❌ Perdido</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Fecha de cierre estimada</label>
+          <input class="form-input" id="op-fecha" type="date">
+        </div>
+        <div>
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="op-notas" rows="3" placeholder="Detalles de la oportunidad..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-oportunidad').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarOportunidad()">Guardar</button>
+      </div>
+    </div>
+  `,document.body.appendChild(e),e.addEventListener("click",t=>{t.target===e&&e.remove()})};window.buscarClienteOportunidad=e=>{const{clientes:t}=window._crmData||{};if(!t)return;const a=document.getElementById("op-cliente-resultados");if(!e||e.length<2){a.style.display="none";return}const o=t.filter(n=>n.nombre.toLowerCase().includes(e.toLowerCase())).slice(0,5);if(!o.length){a.style.display="none";return}a.style.display="block",a.innerHTML=o.map(n=>`
+    <div onclick="seleccionarClienteOportunidad('${n.id}', '${n.nombre}')"
+         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
+         onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+      ${n.nombre}
+    </div>
+  `).join("")};window.seleccionarClienteOportunidad=(e,t)=>{document.getElementById("op-cliente-id").value=e,document.getElementById("op-cliente-buscar").value=t,document.getElementById("op-cliente-resultados").style.display="none"};window.guardarOportunidad=async()=>{const e=document.getElementById("op-titulo").value,t=document.getElementById("op-cliente-id").value,a=document.getElementById("op-monto").value,o=document.getElementById("op-etapa").value,n=document.getElementById("op-fecha").value,i=document.getElementById("op-notas").value;if(!e){alert("El título es requerido");return}try{await fetch(b+"/crm/oportunidades",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:e,cliente_id:t||null,monto_estimado:parseFloat(a)||0,etapa:o,fecha_cierre_estimada:n||null,notas:i})}),document.getElementById("modal-oportunidad").remove(),mostrarPipeline()}catch{alert("Error guardando oportunidad")}};async function $e(e,t=!1){const a=document.getElementById("content");try{const n=await(await fetch(b+"/productos/")).json(),i=n.filter(c=>c.activo),r=n.filter(c=>!c.activo),s=t?r:i;console.log("mostrarInactivos:",t,"base:",s.length,"inactivos:",r.length);const d=[...new Set(i.map(c=>c.categoria).filter(Boolean))],l=e?s.filter(c=>c.categoria===e):s;a.innerHTML=`
+      <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn ${!t&&!e?"btn-primary":"btn-secondary"}" onclick="window.cargarProductos(null, false)">
+          ✅ Activos (${i.length})
+        </button>
+        ${d.map(c=>`
+          <button class="btn ${!t&&e===c?"btn-primary":"btn-secondary"}" onclick="window.cargarProductos('${c}', false)">
+            ${c.charAt(0).toUpperCase()+c.slice(1)} (${i.filter(p=>p.categoria===c).length})
+          </button>
+        `).join("")}
+        <button class="btn ${t?"btn-primary":"btn-secondary"}" style="${t?"":"color:#c62828;border-color:#c62828"}" onclick="window.cargarProductos(null, true)">
+          ❌ Desactivados (${r.length})
+        </button>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <h3>${t?"Productos desactivados":e?e.charAt(0).toUpperCase()+e.slice(1):"Productos activos"} (${l.length})</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:220px" oninput="filtrarProductos()">
+            <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>SKU</th>
+              <th>Categoria</th>
+              <th>Menudeo</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${l.length===0?'<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>':l.map(c=>`
+                <tr>
+                  <td style="display:flex;align-items:center;gap:10px">
+                    ${c.imagen_principal?`<img src="${c.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
+                    <strong>${c.nombre}</strong>
+                  </td>
+                  <td><small style="color:#888">${c.sku_interno||"—"}</small></td>
+                  <td>${c.categoria||"—"}</td>
+                  <td>$${c.precio_menudeo}</td>
+                  <td><span class="badge ${c.activo?"badge-success":"badge-danger"}">${c.activo?"Activo":"Inactivo"}</span></td>
+                  <td style="display:flex;gap:4px;flex-wrap:wrap">
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${c.id}')">Editar</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${c.id}','${(c.nombre||"").replace(/'/g,"")}')">🎨 Colores</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${c.id}')">Duplicar</button>
+                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${c.activo?"#c62828":"#2e7d32"};border-color:${c.activo?"#c62828":"#2e7d32"}" onclick="toggleProducto('${c.id}', ${c.activo})">${c.activo?"Desactivar":"Activar"}</button>
+                  </td>
+                </tr>
+              `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `}catch{a.innerHTML='<p style="padding:2rem;color:red">Error conectando con el servidor</p>'}}window.cargarProductos=$e;window.mostrarCampanas=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando campañas...</p>';try{const[t,a]=await Promise.all([fetch(b+"/clientes/"),fetch(b+"/pedidos/")]),o=await t.json(),n=await a.json(),i=new Date,r=new Date(i-30*24*60*60*1e3),s=new Date(i-90*24*60*60*1e3),d=o.map(p=>{const m=n.filter(x=>x.cliente_id===p.id&&(x.status==="confirmado"||x.status==="pagado")),g=m.reduce((x,h)=>x+parseFloat(h.total||0),0),u=m.length>0?new Date(m[0].created_at):null,y=u?Math.floor((i-u)/(1e3*60*60*24)):null,f=m.filter(x=>new Date(x.created_at)>=r).length;let v="nuevo";return m.length===0?v="nuevo":g>=5e3&&f>=1?v="vip":y>90?v="inactivo":y>30?v="riesgo":f>=2?v="frecuente":v="activo",{...p,totalGastado:g,diasSinComprar:y,segmento:v}}).filter(p=>p.telefono);window._campanaClientes=d;const l=[{id:"catalogo",nombre:"👠 Catálogo completo",descripcion:"Envía el catálogo completo de productos",mensaje:p=>`Hola ${p}! 👋
+
+Te compartimos nuestro catálogo completo de calzado para dama.
+
+✨ Encuentra tacones, sandalias, botas, botines y más.
+
+🛍️ Ver catálogo completo:
+https://zapatillasmay.mx/#catalogo
+
+Cualquier pregunta con gusto te atendemos 😊`},{id:"nuevos",nombre:"🆕 Nuevos modelos",descripcion:"Envía los últimos modelos agregados",mensaje:p=>`¡Hola ${p}! 👋
+
+¡Llegaron nuevos modelos a Zapatillas May! 👠✨
+
+¿Te interesa? Con gusto te damos más información y tallas disponibles.
+
+¡Escríbenos para hacer tu pedido! 🛍️`},{id:"mayoreo",nombre:"📦 Precios mayoreo",descripcion:"Envía información de precios mayoreo",mensaje:p=>`Hola ${p}! 👋
+
+Te recordamos nuestros precios de mayoreo:
+
+📦 3-5 pares variados: -$80 por par
+📦 6+ pares variados: -$150 por par
+📦 Corrida completa: -$180 por par
+
+🛍️ Ver catálogo:
+https://zapatillasmay.mx/#catalogo
+
+¿Te interesa hacer un pedido? Con gusto te atendemos 😊`},{id:"tacones",nombre:"👡 Catálogo tacones",descripcion:"Envía solo la categoría de tacones",mensaje:p=>`Hola ${p}! 👋
+
+Mira nuestra colección de tacones para dama.
+
+👡 Ver tacones:
+https://zapatillasmay.mx/#categoria/tacones
+
+¿Te gusta alguno? Con gusto te damos más información 😊`},{id:"sandalias",nombre:"🩴 Catálogo sandalias",descripcion:"Envía solo la categoría de sandalias",mensaje:p=>`Hola ${p}! 👋
+
+Mira nuestra colección de sandalias para dama.
+
+🩴 Ver sandalias:
+https://zapatillasmay.mx/#categoria/sandalias
+
+¿Te gusta alguna? Con gusto te damos más información 😊`},{id:"seguimiento",nombre:"💬 Seguimiento cliente",descripcion:"Mensaje de seguimiento para clientes inactivos",mensaje:p=>`Hola ${p}! 👋
+
+¿Cómo estás? Hace tiempo que no sabemos de ti.
+
+Tenemos modelos nuevos que te pueden interesar 👠
+
+🛍️ Ver novedades:
+https://zapatillasmay.mx/#nuevos
+
+¿Te puedo mostrar algo en especial? 😊`},{id:"personalizado",nombre:"✏️ Mensaje personalizado",descripcion:"Escribe tu propio mensaje",mensaje:p=>`Hola ${p}! 👋
+
+`}],c=[{id:"todos",label:"Todos los clientes",count:d.length},{id:"vip",label:"⭐ VIP",count:d.filter(p=>p.segmento==="vip").length},{id:"frecuente",label:"🟢 Frecuentes",count:d.filter(p=>p.segmento==="frecuente").length},{id:"riesgo",label:"🟡 En riesgo",count:d.filter(p=>p.segmento==="riesgo").length},{id:"inactivo",label:"🔴 Inactivos",count:d.filter(p=>p.segmento==="inactivo").length},{id:"mayoreo",label:"📦 Mayoreo",count:d.filter(p=>p.tipo==="mayoreo").length},{id:"zapateria",label:"🏪 Corridas",count:d.filter(p=>p.tipo==="zapateria").length},{id:"menudeo",label:"🛍️ Menudeo",count:d.filter(p=>p.tipo==="menudeo").length}];e.innerHTML=`
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('crm')">← Volver al CRM</button>
+        <div>
+          <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:2px">📣 Campañas de WhatsApp</h2>
+          <p style="font-size:0.82rem;color:#888">Envía fotos de nuevos modelos a tus clientes de mayoreo</p>
+        </div>
+      </div>
+
+      <!-- CONEXIÓN WHATSAPP BUSINESS -->
+      <div id="wa-conexion-card" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.25rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <p style="font-weight:700;font-size:0.9rem;margin-bottom:2px">📱 WhatsApp Business</p>
+          <p id="wa-estado-texto" style="font-size:0.8rem;color:#888">Verificando conexión...</p>
+        </div>
+        <div id="wa-estado-badge" style="padding:4px 12px;border-radius:100px;font-size:0.75rem;font-weight:600;background:#f5f5f5;color:#888">
+          ⏳ Cargando
+        </div>
+        <button id="wa-btn-conectar" onclick="mostrarQRWhatsApp()" class="btn btn-primary" style="display:none">
+          Conectar con QR
+        </button>
+        <button id="wa-btn-desconectar" onclick="desconectarWhatsApp()" class="btn btn-secondary" style="display:none;font-size:0.78rem">
+          Desconectar
+        </button>
+        <button onclick="forzarReconexionWA()" class="btn btn-secondary" style="font-size:0.78rem;background:#ff6b35;color:white;border-color:#ff6b35">
+          🔄 Forzar reconexión
+        </button>
+      </div>
+
+      <!-- QR MODAL -->
+      <div id="wa-qr-panel" style="display:none;background:#f8f8f8;border:2px dashed #E91E8C;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;text-align:center">
+        <p style="font-weight:700;margin-bottom:0.5rem">Escanea este QR con tu WhatsApp Business</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+        <div id="wa-qr-img" style="display:inline-block;background:white;padding:12px;border-radius:8px;border:1px solid #eee">
+          <p style="color:#888;font-size:0.85rem;padding:2rem">Cargando QR...</p>
+        </div>
+        <p style="font-size:0.75rem;color:#aaa;margin-top:0.75rem">El QR expira en ~60 segundos. Si expira, haz clic en "Conectar con QR" de nuevo.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+        <!-- CONFIGURACIÓN -->
+        <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">1️⃣ Selecciona el segmento</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${c.map(p=>`
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px 12px;border-radius:8px;border:2px solid #eee;transition:all 0.15s"
+                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('seg-${p.id}').checked)this.style.borderColor='#eee'">
+                  <input type="radio" name="campana-segmento" id="seg-${p.id}" value="${p.id}" ${p.id==="todos"?"checked":""} 
+                         onchange="actualizarVistaCampana()" style="accent-color:#E91E8C">
+                  <span style="flex:1;font-size:0.85rem;font-weight:500">${p.label}</span>
+                  <span style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${p.count}</span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">2️⃣ Foto <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional)</span></p>
+
+            <div id="campana-foto-manual">
+              <p style="font-size:0.75rem;color:#999;margin-bottom:0.875rem">Selecciona un producto para adjuntar su foto</p>
+              <div style="display:flex;gap:8px;margin-bottom:0.75rem">
+                <select id="campana-producto-sel" class="form-input" style="flex:1;font-size:0.82rem"
+                  onchange="seleccionarProductoCampana(this.value)">
+                  <option value="">— Sin foto —</option>
+                </select>
+                <button type="button" onclick="cargarProductosCampana()" title="Recargar productos"
+                  style="padding:6px 10px;border:1px solid #eee;border-radius:8px;background:white;cursor:pointer;font-size:0.85rem">↺</button>
+              </div>
+              <div id="campana-foto-preview" style="display:none;border-radius:10px;overflow:hidden;border:1px solid #eee;max-height:140px;position:relative">
+                <img id="campana-foto-img" src="" style="width:100%;height:140px;object-fit:cover">
+                <button onclick="quitarFotoCampana()"
+                  style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:white;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center">✕</button>
+              </div>
+            </div>
+
+            <div id="campana-fotos-nuevos" style="display:none">
+              <p style="font-size:0.75rem;color:#999;margin-bottom:6px">Busca y elige el modelo, luego selecciona los colores</p>
+              <input type="text" id="campana-nuevo-buscar" placeholder="🔍 Buscar modelo..."
+                oninput="filtrarModelosCampana(this.value)"
+                style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="campana-modelos-lista"
+                style="max-height:150px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:10px">
+                <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Cargando modelos...</p>
+              </div>
+              <div id="campana-fotos-nuevos-grid" style="display:flex;flex-direction:column;gap:6px"></div>
+              <p id="campana-fotos-count" style="font-size:0.75rem;color:#E91E8C;margin-top:8px;font-weight:600"></p>
+            </div>
+
+          </div>
+
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">3️⃣ Selecciona la plantilla</p>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${l.map(p=>`
+                <label style="cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;transition:all 0.15s"
+                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${p.id}').checked)this.style.borderColor='#eee'">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <input type="radio" name="campana-plantilla" id="plt-${p.id}" value="${p.id}" ${p.id==="catalogo"?"checked":""}
+                           onchange="actualizarVistaCampana()" style="accent-color:#E91E8C">
+                    <div>
+                      <p style="font-size:0.85rem;font-weight:600">${p.nombre}</p>
+                      <p style="font-size:0.72rem;color:#888">${p.descripcion}</p>
+                    </div>
+                  </div>
+                </label>
+              `).join("")}
+            </div>
+            <div id="mensaje-personalizado" style="display:none;margin-top:1rem">
+              <label class="form-label">Tu mensaje (usa {nombre} para personalizar)</label>
+              <textarea class="form-input" id="texto-personalizado" rows="5" placeholder="Hola {nombre}! ..."
+                        oninput="actualizarVistaCampana()">Hola {nombre}! 👋
+
+</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISTA PREVIA Y LISTA -->
+        <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:1rem">4️⃣ Vista previa del mensaje</p>
+            <div id="mensaje-preview" style="background:#e8f5e9;border-radius:10px;padding:1rem;font-size:0.82rem;color:#333;white-space:pre-wrap;line-height:1.6;border:1px solid #a5d6a7;max-height:200px;overflow-y:auto"></div>
+          </div>
+
+          <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <p style="font-weight:700;font-size:0.9rem">5️⃣ Enviar a clientes</p>
+                <span id="campana-count" style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:0.78rem;color:#666;cursor:pointer;display:flex;align-items:center;gap:5px">
+                  <input type="checkbox" id="campana-sel-todos" onchange="toggleSeleccionarTodosCampana(this.checked)" style="accent-color:#E91E8C">
+                  Todos
+                </label>
+                <button id="btn-campana-seleccionados" onclick="iniciarCampanaSeleccionados()"
+                  style="background:#555;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;display:none;gap:4px;align-items:center">
+                  💬 Manual (<span id="campana-sel-count">0</span>)
+                </button>
+                <button id="btn-campana-auto" onclick="enviarCampanaAutomatica()"
+                  style="background:#E91E8C;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:none;gap:4px;align-items:center">
+                  🤖 Enviar solos (<span id="campana-sel-count-auto">0</span>)
+                </button>
+              </div>
+            </div>
+            <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f0f0f0">
+              <input type="text" id="campana-buscador" placeholder="🔍 Buscar cliente..." oninput="filtrarClientesCampana(this.value)"
+                style="width:100%;padding:7px 12px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
+            </div>
+            <div id="campana-lista" style="max-height:400px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+    `,window._plantillasCampana=l,window._campanaImagenUrl="",actualizarVistaCampana(),cargarProductosCampana(),verificarEstadoWA()}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando campañas</p>'}};window._waEstadoInterval=null;window.verificarEstadoWA=async()=>{try{const t=await(await fetch(b+"/campanas/wa-estado")).json(),a=document.getElementById("wa-estado-badge"),o=document.getElementById("wa-estado-texto"),n=document.getElementById("wa-btn-conectar"),i=document.getElementById("wa-btn-desconectar");if(!a)return t.conectado;if(t.conectado)a.style.background="#e8f5e9",a.style.color="#2e7d32",a.textContent="✅ Conectado",o.textContent="WhatsApp Business conectado y listo para enviar",n.style.display="none",i.style.display="inline-flex",document.getElementById("wa-qr-panel").style.display="none",window._waEstadoInterval&&(clearInterval(window._waEstadoInterval),window._waEstadoInterval=null);else{a.style.background="#ffebee",a.style.color="#c62828";const r=t.detalle&&t.detalle.includes("caída");if(a.textContent=r?"⚠️ Sesión caída":"🔴 Desconectado",o.textContent=t.detalle||"Conecta tu WhatsApp Business para enviar campañas automáticas",n.style.display="inline-flex",i.style.display="none",r){a.style.background="#fff3e0",a.style.color="#e65100";const s=document.getElementById("wa-qr-panel");s&&s.style.display==="none"&&(s.style.display="block",document.getElementById("wa-qr-img").innerHTML=`
+            <div style="padding:1.5rem;text-align:center">
+              <p style="font-size:0.9rem;font-weight:700;color:#e65100;margin-bottom:0.5rem">⚠️ WhatsApp desconectado</p>
+              <p style="font-size:0.8rem;color:#666;margin-bottom:1rem">La sesión se cerró. Necesitas reconectar.</p>
+              <p style="font-size:0.8rem;color:#555;margin-bottom:1rem">1️⃣ Abre <strong>INICIAR ERP.bat</strong> en tu escritorio<br>2️⃣ Espera que Railway actualice (~2 min)<br>3️⃣ Haz clic en <strong>"Conectar con QR"</strong></p>
+            </div>`)}}return t.conectado}catch{const t=document.getElementById("wa-estado-badge");return t&&(t.style.background="#fff8e1",t.style.color="#f57f17",t.textContent="⚠️ Sin conexión al servidor"),!1}};window.forzarReconexionWA=async()=>{const e=document.getElementById("wa-qr-panel"),t=document.getElementById("wa-qr-img");if(!(!e||!t)){e.style.display="block",t.innerHTML='<p style="color:#888;font-size:0.85rem;padding:2rem">⏳ Desconectando sesión anterior y generando QR...<br><small>Esto puede tardar hasta 20 segundos</small></p>';try{const o=await(await fetch(b+"/campanas/wa-reiniciar",{method:"POST"})).json();if(o.qr){const n=o.qr.startsWith("data:")?o.qr:"data:image/png;base64,"+o.qr;t.innerHTML=`
+        <p style="color:#2e7d32;font-size:0.82rem;margin-bottom:8px">✅ Escanea este QR con WhatsApp en tu celular</p>
+        <img src="${n}" style="width:220px;height:220px;display:block;margin:0 auto">
+        <p style="color:#888;font-size:0.75rem;margin-top:8px">El QR expira en ~20 segundos. Si expira, vuelve a hacer clic.</p>`,window._waEstadoInterval&&clearInterval(window._waEstadoInterval),window._waEstadoInterval=setInterval(async()=>{await verificarEstadoWA()&&(clearInterval(window._waEstadoInterval),e.style.display="none")},4e3)}else if(o.nota)t.innerHTML=`<p style="color:#1565c0;font-size:0.82rem;padding:1rem">ℹ️ ${o.nota}<br>Intenta enviar un mensaje de prueba.</p>`,verificarEstadoWA();else{const n=o.qr_err||o.logout_err||"No se pudo obtener QR";t.innerHTML=`
+        <p style="color:#c62828;font-size:0.82rem;padding:1rem">
+          ❌ ${n.replace(/\n/g,"<br>")}
+        </p>
+        <button onclick="mostrarQRWhatsApp()" style="margin:0.5rem;padding:0.4rem 1rem;background:#E91E8C;color:white;border:none;border-radius:6px;cursor:pointer">
+          🔄 Intentar obtener QR de nuevo
+        </button>`}}catch(a){t.innerHTML=`<p style="color:red;font-size:0.8rem;padding:1rem">Error de conexión: ${a.message}<br><small>Verifica que el servidor local esté corriendo.</small></p>`}}};window.mostrarQRWhatsApp=async()=>{const e=document.getElementById("wa-qr-panel"),t=document.getElementById("wa-qr-img");if(!(!e||!t)){e.style.display="block",t.innerHTML='<p style="color:#888;font-size:0.85rem;padding:2rem">Cargando QR...</p>';try{const o=await(await fetch(b+"/campanas/wa-qr")).json();if(o.qr){const n=o.qr.startsWith("data:")?o.qr:"data:image/png;base64,"+o.qr;t.innerHTML=`<img src="${n}" style="width:220px;height:220px;display:block">`,window._waEstadoInterval&&clearInterval(window._waEstadoInterval),window._waEstadoInterval=setInterval(async()=>{await window.verificarEstadoWA()&&clearInterval(window._waEstadoInterval)},4e3)}else t.innerHTML=`<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${o.error||"No se obtuvo QR"}</p>`}catch(a){t.innerHTML=`<p style="color:red;font-size:0.8rem;padding:1rem">Error: ${a.message}</p>`}}};window.desconectarWhatsApp=async()=>{confirm("¿Desconectar WhatsApp Business?")&&(await fetch(b+"/campanas/wa-desconectar",{method:"POST"}),verificarEstadoWA())};window.actualizarVistaCampana=()=>{var p,m,g,u;const e=((p=document.querySelector('input[name="campana-segmento"]:checked'))==null?void 0:p.value)||"todos",t=((m=document.querySelector('input[name="campana-plantilla"]:checked'))==null?void 0:m.value)||"catalogo",a=(g=window._plantillasCampana)==null?void 0:g.find(y=>y.id===t),o=window._campanaClientes||[],n=document.getElementById("mensaje-personalizado");n&&(n.style.display=t==="personalizado"?"block":"none");let i=o;e!=="todos"&&(["menudeo","mayoreo","zapateria"].includes(e)?i=o.filter(y=>y.tipo===e):i=o.filter(y=>y.segmento===e)),t==="nuevos"&&cargarFotosNuevosModelos();const r=document.getElementById("campana-foto-manual");r&&(r.style.display=t==="nuevos"?"none":"block");const s=document.getElementById("campana-fotos-nuevos");s&&(s.style.display=t==="nuevos"?"block":"none");const d=document.getElementById("mensaje-preview");if(d){if(t==="catalogo_interactivo")d.style.background="#e3f2fd",d.style.borderColor="#90caf9",d.style.color="#1565c0",d.textContent=`🛍️ Los productos seleccionados se enviarán como tarjetas interactivas en WhatsApp.
+
+El cliente puede ver cada modelo, elegir talla/color y hacer su pedido directamente desde el chat.
+
+⚠️ Requiere que los productos estén en el catálogo de Meta Commerce.`;else if(d.style.background="#e8f5e9",d.style.borderColor="#a5d6a7",d.style.color="#333",a){let y;t==="personalizado"?y=(((u=document.getElementById("texto-personalizado"))==null?void 0:u.value)||"").replace("{nombre}","María"):y=a.mensaje("María"),d.textContent=y}}const l=document.getElementById("campana-count");l&&(l.textContent=i.length+" clientes");const c=document.getElementById("campana-lista");if(c){if(!i.length){c.innerHTML='<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">No hay clientes en este segmento con teléfono registrado</div>';return}window._campanaFiltrados=i,window._campanaPlantillaId=t,c.innerHTML=i.map((y,f)=>{var $;let v;t==="personalizado"?v=((($=document.getElementById("texto-personalizado"))==null?void 0:$.value)||"").replace("{nombre}",y.nombre.split(" ")[0]):v=a.mensaje(y.nombre.split(" ")[0]);const x=encodeURIComponent(v),h=(y.lada||"52")+y.telefono.replace(/\D/g,"");return`
+      <div class="campana-cli-row" data-idx="${f}" style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;transition:background 0.15s">
+        <input type="checkbox" class="campana-cli-check" data-idx="${f}"
+          onchange="actualizarContadorCampana()"
+          style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+          ${y.nombre.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${y.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${y.tipo==="mayoreo"?"Mayoreo":y.tipo==="zapateria"?"Corridas":"Menudeo"} · ${y.telefono}</p>
+        </div>
+        <a href="https://wa.me/${h}?text=${x}" target="_blank"
+           style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+          💬
+        </a>
+      </div>
+    `}).join(""),actualizarContadorCampana()}};window.actualizarContadorCampana=()=>{const t=document.querySelectorAll(".campana-cli-check:checked").length;document.querySelectorAll("#campana-sel-count, #campana-sel-count-auto").forEach(i=>{i&&(i.textContent=t)});const a=document.getElementById("btn-campana-seleccionados"),o=document.getElementById("btn-campana-auto");a&&(a.style.display=t>0?"inline-flex":"none"),o&&(o.style.display=t>0?"inline-flex":"none"),document.querySelectorAll(".campana-cli-check").forEach(i=>i.disabled=!1);const n=document.getElementById("campana-sel-todos");if(n){const i=document.querySelectorAll(".campana-cli-check").length;n.checked=t>0&&t===i,n.indeterminate=t>0&&t<i}};window.filtrarClientesCampana=e=>{var s;const t=(e||"").toLowerCase().trim(),a=window._campanaFiltrados||[],o=window._campanaPlantillaId||"catalogo",n=(s=window._plantillasCampana)==null?void 0:s.find(d=>d.id===o),i=document.getElementById("campana-lista");if(!i)return;const r=t?a.filter(d=>d.nombre.toLowerCase().includes(t)||(d.telefono||"").includes(t)):a;if(!r.length){i.innerHTML='<div style="padding:2rem;text-align:center;color:#888;font-size:0.85rem">No se encontraron clientes</div>';return}i.innerHTML=r.map(d=>{var g;const l=a.indexOf(d);let c;o==="personalizado"?c=(((g=document.getElementById("texto-personalizado"))==null?void 0:g.value)||"").replace("{nombre}",d.nombre.split(" ")[0]):c=n?n.mensaje(d.nombre.split(" ")[0]):"";const p=encodeURIComponent(c),m=(d.lada||"52")+d.telefono.replace(/\D/g,"");return`
+      <div class="campana-cli-row" data-idx="${l}" style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;transition:background 0.15s">
+        <input type="checkbox" class="campana-cli-check" data-idx="${l}"
+          onchange="actualizarContadorCampana()"
+          style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0;cursor:pointer">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.9rem;flex-shrink:0">
+          ${d.nombre.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${d.tipo==="mayoreo"?"Mayoreo":d.tipo==="zapateria"?"Corridas":"Menudeo"} · ${d.telefono}</p>
+        </div>
+        <a href="https://wa.me/${m}?text=${p}" target="_blank"
+           style="background:#25D366;color:white;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">
+          💬
+        </a>
+      </div>
+    `}).join("")};window.cargarFotosNuevosModelos=async()=>{const e=document.getElementById("campana-modelos-lista");if(window._campanaModelosData||(window._campanaModelosData=new Map),window._campanaModelosSeleccionados||(window._campanaModelosSeleccionados=new Set),window._campanaColoresSeleccionados||(window._campanaColoresSeleccionados=new Set),!e||window._campanaModelosList){window._campanaModelosList&&_renderModelosCampana(window._campanaModelosList);return}try{const t=await fetch(b+"/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=nombre.asc&limit=500");window._campanaModelosList=await t.json(),_renderModelosCampana(window._campanaModelosList)}catch{e&&(e.innerHTML='<p style="padding:10px 12px;color:red;font-size:0.8rem">Error cargando modelos</p>')}};window._renderModelosCampana=e=>{const t=document.getElementById("campana-modelos-lista");if(!t)return;if(!e.length){t.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>';return}const a=window._campanaModelosSeleccionados||new Set;t.innerHTML=e.map(o=>{const n=a.has(String(o.id));return`
+    <div onclick="seleccionarModeloCampana('${o.id}', this)" id="modelo-item-${o.id}"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s;background:${n?"#fce4ec":""}">
+      ${o.imagen_principal?`<img src="${o.imagen_principal}" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0">`:'<div style="width:34px;height:34px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">👟</div>'}
+      <span style="font-size:0.83rem;font-weight:${n?"700":"500"}">${o.nombre||o.sku_interno}</span>
+      ${n?'<span style="margin-left:auto;font-size:0.7rem;background:#E91E8C;color:white;border-radius:20px;padding:1px 8px">✓</span>':""}
+    </div>`}).join("")};window.filtrarModelosCampana=e=>{const t=window._campanaModelosList||[],a=e.trim()?t.filter(o=>(o.nombre||"").toLowerCase().includes(e.toLowerCase())||(o.sku_interno||"").toLowerCase().includes(e.toLowerCase())):t;_renderModelosCampana(a)};window.seleccionarModeloCampana=async(e,t)=>{var i,r,s;const a=String(e);window._campanaModelosSeleccionados||(window._campanaModelosSeleccionados=new Set),window._campanaModelosData||(window._campanaModelosData=new Map),window._campanaColoresSeleccionados||(window._campanaColoresSeleccionados=new Set);const o=document.getElementById("campana-fotos-nuevos-grid");if(window._campanaModelosSeleccionados.has(a)){window._campanaModelosSeleccionados.delete(a);for(const d of[...window._campanaColoresSeleccionados])d.startsWith(a+"::")&&window._campanaColoresSeleccionados.delete(d);if(t){t.style.background="";const d=t.querySelector("span");d&&(d.style.fontWeight="500"),t.querySelector("span:last-child")}_renderColoresNuevos(),actualizarCountFotos(),window._campanaModelosList&&_renderModelosCampana((i=document.getElementById("campana-nuevo-buscar"))!=null&&i.value?(window._campanaModelosList||[]).filter(d=>(d.nombre||"").toLowerCase().includes(document.getElementById("campana-nuevo-buscar").value.toLowerCase())):window._campanaModelosList||[]);return}if(window._campanaModelosSeleccionados.add(a),t){t.style.background="#fce4ec";const d=t.querySelector("span");d&&(d.style.fontWeight="700")}if(o){const d=document.createElement("p");d.id="campana-load-"+a,d.style.cssText="font-size:0.8rem;color:#aaa;padding:4px 0",d.textContent="Cargando colores...",o.appendChild(d)}if(!window._campanaModelosData.has(a))try{const d=((r=t==null?void 0:t.querySelector("span"))==null?void 0:r.textContent)||a,c=await(await fetch(b+"/variantes/producto/"+a)).json(),p={};for(const m of c)m.color&&(p[m.color]||(p[m.color]={color:m.color,color_hex:m.color_hex||null,foto_url:null}),!p[m.color].foto_url&&m.foto_url&&(p[m.color].foto_url=m.foto_url));window._campanaModelosData.set(a,{nombre:d,colores:Object.values(p)})}catch{window._campanaModelosSeleccionados.delete(a);const l=document.getElementById("campana-load-"+a);if(l&&l.remove(),o){const c=document.createElement("p");c.style.cssText="color:red;font-size:0.8rem",c.textContent="Error cargando variantes",o.appendChild(c)}return}const n=document.getElementById("campana-load-"+a);n&&n.remove(),_renderColoresNuevos(),actualizarCountFotos(),window._campanaModelosList&&_renderModelosCampana((s=document.getElementById("campana-nuevo-buscar"))!=null&&s.value?(window._campanaModelosList||[]).filter(d=>(d.nombre||"").toLowerCase().includes(document.getElementById("campana-nuevo-buscar").value.toLowerCase())):window._campanaModelosList||[])};window._renderColoresNuevos=()=>{var i;const e=document.getElementById("campana-fotos-nuevos-grid");if(!e)return;const t=window._campanaModelosSeleccionados||new Set;if(!t.size){e.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px 0">Selecciona uno o más modelos arriba</p>';return}const a=window._campanaColoresSeleccionados||new Set,o=t.size>1;let n="";for(const r of t){const s=(i=window._campanaModelosData)==null?void 0:i.get(r);if(s){if(o&&(n+=`<p style="font-size:0.72rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px;padding:0 2px">${s.nombre}</p>`),!s.colores.length){n+='<p style="font-size:0.78rem;color:#aaa;margin:0 0 6px">Sin colores registrados</p>';continue}n+=s.colores.map(d=>{const l=`${r}::${d.color}`,c=a.has(l),p=!d.foto_url;return`
+      <div onclick="${p?"":`toggleColorNuevo('${l}', this)`}"
+           id="color-nuevo-row-${l.replace(/[^a-zA-Z0-9]/g,"-")}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:2px solid ${c?"#E91E8C":"#eee"};cursor:${p?"default":"pointer"};background:${c?"#fce4ec":"white"};opacity:${p?".45":"1"};transition:all 0.15s;margin-bottom:4px">
+        <input type="checkbox" ${c?"checked":""} ${p?"disabled":""}
+               onclick="event.stopPropagation();toggleColorNuevo('${l}', this.closest('div'))"
+               style="accent-color:#E91E8C;width:16px;height:16px;flex-shrink:0">
+        <div style="width:24px;height:24px;border-radius:50%;background:${d.color_hex||"#ccc"};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.84rem;font-weight:600">${d.color}</span>
+        ${d.foto_url?`<img src="${d.foto_url}" style="width:48px;height:48px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`:'<span style="font-size:0.7rem;color:#bbb;flex-shrink:0">sin foto</span>'}
+      </div>`}).join("")}}e.innerHTML=n};window.toggleColorNuevo=(e,t)=>{window._campanaColoresSeleccionados||(window._campanaColoresSeleccionados=new Set);const a="color-nuevo-row-"+e.replace(/[^a-zA-Z0-9]/g,"-"),o=document.getElementById(a)||(t!=null&&t.closest?t.closest('[id^="color-nuevo-row"]'):null),n=o==null?void 0:o.querySelector("input[type=checkbox]");window._campanaColoresSeleccionados.has(e)?(window._campanaColoresSeleccionados.delete(e),o&&(o.style.borderColor="#eee",o.style.background="white"),n&&(n.checked=!1)):(window._campanaColoresSeleccionados.add(e),o&&(o.style.borderColor="#E91E8C",o.style.background="#fce4ec"),n&&(n.checked=!0)),actualizarCountFotos()};window.actualizarCountFotos=()=>{var a;const e=document.getElementById("campana-fotos-count");if(!e)return;const t=((a=window._campanaColoresSeleccionados)==null?void 0:a.size)||0;e.textContent=t>0?`${t} color${t>1?"es":""} seleccionado${t>1?"s":""} — cada cliente recibirá ${t} foto${t>1?"s":""}`:"Palomea los colores que quieres enviar"};window.cargarProductosCampana=async()=>{const e=document.getElementById("campana-producto-sel");if(e)try{const a=await(await fetch(b+"/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=created_at.desc&limit=60")).json();e.innerHTML='<option value="">— Sin foto —</option>'+a.filter(o=>o.imagen_principal).map(o=>`<option value="${o.imagen_principal}" data-nombre="${o.nombre}">${o.nombre||o.sku_interno}</option>`).join("")}catch(t){console.error("Error cargando productos campana:",t)}};window.seleccionarProductoCampana=e=>{window._campanaImagenUrl=e||"";const t=document.getElementById("campana-foto-preview"),a=document.getElementById("campana-foto-img");t&&a&&(e?(a.src=e,t.style.display="block"):(t.style.display="none",a.src=""))};window.quitarFotoCampana=()=>{window._campanaImagenUrl="";const e=document.getElementById("campana-producto-sel");e&&(e.value="");const t=document.getElementById("campana-foto-preview");t&&(t.style.display="none")};window.cargarProductosInteractivo=async()=>{const e=document.getElementById("campana-prod-grid");if(e){if(window._campanaProdInteractivoCargado){renderizarProductosInteractivo(window._campanaProdInteractivo||[]);return}e.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:8px">Cargando...</p>';try{const a=await(await fetch(b+"/productos/?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal&order=nombre.asc&limit=300")).json();window._campanaProdInteractivo=a,window._campanaProdSeleccionados=new Set,window._campanaProdInteractivoCargado=!0,renderizarProductosInteractivo(a)}catch{e&&(e.innerHTML='<p style="color:red;font-size:0.8rem;padding:8px">Error cargando productos</p>')}}};window.renderizarProductosInteractivo=e=>{const t=document.getElementById("campana-prod-grid");if(!t)return;const a=window._campanaProdSeleccionados||new Set;if(!e.length){t.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:8px">No hay productos</p>';return}t.innerHTML=e.map(o=>{const n=o.sku_interno||o.id,i=a.has(n);return`<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;border:1px solid ${i?"#E91E8C":"#f0f0f0"};background:${i?"#fff0f8":"white"};transition:all 0.1s" id="prod-lbl-${n}">
+      <input type="checkbox" ${i?"checked":""} onchange="toggleProdInteractivo('${n}', this)"
+        style="accent-color:#E91E8C;width:14px;height:14px;flex-shrink:0">
+      ${o.imagen_principal?`<img src="${o.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0">`:'<div style="width:32px;height:32px;background:#f5f5f5;border-radius:4px;flex-shrink:0"></div>'}
+      <div style="min-width:0;flex:1">
+        <p style="font-size:0.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.nombre||n}</p>
+        <p style="font-size:0.68rem;color:#aaa">${n}${o.categoria?" · "+o.categoria:""}</p>
+      </div>
+    </label>`}).join(""),actualizarCountProdInteractivo()};window.toggleProdInteractivo=(e,t)=>{window._campanaProdSeleccionados||(window._campanaProdSeleccionados=new Set);const a=document.getElementById("prod-lbl-"+e);if(t.checked){if(window._campanaProdSeleccionados.size>=30){t.checked=!1,alert("Máximo 30 productos por mensaje interactivo");return}window._campanaProdSeleccionados.add(e),a&&(a.style.borderColor="#E91E8C",a.style.background="#fff0f8")}else window._campanaProdSeleccionados.delete(e),a&&(a.style.borderColor="#f0f0f0",a.style.background="white");actualizarCountProdInteractivo()};window.actualizarCountProdInteractivo=()=>{var a;const e=document.getElementById("campana-prod-count");if(!e)return;const t=((a=window._campanaProdSeleccionados)==null?void 0:a.size)||0;e.textContent=t>0?`${t}/30 producto${t>1?"s":""} seleccionado${t>1?"s":""}`:"Ningún producto seleccionado"};window.filtrarProductosInteractivo=e=>{const t=(e||"").toLowerCase().trim(),a=window._campanaProdInteractivo||[],o=t?a.filter(n=>(n.nombre||"").toLowerCase().includes(t)||(n.sku_interno||"").toLowerCase().includes(t)||(n.categoria||"").toLowerCase().includes(t)):a;renderizarProductosInteractivo(o)};window.enviarCatalogoInteractivo=async e=>{var i;const t=window._campanaFiltrados||[],a=Array.from(window._campanaProdSeleccionados||new Set);if(!a.length){alert("Selecciona al menos un producto");return}const o=e.map(r=>t[r]).filter(Boolean).map(r=>({telefono:r.telefono,nombre:r.nombre}));if(!o.length)return;const n=document.createElement("div");n.id="campana-auto-overlay",n.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",n.innerHTML=`<div style="background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🛍️</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando catálogo interactivo…</h3>
+    <p style="font-size:0.82rem;color:#888">${o.length} contacto${o.length>1?"s":""} · ${a.length} producto${a.length>1?"s":""}</p>
+  </div>`,document.body.appendChild(n);try{const s=await(await fetch(b+"/envio-productos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contactos:o,skus:a,titulo:"Nuestros modelos 👠",cuerpo:"Mira los modelos disponibles. ¡Elige el tuyo!",pie:"Zapatillas May · León, Gto."})})).json();n.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${s.fallidos===0?"🎉":"✅"}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${s.enviados||0} enviados</p>
+      ${s.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${s.fallidos} fallidos</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      ${(i=s.errores)!=null&&i.length?`<p style="font-size:0.7rem;color:#aaa;margin-bottom:1rem">${s.errores[0]}</p>`:""}
+      <button onclick="document.getElementById('campana-auto-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`}catch(r){n.remove(),alert("Error: "+r.message)}};window.enviarCampanaAutomatica=async()=>{var c,p;const e=document.querySelectorAll(".campana-cli-check:checked"),t=Array.from(e).map(m=>parseInt(m.dataset.idx)),a=window._campanaFiltrados||[],o=window._campanaPlantillaId||"catalogo",n=(c=window._plantillasCampana)==null?void 0:c.find(m=>m.id===o),i=window._campanaImagenUrl||"";let r=[],s=[];if(o==="nuevos"){const m=window._campanaColoresSeleccionados||new Set;if(!m.size){alert("Selecciona al menos un color");return}for(const g of window._campanaModelosSeleccionados||new Set){const u=(p=window._campanaModelosData)==null?void 0:p.get(g);if(u)for(const y of u.colores){const f=`${g}::${y.color}`;m.has(f)&&y.foto_url&&(s.push({url:y.foto_url,caption:y.color}),r.push(y.foto_url))}}if(!s.length){alert("Los colores seleccionados no tienen foto. Selecciona colores con imagen.");return}}else i&&(r=[i]);const d=t.map(m=>a[m]).filter(Boolean).map(m=>{var u;let g;return o==="personalizado"?g=(((u=document.getElementById("texto-personalizado"))==null?void 0:u.value)||"").replace("{nombre}",m.nombre.split(" ")[0]):g=n.mensaje(m.nombre.split(" ")[0]),{nombre:m.nombre,telefono:m.telefono,lada:m.lada||"52",mensaje:g}});if(!d.length)return;const l=document.createElement("div");l.id="campana-auto-overlay",l.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",l.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">📤</div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Iniciando campaña…</h3>
+      <p style="font-size:0.82rem;color:#888">Conectando con WhatsApp Business</p>
+    </div>`,document.body.appendChild(l);try{const g=await(await fetch(b+"/campanas/enviar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destinatarios:d.map(x=>({nombre:x.nombre,telefono:x.telefono,mensaje:x.mensaje})),fotos_urls:r,fotos_con_caption:s.length?s:null,imagen_url:r.length===1?r[0]:"",delay_segundos:4})})).json();if(g.error){l.remove(),alert("Error: "+g.error);return}const u=g.job_id,y=g.total,f=x=>{var A;const h=x.progreso||0,$=Math.round(h/y*100),w=x.enviados||0,C=x.fallidos||0;l.innerHTML=`
+        <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+            <h3 style="font-size:1rem;font-weight:700">🤖 Enviando campaña…</h3>
+            <button onclick="cancelarCampanaAuto('${u}')"
+              style="background:none;border:1px solid #eee;border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#888;cursor:pointer">
+              ⏸ Pausar
+            </button>
+          </div>
+          <div style="background:#f5f5f5;border-radius:100px;height:10px;margin-bottom:0.5rem;overflow:hidden">
+            <div style="background:linear-gradient(90deg,#E91E8C,#c4116a);height:10px;border-radius:100px;width:${$}%;transition:width 0.5s"></div>
+          </div>
+          <p style="font-size:0.78rem;color:#888;text-align:center;margin-bottom:1.5rem">${h} de ${y} mensajes enviados</p>
+          <div style="display:flex;gap:1rem;justify-content:center">
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#25D366">${w}</p>
+              <p style="font-size:0.72rem;color:#888">Enviados</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#e53e3e">${C}</p>
+              <p style="font-size:0.72rem;color:#888">Fallidos</p>
+            </div>
+            <div style="text-align:center">
+              <p style="font-size:1.5rem;font-weight:700;color:#888">${y-h}</p>
+              <p style="font-size:0.72rem;color:#888">Pendientes</p>
+            </div>
+          </div>
+          ${h>0&&((A=x.resultados)!=null&&A.length)?`
+            <div style="margin-top:1rem;max-height:120px;overflow-y:auto;border-top:1px solid #f5f5f5;padding-top:0.75rem">
+              ${x.resultados.slice(-5).map(k=>`
+                <div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:0.75rem">
+                  <span style="color:${k.ok?"#25D366":"#e53e3e"}">${k.ok?"✅":"❌"}</span>
+                  <span style="flex:1;color:#555">${k.nombre}</span>
+                  ${k.ok?"":`<span style="color:#e53e3e;font-size:0.68rem" title="${(k.error||"").replace(/"/g,"'")}">Error</span>`}
+                </div>`).join("")}
+            </div>`:""}
+        </div>`};window._campanaJobId=u;const v=setInterval(async()=>{try{const h=await(await fetch(b+"/campanas/estado/"+u)).json();f(h),h.terminado&&(clearInterval(v),window._campanaUltimosResultados=h.resultados||[],setTimeout(()=>{const $=h.enviados||0,w=h.fallidos||0;l.innerHTML=`
+              <div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+                <div style="font-size:3.5rem;margin-bottom:1rem">${w===0?"🎉":"✅"}</div>
+                <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">¡Campaña completada!</h3>
+                <p style="color:#888;font-size:0.85rem;margin-bottom:0.5rem"><strong style="color:#25D366">${$} enviados</strong> correctamente</p>
+                ${w>0?`
+                  <p style="color:#e53e3e;font-size:0.8rem;margin-bottom:0.5rem">${w} no se pudieron enviar</p>
+                  <div style="background:#fff5f5;border-radius:8px;padding:0.75rem;margin-bottom:1rem;text-align:left;max-height:140px;overflow-y:auto">
+                    ${h.resultados.filter(C=>!C.ok).map(C=>`
+                      <div style="font-size:0.75rem;padding:3px 0;border-bottom:1px solid #ffe0e0">
+                        <span style="font-weight:600">📵 ${C.nombre}</span>
+                        <span style="color:#aaa;margin-left:4px">${C.telefono}</span><br>
+                        <span style="color:#e53e3e;font-size:0.68rem">${C.error?C.error.substring(0,120):"Error desconocido"}</span>
+                      </div>`).join("")}
+                  </div>
+                  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+                    <button onclick="reintentarFallidos(window._campanaUltimosResultados)"
+                      style="background:#555;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                      🔄 Reintentar fallidos
+                    </button>
+                    <button onclick="document.getElementById('campana-auto-overlay').remove()"
+                      style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 20px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                      Cerrar
+                    </button>
+                  </div>
+                `:`<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">¡Todo perfecto!</p><button onclick="document.getElementById('campana-auto-overlay').remove()" style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>`}
+              </div>`},600))}catch{clearInterval(v)}},1500)}catch(m){l.remove(),alert("Error conectando con el servidor: "+m.message)}};window.cancelarCampanaAuto=async e=>{try{await fetch(b+"/campanas/cancelar/"+e,{method:"POST"})}catch{}const t=document.getElementById("campana-auto-overlay");t&&t.remove()};window.reintentarFallidos=async e=>{var l,c;const t=(e||[]).filter(p=>!p.ok);if(!t.length)return;(l=document.getElementById("campana-auto-overlay"))==null||l.remove();const a=window._campanaFiltrados||[],o=window._campanaPlantillaId||"catalogo",n=(c=window._plantillasCampana)==null?void 0:c.find(p=>p.id===o),i=window._campanaFotosUrls||[],r=window._campanaFotosConCaption||null,s=window._campanaImagenUrl||"",d=t.map(p=>{const m=a.find(f=>{const v=String(f.telefono||"").replace(/\D/g,""),x=String(p.telefono||"").replace(/\D/g,"");return x.endsWith(v)||v.endsWith(x)}),g=p.nombre||(m?m.nombre:"Cliente"),u=g.split(" ")[0];let y=n?n.texto.replace("{nombre}",u):`Hola ${u}`;return{nombre:g,telefono:p.telefono,mensaje:y}});if(!d.length){alert("No se pudo reconstruir los destinatarios");return}try{const m=await(await fetch(b+"/campanas/enviar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({destinatarios:d,fotos_urls:i,fotos_con_caption:r,imagen_url:s,delay_segundos:5})})).json();if(m.error){alert("Error: "+m.error);return}alert(`Reintentando ${d.length} mensaje(s) fallido(s)...`)}catch(p){alert("Error al reintentar: "+p.message)}};window.toggleSeleccionarTodosCampana=e=>{document.querySelectorAll(".campana-cli-check").forEach(a=>{e?a.checked=!0:a.checked=!1}),actualizarContadorCampana()};window.iniciarCampanaSeleccionados=()=>{var l;const e=document.querySelectorAll(".campana-cli-check:checked"),t=Array.from(e).map(c=>parseInt(c.dataset.idx)),a=window._campanaFiltrados||[],o=window._campanaPlantillaId||"catalogo",n=(l=window._plantillasCampana)==null?void 0:l.find(c=>c.id===o),i=t.map(c=>a[c]).filter(Boolean).map(c=>{var g;let p;o==="personalizado"?p=(((g=document.getElementById("texto-personalizado"))==null?void 0:g.value)||"").replace("{nombre}",c.nombre.split(" ")[0]):p=n.mensaje(c.nombre.split(" ")[0]);const m=(c.lada||"52")+c.telefono.replace(/\D/g,"");return{...c,mensaje:p,tel:m}});if(!i.length)return;let r=0;const s=document.createElement("div");s.id="campana-modal-overlay",s.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem";const d=()=>{const c=i[r],p=Math.round(r/i.length*100);s.innerHTML=`
+      <div style="background:white;border-radius:16px;padding:2rem;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+          <h3 style="font-size:1rem;font-weight:700">📣 Campaña en curso</h3>
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888">✕</button>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div style="background:#f5f5f5;border-radius:100px;height:6px;margin-bottom:1.5rem">
+          <div style="background:#E91E8C;height:6px;border-radius:100px;width:${p}%;transition:width 0.3s"></div>
+        </div>
+        <p style="font-size:0.75rem;color:#888;text-align:center;margin-top:-1rem;margin-bottom:1.5rem">${r} de ${i.length} enviados</p>
+
+        <!-- Cliente actual -->
+        <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:1rem;display:flex;align-items:center;gap:12px">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1.1rem;flex-shrink:0">
+            ${c.nombre.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p style="font-weight:700;font-size:0.95rem">${c.nombre}</p>
+            <p style="font-size:0.78rem;color:#888">${c.telefono}</p>
+          </div>
+        </div>
+
+        <!-- Preview mensaje -->
+        <div style="background:#e8f5e9;border-radius:10px;padding:0.875rem;font-size:0.8rem;color:#333;white-space:pre-wrap;line-height:1.55;border:1px solid #a5d6a7;max-height:140px;overflow-y:auto;margin-bottom:1.25rem">${c.mensaje}</div>
+
+        <!-- Botones -->
+        <a href="https://wa.me/${c.tel}?text=${encodeURIComponent(c.mensaje)}" target="_blank"
+           onclick="setTimeout(() => document.getElementById('btn-campana-siguiente')?.focus(), 800)"
+           style="display:block;background:#25D366;color:white;padding:12px;border-radius:10px;font-size:0.9rem;font-weight:700;text-decoration:none;text-align:center;margin-bottom:10px">
+          💬 Abrir WhatsApp con ${c.nombre.split(" ")[0]}
+        </a>
+        <div style="display:flex;gap:8px">
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="flex:1;padding:10px;border-radius:10px;border:1px solid #eee;background:white;font-size:0.82rem;color:#888;cursor:pointer">
+            Pausar campaña
+          </button>
+          <button id="btn-campana-siguiente"
+            onclick="window._campanaAvanzar()"
+            style="flex:2;padding:10px;border-radius:10px;border:none;background:#E91E8C;color:white;font-size:0.85rem;font-weight:700;cursor:pointer">
+            ${r<i.length-1?"✅ Enviado → Siguiente":"✅ Finalizar campaña"}
+          </button>
+        </div>
+      </div>
+    `};window._campanaAvanzar=()=>{if(r++,r>=i.length){s.innerHTML=`
+        <div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="font-size:3.5rem;margin-bottom:1rem">🎉</div>
+          <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">¡Campaña completada!</h3>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Se enviaron mensajes a <strong>${i.length} clientes</strong> exitosamente.</p>
+          <button onclick="document.getElementById('campana-modal-overlay').remove()"
+            style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:12px 32px;font-size:0.9rem;font-weight:700;cursor:pointer">
+            Cerrar
+          </button>
+        </div>
+      `;return}d()},d(),document.body.appendChild(s)};async function Qe(){const e=document.getElementById("content");try{const[t,a]=await Promise.all([fetch(b+"/clientes/"),fetch(b+"/pedidos/")]),o=await t.json(),n=await a.json(),i=new Date,r=new Date(i-30*24*60*60*1e3),s=new Date(i-90*24*60*60*1e3),d=o.map(u=>{const y=n.filter(k=>k.cliente_id===u.id&&(k.status==="confirmado"||k.status==="pagado")),f=y.reduce((k,S)=>k+parseFloat(S.total||0),0),v=y.length>0?new Date(y[0].created_at):null,x=y.filter(k=>new Date(k.created_at)>=r).length,h=v?Math.floor((i-v)/(1e3*60*60*24)):null;let $="nuevo",w="⚪ Nuevo",C="#f5f5f5",A="#888";return y.length===0?($="nuevo",w="⚪ Sin compras",C="#f5f5f5",A="#888"):f>=5e3&&x>=1?($="vip",w="⭐ VIP",C="#fff8e1",A="#f57f17"):h>90?($="inactivo",w="🔴 Inactivo",C="#ffebee",A="#c62828"):h>30?($="riesgo",w="🟡 En riesgo",C="#fff8e1",A="#f57f17"):x>=2?($="frecuente",w="🟢 Frecuente",C="#e8f5e9",A="#2e7d32"):($="activo",w="🔵 Activo",C="#e3f2fd",A="#1565c0"),{...u,totalGastado:f,ultimoPedido:v,pedidos30:x,diasSinComprar:h,segmento:$,segmentoLabel:w,segmentoBg:C,segmentoColor:A,totalPedidos:y.length}}).sort((u,y)=>y.totalGastado-u.totalGastado),l=d.filter(u=>u.segmento==="vip").length,c=d.filter(u=>u.segmento==="inactivo").length,p=d.filter(u=>u.segmento==="riesgo").length,m=d.filter(u=>u.segmento==="frecuente"||u.segmento==="activo").length,g=d.filter(u=>u.origen==="tienda").length;window._clientesData=d,e.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+        <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('todos')">
+          <p style="font-size:1.8rem;font-weight:700;color:#333">${o.length}</p>
+          <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total</p>
+        </div>
+        <div style="background:#fdf4ff;border-radius:12px;padding:1rem;border:1px solid #e9d5ff;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('tienda')">
+          <p style="font-size:1.8rem;font-weight:700;color:#7c3aed">${g}</p>
+          <p style="font-size:0.72rem;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px">🛍️ Tienda web</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('vip')">
+          <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${l}</p>
+          <p style="font-size:0.72rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">⭐ VIP</p>
+        </div>
+        <div style="background:#e8f5e9;border-radius:12px;padding:1rem;border:1px solid #a5d6a7;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('activos')">
+          <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${m}</p>
+          <p style="font-size:0.72rem;color:#2e7d32;text-transform:uppercase;letter-spacing:0.5px">🟢 Activos</p>
+        </div>
+        <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('riesgo')">
+          <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${p}</p>
+          <p style="font-size:0.72rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">🟡 En riesgo</p>
+        </div>
+        <div style="background:#ffebee;border-radius:12px;padding:1rem;border:1px solid #ffcdd2;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('inactivo')">
+          <p style="font-size:1.8rem;font-weight:700;color:#c62828">${c}</p>
+          <p style="font-size:0.72rem;color:#c62828;text-transform:uppercase;letter-spacing:0.5px">🔴 Inactivos</p>
+        </div>
+      </div>
+
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Clientes (${o.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
+        </div>
+        <div style="padding:0 1.5rem 1rem;display:flex;gap:8px;flex-wrap:wrap">
+          <input class="form-input" id="cli-buscar" placeholder="🔍 Buscar por nombre o telefono..." style="flex:1;min-width:200px" oninput="filtrarClientes()">
+          <select class="form-input" id="cli-tipo" style="min-width:140px" onchange="filtrarClientes()">
+            <option value="">Todos los tipos</option>
+            <option value="menudeo">Menudeo</option>
+            <option value="mayoreo">Mayoreo variado</option>
+            <option value="zapateria">Corridas</option>
+          </select>
+          <select class="form-input" id="cli-origen" style="min-width:140px" onchange="filtrarClientes()">
+            <option value="">Todos los orígenes</option>
+            <option value="tienda">🛍️ Registrados en tienda</option>
+            <option value="panel">Panel / manual</option>
+          </select>
+        </div>
+        <div id="cli-lista">
+          ${d.map(u=>`
+            <div class="cli-item" data-segmento="${u.segmento}" data-tipo="${u.tipo||""}" data-origen="${u.origen||""}" data-nombre="${u.nombre.toLowerCase()}" data-tel="${u.telefono||""}"
+                 style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
+                 onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
+                 onclick="verCliente('${u.id}')">
+              <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0">
+                ${u.nombre.charAt(0).toUpperCase()}
+              </div>
+              <div style="flex:1;min-width:140px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                  <p style="font-weight:700;font-size:0.95rem">${u.nombre}</p>
+                  <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${u.segmentoBg};color:${u.segmentoColor}">${u.segmentoLabel}</span>
+                  <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#f5f5f5;color:#888">${u.tipo==="mayoreo"?"Mayoreo":u.tipo==="zapateria"?"Corridas":"Menudeo"}</span>
+                  ${u.origen==="tienda"?'<span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#fdf4ff;color:#7c3aed">🛍️ Tienda</span>':""}
+                </div>
+                <p style="font-size:0.78rem;color:#888">${u.telefono||"Sin teléfono"}${u.ciudad?" · "+u.ciudad:""}</p>
+                ${u.comentarios_internos?`<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${u.comentarios_internos.substring(0,50)}${u.comentarios_internos.length>50?"...":""}</p>`:""}
+              </div>
+              <div style="text-align:right;min-width:100px">
+                <p style="font-weight:700;color:#E91E8C;font-size:0.95rem">$${u.totalGastado.toFixed(0)}</p>
+                <p style="font-size:0.72rem;color:#888">${u.totalPedidos} pedidos</p>
+                ${u.diasSinComprar!==null?`<p style="font-size:0.68rem;color:${u.diasSinComprar>60?"#c62828":"#aaa"}">${u.diasSinComprar===0?"Hoy":"Hace "+u.diasSinComprar+" días"}</p>`:""}
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap" onclick="event.stopPropagation()">
+                ${u.tipo==="menudeo"?`<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem;border-color:#7c3aed;color:#7c3aed" onclick="cambiarTipoCliente('${u.id}','mayoreo',this)">→ Mayoreo</button>`:""}
+                ${u.tipo==="mayoreo"?`<button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem" onclick="cambiarTipoCliente('${u.id}','menudeo',this)">→ Menudeo</button>`:""}
+                <button class="btn btn-secondary" style="padding:4px 10px;font-size:0.72rem" onclick="mostrarFormCliente('${u.id}')">Editar</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `}catch{e.innerHTML='<p style="padding:2rem;color:red">Error conectando con el servidor</p>'}}window.filtrarClientes=()=>{var o,n,i;const e=(((o=document.getElementById("cli-buscar"))==null?void 0:o.value)||"").toLowerCase(),t=((n=document.getElementById("cli-tipo"))==null?void 0:n.value)||"",a=((i=document.getElementById("cli-origen"))==null?void 0:i.value)||"";document.querySelectorAll(".cli-item").forEach(r=>{const s=r.dataset.nombre||"",d=r.dataset.tel||"",l=r.dataset.tipo||"",c=r.dataset.origen||"",p=!e||s.includes(e)||d.includes(e),m=!t||l===t,g=!a||c===a;r.style.display=p&&m&&g?"":"none"})};window.filtrarClientesSeg=e=>{const t=document.getElementById("cli-tipo"),a=document.getElementById("cli-origen");t&&(t.value=""),a&&(a.value=""),document.querySelectorAll(".cli-item").forEach(o=>{if(e==="todos"){o.style.display="";return}if(e==="tienda"){o.style.display=o.dataset.origen==="tienda"?"":"none";return}if(e==="activos"){o.style.display=o.dataset.segmento==="activo"||o.dataset.segmento==="frecuente"?"":"none";return}o.style.display=o.dataset.segmento===e?"":"none"})};window.cambiarTipoCliente=async(e,t,a)=>{const o=a.textContent;a.disabled=!0,a.textContent="...";try{const i=await(await fetch(b+`/clientes/${e}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo:t})})).json();if(i&&!i.error){a.textContent="✅ Actualizado",a.style.color="#15803d",a.style.borderColor="#15803d";const r=a.closest(".cli-item");if(r){r.dataset.tipo=t;const s=r.querySelector("[data-badge-tipo]");s&&(s.textContent=t==="mayoreo"?"Mayoreo":"Menudeo")}setTimeout(()=>Qe(),1200)}else a.textContent=o,a.disabled=!1,alert("Error: "+((i==null?void 0:i.error)||"desconocido"))}catch{a.textContent=o,a.disabled=!1}};async function Pt(){const e=document.getElementById("content");try{const a=await(await fetch(b+"/sucursales/")).json();e.innerHTML=`
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Sucursales (${a.length})</h3>
+          <button class="btn btn-primary">+ Nueva sucursal</button>
+        </div>
+        <table>
+          <thead>
+           <tr><th>Nombre</th><th>Tipo</th><th>Direccion</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr>          </thead>
+          <tbody>
+            ${a.map(o=>`
+              <tr>
+                <td><strong>${o.nombre}</strong></td>
+                <td>${o.tipo}</td>
+                <td>${o.direccion||"—"}</td>
+                <td>${o.telefono||"—"}</td>
+                <td><span class="badge badge-success">Activa</span></td>
+             <td>
+              <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormSucursal('${o.id}')">Editar</button>
+              </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `}catch{e.innerHTML='<p style="padding:2rem;color:red">Error conectando con el servidor</p>'}}async function Bt(){const e=document.getElementById("content");try{const[t,a,o,n]=await Promise.all([fetch(b+"/sucursales/").then(r=>r.json()),fetch(b+"/productos/").then(r=>r.json()),fetch(b+"/variantes/").then(r=>r.json()),fetch(b+"/inventario/").then(r=>r.json())]);n.forEach(r=>{r.variantes&&r.variantes.id&&r.variantes.activa!==!1&&!o.find(s=>s.id===r.variantes.id)&&o.push(r.variantes)}),window._invData={sucursales:t,productos:a,variantes:o,inventario:n};const i=a.find(r=>r.sku_interno==="AR1011");if(i){const r=o.filter(d=>d.producto_id===i.id),s=n.filter(d=>r.some(l=>l.id===d.variante_id));console.log(`[Diag AR1011] Variantes en listado: ${r.length}`,r.map(d=>d.color+" T"+d.talla)),console.log(`[Diag AR1011] Con inventario: ${s.length}`)}e.innerHTML=`
+  <div style="margin-bottom:1.5rem">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <input class="form-input" id="inv-buscar" placeholder="🔍 Buscar por nombre o SKU..." style="flex:1;min-width:200px" oninput="renderInventario()">
+      <select class="form-input" id="inv-categoria" style="min-width:140px" onchange="renderInventario()">
+        <option value="">Todas las categorias</option>
+        ${[...new Set(a.map(r=>r.categoria).filter(Boolean))].map(r=>`<option value="${r}">${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join("")}
+      </select>
+      <select class="form-input" id="inv-talla" style="min-width:100px" onchange="renderInventario()">
+        <option value="">Todas las tallas</option>
+        ${Je.map(r=>`<option value="${r}">${r}</option>`).join("")}
+      </select>
+      <select class="form-input" id="inv-estado" style="min-width:130px" onchange="renderInventario()">
+        <option value="">Todos los estados</option>
+        <option value="disponible">Disponible</option>
+        <option value="bajo">Stock bajo</option>
+        <option value="agotado">Agotado</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
+      <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">⚠ Alertas</button>
+      <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Masivo</button>
+      <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
+      <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">− Salida</button>
+      <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
+      <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">↔ Cambio</button>
+      <button class="btn btn-secondary" onclick="mostrarTraspaso()" style="background:#e8eaf6;border-color:#283593;color:#283593">⇄ Traspaso</button>
+    </div>
+  </div>
+  <div id="inv-contenido"></div>
+`,renderInventario()}catch{e.innerHTML='<p style="padding:2rem;color:red">Error conectando con el servidor</p>'}}window.renderInventario=()=>{const{sucursales:e,productos:t,variantes:a,inventario:o}=window._invData,n=(document.getElementById("inv-buscar")?document.getElementById("inv-buscar").value:"").toLowerCase(),i=document.getElementById("inv-categoria")?document.getElementById("inv-categoria").value:"",r=document.getElementById("inv-talla")?document.getElementById("inv-talla").value:"",s=document.getElementById("inv-estado")?document.getElementById("inv-estado").value:"",d=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],l=t.filter(m=>!(!m.activo||n&&!m.nombre.toLowerCase().includes(n)&&!(m.sku_interno||"").toLowerCase().includes(n)||i&&m.categoria!==i)),c=e.map(m=>{const g=o.filter(y=>y.sucursal_id===m.id),u=l.map(y=>{const f=a.filter($=>$.producto_id===y.id&&$.activa!==!1);if(f.length===0)return"";const x=[...new Set(f.map($=>$.color).filter(Boolean))].map($=>{const w=f.filter(S=>S.color===$).sort((S,U)=>d.indexOf(S.talla)-d.indexOf(U.talla));if(r&&!w.find(S=>S.talla===r))return"";const C=w[0]?w[0].color_hex:"#888",A=w[0]?w[0].foto_url:null,k=w.map(S=>{const U=g.find(I=>I.variante_id===S.id),L=U?U.cantidad:null,F=U?U.stock_minimo:3;if(r&&S.talla!==r||s&&(s==="agotado"&&L!==0||s==="bajo"&&(L===null||L===0||L>F)||s==="disponible"&&(L===null||L===0||L<=F)))return"";let j,N;return L===null?(j="#f0f0f0",N="#aaa"):L===0?(j="#ffebee",N="#c62828"):L<=F?(j="#fff8e1",N="#f57f17"):(j="#e8f5e9",N="#2e7d32"),`
+            <div style="display:flex;align-items:center;justify-content:space-between;background:${j};border-radius:10px;padding:8px 12px;border:1px solid ${N}30">
+              <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:44px">T${S.talla}</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <button onclick="cambiarStockInventario('${S.id}', '${m.id}', ${L!==null?L:0}, ${F}, -1)"
+                        style="background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+                <span id="stock-${S.id}-${m.id}" style="font-size:1.1rem;font-weight:700;color:${N};min-width:32px;text-align:center">${L!==null?L:"—"}</span>
+                <button onclick="cambiarStockInventario('${S.id}', '${m.id}', ${L!==null?L:0}, ${F}, 1)"
+                        style="background:#fff;border:1px solid #ddd;border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+              </div>
+            </div>
+          `}).join("");return k.trim()?`
+          <div style="background:#fafafa;border-radius:12px;padding:1rem;margin-bottom:10px;border:1px solid #eee">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              ${A?`<img src="${A}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`:`<div style="width:52px;height:52px;background:${C};border-radius:8px;border:1px solid #eee;flex-shrink:0;opacity:0.7"></div>`}
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:14px;height:14px;border-radius:50%;background:${C};border:2px solid #ddd;flex-shrink:0"></div>
+                <span style="font-size:0.9rem;font-weight:600;color:#333">${$}</span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+              ${k}
+            </div>
+          </div>
+        `:""}).join("");if(!x.trim())return"";const h=y.imagen_principal;return`
+        <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+            ${h?`<img src="${h}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:56px;height:56px;background:#f5f5f5;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">👠</div>'}
+            <div>
+              <p style="font-weight:700;font-size:1rem;color:#1a1a1a;margin-bottom:2px">${y.nombre}</p>
+              <div>
+                <span style="font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px;margin-right:4px">${y.sku_interno||"—"}</span>
+                <span style="font-size:0.72rem;color:#E91E8C;background:#fce4f3;padding:2px 8px;border-radius:100px">${y.categoria||""}</span>
+              </div>
+            </div>
+          </div>
+          ${x}
+        </div>
+      `}).join("");return u.trim()?`
+      <div style="margin-bottom:2rem">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem">
+          <div style="flex:1;height:2px;background:linear-gradient(90deg,#E91E8C,transparent)"></div>
+          <h3 style="font-size:1rem;font-weight:700;color:#E91E8C;white-space:nowrap;padding:0 12px">${m.nombre.toUpperCase()}</h3>
+          <div style="flex:1;height:2px;background:linear-gradient(270deg,#E91E8C,transparent)"></div>
+        </div>
+        ${u}
+      </div>
+    `:""}).join(""),p=document.getElementById("inv-contenido");p&&(p.innerHTML=c||'<div style="text-align:center;padding:3rem;color:#888"><p>No hay inventario registrado</p></div>')};window.cambiarStockInventario=async(e,t,a,o,n)=>{const i=Math.max(0,a+n);try{if((await fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_id:t,cantidad:i,stock_minimo:o,motivo:"Ajuste desde inventario"})})).ok){const s=document.getElementById("stock-"+e+"-"+t);if(s){s.textContent=i;let c;i===0?c="#c62828":i<=o?c="#f57f17":c="#2e7d32",s.style.color=c}const d=window._invData.inventario.find(c=>c.variante_id===e&&c.sucursal_id===t);d&&(d.cantidad=i),document.querySelectorAll(`button[onclick*="${e}"][onclick*="${t}"]`).forEach(c=>{c.setAttribute("onclick",c.getAttribute("onclick").replace(/cambiarStockInventario\('[^']+', '[^']+', \d+,/,`cambiarStockInventario('${e}', '${t}', ${i},`))})}}catch{alert("Error actualizando stock")}};window.editarStock=async(e,t,a,o)=>{const n=prompt("Nueva cantidad:",a);if(n===null)return;const i=prompt("Stock minimo de alerta:",o);if(i!==null)try{const r=await fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_id:t,cantidad:parseInt(n),stock_minimo:parseInt(i),motivo:"Ajuste manual desde inventario"})});if(r.ok){const s=await fetch(b+"/inventario/");window._invData.inventario=await s.json(),renderInventario()}else{const s=await r.json().catch(()=>({}));alert("Error al guardar: "+(s.error||r.status))}}catch{alert("Error conectando con el servidor")}};window.mostrarFormInventario=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Agregar stock</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="inv-sucursal" required>
+            <option value="">Selecciona sucursal...</option>
+            ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="inv-buscar-v" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'inv-v')">
+          <div id="inv-v-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="inv-v">
+          <div id="inv-v-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad *</label>
+          <input class="form-input" id="inv-cantidad" type="number" min="0" placeholder="0" required>
+        </div>
+        <div>
+          <label class="form-label">Stock minimo (alerta)</label>
+          <input class="form-input" id="inv-minimo" type="number" min="0" placeholder="3" value="3">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarInventario()">Guardar stock</button>
+      </div>
+    </div>
+  `};window.guardarInventario=async()=>{const e=document.getElementById("inv-sucursal").value,t=document.getElementById("inv-v").value,a=document.getElementById("inv-cantidad").value,o=document.getElementById("inv-minimo").value||3;if(!e||!t||a===""){alert("Por favor completa todos los campos");return}try{const n=await fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sucursal_id:e,variante_id:t,cantidad:parseInt(a),stock_minimo:parseInt(o),motivo:"Stock cargado manualmente"})});if(n.ok)alert("Stock guardado correctamente"),navegarA("inventario");else{const i=await n.json().catch(()=>({}));alert("Error al guardar stock: "+(i.error||n.status))}}catch{alert("Error conectando con el servidor")}};window.mostrarAlertas=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando alertas...</p>';try{const a=await(await fetch(b+"/inventario/alertas")).json();e.innerHTML=`
+      <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#f57f17">Productos con stock bajo o agotado (${a.length})</h3>
+      </div>
+      ${a.length===0?'<div class="table-card" style="padding:3rem;text-align:center;color:#888"><p>Todo el inventario esta en buen nivel</p></div>':`<div class="table-card"><table>
+          <thead><tr><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Minimo</th><th>Estado</th><th>Accion</th></tr></thead>
+          <tbody>
+            ${a.map(o=>{const n=o.cantidad||0,i=o.stock_minimo||3,r=n===0;return`
+                <tr style="background:${r?"#fff5f5":"#fffdf0"}">
+                  <td><strong>${o.variantes&&o.variantes.productos?o.variantes.productos.nombre:"—"}</strong></td>
+                  <td>${o.variantes&&o.variantes.color||"—"}</td>
+                  <td>${o.variantes&&o.variantes.talla||"—"}</td>
+                  <td>${o.sucursales&&o.sucursales.nombre||"—"}</td>
+                  <td><strong style="color:${r?"#c62828":"#f57f17"}">${n}</strong></td>
+                  <td>${i}</td>
+                  <td><span class="badge ${r?"badge-danger":"badge-warning"}">${r?"Agotado":"Stock bajo"}</span></td>
+                  <td><button class="btn btn-primary" style="padding:4px 10px;font-size:0.75rem" onclick="editarStock('${o.variante_id}', '${o.sucursal_id}', ${n}, ${i})">Reabastecer</button></td>
+                </tr>
+              `}).join("")}
+          </tbody></table></div>`}
+    `}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando alertas</p>'}};window.mostrarAjuste=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Ajuste de inventario</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Para corregir el inventario despues de un conteo fisico o para corregir errores.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="aj-sucursal">
+            ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="aj-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'aj')">
+          <div id="aj-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="aj">
+          <div id="aj-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad correcta *</label>
+          <input class="form-input" id="aj-cantidad" type="number" min="0" placeholder="Cuantos pares hay realmente">
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="aj-motivo">
+            <option value="Conteo fisico">Conteo fisico</option>
+            <option value="Correccion de error">Correccion de error</option>
+            <option value="Merma">Merma o perdida</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarAjuste()">Guardar ajuste</button>
+      </div>
+    </div>
+  `};window.guardarAjuste=async()=>{const e=document.getElementById("aj").value,t=document.getElementById("aj-sucursal").value,a=document.getElementById("aj-cantidad").value,o=document.getElementById("aj-motivo").value;if(!e||!t||a===""){alert("Por favor completa todos los campos");return}try{const i=await(await fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_id:t,cantidad:parseInt(a),motivo:o})})).json();i.ok?(alert("Ajuste guardado. Anterior: "+i.cantidad_anterior+" pares ÔåÆ Nuevo: "+i.cantidad_nueva+" pares"),navegarA("inventario")):alert("Error: "+JSON.stringify(i))}catch{alert("Error conectando con el servidor")}};window.mostrarCambio=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:700px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Cambio de producto</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Cuando un cliente devuelve un producto y se lleva otro. El inventario se ajusta automaticamente.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+        <div style="background:#fff8e1;border-radius:8px;padding:1rem;border:1px solid #ffe082">
+          <p style="font-weight:600;color:#f57f17;margin-bottom:0.5rem">Producto que REGRESA</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:0.75rem">El cliente devuelve este par</p>
+          <input class="form-input" id="cam-buscar-origen" placeholder="Buscar..." oninput="buscarVariante(this.value, 'cam-origen')">
+          <div id="cam-origen-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="cam-origen">
+          <div id="cam-origen-seleccionado" style="display:none;margin-top:8px;padding:6px 10px;background:#fff8e1;border-radius:6px;font-size:0.8rem;color:#f57f17"></div>
+        </div>
+        <div style="background:#e8f5e9;border-radius:8px;padding:1rem;border:1px solid #a5d6a7">
+          <p style="font-weight:600;color:#2e7d32;margin-bottom:0.5rem">Producto que SE LLEVA</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:0.75rem">El cliente se lleva este par</p>
+          <input class="form-input" id="cam-buscar-destino" placeholder="Buscar..." oninput="buscarVariante(this.value, 'cam-destino')">
+          <div id="cam-destino-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="cam-destino">
+          <div id="cam-destino-seleccionado" style="display:none;margin-top:8px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.8rem;color:#2e7d32"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="cam-sucursal">
+            ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="cam-motivo">
+            <option value="Talla incorrecta">Talla incorrecta</option>
+            <option value="Cambio de modelo">Cambio de modelo</option>
+            <option value="Cambio de color">Cambio de color</option>
+            <option value="Defecto">Defecto en el producto</option>
+            <option value="Preferencia del cliente">Preferencia del cliente</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarCambio()">Registrar cambio</button>
+      </div>
+    </div>
+  `};window.guardarCambio=async()=>{const e=document.getElementById("cam-origen").value,t=document.getElementById("cam-destino").value,a=document.getElementById("cam-sucursal").value,o=document.getElementById("cam-motivo").value;if(!e||!t||!a){alert("Por favor selecciona ambos productos y la sucursal");return}if(e===t){alert("El producto que regresa y el que se lleva deben ser diferentes");return}try{const i=await(await fetch(b+"/movimientos/cambio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_origen_id:e,variante_destino_id:t,sucursal_id:a,motivo:o})})).json();i.ok?(alert("Cambio registrado. El inventario se actualizo automaticamente."),navegarA("inventario")):alert("Error: "+JSON.stringify(i))}catch{alert("Error conectando con el servidor")}};window.buscarVariante=(e,t)=>{const a=window._variantesCache||[],o=document.getElementById(t+"-resultados");if(!o)return;if(!e||e.length<2){o.style.display="none";return}const n=e.toLowerCase().split(" ").filter(d=>d),i=a.filter(d=>{const l=(d.productos&&d.productos.nombre||"").toLowerCase(),c=(d.color||"").toLowerCase(),p=(d.talla||"").toLowerCase(),m=(d.sku||"").toLowerCase(),g=l+" "+c+" "+p+" "+m;return n.every(u=>g.includes(u))}),r=i.slice(0,15);if(r.length===0){o.innerHTML='<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron resultados</div>',o.style.display="block";return}const s=t==="ped-prod";if(s){const d=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],l={};i.forEach(p=>{const m=(p.producto_id||"")+"|"+(p.color||"");l[m]||(l[m]={nombre:p.productos&&p.productos.nombre||"—",color:p.color||"",hex:p.color_hex,foto:p.foto_url,vars:[]}),l[m].vars.push(p)});const c=Object.values(l).slice(0,8);o.innerHTML=c.map(p=>{const m=p.vars.sort((g,u)=>d.indexOf(g.talla)-d.indexOf(u.talla)).map(g=>{const u=(p.nombre+" - "+p.color+" - T"+g.talla).replace(/'/g,"");return`<button onclick="agregarItemPedido('${g.id}', '${u}');this.style.background='#E91E8C';this.style.color='#fff';this.style.borderColor='#E91E8C'"
+                          style="min-width:46px;min-height:42px;padding:6px 12px;border:1.5px solid #ddd;border-radius:9px;background:#fff;color:#333;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">T${g.talla}</button>`}).join("");return`
+        <div style="padding:11px 12px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+            ${p.foto?`<img src="${p.foto}" style="width:38px;height:38px;object-fit:cover;border-radius:7px;flex-shrink:0">`:'<div style="width:38px;height:38px;background:#f3f3f3;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
+            ${p.hex?`<span style="width:13px;height:13px;border-radius:50%;background:${p.hex};border:1px solid #ddd;flex-shrink:0"></span>`:""}
+            <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${p.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${p.color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${m}</div>
+        </div>`}).join(""),o.style.display="block";return}o.innerHTML=r.map(d=>{const l=(d.productos&&d.productos.nombre||"")+" - "+d.color+" - T"+d.talla;return`
+      <div onclick="${s?`agregarItemPedido('${d.id}', '${l.replace(/'/g,"")}')`:`seleccionarVariante('${d.id}', '${l.replace(/'/g,"")}', '${t}')`}; document.getElementById('${t}-resultados').style.display='none'; document.getElementById('${s?"ped-buscar-prod":t+"-buscar"}') && (document.getElementById('${s?"ped-buscar-prod":t+"-buscar"}').value='')"
+           style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
+           onmouseover="this.style.background='#f5f5f5'"
+           onmouseout="this.style.background='white'">
+        ${d.color_hex?'<div style="width:12px;height:12px;border-radius:50%;background:'+d.color_hex+';border:1px solid #ddd;flex-shrink:0"></div>':""}
+        <div>
+          <strong>${d.productos&&d.productos.nombre||"—"}</strong>
+          <span style="color:#888"> · ${d.color} · Talla ${d.talla}</span>
+          <span style="color:#ccc;font-size:0.75rem"> · ${d.sku||""}</span>
+        </div>
+      </div>
+    `}).join(""),o.style.display="block"};window.seleccionarVariante=(e,t,a)=>{const o=document.getElementById(a);o&&(o.value=e);const n=document.getElementById(a+"-seleccionado");n&&(n.textContent="Ô£ô "+t,n.style.display="block");const i=document.getElementById(a+"-resultados");i&&(i.style.display="none")};function he(e,t){const a=t||{},o=!t;let n="";const i=window._variantesFotos&&window._variantesFotos[e]||[];i.length>0&&(n=i.map((l,c)=>{const p=l.type==="url"?l.value:l.previewUrl,m=l.isPortada;return`
+        <div style="position:relative;cursor:pointer" data-fidx="${c}">
+          <img src="${p}" 
+               style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${m?"#E91E8C":"#eee"}"
+               onclick="seleccionarPortadaClave(${e}, ${c})">
+          ${m?'<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>':""}
+          <button type="button" onclick="eliminarFotoClave(${e}, ${c})" 
+                  style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+        </div>
+      `}).join(""));const r=i.find(l=>l.isPortada)||i[0],s=r?r.type==="url"?r.value:r.previewUrl:"",d=s?`<img src="${s}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:36px;height:36px;background:#f0f0f0;border-radius:6px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#ccc;flex-shrink:0">📷</div>';return`
+    <div class="variante-item" id="variante-${e}" style="margin-bottom:0.625rem;border-radius:12px;border:1px solid #eee;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow:hidden">
+
+      <!-- ── Compact header: always visible ── -->
+      <div onclick="toggleVariante(${e})"
+           style="display:flex;align-items:center;gap:10px;padding:0.75rem 1rem;background:white;cursor:pointer;user-select:none">
+        <div id="v${e}-swatch-header"
+             style="width:26px;height:26px;border-radius:50%;background:${a.color_hex||"#cccccc"};border:2px solid #ddd;flex-shrink:0"></div>
+        <span id="v${e}-header-label"
+              style="font-weight:600;color:#333;font-size:0.9rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${a.color||"Color "+(e+1)}
+        </span>
+        <div id="v${e}-header-thumb" style="flex-shrink:0">${d}</div>
+        ${e===0?'<span style="font-size:0.65rem;background:#E91E8C;color:white;padding:2px 8px;border-radius:100px;font-weight:700;flex-shrink:0">PORTADA</span>':""}
+        <span id="v${e}-chevron"
+              style="color:#bbb;font-size:0.8rem;flex-shrink:0;transition:transform 0.2s;transform:${o?"rotate(180deg)":"rotate(0deg)"}">▼</span>
+        ${e>0?`<button type="button" onclick="event.stopPropagation();eliminarColorVariante(${e},this)"
+                style="background:#ffebee;border:1px solid #ffcdd2;color:#c62828;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.75rem;font-weight:600;flex-shrink:0;line-height:1">✕</button>`:""}
+      </div>
+
+      <!-- ── Expandable body ── -->
+      <div id="v${e}-body" style="display:${o?"block":"none"};padding:1rem;background:#fafafa;border-top:1px solid #f0f0f0">
+
+        <!-- Palette -->
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.76rem;font-weight:600;color:#888;display:block;margin-bottom:5px">Paleta rápida</label>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            ${Ct.map(l=>`
+              <div onclick="seleccionarColor(${e}, '${l.hex}', '${l.nombre}')"
+                   title="${l.nombre}"
+                   style="width:24px;height:24px;background:${l.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
+                   onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <!-- Color picker + name -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap">
+          <input type="color" id="v${e}-hex" value="${a.color_hex||"#000000"}"
+                 style="width:40px;height:40px;border:2px solid #eee;border-radius:8px;cursor:pointer;padding:2px;flex-shrink:0"
+                 oninput="var s=document.getElementById('v${e}-swatch-header');if(s)s.style.background=this.value">
+          <input class="form-input" id="v${e}-nombre"
+                 placeholder="Nombre del color (ej: Negro, Nude, Carey...)"
+                 value="${a.color||""}" style="flex:1;min-width:130px"
+                 oninput="actualizarTablaStock();var lbl=document.getElementById('v${e}-header-label');if(lbl)lbl.textContent=this.value||'Color ${e+1}'">
+        </div>
+
+        <div style="background:white;border-radius:10px;padding:0.875rem;border:1px dashed #ddd">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+            <div>
+              <p style="font-size:0.8rem;font-weight:600;color:#555;margin-bottom:1px">Fotos de este color</p>
+              <p style="font-size:0.7rem;color:#aaa">La 1ª foto será portada · tócala para cambiarla</p>
+            </div>
+            <button type="button" class="btn btn-secondary"
+                    onclick="document.getElementById('v${e}-imgs').click()"
+                    style="font-size:0.8rem;padding:5px 12px">📷 Subir fotos</button>
+            <input type="file" id="v${e}-imgs" multiple accept="image/*"
+                   onchange="previsualizarImagenes(this,${e})" style="display:none">
+          </div>
+          <div id="v${e}-preview" style="display:flex;gap:8px;flex-wrap:wrap">
+            ${n||'<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `}window.eliminarColorVariante=async(e,t)=>{const a=document.getElementById("v"+e+"-nombre"),o=a?a.value:null;if(o&&window._productoEditandoId&&window._coloresExistentes){if(!confirm("Eliminar el color "+o+" y todas sus variantes?"))return;try{const r=(await(await fetch(b+"/variantes/producto/"+window._productoEditandoId)).json()).filter(s=>s.color===o);for(const s of r)await fetch(b+"/variantes/"+s.id+"/eliminar",{method:"POST",headers:{"Content-Type":"application/json"}});window._coloresExistentes=window._coloresExistentes.filter(s=>s.color!==o),window._coloresEliminados||(window._coloresEliminados=[]),window._coloresEliminados.push(o),alert("Color eliminado correctamente")}catch{alert("Error eliminando el color");return}}t.closest(".variante-item").remove(),window._variantesFotos&&window._variantesFotos[e]&&(window._variantesFotos[e].forEach(n=>{n.type==="file"&&n.previewUrl&&URL.revokeObjectURL(n.previewUrl)}),delete window._variantesFotos[e]),actualizarTablaStock()};window.actualizarVistaPreviews=e=>{const t=document.getElementById("v"+e+"-preview");if(!t)return;const a=window._variantesFotos[e]||[];if(a.length===0){t.innerHTML='<div style="width:64px;height:64px;background:#f5f5f5;border-radius:8px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1.3rem;color:#ccc">📷</div>';return}t.innerHTML=a.map((n,i)=>{const r=n.type==="url"?n.value:n.previewUrl,s=n.isPortada;return`
+      <div style="position:relative;cursor:pointer" data-fidx="${i}">
+        <img src="${r}" 
+             style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${s?"#E91E8C":"#eee"}"
+             onclick="seleccionarPortadaClave(${e}, ${i})">
+        ${s?'<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>':""}
+        <button type="button" onclick="eliminarFotoClave(${e}, ${i})" 
+                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+      </div>
+    `}).join("");const o=document.getElementById("v"+e+"-header-thumb");if(o){const n=a.find(r=>r.isPortada)||a[0],i=n?n.type==="url"?n.value:n.previewUrl:"";o.innerHTML=i?`<img src="${i}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:36px;height:36px;background:#f0f0f0;border-radius:6px;border:2px dashed #ddd;display:flex;align-items:center;justify-content:center;font-size:1rem;color:#ccc;flex-shrink:0">📷</div>'}};window.seleccionarPortadaClave=(e,t)=>{const a=window._variantesFotos[e]||[];a.forEach((n,i)=>{n.isPortada=i===t});const o=a.splice(t,1)[0];a.unshift(o),window.actualizarVistaPreviews(e)};window.eliminarFotoClave=(e,t)=>{const a=window._variantesFotos[e]||[],o=a.splice(t,1)[0];o&&o.type==="file"&&o.previewUrl&&URL.revokeObjectURL(o.previewUrl);const n=document.getElementById("v"+e+"-nombre");if(n&&window._coloresExistentes&&o&&o.type==="url"){const i=n.value,r=window._coloresExistentes.find(s=>s.color===i);r&&(r.imagenes&&(r.imagenes=r.imagenes.filter(s=>s!==o.value)),r.foto_url===o.value&&(r.foto_url=r.imagenes&&r.imagenes.length>0?r.imagenes[0]:null))}o&&o.isPortada&&a.length>0&&(a[0].isPortada=!0),window.actualizarVistaPreviews(e)};window.mostrarFormProducto=e=>{e||(window._coloresExistentes=null),Xe=window._coloresExistentes&&window._coloresExistentes.length>0?window._coloresExistentes.length:1;const t=e||{};window._variantesFotos={},window._coloresExistentes&&window._coloresExistentes.length>0?window._coloresExistentes.forEach((o,n)=>{window._variantesFotos[n]=[],o.imagenes&&o.imagenes.length>0?o.imagenes.forEach((i,r)=>{window._variantesFotos[n].push({type:"url",value:i,isPortada:r===0})}):o.foto_url&&window._variantesFotos[n].push({type:"url",value:o.foto_url,isPortada:!0})}):window._variantesFotos[0]=[];const a=document.getElementById("content");a.innerHTML=`
+    <div class="table-card" style="padding:2rem;overflow:visible">
+      <div style="position:sticky;top:0;z-index:50;background:white;border-bottom:1px solid #eee;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;margin:-2rem -2rem 1.5rem -2rem;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <button type="button" class="btn btn-secondary" onclick="navegarA('productos')" style="display:flex;align-items:center;gap:6px;padding:6px 14px;font-size:0.85rem">← Volver</button>
+        <button type="button" id="btn-guardar" class="btn btn-primary" onclick="guardarProducto()" style="padding:6px 18px;font-size:0.85rem">💾 Guardar</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Nombre del producto *</label>
+          <input class="form-input" id="f-nombre" required placeholder="Ej: Sandalia de tacon Valentina" value="${t.nombre||""}" oninput="actualizarSKU()">
+        </div>
+        <div>
+          <label class="form-label">SKU interno <span style="color:#E91E8C;font-size:0.75rem">(auto-generado)</span></label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="f-sku" placeholder="Se genera automaticamente" value="${t.sku_interno||""}">
+            <button type="button" class="btn btn-secondary" onclick="regenerarSKU()" style="white-space:nowrap;padding:8px 12px">Regenerar</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Marca (visible al cliente)</label>
+          <input class="form-input" id="f-marca" placeholder="Ej: Zapatillas May" value="${t.marca||""}">
+        </div>
+        <div>
+          <label class="form-label">Proveedor (interno)</label>
+          <input class="form-input" id="f-proveedor" placeholder="Nombre del proveedor" value="${t.proveedor||""}" oninput="actualizarSKU()">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Categoria *</label>
+          <select class="form-input" id="f-categoria" required onchange="actualizarSKU()">
+            <option value="">Selecciona...</option>
+            ${zt.map(o=>`<option value="${o.value}" ${t.categoria===o.value?"selected":""}>${o.label}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Subcategoria</label>
+          <input class="form-input" id="f-subcategoria" placeholder="Ej: Casual, Fiesta, Trabajo" value="${t.subcategoria||""}">
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Descripcion</label>
+        <textarea class="form-input" id="f-descripcion" rows="3" placeholder="Describe el producto detalladamente para SEO...">${t.descripcion||""}</textarea>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Detalles tecnicos</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+          <div><label class="form-label">Material</label><input class="form-input" id="f-material" placeholder="Ej: Cuero sintetico" value="${t.material||""}"></div>
+          <div><label class="form-label">Material suela</label><input class="form-input" id="f-suela" placeholder="Ej: Hule" value="${t.material_suela||""}"></div>
+          <div><label class="form-label">Forro</label><input class="form-input" id="f-forro" placeholder="Ej: Textil" value="${t.forro||""}"></div>
+          <div>
+            <label class="form-label">Horma</label>
+            <select class="form-input" id="f-horma">
+              <option value="">Selecciona...</option>
+              <option value="normal" ${t.horma==="normal"?"selected":""}>Normal</option>
+              <option value="reducida" ${t.horma==="reducida"?"selected":""}>Reducida</option>
+              <option value="amplia" ${t.horma==="amplia"?"selected":""}>Amplia</option>
+            </select>
+          </div>
+          <div><label class="form-label">Altura tacon (cm)</label><input class="form-input" id="f-tacon" type="number" step="0.5" placeholder="Ej: 8.5" value="${t.altura_tacon||""}"></div>
+          <div>
+            <label class="form-label">Tipo de tacon</label>
+            <select class="form-input" id="f-tipotacon">
+              <option value="">Selecciona...</option>
+              <option value="aguja" ${t.tipo_tacon==="aguja"?"selected":""}>Aguja</option>
+              <option value="bloque" ${t.tipo_tacon==="bloque"?"selected":""}>Bloque</option>
+              <option value="cuna" ${t.tipo_tacon==="cuna"?"selected":""}>Cuna</option>
+              <option value="plataforma" ${t.tipo_tacon==="plataforma"?"selected":""}>Plataforma</option>
+              <option value="sin_tacon" ${t.tipo_tacon==="sin_tacon"?"selected":""}>Sin tacon</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Precios</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="form-label">Costo (interno, no visible) *</label>
+            <input class="form-input" id="f-costo" type="number" step="0.01" required placeholder="0.00" value="${t.costo||""}">
+          </div>
+          <div>
+            <label class="form-label">Precio menudeo (1 par) *</label>
+            <input class="form-input" id="f-menudeo" type="number" step="0.01" required placeholder="0.00" value="${t.precio_menudeo||""}">
+          </div>
+        </div>
+        <div style="background:#f9f9f9;border-radius:8px;padding:1rem;border:1px solid #eee">
+          <p style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;color:#333">Precios mayoreo y corrida</p>
+          <p style="font-size:0.75rem;color:#888;margin-bottom:1rem">Deja en blanco para calcular automatico. Si pones un valor ese tiene prioridad.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div>
+              <label class="form-label">Mayoreo 3-5 pares variados</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $30</p>
+              <input class="form-input" id="f-mayoreo3" type="number" step="0.01" placeholder="Automatico" value="${t.precio_mayoreo3||""}">
+            </div>
+            <div>
+              <label class="form-label">Mayoreo 6+ pares variados</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $70</p>
+              <input class="form-input" id="f-mayoreo6" type="number" step="0.01" placeholder="Automatico" value="${t.precio_mayoreo6||""}">
+            </div>
+            <div>
+              <label class="form-label">Media corrida (6 mismo estilo)</label>
+              <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Blanco = menudeo - $100</p>
+              <input class="form-input" id="f-corrida" type="number" step="0.01" placeholder="Automatico" value="${t.precio_corrida||""}">
+            </div>
+          </div>
+          <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-corrida-activa" ${t.corrida_activa?"checked":""}>
+              <span class="form-label" style="margin:0">Permite media corrida</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-oferta" ${t.es_oferta?"checked":""}>
+              <span class="form-label" style="margin:0;color:#E91E8C">Es oferta (sin descuento adicional)</span>
+            </label>
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-descuento" onchange="toggleDescuento()" ${t.tiene_descuento?"checked":""}>
+              <span class="form-label" style="margin:0">Tiene descuento</span>
+            </label>
+            <div id="descuento-pct" style="display:${t.tiene_descuento?"flex":"none"};align-items:center;gap:6px">
+              <input class="form-input" id="f-pct" type="number" min="0" max="100" placeholder="%" style="width:70px" value="${t.porcentaje_descuento||""}">
+              <span class="form-label" style="margin:0">%</span>
+            </div>
+            <div>
+              <label class="form-label">Precio antes (tachado)</label>
+              <input class="form-input" id="f-antes" type="number" step="0.01" placeholder="0.00" value="${t.precio_antes||""}" style="width:130px">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Colores e imagenes</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Selecciona de la paleta o personaliza el color. Sube las fotos de cada color por separado.</p>
+        ${t&&t.foto_url?`<img src="${t.foto_url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd;margin-top:8px">`:""}
+        ${window._coloresExistentes&&window._coloresExistentes.length>1?`
+  <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7">
+    <p style="font-size:0.8rem;font-weight:600;color:#2e7d32;margin-bottom:8px">🖼️ Color portada (aparece primero en la tienda)</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${window._coloresExistentes.map((o,n)=>`
+        <div onclick="seleccionarColorPortada(${n})" id="portada-color-${n}"
+             style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:2px solid ${n===0?"#2e7d32":"#ddd"};cursor:pointer;background:${n===0?"#e8f5e9":"white"}">
+          <div style="width:16px;height:16px;border-radius:50%;background:${o.color_hex};border:1px solid #ddd;flex-shrink:0"></div>
+          <span style="font-size:0.82rem;font-weight:500">${o.color}</span>
+          ${n===0?'<span style="font-size:0.68rem;color:#2e7d32;font-weight:700">✓ PORTADA</span>':""}
+        </div>
+      `).join("")}
+    </div>
+  </div>
+`:""}
+<div id="variantes-container">
+  ${window._coloresExistentes&&window._coloresExistentes.length>0?window._coloresExistentes.map((o,n)=>he(n,o)).join(""):he(0,null)}
+</div>
+        <button type="button" class="btn btn-secondary" onclick="agregarVariante()">+ Agregar otro color</button>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Tallas disponibles</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px">
+  ${Je.map(o=>`
+    <label class="talla-label" style="display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 8px;border-radius:6px;cursor:pointer;border:2px solid ${t.tallas_disponibles&&t.tallas_disponibles.includes(o)?"#E91E8C":"transparent"};background:${t.tallas_disponibles&&t.tallas_disponibles.includes(o)?"#fce4f3":"#f5f5f5"}">
+      <input type="checkbox" value="${o}" style="display:none" onchange="toggleTalla(this)" ${t.tallas_disponibles&&t.tallas_disponibles.includes(o)?"checked":""}>
+      <span>${o}</span>
+    </label>
+  `).join("")}
+</div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">${t.id?"Agregar resurtido":"Stock inicial"}</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">${t.id?"Los pares que captures aquí se suman al inventario actual como entrada de mercancía.":"Captura cuantos pares tienes disponibles. Se asignarán a la sucursal seleccionada."}</p>
+        <div style="margin-bottom:1rem">
+          <label class="form-label">Asignar a sucursal</label>
+          <select class="form-input" id="f-sucursal-stock" style="max-width:280px">
+            <option value="">Cargando sucursales...</option>
+          </select>
+        </div>
+        <div id="stock-inicial-container">
+          <p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+          <div>
+            <p style="font-weight:600;color:#333;margin-bottom:2px">Logistica y SEO</p>
+            <p style="font-size:0.75rem;color:#aaa">Los campos de SEO se llenan automaticamente, pero puedes editarlos.</p>
+          </div>
+          <button type="button" id="btn-generar-seo" onclick="generarSEO()"
+                  style="display:flex;align-items:center;gap:6px;padding:7px 16px;background:#f3e5f5;border:1px solid #ce93d8;color:#6a1b9a;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:all 0.2s">
+            ✨ Generar SEO
+          </button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Peso en kilos (para envio)</label>
+            <input class="form-input" id="f-peso" type="number" step="0.01" placeholder="Ej: 0.45" value="${t.peso_gramos?(t.peso_gramos/1e3).toFixed(2):""}">
+          </div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Slug URL <span style="color:#888;font-size:0.72rem">(para SEO)</span></span>
+              <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
+            </label>
+            <input class="form-input" id="f-slug" placeholder="se genera del nombre del producto" value="${t.slug||""}" oninput="this.dataset.autofilled='false'">
+          </div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Meta titulo <span style="color:#888;font-size:0.72rem">(SEO)</span></span>
+              <span style="font-size:0.68rem;background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:100px;font-weight:600">Auto</span>
+            </label>
+            <input class="form-input" id="f-metatitulo" placeholder="se genera del nombre del producto" value="${t.meta_titulo||""}" oninput="this.dataset.autofilled='false'">
+          </div>
+          <div>
+            <label class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span>Meta descripcion <span style="color:#888;font-size:0.72rem">(Google)</span></span>
+              <span id="metadesc-counter" style="font-size:0.72rem;color:${t.meta_descripcion&&t.meta_descripcion.length>140?"#e65100":"#888"}">${t.meta_descripcion?t.meta_descripcion.length+"/160":"0/160"}</span>
+            </label>
+            <textarea class="form-input" id="f-metadesc" rows="3"
+                      placeholder="Usa ✨ Generar SEO para crear una descripcion optimizada para Google (max 160 caracteres)"
+                      style="resize:vertical"
+                      oninput="var c=document.getElementById('metadesc-counter');if(c){c.textContent=this.value.length+'/160';c.style.color=this.value.length>160?'#c62828':this.value.length>140?'#e65100':'#888'}">${t.meta_descripcion||""}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <p style="font-weight:600;color:#333;margin:0">🎬 Video del producto</p>
+          <span style="font-size:0.72rem;background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:100px;font-weight:600">Opcional</span>
+        </div>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:12px">Pega un link de YouTube, TikTok, Vimeo o sube un MP4. Se mostrará en el modal del producto en la tienda.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+          <input class="form-input" id="f-video-url"
+                 placeholder="https://youtube.com/watch?v=... · https://tiktok.com/... · archivo.mp4"
+                 value="${t.video_url||""}"
+                 style="flex:1;min-width:200px"
+                 oninput="previsualizarVideoPanel(this.value)">
+          <button type="button"
+                  onclick="document.getElementById('f-video-file').click()"
+                  style="background:#f3f4f6;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.82rem;font-weight:600;color:#374151;white-space:nowrap">
+            📁 Subir video
+          </button>
+          <input type="file" id="f-video-file" accept="video/*" style="display:none"
+                 onchange="subirVideoProducto(this)">
+        </div>
+        <div id="video-preview-panel" style="margin-top:8px">
+          ${t.video_url?`<div style="font-size:0.8rem;color:#555;background:#f5f5f5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px"><span>🎬</span><a href="${t.video_url}" target="_blank" rel="noopener" style="color:#E91E8C;word-break:break-all;flex:1">${t.video_url}</a></div>`:""}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <input type="hidden" id="f-producto-id" value="${t.id||""}">
+        <button type="button" class="btn btn-primary" id="btn-guardar" onclick="guardarProducto()">💾 Guardar producto</button>
+      </div>
+    </div>
+  `,fetch(b+"/sucursales/").then(o=>o.json()).then(o=>{const n=document.getElementById("f-sucursal-stock");n&&(n.innerHTML=o.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")),setTimeout(()=>actualizarTablaStock(),100)})};window.seleccionarColorPortada=e=>{if(!window._coloresExistentes)return;const t=window._coloresExistentes.length,a={};a[0]=window._variantesFotos[e]||[];let o=1;for(let r=0;r<t;r++)r!==e&&(a[o++]=window._variantesFotos[r]||[]);window._variantesFotos=a;const n=window._coloresExistentes.splice(e,1)[0];window._coloresExistentes.unshift(n),document.querySelectorAll('[id^="portada-color-"]').forEach((r,s)=>{const d=s===0;r.style.borderColor=d?"#2e7d32":"#ddd",r.style.background=d?"#e8f5e9":"white",r.innerHTML=`
+      <div style="width:16px;height:16px;border-radius:50%;background:${window._coloresExistentes[s].color_hex};border:1px solid #ddd;flex-shrink:0"></div>
+      <span style="font-size:0.82rem;font-weight:500">${window._coloresExistentes[s].color}</span>
+      ${d?'<span style="font-size:0.68rem;color:#2e7d32;font-weight:700">✓ PORTADA</span>':""}
+    `,r.setAttribute("onclick","seleccionarColorPortada("+s+")")});const i=document.getElementById("variantes-container");i&&(i.innerHTML=window._coloresExistentes.map((r,s)=>he(s,r)).join(""))};const et=e=>e.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9\s-]/g,"").trim().replace(/\s+/g,"-").replace(/-+/g,"-").replace(/^-+|-+$/g,"");window.actualizarSKU=async()=>{const e=document.getElementById("f-nombre")?document.getElementById("f-nombre").value:"",t=document.getElementById("f-categoria")?document.getElementById("f-categoria").value:"",a=document.getElementById("f-proveedor")?document.getElementById("f-proveedor").value:"",o=document.getElementById("f-sku");if(o&&!o.value&&e&&t&&a)try{const i=await(await fetch(b+"/productos/siguiente-sku/"+t+"/"+encodeURIComponent(a))).json();o.value=i.sku_base}catch{}if(e){const n=document.getElementById("f-slug");n&&(!n.value||n.dataset.autofilled==="true")&&(n.value=et(e),n.dataset.autofilled="true");const i=document.getElementById("f-metatitulo");i&&(!i.value||i.dataset.autofilled==="true")&&(i.value=e.trim()+" | Zapatillas May",i.dataset.autofilled="true")}};window.regenerarSKU=async()=>{const e=document.getElementById("f-categoria")?document.getElementById("f-categoria").value:"",t=document.getElementById("f-proveedor")?document.getElementById("f-proveedor").value:"";if(e&&t)try{const o=await(await fetch(b+"/productos/siguiente-sku/"+e+"/"+encodeURIComponent(t))).json(),n=document.getElementById("f-sku");n&&(n.value=o.sku_base)}catch{}else alert("Selecciona categoria y escribe el proveedor primero")};function At(e,t,a,o,n,i,r){const s=document.getElementById("f-slug"),d=document.getElementById("f-metatitulo"),l=document.getElementById("f-metadesc");s&&!s.value&&(s.value=et(e)),d&&!d.value&&(d.value=e+" | Zapatillas May");const c=["Compra "+e+" en Zapatillas May."];if(t){const m=t.split(/[.!?\n]/)[0].trim();m.length>10&&c.push(m.slice(0,65)+(m.length>65?"...":""))}else if(a){const m={sandalia:"Sandalia elegante para dama",bota:"Bota de moda para dama",tenis:"Tenis casual para dama",mocasin:"Mocasín cómodo para dama",zapatilla:"Zapatilla de moda para dama",plataforma:"Plataforma cómoda para dama"};c.push((m[a]||a)+".")}o&&c.push("Material "+o+"."),n&&i?c.push("Tacón "+i+" "+n+" cm."):n&&c.push("Tacón "+n+" cm."),r&&c.push("Desde $"+parseInt(r).toLocaleString("es-MX")+" MXN."),c.push("Envío a todo México.");let p=c.join(" ");p.length>160&&(p=p.slice(0,157)+"..."),l&&tt(p)}function tt(e){const t=document.getElementById("f-metadesc");if(t){t.value=e;const a=document.getElementById("metadesc-counter");a&&(a.textContent=e.length+"/160",a.style.color=e.length>160?"#c62828":e.length>140?"#e65100":"#4caf50")}}window.generarSEO=async()=>{var l,c,p,m,g,u,y,f;const e=(((l=document.getElementById("f-nombre"))==null?void 0:l.value)||"").trim(),t=(((c=document.getElementById("f-descripcion"))==null?void 0:c.value)||"").trim(),a=(((p=document.getElementById("f-categoria"))==null?void 0:p.value)||"").trim(),o=(((m=document.getElementById("f-material"))==null?void 0:m.value)||"").trim(),n=(((g=document.getElementById("f-tacon"))==null?void 0:g.value)||"").trim(),i=(((u=document.getElementById("f-tipotacon"))==null?void 0:u.value)||"").trim(),r=(((y=document.getElementById("f-menudeo"))==null?void 0:y.value)||"").trim(),s=(((f=document.getElementById("f-horma"))==null?void 0:f.value)||"").trim();if(!e&&!t){alert("Escribe el nombre o la descripción del producto primero");return}const d=document.getElementById("btn-generar-seo");d&&(d.innerHTML='<span style="display:inline-block;animation:spin 0.8s linear infinite">⏳</span> Analizando...',d.disabled=!0,d.style.opacity="0.7");try{const x=await(await fetch(b+"/productos/generar-seo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nombre:e,descripcion:t,categoria:a,material:o,tacon:n,tipo_tacon:i,precio:r,horma:s})})).json();if(x.error)throw new Error(x.error);const h=document.getElementById("f-slug"),$=document.getElementById("f-metatitulo");if(h&&x.slug&&(h.value=x.slug),$&&x.meta_titulo&&($.value=x.meta_titulo),x.meta_descripcion&&tt(x.meta_descripcion),x.nombre_producto&&e!==x.nombre_producto){const w=document.getElementById("f-nombre");if(w){let C=document.getElementById("seo-nombre-sugerido");C||(C=document.createElement("div"),C.id="seo-nombre-sugerido",C.style.cssText="margin-top:6px;padding:8px 12px;background:#f3e5f5;border-radius:8px;border:1px solid #ce93d8;font-size:0.78rem;color:#6a1b9a;display:flex;align-items:center;justify-content:space-between;gap:8px",w.parentElement.appendChild(C)),C.dataset.sugerido=x.nombre_producto,C.innerHTML="<span>✨ Nombre sugerido para la tienda: <strong>"+x.nombre_producto+`</strong></span><button onclick="var p=this.closest('#seo-nombre-sugerido');document.getElementById('f-nombre').value=p.dataset.sugerido;p.remove()" style="background:#6a1b9a;color:white;border:none;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:0.75rem;white-space:nowrap">Usar este</button>`}}d&&(d.innerHTML="✅ SEO generado con IA",d.style.background="#e8f5e9",d.style.color="#2e7d32",d.style.borderColor="#a5d6a7",d.style.opacity="1",d.disabled=!1,setTimeout(()=>{d.innerHTML="✨ Generar SEO",d.style.background="",d.style.color="",d.style.borderColor=""},3e3))}catch{At(e,t,a,o,n,i,r),d&&(d.innerHTML="✅ SEO generado",d.style.background="#fff8e1",d.style.color="#f57f17",d.style.borderColor="#ffe082",d.style.opacity="1",d.disabled=!1,setTimeout(()=>{d.innerHTML="✨ Generar SEO",d.style.background="",d.style.color="",d.style.borderColor=""},3e3))}};window.seleccionarColor=(e,t,a)=>{const o=document.getElementById("v"+e+"-hex"),n=document.getElementById("v"+e+"-nombre");if(o){o.value=t;const i=document.getElementById("v"+e+"-swatch-header");i&&(i.style.background=t)}if(n){n.value=a;const i=document.getElementById("v"+e+"-header-label");i&&(i.textContent=a)}actualizarTablaStock()};window.toggleVariante=e=>{const t=document.getElementById("v"+e+"-body"),a=document.getElementById("v"+e+"-chevron");if(!t)return;const o=t.style.display!=="none";t.style.display=o?"none":"block",a&&(a.style.transform=o?"rotate(0deg)":"rotate(180deg)")};window.agregarVariante=()=>{document.querySelectorAll(".variante-item").forEach(n=>{const i=n.id&&n.id.match(/^variante-(\d+)$/);if(i){const r=i[1],s=document.getElementById("v"+r+"-body"),d=document.getElementById("v"+r+"-chevron");s&&(s.style.display="none"),d&&(d.style.transform="rotate(0deg)")}});const e=Xe++;window._variantesFotos=window._variantesFotos||{},window._variantesFotos[e]=[];const t=document.getElementById("variantes-container"),a=document.createElement("div");a.innerHTML=he(e,null),t.appendChild(a.firstElementChild);const o=document.getElementById("variante-"+e);o&&setTimeout(()=>o.scrollIntoView({behavior:"smooth",block:"nearest"}),60)};window.previsualizarImagenes=(e,t)=>{if(!e.files||!e.files.length)return;window._variantesFotos=window._variantesFotos||{},window._variantesFotos[t]||(window._variantesFotos[t]=[]);const a=window._variantesFotos[t];Array.from(e.files).forEach(o=>{a.push({type:"file",value:o,previewUrl:URL.createObjectURL(o),isPortada:!1})}),!a.some(o=>o.isPortada)&&a.length>0&&(a[0].isPortada=!0),e.value="",window.actualizarVistaPreviews(t)};window.seleccionarPortada=(e,t)=>{const a=document.getElementById("v"+e+"-preview");if(!a)return;a.querySelectorAll(".portada-badge").forEach(n=>n.remove()),a.querySelectorAll("img").forEach(n=>n.style.border="2px solid #ddd"),t.style.border="2px solid #E91E8C";const o=document.createElement("span");o.className="portada-badge",o.style.cssText="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:1px 4px;border-radius:100px;pointer-events:none",o.textContent="PORTADA",t.parentElement.appendChild(o),t.parentElement.dataset.esPortada="true",a.querySelectorAll("[data-es-portada]").forEach(n=>{n!==t.parentElement&&delete n.dataset.esPortada})};window.toggleDescuento=()=>{const e=document.getElementById("f-descuento"),t=document.getElementById("descuento-pct");e&&t&&(t.style.display=e.checked?"flex":"none")};window.toggleTalla=e=>{const t=e.closest(".talla-label");e.checked?(t.style.borderColor="#E91E8C",t.style.background="#fce4f3"):(t.style.borderColor="transparent",t.style.background="#f5f5f5"),actualizarTablaStock()};window.actualizarTablaStock=()=>{const e=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],t=[...document.querySelectorAll(".talla-label input:checked")].map(i=>i.value).sort((i,r)=>e.indexOf(i)-e.indexOf(r)),a=document.querySelectorAll(".variante-item"),o=[];a.forEach(i=>{const r=i.id.replace("variante-",""),s=document.getElementById("v"+r+"-nombre"),d=document.getElementById("v"+r+"-hex");s&&s.value&&o.push({nombre:s.value,hex:d?d.value:"#000",id:r})});const n=document.getElementById("stock-inicial-container");if(n){if(t.length===0||o.length===0){n.innerHTML='<p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>';return}n.innerHTML=o.map(i=>`
+    <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">
+        <div style="width:14px;height:14px;border-radius:50%;background:${i.hex};border:1px solid #ddd;flex-shrink:0"></div>
+        <span style="font-size:0.9rem;font-weight:600">${i.nombre}</span>
+        <span style="margin-left:auto;font-size:0.82rem;color:#E91E8C;font-weight:700">Total: <span id="total-color-${i.id}">0</span> pares</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+        ${t.map(r=>`
+          <div style="display:flex;align-items:center;gap:6px;background:white;padding:6px 8px;border-radius:8px;border:1px solid #eee">
+            <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:32px">T${r}</span>
+            <button type="button"
+                    onclick="const el=document.getElementById('stock-ini-${i.id}-${r.replace(".","_")}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${i.id}')"
+                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">−</button>
+            <input type="number" min="0" placeholder="0"
+                   id="stock-ini-${i.id}-${r.replace(".","_")}"
+                   oninput="actualizarTotalColor('${i.id}')"
+                   style="flex:1;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700;min-width:0">
+            <button type="button"
+                    onclick="const el=document.getElementById('stock-ini-${i.id}-${r.replace(".","_")}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${i.id}')"
+                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">+</button>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `).join("")}};window.actualizarTotalColor=e=>{const t=document.querySelectorAll('[id^="stock-ini-'+e+'-"]');let a=0;t.forEach(n=>a+=parseInt(n.value)||0);const o=document.getElementById("total-color-"+e);o&&(o.textContent=a)};async function Mt(){const e=document.querySelectorAll(".variante-item"),t=[];for(const a of e){const o=parseInt(a.id.replace("variante-","")),n=document.getElementById("v"+o+"-hex"),i=document.getElementById("v"+o+"-nombre");if(!i||!i.value)continue;const r=window._variantesFotos[o]||[];console.log(`[Fotos] Color "${i.value}": procesando ${r.length} foto(s)`);const s=r.map(async p=>{if(p.type==="url")return p.value;{const m=new FormData;m.append("archivo",p.value);for(let g=1;g<=3;g++){try{const u=await fetch(b+"/imagenes/subir",{method:"POST",body:m});if(u.ok){const y=await u.json();if(y.url)return y.url}}catch{}g<3&&await new Promise(u=>setTimeout(u,1200))}return console.error(`[Fotos] FALLÓ subir foto de "${i.value}" tras 3 intentos`),null}}),d=await Promise.all(s),l=d.filter(Boolean),c=d.length-l.length;c>0&&alert(`⚠️ ${c} foto(s) de "${i.value}" no se pudieron subir. Intenta de nuevo.`),t.push({color:i.value,color_hex:n?n.value:"#000000",imagenes:l})}return t}window.previsualizarVideoPanel=e=>{const t=document.getElementById("video-preview-panel");if(t){if(!e||!e.trim()){t.innerHTML="";return}t.innerHTML=`<div style="font-size:0.8rem;color:#555;background:#f5f5f5;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px"><span>🎬</span><a href="${e}" target="_blank" rel="noopener" style="color:#E91E8C;word-break:break-all;flex:1">${e}</a></div>`}};window.subirVideoProducto=async e=>{const t=e.files[0];if(!t)return;const a=document.getElementById("f-video-url"),o=document.getElementById("video-preview-panel");o&&(o.innerHTML='<div style="color:#888;font-size:0.82rem;padding:8px 0">Subiendo video... ⏳ (puede tardar unos segundos)</div>');try{const n=new FormData;n.append("archivo",t);const r=await(await fetch(b+"/imagenes/videos/subir",{method:"POST",body:n})).json();r.url?(a&&(a.value=r.url),window.previsualizarVideoPanel(r.url)):o&&(o.innerHTML='<div style="color:#c62828;font-size:0.82rem;padding:8px 0">❌ Error al subir. Intenta pegar el URL manualmente.</div>')}catch{o&&(o.innerHTML='<div style="color:#c62828;font-size:0.82rem;padding:8px 0">❌ Error de red. Intenta pegar el URL manualmente.</div>')}e.value=""};window.guardarProducto=async()=>{if(window._guardandoProducto)return;window._guardandoProducto=!0;const e=document.getElementById("f-producto-id")?document.getElementById("f-producto-id").value:"";e&&(window._productoEditandoId=e);const t=document.getElementById("f-nombre")?document.getElementById("f-nombre").value:"",a=document.getElementById("f-costo")?document.getElementById("f-costo").value:"",o=document.getElementById("f-menudeo")?document.getElementById("f-menudeo").value:"",n=document.getElementById("f-categoria")?document.getElementById("f-categoria").value:"";if(!t||!a||!o||!n){alert("Por favor completa los campos obligatorios: Nombre, Categoria, Costo y Precio menudeo");return}const i=document.getElementById("btn-guardar");i&&(i.textContent="Guardando...",i.disabled=!0);const r=[...document.querySelectorAll(".talla-label input:checked")].map(m=>m.value);console.log(`[Guardar] Tallas seleccionadas (${r.length}):`,r);const s=await Mt();console.log(`[Guardar] Colores a guardar (${s.length}):`,s.map(m=>m.color));const d=[];document.querySelectorAll(".variante-item").forEach(m=>{const g=m.id.replace("variante-",""),u=document.getElementById("v"+g+"-nombre"),y=document.getElementById("v"+g+"-hex");u&&u.value&&d.push({id:g,nombre:u.value,hex:y?y.value:"#000"})});const l=document.getElementById("f-peso")?document.getElementById("f-peso").value:"",c=l?Math.round(parseFloat(l)*1e3):null,p={nombre:t,sku_interno:document.getElementById("f-sku")&&document.getElementById("f-sku").value||null,marca:document.getElementById("f-marca")&&document.getElementById("f-marca").value||null,proveedor:document.getElementById("f-proveedor")&&document.getElementById("f-proveedor").value||null,categoria:n,subcategoria:document.getElementById("f-subcategoria")&&document.getElementById("f-subcategoria").value||null,descripcion:document.getElementById("f-descripcion")&&document.getElementById("f-descripcion").value||null,material:document.getElementById("f-material")&&document.getElementById("f-material").value||null,material_suela:document.getElementById("f-suela")&&document.getElementById("f-suela").value||null,forro:document.getElementById("f-forro")&&document.getElementById("f-forro").value||null,horma:document.getElementById("f-horma")&&document.getElementById("f-horma").value||null,altura_tacon:document.getElementById("f-tacon")&&document.getElementById("f-tacon").value?parseFloat(document.getElementById("f-tacon").value):null,tipo_tacon:document.getElementById("f-tipotacon")&&document.getElementById("f-tipotacon").value||null,costo:parseFloat(a),precio_menudeo:parseFloat(o),precio_mayoreo3:document.getElementById("f-mayoreo3")&&document.getElementById("f-mayoreo3").value?parseFloat(document.getElementById("f-mayoreo3").value):null,precio_mayoreo6:document.getElementById("f-mayoreo6")&&document.getElementById("f-mayoreo6").value?parseFloat(document.getElementById("f-mayoreo6").value):null,precio_corrida:document.getElementById("f-corrida")&&document.getElementById("f-corrida").value?parseFloat(document.getElementById("f-corrida").value):null,precio_antes:document.getElementById("f-antes")&&document.getElementById("f-antes").value?parseFloat(document.getElementById("f-antes").value):null,tiene_descuento:document.getElementById("f-descuento")?document.getElementById("f-descuento").checked:!1,porcentaje_descuento:document.getElementById("f-pct")&&document.getElementById("f-pct").value?parseInt(document.getElementById("f-pct").value):0,corrida_activa:document.getElementById("f-corrida-activa")?document.getElementById("f-corrida-activa").checked:!1,es_oferta:document.getElementById("f-oferta")?document.getElementById("f-oferta").checked:!1,tallas_disponibles:r,peso_gramos:c,slug:document.getElementById("f-slug")&&document.getElementById("f-slug").value?document.getElementById("f-slug").value.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,""):null,meta_titulo:document.getElementById("f-metatitulo")&&document.getElementById("f-metatitulo").value||null,meta_descripcion:document.getElementById("f-metadesc")&&document.getElementById("f-metadesc").value||null,imagen_principal:(()=>{const m=document.getElementById("v0-preview"),g=m?m.querySelector('[data-es-portada="true"]'):null;return g&&g.dataset.url?g.dataset.url:s.length>0&&s[0].imagenes.length>0?s[0].imagenes[0]:null})(),video_url:document.getElementById("f-video-url")&&document.getElementById("f-video-url").value.trim()||null,activo:!0,nuevo:!window._productoEditandoId};try{console.log("Editando ID:",window._productoEditandoId);const m=window._productoEditandoId?"PATCH":"POST",g=window._productoEditandoId?b+"/productos/"+window._productoEditandoId:b+"/productos/",u=await fetch(g,{method:m,headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});if(u.ok){const y=await u.json(),f=window._productoEditandoId||(y&&y.length>0?y[0].id:null);if(f||console.error("[Variantes] ERROR: pid es null, no se crearán variantes"),s.length===0&&console.error("[Variantes] ERROR: variantesData vacío, no se crearán variantes (¿colores sin nombre?)"),f&&s.length>0){const A=r.length>0?r:["Unica"];console.log(`[Variantes] pid=${f} | colores=${s.length} | tallas=${A.length}:`,A);let k=[];window._productoEditandoId&&(k=await(await fetch(b+"/variantes/producto/"+f)).json(),console.log(`[Variantes] Existentes en DB: ${k.length}`),window._coloresEliminados&&window._coloresEliminados.length>0&&(k=k.filter(F=>!window._coloresEliminados.includes(F.color))));const S=[],U=[];for(const L of s)for(const F of A){const j=k.find(N=>N.color.trim().toLowerCase()===L.color.trim().toLowerCase()&&N.talla===F);if(j){const N=L.imagenes.length>0?L.imagenes[0]:null,I=JSON.stringify(L.imagenes),E=j.foto_url===N,B=JSON.stringify(j.imagenes||[])===I,M=j.color_hex===L.color_hex;if(E&&B&&M)console.log(`[Variantes] SIN CAMBIOS: ${L.color} T${F} — omitiendo PATCH`);else{console.log(`[Variantes] ACTUALIZAR: ${L.color} T${F} → ${j.id}`);const _={color_hex:L.color_hex,foto_url:N,imagenes:L.imagenes};S.push(fetch(b+"/variantes/"+j.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(_)}))}}else console.log(`[Variantes] CREAR NUEVO: ${L.color} T${F}`),S.push(fetch(b+"/variantes/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({producto_id:f,color:L.color,color_hex:L.color_hex,talla:F,foto_url:L.imagenes[0]||null,imagenes:L.imagenes||[],activa:!0})}).then(async N=>{if(!N.ok){const I=await N.text().catch(()=>"");U.push(`${L.color} T${F}: ${N.status}`),console.error("Error variante:",L.color,F,N.status,I)}}).catch(N=>{U.push(`${L.color} T${F}: error de red`),console.error("Error red variante:",L.color,F,N)}))}await Promise.all(S),U.length>0&&(console.warn("Variantes con error:",U),alert(`⚠️ Algunas variantes no se guardaron:
+`+U.join(`
+`)+`
+
+Revisa la consola para más detalles.`))}console.log("Colores:",d),console.log("Tallas:",r);const v=document.getElementById("f-sucursal-stock")?document.getElementById("f-sucursal-stock").value:"",x=d.some(A=>(r.length>0?r:["Unica"]).some(k=>{const S=document.getElementById("stock-ini-"+A.id+"-"+k.replace(".","_"));return S&&parseInt(S.value)>0}));let h=0,$=[],w=[];if(x&&!v)alert(`⚠️ Capturaste cantidades de stock pero no hay sucursal seleccionada.
+El producto se guardó, pero el inventario NO se guardó.
+
+Ve a Inventario → Reabastecer para agregar las cantidades.`);else if(v&&f){const A=r.length>0?r:["Unica"],k=await fetch(b+"/variantes/producto/"+f).then(F=>F.json()),S=await fetch(b+"/inventario/").then(F=>F.json()),U=new Set(S.filter(F=>F.sucursal_id===v).map(F=>F.variante_id)),L=[];for(const F of k){const j=d.find(B=>B.nombre.trim().toLowerCase()===(F.color||"").trim().toLowerCase());if(!j)continue;const N=String(F.talla||"").replace(".","_"),I=document.getElementById("stock-ini-"+j.id+"-"+N),E=I&&parseInt(I.value)||0;E>0?L.push(fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:F.id,sucursal_id:v,cantidad:E,motivo:window._productoEditandoId?"Resurtido desde edicion de producto":"Stock inicial"})}).then(B=>{if(!B.ok){$.push(`${F.color} T${F.talla}`);return}h++,console.log(`[Stock] ✓ ${F.color} T${F.talla} +${E}`)}).catch(()=>$.push(`${F.color} T${F.talla}`))):U.has(F.id)||L.push(fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:F.id,sucursal_id:v,cantidad:0,motivo:"Registro inicial (sin stock)"})}).then(()=>console.log(`[Stock] Registro 0: ${F.color} T${F.talla}`)).catch(()=>{}))}await Promise.all(L)}if(y&&y.error){alert("Error: "+y.error),i&&(i.textContent="Guardar producto",i.disabled=!1),window._guardandoProducto=!1;return}let C="Producto guardado correctamente";h>0&&(C+=`
+✅ Stock guardado: ${h} variante(s)`),w.length>0&&(C+=`
+⚠️ No se encontraron variantes para: ${w.join(", ")}`),$.length>0&&(C+=`
+❌ Errores al guardar: ${$.join(", ")}`),alert(C),window._productoEditandoId=null,window._guardandoProducto=!1,navegarA("productos")}else{const y=await u.text();alert("Error al guardar: "+y),i&&(i.textContent="Guardar producto",i.disabled=!1),window._guardandoProducto=!1}window._coloresEliminados=[]}catch{alert("Error conectando con el servidor"),i&&(i.textContent="Guardar producto",i.disabled=!1),window._guardandoProducto=!1}};window.editarProducto=async e=>{window._coloresEliminados=[],window._coloresExistentes=null,window._productoEditandoId=null;try{const[t,a]=await Promise.all([fetch(b+"/productos/"+e),fetch(b+"/variantes/producto/"+e)]),o=await t.json(),n=await a.json();if(!o||o.length===0){alert("Producto no encontrado");return}const i=[],r=new Set;n.filter(l=>l.producto_id===e).forEach(l=>{r.has(l.color)||(r.add(l.color),i.push({color:l.color,color_hex:l.color_hex,foto_url:l.foto_url,imagenes:l.imagenes||[]}))}),window._productoEditandoId=e,window._coloresExistentes=i.length>0?i:null;const s=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],d=[...new Set(n.filter(l=>l.producto_id===e).map(l=>l.talla))].filter(Boolean);d.sort((l,c)=>s.indexOf(l)-s.indexOf(c)),d.length>0?(o[0].tallas_disponibles=d,console.log("[Editar] Tallas cargadas desde variantes:",d)):o[0].tallas_disponibles&&Array.isArray(o[0].tallas_disponibles)&&(o[0].tallas_disponibles=o[0].tallas_disponibles.map(String),console.log("[Editar] Tallas cargadas desde producto:",o[0].tallas_disponibles)),mostrarFormProducto(o[0])}catch{alert("Error cargando el producto")}};window.duplicarProducto=async e=>{try{const a=await(await fetch(b+"/productos/"+e)).json();if(a&&a.length>0){const o=Object.assign({},a[0]);delete o.id,delete o.created_at,delete o.updated_at,o.nombre=o.nombre+" (copia)",o.slug=o.slug?o.slug+"-copia":null,o.sku_interno=null,window._productoEditandoId=null,mostrarFormProducto(o)}}catch{alert("Error duplicando el producto")}};window.cargarProductosFiltro=e=>$e(e,!1);window.filtrarProductos=()=>{const e=document.getElementById("prod-buscar").value.toLowerCase();document.querySelectorAll("#content tbody tr").forEach(a=>{const o=a.textContent.toLowerCase();a.style.display=o.includes(e)?"":"none"})};window.toggleProducto=async(e,t)=>{const a=t?"desactivar":"activar";if(confirm(t?"Desactivar este producto?":"Activar este producto?"))try{(await fetch(b+"/productos/"+e+"/"+a,{method:"PATCH",headers:{"Content-Type":"application/json"}})).ok?$e():alert("Error al cambiar el estado")}catch{alert("Error conectando con el servidor")}};window.filtrarClientes=()=>{var i,r;const e=(((i=document.getElementById("cli-buscar"))==null?void 0:i.value)||"").toLowerCase().trim(),t=((r=document.getElementById("cli-tipo"))==null?void 0:r.value)||"",a=document.querySelectorAll(".cli-item");let o=0;a.forEach(s=>{const d=(s.dataset.nombre||"").toLowerCase(),l=s.dataset.tel||"",c=s.dataset.tipo||"",g=(!e||d.includes(e)||l.includes(e))&&(!t||c===t);s.style.display=g?"":"none",g&&o++});const n=document.getElementById("cli-count");n&&(n.textContent=o)};window.mostrarFormCliente=async e=>{const t=document.getElementById("content");let a={};if(e)try{const n=await(await fetch(b+"/clientes/"+e)).json();n&&n.length>0&&(a=n[0])}catch{}t.innerHTML=`
+    <div class="table-card" style="padding:2rem">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+        <h3>${e?"Editar cliente":"Nuevo cliente"}</h3>
+${a.telefono?'<a href="https://wa.me/'+(a.lada||"52")+a.telefono.replace(/\D/g,"")+'" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366;margin-left:auto">WhatsApp</a>':""}      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Nombre completo *</label>
+          <input class="form-input" id="cli-nombre" placeholder="Nombre del cliente" value="${a.nombre||""}">
+        </div>
+        <div>
+          <label class="form-label">Telefono (WhatsApp)</label>
+        <div style="display:flex;gap:8px">
+        <select class="form-input" id="cli-lada" style="max-width:120px">
+            <option value="52" ${(a.lada||"52")==="52"?"selected":""}>­🇲🇽 +52</option>
+            <option value="1" ${a.lada==="1"?"selected":""}>­🇺🇸 +1</option>
+            <option value="1" ${a.lada==="1CA"?"selected":""}>­🇨🇦 +1</option>
+            <option value="34" ${a.lada==="34"?"selected":""}>🇪🇸 +34</option>
+            <option value="57" ${a.lada==="57"?"selected":""}>­🇨🇴 +57</option>
+            <option value="54" ${a.lada==="54"?"selected":""}>­🇦🇷 +54</option>
+            </select>
+            <input class="form-input" id="cli-telefono" placeholder="Ej: 4771234567" value="${a.telefono||""}">
+        </div>
+          <label class="form-label">Email</label>
+          <input class="form-input" id="cli-email" type="email" placeholder="correo@ejemplo.com" value="${a.email||""}">
+        </div>
+        <div>
+          <label class="form-label">Tipo de cliente *</label>
+          <select class="form-input" id="cli-tipo">
+            <option value="menudeo" ${a.tipo==="menudeo"?"selected":""}>Menudeo</option>
+            <option value="mayoreo" ${a.tipo==="mayoreo"?"selected":""}>Mayoreo variado</option>
+            <option value="zapateria" ${a.tipo==="zapateria"?"selected":""}>Corridas</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Direccion de entrega</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="grid-column:1/-1">
+            <label class="form-label">Calle y numero</label>
+            <input class="form-input" id="cli-direccion" placeholder="Ej: Calle Juarez 123 Col. Centro" value="${a.direccion||""}">
+          </div>
+          <div>
+            <label class="form-label">Ciudad</label>
+            <input class="form-input" id="cli-ciudad" placeholder="Ej: Leon" value="${a.ciudad||""}">
+          </div>
+          <div>
+            <label class="form-label">Estado</label>
+            <input class="form-input" id="cli-estado" placeholder="Ej: Guanajuato" value="${a.estado||""}">
+          </div>
+          <div>
+            <label class="form-label">Codigo postal</label>
+            <input class="form-input" id="cli-cp" placeholder="Ej: 37000" value="${a.codigo_postal||""}">
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:1rem;color:#333">Credito</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Limite de credito ($)</label>
+            <input class="form-input" id="cli-credito" type="number" step="0.01" placeholder="0.00" value="${a.limite_credito||"0"}">
+          </div>
+          <div>
+            <label class="form-label">Dias de credito</label>
+            <select class="form-input" id="cli-dias">
+              <option value="0" ${a.dias_credito===0?"selected":""}>Sin credito</option>
+              <option value="15" ${a.dias_credito===15?"selected":""}>15 dias</option>
+              <option value="30" ${a.dias_credito===30?"selected":""}>30 dias</option>
+              <option value="60" ${a.dias_credito===60?"selected":""}>60 dias</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Comentarios internos</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Solo visibles para el equipo, el cliente no los ve.</p>
+        <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${a.comentarios_internos||""}</textarea>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('clientes')">Cancelar</button>
+        <button class="btn btn-primary" id="btn-cli-guardar" onclick="guardarCliente('${e||""}')">Guardar cliente</button>
+      </div>
+    </div>
+  `};window.guardarCliente=async e=>{const t=document.getElementById("cli-nombre").value;if(!t){alert("El nombre del cliente es obligatorio");return}const a=document.getElementById("btn-cli-guardar");a&&(a.textContent="Guardando...",a.disabled=!0);const o={nombre:t,telefono:document.getElementById("cli-telefono").value||null,email:document.getElementById("cli-email").value||null,tipo:document.getElementById("cli-tipo").value,direccion:document.getElementById("cli-direccion").value||null,lada:document.getElementById("cli-lada").value||"52",ciudad:document.getElementById("cli-ciudad").value||null,estado:document.getElementById("cli-estado").value||null,codigo_postal:document.getElementById("cli-cp").value||null,limite_credito:parseFloat(document.getElementById("cli-credito").value)||0,dias_credito:parseInt(document.getElementById("cli-dias").value)||0,comentarios_internos:document.getElementById("cli-comentarios").value||null,activo:!0};try{const n=e?"PATCH":"POST",i=e?b+"/clientes/"+e:b+"/clientes/",r=await fetch(i,{method:n,headers:{"Content-Type":"application/json"},body:JSON.stringify(o)});if(r.ok)alert("Cliente guardado correctamente"),navegarA("clientes");else{const s=await r.text();alert("Error al guardar: "+s),a&&(a.textContent="Guardar cliente",a.disabled=!1)}}catch{alert("Error conectando con el servidor"),a&&(a.textContent="Guardar cliente",a.disabled=!1)}};window.verCliente=async e=>{const t=document.getElementById("content");t.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const[a,o]=await Promise.all([fetch(b+"/clientes/"+e),fetch(b+"/pedidos/")]),n=await a.json(),i=await o.json();if(!n||n.length===0){alert("Cliente no encontrado");return}const r=n[0],s=i.filter(u=>u.cliente_id===e),d=s.filter(u=>u.status==="confirmado"||u.status==="pagado"),l=d.reduce((u,y)=>u+parseFloat(y.total||0),0),c=d.length>0?l/d.length:0,p=s.length>0?new Date(s[0].created_at):null,m=p?Math.floor((new Date-p)/(1e3*60*60*24)):null,g={};d.forEach(u=>{const y=new Date(u.created_at).toLocaleDateString("es-MX",{month:"short",year:"2-digit"});g[y]=(g[y]||0)+parseFloat(u.total||0)}),t.innerHTML=`
+      <div style="max-width:900px;margin:0 auto">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+          <div style="flex:1">
+            <h2 style="font-size:1.3rem;font-weight:700">${r.nombre}</h2>
+            <p style="font-size:0.82rem;color:#888">${r.tipo==="mayoreo"?"Mayoreo variado":r.tipo==="zapateria"?"Corridas":"Menudeo"} · Cliente desde ${r.created_at?new Date(r.created_at).toLocaleDateString("es-MX"):"—"}</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${r.telefono?`<a href="https://wa.me/${r.lada||"52"}${r.telefono.replace(/\D/g,"")}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>`:""}
+            <button class="btn btn-secondary" onclick="mostrarFormCliente('${r.id}')">✏️ Editar</button>
+            <button class="btn btn-primary" onclick="nuevoPedidoCliente('${r.id}', '${r.nombre}')">+ Nuevo pedido</button>
+          </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#E91E8C">$${l.toFixed(0)}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Total gastado</p>
+          </div>
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#333">${d.length}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Pedidos</p>
+          </div>
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:#333">$${c.toFixed(0)}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
+          </div>
+          <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.6rem;font-weight:700;color:${m>60?"#c62828":m>30?"#f57f17":"#2e7d32"}">${m!==null?m:"—"}</p>
+            <p style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Días sin comprar</p>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <!-- INFO -->
+          <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee">
+            <p style="font-weight:700;font-size:0.85rem;margin-bottom:1rem;color:#333">Información de contacto</p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Teléfono</span>
+                <span style="font-size:0.85rem;font-weight:600">${r.telefono||"—"}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Email</span>
+                <span style="font-size:0.85rem;font-weight:600">${r.email||"—"}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Ciudad</span>
+                <span style="font-size:0.85rem;font-weight:600">${r.ciudad||"—"}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Dirección</span>
+                <span style="font-size:0.85rem;font-weight:600;text-align:right;max-width:180px">${r.direccion||"—"}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Crédito</span>
+                <span style="font-size:0.85rem;font-weight:600">${r.limite_credito>0?"$"+r.limite_credito+" / "+r.dias_credito+" días":"Sin crédito"}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- NOTAS -->
+          <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee">
+            <p style="font-weight:700;font-size:0.85rem;margin-bottom:1rem;color:#333">Notas internas</p>
+            <textarea id="cli-notas-${r.id}" rows="5" placeholder="Escribe notas sobre este cliente..."
+                      style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none;outline:none"
+                      onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#eee'">${r.comentarios_internos||""}</textarea>
+            <button onclick="guardarNotasCliente('${r.id}')" class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:0.82rem">
+              💾 Guardar notas
+            </button>
+          </div>
+        </div>
+
+        <!-- HISTORIAL DE PEDIDOS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+            <p style="font-weight:700;font-size:0.9rem">Historial de pedidos</p>
+            <span style="font-size:0.78rem;color:#888">${s.length} pedidos</span>
+          </div>
+          ${s.length===0?'<div style="text-align:center;padding:2rem;color:#888">Sin pedidos registrados</div>':s.map(u=>{const y={confirmado:"#2e7d32",pagado:"#2e7d32",pendiente_pago:"#f57f17",cancelado:"#c62828",borrador:"#f57f17"}[u.status]||"#888",f={confirmado:"#e8f5e9",pagado:"#e8f5e9",pendiente_pago:"#fff8e1",cancelado:"#ffebee",borrador:"#fff8e1"}[u.status]||"#f5f5f5";return`
+                <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer" onclick="verPedido('${u.id}')"
+                     onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+                  <div style="flex:1">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                      <span style="font-family:monospace;font-size:0.78rem;color:#888">#${u.id.substring(0,8).toUpperCase()}</span>
+                      <span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:${f};color:${y}">${u.status}</span>
+                    </div>
+                    <p style="font-size:0.78rem;color:#888">${new Date(u.created_at).toLocaleDateString("es-MX")} · ${u.canal||"—"} · ${u.forma_pago||"—"}</p>
+                  </div>
+                  <p style="font-weight:700;color:#E91E8C;font-size:1rem">$${u.total||"0"}</p>
+                </div>
+              `}).join("")}
+        </div>
+      </div>
+    `}catch{t.innerHTML='<p style="padding:2rem;color:red">Error cargando cliente</p>'}};window.guardarNotasCliente=async e=>{var a;const t=((a=document.getElementById("cli-notas-"+e))==null?void 0:a.value)||"";try{await fetch(b+"/clientes/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({comentarios_internos:t})});const o=document.querySelector(`button[onclick="guardarNotasCliente('${e}')"]`);o&&(o.textContent="✅ Guardado",setTimeout(()=>o.textContent="💾 Guardar notas",2e3))}catch{alert("Error guardando notas")}};window.editarCliente=e=>{mostrarFormCliente(e)};window.nuevoPedidoCliente=async(e,t)=>{await nt(),setTimeout(()=>{const a=document.getElementById("pos-cliente-buscar"),o=document.getElementById("pos-cliente"),n=document.getElementById("pos-cliente-seleccionado");a&&(a.value=""),o&&(o.value=e),n&&(n.textContent="✔ "+t+" — toca para cambiar",n.style.display="block");const i=document.getElementById("topbar-title");i&&(i.textContent="Punto de venta")},300)};window.verHistorialCliente=async e=>{const t=document.getElementById("content");t.innerHTML='<p style="padding:2rem;color:#888">Cargando historial...</p>';try{const n=(await(await fetch(b+"/pedidos/")).json()).filter(s=>s.cliente_id===e),i=n.length>0&&n[0].clientes?n[0].clientes:{},r=n.filter(s=>s.status==="confirmado"||s.status==="pagado").reduce((s,d)=>s+parseFloat(d.total||0),0);t.innerHTML=`
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('clientes')">← Volver</button>
+          <h3 style="flex:1">Historial — ${i.nombre||"Cliente"}</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total pedidos</p>
+            <p style="font-weight:700;font-size:1.2rem">${n.length}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total gastado</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C">$${r.toFixed(2)}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Ultimo pedido</p>
+            <p style="font-weight:700;font-size:0.9rem">${n.length>0?new Date(n[0].created_at).toLocaleDateString("es-MX"):"—"}</p>
+          </div>
+        </div>
+
+        ${n.length===0?'<div style="text-align:center;padding:3rem;color:#888">Este cliente no tiene pedidos registrados</div>':`<table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Canal</th>
+                <th>Forma de pago</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${n.map(s=>{const d={confirmado:"badge-success",pagado:"badge-success",pendiente_pago:"badge-warning",cancelado:"badge-danger",borrador:"badge-warning"}[s.status]||"badge-warning";return`
+                  <tr>
+                    <td>${new Date(s.created_at).toLocaleDateString("es-MX")}</td>
+                    <td>${s.canal||"—"}</td>
+                    <td>${s.forma_pago||"—"}</td>
+                    <td><strong style="color:#E91E8C">$${s.total||"0"}</strong></td>
+                    <td><span class="badge ${d}">${s.status}</span></td>
+                    <td><button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${s.id}')">Ver pedido</button></td>
+                  </tr>
+                `}).join("")}
+            </tbody>
+          </table>`}
+      </div>
+    `}catch{t.innerHTML='<p style="padding:2rem;color:red">Error cargando historial</p>'}};window.mostrarEntrada=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#2e7d32">+ Entrada de mercancia</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto cuando llega mercancia nueva. Se suma al inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="ent-sucursal">
+            ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="ent-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'ent')">
+          <div id="ent-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="ent">
+          <div id="ent-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8f5e9;border-radius:6px;font-size:0.85rem;color:#2e7d32"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad que llego *</label>
+          <input class="form-input" id="ent-cantidad" type="number" min="1" placeholder="Cuantos pares llegaron">
+        </div>
+        <div>
+          <label class="form-label">Motivo</label>
+          <select class="form-input" id="ent-motivo" onchange="toggleSucursalDestino('ent', this.value)">
+                <option value="Compra a proveedor">Compra a proveedor</option>
+                <option value="Devolucion de cliente">Devolucion de cliente</option>
+                <option value="Otro">Otro</option>
+       </select>
+          <div id="ent-sucursal-destino-container" style="display:none;margin-top:1rem">
+         <label class="form-label">Sucursal de origen (de donde viene)</label>
+           <select class="form-input" id="ent-sucursal-destino">
+         ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+         </select>
+        </div>
+        </div>
+      </div>
+      <div style="background:#e8f5e9;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #a5d6a7">
+        <p style="font-size:0.85rem;color:#2e7d32">El sistema sumara esta cantidad al inventario actual del producto seleccionado.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="guardarEntrada()">Guardar entrada</button>
+      </div>
+    </div>
+  `};window.guardarEntrada=async()=>{const e=document.getElementById("ent").value,t=document.getElementById("ent-sucursal").value,a=document.getElementById("ent-cantidad").value,o=document.getElementById("ent-motivo").value;if(!e||!t||!a){alert("Por favor completa todos los campos");return}try{const i=await(await fetch(b+"/movimientos/entrada",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_id:t,cantidad:parseInt(a),motivo:o})})).json();i.ok?(alert("Entrada guardada. Anterior: "+i.cantidad_anterior+" pares ÔåÆ Nuevo: "+i.cantidad_nueva+" pares"),navegarA("inventario")):alert("Error: "+JSON.stringify(i))}catch{alert("Error conectando con el servidor")}};window.mostrarSalida=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#c62828">- Salida de inventario</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Usa esto para registrar mermas, perdidas o errores. Se resta del inventario actual.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="sal-sucursal">
+            ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar producto (nombre, color o talla) *</label>
+          <input class="form-input" id="sal-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'sal')">
+          <div id="sal-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="sal">
+          <div id="sal-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#ffebee;border-radius:6px;font-size:0.85rem;color:#c62828"></div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a restar *</label>
+          <input class="form-input" id="sal-cantidad" type="number" min="1" placeholder="Cuantos pares salen">
+        </div>
+        <div>
+          <label class="form-label">Motivo *</label>
+          <select class="form-input" id="sal-motivo" onchange="toggleSucursalDestino('sal', this.value)">
+            <option value="Merma">Merma o perdida</option>
+             <option value="Producto danado">Producto danado</option>
+          <option value="Robo">Robo</option>
+          <option value="Correccion de error">Correccion de error</option>
+          <option value="Otro">Otro</option>
+        </select>
+          <div id="sal-sucursal-destino-container" style="display:none;margin-top:1rem">
+          <label class="form-label">Sucursal destino (a donde va)</label>
+         <select class="form-input" id="sal-sucursal-destino">
+       ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+          </select>
+        </div>
+        </div>
+      </div>
+      <div style="background:#ffebee;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #ffcdd2">
+        <p style="font-size:0.85rem;color:#c62828">El sistema restara esta cantidad del inventario actual. Esta accion queda registrada en el historial.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#c62828;border-color:#c62828" onclick="guardarSalida()">Guardar salida</button>
+      </div>
+    </div>
+  `};window.guardarSalida=async()=>{const e=document.getElementById("sal").value,t=document.getElementById("sal-sucursal").value,a=document.getElementById("sal-cantidad").value,o=document.getElementById("sal-motivo").value;if(!e||!t||!a){alert("Por favor completa todos los campos");return}try{const i=await(await fetch(b+"/movimientos/entrada",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_id:t,cantidad:-parseInt(a),motivo:o})})).json();i.ok?(alert("Salida registrada. Anterior: "+i.cantidad_anterior+" pares ÔåÆ Nuevo: "+i.cantidad_nueva+" pares"),navegarA("inventario")):alert("Error: "+JSON.stringify(i))}catch{alert("Error conectando con el servidor")}};window.mostrarInventarioMasivo=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const a=await(await fetch(b+"/sucursales/")).json(),n=await(await fetch(b+"/productos/")).json(),r=await(await fetch(b+"/variantes/")).json(),d=await(await fetch(b+"/inventario/")).json(),l=[...new Set(n.map(p=>p.categoria).filter(Boolean))],c=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"];window._invMasivo={sucursales:a,productos:n,variantes:r,inventario:d},e.innerHTML=`
+      <div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>Inventario masivo</h3>
+      </div>
+      <div style="background:white;border-radius:12px;padding:1.5rem;border:1px solid #eee;margin-bottom:1rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;align-items:end">
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="im-sucursal" onchange="renderTablasMasivo()">
+              ${a.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Categoria</label>
+            <select class="form-input" id="im-categoria" onchange="renderTablasMasivo()">
+              <option value="">Todas las categorias</option>
+              ${l.map(p=>`<option value="${p}">${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join("")}
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="guardarInventarioMasivo()" style="white-space:nowrap">Guardar todo</button>
+        </div>
+        <p style="font-size:0.8rem;color:#888;margin-top:0.75rem">Los campos muestran el inventario actual. Modifica solo lo que cambio y guarda al final.</p>
+      </div>
+      <div id="im-tablas"></div>
+    `,renderTablasMasivo()}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando inventario</p>'}};window.renderTablasMasivo=()=>{const{productos:e,variantes:t,inventario:a}=window._invMasivo,o=document.getElementById("im-sucursal").value,n=document.getElementById("im-categoria").value,i=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],r=e.filter(c=>!(n&&c.categoria!==n)),s=a.filter(c=>c.sucursal_id===o),d=r.map(c=>{const p=t.filter(u=>u.producto_id===c.id);if(p.length===0)return"";const g=[...new Set(p.map(u=>u.color).filter(Boolean))].map(u=>{const y=p.filter(v=>v.color===u).sort((v,x)=>i.indexOf(v.talla)-i.indexOf(x.talla));return`
+        <div style="margin-bottom:1rem">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="width:14px;height:14px;border-radius:50%;background:${y[0]?y[0].color_hex:"#888"};border:1px solid #ddd;flex-shrink:0"></div>
+            <span style="font-size:0.85rem;font-weight:500;color:#444">${u}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${y.map(v=>{const x=s.find(C=>C.variante_id===v.id),h=x?x.cantidad:0,$=x?x.stock_minimo:3;let w="#ddd";return h===0?w="#ffcdd2":h<=$?w="#ffe082":w="#a5d6a7",`
+                <div style="text-align:center">
+                  <div style="font-size:0.72rem;color:#888;margin-bottom:4px;font-weight:500">${v.talla}</div>
+                  <input type="number" min="0"
+                         id="im-${v.id}"
+                         value="${h}"
+                         data-variante="${v.id}"
+                         data-anterior="${h}"
+                         style="width:58px;text-align:center;padding:6px 4px;border:2px solid ${w};border-radius:8px;font-size:0.9rem;font-weight:600"
+                         oninput="this.style.borderColor='#E91E8C'">
+                </div>
+              `}).join("")}
+          </div>
+        </div>
+      `}).join("");return`
+      <div style="background:white;border-radius:12px;padding:1.25rem;margin-bottom:1rem;border:1px solid #eee">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+          <div>
+            <span style="font-weight:600;font-size:1rem">${c.nombre}</span>
+            <span style="margin-left:8px;font-size:0.75rem;color:#888;background:#f5f5f5;padding:2px 8px;border-radius:100px">${c.sku_interno||"—"}</span>
+          </div>
+        </div>
+        ${g}
+      </div>
+    `}).join(""),l=document.getElementById("im-tablas");l&&(l.innerHTML=d||'<div style="padding:2rem;text-align:center;color:#888">No hay productos en esta categoria</div>')};window.guardarInventarioMasivo=async()=>{const e=document.getElementById("im-sucursal").value,t=document.querySelectorAll("[data-variante]");let a=0,o=0,n=0;const i=document.querySelector('[onclick="guardarInventarioMasivo()"]');i&&(i.textContent="Guardando...",i.disabled=!0);for(const r of t){const s=r.dataset.variante,d=parseInt(r.dataset.anterior)||0,l=parseInt(r.value)||0;if(l===d){n++;continue}try{(await(await fetch(b+"/movimientos/ajuste",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:s,sucursal_id:e,cantidad:l,motivo:"Inventario masivo"})})).json()).ok?(a++,r.dataset.anterior=l,r.style.borderColor="#a5d6a7"):(o++,r.style.borderColor="#ffcdd2")}catch{o++}}i&&(i.textContent="Guardar todo",i.disabled=!1),o>0?alert(`Guardados: ${a}, Errores: ${o}, Sin cambios: ${n}`):alert(`Inventario actualizado. ${a} cambios guardados, ${n} sin cambios.`)};window.mostrarFormSucursal=async e=>{const t=document.getElementById("content");let a={};if(e)try{a=(await(await fetch(b+"/sucursales/")).json()).find(i=>i.id===e)||{}}catch{}t.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">← Volver</button>
+        <h3>${e?"Editar sucursal":"Nueva sucursal"}</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="suc-nombre" placeholder="Ej: Leon Matriz" value="${a.nombre||""}">
+        </div>
+        <div>
+          <label class="form-label">Tipo</label>
+          <select class="form-input" id="suc-tipo">
+            <option value="fisica" ${a.tipo==="fisica"?"selected":""}>Fisica</option>
+            <option value="online" ${a.tipo==="online"?"selected":""}>Online</option>
+            <option value="bodega" ${a.tipo==="bodega"?"selected":""}>Bodega</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Direccion</label>
+          <input class="form-input" id="suc-direccion" placeholder="Calle y numero" value="${a.direccion||""}">
+        </div>
+        <div>
+          <label class="form-label">Telefono</label>
+          <input class="form-input" id="suc-telefono" placeholder="Ej: 4771234567" value="${a.telefono||""}">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('sucursales')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarSucursal('${e||""}')">Guardar</button>
+      </div>
+    </div>
+  `};window.guardarSucursal=async e=>{const t=document.getElementById("suc-nombre").value;if(!t){alert("El nombre es obligatorio");return}const a={nombre:t,tipo:document.getElementById("suc-tipo").value,direccion:document.getElementById("suc-direccion").value||null,telefono:document.getElementById("suc-telefono").value||null};try{const o=e?"PATCH":"POST",n=e?b+"/sucursales/"+e:b+"/sucursales/";(await fetch(n,{method:o,headers:{"Content-Type":"application/json"},body:JSON.stringify(a)})).ok?(alert("Sucursal guardada"),navegarA("sucursales")):alert("Error al guardar")}catch{alert("Error conectando con el servidor")}};window.toggleSucursalDestino=(e,t)=>{const a=document.getElementById(e+"-sucursal-destino-container");a&&(a.style.display=t==="Traspaso entre sucursales"?"block":"none")};window.mostrarTraspaso=async()=>{const t=await(await fetch(b+"/sucursales/")).json(),o=await(await fetch(b+"/variantes/")).json();window._variantesCache=o;const n=document.getElementById("content");n.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:600px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3 style="color:#283593">⇄ Traspaso entre sucursales</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Mueve inventario de una sucursal a otra. Se resta de origen y se suma en destino.</p>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Buscar producto *</label>
+          <input class="form-input" id="tra-buscar" placeholder="Ej: sandalia negro 24" oninput="buscarVariante(this.value, 'tra')">
+          <div id="tra-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <input type="hidden" id="tra">
+          <div id="tra-seleccionado" style="display:none;margin-top:8px;padding:8px 12px;background:#e8eaf6;border-radius:6px;font-size:0.85rem;color:#283593"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div style="background:#ffebee;border-radius:8px;padding:1rem;border:1px solid #ffcdd2">
+            <label class="form-label" style="color:#c62828">Sucursal origen (sale de aqui)</label>
+            <select class="form-input" id="tra-origen">
+              ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+            </select>
+          </div>
+          <div style="background:#e8f5e9;border-radius:8px;padding:1rem;border:1px solid #a5d6a7">
+            <label class="form-label" style="color:#2e7d32">Sucursal destino (llega aqui)</label>
+            <select class="form-input" id="tra-destino">
+              ${t.map(i=>`<option value="${i.id}">${i.nombre}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Cantidad a traspasar *</label>
+          <input class="form-input" id="tra-cantidad" type="number" min="1" placeholder="Cuantos pares">
+        </div>
+      </div>
+      <div style="background:#e8eaf6;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #c5cae9">
+        <p style="font-size:0.85rem;color:#283593">El sistema verifica que haya suficiente inventario en origen antes de mover.</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" style="background:#283593;border-color:#283593" onclick="guardarTraspaso()">Confirmar traspaso</button>
+      </div>
+    </div>
+  `};window.guardarTraspaso=async()=>{const e=document.getElementById("tra").value,t=document.getElementById("tra-origen").value,a=document.getElementById("tra-destino").value,o=document.getElementById("tra-cantidad").value;if(!e||!t||!a||!o){alert("Por favor completa todos los campos");return}if(t===a){alert("La sucursal origen y destino no pueden ser la misma");return}try{const i=await(await fetch(b+"/movimientos/traspaso",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,sucursal_origen_id:t,sucursal_destino_id:a,cantidad:parseInt(o)})})).json();i.ok?(alert("Traspaso realizado correctamente. Se movieron "+i.cantidad_movida+" pares."),navegarA("inventario")):alert("Error: "+(i.error||JSON.stringify(i)))}catch{alert("Error conectando con el servidor")}};function ot(e){const t={borrador:"badge-warning",checkout_iniciado:"badge-danger",pendiente_pago:"badge-warning",confirmado:"badge-success",cancelado:"badge-danger",pagado:"badge-success",por_enviar:"badge-info",enviado:"badge-success"}[e.status]||"badge-warning",a={borrador:"Borrador",checkout_iniciado:"🛒 Abandonó",pendiente_pago:"Pend. pago",confirmado:"Confirmado",cancelado:"Cancelado",pagado:"Pagado",por_enviar:"📦 Por enviar",enviado:"✅ Enviado"}[e.status]||e.status,o=e.status==="pagado"&&(e.mp_preference_id||e.mp_payment_id),n=e.status==="enviado";let i="";o?i=`<button class="btn btn-primary" style="padding:4px 8px;font-size:0.72rem;background:#1565c0;border-color:#1565c0;margin-top:4px" onclick="abrirModalEnvio('${e.id}')">🚚 Enviar</button>`:n&&e.tracking_url&&(i=`<a href="${e.tracking_url}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;margin-top:4px">📍 Rastrear</a>`);const r=n&&e.numero_guia?`<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${e.paqueteria||""} ${e.numero_guia}</span>`:"";return`
+    <tr style="${o?"background:#f0f7ff":""}">
+      <td style="font-family:monospace;font-size:0.78rem;color:#888">#${e.id.substring(0,8).toUpperCase()}</td>
+      <td>
+        <strong>${e.clientes?e.clientes.nombre:e.nombre_cliente||"Sin cliente"}</strong>
+        ${e.email_cliente?`<br><span style="font-size:0.72rem;color:#aaa">${e.email_cliente}</span>`:""}
+        ${e.telefono_cliente?`<br><span style="font-size:0.72rem;color:#aaa">${e.telefono_cliente}</span>`:""}
+      </td>
+      <td>${e.canal||(e.mp_preference_id?"online":"—")}</td>
+      <td><strong>$${parseFloat(e.total||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</strong></td>
+      <td>${e.mp_preference_id?"MercadoPago":e.forma_pago||"—"}</td>
+      <td>
+        <span class="badge ${t}">${a}</span>
+        ${r}
+      </td>
+      <td>${e.created_at?new Date(new Date(e.created_at).getTime()-6*60*60*1e3).toLocaleString("es-MX",{dateStyle:"short",timeStyle:"short"}):"—"}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${e.id}')">Ver</button>
+        ${i}
+      </td>
+    </tr>
+  `}window.abrirModalEnvio=function(e){const t=document.getElementById("modal-envio");t&&t.remove();const a=document.createElement("div");a.id="modal-envio",a.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px",a.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <h3 style="font-size:1.1rem;margin:0">🚚 Registrar envío</h3>
+        <button onclick="document.getElementById('modal-envio').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:1rem">✕</button>
+      </div>
+
+      <label class="form-label">Paquetería *</label>
+      <select id="env-paqueteria" class="form-input" style="margin-bottom:14px">
+        <option value="">Selecciona...</option>
+        <option value="FedEx">FedEx</option>
+        <option value="Estafeta">Estafeta</option>
+        <option value="DHL">DHL</option>
+        <option value="otra">Otra</option>
+      </select>
+
+      <label class="form-label">Número de guía *</label>
+      <input id="env-guia" class="form-input" placeholder="Ej. 772812345678" style="margin-bottom:6px;font-family:monospace;letter-spacing:1px">
+      <p style="font-size:0.72rem;color:#aaa;margin-bottom:20px">El cliente recibirá un email con el link de rastreo automáticamente.</p>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-envio').remove()" class="btn btn-secondary" style="flex:1">Cancelar</button>
+        <button onclick="confirmarEnvio('${e}')" class="btn btn-primary" style="flex:2" id="btn-confirmar-envio">Confirmar envío ✓</button>
+      </div>
+      <p id="env-error" style="color:red;font-size:0.8rem;margin-top:10px;display:none"></p>
+    </div>
+  `,document.body.appendChild(a),a.addEventListener("click",o=>{o.target===a&&a.remove()})};window.confirmarEnvio=async function(e){const t=document.getElementById("env-paqueteria").value,a=document.getElementById("env-guia").value.trim(),o=document.getElementById("env-error"),n=document.getElementById("btn-confirmar-envio");if(!t||!a){o.textContent="Selecciona paquetería e ingresa el número de guía.",o.style.display="block";return}n.disabled=!0,n.textContent="Guardando...",o.style.display="none";try{const i=await fetch(b+`/pedidos/${e}/marcar-enviado`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paqueteria:t,numero_guia:a})}),r=await i.json();if(!i.ok)throw new Error(r.error||"Error al guardar");try{const s=await fetch(b+"/pedidos/"+e).then(c=>c.json()),d=s.telefono_cliente,l=(s.nombre_cliente||"Cliente").split(" ")[0];d&&await fetch(b+"/chatbot/templates/enviar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:d,template:"aviso_envio",params:[l,String(e).slice(-6),a,t]})})}catch{}document.getElementById("modal-envio").remove(),mostrarToast("✅ Pedido enviado — WhatsApp de tracking enviado al cliente"),await at()}catch(i){o.textContent=i.message,o.style.display="block",n.disabled=!1,n.textContent="Confirmar envío ✓"}};async function at(){const e=document.getElementById("content");try{const a=await(await fetch(b+"/pedidos/")).json(),o=new Date,n=new Date(o.getFullYear(),o.getMonth(),o.getDate()),i=new Date(o-7*24*60*60*1e3),r=["cancelado","borrador","checkout_iniciado"],s=a.filter(v=>!r.includes(v.status)),d=a.filter(v=>v.status!=="checkout_iniciado"&&v.status!=="borrador"),l=s.filter(v=>new Date(v.created_at)>=n),c=l.reduce((v,x)=>v+parseFloat(x.total||0),0),p=s.filter(v=>new Date(v.created_at)>=i).reduce((v,x)=>v+parseFloat(x.total||0),0),m=a.filter(v=>v.status==="pendiente_pago").length,g=a.filter(v=>v.status==="checkout_iniciado").length,u=a.filter(v=>v.status==="pagado"&&(v.mp_preference_id||v.mp_payment_id)).length,y=a.filter(v=>v.forma_pago==="credito"&&v.status!=="cancelado").length,f=(v,x,h,$,w,C,A)=>`
+      <div style="background:${w};border-radius:14px;padding:1.1rem 1.25rem;border:1px solid ${C};cursor:${A?"pointer":"default"};transition:transform 0.15s,box-shadow 0.15s"
+           ${A?`onclick="${A}" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='';this.style.boxShadow=''"`:""}>
+        <p style="font-size:1.55rem;font-weight:800;color:${$};line-height:1;margin-bottom:3px;letter-spacing:-0.5px">${v}</p>
+        <p style="font-size:0.7rem;font-weight:600;color:${$};opacity:0.85;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1px">${x}</p>
+        ${h?`<p style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${h}</p>`:""}
+      </div>`;e.innerHTML=`
+      <div style="margin-bottom:1.25rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+          <div>
+            <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
+            <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Pedidos</h2>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="mostrarFormLinkPago()" style="background:#ffe600;color:#333;border-color:#ffe600">💳 Crear link de pago</button>
+            <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
+          ${f(l.length,"Pedidos hoy",`$${c.toLocaleString("es-MX",{maximumFractionDigits:0})} vendidos`,"#E91E8C","linear-gradient(135deg,#fff0f8,#ffe4f2)","#f9a8d4","")}
+          ${f("$"+Math.round(p/1e3)+"k","7 días",`${s.filter(v=>new Date(v.created_at)>=i).length} pedidos`,"#7c3aed","#f5f3ff","#ddd6fe","")}
+          ${m>0?f(m,"SPEI/OXXO pendiente","Eligió método, falta pagar","#b45309","#fffbeb","#fcd34d","cargarPedidosFiltro('pendiente_pago')"):f("0","SPEI/OXXO pendiente","Todo al corriente","#16a34a","#f0fdf4","#86efac","")}
+          ${g>0?f(g,"Abandonados","Fue a pagar y no terminó","#be123c","#fff1f2","#fda4af","cargarPedidosFiltro('abandonado')"):f("0","Abandonados","Ninguno","#16a34a","#f0fdf4","#86efac","")}
+          ${u>0?f(u,"Por enviar","Pagados online","#1d4ed8","#eff6ff","#93c5fd","cargarPedidosFiltro('por_enviar')"):f("0","Por enviar","Sin pendientes","#16a34a","#f0fdf4","#86efac","")}
+          ${f(y,"En crédito","Pedidos activos","#0f766e","#f0fdfa","#99f6e4","cargarPedidosFiltro('credito')")}
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <input class="form-input" id="ped-buscar" placeholder="Buscar por # pedido o cliente..."
+                 style="max-width:240px;font-size:0.82rem" oninput="filtrarPedidos()">
+          <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
+            <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${d.length}</span></button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('online')">Online</button>
+            <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI/OXXO pendiente</button>
+            <button class="pill-filter pill-danger" onclick="cargarPedidosFiltro('abandonado')">Abandonados ${g>0?`<span style="opacity:0.75;font-weight:400">${g}</span>`:""}</button>
+            <button class="pill-filter pill-info" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
+            <button class="pill-filter pill-success" onclick="cargarPedidosFiltro('credito')">Crédito</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr>
+              <th># Pedido</th>
+              <th>Cliente</th>
+              <th>Canal</th>
+              <th>Total</th>
+              <th>Forma de pago</th>
+              <th>Status</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${d.length===0?'<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>':d.map(v=>ot(v)).join("")}
+          </tbody>
+        </table>
+      </div>
+    `,window._pedidosData=a}catch{e.innerHTML='<p style="padding:2rem;color:red">Error conectando con el servidor</p>'}}window.filtrarPedidos=()=>{const e=document.getElementById("ped-buscar").value.toLowerCase();document.querySelectorAll("#content tbody tr").forEach(a=>{const o=a.textContent.toLowerCase();a.style.display=o.includes(e)?"":"none"})};window.cargarPedidosFiltro=e=>{const t=window._pedidosData||[];let a=t.filter(i=>i.status!=="checkout_iniciado"&&i.status!=="borrador");e==="pendiente_pago"?a=t.filter(i=>i.status==="pendiente_pago"):e==="abandonado"?a=t.filter(i=>i.status==="checkout_iniciado"):e==="credito"?a=t.filter(i=>i.forma_pago==="credito"):e==="por_enviar"?a=t.filter(i=>i.status==="pagado"&&(i.mp_preference_id||i.mp_payment_id)):e&&(a=t.filter(i=>i.canal===e)),document.querySelectorAll('#content .btn[onclick^="cargarPedidosFiltro"]').forEach(i=>{i.classList.remove("btn-primary"),i.classList.add("btn-secondary")});const o=document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('${e}')"]`)||document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`);if(o&&e===""){const i=document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`);i&&(i.classList.add("btn-primary"),i.classList.remove("btn-secondary"))}else o&&(o.classList.add("btn-primary"),o.classList.remove("btn-secondary"));const n=document.querySelector("#content tbody");if(n){if(a.length===0){n.innerHTML='<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos con ese filtro</td></tr>';return}n.innerHTML=a.map(i=>ot(i)).join("")}};window.mostrarFormPedido=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const a=await(await fetch(b+"/clientes/")).json(),n=await(await fetch(b+"/sucursales/")).json(),r=await(await fetch(b+"/productos/")).json(),d=await(await fetch(b+"/variantes/")).json();window._variantesCache=d,window._productosCache=r,window._pedidoItems=[],e.innerHTML=`
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
+          <h3>Nuevo pedido</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div>
+            <label class="form-label">Cliente *</label>
+            <select class="form-input" id="ped-cliente" onchange="actualizarTipoCliente()">
+              <option value="">Selecciona cliente...</option>
+              ${a.map(l=>`<option value="${l.id}" data-tipo="${l.tipo}" data-telefono="${l.telefono||""}">${l.nombre} (${l.tipo})</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Canal *</label>
+            <select class="form-input" id="ped-canal">
+              <option value="sucursal">Sucursal</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Sucursal *</label>
+            <select class="form-input" id="ped-sucursal">
+              ${n.map(l=>`<option value="${l.id}">${l.nombre}</option>`).join("")}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Forma de pago *</label>
+            <select class="form-input" id="ped-pago" onchange="toggleComprobante()">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="spei">SPEI / Transferencia</option>
+              <option value="credito">Credito</option>
+              <option value="mercadopago">Mercado Pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="spei-info" style="display:none;background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+          <p style="font-size:0.85rem;color:#f57f17;font-weight:600;margin-bottom:4px">Pago por SPEI</p>
+          <p style="font-size:0.8rem;color:#888">El pedido quedara pendiente hasta que confirmes el comprobante manualmente. El inventario no se descuenta hasta confirmar.</p>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Agregar productos</p>
+          <div style="display:flex;gap:8px;margin-bottom:1rem">
+            <input class="form-input" id="ped-buscar-prod" placeholder="Buscar producto por nombre, color o talla..." style="flex:1" oninput="buscarVariante(this.value, 'ped-prod')">
+          </div>
+          <div id="ped-prod-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:200px;overflow-y:auto;display:none;background:white;margin-bottom:1rem"></div>
+          <input type="hidden" id="ped-prod">
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <p style="font-weight:600;margin-bottom:1rem;color:#333">Productos en el pedido</p>
+          <div id="ped-items-lista">
+            <p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
+            <div style="text-align:right">
+              <p style="font-size:0.85rem;color:#888">Total del pedido</p>
+              <p style="font-size:1.5rem;font-weight:700;color:#E91E8C" id="ped-total">$0.00</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+          <label class="form-label">Comentarios internos</label>
+          <textarea class="form-input" id="ped-comentarios" rows="2" placeholder="Notas internas del pedido..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">Cancelar</button>
+          <button class="btn btn-primary" id="btn-ped-guardar" onclick="guardarPedido()">Crear pedido</button>
+        </div>
+      </div>
+    `,document.getElementById("ped-prod-resultados").addEventListener("click",l=>{const c=l.target.closest("[data-variante-id]");if(c){const p=c.dataset.varianteId,m=c.dataset.nombre;agregarItemPedido(p,m),document.getElementById("ped-prod-resultados").style.display="none",document.getElementById("ped-buscar-prod").value=""}})}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando formulario de pedido</p>'}};window.toggleComprobante=()=>{const e=document.getElementById("ped-pago").value,t=document.getElementById("spei-info");t&&(t.style.display=e==="spei"?"block":"none")};window.actualizarTipoCliente=()=>{const e=document.getElementById("ped-cliente");e.options[e.selectedIndex],window.recalcularTotal()};window.agregarItemPedido=async(e,t)=>{const a=window._variantesCache||[],o=window._productosCache||[],n=a.find(l=>l.id===e);if(!n)return;const i=document.getElementById("ped-sucursal")?document.getElementById("ped-sucursal").value:"";if(i)try{const c=await(await fetch(b+"/inventario/sucursal/"+i)).json(),p=c.find(y=>y.variante_id===e),m=window._pedidoItems.find(y=>y.variante_id===e);console.log("Inventario:",c),console.log("Buscando variante:",e),console.log("Encontrado:",p);const g=m?m.cantidad:0,u=p?p.cantidad:0;if(u<=g){alert("No hay suficiente existencia de este producto. Disponible: "+u+" pares");return}}catch(l){console.error("Error verificando inventario",l)}const r=window._pedidoItems.find(l=>l.variante_id===e);if(r){r.cantidad++,window.recalcularTotal(),renderItemsPedido();return}const s=o.find(l=>l.id===n.producto_id)||{},d=parseFloat(s.precio_menudeo)||0;window._pedidoItems.push({variante_id:e,nombre:(s.nombre||"")+" - "+(n.color||"")+" - T"+(n.talla||""),cantidad:1,precio_unitario:d,precio_menudeo:d,precio_mayoreo3:parseFloat(s.precio_mayoreo3)||d-30,precio_mayoreo6:parseFloat(s.precio_mayoreo6)||d-70,precio_corrida:parseFloat(s.precio_corrida)||d-100,es_oferta:s.es_oferta||!1,foto_url:n.foto_url||s.imagen_principal||null}),window.recalcularTotal(),renderItemsPedido()};window.renderItemsPedido=()=>{const e=document.getElementById("ped-items-lista");if(e){if(window._pedidoItems.length===0){e.innerHTML='<p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Agrega productos usando el buscador de arriba</p>',window.recalcularTotal();return}e.innerHTML=window._pedidoItems.map((t,a)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+      ${t.foto_url?'<img src="'+t.foto_url+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">':'<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+      <div style="flex:1">
+        <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${t.nombre}</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="cambiarCantidadItem(${a}, -1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+            <span style="font-weight:700;min-width:26px;text-align:center">${t.cantidad}</span>
+            <button onclick="cambiarCantidadItem(${a}, 1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+          </div>
+          <span style="color:#888;font-size:0.8rem">×$${t.precio_unitario}</span>
+          <strong style="color:#E91E8C">= $${(t.cantidad*t.precio_unitario).toFixed(2)}</strong>
+        </div>
+      </div>
+      <button onclick="eliminarItemPedido(${a})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+  `).join(""),window.recalcularTotal()}};window.cambiarCantidadItem=async(e,t)=>{if(t>0){const a=window._pedidoItems[e],o=document.getElementById("ped-sucursal")?document.getElementById("ped-sucursal").value:"";if(o)try{const r=(await(await fetch(b+"/inventario/sucursal/"+o)).json()).find(d=>d.variante_id===a.variante_id),s=r?r.cantidad:0;if(a.cantidad>=s){alert("No hay mas existencia disponible. Maximo: "+s+" pares");return}}catch{}}window._pedidoItems[e].cantidad=Math.max(1,window._pedidoItems[e].cantidad+t),window.recalcularTotal(),renderItemsPedido()};window.guardarPedido=async()=>{var d;if(window._creandoPedido)return;const e=document.getElementById("ped-cliente").value,t=document.getElementById("ped-canal").value,a=document.getElementById("ped-sucursal").value,o=document.getElementById("ped-pago").value,n=document.getElementById("ped-comentarios").value;if(!e){alert("Selecciona un cliente");return}if(window._pedidoItems.length===0){alert("Agrega al menos un producto");return}window._creandoPedido=!0;const i=document.getElementById("btn-ped-guardar");i&&(i.textContent="Guardando...",i.disabled=!0);const r=window._pedidoItems.reduce((l,c)=>l+c.cantidad*c.precio_unitario,0),s=o==="spei"?"pendiente_pago":"confirmado";try{const l=await fetch(b+"/pedidos/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cliente_id:e,canal:t,sucursal_id:a,forma_pago:o,comentarios:n||null,total:r,subtotal:r,status:s})});if(!l.ok){alert("Error creando pedido"),i&&(i.textContent="Crear pedido",i.disabled=!1),window._creandoPedido=!1;return}const c=await l.json(),p=c.id||((d=c[0])==null?void 0:d.id);if(!p){alert("Error: no se obtuvo ID del pedido"),i&&(i.textContent="Crear pedido",i.disabled=!1),window._creandoPedido=!1;return}await Promise.all(window._pedidoItems.map(m=>fetch(b+"/pedidos/"+p+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:m.variante_id,cantidad:m.cantidad,precio_unitario:m.precio_unitario,subtotal:m.cantidad*m.precio_unitario})}))),o!=="spei"&&o!=="mercadopago"&&await fetch(b+"/pedidos/"+p+"/confirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({forma_pago:o})}),alert("Pedido creado correctamente"),window._pedidoItems=[],window._creandoPedido=!1,verPedido(p)}catch{alert("Error conectando con el servidor"),i&&(i.textContent="Crear pedido",i.disabled=!1),window._creandoPedido=!1}};window.abrirPreviewPedido=async e=>{const t=document.getElementById("pedido-preview-panel");if(!t){verPedido(e);return}if(t.dataset.pedidoId===e&&t.style.display!=="none"){t.style.display="none",t.dataset.pedidoId="";return}t.dataset.pedidoId=e,t.style.display="block",t.innerHTML='<p style="padding:1.5rem;color:#888;text-align:center">Cargando...</p>',t.scrollIntoView({behavior:"smooth",block:"nearest"});try{const[a,o]=await Promise.all([fetch(b+"/pedidos/"+e).then(d=>d.json()),fetch(b+"/pedidos/"+e+"/items").then(d=>d.json())]),n=Array.isArray(a)?a[0]:a,i=Array.isArray(o)?o:[],r=n.clientes||{},s={confirmado:"#2e7d32",pagado:"#2e7d32",cancelado:"#c62828",pendiente_pago:"#f57f17",borrador:"#f57f17"}[n.status]||"#888";t.innerHTML=`
+      <div class="table-card" style="padding:1.5rem;border:2px solid #f0f0f0">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1.2rem">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <h3 style="margin:0">Pedido #${n.id.substring(0,8).toUpperCase()}</h3>
+            <span style="background:${s}20;color:${s};border:1px solid ${s}40;padding:4px 10px;border-radius:20px;font-size:0.78rem;font-weight:600">${n.status}</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" style="font-size:0.8rem" onclick="verPedido('${n.id}')">✏️ Editar pedido</button>
+            ${n.status!=="cancelado"&&n.status!=="confirmado"&&n.status!=="pagado"?`<button class="btn btn-primary" style="font-size:0.8rem" onclick="confirmarPedidoAdmin('${n.id}')">✅ Confirmar</button>`:""}
+            ${n.status!=="cancelado"?`<button class="btn btn-secondary" style="font-size:0.8rem;color:#c62828;border-color:#c62828" onclick="cancelarPedido('${n.id}')">❌ Cancelar</button>`:""}
+            <button class="btn btn-secondary" style="font-size:0.8rem" onclick="generarPDFPedido('${n.id}')">PDF</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:1.2rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Cliente</p>
+            <p style="font-weight:600;font-size:0.88rem">${r.nombre||"Mostrador"}</p>
+            <p style="font-size:0.78rem;color:#888">${r.telefono||""}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Canal / Pago</p>
+            <p style="font-weight:600;font-size:0.88rem">${n.canal||"—"}</p>
+            <p style="font-size:0.78rem;color:#888">${n.forma_pago||""}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Total</p>
+            <p style="font-weight:700;font-size:1.1rem;color:#E91E8C">$${n.total||"0"}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:10px">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Fecha</p>
+            <p style="font-weight:600;font-size:0.82rem">${n.created_at?new Date(new Date(n.created_at).getTime()-6*60*60*1e3).toLocaleString("es-MX",{dateStyle:"short",timeStyle:"short"}):"—"}</p>
+          </div>
+        </div>
+
+        <p style="font-weight:600;font-size:0.85rem;color:#333;margin-bottom:10px">Productos (${i.length})</p>
+        ${i.length===0?'<p style="color:#aaa;font-size:0.85rem">Sin productos registrados</p>':""}
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          ${i.map(d=>{const l=d.variantes||{},c=l.productos||{},p=c.nombre||d.nombre||"—",m=l.color||d.color||"",g=l.talla||d.talla||"",u=l.foto_url||c.imagen_principal||null;return`
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;min-width:220px;flex:1">
+                ${u?`<img src="${u}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:56px;height:56px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem">👟</div>'}
+                <div>
+                  <p style="font-weight:600;font-size:0.83rem;margin:0 0 2px">${p}${m?" · "+m:""}${g?" T"+g:""}</p>
+                  <p style="font-size:0.78rem;color:#888;margin:0">${d.cantidad} pares × $${d.precio_unitario||0}</p>
+                  <p style="font-weight:700;color:#E91E8C;font-size:0.85rem;margin:2px 0 0">$${d.subtotal??(d.cantidad*d.precio_unitario).toFixed(2)}</p>
+                </div>
+              </div>`}).join("")}
+        </div>
+      </div>`}catch{t.innerHTML='<p style="padding:1rem;color:red">Error cargando pedido</p>'}};window.verPedido=async e=>{const t=document.getElementById("content");t.innerHTML='<p style="padding:2rem;color:#888">Cargando pedido...</p>';try{const o=await(await fetch(b+"/pedidos/"+e)).json();if(!o||o.length===0){alert("Pedido no encontrado");return}const n=o[0];let i=n.pedido_items||[];if(i.length===0)try{const m=await(await fetch(b+"/pedidos/"+e+"/items")).json();Array.isArray(m)&&(i=m)}catch{}n.pedido_items=i;const r=n.clientes||{};window._currentPedido=n;let s="";try{const p=i&&i[0]||null;if(p){if(p.variantes&&p.variantes.productos&&p.variantes.productos.sku_interno)s=p.variantes.productos.sku_interno;else if(p.variante_id&&window._variantesCache&&window._productosCache){const m=window._variantesCache.find(g=>g.id===p.variante_id);if(m){const g=window._productosCache.find(u=>u.id===m.producto_id);g&&(s=g.sku_interno||"")}}}}catch{}const d=r.telefono||n.telefono_cliente||"",l=(r.nombre||n.nombre_cliente||"").split(" ")[0],c={borrador:"#f57f17",pendiente_pago:"#f57f17",confirmado:"#2e7d32",pagado:"#2e7d32",cancelado:"#c62828"}[n.status]||"#888";t.innerHTML=`
+      <div class="table-card" style="padding:2rem">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navegarA('pedidos')">← Volver</button>
+          <h3 style="flex:1">Pedido #${n.id.substring(0,8).toUpperCase()}</h3>
+          <span class="badge" style="background:${c}20;color:${c};border:1px solid ${c}40;padding:6px 12px">${n.status}</span>
+          ${r.telefono?'<a href="https://wa.me/52'+r.telefono.replace(/\D/g,"")+"?text="+encodeURIComponent("Hola "+(r.nombre||"")+", tu pedido está listo")+'" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">WhatsApp</a>':""}
+          ${d&&["pagado","confirmado","enviado"].includes(n.status)?`<button class="btn btn-secondary" style="background:#f59e0b;color:white;border-color:#f59e0b" onclick="pedirResena('${d.replace(/\D/g,"")}','${l.replace(/'/g,"")}','${s}')">⭐ Pedir reseña</button>`:""}
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Cliente</p>
+            <p style="font-weight:600">${r.nombre||n.nombre_cliente||"Mostrador"}</p>
+            <p style="font-size:0.8rem;color:#888">${r.telefono||n.telefono_cliente||""}</p>
+            ${n.email_cliente?`<p style="font-size:0.78rem;color:#888">${n.email_cliente}</p>`:""}
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Canal y pago</p>
+            <p style="font-weight:600">${n.canal||"—"}</p>
+            <p style="font-size:0.8rem;color:#888">${n.forma_pago||""}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Total</p>
+            <p style="font-weight:700;font-size:1.2rem;color:#E91E8C" id="pedido-total-display">$${n.total||"0"}</p>
+            ${(()=>{const p=(i||[]).reduce((u,y)=>u+(y.cantidad||0)*(y.precio_unitario||0),0),m=parseFloat(n.total||0);return Math.abs(p-m)>.5&&p>0?`<button onclick="recalcularTotalPedido('${n.id}', ${p.toFixed(2)})" style="margin-top:6px;padding:3px 8px;font-size:0.7rem;background:#fff3cd;border:1px solid #ffe082;border-radius:6px;cursor:pointer;color:#856404;font-weight:600">
+                  ⚠️ Recalcular: $${p.toFixed(2)}
+                </button>`:""})()}
+          </div>
+        </div>
+
+        ${(()=>{const p=(n.direccion_envio||n.direccion_entrega||"").trim();let m="";if(!p&&n.notas){const x=n.notas.match(/Env[ií]o a:\s*(.+)$/i);x&&(m=x[1].trim())}const g=p||m,u=r.nombre||n.nombre_cliente||"",y=r.telefono||n.telefono_cliente||"",f=n.email_cliente&&n.email_cliente!=="cliente@zapatillasmay.mx"?n.email_cliente:"";return!g&&!u&&!y?"":`
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:1rem;margin-bottom:1.5rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+              <p style="font-size:0.8rem;font-weight:700;color:#1d4ed8;margin:0">📦 Datos de envío</p>
+              <button onclick="navigator.clipboard.writeText(this.dataset.copy).then(()=>{this.textContent='✓ Copiado';setTimeout(()=>this.textContent='📋 Copiar',1500)})" data-copy="${[u,y,f,g].filter(Boolean).join(`
+`).replace(/"/g,"&quot;")}" style="padding:4px 12px;border-radius:20px;border:1.5px solid #1d4ed8;background:none;color:#1d4ed8;font-size:0.75rem;font-weight:600;cursor:pointer">📋 Copiar</button>
+            </div>
+            ${u?`<p style="margin:2px 0;font-size:0.88rem;color:#0f172a"><strong>${u}</strong></p>`:""}
+            ${y?`<p style="margin:2px 0;font-size:0.85rem;color:#334155">📞 ${y}</p>`:""}
+            ${f?`<p style="margin:2px 0;font-size:0.85rem;color:#334155">✉️ ${f}</p>`:""}
+            ${g?`<p style="margin:2px 0;font-size:0.85rem;color:#334155">📍 ${g}</p>`:'<p style="margin:2px 0;font-size:0.82rem;color:#c62828">⚠ Sin dirección registrada</p>'}
+            ${n.notas?`<p style="margin:8px 0 0;font-size:0.78rem;color:#64748b;border-top:1px solid #dbeafe;padding-top:6px">📝 ${n.notas}</p>`:""}
+          </div>`})()}
+
+        <div style="margin-bottom:1.5rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
+            <p style="font-weight:600;color:#333;margin:0">Productos</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${n.status!=="cancelado"?`<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="activarEdicionPedido('${n.id}')">✏️ Editar pedido</button>`:""}
+              ${n.status!=="cancelado"&&n.status!=="confirmado"&&n.status!=="pagado"?`<button class="btn btn-primary" style="font-size:0.8rem;padding:4px 12px" onclick="confirmarPedidoAdmin('${n.id}')">✅ Confirmar</button>`:""}
+              ${n.status==="cancelado"?`<button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:0.8rem;padding:4px 12px" onclick="reconfirmarPedido('${n.id}')">✅ Reconfirmar pedido</button>`:""}
+              ${n.status!=="cancelado"?`<button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px;color:#c62828;border-color:#c62828" onclick="cancelarPedido('${n.id}')">❌ Cancelar pedido</button>`:""}
+              <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="generarPDFPedido('${n.id}')">Generar PDF</button>
+              <button class="btn btn-secondary" style="font-size:0.8rem;padding:4px 12px" onclick="imprimirTicketPOS('${n.id}',${n.total},${n.pedido_items?n.pedido_items.reduce((p,m)=>p+m.cantidad,0):0},'${n.forma_pago||"efectivo"}')">Reimprimir ticket</button>
+            </div>
+          </div>
+          <div id="items-lista">
+          ${i.length===0?'<p style="color:#aaa;font-size:0.85rem;padding:8px 0">Sin productos registrados en este pedido</p>':""}
+          ${i.map(p=>{const m=p.variantes||{},g=m.productos||{},u=g.nombre||p.nombre||"—",y=m.color||p.color||"",f=m.talla||p.talla||"";let v=m.foto_url||g.imagen_principal||null;if(!v&&p.variante_id&&window._productosCache&&window._variantesCache){const x=window._variantesCache.find(h=>h.id===p.variante_id);if(x){v=x.foto_url||null;const h=window._productosCache.find($=>$.id===x.producto_id);h&&!v&&(v=h.imagen_principal||null)}}return`
+              <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+                ${v?'<img src="'+v+'" style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid #eee">':'<div style="width:56px;height:56px;background:#f0f0f0;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem">👟</div>'}
+                <div style="flex:1">
+                  <p style="font-weight:600;font-size:0.85rem;margin:0 0 2px">${u}${y?" · "+y:""}${f?" · T"+f:""}</p>
+                  <p style="font-size:0.8rem;color:#888;margin:0">${p.cantidad} pares × $${p.precio_unitario||0}</p>
+                </div>
+                <strong style="color:#E91E8C;font-size:1rem">$${p.subtotal!=null?p.subtotal:((p.cantidad||0)*(p.precio_unitario||0)).toFixed(2)}</strong>
+              </div>
+            `}).join("")}
+          </div>
+          <div id="panel-edicion" style="display:none"></div>
+        </div>
+
+        ${n.status==="pendiente_pago"?`
+          <div style="background:#fff8e1;border-radius:8px;padding:1rem;margin-bottom:1rem;border:1px solid #ffe082">
+            <p style="font-weight:600;color:#f57f17;margin-bottom:0.5rem">Pendiente de pago SPEI</p>
+            <p style="font-size:0.85rem;color:#888;margin-bottom:1rem">Cuando recibas el comprobante confirma el pago para descontar el inventario.</p>
+            <button class="btn btn-primary" onclick="confirmarPagoSPEI('${n.id}')">Confirmar pago recibido</button>
+          </div>
+        `:""}
+
+        ${n.comentarios?`
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem">
+            <p style="font-size:0.75rem;color:#888;margin-bottom:4px">Comentarios internos</p>
+            <p>${n.comentarios}</p>
+          </div>
+        `:""}
+
+    `}catch{t.innerHTML='<p style="padding:2rem;color:red">Error cargando pedido</p>'}};window.activarEdicionPedido=async e=>{var s;const t=document.getElementById("panel-edicion"),a=document.getElementById("items-lista");if(!t)return;const[o,n,i]=await Promise.all([fetch(b+"/variantes/").then(d=>d.json()),fetch(b+"/productos/").then(d=>d.json()),fetch(b+"/inventario/").then(d=>d.json()).catch(()=>[])]);window._editPedidoId=e,window._editItems=(((s=window._currentPedido)==null?void 0:s.pedido_items)||[]).map(d=>({...d})),window._editVariantes=o,window._editProductos=n,window._editInventario=i,window._editModo="variado",window.recalcularPreciosEdicion(),a.style.display="none",t.style.display="block";const r=()=>{const d=window._editItems,l=d.reduce((p,m)=>p+m.cantidad,0),c=l>=6?"Mayoreo 6+ pares":l>=3?"Mayoreo 3-5 pares":"Menudeo";t.innerHTML=`
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;color:#f57f17;margin-bottom:0.4rem">✏️ Modo edición — los cambios ajustan inventario automáticamente</p>
+        <p style="font-size:0.82rem;color:#64748b;margin:0 0 1rem 0">
+          Total en pedido: <strong>${l} pares</strong>
+          · Esquema aplicado: <span style="background:#fff3cd;padding:2px 8px;border-radius:100px;font-weight:700;color:#856404">${c}</span>
+        </p>
+
+        <!-- BUSCADOR Y SELECTOR DE TALLAS (arriba) -->
+        <div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:2px solid #ffe082">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <p style="font-weight:700;font-size:0.85rem;color:#333;margin:0">Agregar producto</p>
+            <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+              <button id="ep-modo-par" onclick="window.editPedidoModo('par')"
+                style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">Par suelto</button>
+              <button id="ep-modo-corrida" onclick="window.editPedidoModo('corrida')"
+                style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:white;color:#888">Corrida completa</button>
+            </div>
+          </div>
+
+          <!-- Panel par suelto -->
+          <div id="ep-panel-par">
+            <div style="position:relative">
+              <input class="form-input" id="ep-buscar-prod" placeholder="🔍 Busca el modelo (nombre o SKU)…" oninput="window.buscarProductoPedidoEdicion(this.value)" autocomplete="off"
+                onfocus="window.posicionarDropdownCarrito('ep-prod-resultados','ep-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('ep-prod-resultados');if(el)el.style.display='none'},250)">
+              <div id="ep-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:340px;overflow-y:auto;min-width:300px"></div>
+            </div>
+            <p style="font-size:0.76rem;color:#888;margin:7px 0 0;line-height:1.4">Busca el modelo y <strong>toca una talla</strong> para agregar 1 par. Puedes seguir tapeando tallas del mismo resultado.</p>
+          </div>
+
+          <!-- Panel corrida -->
+          <div id="ep-panel-corrida" style="display:none">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+              <div style="flex:2;min-width:200px;position:relative">
+                <input class="form-input" id="ep-buscar-corrida" placeholder="Ej: M-TAC-0033 o nombre..." oninput="window.buscarModeloPedidoEdicion(this.value)" autocomplete="off"
+                  onfocus="window.posicionarDropdownCarrito('ep-corrida-resultados','ep-buscar-corrida')" onblur="setTimeout(()=>{const el=document.getElementById('ep-corrida-resultados');if(el)el.style.display='none'},200)">
+                <div id="ep-corrida-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;min-width:320px"></div>
+              </div>
+              <div style="width:90px">
+                <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Precio/par</label>
+                <input type="number" class="form-input" id="ep-precio-corrida" placeholder="$" style="font-size:0.9rem">
+              </div>
+            </div>
+            <div id="ep-corrida-tallas" style="display:none;background:#f9f9f9;border-radius:8px;padding:12px;margin-top:10px">
+              <p style="font-size:0.8rem;font-weight:600;color:#333;margin-bottom:8px" id="ep-corrida-titulo">Selecciona tallas:</p>
+              <div id="ep-corrida-tallas-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+              <button class="btn btn-primary" style="background:#6a1b9a;border-color:#6a1b9a" onclick="window.agregarCorridaAlPedidoEdicion()">📦 Agregar corrida</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ITEMS ACTUALES -->
+        ${d.map((p,m)=>{const g=p.variantes||{},u=g.productos||{},y=u.nombre||p.nombre||"—",f=g.color||p.color||"",v=g.talla||p.talla||"",x=p.es_corrida?'<span style="background:#f3e5f5;color:#6a1b9a;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:100px;margin-left:6px">📦 Corrida</span>':"";let h=u.imagen_principal||null;if(!h&&p.variante_id&&window._editVariantes&&window._editProductos){const $=window._editVariantes.find(w=>w.id===p.variante_id);if($){const w=window._editProductos.find(C=>C.id===$.producto_id);w&&(h=w.imagen_principal||null)}}return`
+            <div style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+              ${h?'<img src="'+h+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #eee">':'<div style="width:48px;height:48px;background:#f0f0f0;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem">👟</div>'}
+              <div style="flex:1;min-width:120px">
+                <p style="font-weight:600;font-size:0.85rem;margin:0">${y}${f?" · "+f:""}${v?" T"+v:""}${x}</p>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:0.78rem;color:#888">Cant.</label>
+                <input type="number" min="1" value="${p.cantidad}" style="width:60px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
+                  onchange="window._editItems[${m}].cantidad = parseInt(this.value)||1; window._editItems[${m}].subtotal = window._editItems[${m}].cantidad * window._editItems[${m}].precio_unitario; window.recalcularPreciosEdicion(); window._renderEdicion()">
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <label style="font-size:0.78rem;color:#888">Precio</label>
+                <input type="number" min="0" value="${p.precio_unitario}" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem"
+                  onchange="window._editItems[${m}]._precio_manual = true; window._editItems[${m}].precio_unitario = parseFloat(this.value)||0; window._editItems[${m}].subtotal = window._editItems[${m}].cantidad * window._editItems[${m}].precio_unitario; window.recalcularPreciosEdicion(); window._renderEdicion()">
+              </div>
+              <button onclick="eliminarItemEdicion('${p.id}', ${m})" style="background:none;border:none;cursor:pointer;color:#c62828;font-size:1.1rem;padding:4px" title="Eliminar">🗑</button>
+            </div>
+          `}).join("")}
+
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #ffe082;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:0.85rem;color:#333;font-weight:600">Descuento manual ($):</label>
+          <input type="number" id="edit-descuento" min="0" value="0" style="width:90px;padding:6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+          <span style="font-size:0.8rem;color:#888">(se resta del total final)</span>
+        </div>
+
+        <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="guardarEdicionPedido()">💾 Guardar cambios</button>
+          <button class="btn btn-secondary" onclick="cancelarEdicionPedido('${e}')">Cancelar</button>
+        </div>
+      </div>
+    `};r(),window._renderEdicion=r};window.editPedidoModo=e=>{const t=document.getElementById("ep-panel-par"),a=document.getElementById("ep-panel-corrida"),o=document.getElementById("ep-modo-par"),n=document.getElementById("ep-modo-corrida");t&&(t.style.display=e==="par"?"block":"none"),a&&(a.style.display=e==="corrida"?"block":"none"),o&&(o.style.background=e==="par"?"#E91E8C":"white",o.style.color=e==="par"?"white":"#888"),n&&(n.style.background=e==="corrida"?"#6a1b9a":"white",n.style.color=e==="corrida"?"white":"#888")};window.buscarProductoPedidoEdicion=e=>{const t=window._editVariantes||[],a=window._editProductos||[],o=window._editInventario||[],n=document.getElementById("ep-prod-resultados");if(!n)return;if(window.posicionarDropdownCarrito("ep-prod-resultados","ep-buscar-prod"),!e||e.length<2){n.style.display="none";return}const i=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],r=e.toLowerCase().split(" ").filter(Boolean),s=t.filter(c=>{const p=a.find(g=>g.id===c.producto_id),m=(((p==null?void 0:p.nombre)||"")+" "+(c.color||"")+" "+(c.talla||"")+" "+((p==null?void 0:p.sku_interno)||"")).toLowerCase();return r.every(g=>m.includes(g))});if(!s.length){n.innerHTML='<div style="padding:12px 14px;color:#888;font-size:0.85rem">Sin resultados</div>',n.style.display="block";return}const d={};s.forEach(c=>{const p=a.find(g=>g.id===c.producto_id),m=c.producto_id+"|"+(c.color||"");d[m]||(d[m]={nombre:(p==null?void 0:p.nombre)||"—",color:c.color||"",foto:p==null?void 0:p.imagen_principal,hex:c.color_hex,vars:[]}),d[m].vars.push(c)});const l=Object.values(d).slice(0,6);n.style.display="block",n.innerHTML=l.map(c=>{const p=c.vars.sort((m,g)=>i.indexOf(m.talla)-i.indexOf(g.talla)).map(m=>{const g=o.find(f=>f.variante_id===m.id),u=g?g.cantidad:0,y=(window._editItems||[]).filter(f=>f.variante_id===m.id).reduce((f,v)=>f+v.cantidad,0);return`
+          <button onmousedown="event.preventDefault()" onclick="window.quickAddPedidoEdicion('${m.id}')" ${u<=0?"disabled":""}
+            style="position:relative;min-width:50px;min-height:48px;padding:5px 9px;border:1.5px solid ${y>0?"#E91E8C":"#ddd"};border-radius:10px;background:${y>0?"#fce4f3":"#fff"};font-family:inherit;cursor:${u<=0?"not-allowed":"pointer"};${u<=0?"opacity:0.45;":""}display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;touch-action:manipulation">
+            <span style="font-size:0.92rem;font-weight:800;color:#333">T${m.talla}</span>
+            <span style="font-size:0.6rem;font-weight:600;color:${u>0?"#2e7d32":"#c62828"}">${u>0?"stock "+u:"agotado"}</span>
+            ${y>0?`<span style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:19px;height:19px;font-size:0.65rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 4px">${y}</span>`:""}
+          </button>`}).join("");return`
+      <div style="padding:11px 12px;border-bottom:1px solid #f0f0f0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+          ${c.foto?`<img src="${c.foto}" style="width:36px;height:36px;object-fit:cover;border-radius:7px;flex-shrink:0">`:'<div style="width:36px;height:36px;background:#f3f3f3;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
+          ${c.hex?`<span style="width:13px;height:13px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></span>`:""}
+          <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${c.nombre}</span>
+          <span style="font-size:0.78rem;color:#888">· ${c.color}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">${p}</div>
+      </div>`}).join("")};window.quickAddPedidoEdicion=async e=>{var u;const t=window._editVariantes||[],a=window._editProductos||[],o=t.find(y=>y.id===e),n=o?a.find(y=>y.id===o.producto_id):null,i=window._editPedidoId,r=((u=document.getElementById("ep-buscar-prod"))==null?void 0:u.value)||"",s=window._editItems||[],d=s.reduce((y,f)=>y+f.cantidad,0)+1,l=parseFloat(n==null?void 0:n.precio_menudeo)||0,c=parseFloat(n==null?void 0:n.precio_mayoreo3)||Math.max(0,l-30),p=parseFloat(n==null?void 0:n.precio_mayoreo6)||Math.max(0,l-70),m=d>=6?p:d>=3?c:l,g=s.find(y=>y.variante_id===e&&!y.es_corrida);try{g?await fetch(b+"/pedidos/"+i+"/items/"+g.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:g.cantidad+1,precio_unitario:g.precio_unitario})}):await fetch(b+"/pedidos/"+i+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,cantidad:1,precio_unitario:m,subtotal:m,nombre:(n==null?void 0:n.nombre)||"",color:(o==null?void 0:o.color)||"",talla:(o==null?void 0:o.talla)||""})});const y=await fetch(b+"/pedidos/"+i+"/items").then(f=>f.json());window._editItems=Array.isArray(y)?y:[],window.recalcularPreciosEdicion(),window._renderEdicion(),typeof mostrarToastPanel=="function"&&mostrarToastPanel("✓ "+((n==null?void 0:n.nombre)||"")+" T"+((o==null?void 0:o.talla)||"")+" agregado"),r&&setTimeout(()=>{const f=document.getElementById("ep-buscar-prod");f&&(f.value=r,window.buscarProductoPedidoEdicion(r))},300)}catch(y){alert("Error: "+y.message)}};window.buscarModeloPedidoEdicion=e=>{const t=window._editVariantes||[],a=window._editProductos||[],o=document.getElementById("ep-corrida-resultados"),n=document.getElementById("ep-corrida-tallas");if(window.posicionarDropdownCarrito("ep-corrida-resultados","ep-buscar-corrida"),!e||e.length<2){o&&(o.style.display="none"),n&&(n.style.display="none");return}const i={};t.forEach(s=>{const d=a.find(p=>p.id===s.producto_id);if(!d)return;const l=((d.nombre||"")+" "+(s.color||"")+" "+(d.sku_interno||"")).toLowerCase();if(!e.toLowerCase().split(" ").every(p=>l.includes(p)))return;const c=d.id+"|"+(s.color||"");i[c]||(i[c]={prod:d,color:s.color||"",variantes:[]}),i[c].variantes.push(s)});const r=Object.values(i).slice(0,6);!r.length||!o||(o.style.display="block",o.innerHTML=r.map(s=>`
+    <div onclick="window.seleccionarModeloEdicion('${s.prod.id}','${s.color.replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+         onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
+      ${s.prod.imagen_principal?`<img src="${s.prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`:'<div style="width:36px;height:36px;background:#eee;border-radius:6px"></div>'}
+      <div>
+        <p style="font-size:0.85rem;font-weight:600;margin:0">${s.prod.nombre} · ${s.color}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${s.variantes.length} tallas disponibles</p>
+      </div>
+    </div>
+  `).join(""))};window.seleccionarModeloEdicion=(e,t)=>{const a=window._editVariantes||[],o=window._editProductos||[],n=window._editInventario||[],i=o.find(f=>f.id===e),r=document.getElementById("ep-buscar-corrida"),s=document.getElementById("ep-corrida-resultados");r&&(r.value=`${(i==null?void 0:i.nombre)||""} · ${t}`),s&&(s.style.display="none");const d=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],l=a.filter(f=>f.producto_id===e&&f.color===t).sort((f,v)=>d.indexOf(f.talla)-d.indexOf(v.talla)),c=parseFloat(i==null?void 0:i.precio_menudeo)||0,p=parseFloat(i==null?void 0:i.precio_corrida)||(c>0?Math.round(c-100):0),m=document.getElementById("ep-precio-corrida");m&&(m.value=p||""),window._editCorridaSeleccionada={productoId:e,color:t,variantes:l,prod:i,precioCorrida:p};const g=document.getElementById("ep-corrida-titulo");g&&(g.textContent=`Tallas para ${(i==null?void 0:i.nombre)||""} · ${t}:`);const u=document.getElementById("ep-corrida-tallas-grid");u&&(u.innerHTML=l.map(f=>{const v=n.find(A=>A.variante_id===f.id),x=v?v.cantidad:null,h=x!==null&&x===0,$=h?0:1,w=`ep-card-${f.id}`,C=`ep-qty-${f.id}`;return`
+      <div id="${w}" class="size-card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;border:2px solid ${h?"#fecaca":$>0?"#E91E8C":"#e2e8f0"};border-radius:12px;background:${h?"#fef2f2":$>0?"#fdf2f8":"#fff"};min-width:70px;transition:all 0.2s;position:relative;opacity:${h?.6:1}">
+        <span style="font-weight:800;font-size:0.9rem;color:#0f172a">T${f.talla}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" onclick="const inp=document.getElementById('${C}');inp.value=Math.max(0,parseInt(inp.value||0)-1);inp.dispatchEvent(new Event('input'))"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center" ${h?"disabled":""}>−</button>
+          <input type="number" value="${$}" min="0" max="${x!==null?x:999}" id="${C}" data-variante="${f.id}"
+            style="width:36px;height:24px;text-align:center;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;outline:none"
+            oninput="const val=Math.min(parseInt(this.max)||999,Math.max(0,parseInt(this.value)||0));this.value=val;const card=document.getElementById('${w}');if(val>0){card.style.borderColor='#E91E8C';card.style.background='#fdf2f8'}else{card.style.borderColor='#e2e8f0';card.style.background='#fff'}"
+            ${h?"disabled":""}>
+          <button type="button" onclick="const inp=document.getElementById('${C}');const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max){inp.value=cur+1;inp.dispatchEvent(new Event('input'))}else{inp.style.borderColor='#ef4444';setTimeout(()=>inp.style.borderColor='#cbd5e1',800)}"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center" ${h?"disabled":""}>+</button>
+        </div>
+        <span style="font-size:0.65rem;font-weight:600;color:${x===null?"#94a3b8":x>0?"#10b981":"#ef4444"}">
+          ${x===null?"Stock: ?":x>0?`${x} disp.`:"Agotado"}
+        </span>
+      </div>`}).join(""));const y=document.getElementById("ep-corrida-tallas");y&&(y.style.display="block")};window.agregarCorridaAlPedidoEdicion=async()=>{var r;const e=window._editCorridaSeleccionada;if(!(e!=null&&e.prod)){alert("Selecciona un modelo primero");return}const t=parseFloat((r=document.getElementById("ep-precio-corrida"))==null?void 0:r.value)||e.precioCorrida||0;if(!t){alert("Ingresa el precio por par");return}const a=document.querySelectorAll("#ep-corrida-tallas-grid input[type=number][data-variante]"),o=Array.from(a).filter(s=>parseInt(s.value)>0);if(!o.length){alert("Ingresa al menos 1 par en alguna talla");return}const n=window._editPedidoId,i=event.currentTarget;i.textContent="Agregando...",i.disabled=!0;try{for(const d of o){const l=d.dataset.variante,c=parseInt(d.value)||1,p=e.variantes.find(m=>m.id===l);await fetch(b+"/pedidos/"+n+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:l,cantidad:c,precio_unitario:t,subtotal:c*t,nombre:e.prod.nombre,color:e.color,talla:(p==null?void 0:p.talla)||"",es_corrida:!0})})}const s=await fetch(b+"/pedidos/"+n+"/items").then(d=>d.json());window._editItems=Array.isArray(s)?s:[],window.recalcularPreciosEdicion(),window._editCorridaSeleccionada=null,window._renderEdicion(),typeof mostrarToastPanel=="function"&&mostrarToastPanel("📦 Corrida agregada al pedido")}catch(s){alert("Error: "+s.message)}finally{i.textContent="📦 Agregar corrida",i.disabled=!1}};window.recalcularPreciosEdicion=()=>{const e=window._editItems||[],t=window._editProductos||[],a=window._editVariantes||[],o=e.reduce((i,r)=>i+r.cantidad,0),n=o>=6?"mayoreo6":o>=3?"mayoreo3":"menudeo";e.forEach(i=>{if(i.es_corrida)return;const r=a.find(m=>m.id===i.variante_id),s=r?t.find(m=>m.id===r.producto_id):null;if(!s)return;const d=parseFloat(s.precio_menudeo)||0,l=parseFloat(s.precio_mayoreo3)||d-30,c=parseFloat(s.precio_mayoreo6)||d-70;if(i._precio_manual===void 0&&i.precio_unitario!==d&&i.precio_unitario!==l&&i.precio_unitario!==c&&(i._precio_manual=!0),i._precio_manual)return;let p=d;n==="mayoreo6"?p=c:n==="mayoreo3"&&(p=l),i.precio_unitario=p,i.subtotal=i.cantidad*p})};window.eliminarItemEdicion=async(e,t)=>{if(!confirm("¿Eliminar este producto del pedido?"))return;const a=window._editPedidoId,n=await(await fetch(b+"/pedidos/"+a+"/items/"+e,{method:"DELETE"})).json();if(n.ok){window._editItems.splice(t,1),window.recalcularPreciosEdicion(),window._renderEdicion();const i=Math.max(0,(window._editItems||[]).reduce((s,d)=>s+d.cantidad*(d.precio_unitario||0),0));fetch(b+"/pedidos/"+a,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:i})}).catch(()=>{});const r=document.querySelector('[style*="color:#E91E8C"][style*="font-size:1.2rem"]');r&&(r.textContent="$"+i.toFixed(2))}else alert("Error eliminando ítem: "+JSON.stringify(n))};window.guardarEdicionPedido=async()=>{const e=window._editPedidoId,t=window._editItems,a=parseFloat(document.getElementById("edit-descuento").value)||0;await Promise.all(t.map(n=>fetch(b+"/pedidos/"+e+"/items/"+n.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:n.cantidad,precio_unitario:n.precio_unitario})})));const o=Math.max(0,t.reduce((n,i)=>n+i.cantidad*i.precio_unitario,0)-a);await fetch(b+"/pedidos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:o})}),alert("Pedido actualizado correctamente"),verPedido(e)};window.recalcularTotalPedido=async(e,t)=>{await fetch(b+"/pedidos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:parseFloat(t)})});const a=document.getElementById("pedido-total-display");a&&(a.textContent="$"+parseFloat(t).toFixed(2));const o=a==null?void 0:a.nextElementSibling;o&&o.tagName==="BUTTON"&&o.remove()};window.cancelarEdicionPedido=e=>{verPedido(e)};window.cancelarPedido=async e=>{if(confirm("¿Cancelar este pedido? Si ya estaba confirmado se devolverá el stock automáticamente."))try{const a=await(await fetch(b+"/pedidos/"+e+"/cancelar",{method:"POST"})).json();a.ok?(alert(a.stock_devuelto?"Pedido cancelado. Stock devuelto al inventario.":"Pedido cancelado."),verPedido(e)):alert("Error: "+JSON.stringify(a))}catch{alert("Error conectando con el servidor")}};window.reconfirmarPedido=async e=>{if(confirm("¿Reconfirmar este pedido? Se descontará el stock del inventario nuevamente."))try{const a=await(await fetch(b+"/pedidos/"+e+"/reconfirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})})).json();a.ok?(alert("Pedido reconfirmado correctamente."),verPedido(e)):alert("Error: "+JSON.stringify(a))}catch{alert("Error conectando con el servidor")}};window.confirmarPagoSPEI=async e=>{if(confirm("Confirmar que recibiste el pago por SPEI?"))try{const a=await(await fetch(b+"/pedidos/"+e+"/confirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({forma_pago:"spei"})})).json();a.ok?(alert("Pago confirmado. Inventario actualizado."),verPedido(e)):alert("Error: "+JSON.stringify(a))}catch{alert("Error conectando con el servidor")}};window.confirmarPedidoAdmin=async e=>{if(confirm("Confirmar este pedido? El inventario se descontara."))try{const a=await(await fetch(b+"/pedidos/"+e+"/confirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({forma_pago:"efectivo"})})).json();if(a.ok){try{const o=await fetch(b+"/pedidos/"+e).then(s=>s.json()),n=o.telefono_cliente,i=(o.nombre_cliente||"Cliente").split(" ")[0],r=o.total?"$"+parseFloat(o.total).toFixed(0):"";n&&await fetch(b+"/chatbot/templates/enviar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:n,template:"confirmacion_pedido",params:[i,String(e).slice(-6),r]})})}catch{}alert("Pedido confirmado correctamente."),verPedido(e)}else alert("Error: "+JSON.stringify(a))}catch{alert("Error conectando con el servidor")}};window.recalcularTotal=()=>{const e=window._pedidoItems||[],t=e.reduce((n,i)=>n+i.cantidad,0);e.forEach(n=>{n.es_oferta?n.precio_unitario=n.precio_menudeo:t>=6?n.precio_unitario=n.precio_mayoreo6||n.precio_menudeo-70:t>=3?n.precio_unitario=n.precio_mayoreo3||n.precio_menudeo-30:n.precio_unitario=n.precio_menudeo});const a=e.reduce((n,i)=>n+i.cantidad*i.precio_unitario,0),o=document.getElementById("ped-total");o&&(o.textContent="$"+a.toFixed(2))};async function nt(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando punto de venta...</p>';try{const[t,a,o,n,i]=await Promise.all([fetch(b+"/productos/").then(r=>r.json()),fetch(b+"/variantes/").then(r=>r.json()),fetch(b+"/sucursales/").then(r=>r.json()),fetch(b+"/clientes/").then(r=>r.json()),fetch(b+"/inventario/").then(r=>r.json())]);window._posData={productos:t,variantes:a,sucursales:o,clientes:n,inventario:i},window._posCarrito=Lt(),window._posClienteId=null,e.innerHTML=`
+      <div id="pos-layout" style="display:grid;grid-template-columns:1fr 380px;gap:1rem;height:calc(100vh - 80px)">
+
+        <div style="overflow-y:auto;padding-right:0.5rem">
+          <div style="background:white;border-radius:12px;padding:1rem;margin-bottom:1rem;border:1px solid #eee;position:sticky;top:0;z-index:10">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:0.75rem">
+  <input class="form-input" id="pos-buscar" placeholder="🔍 Buscar por nombre o SKU..." style="width:100%;font-size:1rem;min-height:44px;padding:10px 14px" oninput="buscarPOS(this.value)">
+  <select class="form-input" id="pos-sucursal" style="width:100%" onchange="actualizarInventarioPOS()">
+    ${o.map(r=>`<option value="${r.id}">${r.nombre}</option>`).join("")}
+  </select>
+</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="pos-categorias">
+              <button class="btn btn-primary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('')">Todos</button>
+              ${[...new Set(t.map(r=>r.categoria).filter(Boolean))].map(r=>`
+                <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('${r}')">${r.charAt(0).toUpperCase()+r.slice(1)}</button>
+              `).join("")}
+            </div>
+          </div>
+          <div id="pos-productos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;padding-bottom:80px">
+          </div>
+        </div>
+
+        <div id="pos-carrito-desktop" style="background:white;border-radius:12px;border:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
+          <div style="padding:1rem;border-bottom:1px solid #eee">
+            <p style="font-weight:700;font-size:1rem;margin-bottom:0.5rem">Carrito</p>
+            <input class="form-input" id="pos-cliente-buscar" placeholder="🔍 Buscar cliente..." style="font-size:0.85rem" oninput="buscarClientePOS(this.value)">
+            <div id="pos-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px;z-index:50;position:relative"></div>
+            <input type="hidden" id="pos-cliente">
+            <div id="pos-cliente-seleccionado" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.8rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOS()">Sin cliente seleccionado — toca para cambiar</div>
+          </div>
+          <div id="pos-carrito-items" style="flex:1;overflow-y:auto;padding:0.75rem">
+            <p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>
+          </div>
+          <div style="padding:1rem;border-top:1px solid #eee">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+              <span style="font-size:0.85rem;color:#888">Total pares: <strong id="pos-total-pares">0</strong></span>
+              <span style="font-size:0.85rem;color:#888">Tipo: <strong id="pos-tipo-precio">Menudeo</strong></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <span style="font-weight:600;font-size:1rem">Total:</span>
+              <span style="font-weight:700;font-size:1.4rem;color:#E91E8C" id="pos-total">$0.00</span>
+            </div>
+            <select class="form-input" id="pos-pago" style="width:100%;background:white;color:#333;font-size:0.85rem;margin-bottom:8px">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="spei">SPEI</option>
+              <option value="credito">Credito</option>
+            </select>
+            <div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #ffe082">
+              <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:6px">Descuento general</p>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:0.85rem;color:#f57f17;font-weight:600">$</span>
+                <input type="number" min="0" value="0" id="pos-descuento"
+                  style="width:80px;text-align:center;padding:6px;border:2px solid #f57f17;border-radius:8px;font-size:1rem;font-weight:700;color:#f57f17"
+                  oninput="aplicarDescuentoPOS(this.value)">
+                <span style="font-size:0.85rem;color:#f57f17;font-weight:600">de descuento por par</span>
+              </div>
+              <p id="pos-descuento-info" style="font-size:0.75rem;color:#888;margin-top:4px"></p>
+            </div>
+            <button class="btn btn-primary" style="width:100%;padding:12px;font-size:1rem;font-weight:600" onclick="cobrarPOS()">Cobrar</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.9rem;font-weight:600;border-color:#E91E8C;color:#E91E8C" onclick="guardarCarritoPOS(false)">💾 Guardar carrito</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:0.85rem" onclick="limpiarCarritoPOS()">Limpiar carrito</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTÓN FLOTANTE MÓVIL -->
+      <div id="pos-btn-flotante" onclick="abrirDrawerPOS()" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:100;background:#E91E8C;color:white;padding:14px 20px;align-items:center;justify-content:space-between;cursor:pointer;box-shadow:0 -4px 20px rgba(0,0,0,0.2)">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;opacity:0.8;letter-spacing:1px">CARRITO</p>
+          <p id="pos-flotante-pares" style="font-size:0.85rem;font-weight:700">0 pares</p>
+        </div>
+        <p id="pos-flotante-total" style="font-size:1.3rem;font-weight:800">$0.00</p>
+        <div style="background:white;color:#E91E8C;padding:8px 16px;border-radius:8px;font-size:0.85rem;font-weight:700">Ver carrito →</div>
+      </div>
+
+      <!-- DRAWER MÓVIL -->
+      <div id="pos-drawer-overlay" onclick="cerrarDrawerPOS()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:199"></div>
+      <div id="pos-drawer" style="position:fixed;bottom:0;left:0;right:0;z-index:200;background:white;border-radius:20px 20px 0 0;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform 0.3s ease">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:white;z-index:10">
+          <p style="font-weight:700;font-size:1.1rem">🛒 Carrito</p>
+          <button onclick="cerrarDrawerPOS()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <div style="padding:0.75rem 1rem;border-bottom:1px solid #eee">
+          <input class="form-input" id="pos-cliente-buscar-m" placeholder="🔍 Buscar cliente..." style="width:100%;font-size:0.9rem" oninput="buscarClientePOSM(this.value)">
+          <div id="pos-cliente-resultados-m" style="border:1px solid #ddd;border-radius:6px;max-height:150px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+          <div id="pos-cliente-sel-m" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.82rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOSM()"></div>
+        </div>
+        <div id="pos-drawer-items" style="padding:0.75rem 1rem"></div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid #eee">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:#888;font-size:0.85rem">Pares: <strong id="pos-drawer-pares">0</strong></span>
+            <span style="color:#888;font-size:0.85rem">Tipo: <strong id="pos-drawer-tipo">Menudeo</strong></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-weight:600;font-size:1rem">Total:</span>
+            <span style="font-weight:800;font-size:1.5rem;color:#E91E8C" id="pos-drawer-total">$0.00</span>
+          </div>
+          <div style="background:#fff8e1;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #ffe082">
+            <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:8px">Descuento por par</p>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:#f57f17;font-weight:700">$</span>
+              <input type="number" min="0" value="0" id="pos-descuento-m"
+                style="width:80px;text-align:center;padding:8px;border:2px solid #f57f17;border-radius:8px;font-size:1rem;font-weight:700;color:#f57f17"
+                oninput="aplicarDescuentoPOS(this.value)">
+              <span style="color:#f57f17;font-size:0.85rem">de descuento por par</span>
+            </div>
+          </div>
+          <select class="form-input" id="pos-pago-m" style="width:100%;margin-bottom:12px;font-size:0.95rem">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="spei">SPEI</option>
+            <option value="credito">Credito</option>
+          </select>
+          <button onclick="cobrarPOSM()" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700;margin-bottom:8px">💳 Cobrar</button>
+          <button onclick="guardarCarritoPOS(true)" class="btn btn-secondary" style="width:100%;font-size:0.9rem;font-weight:600;margin-bottom:8px;border-color:#E91E8C;color:#E91E8C">💾 Guardar carrito</button>
+          <button onclick="limpiarCarritoPOS();cerrarDrawerPOS()" class="btn btn-secondary" style="width:100%;font-size:0.9rem">🗑 Limpiar carrito</button>
+        </div>
+      </div>
+    `,renderProductosPOS(t.filter(r=>r.activo)),renderCarritoPOS()}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando punto de venta</p>'}}const it="pos_carrito_v1";function Lt(){try{const e=localStorage.getItem(it),t=e?JSON.parse(e):[];return Array.isArray(t)?t:[]}catch{return[]}}function je(){try{localStorage.setItem(it,JSON.stringify(window._posCarrito||[]))}catch{}}window.abrirDrawerPOS=()=>{renderDrawerPOS();const e=document.getElementById("pos-drawer"),t=document.getElementById("pos-drawer-overlay");e&&e.classList.add("open"),t&&t.classList.add("active"),document.body.style.overflow="hidden"};window.cerrarDrawerPOS=()=>{const e=document.getElementById("pos-drawer"),t=document.getElementById("pos-drawer-overlay");e&&e.classList.remove("open"),t&&t.classList.remove("active"),document.body.style.overflow=""};window.renderDrawerPOS=()=>{const e=window._posCarrito,t=document.getElementById("pos-drawer-items");if(!t)return;const a=e.reduce((p,m)=>p+m.cantidad,0),o=e.reduce((p,m)=>p+m.cantidad*m.precio_unitario,0),n=e.some(p=>p.es_corrida)?"Corrida":a>=6?"Mayoreo 6+":a>=3?"Mayoreo 3+":"Menudeo",i=document.getElementById("pos-drawer-pares"),r=document.getElementById("pos-drawer-total"),s=document.getElementById("pos-drawer-tipo");if(i&&(i.textContent=a),r&&(r.textContent="$"+o.toFixed(2)),s&&(s.textContent=n),!e.length){t.innerHTML='<p style="color:#888;text-align:center;padding:2rem">El carrito esta vacio</p>';return}const d=e.filter(p=>!p.es_corrida),l=e.filter(p=>p.es_corrida),c={};l.forEach(p=>{const m=p.producto_id+"|"+p.color;c[m]||(c[m]={nombre:p.nombre,color:p.color,producto_id:p.producto_id,tallas:[],subtotal:0,imagen:p.imagen||null}),c[m].tallas.push({talla:p.talla,cantidad:p.cantidad}),c[m].subtotal+=p.cantidad*p.precio_unitario}),t.innerHTML=`
+    ${d.map(p=>{const m=e.indexOf(p);return`
+        <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
+  <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
+    ${p.imagen?`<img src="${p.imagen}" object-fit:contain;border-radius:8px;flex-shrink:0;background:#f5f5f5>`:'<div style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>'}
+    <div style="flex:1">
+      <p style="font-size:0.9rem;font-weight:600">${p.nombre}</p>
+      <p style="font-size:0.78rem;color:#888">${p.color} · T${p.talla}</p>
+    </div>
+    <button onclick="eliminarItemPOS(${m});renderDrawerPOS()" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem">✕</button>
+  </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <button onclick="cambiarCantidadPOS(${m},-1);renderDrawerPOS()" style="background:#f5f5f5;border:none;border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+              <span style="font-weight:700;min-width:24px;text-align:center">${p.cantidad}</span>
+              <button onclick="cambiarCantidadPOS(${m},1);renderDrawerPOS()" style="background:#f5f5f5;border:none;border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:0.72rem;color:#888">$</span>
+              <input type="number" value="${p.precio_unitario}"
+                     onchange="editarPrecioPOS(${m}, this.value);renderDrawerPOS()"
+                     style="width:64px;text-align:center;border:1px solid #E91E8C;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#E91E8C">
+              <span style="font-size:0.72rem;color:#888">/par</span>
+            </div>
+          </div>
+          <p style="text-align:right;font-size:0.95rem;font-weight:700;color:#E91E8C;margin-top:4px">$${(p.cantidad*p.precio_unitario).toFixed(2)}</p>
+        </div>
+      `}).join("")}
+
+    ${Object.entries(c).map(([p,m])=>`
+      <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          ${m.imagen?`<img src="${m.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>'}
+          <div style="flex:1">
+            <p style="font-size:0.9rem;font-weight:700">${m.nombre}</p>
+            <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${m.color}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+              ${m.tallas.map(g=>`<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${g.talla} ×${g.cantidad}</span>`).join("")}
+            </div>
+          </div>
+          <button onclick="eliminarCorridaPOS('${p}');renderDrawerPOS()" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem">✕</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:0.85rem;color:#888">${m.tallas.reduce((g,u)=>g+u.cantidad,0)} pares</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:0.72rem;color:#888">$</span>
+            <input type="number" value="${(m.subtotal/m.tallas.reduce((g,u)=>g+u.cantidad,0)).toFixed(2)}"
+                   onchange="editarPrecioCorridaPOS('${p}', this.value);renderDrawerPOS()"
+                   style="width:64px;text-align:center;border:1px solid #6a1b9a;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#6a1b9a">
+            <span style="font-size:0.72rem;color:#888">/par</span>
+          </div>
+          <span style="font-weight:700;color:#6a1b9a">$${m.subtotal.toFixed(2)}</span>
+        </div>
+      </div>
+    `).join("")}
+  `};window.cobrarPOSM=async()=>{const e=document.getElementById("pos-pago-m"),t=document.getElementById("pos-pago");e&&t&&(t.value=e.value),cerrarDrawerPOS(),await cobrarPOS()};window.buscarClientePOSM=e=>{const{clientes:t}=window._posData,a=document.getElementById("pos-cliente-resultados-m");if(!e||e.length<2){a.style.display="none";return}const o=t.filter(n=>n.nombre.toLowerCase().includes(e.toLowerCase())).slice(0,5);if(!o.length){a.style.display="none";return}a.style.display="block",a.innerHTML=o.map(n=>`
+    <div onclick="seleccionarClientePOSM('${n.id}','${n.nombre}')"
+         style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
+         onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+      <strong>${n.nombre}</strong>${n.telefono?" · "+n.telefono:""}
+    </div>
+  `).join("")};window.seleccionarClientePOSM=(e,t)=>{document.getElementById("pos-cliente").value=e,document.getElementById("pos-cliente-buscar-m").value="",document.getElementById("pos-cliente-resultados-m").style.display="none";const a=document.getElementById("pos-cliente-sel-m");a.textContent="✔ "+t+" — toca para cambiar",a.style.display="block"};window.limpiarClientePOSM=()=>{document.getElementById("pos-cliente").value="",document.getElementById("pos-cliente-sel-m").style.display="none",document.getElementById("pos-cliente-buscar-m").value=""};window.aplicarDescuentoPOS=e=>{const t=parseFloat(e)||0;window._posCarrito.forEach(i=>{const r=window._posCarrito.reduce((d,l)=>d+l.cantidad,0);let s;i.precio_base_original||(i.es_corrida?s=i.precio_corrida:r>=6?s=i.precio_mayoreo6:r>=3?s=i.precio_mayoreo3:s=i.precio_menudeo,i.precio_base_original=s),i.precio_unitario=Math.max(0,parseFloat((i.precio_base_original-t).toFixed(2))),i.precio_manual=t>0});const a=window._posCarrito.reduce((i,r)=>i+r.cantidad*r.precio_unitario,0),o=document.getElementById("pos-total");o&&(o.textContent="$"+a.toFixed(2));const n=document.getElementById("pos-descuento-info");if(n){const i=window._posCarrito.reduce((r,s)=>r+s.cantidad,0);n.textContent=t>0?`Ahorro total: $${(t*i).toFixed(2)} en ${i} pares`:""}renderCarritoPOS(),setTimeout(()=>{var l;const i=document.getElementById("pos-descuento");i&&(i.value=t);const r=document.getElementById("pos-descuento-m");r&&(r.value=t);const s=window._posCarrito.reduce((c,p)=>c+p.cantidad*p.precio_unitario,0),d=document.getElementById("pos-drawer-total");d&&(d.textContent="$"+s.toFixed(2)),(l=document.getElementById("pos-drawer"))!=null&&l.classList.contains("open")&&renderDrawerPOS()},50)};window.buscarClientePOS=e=>{const t=window._posData?window._posData.clientes:[],a=document.getElementById("pos-cliente-resultados");if(!a)return;if(!e||e.length<2){a.style.display="none";return}const o=t.filter(n=>n.nombre.toLowerCase().includes(e.toLowerCase())||(n.telefono||"").includes(e)).slice(0,8);if(o.length===0){a.innerHTML='<div style="padding:10px 14px;color:#888;font-size:0.85rem">No se encontraron clientes</div>',a.style.display="block";return}a.innerHTML=o.map(n=>`
+    <div onclick="seleccionarClientePOS('${n.id}', '${n.nombre.replace(/'/g,"")}')"
+         style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
+         onmouseover="this.style.background='#f5f5f5'"
+         onmouseout="this.style.background='white'">
+      <strong>${n.nombre}</strong>
+      <span style="color:#888;font-size:0.75rem"> · ${n.tipo||"menudeo"}</span>
+      ${n.telefono?'<br><span style="color:#888;font-size:0.72rem">'+n.telefono+"</span>":""}
+    </div>
+  `).join(""),a.style.display="block"};window.seleccionarClientePOS=(e,t)=>{document.getElementById("pos-cliente").value=e,document.getElementById("pos-cliente-buscar").value="",document.getElementById("pos-cliente-resultados").style.display="none";const a=document.getElementById("pos-cliente-seleccionado");a.textContent="✔ "+t+" — toca para cambiar",a.style.display="block"};window.limpiarClientePOS=()=>{document.getElementById("pos-cliente").value="",document.getElementById("pos-cliente-seleccionado").style.display="none",document.getElementById("pos-cliente-buscar").value="",document.getElementById("pos-cliente-buscar").focus()};window.renderProductosPOS=e=>{const{variantes:t,inventario:a}=window._posData,o=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",n=a.filter(r=>r.sucursal_id===o),i=document.getElementById("pos-productos-grid");i&&(i.innerHTML=e.filter(r=>r.activo).map(r=>{const s=t.filter(c=>c.producto_id===r.id),d=[...new Set(s.map(c=>c.color).filter(Boolean))],l=s.reduce((c,p)=>{const m=n.find(g=>g.variante_id===p.id);return c+(m?m.cantidad:0)},0);return`
+      <div onclick="abrirProductoPOS('${r.id}')"
+           style="background:white;border-radius:12px;border:1px solid #eee;cursor:pointer;overflow:hidden;transition:all 0.2s;${l===0?"opacity:0.5":""}"
+           onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+           onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
+        <div style="position:relative">
+          ${r.imagen_principal?`<img src="${r.imagen_principal}" style="width:100%;height:160px;object-fit:contain;background:#f5f5f5">`:'<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­👠</div>'}
+          ${l===0?'<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>':""}
+          ${r.es_oferta?'<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>':""}
+          ${r.nuevo?'<div style="position:absolute;top:8px;left:8px;background:#2e7d32;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Nuevo</div>':""}
+        </div>
+        <div style="padding:0.75rem">
+          <p style="font-weight:600;font-size:0.85rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nombre}</p>
+          <p style="font-size:0.72rem;color:#888;margin-bottom:6px">${r.sku_interno||""}</p>
+          <div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">
+            ${d.slice(0,5).map(c=>{const p=s.find(m=>m.color===c);return`<div style="width:14px;height:14px;border-radius:50%;background:${p?p.color_hex:"#888"};border:1px solid #ddd" title="${c}"></div>`}).join("")}
+            ${d.length>5?`<span style="font-size:0.7rem;color:#888">+${d.length-5}</span>`:""}
+          </div>
+          <p style="font-weight:700;color:#E91E8C;font-size:0.9rem">$${r.precio_menudeo}</p>
+        </div>
+      </div>
+    `}).join(""))};window.buscarPOS=e=>{const{productos:t}=window._posData;if(!e){renderProductosPOS(t);return}const a=e.toLowerCase().split(" ").filter(n=>n),o=t.filter(n=>{const i=n.nombre.toLowerCase(),r=(n.sku_interno||"").toLowerCase(),s=(n.categoria||"").toLowerCase(),d=i+" "+r+" "+s;return a.every(l=>d.includes(l))});renderProductosPOS(o)};window.filtrarPOS=e=>{const{productos:t}=window._posData,a=e?t.filter(o=>o.categoria===e):t;renderProductosPOS(a),document.querySelectorAll("#pos-categorias button").forEach(o=>{o.className="btn btn-secondary",o.style.cssText="padding:4px 12px;font-size:0.8rem"}),event.target.className="btn btn-primary",event.target.style.cssText="padding:4px 12px;font-size:0.8rem"};window.actualizarInventarioPOS=async()=>{const e=document.getElementById("pos-sucursal").value;try{const t=await fetch(b+"/inventario/sucursal/"+e);window._posData.inventario=await t.json();const{productos:a}=window._posData;renderProductosPOS(a)}catch{}};window.abrirProductoPOS=e=>{const t=document.getElementById("pos-modal");t&&t.remove();const{productos:a,variantes:o,inventario:n}=window._posData,i=a.find(f=>f.id===e);if(!i)return;const r=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",s=n.filter(f=>f.sucursal_id===r),d=o.filter(f=>f.producto_id===e),l=[...new Set(d.map(f=>f.color).filter(Boolean))],c=parseFloat(i.precio_menudeo)||0,p=parseFloat(i.precio_mayoreo3)||c-30,m=parseFloat(i.precio_mayoreo6)||c-70,g=parseFloat(i.precio_corrida)||c-100,u=f=>"$"+Math.round(f).toLocaleString("es-MX");window._posBuffer={};const y=document.createElement("div");y.id="pos-modal",y.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",y.innerHTML=`
+    <div style="background:white;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
+
+      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #eee;flex-shrink:0">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          ${i.imagen_principal?`<img id="pos-modal-img" src="${i.imagen_principal}" onclick="abrirLightboxPOS(this.src)" style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in" title="Toca para ver en grande">`:""}
+          <div style="flex:1;min-width:0">
+            <p style="font-weight:700;font-size:1rem;line-height:1.25">${i.nombre}</p>
+            <p style="font-size:0.8rem;color:#888">${i.sku_interno||""}</p>
+            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin-top:2px">${u(c)} <span style="font-size:0.72rem;font-weight:600;color:#aaa">menudeo</span></p>
+          </div>
+          <button onclick="document.getElementById('pos-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888;flex-shrink:0;line-height:1">✕</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="flex:1;background:#fafafa;border:1px solid #eee;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Mayoreo 3+</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#333">${u(p)}</p>
+          </div>
+          <div style="flex:1;background:#fafafa;border:1px solid #eee;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Mayoreo 6+</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#333">${u(m)}</p>
+          </div>
+          <div style="flex:1;background:#f3e5f5;border:1px solid #e1bee7;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#6a1b9a;font-weight:700;text-transform:uppercase;letter-spacing:0.3px">Corrida c/u</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#6a1b9a">${u(g)}</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="pos-modal-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
+
+      ${i.corrida_activa?`
+      <div style="padding:12px 1.5rem 0">
+        <div style="display:flex;gap:4px;background:var(--surface-2,#f5f3f7);border-radius:12px;padding:4px">
+          <button id="pos-modo-variado" class="pos-modo-tab active" onclick="posCambiarModo('${e}','variado')">🧺 Surtido variado</button>
+          <button id="pos-modo-corrida" class="pos-modo-tab corrida" onclick="posCambiarModo('${e}','corrida')">📦 Corrida completa</button>
+        </div>
+        <p id="pos-modo-hint" style="font-size:0.72rem;color:#888;margin-top:7px;line-height:1.4">Elige tallas sueltas; el precio se ajusta solo según el total de pares (menudeo · mayoreo 3+ · 6+).</p>
+      </div>
+      `:""}
+
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+        <p id="pos-color-label" style="font-size:0.75rem;color:#888;font-weight:600;margin-bottom:8px">SELECCIONA COLOR</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${l.map(f=>{const v=d.filter(C=>C.color===f),x=v[0],h=v.map(C=>C.foto_url).find(Boolean),$=v.reduce((C,A)=>{const k=s.find(S=>S.variante_id===A.id);return C+(k?k.cantidad:0)},0),w=h?`<img src="${h}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid #ddd">`:`<div style="width:46px;height:46px;border-radius:8px;background:${x?x.color_hex:"#888"};border:1px solid #ddd"></div>`;return`
+              <div onclick="posSeleccionarColor('${e}', '${f}')"
+                   id="pos-color-btn-${f.replace(/\s/g,"_")}"
+                   style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;border:2px solid ${$===0?"#f5f5f5":"#ddd"};opacity:${$===0?"0.4":"1"};width:74px">
+                ${w}
+                <span style="font-size:0.62rem;color:#666;text-align:center;line-height:1.1;height:2.2em;overflow:hidden">${f}</span>
+                <span id="pos-color-badge-${f.replace(/\s/g,"_")}" style="font-size:0.6rem;color:#2e7d32;font-weight:700;display:none">0 pares</span>
+              </div>
+            `}).join("")}
+        </div>
+      </div>
+
+      <div id="pos-tallas-panel" style="padding:1rem;border-bottom:1px solid #eee">
+        <p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
+      </div>
+
+      </div><!-- /pos-modal-scroll -->
+
+      <div id="pos-modal-resumen" style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:none;flex-shrink:0">
+      </div>
+
+      <div id="pos-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #eee">
+        <button onclick="confirmarModalPOS('${e}')"
+                id="pos-btn-confirmar"
+                class="btn btn-primary"
+                style="width:100%;padding:14px;font-size:1rem"
+                disabled>
+          Selecciona al menos una talla
+        </button>
+      </div>
+  `,document.body.appendChild(y),y.addEventListener("click",f=>{f.target===y&&y.remove()}),window._posSeleccion={productoId:e,color:null},window._posBuffer={},window._posModo="variado",window._posColores=l,window._corridaCantidades={},l.length&&posSeleccionarColor(e,l[0])};window.abrirLightboxPOS=e=>{if(!e)return;const t=document.getElementById("pos-lightbox");t&&t.remove();const a=document.createElement("div");a.id="pos-lightbox",a.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2000;display:flex;align-items:center;justify-content:center;cursor:zoom-out",a.innerHTML=`
+    <button onclick="document.getElementById('pos-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+    <img src="${e}" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6)">
+  `,a.addEventListener("click",o=>{o.target===a&&a.remove()}),document.body.appendChild(a)};window._posHighlightColor=(e,t,a)=>{document.querySelectorAll('[id^="pos-color-btn-"]').forEach(n=>{n.style.borderColor="#ddd",n.style.background="transparent"});const o=document.getElementById("pos-color-btn-"+e.replace(/\s/g,"_"));o&&(o.style.borderColor=t,o.style.background=a)};window.posSeleccionarColor=(e,t)=>{window._posModo==="corrida"?(window._corridaColorActivo=t,window._posSeleccion.color=t,window._posHighlightColor(t,"#6a1b9a","#f3e5f5"),renderCorridaTallas(e,t)):seleccionarColorModalPOS(e,t)};window.posCambiarModo=(e,t)=>{var s;window._posModo=t;const a=document.getElementById("pos-modo-variado"),o=document.getElementById("pos-modo-corrida");a&&a.classList.toggle("active",t==="variado"),o&&o.classList.toggle("active",t==="corrida");const n=document.getElementById("pos-modo-hint");n&&(n.textContent=t==="corrida"?'Una corrida completa: varias tallas de un mismo color a precio de corrida. Usa "Sugerir" para llenarla rápido.':"Elige tallas sueltas; el precio se ajusta solo según el total de pares (menudeo · mayoreo 3+ · 6+)."),document.querySelectorAll('[id^="pos-color-badge-"]').forEach(d=>{d.style.display="none"});const i=document.getElementById("pos-modal-footer"),r=((s=window._posSeleccion)==null?void 0:s.color)||window._corridaColorActivo||window._posColores&&window._posColores[0];if(t==="corrida")if(window._corridaCantidades||(window._corridaCantidades={}),i&&(i.innerHTML=`
+      <button onclick="sugerirCorrida('${e}', window._corridaColorActivo)"
+              style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:#f3e5f5;color:#6a1b9a;border:1.5px solid #ce93d8;border-radius:10px;min-height:46px">
+        ✨ Sugerir corrida (6 pares)
+      </button>
+      <button onclick="confirmarCorridaNueva('${e}')"
+              id="pos-btn-confirmar-corrida" class="btn btn-primary"
+              style="width:100%;padding:14px;font-size:1rem;background:#6a1b9a;border-color:#6a1b9a" disabled>
+        Agrega tallas a la corrida
+      </button>`),window._corridaColorActivo=r,r)window._posHighlightColor(r,"#6a1b9a","#f3e5f5"),renderCorridaTallas(e,r);else{const d=document.getElementById("pos-tallas-panel");d&&(d.innerHTML='<p style="color:#aaa;font-size:0.85rem">Selecciona un color para armar la corrida</p>')}else{if(i&&(i.innerHTML=`
+      <button onclick="confirmarModalPOS('${e}')" id="pos-btn-confirmar"
+              class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem" disabled>
+        Selecciona al menos una talla
+      </button>`),r)seleccionarColorModalPOS(e,r);else{const d=document.getElementById("pos-tallas-panel");d&&(d.innerHTML='<p style="color:#aaa;font-size:0.85rem">← Selecciona un color para ver las tallas</p>')}actualizarResumenModalPOS(e)}};window.renderCorridaTallas=(e,t)=>{const{variantes:a,inventario:o}=window._posData,n=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",i=o.filter(l=>l.sucursal_id===n),r=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],s=a.filter(l=>l.producto_id===e&&l.color===t).sort((l,c)=>r.indexOf(l.talla)-r.indexOf(c.talla)),d=document.getElementById("pos-tallas-panel");d&&(window._corridaCantidades||(window._corridaCantidades={}),d.innerHTML=`
+    <p style="font-size:0.75rem;color:#6a1b9a;font-weight:700;margin-bottom:12px">📦 CORRIDA · ${t} — ajusta cantidades por talla</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${s.map(l=>{const c=i.find(g=>g.variante_id===l.id),p=c?c.cantidad:0,m=window._corridaCantidades[l.id]||0;return`
+          <div style="display:flex;align-items:center;gap:10px;opacity:${p===0?"0.4":"1"}">
+            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#333">${l.talla}</span>
+            <span style="font-size:0.72rem;color:#aaa;min-width:54px">Stock: ${p}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button ${p===0?"disabled":""} onclick="posCorridaQty('${l.id}',-1,${p},'${e}')"
+                      style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
+              <input type="number" min="0" max="${p}" value="${m}" id="qty-corrida-${l.id}" ${p===0?"disabled":""}
+                     style="width:56px;height:40px;text-align:center;padding:4px;border:2px solid ${m>0?"#6a1b9a":"#ddd"};border-radius:8px;font-size:1rem;font-weight:700"
+                     oninput="window._corridaCantidades['${l.id}']=Math.min(${p},Math.max(0,parseInt(this.value)||0));this.value=window._corridaCantidades['${l.id}'];this.style.borderColor=window._corridaCantidades['${l.id}']>0?'#6a1b9a':'#ddd';actualizarBadgesCorrida('${e}')">
+              <button ${p===0?"disabled":""} onclick="posCorridaQty('${l.id}',1,${p},'${e}')"
+                      style="background:#f0f0f0;border:none;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
+            </div>
+            ${p===0?'<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 8px;border-radius:100px">Agotado</span>':""}
+          </div>`}).join("")}
+    </div>`,actualizarBadgesCorrida(e))};window.posCorridaQty=(e,t,a,o)=>{const n=window._corridaCantidades[e]||0,i=Math.min(a,Math.max(0,n+t));window._corridaCantidades[e]=i;const r=document.getElementById("qty-corrida-"+e);r&&(r.value=i,r.style.borderColor=i>0?"#6a1b9a":"#ddd"),actualizarBadgesCorrida(o)};window.actualizarBadgesCorrida=e=>{const{variantes:t}=window._posData;let a=0;(window._posColores||[]).forEach(i=>{const r=t.filter(l=>l.producto_id===e&&l.color===i);let s=0;r.forEach(l=>{s+=window._corridaCantidades[l.id]||0}),a+=s;const d=document.getElementById("pos-color-badge-"+i.replace(/\s/g,"_"));d&&(s>0?(d.textContent=s+" par"+(s>1?"es":""),d.style.color="#6a1b9a",d.style.display="block"):d.style.display="none")});const o=document.getElementById("pos-modal-resumen"),n=document.getElementById("pos-btn-confirmar-corrida");if(a>0){if(o){const i=[];Object.entries(window._corridaCantidades).forEach(([r,s])=>{if(s>0){const d=t.find(l=>l.id===r);d&&i.push({color:d.color,talla:d.talla,cantidad:s})}}),o.style.display="block",o.innerHTML=`
+        <p style="font-size:0.75rem;font-weight:700;color:#6a1b9a;margin-bottom:8px">📦 CORRIDA — ${a} pares</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${i.map(r=>`<span style="background:#f3e5f5;border-radius:100px;padding:3px 10px;font-size:0.78rem;color:#6a1b9a"><strong>${r.color}</strong> T${r.talla} × ${r.cantidad}</span>`).join("")}
+        </div>`}n&&(n.textContent=`✅ Agregar corrida (${a} pares)`,n.disabled=!1)}else o&&(o.style.display="none"),n&&(n.textContent="Agrega tallas a la corrida",n.disabled=!0)};window.mostrarCorridaModalPOS=e=>posCambiarModo(e,"corrida");window.sugerirCorrida=(e,t)=>{const{variantes:a,inventario:o}=window._posData,n=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",i=o.filter(u=>u.sucursal_id===n),r=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],s=a.filter(u=>u.producto_id===e&&u.color===t).sort((u,y)=>r.indexOf(u.talla)-r.indexOf(y.talla)),d=s.filter(u=>{const y=i.find(f=>f.variante_id===u.id);return y&&y.cantidad>0}),l=d.some(u=>u.talla.includes("."));s.forEach(u=>{window._corridaCantidades[u.id]=0});const c=d.some(u=>u.talla==="26"),p=l?{con26:["26","25.5","25","24.5","24","23.5"],sin26:["25.5","25","24.5","24","23.5","23"]}:{con26:["26","25","24","23"],sin26:["25","24","23","22"]},m=c?p.con26:p.sin26;let g=m.map(u=>d.find(y=>y.talla===u)).filter(Boolean);if(g.length<6){const u=new Set(g.map(v=>v.id)),y=r.indexOf(m[m.length-1]),f=d.filter(v=>!u.has(v.id)&&r.indexOf(v.talla)<y).sort((v,x)=>r.indexOf(x.talla)-r.indexOf(v.talla));for(const v of f){if(g.length>=6)break;g.push(v)}}if(g.length||(g=d.slice(0,l?6:5)),l)g.slice(0,6).forEach(u=>{window._corridaCantidades[u.id]=1});else{const u=g.slice(0,5);u.length===4?u.forEach((y,f)=>{window._corridaCantidades[y.id]=f===1||f===2?2:1}):u.length===5?u.forEach((y,f)=>{window._corridaCantidades[y.id]=f===2?2:1}):g.slice(0,6).forEach(y=>{window._corridaCantidades[y.id]=Math.ceil(6/g.length)})}window._posHighlightColor(t,"#6a1b9a","#f3e5f5"),renderCorridaTallas(e,t)};window.confirmarCorridaNueva=e=>{const{variantes:t}=window._posData,a=window._posData.productos.find(i=>i.id===e);if(!a)return;let o=0;if(Object.entries(window._corridaCantidades).forEach(([i,r])=>{var l;if(r<=0)return;const s=t.find(c=>c.id===i);if(!s)return;const d=window._posCarrito.find(c=>c.variante_id===i&&c.es_corrida);d?(d.cantidad+=r,d.es_corrida=!0):window._posCarrito.push({variante_id:i,producto_id:e,nombre:a.nombre,color:s.color,talla:s.talla,cantidad:r,precio_menudeo:parseFloat(a.precio_menudeo)||0,precio_mayoreo3:parseFloat(a.precio_mayoreo3)||parseFloat(a.precio_menudeo)-30,precio_mayoreo6:parseFloat(a.precio_mayoreo6)||parseFloat(a.precio_menudeo)-70,precio_corrida:parseFloat(a.precio_corrida)||parseFloat(a.precio_menudeo)-100,es_corrida:!0,imagen:((l=window._posData.variantes.find(c=>c.id===i))==null?void 0:l.foto_url)||a.imagen_principal||null,precio_unitario:parseFloat(a.precio_corrida)||parseFloat(a.precio_menudeo)-100}),o++}),o===0){alert("Agrega al menos una talla");return}const n=document.getElementById("pos-modal");n&&n.remove(),window._corridaCantidades={},renderCarritoPOS()};window.seleccionarColorModalPOS=(e,t)=>{const{variantes:a,inventario:o}=window._posData,n=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",i=o.filter(g=>g.sucursal_id===n),r=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"];window._posSeleccion&&window._posSeleccion.color&&guardarBufferColor(e,window._posSeleccion.color),document.querySelectorAll('[id^="pos-color-btn-"]').forEach(g=>{g.style.borderColor="#ddd",g.style.background="transparent"});const s=document.getElementById("pos-color-btn-"+t.replace(/\s/g,"_"));s&&(s.style.borderColor="#E91E8C",s.style.background="#fce4f3"),window._posSeleccion.color=t;const d=a.filter(g=>g.producto_id===e&&g.color===t).sort((g,u)=>r.indexOf(g.talla)-r.indexOf(u.talla)),l=d[0]?d[0].foto_url:null,c=document.getElementById("pos-modal-img");c&&l&&(c.src=l);const p=window._posBuffer[t]||{},m=document.getElementById("pos-tallas-panel");m&&(m.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <p style="font-size:0.75rem;color:#888;font-weight:600;margin:0">TALLAS — ${t}</p>
+        <p style="font-size:0.7rem;color:#aaa;margin:0">Toca una talla para agregar</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:12px">
+        ${d.map(g=>{const u=i.find(v=>v.variante_id===g.id),y=u?u.cantidad:0,f=p[g.id]||0;return`
+            <div style="position:relative">
+              <button id="chip-talla-${g.id}"
+                      onclick="posTallaTap('${g.id}','${e}','${t}',${y})"
+                      ${y===0?"disabled":""}
+                      style="width:100%;min-height:62px;border:2px solid ${f>0?"#E91E8C":"#ddd"};background:${f>0?"#fce4f3":"#fff"};border-radius:12px;cursor:${y===0?"not-allowed":"pointer"};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${y===0?"opacity:0.45":""};touch-action:manipulation">
+                <span style="font-size:1.05rem;font-weight:800;color:#333">${g.talla}</span>
+                <span style="font-size:0.63rem;color:${y===0?"#c62828":"#aaa"}">${y===0?"Agotado":"Stock "+y}</span>
+              </button>
+              <span id="chipbadge-${g.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${f>0?"flex":"none"};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${f}</span>
+              <button id="chipmenos-${g.id}"
+                      onclick="posTallaMenos('${g.id}','${e}','${t}',${y})"
+                      style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid #E91E8C;color:#E91E8C;border-radius:100px;width:26px;height:26px;display:${f>0?"flex":"none"};align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;cursor:pointer;line-height:1;touch-action:manipulation;box-shadow:0 1px 3px rgba(0,0,0,0.15)">−</button>
+              <input type="hidden" id="qty-modal-${g.id}" value="${f}">
+            </div>
+          `}).join("")}
+      </div>
+    `)};window.posTallaTap=(e,t,a,o)=>{const n=document.getElementById("qty-modal-"+e);if(!n||n.disabled)return;const i=Math.min(o,(parseInt(n.value)||0)+1);n.value=i,posPintarChipTalla(e,i),actualizarBadgeColor(t,a)};window.posTallaMenos=(e,t,a)=>{const o=document.getElementById("qty-modal-"+e);if(!o)return;const n=Math.max(0,(parseInt(o.value)||0)-1);o.value=n,posPintarChipTalla(e,n),actualizarBadgeColor(t,a)};window.posPintarChipTalla=(e,t)=>{const a=document.getElementById("chip-talla-"+e);a&&(a.style.borderColor=t>0?"#E91E8C":"#ddd",a.style.background=t>0?"#fce4f3":"#fff");const o=document.getElementById("chipbadge-"+e);o&&(o.textContent=t,o.style.display=t>0?"flex":"none");const n=document.getElementById("chipmenos-"+e);n&&(n.style.display=t>0?"flex":"none")};window.guardarBufferColor=(e,t)=>{const{variantes:a}=window._posData,o=a.filter(n=>n.producto_id===e&&n.color===t);window._posBuffer[t]||(window._posBuffer[t]={}),o.forEach(n=>{const i=document.getElementById("qty-modal-"+n.id);window._posBuffer[t][n.id]=i&&parseInt(i.value)||0}),actualizarBadgeColor(e,t)};window.actualizarBadgeColor=(e,t)=>{const{variantes:a}=window._posData,o=a.filter(r=>r.producto_id===e&&r.color===t);let n=0;o.forEach(r=>{const s=document.getElementById("qty-modal-"+r.id);n+=s&&parseInt(s.value)||0});const i=document.getElementById("pos-color-badge-"+t.replace(/\s/g,"_"));i&&(n>0?(i.textContent=n+" par"+(n>1?"es":""),i.style.display="block"):i.style.display="none"),actualizarResumenModalPOS(e)};window.actualizarResumenModalPOS=e=>{const{variantes:t}=window._posData;let a=0;const o=[];Object.entries(window._posBuffer).forEach(([s,d])=>{Object.entries(d).forEach(([l,c])=>{if(c>0){const p=t.find(m=>m.id===l);p&&(o.push({color:s,talla:p.talla,cantidad:c}),a+=c)}})});const n=window._posSeleccion?window._posSeleccion.color:null;n&&!window._posBuffer[n]&&t.filter(d=>d.producto_id===e&&d.color===n).forEach(d=>{const l=document.getElementById("qty-modal-"+d.id),c=l&&parseInt(l.value)||0;c>0&&(o.push({color:n,talla:d.talla,cantidad:c}),a+=c)});const i=document.getElementById("pos-modal-resumen"),r=document.getElementById("pos-btn-confirmar");a>0?(i&&(i.style.display="block",i.innerHTML=`
+        <p style="font-size:0.75rem;font-weight:700;color:#2e7d32;margin-bottom:8px">🛒 RESUMEN — ${a} pares</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${o.map(s=>`
+            <span style="background:#f5f5f5;border-radius:100px;padding:3px 10px;font-size:0.78rem">
+              <strong>${s.color}</strong> T${s.talla} × ${s.cantidad}
+            </span>
+          `).join("")}
+        </div>
+      `),r&&(r.textContent=`✅ Agregar ${a} pares al carrito`,r.disabled=!1)):(i&&(i.style.display="none"),r&&(r.textContent="Selecciona al menos una talla",r.disabled=!0))};window.confirmarModalPOS=e=>{window._posSeleccion&&window._posSeleccion.color;const{productos:t,variantes:a}=window._posData,o=t.find(i=>i.id===e);if(!o)return;window._posSeleccion&&window._posSeleccion.color?guardarBufferColor(e,window._posSeleccion.color):document.querySelectorAll('[id^="qty-modal-"]').forEach(r=>{const s=r.id.replace("qty-modal-",""),d=a.find(c=>c.id===s);if(!d)return;const l=parseInt(r.value)||0;window._posBuffer[d.color]||(window._posBuffer[d.color]={}),window._posBuffer[d.color][s]=l});let n=0;if(Object.entries(window._posBuffer).forEach(([i,r])=>{Object.entries(r).forEach(([s,d])=>{var p;if(d<=0)return;const l=a.find(m=>m.id===s),c=window._posCarrito.find(m=>m.variante_id===s&&!m.es_corrida);c?c.cantidad+=d:window._posCarrito.push({variante_id:s,producto_id:e,nombre:o.nombre,color:l?l.color:i,talla:l?l.talla:"",cantidad:d,precio_menudeo:parseFloat(o.precio_menudeo)||0,precio_mayoreo3:parseFloat(o.precio_mayoreo3)||parseFloat(o.precio_menudeo)-30,precio_mayoreo6:parseFloat(o.precio_mayoreo6)||parseFloat(o.precio_menudeo)-70,precio_corrida:parseFloat(o.precio_corrida)||parseFloat(o.precio_menudeo)-100,es_oferta:o.es_oferta||!1,es_corrida:!1,imagen:window._posBuffer[l?l.color:i]&&((p=window._posData.variantes.find(m=>m.id===s))==null?void 0:p.foto_url)||o.imagen_principal||null,precio_unitario:parseFloat(o.precio_menudeo)||0}),n++})}),n===0){alert("Pon al menos 1 par en alguna talla");return}document.getElementById("pos-modal").remove(),window._posBuffer={},renderCarritoPOS()};window.seleccionarColorPOS=(e,t)=>{const{variantes:a,inventario:o}=window._posData,n=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",i=o.filter(m=>m.sucursal_id===n),r=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"];document.querySelectorAll('[id^="pos-color-"]').forEach(m=>{m.style.borderColor="transparent",m.style.background="transparent"});const s=document.getElementById("pos-color-"+t.replace(/\s/g,"_"));s&&(s.style.borderColor="#E91E8C",s.style.background="#fce4f3"),window._posSeleccion.color=t,window._posSeleccion.talla=null;const d=a.filter(m=>m.producto_id===e&&m.color===t).sort((m,g)=>r.indexOf(m.talla)-r.indexOf(g.talla)),l=d[0]?d[0].foto_url:null,c=document.getElementById("pos-modal-img");c&&l&&(c.src=l);const p=document.getElementById("pos-tallas-container");p&&(p.innerHTML=`
+    <p style="font-size:0.75rem;color:#888;margin-bottom:6px;font-weight:600">TALLAS Y CANTIDADES</p>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${d.map(m=>{const g=i.find(f=>f.variante_id===m.id),u=g?g.cantidad:0,y=u>0;return`
+          <div style="display:flex;align-items:center;gap:8px;opacity:${y?"1":"0.4"}">
+            <span style="min-width:40px;font-size:0.85rem;font-weight:600;color:#333">${m.talla}</span>
+            <span style="font-size:0.72rem;color:#888;min-width:60px">Stock: ${u}</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              <button onclick="cambiarCantidadTallaPOS('${m.id}', -1, ${u})" 
+                      ${y?"":"disabled"}
+                      style="background:#f0f0f0;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem;${y?"":"cursor:not-allowed"}">−</button>
+              <input type="number" min="0" max="${u}" value="0"
+                     id="qty-${m.id}"
+                     ${y?"":"disabled"}
+                     style="width:44px;text-align:center;padding:4px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:600"
+                     oninput="validarCantidadTalla('${m.id}', ${u})">
+              <button onclick="cambiarCantidadTallaPOS('${m.id}', 1, ${u})"
+                      ${y?"":"disabled"}
+                      style="background:#f0f0f0;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem;${y?"":"cursor:not-allowed"}">+</button>
+            </div>
+            ${y?"":'<span style="font-size:0.7rem;color:#c62828;background:#ffebee;padding:2px 6px;border-radius:100px">Agotado</span>'}
+          </div>
+        `}).join("")}
+    </div>
+    <button onclick="agregarTallasPOS('${e}', '${t}')" 
+            class="btn btn-primary" 
+            style="width:100%;margin-top:12px;padding:10px">
+      + Agregar al carrito
+    </button>
+  `)};window.cambiarCantidadTallaPOS=(e,t,a)=>{const o=document.getElementById("qty-"+e);if(!o)return;const n=Math.min(a,Math.max(0,(parseInt(o.value)||0)+t));o.value=n,window._posSeleccion&&actualizarBadgeColor(window._posSeleccion.productoId,window._posSeleccion.color)};window.agregarTallasPOS=(e,t)=>{const{productos:a,variantes:o}=window._posData,n=a.find(d=>d.id===e);if(!n)return;const i=o.filter(d=>d.producto_id===e&&d.color===t);let r=0;if(i.forEach(d=>{const l=document.getElementById("qty-"+d.id),c=l&&parseInt(l.value)||0;if(c<=0)return;const p=window._posCarrito.find(m=>m.variante_id===d.id);p?p.cantidad+=c:window._posCarrito.push({variante_id:d.id,producto_id:e,nombre:n.nombre,color:t,talla:d.talla,cantidad:c,precio_menudeo:parseFloat(n.precio_menudeo)||0,precio_mayoreo3:parseFloat(n.precio_mayoreo3)||parseFloat(n.precio_menudeo)-30,precio_mayoreo6:parseFloat(n.precio_mayoreo6)||parseFloat(n.precio_menudeo)-70,precio_corrida:parseFloat(n.precio_corrida)||parseFloat(n.precio_menudeo)-100,imagen:n.imagen_principal||null,es_oferta:n.es_oferta||!1,precio_unitario:parseFloat(n.precio_menudeo)||0}),r++}),r===0){alert("Pon al menos 1 par en alguna talla");return}const s=document.querySelector(`button[onclick="agregarTallasPOS('${e}', '${t}')"]`);s&&(s.textContent="✅ Agregado — selecciona otro color o cierra",s.style.background="#2e7d32",s.style.borderColor="#2e7d32",s.disabled=!0),i.forEach(d=>{const l=document.getElementById("qty-"+d.id);l&&(l.value=0)}),actualizarResumenModal(e)};window.actualizarResumenModal=e=>{const t=window._posCarrito.filter(n=>n.producto_id===e),a=t.reduce((n,i)=>n+i.cantidad,0);let o=document.getElementById("pos-modal-resumen");if(!o){o=document.createElement("div"),o.id="pos-modal-resumen",o.style.cssText="background:#e8f5e9;border-radius:8px;padding:0.75rem;margin-top:10px;border:1px solid #a5d6a7";const n=document.querySelector("#pos-modal > div > div:last-child");n&&n.insertBefore(o,n.firstChild)}o.innerHTML=`
+    <p style="font-size:0.78rem;font-weight:700;color:#2e7d32;margin-bottom:6px">🛒 En carrito — ${a} pares</p>
+    ${t.map(n=>`
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:#333;margin-bottom:2px">
+        <span>${n.color} · T${n.talla}</span>
+        <strong>${n.cantidad} par${n.cantidad>1?"es":""}</strong>
+      </div>
+    `).join("")}
+    <button onclick="document.getElementById('pos-modal').remove(); renderCarritoPOS()"
+            class="btn btn-primary"
+            style="width:100%;margin-top:10px;padding:10px;font-size:0.95rem">
+      ✅ Listo — agregar al carrito
+    </button>
+  `};window.seleccionarTallaPOS=(e,t)=>{window._posSeleccion.talla=t,window._posSeleccion.varianteId=e,document.querySelectorAll('[id^="pos-talla-"]').forEach(n=>{n.style.borderColor="#ddd",n.style.background="white",n.style.color="#333"});const a=document.getElementById("pos-talla-"+t.replace(".","_"));a&&(a.style.borderColor="#E91E8C",a.style.background="#fce4f3",a.style.color="#E91E8C");const o=document.getElementById("pos-btn-agregar");o&&(o.textContent="+ Agregar al carrito",o.disabled=!1)};window.agregarAlCarritoPOS=e=>{const{productos:t,variantes:a}=window._posData,{varianteId:o,color:n,talla:i}=window._posSeleccion;if(!o||!n||!i)return;const r=t.find(d=>d.id===e);if(!r)return;const s=window._posCarrito.find(d=>d.variante_id===o);s?s.cantidad++:window._posCarrito.push({variante_id:o,producto_id:e,nombre:r.nombre,color:n,talla:i,cantidad:1,precio_menudeo:parseFloat(r.precio_menudeo)||0,precio_mayoreo3:parseFloat(r.precio_mayoreo3)||parseFloat(r.precio_menudeo)-30,precio_mayoreo6:parseFloat(r.precio_mayoreo6)||parseFloat(r.precio_menudeo)-70,precio_corrida:parseFloat(r.precio_corrida)||parseFloat(r.precio_menudeo)-100,imagen:r.imagen_principal||null,es_oferta:r.es_oferta||!1,precio_unitario:parseFloat(r.precio_menudeo)||0}),document.getElementById("pos-modal").remove(),renderCarritoPOS()};window.agregarCorridaPOS=e=>{const{productos:t,variantes:a,inventario:o}=window._posData,{color:n}=window._posSeleccion;if(!n){alert("Selecciona un color primero");return}t.find(m=>m.id===e);const i=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",r=o.filter(m=>m.sucursal_id===i),s=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],d=a.filter(m=>m.producto_id===e&&m.color===n).sort((m,g)=>s.indexOf(m.talla)-s.indexOf(g.talla)),c=document.getElementById("pos-modal").querySelector("div > div:last-child"),p=`
+    <div style="background:#f3e5f5;border-radius:8px;padding:1rem;margin-top:1rem;border:1px solid #ce93d8">
+      <p style="font-weight:700;color:#6a1b9a;margin-bottom:0.75rem">✏️ Editar corrida — ${n}</p>
+      <p style="font-size:0.75rem;color:#888;margin-bottom:0.75rem">Ajusta las cantidades por talla</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${d.map(m=>{const g=r.find(y=>y.variante_id===m.id),u=g?g.cantidad:0;return`
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="min-width:40px;font-size:0.85rem;font-weight:600">${m.talla}</span>
+              <span style="font-size:0.72rem;color:#888;min-width:55px">Stock: ${u}</span>
+              <div style="display:flex;align-items:center;gap:4px">
+                <button onclick="cambiarCantidadTallaPOS('corrida-${m.id}', -1, ${u})"
+                        style="background:#f0f0f0;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer">−</button>
+                <input type="number" min="0" max="${u}" value="${u>0?1:0}"
+                       id="qty-corrida-${m.id}"
+                       style="width:44px;text-align:center;padding:4px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:600"
+                       oninput="validarCantidadTalla('corrida-${m.id}', ${u})">
+                <button onclick="cambiarCantidadTallaPOS('corrida-${m.id}', 1, ${u})"
+                        style="background:#f0f0f0;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer">+</button>
+              </div>
+              ${u===0?'<span style="font-size:0.7rem;color:#c62828">Sin stock</span>':""}
+            </div>
+          `}).join("")}
+      </div>
+      <button onclick="confirmarCorridaPOS('${e}', '${n}')"
+              class="btn btn-primary"
+              style="width:100%;margin-top:12px;background:#6a1b9a;border-color:#6a1b9a">
+        ✅ Confirmar corrida
+      </button>
+    </div>
+  `;c&&c.insertAdjacentHTML("beforeend",p)};window.confirmarCorridaPOS=(e,t)=>{const{productos:a,variantes:o}=window._posData,n=a.find(r=>r.id===e);o.filter(r=>r.producto_id===e&&r.color===t).forEach(r=>{const s=document.getElementById("qty-corrida-"+r.id),d=s&&parseInt(s.value)||0;if(d<=0)return;const l=window._posCarrito.find(c=>c.variante_id===r.id);l?(l.cantidad+=d,l.es_corrida=!0):window._posCarrito.push({variante_id:r.id,producto_id:e,nombre:n.nombre,color:t,talla:r.talla,cantidad:d,precio_menudeo:parseFloat(n.precio_menudeo)||0,precio_mayoreo3:parseFloat(n.precio_mayoreo3)||parseFloat(n.precio_menudeo)-30,precio_mayoreo6:parseFloat(n.precio_mayoreo6)||parseFloat(n.precio_menudeo)-70,precio_corrida:parseFloat(n.precio_corrida)||parseFloat(n.precio_menudeo)-100,imagen:n.imagen_principal||null,es_oferta:n.es_oferta||!1,es_corrida:!0,precio_unitario:parseFloat(n.precio_menudeo)||0})}),document.getElementById("pos-modal").remove(),renderCarritoPOS()};window.renderCarritoPOS=()=>{var g;const e=window._posCarrito,t=document.getElementById("pos-carrito-items");if(!t)return;const a=e.reduce((u,y)=>u+y.cantidad,0);e.forEach(u=>{u.precio_manual||(u.es_oferta?u.precio_unitario=u.precio_menudeo:u.es_corrida?u.precio_unitario=u.precio_corrida:a>=6?u.precio_unitario=u.precio_mayoreo6:a>=3?u.precio_unitario=u.precio_mayoreo3:u.precio_unitario=u.precio_menudeo)});const o=e.reduce((u,y)=>u+y.cantidad*y.precio_unitario,0),n=e.some(u=>u.es_corrida)?"Corrida":a>=6?"Mayoreo 6+":a>=3?"Mayoreo 3+":"Menudeo",i=e.filter(u=>!u.es_corrida),r=e.filter(u=>u.es_corrida),s={};r.forEach(u=>{const y=u.producto_id+"|"+u.color;s[y]||(s[y]={nombre:u.nombre,color:u.color,producto_id:u.producto_id,tallas:[],subtotal:0,imagen:u.imagen||null}),s[y].tallas.push({talla:u.talla,cantidad:u.cantidad,variante_id:u.variante_id}),s[y].subtotal+=u.cantidad*u.precio_unitario}),e.length===0?t.innerHTML='<p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>':t.innerHTML=`
+      ${i.map(u=>`
+  <div style="padding:10px;border-bottom:1px solid #f5f5f5">
+    <div style="display:flex;gap:10px;margin-bottom:8px">
+      ${u.imagen?`<img src="${u.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>'}
+      <div style="flex:1">
+        <p style="font-size:0.9rem;font-weight:600">${u.nombre}</p>
+        <p style="font-size:0.78rem;color:#888">${u.color} · T${u.talla}</p>
+      </div>
+      <button onclick="eliminarItemPOS(${e.indexOf(u)})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="cambiarCantidadPOS(${e.indexOf(u)}, -1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px;height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">−</button>
+        <span style="font-size:1rem;font-weight:700;min-width:24px;text-align:center">${u.cantidad}</span>
+        <button onclick="cambiarCantidadPOS(${e.indexOf(u)}, 1)" style="background:#f5f5f5;border:none;border-radius:8px;width:44px;height:44px;cursor:pointer;font-size:1.4rem;font-weight:700;touch-action:manipulation;display:flex;align-items:center;justify-content:center">+</button>
+      </div>
+      <div style="text-align:right">
+        <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end">
+          <span style="font-size:0.72rem;color:#888">$</span>
+          <input type="number" value="${u.precio_unitario}"
+                 onchange="editarPrecioPOS(${e.indexOf(u)}, this.value)"
+                 style="width:64px;text-align:center;border:1px solid #E91E8C;border-radius:6px;padding:3px 4px;font-size:0.9rem;font-weight:700;color:#E91E8C">
+          <span style="font-size:0.72rem;color:#888">/par</span>
+        </div>
+        <p id="subtotal-item-${e.indexOf(u)}" style="font-size:0.95rem;font-weight:700;color:#E91E8C;margin-top:2px">$${(u.cantidad*u.precio_unitario).toFixed(2)}</p>
+      </div>
+    </div>
+  </div>
+`).join("")}
+
+      
+  ${Object.entries(s).map(([u,y])=>`
+  <div style="padding:10px;border-bottom:1px solid #f5f5f5;background:#fdf4ff" data-corrida-key="${u}">
+    <div style="display:flex;gap:10px;align-items:start;margin-bottom:6px">
+      ${y.imagen?`<img src="${y.imagen}" style="width:48px;height:48px;object-fit:contain;background:#f5f5f5;border-radius:8px;flex-shrink:0">`:'<div style="width:48px;height:48px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>'}
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:start">
+          <div>
+            <p style="font-size:0.9rem;font-weight:700">${y.nombre}</p>
+            <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${y.color}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+              ${y.tallas.map(f=>`<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${f.talla} ×${f.cantidad}</span>`).join("")}
+            </div>
+          </div>
+          <button onclick="eliminarCorridaPOS('${u}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:8px">
+      <button onclick="editarCorridaEnCarrito('${u}')"
+              style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:6px;padding:6px 12px;font-size:0.78rem;color:#6a1b9a;cursor:pointer">
+        ✏️ Editar corrida
+      </button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:0.78rem;color:#888">$</span>
+        <input type="number" value="${(y.subtotal/y.tallas.reduce((f,v)=>f+v.cantidad,0)).toFixed(2)}"
+               onchange="editarPrecioCorridaPOS('${u}', this.value)"
+               style="width:64px;text-align:center;border:1px solid #6a1b9a;border-radius:6px;padding:3px 4px;font-size:0.9rem;font-weight:700;color:#6a1b9a">
+        <span style="font-size:0.72rem;color:#888">/par</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span style="font-size:0.78rem;color:#888">${y.tallas.reduce((f,v)=>f+v.cantidad,0)} pares</span>
+      <p id="subtotal-corrida-${u.replace("|","-")}" style="font-size:0.95rem;font-weight:700;color:#6a1b9a">$${y.subtotal.toFixed(2)}</p>
+    </div>
+  </div>
+`).join("")}
+    `;const d=document.getElementById("pos-total"),l=document.getElementById("pos-total-pares"),c=document.getElementById("pos-tipo-precio");d&&(d.textContent="$"+o.toFixed(2)),l&&(l.textContent=a),c&&(c.textContent=n);const p=document.getElementById("pos-flotante-pares"),m=document.getElementById("pos-flotante-total");p&&(p.textContent=a+" pares"),m&&(m.textContent="$"+o.toFixed(2)),(g=document.getElementById("pos-drawer"))!=null&&g.classList.contains("open")&&renderDrawerPOS(),je()};window.editarPrecioPOS=(e,t)=>{if(!window._posCarrito[e])return;const a=parseFloat(t);if(!a||a<=0){alert("El precio debe ser mayor a $0");return}window._posCarrito[e].precio_unitario=a,window._posCarrito[e].precio_manual=!0;const o=window._posCarrito[e].cantidad,n=document.getElementById("subtotal-item-"+e);n&&(n.textContent="$"+(o*a).toFixed(2));const i=window._posCarrito.reduce((s,d)=>s+d.cantidad*d.precio_unitario,0),r=document.getElementById("pos-total");r&&(r.textContent="$"+i.toFixed(2)),je()};window.editarPrecioCorridaPOS=(e,t)=>{const[a,o]=e.split("|"),n=parseFloat(t);if(!n||n<=0){alert("El precio debe ser mayor a $0");return}window._posCarrito.forEach(c=>{c.producto_id===a&&c.color===o&&c.es_corrida&&(c.precio_unitario=n,c.precio_manual=!0)});const r=window._posCarrito.filter(c=>c.producto_id===a&&c.color===o&&c.es_corrida).reduce((c,p)=>c+p.cantidad*p.precio_unitario,0),s=document.getElementById("subtotal-corrida-"+e.replace("|","-"));s&&(s.textContent="$"+r.toFixed(2));const d=window._posCarrito.reduce((c,p)=>c+p.cantidad*p.precio_unitario,0),l=document.getElementById("pos-total");l&&(l.textContent="$"+d.toFixed(2)),je()};window.editarCorridaEnCarrito=e=>{const[t,a]=e.split("|"),{inventario:o,variantes:n}=window._posData,i=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"",r=o.filter(c=>c.sucursal_id===i),s=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],d=n.filter(c=>c.producto_id===t&&c.color===a).sort((c,p)=>s.indexOf(c.talla)-s.indexOf(p.talla)),l=document.createElement("div");l.id="pos-modal-editar-corrida",l.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",l.innerHTML=`
+    <div style="background:white;border-radius:16px;max-width:400px;width:100%;padding:1.5rem;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="font-weight:700;color:#6a1b9a">✏️ Editar corrida · ${a}</p>
+        <button onclick="document.getElementById('pos-modal-editar-corrida').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${d.map(c=>{const p=r.find(y=>y.variante_id===c.id),m=p?p.cantidad:0,g=window._posCarrito.find(y=>y.variante_id===c.id&&y.es_corrida),u=g?g.cantidad:0;return`
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="min-width:44px;font-size:0.9rem;font-weight:700">T${c.talla}</span>
+              <span style="font-size:0.72rem;color:#aaa;min-width:55px">Stock: ${m}</span>
+              <div style="display:flex;align-items:center;gap:6px">
+                <button onclick="this.nextElementSibling.value=Math.max(0,parseInt(this.nextElementSibling.value)-1)"
+                        style="background:#f0f0f0;border:none;border-radius:6px;width:36px;height:36px;cursor:pointer;font-size:1.1rem">−</button>
+                <input type="number" min="0" max="${m}" value="${u}"
+                       id="edit-corrida-${c.id}"
+                       style="width:50px;text-align:center;padding:4px;border:2px solid #6a1b9a;border-radius:8px;font-size:1rem;font-weight:700">
+                <button onclick="this.previousElementSibling.value=Math.min(${m},parseInt(this.previousElementSibling.value)+1)"
+                        style="background:#f0f0f0;border:none;border-radius:6px;width:36px;height:36px;cursor:pointer;font-size:1.1rem">+</button>
+              </div>
+            </div>
+          `}).join("")}
+      </div>
+      <button onclick="guardarEdicionCorridaPOS('${t}', '${a}')"
+              class="btn btn-primary"
+              style="width:100%;margin-top:1.5rem;padding:12px;background:#6a1b9a;border-color:#6a1b9a">
+        ✅ Guardar cambios
+      </button>
+    </div>
+  `,document.body.appendChild(l),l.addEventListener("click",c=>{c.target===l&&l.remove()})};window.guardarEdicionCorridaPOS=(e,t)=>{const{variantes:a,productos:o}=window._posData,n=window._posCarrito.filter(l=>l.producto_id===e&&l.color===t&&l.es_corrida),i=n.length>0&&n[0].precio_manual?n[0].precio_unitario:null;window._posCarrito=window._posCarrito.filter(l=>!(l.producto_id===e&&l.color===t&&l.es_corrida));const r=a.filter(l=>l.producto_id===e&&l.color===t),s=o.find(l=>l.id===e);if(!s)return;const d=i!==null?i:parseFloat(s.precio_corrida)||parseFloat(s.precio_menudeo)-100;r.forEach(l=>{const c=document.getElementById("edit-corrida-"+l.id),p=c&&parseInt(c.value)||0;p<=0||window._posCarrito.push({variante_id:l.id,producto_id:e,nombre:s.nombre,color:t,talla:l.talla,cantidad:p,precio_menudeo:parseFloat(s.precio_menudeo)||0,precio_mayoreo3:parseFloat(s.precio_mayoreo3)||parseFloat(s.precio_menudeo)-30,precio_mayoreo6:parseFloat(s.precio_mayoreo6)||parseFloat(s.precio_menudeo)-70,precio_corrida:parseFloat(s.precio_corrida)||parseFloat(s.precio_menudeo)-100,es_oferta:s.es_oferta||!1,imagen:s.imagen_principal||null,es_corrida:!0,precio_manual:i!==null,precio_unitario:d})}),document.getElementById("pos-modal-editar-corrida").remove(),renderCarritoPOS()};window.eliminarCorridaPOS=e=>{const[t,a]=e.split("|");window._posCarrito=window._posCarrito.filter(o=>!(o.producto_id===t&&o.color===a&&o.es_corrida)),renderCarritoPOS()};window.cambiarCantidadPOS=async(e,t)=>{const a=window._posCarrito[e];if(a){if(t>0){const o=document.getElementById("pos-sucursal")?document.getElementById("pos-sucursal").value:"";try{const r=(await(await fetch(b+"/inventario/sucursal/"+o)).json()).find(l=>l.variante_id===a.variante_id),s=r?r.cantidad:0;if(window._posCarrito.filter(l=>l.variante_id===a.variante_id).reduce((l,c)=>l+c.cantidad,0)>=s){alert("No hay más existencia disponible. Stock: "+s+" pares");return}}catch(n){console.error("Error verificando stock",n)}}a.cantidad=Math.max(1,a.cantidad+t),renderCarritoPOS()}};window.eliminarItemPOS=e=>{window._posCarrito.splice(e,1),renderCarritoPOS()};window.limpiarCarritoPOS=()=>{window._posCarrito.length>0&&!confirm("Limpiar el carrito?")||(window._posCarrito=[],renderCarritoPOS())};window.cobrarPOS=async()=>{var s,d;if(window._posCarrito.length===0){alert("El carrito esta vacio");return}if(window._cobrando)return;window._cobrando=!0;const e=document.querySelector('button[onclick="cobrarPOS()"]'),t=document.querySelector('button[onclick="cobrarPOSM()"]');[e,t].forEach(l=>{l&&(l.disabled=!0,l.textContent="Procesando...")});const a=document.getElementById("pos-cliente").value||null,o=document.getElementById("pos-sucursal").value,n=document.getElementById("pos-pago").value,i=window._posCarrito.reduce((l,c)=>l+c.cantidad*c.precio_unitario,0);if((s=window._posData)!=null&&s.inventario){const l=[];for(const c of window._posCarrito){const p=window._posData.inventario.find(g=>g.variante_id===c.variante_id),m=p?p.cantidad:0;m<c.cantidad&&l.push(`${c.nombre} ${c.color} T:${c.talla} (disponible: ${m}, pedido: ${c.cantidad})`)}if(l.length>0){alert(`Sin stock suficiente:
+`+l.join(`
+`)),e&&(e.disabled=!1,e.textContent="Cobrar");return}}let r=null;try{const l=await fetch(b+"/pedidos/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cliente_id:a,canal:"sucursal",sucursal_id:o,forma_pago:n,total:i,subtotal:i,status:"borrador"})}),c=await l.json();if(!l.ok)throw new Error("No se pudo crear el pedido: "+JSON.stringify(c));if(r=Array.isArray(c)?(d=c[0])==null?void 0:d.id:c==null?void 0:c.id,!r)throw new Error("No se obtuvo ID del pedido");for(const g of window._posCarrito){const u=await fetch(b+"/pedidos/"+r+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:g.variante_id,cantidad:g.cantidad,precio_unitario:g.precio_unitario,subtotal:g.cantidad*g.precio_unitario})});if(!u.ok){const y=await u.json().catch(()=>({}));throw new Error("Error en item "+g.nombre+": "+JSON.stringify(y))}}if(n!=="spei"){const g=await fetch(b+"/pedidos/"+r+"/confirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({forma_pago:n})});if(!g.ok){const u=await g.json().catch(()=>({}));throw new Error("Error confirmando: "+JSON.stringify(u))}}else await fetch(b+"/pedidos/"+r,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"pendiente_pago"})});const p=window._posCarrito.reduce((g,u)=>g+u.cantidad,0);window._posCarrito=[],window._cobrando=!1,renderCarritoPOS(),imprimirTicketPOS(r,i,p,n);const m=await fetch(b+"/inventario/sucursal/"+o);window._posData.inventario=await m.json(),renderProductosPOS(window._posData.productos)}catch(l){if(console.error("Error procesando la venta:",l),window._cobrando=!1,r)try{await fetch(b+"/pedidos/"+r+"/cancelar",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}),console.warn("Pedido "+r+" cancelado por error")}catch{}alert(`Error al procesar la venta:
+`+((l==null?void 0:l.message)||l)),[e,t].forEach(c=>{c&&(c.disabled=!1,c.textContent="Cobrar")})}};window.guardarCarritoPOS=async e=>{var s,d,l,c;if(!window._posCarrito||window._posCarrito.length===0){alert("El carrito está vacío");return}const t=((s=document.getElementById("pos-cliente"))==null?void 0:s.value)||null;if(!t){alert("Selecciona un cliente para guardar el carrito");return}if(window._guardandoCarrito)return;window._guardandoCarrito=!0;const a=(d=document.getElementById("pos-sucursal"))==null?void 0:d.value,o=((l=document.getElementById("pos-pago"))==null?void 0:l.value)||"efectivo",n=[...document.querySelectorAll('button[onclick^="guardarCarritoPOS"]')];n.forEach(p=>{p.disabled=!0,p._txt=p.textContent,p.textContent="Guardando..."});let i=null,r=!1;try{const p=await fetch(b+"/pedidos/?status=borrador").then(f=>f.json()).catch(()=>[]),m=Array.isArray(p)?p.find(f=>f.cliente_id===t&&(!f.canal||f.canal==="sucursal"||f.canal==="mayoreo")):null;if(m)i=m.id;else{const f=await fetch(b+"/pedidos/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cliente_id:t,canal:"sucursal",sucursal_id:a,forma_pago:o,total:0,subtotal:0,status:"borrador"})}),v=await f.json();if(!f.ok)throw new Error("No se pudo crear el carrito: "+JSON.stringify(v));if(i=Array.isArray(v)?(c=v[0])==null?void 0:c.id:v==null?void 0:v.id,!i)throw new Error("No se obtuvo ID del carrito");r=!0}let g=await fetch(b+"/pedidos/"+i+"/items").then(f=>f.json()).catch(()=>[]);Array.isArray(g)||(g=[]);for(const f of window._posCarrito){const v=!!f.es_corrida,x=g.find(h=>h.variante_id===f.variante_id&&!!h.es_corrida===v);if(x){const h=x.cantidad+f.cantidad,$=await fetch(b+"/pedidos/"+i+"/items/"+x.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:h,precio_unitario:f.precio_unitario,subtotal:h*f.precio_unitario})});if(!$.ok)throw new Error("Error actualizando "+(f.nombre||"")+": "+JSON.stringify(await $.json().catch(()=>({}))));x.cantidad=h}else{const h=await fetch(b+"/pedidos/"+i+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:f.variante_id,cantidad:f.cantidad,precio_unitario:f.precio_unitario,subtotal:f.cantidad*f.precio_unitario,nombre:f.nombre||"",color:f.color||"",talla:f.talla||"",es_corrida:v})});if(!h.ok)throw new Error("Error en item "+(f.nombre||"")+": "+JSON.stringify(await h.json().catch(()=>({}))));const $=await h.json().catch(()=>null);Array.isArray($)&&$[0]&&g.push($[0])}}const u=await fetch(b+"/pedidos/"+i+"/items").then(f=>f.json()).catch(()=>g),y=(Array.isArray(u)?u:[]).reduce((f,v)=>f+v.cantidad*v.precio_unitario,0);await fetch(b+"/pedidos/"+i,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:y,subtotal:y})}),window._posCarrito=[],window._guardandoCarrito=!1,e&&typeof cerrarDrawerPOS=="function"&&cerrarDrawerPOS(),typeof limpiarClientePOS=="function"&&limpiarClientePOS(),renderCarritoPOS(),alert(m?"Se agregó al carrito que ya tenía este cliente. Lo ves en la sección Carritos.":"Carrito guardado. Lo encuentras en la sección Carritos.")}catch(p){if(window._guardandoCarrito=!1,i&&r)try{await fetch(b+"/pedidos/"+i+"/cancelar",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"})}catch{}alert(`No se pudo guardar el carrito:
+`+((p==null?void 0:p.message)||p)),n.forEach(m=>{m.disabled=!1,m._txt&&(m.textContent=m._txt)})}};window.imprimirTicketPOS=async(e,t,a,o)=>{const i=await(await fetch(b+"/pedidos/"+e)).json();if(!i||i.length===0)return;const r=i[0],s=r.pedido_items||[],d=r.clientes||{},l=new Date().toLocaleString("es-MX"),c=window.open("","_blank","width=400,height=600");c.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Ticket</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          font-weight: bold;
+          width: 72mm;
+          padding: 3mm;
+          color: #000;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .center { text-align: center; }
+        .logo { font-size: 16px; margin-bottom: 2px; }
+        .divider { border-top: 1px dashed #000; margin: 6px 0; }
+        .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .total-row { display: flex; justify-content: space-between; font-size: 14px; }
+        .footer { margin-top: 8px; font-size: 10px; }
+        @media print {
+          @page { size: 80mm auto; margin: 0; }
+          body { width: 80mm; padding: 4mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <p class="logo">Zapatillas May</p>
+        <p style="font-size:10px">Leon, Guanajuato</p>
+        <p style="font-size:10px">Tel: 477 247 2285</p>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+      <span>Pedido:</span>
+        <span>#${e.substring(0,8).toUpperCase()}</span>
+      </div>
+      <div class="row">
+        <span>Fecha:</span>
+        <span>${l}</span>
+      </div>
+      <div class="row">
+        <span>Cliente:</span>
+        <span>${d.nombre||"General"}</span>
+      </div>
+      <div class="row">
+        <span>Pago:</span>
+        <span>${o.toUpperCase()}</span>
+      </div>
+      <div class="divider"></div>
+      ${(()=>{const p={};return s.forEach(m=>{const g=m.variantes||{},y=((g.productos||{}).nombre||"—").split(" ")[0],f=y+"|"+(g.color||"");p[f]||(p[f]={nombre:y,color:g.color||"",precio:m.precio_unitario||0,cantidad:0,subtotal:0}),p[f].cantidad+=m.cantidad,p[f].subtotal+=parseFloat(m.subtotal)||m.cantidad*m.precio_unitario}),`
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr style="border-bottom:1px solid #000">
+        <td style="width:24px;text-align:right;padding-right:4px;font-weight:bold">Cant</td>
+        <td style="font-weight:bold">Modelo / Color</td>
+        <td style="text-align:right;padding-right:4px;font-weight:bold">P/U</td>
+        <td style="text-align:right;font-weight:bold">Total</td>
+      </tr>
+      ${Object.values(p).map(m=>`
+        <tr>
+          <td style="width:24px;text-align:right;padding-right:4px">${m.cantidad}</td>
+          <td>${m.nombre}<br><span style="font-size:10px">${m.color}</span></td>
+          <td style="text-align:right;padding-right:4px">$${parseFloat(m.precio).toFixed(2)}</td>
+          <td style="text-align:right;font-weight:bold">$${m.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join("")}
+    </table>
+  `})()}
+      <div class="divider"></div>
+      <div class="row">
+        <span>Total pares:</span>
+        <span>${a}</span>
+      </div>
+      <div class="total-row">
+        <span>TOTAL:</span>
+        <span>$${t.toFixed(2)}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="center footer">
+        <p class="bold">┬íGracias por su compra!</p>
+        <p>En herrajes y pedreria no hay devoluciones</p>
+        <p>por su proceso artesanal.</p>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:10px;margin-top:4px">
+        <p>RFC: SAPL620614JD7</p>
+        <p>Cuautla 211 Col. Killian</p>
+        <p>Leon, Gto. CP 37260</p>
+        <p>Tel: 477 530 8983</p>
+        <p class="center" style="margin-top:4px">zapatillasmay.mx</p>
+      </div>
+      <script>window.onload=()=>{window.print()}<\/script>
+    </body>
+    </html>
+  `),c.document.close()};window.generarPDFPedido=async e=>{const a=await(await fetch(b+"/pedidos/"+e)).json();if(!a||a.length===0)return;const o=a[0],n=o.pedido_items||[],i=o.clientes||{},r=new Date(o.created_at).toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"}),s=o.total||0,d=n.reduce((c,p)=>c+p.cantidad,0),l=window.open("","_blank");l.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Pedido ${e.substring(0,8).toUpperCase()}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; font-size:13px; color:#333; padding:40px; }
+        .header { display:flex; justify-content:space-between; align-items:start; margin-bottom:30px; }
+        .logo { font-size:24px; font-weight:bold; color:#E91E8C; }
+        .logo span { color:#333; }
+        .empresa-datos { font-size:11px; color:#666; margin-top:4px; line-height:1.6; }
+        .pedido-info { text-align:right; }
+        .pedido-num { font-size:18px; font-weight:bold; color:#333; }
+        .pedido-fecha { font-size:12px; color:#888; margin-top:4px; }
+        .divider { border-top:2px solid #E91E8C; margin:20px 0; }
+        .divider-light { border-top:1px solid #eee; margin:15px 0; }
+        .section-title { font-weight:bold; font-size:12px; color:#888; text-transform:uppercase; margin-bottom:8px; }
+        .cliente-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+        .campo { margin-bottom:6px; }
+        .campo-label { font-size:11px; color:#888; }
+        .campo-valor { font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        thead tr { background:#f5f5f5; }
+        th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
+        td { padding:8px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; vertical-align:middle; }
+        .td-foto { width:64px; padding:6px 8px; }
+        .foto-variante { width:56px; height:56px; object-fit:cover; border-radius:6px; display:block; background:#f5f5f5; }
+        .text-right { text-align:right; }
+        .total-section { display:flex; justify-content:flex-end; }
+        .total-box { width:250px; }
+        .total-row { display:flex; justify-content:space-between; padding:6px 0; }
+        .total-final { display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid #E91E8C; font-size:16px; font-weight:bold; color:#E91E8C; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:100px; font-size:11px; font-weight:600; }
+        .badge-success { background:#e8f5e9; color:#2e7d32; }
+        .badge-warning { background:#fff8e1; color:#f57f17; }
+        .footer { margin-top:40px; padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+        .leyenda { margin-top:20px; font-size:11px; color:#888; font-style:italic; }
+        @media print {
+          body { padding:20px; }
+          @page { margin:15mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo">Zapatillas <span>May</span></div>
+          <div class="empresa-datos">
+            RFC: SAPL620614JD7<br>
+            Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
+            Tel: 477 530 8983 | zapatillasmay.mx
+          </div>
+        </div>
+        <div class="pedido-info">
+          <div class="pedido-num">Pedido #${e.substring(0,8).toUpperCase()}</div>
+          <div class="pedido-fecha">${r}</div>
+          <div style="margin-top:8px">
+            <span class="badge ${o.status==="confirmado"||o.status==="pagado"?"badge-success":"badge-warning"}">${o.status}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="cliente-grid">
+        <div>
+          <div class="section-title">Datos del cliente</div>
+          <div class="campo">
+            <div class="campo-label">Nombre</div>
+            <div class="campo-valor">${i.nombre||"Cliente general"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Telefono</div>
+            <div class="campo-valor">${i.telefono||"—"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Email</div>
+            <div class="campo-valor">${i.email||"—"}</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Informacion del pedido</div>
+          <div class="campo">
+            <div class="campo-label">Canal</div>
+            <div class="campo-valor">${o.canal||"—"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Forma de pago</div>
+            <div class="campo-valor">${o.forma_pago||"—"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Sucursal</div>
+            <div class="campo-valor">${o.sucursales?o.sucursales.nombre:"—"}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-light"></div>
+
+      <div class="section-title">Productos</div>
+      <table>
+        <thead>
+          <tr>
+            <th class="td-foto"></th>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Talla</th>
+            <th>SKU</th>
+            <th class="text-right">Cant</th>
+            <th class="text-right">Precio unit</th>
+            <th class="text-right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${n.map(c=>{const p=c.variantes||{},m=p.productos||{},g=p.foto_url||"";return`
+              <tr>
+                <td class="td-foto">${g?`<img class="foto-variante" src="${g}" alt="${p.color||""}">`:'<div class="foto-variante" style="border:1px dashed #ddd"></div>'}</td>
+                <td>${m.nombre||"—"}</td>
+                <td>${p.color||"—"}</td>
+                <td>${p.talla||"—"}</td>
+                <td style="font-size:11px;color:#888">${p.sku||"—"}</td>
+                <td class="text-right">${c.cantidad}</td>
+                <td class="text-right">$${c.precio_unitario}</td>
+                <td class="text-right font-weight:bold">$${c.subtotal}</td>
+              </tr>
+            `}).join("")}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-box">
+          <div class="total-row">
+            <span>Total pares:</span>
+            <span>${d}</span>
+          </div>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>$${parseFloat(s).toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      ${o.comentarios?`
+        <div class="divider-light"></div>
+        <div class="section-title">Comentarios</div>
+        <p style="font-size:12px;color:#555">${o.comentarios}</p>
+      `:""}
+
+      <div class="leyenda">
+        * En herrajes y pedreria no hay devoluciones por su proceso artesanal.
+      </div>
+
+      <div class="footer">
+        <span>Zapatillas May — zapatillasmay.mx</span>
+        <span>RFC: SAPL620614JD7</span>
+        <span>Generado el ${new Date().toLocaleDateString("es-MX")}</span>
+      </div>
+
+     <script>window.onload = () => { window.print() }<\/script>
+    </body>
+    </html>
+  `),l.document.close()};window.generarCotizacionCarrito=async e=>{const a=await(await fetch(b+"/pedidos/"+e)).json();if(!a||a.length===0)return;const o=a[0],n=o.pedido_items||[],i=o.clientes||{},r=new Date(o.created_at||Date.now()).toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"}),s=new Date(Date.now()+7*864e5).toLocaleDateString("es-MX",{year:"numeric",month:"long",day:"numeric"}),d=n.reduce((p,m)=>p+m.cantidad*(m.precio_unitario||0),0),l=n.reduce((p,m)=>p+m.cantidad,0),c=window.open("","_blank");c.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Cotización ${e.substring(0,8).toUpperCase()}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: Arial, sans-serif; font-size:13px; color:#333; padding:40px; }
+        .header { display:flex; justify-content:space-between; align-items:start; margin-bottom:30px; }
+        .logo { font-size:24px; font-weight:bold; color:#E91E8C; }
+        .logo span { color:#333; }
+        .empresa-datos { font-size:11px; color:#666; margin-top:4px; line-height:1.6; }
+        .cot-info { text-align:right; }
+        .cot-titulo { font-size:22px; font-weight:bold; color:#555; letter-spacing:2px; text-transform:uppercase; }
+        .cot-num { font-size:14px; font-weight:bold; color:#333; margin-top:4px; }
+        .cot-fecha { font-size:12px; color:#888; margin-top:2px; }
+        .vence { display:inline-block; margin-top:8px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px; padding:4px 10px; font-size:11px; color:#f57f17; font-weight:600; }
+        .divider { border-top:2px solid #E91E8C; margin:20px 0; }
+        .divider-light { border-top:1px solid #eee; margin:15px 0; }
+        .section-title { font-weight:bold; font-size:12px; color:#888; text-transform:uppercase; margin-bottom:8px; }
+        .cliente-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; }
+        .campo { margin-bottom:6px; }
+        .campo-label { font-size:11px; color:#888; }
+        .campo-valor { font-weight:600; }
+        table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+        thead tr { background:#f5f5f5; }
+        th { padding:10px 12px; text-align:left; font-size:12px; font-weight:600; color:#555; border-bottom:2px solid #eee; }
+        td { padding:8px 12px; border-bottom:1px solid #f5f5f5; font-size:13px; vertical-align:middle; }
+        .td-foto { width:64px; padding:6px 8px; }
+        .foto-variante { width:56px; height:56px; object-fit:cover; border-radius:6px; display:block; background:#f5f5f5; }
+        .text-right { text-align:right; }
+        .total-section { display:flex; justify-content:flex-end; }
+        .total-box { width:250px; }
+        .total-row { display:flex; justify-content:space-between; padding:6px 0; }
+        .total-final { display:flex; justify-content:space-between; padding:10px 0; border-top:2px solid #E91E8C; font-size:16px; font-weight:bold; color:#E91E8C; }
+        .nota-validez { margin-top:24px; background:#f8fafc; border-left:3px solid #E91E8C; padding:10px 14px; font-size:12px; color:#555; border-radius:0 6px 6px 0; }
+        .footer { margin-top:40px; padding-top:20px; border-top:1px solid #eee; display:flex; justify-content:space-between; font-size:11px; color:#888; }
+        .firma-box { margin-top:40px; display:grid; grid-template-columns:1fr 1fr; gap:40px; }
+        .firma-linea { border-top:1px solid #ccc; padding-top:6px; font-size:11px; color:#888; text-align:center; margin-top:40px; }
+        @media print { body { padding:20px; } @page { margin:15mm; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="logo">Zapatillas <span>May</span></div>
+          <div class="empresa-datos">
+            RFC: SAPL620614JD7<br>
+            Cuautla 211 Col. Killian, Leon, Gto. CP 37260<br>
+            Tel: 477 530 8983 | zapatillasmay.mx
+          </div>
+        </div>
+        <div class="cot-info">
+          <div class="cot-titulo">Cotización</div>
+          <div class="cot-num">COT-${e.substring(0,8).toUpperCase()}</div>
+          <div class="cot-fecha">Fecha: ${r}</div>
+          <div class="vence">⏳ Válida hasta: ${s}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="cliente-grid">
+        <div>
+          <div class="section-title">Datos del cliente</div>
+          <div class="campo">
+            <div class="campo-label">Nombre</div>
+            <div class="campo-valor">${i.nombre||"Cliente general"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Teléfono</div>
+            <div class="campo-valor">${i.telefono||"—"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Email</div>
+            <div class="campo-valor">${i.email||"—"}</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Condiciones</div>
+          <div class="campo">
+            <div class="campo-label">Forma de pago</div>
+            <div class="campo-valor">${o.forma_pago||"Por definir"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Sucursal</div>
+            <div class="campo-valor">${o.sucursales?o.sucursales.nombre:"—"}</div>
+          </div>
+          <div class="campo">
+            <div class="campo-label">Total de pares</div>
+            <div class="campo-valor">${l} pares</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-light"></div>
+
+      <div class="section-title">Productos cotizados</div>
+      <table>
+        <thead>
+          <tr>
+            <th class="td-foto"></th>
+            <th>Modelo</th>
+            <th>Color</th>
+            <th>Talla</th>
+            <th class="text-right">Cant</th>
+            <th class="text-right">Precio unit</th>
+            <th class="text-right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${n.map(p=>{const m=p.variantes||{},g=m.productos||{},u=m.foto_url||"";return`
+              <tr>
+                <td class="td-foto">${u?`<img class="foto-variante" src="${u}" alt="">`:'<div class="foto-variante" style="border:1px dashed #ddd"></div>'}</td>
+                <td>${g.nombre||p.nombre||"—"}</td>
+                <td>${m.color||p.color||"—"}</td>
+                <td>${m.talla||p.talla||"—"}</td>
+                <td class="text-right">${p.cantidad}</td>
+                <td class="text-right">$${parseFloat(p.precio_unitario||0).toFixed(2)}</td>
+                <td class="text-right"><strong>$${parseFloat(p.subtotal||p.cantidad*p.precio_unitario||0).toFixed(2)}</strong></td>
+              </tr>
+            `}).join("")}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-box">
+          <div class="total-row">
+            <span>Total pares:</span>
+            <span>${l}</span>
+          </div>
+          <div class="total-final">
+            <span>TOTAL:</span>
+            <span>$${d.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      ${o.comentarios?`
+        <div class="divider-light"></div>
+        <div class="section-title">Notas</div>
+        <p style="font-size:12px;color:#555">${o.comentarios}</p>
+      `:""}
+
+      <div class="nota-validez">
+        ⚠️ Esta cotización es válida por <strong>7 días</strong> a partir de la fecha de emisión. Los precios están sujetos a disponibilidad de inventario. Para confirmar el pedido comuníquese a Tel: 477 530 8983.
+      </div>
+
+      <div class="firma-box">
+        <div>
+          <div class="firma-linea">Elaboró — Zapatillas May</div>
+        </div>
+        <div>
+          <div class="firma-linea">Autorización del cliente</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>Zapatillas May — zapatillasmay.mx</span>
+        <span>RFC: SAPL620614JD7</span>
+        <span>Generado el ${new Date().toLocaleDateString("es-MX")}</span>
+      </div>
+
+      <script>window.onload = () => { window.print() }<\/script>
+    </body>
+    </html>
+  `),c.document.close()};async function rt(){const e=document.getElementById("content");try{const a=await(await fetch(b+"/movimientos/")).json(),o={venta:{label:"Venta",badge:"badge-success"},entrada:{label:"Entrada",badge:"badge-info"},ajuste:{label:"Ajuste",badge:"badge-warning"},traspaso_salida:{label:"Traspaso salida",badge:"badge-danger"},traspaso_entrada:{label:"Traspaso entrada",badge:"badge-info"},cambio_salida:{label:"Cambio salida",badge:"badge-info"},cambio_entrada:{label:"Cambio entrada",badge:"badge-info"}};e.innerHTML=`
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Historial de movimientos (${a.length})</h3>
+          <div style="display:flex;gap:8px">
+            <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
+              <option value="">Todos los tipos</option>
+              <option value="venta">Ventas</option>
+              <option value="entrada">Entradas</option>
+              <option value="ajuste">Ajustes</option>
+              <option value="traspaso_salida">Traspasos</option>
+              <option value="cambio_salida">Cambios</option>
+            </select>
+            <input class="form-input" id="hist-buscar" placeholder="Buscar..." style="max-width:200px" oninput="filtrarHistorial()">
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th><th>Acción</th></tr>
+          </thead>
+          <tbody id="hist-tbody">
+            ${a.length===0?'<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>':a.map(n=>{const i=o[n.tipo]||{label:n.tipo,badge:"badge-warning"},r=n.cantidad||0;return`<tr>
+                    <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(n.created_at).toLocaleString("es-MX")}</td>
+                    <td><span class="badge ${i.badge}">${i.label}</span></td>
+                    <td><strong>${n.variantes&&n.variantes.productos?n.variantes.productos.nombre:"—"}</strong></td>
+                    <td>${n.variantes&&n.variantes.color||"—"}</td>
+                    <td>${n.variantes&&n.variantes.talla||"—"}</td>
+                    <td>${n.sucursales&&n.sucursales.nombre||"—"}</td>
+                    <td style="font-weight:600;color:${r>0?"var(--green)":"var(--red)"}">${r>0?"+":""}${r}</td>
+                    <td style="font-size:0.82rem">${n.usuario||"Admin"}</td>
+<td style="font-size:0.82rem;color:var(--text-muted)">${n.motivo||"—"}</td>
+<td>
+  ${n.tipo!=="venta"&&n.tipo!=="ajuste"?`
+  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828" 
+          onclick="cancelarMovimiento('${n.id}', ${Math.abs(n.cantidad)}, '${n.variante_id}', '${n.sucursal_id}', '${n.tipo}')">
+    Cancelar
+  </button>`:""}
+</td>
+                  </tr>`}).join("")}
+          </tbody>
+        </table>
+      </div>`,window._historialData=a}catch{e.innerHTML='<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'}}window.cancelarMovimiento=async(e,t,a,o,n)=>{if(confirm("¿Cancelar este movimiento? Se revertirá el cambio en el inventario."))try{const r=await(await fetch(b+"/inventario/?variante_id=eq."+a+"&sucursal_id=eq."+o)).json(),s=r&&r.length>0?r[0].cantidad:0,d=n==="venta"?s+t:Math.max(0,s-t);(await fetch(b+"/inventario/actualizar",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:a,sucursal_id:o,cantidad:d,stock_minimo:r&&r.length>0?r[0].stock_minimo:3})})).ok?(alert("Movimiento cancelado. Inventario actualizado."),rt()):alert("Error al actualizar inventario")}catch{alert("Error conectando con el servidor")}};window.filtrarHistorial=()=>{const e=document.getElementById("hist-tipo").value,t=document.getElementById("hist-buscar").value.toLowerCase(),a=window._historialData||[],o={venta:{label:"Venta",badge:"badge-success"},entrada:{label:"Entrada",badge:"badge-info"},ajuste:{label:"Ajuste",badge:"badge-warning"},traspaso_salida:{label:"Traspaso salida",badge:"badge-danger"},traspaso_entrada:{label:"Traspaso entrada",badge:"badge-info"},cambio_salida:{label:"Cambio salida",badge:"badge-info"},cambio_entrada:{label:"Cambio entrada",badge:"badge-info"}},n=a.filter(r=>{if(e&&r.tipo!==e)return!1;if(t){const s=(r.variantes&&r.variantes.productos?r.variantes.productos.nombre:"").toLowerCase(),d=(r.motivo||"").toLowerCase();if(!s.includes(t)&&!d.includes(t))return!1}return!0}),i=document.getElementById("hist-tbody");i&&(i.innerHTML=n.length===0?'<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>':n.map(r=>{const s=o[r.tipo]||{label:r.tipo,badge:"badge-warning"},d=r.cantidad||0;return`<tr>
+          <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(r.created_at).toLocaleString("es-MX")}</td>
+          <td><span class="badge ${s.badge}">${s.label}</span></td>
+          <td><strong>${r.variantes&&r.variantes.productos?r.variantes.productos.nombre:"—"}</strong></td>
+          <td>${r.variantes&&r.variantes.color||"—"}</td>
+          <td>${r.variantes&&r.variantes.talla||"—"}</td>
+          <td>${r.sucursales&&r.sucursales.nombre||"—"}</td>
+          <td style="font-weight:600;color:${d>0?"var(--green)":"var(--red)"}">${d>0?"+":""}${d}</td>
+          <td style="font-size:0.82rem">${r.motivo||"—"}</td>
+        </tr>`}).join(""))};async function Ot(){try{const t=await(await fetch(b+"/pedidos/")).json(),o=await(await fetch(b+"/clientes/")).json(),i=await(await fetch(b+"/inventario/alertas")).json(),r=new Date;r.setHours(0,0,0,0);const s=new Date(r);s.setDate(s.getDate()-7);const d=new Date(r);d.setDate(d.getDate()-30);const l=t.filter(E=>["confirmado","pagado","enviado"].includes(E.status)),c=l.filter(E=>new Date(E.created_at)>=r),p=l.filter(E=>new Date(E.created_at)>=s),m=c.reduce((E,B)=>E+parseFloat(B.total||0),0),g=p.reduce((E,B)=>E+parseFloat(B.total||0),0),u=o.filter(E=>E.created_at&&new Date(E.created_at)>=d).length,y=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"],f={};y.forEach(E=>f[E]=0),l.filter(E=>new Date(E.created_at)>=d).forEach(E=>{const B=y[new Date(E.created_at).getDay()];f[B]+=parseFloat(E.total||0)});const v={};l.forEach(E=>{v[E.canal||"sucursal"]=(v[E.canal||"sucursal"]||0)+parseFloat(E.total||0)});const x={};l.forEach(E=>{x[E.forma_pago||"efectivo"]=(x[E.forma_pago||"efectivo"]||0)+1});const h={};l.forEach(E=>{h[E.empleado||"Admin"]=(h[E.empleado||"Admin"]||0)+parseFloat(E.total||0)});const $={};l.forEach(E=>{const B=new Date(E.created_at).toLocaleDateString("es-MX",{month:"short",year:"numeric"});$[B]=($[B]||0)+parseFloat(E.total||0)});const w={};l.forEach(E=>{E.clientes&&(w[E.clientes.nombre]=(w[E.clientes.nombre]||0)+parseFloat(E.total||0))});const C=Object.entries(w).sort((E,B)=>B[1]-E[1]).slice(0,5),A=Object.entries(f).sort((E,B)=>B[1]-E[1])[0],k=Object.entries(h).sort((E,B)=>B[1]-E[1])[0];if(!document.getElementById("dashboard-contenido"))return;const U=l.filter(E=>new Date(E.created_at)>=d),L=U.reduce((E,B)=>E+parseFloat(B.total||0),0),F=[];for(let E=6;E>=0;E--){const B=new Date(r);B.setDate(B.getDate()-E);const M=B.toISOString().split("T")[0],_=B.toLocaleDateString("es-MX",{weekday:"short",day:"numeric"}),D=l.filter(O=>{var P;return(P=O.created_at)==null?void 0:P.startsWith(M)}).reduce((O,P)=>O+parseFloat(P.total||0),0);F.push({label:_,total:D,ds:M})}const j=(E,B,M,_)=>{const D=document.getElementById(E),O=document.getElementById(E+"-sub");D&&(D.textContent=B,_&&(D.style.color=_)),O&&M&&(O.textContent=M)};j("kpi-ventas-hoy","$"+m.toLocaleString("es-MX",{maximumFractionDigits:0}),c.length+" pedidos","#C8967A"),j("kpi-pedidos-hoy",c.length,"confirmados"),j("kpi-ventas-7d","$"+g.toLocaleString("es-MX",{maximumFractionDigits:0}),p.length+" pedidos"),j("kpi-ventas-30d","$"+L.toLocaleString("es-MX",{maximumFractionDigits:0}),U.length+" pedidos"),j("kpi-clientes-nuevos",u,"últimos 30 días"),j("kpi-stock-bajo",i.length,i.length>0?"⚠ reabastecer":"✓ ok",i.length>0?"#f59e0b":"#10b981"),j("kpi-mejor-dia",A?A[0]:"—",A?"$"+A[1].toLocaleString("es-MX",{maximumFractionDigits:0}):""),j("kpi-total-clientes",o.length,"registrados");const N=document.getElementById("dash-top-clientes");N&&(N.innerHTML=C.length===0?'<p style="color:var(--text-muted);font-size:0.85rem">Sin datos aun</p>':C.map(([E,B],M)=>`
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <span style="width:22px;height:22px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;flex-shrink:0">${M+1}</span>
+            <span style="flex:1;font-size:0.86rem;color:var(--text-1)">${E}</span>
+            <strong style="color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${B.toLocaleString("es-MX",{maximumFractionDigits:0})}</strong>
+          </div>`).join(""));const I=document.getElementById("dash-ultimos-pedidos");if(I){const E=M=>M==="online"||M==="mp"?"🌐":M==="whatsapp"?"💬":"🏪",B=M=>M==="confirmado"||M==="pagado"?"#10b981":M==="enviado"?"#0891b2":"#f59e0b";I.innerHTML=t.slice(0,7).map(M=>{var _;return`
+        <div onclick="verPedido('${M.id}')" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer">
+          <div style="width:36px;height:36px;background:var(--pink-soft);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">${E(M.mp_preference_id?"online":M.canal||"")}</div>
+          <div style="flex:1;min-width:0">
+            <p style="font-size:0.83rem;font-weight:600;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${((_=M.clientes)==null?void 0:_.nombre)||M.nombre_cliente||"General"}</p>
+            <p style="font-size:0.68rem;color:var(--text-3);margin-top:1px">${M.mp_preference_id?"Online":M.canal||"Sucursal"} · ${new Date(M.created_at).toLocaleDateString("es-MX",{day:"numeric",month:"short"})}</p>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <p style="font-weight:700;color:var(--pink);font-family:'DM Mono',monospace;font-size:0.84rem">$${parseFloat(M.total||0).toLocaleString("es-MX",{maximumFractionDigits:0})}</p>
+            <span style="font-size:0.6rem;font-weight:700;color:${B(M.status)}">${M.status}</span>
+          </div>
+        </div>`}).join("")}setTimeout(()=>{const E="#E91E8C",B="#7c3aed",M="#0891b2",_="#059669",D=["rgba(233,30,140,0.8)","rgba(124,58,237,0.8)","rgba(8,145,178,0.8)","rgba(5,150,105,0.8)","rgba(217,119,6,0.8)","rgba(220,38,38,0.8)"],O=["#E91E8C","#7c3aed","#0891b2","#059669","#d97706","#dc2626"],P={ticks:{color:"#94a3b8",font:{size:9}},grid:{color:"rgba(148,163,184,0.08)"}},H={responsive:!0,maintainAspectRatio:!1,plugins:{legend:{display:!1}},scales:{x:P,y:P}},T=document.getElementById("chart-tendencia");T&&window.Chart&&new Chart(T,{type:"line",data:{labels:F.map(G=>G.label),datasets:[{data:F.map(G=>G.total),borderColor:E,backgroundColor:"rgba(233,30,140,0.08)",borderWidth:2.5,pointBackgroundColor:E,pointBorderColor:"white",pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,fill:!0,tension:.4}]},options:{...H,plugins:{legend:{display:!1},tooltip:{callbacks:{label:G=>" $"+G.parsed.y.toLocaleString("es-MX",{maximumFractionDigits:0})}}}}});const R=document.getElementById("chart-dias");R&&window.Chart&&new Chart(R,{type:"bar",data:{labels:y,datasets:[{data:y.map(G=>f[G]||0),backgroundColor:D,borderColor:O,borderWidth:1.5,borderRadius:6}]},options:{...H,plugins:{legend:{display:!1}}}});const q=document.getElementById("chart-canales"),V=Object.keys(v),Y=Object.values(v);if(q&&window.Chart&&V.length>0){new Chart(q,{type:"doughnut",data:{labels:V,datasets:[{data:Y,backgroundColor:D,borderColor:O,borderWidth:2}]},options:{responsive:!0,maintainAspectRatio:!1,cutout:"72%",plugins:{legend:{display:!1},tooltip:{callbacks:{label:ee=>` ${ee.label}: $${ee.parsed.toLocaleString("es-MX",{maximumFractionDigits:0})}`}}}}});const G=Y.reduce((ee,K)=>ee+K,0),X=document.getElementById("dash-canales-lista");X&&(X.innerHTML=V.map((ee,K)=>`
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${O[K%O.length]};flex-shrink:0"></span>
+            <span style="flex:1;font-size:0.76rem;color:var(--text-2);text-transform:capitalize">${ee}</span>
+            <span style="font-size:0.76rem;font-weight:700;color:var(--text-1);font-family:'DM Mono',monospace">${G>0?Math.round(Y[K]/G*100):0}%</span>
+          </div>`).join(""))}const W=document.getElementById("chart-meses");if(W&&window.Chart){const G=Object.entries($).slice(-6);new Chart(W,{type:"line",data:{labels:G.map(([X])=>X),datasets:[{data:G.map(([,X])=>X),borderColor:B,backgroundColor:"rgba(124,58,237,0.07)",borderWidth:2,pointBackgroundColor:B,pointBorderColor:"white",pointBorderWidth:2,pointRadius:4,fill:!0,tension:.4}]},options:{...H,plugins:{legend:{display:!1}}}})}const oe=document.getElementById("chart-pagos");oe&&window.Chart&&Object.keys(x).length>0&&new Chart(oe,{type:"doughnut",data:{labels:Object.keys(x),datasets:[{data:Object.values(x),backgroundColor:D,borderColor:O,borderWidth:2}]},options:{responsive:!0,maintainAspectRatio:!1,cutout:"70%",plugins:{legend:{display:!1},tooltip:{callbacks:{label:G=>` ${G.label}: ${G.parsed}`}}}}})},300),window.dashSwitchTab=(E,B)=>{["dias","meses","pagos"].forEach(M=>{const _=document.getElementById("dash-tab-"+M);_&&(_.style.display=M===E?"block":"none")}),document.querySelectorAll(".dash-tab-btn").forEach(M=>M.classList.remove("active")),B&&B.classList.add("active")};try{const B=await(await fetch(b+"/chatbot/tareas-hoy")).json(),M=document.createElement("div");M.style.cssText="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-top:1.5rem",M.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h3 style="font-size:1rem;font-weight:700;margin:0">✅ Tareas pendientes hoy</h3>
+        <span style="background:#e91e8c;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${B.filter(_=>!_.completada).length} pendientes</span>
+      </div>
+      ${B.length===0?'<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:1rem">Sin tareas pendientes</p>':B.map(_=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5">
+            <input type="checkbox" ${_.completada?"checked":""}
+                   onchange="completarTareaDashboard('${_.id}', this.checked)"
+                   style="width:16px;height:16px;cursor:pointer;accent-color:#25D366">
+            <div style="flex:1">
+              <p style="font-size:0.85rem;font-weight:600;margin:0;${_.completada?"text-decoration:line-through;color:#aaa":""}">${_.titulo}</p>
+              <p style="font-size:0.72rem;color:#888;margin:0">${_.nombre_contacto||_.telefono} · ${_.agente||"Sin asignar"}</p>
+            </div>
+            <button onclick="navegarA('conversaciones');setTimeout(()=>abrirChat('${_.telefono}'),800)"
+                    style="background:#e3f2fd;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#1565c0;cursor:pointer">Ver chat</button>
+          </div>
+        `).join("")}
+    `,document.getElementById("dashboard-contenido").appendChild(M)}catch(E){console.error("tareas:",E)}}catch(e){console.error("Error dashboard:",e)}}window.eliminarItemPedido=e=>{window._pedidoItems.splice(e,1),window.recalcularTotal(),window.renderItemsPedido()};window.cerrarSesionPanel=()=>{confirm("Cerrar sesion?")&&(sessionStorage.removeItem("erp_empleado"),sessionStorage.removeItem("erp_token"),window._empleadoActual=null,location.reload())};async function st(){const e=document.getElementById("content");try{const t=await fetch(b+"/empleados/",{headers:window.authHeaders()}),a=await t.json();if(!t.ok||!Array.isArray(a)){e.innerHTML=`<div style="padding:2rem;background:#fff3cd;border-radius:12px;color:#856404">
+        <strong>⚠️ ${a.detail||a.error||"Error al cargar empleados"}</strong><br>
+        <span style="font-size:0.82rem">HTTP ${t.status} — intenta recargar la página o vuelve a iniciar sesión.</span>
+      </div>`;return}e.innerHTML=`
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Empleados (${a.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormEmpleado('')">+ Nuevo empleado</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody>
+            ${a.map(o=>`
+              <tr>
+                <td><strong>${o.nombre}</strong></td>
+                <td>${o.email}</td>
+                <td><span class="badge ${o.rol==="admin"?"badge-info":"badge-success"}">${o.rol}</span></td>
+                <td><span class="badge ${o.activo?"badge-success":"badge-danger"}">${o.activo?"Activo":"Inactivo"}</span></td>
+                <td style="display:flex;gap:4px">
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormEmpleado('${o.id}')">Editar</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="toggleEmpleado('${o.id}',${o.activo})">${o.activo?"Desactivar":"Activar"}</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#E91E8C;border-color:#E91E8C" onclick="resetearPassword('${o.id}','${o.nombre}')">🔑 Reset</button>
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`}catch{e.innerHTML='<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'}}window.mostrarFormEmpleado=async e=>{const t=document.getElementById("content");let a={};if(e)try{a=(await(await fetch(b+"/empleados/",{headers:window.authHeaders()})).json()).find(i=>i.id===e)||{}}catch{}t.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:500px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('empleados')">← Volver</button>
+        <h3>${e?"Editar empleado":"Nuevo empleado"}</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div><label class="form-label">Nombre *</label><input class="form-input" id="emp-nombre" placeholder="Nombre completo" value="${a.nombre||""}"></div>
+        <div><label class="form-label">Email *</label><input class="form-input" id="emp-email" type="email" placeholder="correo@ejemplo.com" value="${a.email||""}"></div>
+        <div><label class="form-label">${e?"Nueva contrasena (dejar vacio para no cambiar)":"Contrasena *"}</label><input class="form-input" id="emp-password" type="password" placeholder="••••••••"></div>
+        <div><label class="form-label">Rol</label>
+          <select class="form-input" id="emp-rol">
+            <option value="vendedor" ${a.rol==="vendedor"?"selected":""}>Vendedor</option>
+            <option value="admin" ${a.rol==="admin"?"selected":""}>Administrador</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('empleados')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarEmpleado('${e||""}')">Guardar</button>
+      </div>
+    </div>`};window.guardarEmpleado=async e=>{const t=document.getElementById("emp-nombre").value,a=document.getElementById("emp-email").value,o=document.getElementById("emp-password").value,n=document.getElementById("emp-rol").value;if(!t||!a){alert("Nombre y email son obligatorios");return}if(!e&&!o){alert("La contrasena es obligatoria para nuevos empleados");return}try{const i=e?"PATCH":"POST",r=e?b+"/empleados/"+e:b+"/empleados/",s={nombre:t,email:a,rol:n};o&&(s.password=o);const d=await fetch(r,{method:i,headers:window.authHeaders(),body:JSON.stringify(s)});if(d.ok)alert("Empleado guardado correctamente"),navegarA("empleados");else{const l=await d.json();alert("Error: "+(l.error||"No se pudo guardar"))}}catch{alert("Error conectando con el servidor")}};window.toggleEmpleado=async(e,t)=>{if(confirm(t?"Desactivar este empleado?":"Activar este empleado?"))try{(await fetch(b+"/empleados/"+e,{method:"PATCH",headers:window.authHeaders(),body:JSON.stringify({activo:!t})})).ok?st():alert("Error al cambiar estado")}catch{alert("Error conectando con el servidor")}};window.resetearPassword=async(e,t)=>{const a=prompt("Nueva contrasena para "+t+":");if(a){if(a.length<4){alert("La contrasena debe tener al menos 4 caracteres");return}try{const o=await fetch(b+"/empleados/"+e,{method:"PATCH",headers:window.authHeaders(),body:JSON.stringify({password:a})});if(o.ok)alert("Contrasena actualizada correctamente");else{const n=await o.json();alert("Error: "+(n.error||"No se pudo actualizar"))}}catch{alert("Error conectando con el servidor")}}};window.cargarResenasModeracion=async()=>{const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando reseñas...</p>';try{const[t,a]=await Promise.all([fetch(b+"/resenas/admin/pendientes").then(s=>s.json()).catch(()=>({resenas:[]})),fetch(b+"/productos/?select=id,nombre,sku_interno").then(s=>s.json()).catch(()=>[])]),o=t&&t.resenas||[],n=Array.isArray(a)?a:[],i=s=>{const d=n.find(l=>l.id===s);return d?d.nombre+" · "+(d.sku_interno||""):s},r=s=>"★".repeat(s)+"☆".repeat(5-s);e.innerHTML=`
+      <div style="padding:2rem;max-width:760px">
+        <h2 style="margin-bottom:0.25rem">⭐ Reseñas</h2>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Aprueba las reseñas para que aparezcan en la tienda. Se necesitan <b>3 o más aprobadas por producto</b> para mostrar estrellas en Google.</p>
+        <h3 style="margin-bottom:0.75rem">Pendientes de aprobar (${o.length})</h3>
+        <div id="resenas-mod-lista">
+          ${o.length===0?'<div class="table-card" style="padding:2rem;text-align:center;color:#888">No hay reseñas pendientes 🎉</div>':o.map(s=>`
+            <div class="table-card" id="resena-${s.id}" style="padding:1rem;margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+                <div style="flex:1;min-width:200px">
+                  <div style="color:#f59e0b;font-size:1rem">${r(s.calificacion||0)} <span style="color:#888;font-size:0.8rem">(${s.calificacion}/5)</span></div>
+                  <p style="font-weight:600;margin:4px 0 2px">${s.nombre_cliente||"Anónimo"}</p>
+                  <p style="font-size:0.8rem;color:#888;margin:0 0 6px">${i(s.producto_id)} · ${new Date(s.created_at).toLocaleDateString("es-MX")}</p>
+                  <p style="font-size:0.9rem;color:#333;margin:0">${(s.comentario||"").replace(/</g,"&lt;")}</p>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                  <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="aprobarResena('${s.id}')">✓ Aprobar</button>
+                  <button class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem;color:#c62828" onclick="eliminarResena('${s.id}')">Eliminar</button>
+                </div>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>`}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error: '+t.message+"</p>"}};window.aprobarResena=async e=>{try{await fetch(b+"/resenas/admin/"+e+"/aprobar",{method:"PATCH"});const t=document.getElementById("resena-"+e);t&&t.remove()}catch{alert("Error al aprobar la reseña")}};window.eliminarResena=async e=>{if(confirm("¿Eliminar esta reseña permanentemente?"))try{await fetch(b+"/resenas/admin/"+e,{method:"DELETE"});const t=document.getElementById("resena-"+e);t&&t.remove()}catch{alert("Error al eliminar la reseña")}};window.pedirResena=(e,t,a)=>{let o=(e||"").replace(/\D/g,"");if(!o){alert("Este pedido no tiene teléfono");return}o.length===10&&(o="52"+o);const n=a?`https://zapatillasmay.mx/producto/${a}`:"https://zapatillasmay.mx",i=`¡Hola ${t||""}! 🥰 ¿Te gustaron tus zapatillas? Nos ayudarías muchísimo dejando una reseña aquí 👉 ${n}
+
+Solo toca "➕ Dejar reseña". ¡Gracias por tu compra! 👠`;window.open("https://wa.me/"+o+"?text="+encodeURIComponent(i),"_blank")};window.mostrarFormLinkPago=e=>{e=e||{};const t=e.volver==="chat"?"cargarConversaciones()":"cargarPedidos()",a=document.getElementById("content");if(a.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:560px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+        <button class="btn btn-secondary" onclick="${t}">← Volver</button>
+        <h3 style="margin:0">💳 Crear link de pago</h3>
+      </div>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Crea el pedido + link de MercadoPago. Al pagar, se detecta en Meta y GA.</p>
+      <div style="display:grid;gap:0.9rem">
+        <div><label class="form-label">Modelo / descripción *</label><input class="form-input" id="lp-modelo" placeholder="Ej: MA1400 Tacones para fiesta"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div><label class="form-label">Color</label><input class="form-input" id="lp-color" placeholder="Neutro"></div>
+          <div><label class="form-label">Talla</label><input class="form-input" id="lp-talla" placeholder="24"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+          <div><label class="form-label">Precio producto (sin envío) *</label><input class="form-input" id="lp-precio" type="number" min="1" placeholder="390"></div>
+          <div><label class="form-label">Pares</label><input class="form-input" id="lp-pares" type="number" min="1" value="1"></div>
+        </div>
+        <hr style="border:none;border-top:1px solid #eee;margin:0.25rem 0">
+        <div><label class="form-label">Nombre del cliente *</label><input class="form-input" id="lp-nombre" placeholder="Nombre completo"></div>
+        <div><label class="form-label">WhatsApp del cliente *</label><input class="form-input" id="lp-tel" inputmode="tel" placeholder="2711476093"></div>
+        <div><label class="form-label">Dirección de envío</label><textarea class="form-input" id="lp-dir" rows="2" placeholder="Calle y número, colonia, CP, ciudad, estado"></textarea></div>
+      </div>
+      <p style="font-size:0.78rem;color:#888;margin-top:0.75rem">El envío se agrega solo: 1 par $99 · 2 $150 · 3-5 $199 · gratis desde $1,299.</p>
+      <button class="btn btn-primary" id="lp-btn" onclick="generarLinkPago()" style="margin-top:1rem;width:100%">Generar link de pago</button>
+      <div id="lp-resultado" style="margin-top:1.25rem"></div>
+    </div>`,e.telefono){const o=document.getElementById("lp-tel");o&&(o.value=e.telefono.replace(/\D/g,""))}if(e.nombre){const o=document.getElementById("lp-nombre");o&&(o.value=e.nombre)}};window.linkPagoDesdeChat=(e,t)=>{mostrarFormLinkPago({telefono:e,nombre:t,volver:"chat"})};window.generarLinkPago=async()=>{const e=d=>(document.getElementById(d).value||"").trim(),t=e("lp-modelo"),a=parseFloat(e("lp-precio")),o=parseInt(e("lp-pares")||"1"),n=e("lp-nombre"),i=e("lp-tel");if(!t||!n||!i||!e("lp-precio")){alert("Completa modelo, precio, nombre y WhatsApp");return}if(isNaN(a)||a<=0){alert("El precio debe ser mayor a 0");return}const r=document.getElementById("lp-btn");r.textContent="Generando...",r.disabled=!0;const s=document.getElementById("lp-resultado");s.innerHTML="";try{const l=await(await fetch(b+"/chatbot/link-pago-manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:i,nombre:n,direccion:e("lp-dir"),modelo:t,color:e("lp-color"),talla:e("lp-talla"),precio:a,pares:o||1})})).json();if(!l.ok||!l.link){s.innerHTML=`<p style="color:#c62828">Error: ${l.error||"no se pudo generar"}</p>`;return}let c=i.replace(/\D/g,"");c.length===10&&(c="52"+c);const p=`¡Hola ${n.split(" ")[0]}! 🥰 Aquí está tu link de pago de ${t}:
+💳 Total: $${l.total} MXN (incluye envío)
+👉 ${l.link}
+Acepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`;s.innerHTML=`
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:1rem">
+        <p style="font-weight:700;color:#16a34a;margin:0 0 8px">✅ Link generado — Total $${l.total} MXN</p>
+        <input class="form-input" readonly value="${l.link}" onclick="this.select()" style="font-size:0.76rem;margin-bottom:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(this.parentElement.previousElementSibling.value);this.textContent='✓ Copiado'">📋 Copiar link</button>
+          <a class="btn btn-primary" href="https://wa.me/${c}?text=${encodeURIComponent(p)}" target="_blank" style="background:#25D366;border-color:#25D366">💬 Enviar por WhatsApp</a>
+        </div>
+      </div>`}catch{s.innerHTML='<p style="color:#c62828">Error de conexión</p>'}finally{r.textContent="Generar link de pago",r.disabled=!1}};window.gestionarColores=async(e,t)=>{const a=document.createElement("div");a.id="modal-colores",a.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px",a.onclick=o=>{o.target===a&&a.remove()},a.innerHTML=`<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0;font-size:1.05rem">🎨 Colores — ${t}</h3>
+        <button onclick="document.getElementById('modal-colores').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">×</button>
+      </div>
+      <p style="font-size:0.8rem;color:#888;margin:0 0 1rem">Apaga un color para ocultarlo del sitio web. Enciéndelo cuando vuelva a haber existencia.</p>
+      <div id="colores-lista"><p style="color:#888">Cargando…</p></div>
+    </div>`,document.body.appendChild(a),window._renderColoresLista(e)};window._renderColoresLista=async e=>{const t=document.getElementById("colores-lista");if(!t)return;let a=[];try{a=await fetch(b+"/variantes/producto/"+e+"/todas").then(i=>i.json())}catch{}Array.isArray(a)||(a=[]);const o={};a.forEach(i=>{const r=i.color||"Sin color";o[r]||(o[r]={color:r,hex:i.color_hex||"#999",foto:i.foto_url,activas:0,total:0}),o[r].total++,i.activa!==!1&&o[r].activas++,!o[r].foto&&i.foto_url&&(o[r].foto=i.foto_url)});const n=Object.values(o);t.innerHTML=n.length?n.map(i=>{const r=i.activas>0;return`<div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:10px;margin-bottom:8px;${r?"":"opacity:0.6;background:#fafafa"}">
+      ${i.foto?`<img src="${i.foto}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">`:`<span style="width:44px;height:44px;border-radius:8px;background:${i.hex};flex-shrink:0;display:inline-block;border:1px solid #ddd"></span>`}
+      <div style="flex:1;min-width:0">
+        <p style="font-weight:600;margin:0">${i.color}</p>
+        <p style="font-size:0.75rem;margin:0;color:${r?"#16a34a":"#c62828"}">${r?"✓ Visible en el sitio":"✕ Oculto"} · ${i.total} tallas</p>
+      </div>
+      <button class="btn ${r?"btn-secondary":"btn-primary"}" style="padding:6px 12px;font-size:0.78rem;flex-shrink:0;${r?"color:#c62828;border-color:#c62828":""}" onclick="toggleColorWeb('${e}','${i.color.replace(/'/g,"\\'")}',${r?"false":"true"},this)">${r?"Ocultar":"Mostrar"}</button>
+    </div>`}).join(""):'<p style="color:#888">Este producto no tiene colores.</p>'};window.toggleColorWeb=async(e,t,a,o)=>{o.disabled=!0,o.textContent="…";try{const i=await(await fetch(b+"/variantes/toggle-color",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({producto_id:e,color:t,activa:a})})).json();if(!i.ok)throw new Error(i.error||"");window._variantesCache=null,window._renderColoresLista(e)}catch{alert("Error al cambiar el color"),o.disabled=!1}};window.cargarConversaciones=async function(){var a;document.title="Zapatillas May";const e=document.querySelector('[data-modulo="conversaciones"]');e&&((a=e.querySelector(".nav-badge"))==null||a.remove());const t=document.getElementById("content");t.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const o=await fetch(b+"/chatbot/chats").then(d=>d.json()).catch(()=>[]),n=Array.isArray(o)?o:[],i=await fetch(b+"/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo").then(d=>d.json()).catch(()=>[]),r=Array.isArray(i)?i:[];window._chatsData={},n.forEach(d=>window._chatsData[d.telefono]=d),window._productosWA=r.filter(d=>d.activo);const s=n.reduce((d,l)=>d+(l.no_leidos||0),0);if(t.innerHTML=`
+  <div id="wa-tab-content">
+    <div id="wa-container">
+      <div id="wa-sidebar">
+        <div class="wa-sidebar-header">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp</p>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-weight:700;color:var(--text-1);font-size:0.95rem;letter-spacing:-0.01em">Conversaciones</span>
+                ${s>0?`<span class="wa-new-badge">${s}</span>`:""}
+              </div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
+              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Config</button>
+            </div>
+          </div>
+          <div class="wa-search-wrap">
+            <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+            <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
+          </div>
+          <div class="wa-estado-tabs">
+            <button class="wa-estado-tab activa" onclick="filtrarEstado('',this)">Todos</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('espera',this)"><span class="wa-estado-dot espera"></span>Espera</button>
+            <button class="wa-estado-tab" onclick="filtrarEstado('cerrado',this)"><span class="wa-estado-dot cerrado"></span>Cerrado</button>
+          </div>
+          <div class="wa-filters">
+            <button onclick="filtrarEtiqueta('')" class="wa-pill activa">Todos</button>
+            <button onclick="filtrarEtiqueta('solo_pregunta')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;display:inline-block;flex-shrink:0"></span> Pregunta</button>
+            <button onclick="filtrarEtiqueta('posible_comprador')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#f59e0b;display:inline-block;flex-shrink:0"></span> Posible</button>
+            <button onclick="filtrarEtiqueta('comprador')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0"></span> Comprador</button>
+            <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span> Seguim.</button>
+            <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span> Frecuente</button>
+          </div>
+        </div>
+        <div class="wa-chat-list">
+          ${window._htmlChatItems(n)}
+        </div>
+      </div>
+
+      <div id="chat-area">
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px">
+          <div style="width:48px;height:48px;border-radius:50%;background:rgba(233,30,140,0.08);border:1.5px solid rgba(233,30,140,0.15);display:flex;align-items:center;justify-content:center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <p style="font-weight:700;color:#0f172a;font-size:0.95rem;margin:0">Selecciona una conversación</p>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:0">para ver los mensajes</p>
+        </div>
+      </div>
+    </div>
+  </div>
+    `,window.innerWidth<=900){const d=document.getElementById("chat-area");d&&(d.style.display="none")}}catch(o){t.innerHTML='<p style="padding:2rem;color:red">Error: '+o.message+"</p>"}};window.mostrarTabWA=async e=>{const t=document.getElementById("tab-chats"),a=document.getElementById("tab-config");if(t){const o=e==="chats";t.style.background=o?"#E91E8C":"var(--surface)",t.style.color=o?"white":"var(--text-2)",t.style.borderColor=o?"#E91E8C":"var(--border)"}if(a){const o=e==="config";a.style.background=o?"#E91E8C":"var(--surface)",a.style.color=o?"white":"var(--text-2)",a.style.borderColor=o?"#E91E8C":"var(--border)"}e==="chats"?await window.cargarConversaciones():await mostrarConfigWA()};window.filtrarEtiqueta=e=>{document.querySelectorAll(".wa-pill").forEach(t=>t.classList.remove("activa")),event.target.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(t=>{const a=t.dataset.etiqueta||"";t.style.display=!e||a===e?"":"none"})};window.filtrarEstado=(e,t)=>{document.querySelectorAll(".wa-estado-tab").forEach(a=>a.classList.remove("activa")),t&&t.classList.add("activa"),document.querySelectorAll(".wa-chat-item").forEach(a=>{const o=a.dataset.estado||"abierto";a.style.display=!e||o===e?"":"none"})};window.cambiarEstadoChat=async(e,t)=>{try{await fetch(b+"/chatbot/chats/"+e+"/estado",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({estado:t})}),await window._recargarChats(),abrirChat(e)}catch(a){alert("Error: "+a.message)}};window.mostrarConfigWA=async()=>{const e=document.getElementById("content");try{const[t,a]=await Promise.all([fetch(b+"/chatbot/config").then(n=>n.json()),fetch(b+"/chatbot/respuestas-rapidas").then(n=>n.json())]),o=document.getElementById("wa-tab-content")||e;o.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:1000px">
+
+        <!-- CONFIG GENERAL -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <h3 style="font-weight:700;margin-bottom:1.5rem;font-size:1rem">⚙️ Configuración general</h3>
+
+          <div style="margin-bottom:1rem">
+            <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Mensaje de bienvenida</label>
+            <textarea id="cfg-bienvenida" rows="3" style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none">${t.mensaje_bienvenida||""}</textarea>
+          </div>
+
+          <div style="margin-bottom:1rem">
+            <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Mensaje fuera de horario</label>
+            <textarea id="cfg-fuera" rows="3" style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;resize:none">${t.fuera_horario||""}</textarea>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+            <div>
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Horario inicio</label>
+              <input type="time" id="cfg-inicio" value="${t.horario_inicio||"09:00"}" style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-size:0.85rem">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.78rem;font-weight:600;color:#888;margin-bottom:6px;text-transform:uppercase">Horario fin</label>
+              <input type="time" id="cfg-fin" value="${t.horario_fin||"18:00"}" style="width:100%;border:1px solid #eee;border-radius:8px;padding:10px;font-size:0.85rem">
+            </div>
+          </div>
+
+          <div style="margin-bottom:1.5rem;display:flex;align-items:center;gap:10px">
+            <label style="font-size:0.85rem;font-weight:600">Bot activo</label>
+            <input type="checkbox" id="cfg-bot" ${t.bot_activo==="true"?"checked":""} style="width:18px;height:18px;cursor:pointer">
+          </div>
+
+          <button onclick="guardarConfigWA()" style="width:100%;background:#e91e8c;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer">
+            Guardar configuración
+          </button>
+        </div>
+
+        <!-- RESPUESTAS RÁPIDAS -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+            <h3 style="font-weight:700;font-size:1rem">⚡ Respuestas rápidas</h3>
+            <button onclick="nuevaRespuestaRapida()" style="background:#e91e8c;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;font-weight:600;cursor:pointer">+ Nueva</button>
+          </div>
+          <div id="respuestas-lista">
+            ${a.map(n=>`
+              <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <p style="font-weight:600;font-size:0.85rem">⚡ ${n.titulo}</p>
+                  <div style="display:flex;gap:6px">
+                    <button onclick="editarRespuesta('${n.id}','${n.titulo.replace(/'/g,"\\'")}','${n.mensaje.replace(/'/g,"\\'").replace(/\n/g,"\\n")}')" 
+                            style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer">✏️</button>
+                    <button onclick="eliminarRespuesta('${n.id}')" 
+                            style="background:#fce4ec;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#c62828">🗑️</button>
+                  </div>
+                </div>
+                <p style="font-size:0.78rem;color:#888;line-height:1.5">${n.mensaje.substring(0,80)}${n.mensaje.length>80?"...":""}</p>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- PLANTILLAS DE UTILIDAD -->
+      <div style="margin-top:1.5rem;max-width:1000px">
+        <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+            <div>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp Cloud API</p>
+              <h3 style="font-weight:700;font-size:1rem;margin:0">Plantillas de mensaje</h3>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button onclick="cargarPlantillas()" style="background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer">↺ Actualizar</button>
+              <button onclick="crearPlantillasPredefinidas()" style="background:#E91E8C;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer">+ Crear plantillas</button>
+            </div>
+          </div>
+          <p style="font-size:0.78rem;color:#94a3b8;margin:0 0 1.5rem">Las plantillas UTILITY se envían automaticamente al confirmar pedidos y envíos. La de MARKETING para carritos abandonados. Meta las aprueba en 1–24 h.</p>
+          <div id="plantillas-lista">
+            <p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando plantillas...</p>
+          </div>
+        </div>
+
+        <!-- ── Broadcast / Campaña masiva ── -->
+        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:20px;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem">📢 Campaña masiva</p>
+              <p style="margin:2px 0 0;font-size:0.75rem;color:#94a3b8">Envía una plantilla aprobada a todos tus contactos de WhatsApp</p>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Plantilla</label>
+              <select id="broadcast-template" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="">Cargando plantillas...</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Parámetro 1 (si la plantilla lo requiere)</label>
+              <input id="broadcast-param1" placeholder="ej: nombre del cliente (se usará igual para todos)" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;box-sizing:border-box;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Destinatarios</label>
+              <select id="broadcast-dest" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="todos">Todos los contactos de WhatsApp</option>
+                <option value="compradores">Solo compradores</option>
+                <option value="posibles">Posibles compradores</option>
+              </select>
+            </div>
+            <button onclick="ejecutarBroadcast()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">
+              Enviar campaña →
+            </button>
+            <div id="broadcast-resultado" style="font-size:0.8rem;color:#64748b;text-align:center"></div>
+          </div>
+        </div>
+      </div>
+    `,cargarPlantillas(),fetch(b+"/chatbot/templates").then(n=>n.json()).then(n=>{const i=document.getElementById("broadcast-template");if(!i)return;const r=(n.data||[]).filter(s=>s.status==="APPROVED");i.innerHTML=r.length?r.map(s=>`<option value="${s.name}">${s.name}</option>`).join(""):'<option value="">Sin plantillas aprobadas</option>'}).catch(()=>{})}catch(t){console.error(t)}};window.ejecutarBroadcast=async()=>{var s,d,l;const e=(s=document.getElementById("broadcast-template"))==null?void 0:s.value,t=((d=document.getElementById("broadcast-param1"))==null?void 0:d.value.trim())||"",a=((l=document.getElementById("broadcast-dest"))==null?void 0:l.value)||"todos",o=document.getElementById("broadcast-resultado");if(!e){alert("Selecciona una plantilla");return}const n=Object.values(window._chatsData||{});let i=[];if(a==="todos"?i=n.map(c=>c.telefono):a==="compradores"?i=n.filter(c=>c.etiqueta==="comprador"||c.etiqueta==="frecuente").map(c=>c.telefono):a==="posibles"&&(i=n.filter(c=>c.etiqueta==="posible_comprador").map(c=>c.telefono)),!i.length){alert("No hay contactos en ese grupo");return}const r=`¿Enviar "${e}" a ${i.length} contacto${i.length!==1?"s":""}?`;if(confirm(r)){o&&(o.textContent="Enviando...");try{const c=t?[t]:[],m=await(await fetch(b+"/chatbot/broadcast",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({template:e,params:c,telefonos:i})})).json();o&&(o.textContent=`✓ Enviados: ${m.enviados}/${m.total} — Errores: ${m.errores}`)}catch(c){o&&(o.textContent="Error: "+c.message)}}};window.cargarPlantillas=async()=>{const e=document.getElementById("plantillas-lista");if(e)try{const o=(await(await fetch(b+"/chatbot/templates")).json()).templates||[];if(!o.length){e.innerHTML='<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:16px">Sin plantillas aún. Crea las predefinidas o agrega una desde Meta Business Manager.</p>';return}const n={APPROVED:"#059669",PENDING:"#f59e0b",REJECTED:"#ef4444",PAUSED:"#94a3b8"},i={APPROVED:"Aprobada",PENDING:"Pendiente",REJECTED:"Rechazada",PAUSED:"Pausada"};e.innerHTML=`
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        ${o.map(r=>{const s=(r.components||[]).find(c=>c.type==="BODY"),d=n[r.status]||"#94a3b8",l=i[r.status]||r.status;return`
+            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;position:relative">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <code style="font-size:0.74rem;background:#f1f5f9;padding:3px 8px;border-radius:4px;color:#1e293b">${r.name}</code>
+                <span style="font-size:0.67rem;font-weight:700;color:${d};background:${d}18;padding:2px 8px;border-radius:100px">${l}</span>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:8px">
+                <span style="font-size:0.65rem;background:#f1f5f9;padding:2px 7px;border-radius:4px;color:#64748b">${r.category}</span>
+                <span style="font-size:0.65rem;background:#f1f5f9;padding:2px 7px;border-radius:4px;color:#64748b">${r.language}</span>
+              </div>
+              ${s?`<p style="font-size:0.78rem;color:#475569;line-height:1.5;margin:0">${(s.text||"").substring(0,100)}${(s.text||"").length>100?"...":""}</p>`:""}
+            </div>`}).join("")}
+      </div>`}catch(t){e.innerHTML=`<p style="color:#ef4444;font-size:0.82rem;padding:12px">Error cargando plantillas: ${t.message}</p>`}};window.crearPlantillasPredefinidas=async()=>{const e=event.target;e.textContent="Creando...",e.disabled=!0;try{const o=((await(await fetch(b+"/chatbot/templates/crear-predefinidas",{method:"POST"})).json()).resultados||[]).map(n=>{var i,r;return`${n.ok?"✓":"✗"} ${n.nombre}${n.error?": "+((r=(i=JSON.parse(n.error||"{}"))==null?void 0:i.error)==null?void 0:r.message)||n.error:""}`}).join(`
+`);alert(`Resultado:
+`+o),cargarPlantillas()}catch(t){alert("Error: "+t.message)}finally{e.textContent="+ Crear plantillas",e.disabled=!1}};window.guardarConfigWA=async()=>{try{await fetch(b+"/chatbot/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mensaje_bienvenida:document.getElementById("cfg-bienvenida").value,fuera_horario:document.getElementById("cfg-fuera").value,horario_inicio:document.getElementById("cfg-inicio").value,horario_fin:document.getElementById("cfg-fin").value,bot_activo:document.getElementById("cfg-bot").checked?"true":"false"})}),alert("Configuración guardada")}catch{alert("Error guardando")}};window.nuevaRespuestaRapida=()=>{const e=prompt("Título de la respuesta rápida:");if(!e)return;const t=prompt("Mensaje:");t&&fetch(b+"/chatbot/respuestas-rapidas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:e,mensaje:t,orden:99})}).then(()=>mostrarConfigWA())};window.editarRespuesta=(e,t,a)=>{const o=prompt("Título:",t);if(!o)return;const n=prompt("Mensaje:",a.replace(/\\n/g,`
+`));n&&fetch(b+"/chatbot/respuestas-rapidas/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:o,mensaje:n})}).then(()=>mostrarConfigWA())};window.eliminarRespuesta=e=>{confirm("¿Eliminar esta respuesta rápida?")&&fetch(b+"/chatbot/respuestas-rapidas/"+e,{method:"DELETE"}).then(()=>mostrarConfigWA())};window.filtrarChats=e=>{document.querySelectorAll(".wa-chat-item").forEach(t=>{const a=t.dataset.nombre||"",o=t.dataset.tel||"";t.style.display=!e||a.includes(e.toLowerCase())||o.includes(e)?"":"none"})};window.renderMensaje=(e,t,a)=>{if(e.tipo==="imagen_saliente"){const o=e.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/,"").split(`
+`),n=o[0].trim(),i=o.slice(1).join(`
+`).trim();if(n.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i))return'<img src="'+n+'" style="max-width:200px;border-radius:8px;display:block">'+(i?'<p style="font-size:0.82rem;color:#333;white-space:pre-wrap;margin-top:6px">'+i+"</p>":"")}return'<p style="font-size:0.85rem;color:#333;white-space:pre-wrap">'+e.mensaje.replace(/\[.+?\]:\s*/,"")+"</p>"};window._recargarChats=async()=>{try{const e=await fetch(b+"/chatbot/chats").then(o=>o.json()),t=Array.isArray(e)?e:[],a={};return t.forEach(o=>{const n=window._chatsData[o.telefono];n&&n._historial_completo&&n.mensajes.length>o.mensajes.length?a[o.telefono]={...o,mensajes:n.mensajes,_historial_completo:!0}:a[o.telefono]=o}),window._chatsData=a,t}catch{return[]}};window._htmlChatItems=e=>!e||e.length===0?'<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>':[...e].sort((t,a)=>new Date(a.ultimo_mensaje)-new Date(t.ultimo_mensaje)).map(t=>`
+              <div class="wa-chat-item" data-tel="${t.telefono}" data-nombre="${(t.nombre||"").toLowerCase()}" data-etiqueta="${t.etiqueta||""}" data-estado="${t.estado||"abierto"}"
+                   onclick="abrirChat('${t.telefono}')">
+                <div class="wa-avatar">
+                  ${(t.nombre||t.telefono).charAt(0).toUpperCase()}
+                  ${t.en_control?'<div class="wa-control-dot"></div>':""}
+                </div>
+                <div class="wa-chat-info">
+                  <div class="wa-chat-name">${t.nombre||t.telefono}
+                    ${t.estado&&t.estado!=="abierto"?`<span class="wa-estado-badge ${t.estado}">${t.estado==="espera"?"En espera":"Cerrado"}</span>`:""}
+                  </div>
+                  <div class="wa-chat-preview">${(()=>{const a=t.mensajes&&t.mensajes[0]&&t.mensajes[0].mensaje||"";return a.startsWith("[Imagen]")?"📷 Imagen":a.startsWith("[Sticker]")?"🏷️ Sticker":a.substring(0,40)+"…"})()}</div>
+                </div>
+                <div class="wa-chat-meta">
+                  <span class="wa-chat-time">${new Date(t.ultimo_mensaje).toLocaleDateString("es-MX",{day:"numeric",month:"short"})}</span>
+                  ${t.no_leidos>0?`<span class="wa-unread">${t.no_leidos}</span>`:""}
+                </div>
+              </div>
+            `).join("");window._refrescarListaChats=e=>{const t=document.querySelector(".wa-chat-list");if(!t)return;const a=e.map(r=>r.telefono+":"+r.ultimo_mensaje+":"+(r.no_leidos||0)).join("|");if(a===window._firmaListaChats)return;window._firmaListaChats=a,t.innerHTML=window._htmlChatItems(e);const o=document.querySelector(".wa-search-input");o&&o.value&&filtrarChats(o.value);const n=document.querySelector(".wa-pill.activa"),i=document.querySelector(".wa-estado-tab.activa");if(document.querySelectorAll(".wa-chat-item").forEach(r=>{let s=!0;if(n){const d=(n.getAttribute("onclick")||"").match(/filtrarEtiqueta\('([^']*)'\)/);d&&d[1]&&(r.dataset.etiqueta||"")!==d[1]&&(s=!1)}if(s&&i){const d=(i.getAttribute("onclick")||"").match(/filtrarEstado\('([^']*)'/);d&&d[1]&&(r.dataset.estado||"abierto")!==d[1]&&(s=!1)}s||(r.style.display="none")}),window._chatActivo){const r=t.querySelector(`.wa-chat-item[data-tel="${window._chatActivo}"]`);r&&r.classList.add("activa")}};window._renderBurbujas=e=>{const t=n=>{if(!n)return null;const i=/[zZ]$|[+-]\d{2}:?\d{2}$/.test(n);return new Date(i?n:n.replace(" ","T")+"Z")},a=[...e.mensajes||[]].reverse(),o=a.reduce((n,i,r)=>i.tipo==="manual"||i.tipo==="imagen_saliente"||i.tipo==="documento_saliente"||i.tipo==="video_saliente"||i.tipo==="ubicacion_saliente"||i.tipo==="contacto_saliente"||i.tipo==="botones_saliente"||i.tipo==="lista_saliente"||i.tipo==="carrusel_saliente"||i.tipo==="template_saliente"?r:n,-1);return a.map((n,i)=>{var f,v,x;const r=n.tipo==="manual"||n.tipo==="imagen_saliente"||n.tipo==="documento_saliente"||n.tipo==="video_saliente"||n.tipo==="ubicacion_saliente"||n.tipo==="contacto_saliente"||n.tipo==="botones_saliente"||n.tipo==="lista_saliente"||n.tipo==="carrusel_saliente"||n.tipo==="template_saliente",s=r?((f=(n.mensaje||"").match(/\[(.+?)\]:/))==null?void 0:f[1])||"Admin":e.nombre||e.telefono,d=t(n.created_at),l=d?d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}):"",c=n.mensaje?n.mensaje.replace(/\[.+?\]:\s*/,""):"";let p="";if(n.tipo==="imagen_saliente"){const h=n.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/,"").split(`
+`)[0].trim();p=h.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)?`<img src="${h}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer" onclick="window.open('${h}')">`:`<p>${c}</p>`}else if(n.tipo==="documento_saliente"){const h=c.replace("[Documento] ","").split(" "),$=h[0]||"documento";p=`<a href="${h[1]||""}" target="_blank" class="wa-doc-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        ${$}</a>`}else if(n.tipo==="video_saliente")p=`<video src="${c.replace("[Video] ","")}" controls style="max-width:220px;border-radius:8px;display:block"></video>`;else if(n.tipo==="botones_saliente"){const h=c.replace("[Botones] ","").split(" -> "),$=h[0]||c,w=(h[1]||"").split(" | ");p=`<p style="margin:0 0 8px">${$}</p>
+        <div style="display:flex;flex-direction:column;gap:4px">${w.map(C=>`<span style="border:1px solid rgba(8,145,178,0.3);border-radius:6px;padding:4px 10px;font-size:0.78rem;color:#0891b2;text-align:center">${C}</span>`).join("")}</div>`}else if(n.tipo==="lista_saliente"){const h=c.replace("[Lista] ","").split(" -> "),$=h[0]||c,w=(h[1]||"").split(", ").slice(0,5);p=`<p style="margin:0 0 6px">${$}</p>
+        <div style="border:1px solid rgba(8,145,178,0.25);border-radius:6px;padding:6px 8px;font-size:0.75rem;color:#0891b2">
+          ${w.map(C=>`<div>• ${C}</div>`).join("")}
+          ${w.length<(h[1]||"").split(", ").length?'<div style="color:#94a3b8">…</div>':""}
+        </div>`}else if(n.tipo==="carrusel_saliente"){const h=(n.mensaje||"").split("|IMGS|"),$=h[1]?h[1].split(",").filter(Boolean):[];p=`<p style="margin:0;font-size:0.85rem">${c.split("|IMGS|")[0].replace("[Carrusel] ","")}</p>
+        ${$.length?`<div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;max-width:250px;padding-bottom:2px">${$.map(C=>`<img src="${C}" alt="producto" style="width:62px;height:78px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer" onclick="window.open('${C}','_blank')">`).join("")}</div>`:'<p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>'}`}else if(n.tipo==="sticker"){const h=(n.mensaje||"").match(/https?:\/\/\S+/);p=h?`<img src="${h[0]}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`:'<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>'}else if(n.tipo==="template_saliente")p=`<p style="margin:0;font-size:0.85rem">${c.replace("[Template] ","")}</p>
+        <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`;else if(n.tipo==="button_reply")p=`<p style="margin:0;color:#0891b2;font-size:0.85rem">👆 ${c.replace("[Botón] ","")}</p>`;else if(n.tipo==="list_reply")p=`<p style="margin:0;color:#0891b2;font-size:0.85rem">☰ ${c.replace("[Lista] ","")}</p>`;else if(n.tipo==="ubicacion_saliente"){const h=((v=c.match(/https:\/\/maps\.google\.com\/\?q=[\d.,]+/))==null?void 0:v[0])||"",$=c.replace("[Ubicación] ","").replace(/ https:.*/,"");p=`<a href="${h}" target="_blank" class="wa-doc-link" style="color:#0891b2;text-decoration:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        ${$||"Ubicación"}</a>`}else if(n.tipo==="contacto_saliente")p=`<span class="wa-doc-link" style="color:#0f172a">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ${c.replace("[Contacto] ","")}</span>`;else if(n.tipo==="imagen"){const h=(n.mensaje||"").match(/https?:\/\/\S+/),$=n.media_url||(h?h[0]:null),w=(n.mensaje||"").replace("[Imagen]","").replace(/https?:\/\/\S+/,"").replace(/^[:\s]+/,"").trim();$?p=`<div>
+          <a href="${$}" target="_blank" rel="noopener">
+            <img src="${$}" alt="Imagen del cliente" style="max-width:220px;max-height:220px;border-radius:8px;display:block;cursor:pointer">
+          </a>
+          ${w?`<p style="margin:4px 0 0;font-size:0.82rem;color:#475569">${w}</p>`:""}
+        </div>`:p='<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>'}else if(n.tipo==="audio"){const h=n.media_url||((x=(n.mensaje||"").match(/https?:\/\/\S+/))==null?void 0:x[0])||"",$=c.replace("[Audio de voz recibido]","").replace("[Audio sin contenido]","").replace("[Audio no procesable]","").trim();p=h?`<div>
+            <audio src="${h}" controls style="max-width:220px;width:100%;margin-bottom:${$?"4px":"0"}"></audio>
+            ${$?`<p style="font-size:0.8rem;color:#475569;margin:0;font-style:italic">${$}</p>`:""}
+           </div>`:`<p style="color:#64748b;font-size:0.8rem">🎵 ${$||"Audio de voz"}</p>`}else if(n.tipo==="documento"){const h=(n.mensaje||"").match(/https?:\/\/\S+/),$=n.media_url||(h?h[0]:null),w=(n.mensaje||"").replace("[Documento]","").replace(/https?:\/\/\S+/g,"").trim()||"documento";p=$?`<a href="${$}" target="_blank" class="wa-doc-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ${w}</a>`:`<p style="color:#64748b;font-size:0.8rem">📄 ${w}</p>`}else if(n.tipo==="video"){const h=(n.mensaje||"").match(/https?:\/\/\S+/),$=n.media_url||(h?h[0]:null);p=$?`<video src="${$}" controls style="max-width:220px;border-radius:8px;display:block"></video>`:'<p style="color:#64748b;font-size:0.8rem">🎬 Video recibido</p>'}else p=`<p>${c}</p>`;let m="";if(r){const h=t(e.cliente_leyo_at),$=t(e.cliente_entrego_at),w=t(n.created_at);h&&w<=h?m='<span class="wa-read-receipt read" title="Visto">✓✓</span>':$&&w<=$?m='<span class="wa-read-receipt delivered" title="Entregado">✓✓</span>':i===o&&(m='<span class="wa-read-receipt sent" title="Enviado">✓</span>')}const g=`<button class="wa-reply-btn" onclick="iniciarReply('${e.telefono}','${(n.wa_message_id||"").replace(/'/g,"")}')" title="Responder">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+    </button>`,u=n.mensaje||n.media_url?`
+      <div class="wa-msg-row ${r?"saliente":"entrante"}" data-idx="${i}">
+        ${r?"":g}
+        <div class="wa-msg-row-inner">
+          <span class="wa-msg-sender">${s}</span>
+          <div class="wa-bubble ${r?"saliente":"entrante"}">${p}<div class="wa-bubble-time">${l}${m}</div></div>
+        </div>
+        ${r?g:""}
+      </div>`:"",y=n.respuesta?`
+      <div class="wa-msg-row saliente">
+        ${g}
+        <div class="wa-msg-row-inner">
+          <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
+          <div class="wa-bubble bot">
+            <p>${n.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi,"")}</p>
+            ${(n.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(h=>`<img src="${h}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${h}')">`).join("")}
+            <div class="wa-bubble-time">${l}</div>
+          </div>
+        </div>
+      </div>`:"";return u+y}).join("")};window.abrirChat=async e=>{var r;let t=window._chatsData[e]||{telefono:e,nombre:e,mensajes:[],en_control:!1,etiqueta:"sin_etiqueta",estado:"abierto",no_leidos:0};document.querySelectorAll(".wa-chat-item").forEach(s=>s.classList.remove("activo"));const a=document.querySelector(`[data-tel="${e}"]`);a&&a.classList.add("activo");const o=window.innerWidth<=900;if(o){const s=document.getElementById("wa-sidebar"),d=document.getElementById("wa-container");s&&(s.style.display="none"),d&&(d.style.gridTemplateColumns="1fr")}const n=document.getElementById("chat-area");if(n.style.display="flex",n.style.flexDirection="column",n.style.flex="1",n.style.minHeight="0",n.innerHTML=`
+    <!-- Header compacto -->
+    <div class="wa-chat-header">
+      ${o?'<button onclick="volverChats()" class="wa-circ-btn">←</button>':""}
+      <div class="wa-avatar-sm">${(t.nombre||t.telefono).charAt(0).toUpperCase()}</div>
+      <div class="wa-header-info">
+        <div class="wa-header-name">${t.nombre||t.telefono}</div>
+        <div class="wa-header-sub">${t.telefono} · ${t.mensajes.length} msg</div>
+      </div>
+      <div class="wa-header-actions">
+        ${t.en_control?`<button onclick="toggleControl('${e}', false)" class="wa-btn wa-btn-on" title="Activar bot automático">Bot</button>`:`<button onclick="toggleControl('${e}', true)" class="wa-btn wa-btn-off" title="Tomar control manual">Manual</button>`}
+        <button onclick="mostrarCatalogoWA('${e}')" class="wa-btn wa-btn-prod" title="Enviar producto">Catálogo</button>
+        <button onclick="mostrarRespuestasRapidas('${e}')" class="wa-btn wa-btn-quick" title="Respuestas rápidas">Rápidas</button>
+        <button onclick="marcarNoLeido('${e}')" class="wa-btn" style="background:rgba(245,127,23,0.08);color:#f57f17;border-color:rgba(245,127,23,0.25)" title="Marcar pendiente de revisión">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </button>
+        <button onclick="window.cargarConversaciones()" class="wa-btn wa-btn-reload" title="Recargar">↺</button>
+      </div>
+    </div>
+
+    <!-- Sub-header: estado + etiqueta -->
+    <div class="wa-subheader">
+      <span class="wa-bot-badge ${t.en_control?"manual":"auto"}">
+        ${t.en_control?"Control manual":"Bot activo"}
+      </span>
+      <select onchange="cambiarEtiqueta('${e}', this.value)" class="wa-label-select-sm">
+        <option value="sin_etiqueta" ${!t.etiqueta||t.etiqueta==="sin_etiqueta"?"selected":""}>Sin etiqueta</option>
+        <option value="solo_pregunta" ${t.etiqueta==="solo_pregunta"?"selected":""}>Pregunta</option>
+        <option value="posible_comprador" ${t.etiqueta==="posible_comprador"?"selected":""}>Posible comprador</option>
+        <option value="comprador" ${t.etiqueta==="comprador"?"selected":""}>Comprador</option>
+        <option value="seguimiento" ${t.etiqueta==="seguimiento"?"selected":""}>Seguimiento</option>
+        <option value="frecuente" ${t.etiqueta==="frecuente"?"selected":""}>Frecuente</option>
+      </select>
+      <select onchange="cambiarEstadoChat('${e}', this.value)" class="wa-label-select-sm" style="border-color:${(t.estado||"abierto")==="espera"?"#f59e0b":t.estado==="cerrado"?"#64748b":"#10b981"}">
+        <option value="abierto" ${!t.estado||t.estado==="abierto"?"selected":""}>🟢 Abierto</option>
+        <option value="espera" ${t.estado==="espera"?"selected":""}>🟡 En espera</option>
+        <option value="cerrado" ${t.estado==="cerrado"?"selected":""}>⚫ Cerrado</option>
+      </select>
+    </div>
+
+    <!-- Mensajes -->
+    <div id="mensajes-area">
+      ${window._renderBurbujas(t)}
+    </div>
+
+    <!-- Input -->
+    <div class="wa-input-bar">
+      <div class="wa-input-toolbar">
+        <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${e}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </button>
+        <input type="file" id="img-file-${e}" accept="image/*" style="display:none" onchange="subirImagenWA('${e}',this)">
+        <button class="wa-tool-btn" title="Adjuntar documento o PDF" onclick="document.getElementById('doc-file-${e}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+        </button>
+        <input type="file" id="doc-file-${e}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${e}',this)">
+        <button class="wa-tool-btn" title="Adjuntar video" onclick="document.getElementById('vid-file-${e}').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </button>
+        <input type="file" id="vid-file-${e}" accept="video/*" style="display:none" onchange="subirVideoWA('${e}',this)">
+        <button class="wa-tool-btn" title="Enviar botones interactivos" onclick="mostrarModalBotones('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="4" rx="2"/><rect x="2" y="13" width="20" height="4" rx="2"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar lista interactiva" onclick="mostrarModalLista('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${e}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </button>
+        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${e}','${(t.nombre||"").replace(/'/g,"")}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </button>
+        <div style="flex:1"></div>
+        <span id="reply-context-${e}" class="wa-reply-context" style="display:none"></span>
+        <span id="char-count-${e}" class="wa-char-count"></span>
+      </div>
+      <div class="wa-input-row">
+        <textarea id="msg-input-${e}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="2"
+                  oninput="const c=document.getElementById('char-count-${e}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''}"
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${e}')}"></textarea>
+        <button onclick="enviarMensajeWA('${e}')" class="wa-send-btn" title="Enviar (Enter)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toggle notas/tareas -->
+    <button class="wa-nt-toggle" onclick="toggleNotasTareas()">
+      <span style="display:flex;align-items:center;gap:6px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Notas y tareas
+      </span>
+      <span id="wa-nt-arrow" style="font-size:0.7rem">${o?"▲":"▼"}</span>
+    </button>
+    <div id="notas-tareas-panel" class="${o?"nt-collapsed":""}">
+      <div class="wa-nt-grid">
+        <div>
+          <div class="wa-nt-header">
+            <p class="wa-nt-title">📝 Notas</p>
+            <button onclick="agregarNota('${e}')" class="wa-nt-add">+ Agregar</button>
+          </div>
+          <div id="notas-lista-${e}" class="wa-nt-list">
+            <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
+          </div>
+        </div>
+        <div>
+          <div class="wa-nt-header">
+            <p class="wa-nt-title">✅ Tareas</p>
+            <button onclick="agregarTarea('${e}')" class="wa-nt-add">+ Agregar</button>
+          </div>
+          <div id="tareas-lista-${e}" class="wa-nt-list">
+            <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,setTimeout(()=>{const s=document.getElementById("mensajes-area");s&&(s.scrollTop=s.scrollHeight)},100),!t._historial_completo)try{const s=await fetch(`${b}/chatbot/chats/${e}/mensajes`).then(d=>d.json());if(Array.isArray(s)&&s.length>0){const d=((r=s.find(p=>p.nombre_contacto&&p.nombre_contacto!==e))==null?void 0:r.nombre_contacto)||t.nombre;window._chatsData[e]={...t,nombre:d,mensajes:s,_historial_completo:!0},t=window._chatsData[e];const l=document.querySelector("#chat-area .wa-header-sub");l&&(l.textContent=`${t.telefono} · ${s.length} msg`);const c=document.getElementById("mensajes-area");c&&(c.innerHTML=window._renderBurbujas(t),setTimeout(()=>{c.scrollTop=c.scrollHeight},50))}}catch{}fetch(b+"/chatbot/chats/"+e+"/leido",{method:"PATCH"}),window._chatActivo=e,cargarNotasTareas(e)};window.toggleNotasTareas=()=>{const e=document.getElementById("notas-tareas-panel"),t=document.getElementById("wa-nt-arrow");if(!e)return;const a=e.classList.toggle("nt-collapsed");t&&(t.textContent=a?"▲":"▼")};window.volverChats=()=>{const e=document.getElementById("wa-sidebar"),t=document.getElementById("wa-container");e&&(e.style.display=""),t&&(t.style.gridTemplateColumns=""),document.querySelectorAll(".wa-chat-item").forEach(o=>o.classList.remove("activo"));const a=document.getElementById("chat-area");a&&window.innerWidth<=900&&(a.style.display="none"),a&&(a.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:10px">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(233,30,140,0.08);border:1.5px solid rgba(233,30,140,0.15);display:flex;align-items:center;justify-content:center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E91E8C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <p style="font-weight:700;color:#0f172a;font-size:0.95rem;margin:0">Selecciona una conversación</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin:0">para ver los mensajes</p>
+    </div>
+  `)};window.mostrarRespuestasRapidas=async e=>{const a=await(await fetch(b+"/chatbot/respuestas-rapidas")).json(),o=document.createElement("div");o.id="modal-rapidas",o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:flex-end;justify-content:center;padding:1rem",o.innerHTML=`
+    <div style="background:white;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:60vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="font-weight:700">⚡ Respuestas rápidas</p>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
+      </div>
+      ${a.map(n=>`
+        <div onclick="usarRespuestaRapida('${e}', \`${n.mensaje.replace(/`/g,"\\`")}\`)"
+             style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer"
+             onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+          <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">⚡ ${n.titulo}</p>
+          <p style="font-size:0.78rem;color:#888">${n.mensaje}</p>
+        </div>
+      `).join("")}
+    </div>
+  `,document.body.appendChild(o),o.addEventListener("click",n=>{n.target===o&&o.remove()})};window.cargarNotasTareas=async e=>{var r;(r=window._empleadoActual)!=null&&r.nombre;const t=new Date().toISOString().split("T")[0],[a,o]=await Promise.all([fetch(b+"/chatbot/notas/"+e).then(s=>s.json()),fetch(b+"/chatbot/tareas/"+e).then(s=>s.json())]),n=document.getElementById("notas-lista-"+e);n&&(n.innerHTML=a.length===0?'<p style="font-size:0.73rem;color:var(--text-3);text-align:center;padding:8px">Sin notas</p>':a.map(s=>`
+        <div class="wa-nota">
+          <p>${s.nota}</p>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <small>${s.agente} · ${new Date(s.created_at).toLocaleDateString("es-MX")}</small>
+            <button onclick="eliminarNota('${s.id}','${e}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
+          </div>
+        </div>
+      `).join(""));const i=document.getElementById("tareas-lista-"+e);i&&(i.innerHTML=o.length===0?'<p style="font-size:0.73rem;color:var(--text-3);text-align:center;padding:8px">Sin tareas</p>':o.map(s=>{const d=s.fecha_vence===t,l=s.fecha_vence&&s.fecha_vence<t&&!s.completada;return`
+            <div class="wa-tarea" style="${s.completada?"opacity:0.55":""}">
+              <input type="checkbox" ${s.completada?"checked":""}
+                     onchange="completarTarea('${s.id}', this.checked, '${e}')"
+                     style="width:14px;height:14px;cursor:pointer;accent-color:#25D366;flex-shrink:0">
+              <div style="flex:1;min-width:0">
+                <p class="wa-tarea-title ${s.completada?"done":""}">${s.titulo}</p>
+                ${s.fecha_vence?`<p class="wa-tarea-due" style="color:${l?"#c62828":d?"#f57f17":"var(--text-3)"}">${l?"⚠️ Vencida":d?"🔔 Vence hoy":s.fecha_vence}</p>`:""}
+              </div>
+              <button onclick="eliminarTarea('${s.id}','${e}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
+            </div>
+          `}).join(""))};window.agregarNota=async e=>{var o;const t=prompt("Escribe la nota:");if(!t)return;const a=((o=window._empleadoActual)==null?void 0:o.nombre)||"Admin";await fetch(b+"/chatbot/notas/"+e,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nota:t,agente:a})}),cargarNotasTareas(e)};window.eliminarNota=async(e,t)=>{confirm("¿Eliminar nota?")&&(await fetch(b+"/chatbot/notas/"+e,{method:"DELETE"}),cargarNotasTareas(t))};window.agregarTarea=async e=>{var n;const t=prompt("Título de la tarea:");if(!t)return;const a=prompt("Fecha límite (YYYY-MM-DD) o déjala vacía:"),o=((n=window._empleadoActual)==null?void 0:n.nombre)||"Admin";await fetch(b+"/chatbot/tareas/"+e,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:t,fecha_vence:a||null,agente:o})}),cargarNotasTareas(e)};window.completarTarea=async(e,t,a)=>{await fetch(b+"/chatbot/tareas/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({completada:t})}),cargarNotasTareas(a)};window.eliminarTarea=async(e,t)=>{confirm("¿Eliminar tarea?")&&(await fetch(b+"/chatbot/tareas/"+e,{method:"DELETE"}),cargarNotasTareas(t))};window.usarRespuestaRapida=(e,t)=>{var o;(o=document.getElementById("modal-rapidas"))==null||o.remove();const a=document.getElementById("msg-input-"+e);a&&(a.value=t,a.focus(),enviarMensajeWA(e))};window.enviarMensajeWA=async e=>{var r,s,d;const t=document.getElementById("msg-input-"+e),a=(r=t==null?void 0:t.value)==null?void 0:r.trim();if(!a)return;t.value="";const o=((s=window._empleadoActual)==null?void 0:s.nombre)||"Admin",n=((d=window._replyContext)==null?void 0:d[e])||null;cancelarReply(e);const i=document.getElementById("char-count-"+e);i&&(i.textContent="");try{await fetch(b+"/chatbot/chats/"+e+"/mensaje",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mensaje:a,agente:o,reply_to_wa_id:n})}),await window._recargarChats(),abrirChat(e)}catch{alert("Error enviando mensaje")}};window._replyContext={};window.iniciarReply=(e,t)=>{var o;window._replyContext[e]=t;const a=document.getElementById("reply-context-"+e);a&&(a.style.display="inline-flex",a.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Respondiendo &nbsp;<button onclick="cancelarReply('${e}')" style="border:none;background:none;cursor:pointer;color:#94a3b8;padding:0;font-size:0.75rem">✕</button>`),(o=document.getElementById("msg-input-"+e))==null||o.focus()};window.cancelarReply=e=>{delete window._replyContext[e];const t=document.getElementById("reply-context-"+e);t&&(t.style.display="none")};window.marcarNoLeido=async e=>{try{await fetch(b+"/chatbot/chats/"+e+"/no-leido",{method:"PATCH"});const t=document.querySelector(`[data-tel="${e}"]`);if(t&&!t.querySelector(".wa-unread")){const a=document.createElement("span");a.className="wa-unread",a.textContent="!",t.appendChild(a)}}catch{}};window.subirImagenWA=async(e,t)=>{var i;const a=t.files[0];if(!a)return;t.value="";const o=((i=window._empleadoActual)==null?void 0:i.nombre)||"Admin",n=document.querySelector(".wa-send-btn");n&&(n.disabled=!0,n.style.opacity="0.5");try{const r=new FormData;r.append("file",a);const d=await(await fetch(b+"/imagenes/upload-temp",{method:"POST",body:r})).json(),l=d.url||d.public_url;if(!l)throw new Error("No se obtuvo URL");await fetch(b+"/chatbot/chats/"+e+"/imagen",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imagen_url:l,caption:"",agente:o})}),await window._recargarChats(),abrirChat(e)}catch(r){alert("Error subiendo imagen: "+r.message)}finally{n&&(n.disabled=!1,n.style.opacity="1")}};window.subirDocumentoWA=async(e,t)=>{var n;const a=t.files[0];if(!a)return;t.value="";const o=((n=window._empleadoActual)==null?void 0:n.nombre)||"Admin";try{const i=new FormData;i.append("file",a);const s=await(await fetch(b+"/imagenes/upload-temp",{method:"POST",body:i})).json(),d=s.url||s.public_url;if(!d)throw new Error("No se obtuvo URL");await fetch(b+"/chatbot/chats/"+e+"/documento",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({doc_url:d,filename:a.name,caption:"",agente:o})}),await window._recargarChats(),abrirChat(e)}catch(i){alert("Error enviando documento: "+i.message)}};window.subirVideoWA=async(e,t)=>{var n;const a=t.files[0];if(!a)return;t.value="";const o=((n=window._empleadoActual)==null?void 0:n.nombre)||"Admin";try{const i=new FormData;i.append("file",a);const s=await(await fetch(b+"/imagenes/upload-temp",{method:"POST",body:i})).json(),d=s.url||s.public_url;if(!d)throw new Error("No se obtuvo URL");await fetch(b+"/chatbot/chats/"+e+"/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({video_url:d,caption:"",agente:o})}),await window._recargarChats(),abrirChat(e)}catch(i){alert("Error enviando video: "+i.message)}};window.enviarUbicacionWA=async e=>{var r;const t=((r=window._empleadoActual)==null?void 0:r.nombre)||"Admin",a="21.1250",o="-101.6860",n="Zapatillas May",i="León, Guanajuato, México";try{const s=await fetch(b+"/chatbot/chats/"+e+"/ubicacion",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lat:a,lng:o,nombre:n,direccion:i,agente:t})});if(!s.ok)throw new Error("Error "+s.status);await window._recargarChats(),abrirChat(e)}catch(s){alert("Error enviando ubicación: "+s.message)}};window.mostrarEnviarContactoWA=e=>{const t=document.getElementById("modal-contacto-wa");t&&t.remove();const a=document.createElement("div");a.id="modal-contacto-wa",a.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center",a.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:340px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <h3 style="margin:0 0 16px;font-size:1rem;color:#0f172a">Enviar contacto por WhatsApp</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input id="cwa-nombre" placeholder="Nombre" value="Zapatillas May"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+        <input id="cwa-tel" placeholder="Teléfono (ej: 4771234567)"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+        <input id="cwa-empresa" placeholder="Empresa (opcional)" value="Zapatillas May"
+               style="border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.9rem;outline:none">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button onclick="document.getElementById('modal-contacto-wa').remove()"
+                style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b">
+          Cancelar
+        </button>
+        <button onclick="enviarContactoWA('${e}')"
+                style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600">
+          Enviar
+        </button>
+      </div>
+    </div>`,document.body.appendChild(a),a.addEventListener("click",o=>{o.target===a&&a.remove()}),setTimeout(()=>{var o;return(o=document.getElementById("cwa-tel"))==null?void 0:o.focus()},50)};window.enviarContactoWA=async e=>{var i,r,s,d,l;const t=((i=document.getElementById("cwa-nombre"))==null?void 0:i.value.trim())||"Zapatillas May",a=((r=document.getElementById("cwa-tel"))==null?void 0:r.value.trim())||"",o=((s=document.getElementById("cwa-empresa"))==null?void 0:s.value.trim())||"",n=((d=window._empleadoActual)==null?void 0:d.nombre)||"Admin";if(!a){alert("Ingresa el número de teléfono del contacto");return}(l=document.getElementById("modal-contacto-wa"))==null||l.remove();try{const c=await fetch(b+"/chatbot/chats/"+e+"/contacto",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nombre:t,telefono_contacto:a,empresa:o,agente:n})});if(!c.ok)throw new Error("Error "+c.status);await window._recargarChats(),abrirChat(e)}catch(c){alert("Error enviando contacto: "+c.message)}};window.mostrarModalBotones=e=>{const t=Pe("modal-botones-wa",`
+    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar botones interactivos</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <input id="mbt-encabezado" placeholder="Encabezado (opcional)" style="${ie()}">
+      <textarea id="mbt-cuerpo" placeholder="Mensaje principal *" rows="2" style="${ie()};resize:none"></textarea>
+      <input id="mbt-btn1" placeholder="Botón 1 (opcional, máx 20 chars)" style="${ie()}">
+      <input id="mbt-btn2" placeholder="Botón 2 (opcional, máx 20 chars)" style="${ie()}">
+      <p style="font-size:0.75rem;color:#94a3b8;margin:0">Se agrega automáticamente: <strong>Hablar con asesor</strong></p>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="document.getElementById('modal-botones-wa').remove()" style="${Be()}">Cancelar</button>
+      <button onclick="_enviarBotonesWA('${e}')" style="${Ae()}">Enviar</button>
+    </div>`);document.body.appendChild(t),setTimeout(()=>{var a;return(a=document.getElementById("mbt-cuerpo"))==null?void 0:a.focus()},50)};window._enviarBotonesWA=async e=>{var s,d,l,c,p,m;const t=(s=document.getElementById("mbt-cuerpo"))==null?void 0:s.value.trim();if(!t){alert("Escribe el mensaje principal");return}const a=((d=document.getElementById("mbt-encabezado"))==null?void 0:d.value.trim())||"",o=((l=document.getElementById("mbt-btn1"))==null?void 0:l.value.trim())||"",n=((c=document.getElementById("mbt-btn2"))==null?void 0:c.value.trim())||"",i=[o,n].filter(Boolean),r=((p=window._empleadoActual)==null?void 0:p.nombre)||"Admin";(m=document.getElementById("modal-botones-wa"))==null||m.remove();try{await fetch(b+"/chatbot/chats/"+e+"/botones",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cuerpo:t,encabezado:a,botones:i,agente:r})}),await window._recargarChats(),abrirChat(e)}catch(g){alert("Error: "+g.message)}};window.mostrarModalLista=e=>{const t=Pe("modal-lista-wa",`
+    <h3 style="margin:0 0 14px;font-size:1rem;color:#0f172a">Enviar lista interactiva</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <textarea id="mlt-cuerpo" placeholder="Mensaje principal *" rows="2" style="${ie()};resize:none"></textarea>
+      <input id="mlt-boton" placeholder="Texto del botón (ej: Ver opciones)" style="${ie()}">
+      <textarea id="mlt-opciones" placeholder="Opciones (una por línea, máx 10)&#10;ej:&#10;Tenis&#10;Sandalias&#10;Tacones" rows="5" style="${ie()};resize:none"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button onclick="document.getElementById('modal-lista-wa').remove()" style="${Be()}">Cancelar</button>
+      <button onclick="_enviarListaWA('${e}')" style="${Ae()}">Enviar</button>
+    </div>`);document.body.appendChild(t),setTimeout(()=>{var a;return(a=document.getElementById("mlt-cuerpo"))==null?void 0:a.focus()},50)};window._enviarListaWA=async e=>{var r,s,d,l,c;const t=(r=document.getElementById("mlt-cuerpo"))==null?void 0:r.value.trim();if(!t){alert("Escribe el mensaje");return}const a=((s=document.getElementById("mlt-boton"))==null?void 0:s.value.trim())||"Ver opciones",o=(((d=document.getElementById("mlt-opciones"))==null?void 0:d.value)||"").split(`
+`).map(p=>p.trim()).filter(Boolean).slice(0,10);if(!o.length){alert("Agrega al menos una opción");return}const n=((l=window._empleadoActual)==null?void 0:l.nombre)||"Admin";(c=document.getElementById("modal-lista-wa"))==null||c.remove();const i=[{titulo:"Opciones",opciones:o.map((p,m)=>({id:`op_${m}`,titulo:p}))}];try{await fetch(b+"/chatbot/chats/"+e+"/lista",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cuerpo:t,titulo_boton:a,secciones:i,agente:n})}),await window._recargarChats(),abrirChat(e)}catch(p){alert("Error: "+p.message)}};window.mostrarModalCarrusel=async e=>{const t=Pe("modal-carrusel-wa",`
+    <h3 style="margin:0 0 4px;font-size:1rem;color:#0f172a">Enviar fotos de productos</h3>
+    <p style="margin:0 0 8px;font-size:0.75rem;color:#94a3b8">Busca un modelo y tócalo para ver sus colores</p>
+    <input id="mcr-cuerpo" placeholder="Mensaje intro" value="Mira estos modelos 👠" style="${ie()};margin-bottom:6px">
+    <input id="mcr-search" placeholder="🔍 Buscar modelo..." oninput="window._mcrFiltrar()" style="${ie()};margin-bottom:6px">
+    <div id="mcr-loading" style="text-align:center;padding:16px;color:#94a3b8;font-size:0.82rem">Cargando...</div>
+    <div id="mcr-modelos" style="max-height:270px;overflow-y:auto;display:none;border:1px solid #e2e8f0;border-radius:8px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;color:#475569;cursor:pointer">
+        <input type="checkbox" id="mcr-incluir-precios" style="width:12px;height:12px">
+        Incluir precios en las fotos
+      </label>
+      <span id="mcr-contador" style="font-size:0.72rem;color:#94a3b8">0/10 fotos</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${Be()}">Cancelar</button>
+      <button onclick="_enviarCarruselWA('${e}')" style="${Ae()}">Enviar fotos</button>
+    </div>`);document.body.appendChild(t);try{const a=window._productosWA||[],n=await(await fetch(b+"/variantes/?activa=eq.true&select=id,producto_id,color,foto_url,imagenes,color_hex")).json();window._mcrDatos=a.map(i=>{const r=n.filter(c=>c.producto_id===i.id),s=new Set,d=[];r.forEach(c=>{if(s.has(c.color))return;s.add(c.color);const p=c.foto_url||c.imagenes&&c.imagenes[0]||i.imagen_principal||"";p&&d.push({img:p,color:c.color||"Sin color",color_hex:c.color_hex||""})}),!d.length&&i.imagen_principal&&d.push({img:i.imagen_principal,color:"Color único",color_hex:""});const l=[];return i.precio_menudeo&&l.push("Par: $"+i.precio_menudeo),i.precio_mayoreo3&&l.push("3+: $"+i.precio_mayoreo3),i.precio_mayoreo6&&l.push("6+: $"+i.precio_mayoreo6),i.corrida_activa&&i.precio_corrida&&l.push("Corrida: $"+i.precio_corrida),{id:i.id,nombre:i.nombre,preciosStr:l.join(" · "),variantes:d}}).filter(i=>i.variantes.length),document.getElementById("mcr-loading").style.display="none",document.getElementById("mcr-modelos").style.display="block",window._mcrFiltrar(),setTimeout(()=>{var i;return(i=document.getElementById("mcr-search"))==null?void 0:i.focus()},50)}catch(a){const o=document.getElementById("mcr-loading");o&&(o.textContent="Error: "+a.message)}};window._mcrSel=new Map;window._mcrFiltrar=()=>{var o;const e=(((o=document.getElementById("mcr-search"))==null?void 0:o.value)||"").toLowerCase().trim(),t=(window._mcrDatos||[]).filter(n=>!e||n.nombre.toLowerCase().includes(e)),a=document.getElementById("mcr-modelos");if(a){if(!t.length){a.innerHTML='<p style="padding:12px;color:#94a3b8;font-size:0.82rem;text-align:center">Sin resultados</p>';return}a.innerHTML=t.map(n=>{const i=n.variantes.filter(r=>window._mcrSel.has(r.img)).length;return`
+    <div style="border-bottom:1px solid #f1f5f9">
+      <div onclick="window._mcrToggle('${n.id}')" style="display:flex;align-items:center;gap:8px;padding:9px 10px;cursor:pointer;user-select:none">
+        <span id="mcr-arrow-${n.id}" style="font-size:0.65rem;color:#94a3b8;transition:transform 0.15s;display:inline-block">▶</span>
+        <span style="flex:1;font-size:0.85rem;font-weight:600;color:#0f172a">${n.nombre}</span>
+        <span style="font-size:0.7rem;color:${i?"#E91E8C":"#94a3b8"}">${i?i+" sel · ":""}${n.variantes.length} color${n.variantes.length!==1?"es":""}</span>
+      </div>
+      <div id="mcr-vars-${n.id}" style="display:none;padding:0 10px 10px 28px">
+        ${n.variantes.map(r=>`
+          <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:0.82rem">
+            <input type="checkbox" class="mcr-check"
+              data-img="${r.img}"
+              data-texto="${n.nombre} · ${r.color}"
+              data-precios="${n.preciosStr}"
+              ${window._mcrSel.has(r.img)?"checked":""}
+              onchange="window._mcrCambio(this)"
+              style="width:14px;height:14px;flex-shrink:0">
+            <img src="${r.img}" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:#f1f5f9">
+            <span>${r.color}</span>
+          </label>`).join("")}
+      </div>
+    </div>`}).join("")}};window._mcrCambio=e=>{var a;e.checked?window._mcrSel.set(e.dataset.img,{img:e.dataset.img,texto:e.dataset.texto,precios:e.dataset.precios}):window._mcrSel.delete(e.dataset.img),window._mcrContador();const t=e.closest('[id^="mcr-vars-"]');if(t){const o=t.id.replace("mcr-vars-",""),n=(window._mcrDatos||[]).find(i=>String(i.id)===o);if(n){const i=n.variantes.filter(s=>window._mcrSel.has(s.img)).length,r=(a=t.previousElementSibling)==null?void 0:a.querySelector("span:last-child");r&&(r.textContent=(i?i+" sel · ":"")+n.variantes.length+" color"+(n.variantes.length!==1?"es":""),r.style.color=i?"#E91E8C":"#94a3b8")}}};window._mcrToggle=e=>{const t=document.getElementById("mcr-vars-"+e),a=document.getElementById("mcr-arrow-"+e);if(!t)return;const o=t.style.display==="block";t.style.display=o?"none":"block",a&&(a.style.transform=o?"":"rotate(90deg)")};window._mcrContador=()=>{const e=window._mcrSel.size,t=document.getElementById("mcr-contador");t&&(t.textContent=e+"/10 fotos",t.style.color=e>=10?"#ef4444":"#94a3b8")};window._enviarCarruselWA=async e=>{var r,s,d,l;const t=((r=document.getElementById("mcr-cuerpo"))==null?void 0:r.value.trim())||"Mira estos modelos",a=[...window._mcrSel.values()];if(!a.length){alert("Selecciona al menos una foto");return}if(a.length>10){alert("Máximo 10 fotos");return}const o=((s=window._empleadoActual)==null?void 0:s.nombre)||"Admin",n=((d=document.getElementById("mcr-incluir-precios"))==null?void 0:d.checked)||!1,i=a.map(c=>({imagen_url:c.img,texto:c.texto+(n&&c.precios?`
+`+c.precios:"")}));(l=document.getElementById("modal-carrusel-wa"))==null||l.remove();try{await fetch(b+"/chatbot/chats/"+e+"/carrusel",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cuerpo:t,tarjetas:i,agente:o})}),await window._recargarChats(),abrirChat(e)}catch(c){alert("Error: "+c.message)}};function Pe(e,t){const a=document.getElementById(e);a&&a.remove();const o=document.createElement("div");return o.id=e,o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center",o.innerHTML=`<div style="background:#fff;border-radius:16px;padding:24px;width:360px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2)">${t}</div>`,o.addEventListener("click",n=>{n.target===o&&o.remove()}),o}function ie(){return"border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;outline:none;width:100%;box-sizing:border-box;font-family:inherit"}function Be(){return"flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b;font-family:inherit"}function Ae(){return"flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;font-family:inherit"}window.cambiarEtiqueta=async(e,t)=>{try{await fetch(b+"/chatbot/chats/"+e+"/etiqueta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({etiqueta:t})}),window._chatsData[e]&&(window._chatsData[e].etiqueta=t)}catch{alert("Error guardando etiqueta")}};window.toggleControl=async(e,t)=>{var o;const a=((o=window._empleadoActual)==null?void 0:o.nombre)||"Admin";try{(await(await fetch(b+"/chatbot/chats/"+e+"/control",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({en_control:t,agente:a})})).json()).ok&&(window._chatsData[e]&&(window._chatsData[e].en_control=t,window._chatsData[e].agente=a),abrirChat(e))}catch{alert("Error cambiando control")}};window.mostrarCatalogoWA=e=>{const t=window._productosWA||[],a=document.createElement("div");a.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",a.innerHTML=`
+    <div style="background:white;border-radius:16px;max-width:600px;width:100%;max-height:80vh;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+        <p style="font-weight:700">👠 Selecciona un producto</p>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+      </div>
+      <input class="form-input" placeholder="Buscar producto..." style="margin:1rem;font-size:0.85rem" oninput="filtrarProductosWA(this.value)">
+      <div id="productos-wa-lista" style="overflow-y:auto;padding:0 1rem 1rem">
+        ${t.filter(o=>o.activo).map(o=>`
+  <div onclick="enviarProductoWA('${e}', '${(o.imagen_principal||"").replace(/'/g,"")}', window._buildCaption('${o.id}'))"
+       style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s"
+       onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+    ${o.imagen_principal?`<img src="${o.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f5f5f5;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
+    <div style="flex:1">
+      <p style="font-weight:600;font-size:0.88rem">${o.nombre}</p>
+      <p style="font-size:0.75rem;color:#888">$${o.precio_menudeo} menudeo · $${o.precio_mayoreo3||o.precio_menudeo-30} mayoreo</p>
+    </div>
+    <span style="font-size:0.75rem;color:#25D366;font-weight:600">Enviar →</span>
+  </div>
+`).join("")}
+      </div>
+    </div>
+  `,document.body.appendChild(a),a.addEventListener("click",o=>{o.target===a&&a.remove()})};window.filtrarProductosWA=e=>{document.querySelectorAll("#productos-wa-lista > div").forEach(t=>{t.style.display=!e||t.textContent.toLowerCase().includes(e.toLowerCase())?"":"none"})};window._buildCaption=e=>{const t=(window._productosWA||[]).find(a=>a.id===e);return t?"👠 *"+t.nombre+`*
+
+💰 *Precios:*
+• Menudeo (1-2 pares): $`+t.precio_menudeo+`
+• Mayoreo 3-5 pares: $`+(t.precio_mayoreo3||t.precio_menudeo-30)+`
+• Mayoreo 6+ pares: $`+(t.precio_mayoreo6||t.precio_menudeo-70)+`
+• Corrida completa: $`+(t.precio_corrida||t.precio_menudeo-100)+`
+
+🛍️ Ver y comprar: https://zapatillasmay.mx`:""};window.enviarProductoWA=async(e,t,a)=>{var i;console.log("imagenUrl:",t,"caption:",a);const o=document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]');o&&o.remove(),console.log("enviando a:",e,t);const n=((i=window._empleadoActual)==null?void 0:i.nombre)||"Admin";try{if(t){const r=a.replace(/\\n/g,`
+`);await fetch(b+"/chatbot/chats/"+e+"/imagen",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imagen_url:t,caption:r,agente:n})})}else await fetch(b+"/chatbot/chats/"+e+"/mensaje",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mensaje:a,agente:n})});await new Promise(r=>setTimeout(r,1500)),await window._recargarChats(),abrirChat(e)}catch{alert("Error enviando producto")}};window.switchTipoEnvio=function(e,t){["campana","catalogo","fotos"].forEach(o=>{const n=document.getElementById(`tab-envio-${o}`),i=document.getElementById(`panel-envio-${o}`);!n||!i||(o===e?(n.style.background="#E91E8C",n.style.color="#fff",n.style.borderColor="#E91E8C",i.style.display="block"):(n.style.background="#fff",n.style.color="#374151",n.style.borderColor="#e5e7eb",i.style.display="none"))})};window.cargarEnviosMasivos=async function(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const[t,a]=await Promise.all([fetch(b+"/chatbot/plantillas").then(s=>s.json()),fetch(b+"/clientes/").then(s=>s.json())]);if(t.error){e.innerHTML=`<div style="padding:2rem;color:#c62828;background:#ffebee;border-radius:12px;margin:1rem">
+        ❌ <strong>Error al cargar plantillas:</strong> ${t.error}
+        <p style="font-size:0.82rem;margin-top:8px;color:#666">Verifica que <code>WHATSAPP_WABA_ID</code> esté configurado en Railway.</p>
+      </div>`;return}const o=Array.isArray(t)?t:[];window._envioPlantillas=o;const n=Array.isArray(a)?a.filter(s=>s.telefono):[];window._envioClientes=n,window._envioContactos=n.map(s=>({telefono:s.telefono,nombre:s.nombre,tipo:s.tipo,fuente:"cliente"})),window._envioSeleccionados=new Set(window._envioContactos.map(s=>s.telefono)),window._envioContactosVisibles=[...window._envioContactos];const i=s=>s.map(d=>{var c;const l=(c=window._envioSeleccionados)==null?void 0:c.has(d.telefono);return`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${l?"#E91E8C":"#f0f0f0"};background:${l?"#fff0f8":"white"}" id="envio-row-${d.telefono.replace(/\D/g,"")}">
+        <input type="checkbox" ${l?"checked":""} onchange="toggleEnvioContacto('${d.telefono}',this)"
+          style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
+        <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
+          ${(d.nombre||"?").charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nombre||d.telefono}</p>
+          <p style="font-size:0.72rem;color:#888;margin:0">${d.telefono}${d.tipo?" · "+d.tipo:""}</p>
+        </div>
+      </label>`}).join("");e.innerHTML=`
+      <div style="max-width:960px">
+        <div style="margin-bottom:1.5rem">
+          <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">WhatsApp Cloud API</p>
+          <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0 0 4px">Envíos masivos</h2>
+          <p style="color:#94a3b8;font-size:0.78rem;margin:0">${n.length} clientes con teléfono registrado</p>
+        </div>
+
+        <!-- Selector de tipo de envío -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem">
+          <button onclick="switchTipoEnvio('campana',this)" id="tab-envio-campana"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #E91E8C;background:#E91E8C;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:center;line-height:1.4">
+            📣 Campaña<br>
+            <span style="font-size:0.68rem;font-weight:400;opacity:0.9">Cualquier cliente · sin restricción</span>
+          </button>
+          <button onclick="switchTipoEnvio('catalogo',this)" id="tab-envio-catalogo"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
+            🛍️ Catálogo<br>
+            <span style="font-size:0.68rem;font-weight:400;color:#888">Muestra productos del catálogo</span>
+          </button>
+          <button onclick="switchTipoEnvio('fotos',this)" id="tab-envio-fotos"
+            style="padding:14px 10px;border-radius:12px;border:2px solid #e5e7eb;background:#fff;color:#374151;font-size:0.82rem;font-weight:600;cursor:pointer;text-align:center;line-height:1.4">
+            📸 Fotos variantes<br>
+            <span style="font-size:0.68rem;font-weight:400;color:#c2410c">Solo si cliente escribió hoy</span>
+          </button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+          <!-- COLUMNA IZQUIERDA: configuración -->
+          <div>
+            <!-- Panel campaña -->
+            <div id="panel-envio-campana">
+            <!-- Plantilla -->
+            <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">1 · Plantilla</p>
+              ${o.length===0?'<p style="color:#888;font-size:0.85rem">No hay plantillas aprobadas en tu cuenta de Meta.</p>':o.map(s=>{var g;const d=(s.components||[]).find(u=>u.type==="BODY"),l=((g=d==null?void 0:d.text)==null?void 0:g.substring(0,55))||"",c=(s.category||"").toUpperCase(),m=c==="UTILITY"||c==="AUTHENTICATION"?'<span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">UTILITY · sin restricción</span>':'<span style="background:#fff3cd;color:#92400e;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">MARKETING · solo 24h</span>';return`<label style="display:block;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;margin-bottom:6px;transition:all 0.15s"
+                      onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${s.name}').checked)this.style.borderColor='#eee'">
+                      <div style="display:flex;align-items:flex-start;gap:8px">
+                        <input type="radio" name="envio-plantilla-radio" id="plt-${s.name}" value="${s.name}" data-idioma="${s.language}"
+                          onchange="onCambiarPlantillaEnvio('${s.name}','${s.language}')" style="accent-color:#E91E8C;margin-top:2px;flex-shrink:0">
+                        <div style="min-width:0">
+                          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+                            <p style="font-size:0.85rem;font-weight:600;margin:0">${s.name}</p>
+                            ${m}
+                          </div>
+                          <p style="font-size:0.7rem;color:#888;margin:0">${s.language}${l?" · "+l+"…":""}</p>
+                        </div>
+                      </div>
+                    </label>`}).join("")}
+
+              <!-- Vista previa de la plantilla seleccionada -->
+              <div id="plantilla-preview-box" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">
+                <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px">Vista previa del mensaje</p>
+                <div style="background:#e5ddd5;border-radius:10px;padding:10px;min-height:60px">
+                  <div id="plantilla-preview-burbuja" style="background:white;border-radius:8px 8px 8px 2px;padding:10px 12px;max-width:85%;font-size:0.82rem;line-height:1.55;color:#333;box-shadow:0 1px 2px rgba(0,0,0,0.1);white-space:pre-wrap"></div>
+                </div>
+                <p style="font-size:0.7rem;color:#aaa;margin-top:6px">Las variables como <code>{{1}}</code> se reemplazan con el nombre del cliente al enviar.</p>
+              </div>
+            </div>
+
+            <!-- Imagen: selector de modelo + variante -->
+            <div id="envio-seccion-foto" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">2 · Foto del modelo <span style="font-weight:400;color:#cbd5e1;text-transform:none;letter-spacing:0">(solo plantillas con imagen)</span></p>
+
+              <!-- Búsqueda de modelo -->
+              <input type="text" id="envio-modelo-buscar" placeholder="🔍 Buscar modelo por nombre..."
+                oninput="filtrarModelosEnvio(this.value)"
+                style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+              <div id="envio-modelos-lista" style="max-height:140px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:10px">
+                <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>
+              </div>
+
+              <!-- Variantes del modelo seleccionado -->
+              <div id="envio-variantes-panel" style="display:none">
+                <p id="envio-variantes-titulo" style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px"></p>
+                <div id="envio-variantes-grid" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto"></div>
+              </div>
+
+              <!-- Foto seleccionada -->
+              <div id="envio-foto-seleccionada" style="display:none;margin-top:10px;border-radius:10px;overflow:hidden;border:2px solid #E91E8C;position:relative">
+                <img id="envio-foto-img" src="" style="width:100%;height:120px;object-fit:cover">
+                <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);padding:4px 8px;display:flex;justify-content:space-between;align-items:center">
+                  <span id="envio-foto-label" style="font-size:0.75rem;color:white;font-weight:600"></span>
+                  <button onclick="quitarFotoEnvio()" style="background:none;border:none;color:white;cursor:pointer;font-size:0.9rem;padding:0">✕</button>
+                </div>
+              </div>
+
+              <input type="hidden" id="envio-imagen">
+            </div>
+
+            <!-- Audiencia -->
+            <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">3 · Audiencia</p>
+              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
+                <option value="todos">Todos los clientes</option>
+                <option value="mayoreo">Solo Mayoreo</option>
+                <option value="zapateria">Solo Zapaterías</option>
+                <option value="menudeo">Solo Menudeo</option>
+              </select>
+            </div>
+
+            <!-- Botón enviar -->
+            <div id="envio-resultado" style="display:none;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7;background:#e8f5e9"></div>
+            <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%;padding:12px">
+              📣 Enviar campaña
+            </button>
+            <p style="font-size:0.72rem;color:#aaa;text-align:center;margin-top:8px">Solo plantillas aprobadas por Meta. No arriesga el número de teléfono.</p>
+
+            <div style="margin-top:1rem;padding-top:1rem;border-top:1px dashed #eee">
+              <p style="font-size:0.75rem;font-weight:700;color:#888;margin-bottom:6px">🔧 Diagnóstico</p>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <input type="text" id="diag-tel" class="form-input" placeholder="Tu teléfono (52...)" style="flex:1;min-width:140px;font-size:0.8rem">
+                <button onclick="ejecutarDiagnostico()" class="btn btn-secondary" style="font-size:0.78rem;white-space:nowrap">Probar envío</button>
+                <button onclick="ejecutarDebugPlantillas()" class="btn btn-secondary" style="font-size:0.78rem;white-space:nowrap">Ver estructura</button>
+              </div>
+              <div id="diag-resultado" style="display:none;margin-top:8px;padding:10px;background:#f9f9f9;border-radius:8px;font-size:0.75rem;font-family:monospace;white-space:pre-wrap;color:#333;max-height:260px;overflow-y:auto"></div>
+            </div>
+          </div>
+          </div><!-- fin panel-envio-campana -->
+
+          <!-- COLUMNA DERECHA: destinatarios -->
+          <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+              <h3 style="font-size:0.95rem;font-weight:700">👥 Destinatarios</h3>
+              <span id="envio-count" style="background:#E91E8C;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${n.length} seleccionados</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <input type="text" id="envio-buscador" placeholder="🔍 Buscar..." oninput="buscarContactosEnvio(this.value)"
+                style="flex:1;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
+              <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                <input type="checkbox" id="envio-sel-todos" checked onchange="toggleSelTodosEnvio(this.checked)" style="accent-color:#E91E8C;width:14px;height:14px">
+                Todos
+              </label>
+            </div>
+            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+              ${i(window._envioContactos)}
+            </div>
+          </div>
+
+          <!-- Catálogo interactivo -->
+          <div id="panel-envio-catalogo" style="display:none">
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Catálogo de productos</p>
+              <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
+            </div>
+            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#856404;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+              <span>⚠️ <strong>Tu plantilla de catálogo actual es MARKETING</strong> → solo llega a contactos activos (24h). Para enviar a cualquier cliente crea la versión UTILITY.</span>
+              <button onclick="crearPlantillaCatalogo(this)" style="padding:5px 12px;border-radius:16px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                ⚙️ Crear plantilla UTILITY
+              </button>
+            </div>
+            <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos a mostrar y elige los destinatarios en la columna derecha.</p>
+            <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
+              oninput="filtrarProductosEnvioInteractivo(this.value)"
+              style="width:100%;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+            <div id="envio-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+              <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando modelos...</p>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0"></p>
+              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="border-color:#E91E8C;color:#E91E8C;font-size:0.82rem;white-space:nowrap">
+                🛍️ Enviar catálogo
+              </button>
+            </div>
+          </div>
+          </div><!-- fin panel-envio-catalogo -->
+
+          <!-- Envío de fotos de variantes (24 h) -->
+          <div id="panel-envio-fotos" style="display:none">
+          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <p style="font-weight:700;font-size:0.95rem;margin:0">📸 Fotos de variantes</p>
+              <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700;white-space:nowrap">⚠️ Solo 24 h</span>
+            </div>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#92400e">
+              ⚠️ <strong>Requiere que el cliente te haya escrito en las últimas 24 horas.</strong> Si no, el mensaje no llega (error 131047).
+            </div>
+            <p style="font-size:0.75rem;color:#888;margin-bottom:10px;line-height:1.4">
+              Envía fotos de los colores/variantes que elijas directamente al chat, igual que en la sección CRM.
+            </p>
+
+            <!-- Mensaje de saludo -->
+            <textarea id="fotos-texto" rows="2" placeholder="Mensaje de saludo (opcional) — usa {{nombre}} para personalizar. Ej: Hola {{nombre}}, llegaron nuevos modelos 🎉"
+              style="width:100%;padding:8px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:10px"></textarea>
+
+            <!-- Buscador de modelo -->
+            <input type="text" id="fotos-modelo-buscar" placeholder="🔍 Buscar modelo por nombre o SKU..."
+              oninput="filtrarModelosFotos(this.value)"
+              style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
+            <div id="fotos-modelos-lista" style="max-height:130px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
+              <p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>
+            </div>
+
+            <!-- Variantes del modelo -->
+            <div id="fotos-variantes-panel" style="display:none;margin-bottom:10px">
+              <p id="fotos-variantes-titulo" style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px"></p>
+              <div id="fotos-variantes-grid" style="display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto"></div>
+            </div>
+
+            <!-- Fotos seleccionadas -->
+            <div id="fotos-seleccionadas-wrap" style="display:none;margin-bottom:12px">
+              <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Fotos seleccionadas</p>
+              <div id="fotos-seleccionadas-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
+              <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
+                style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
+                Enviar fotos · solo 24 h
+              </button>
+            </div>
+          </div>
+          </div><!-- fin panel-envio-fotos -->
+
+          </div><!-- fin columna derecha -->
+        </div>
+      </div>
+    `,window._fotosSeleccionadas=[],cargarProductosEnvio(),cargarProductosEnvioInteractivo(),window.switchTipoEnvio("campana",null);const r=document.querySelector('input[name="envio-plantilla-radio"]');r&&(r.checked=!0,onCambiarPlantillaEnvio(r.value,r.dataset.idioma))}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error: '+t.message+"</p>"}};window.ejecutarDebugPlantillas=async()=>{const e=document.getElementById("diag-resultado");if(e){e.style.display="block",e.textContent="Consultando estructura...";try{const a=await(await fetch(b+"/chatbot/plantillas-debug")).json();e.textContent=JSON.stringify(a,null,2)}catch(t){e.textContent="Error: "+t.message}}};window.ejecutarDiagnostico=async()=>{var i,r;const e=(((i=document.getElementById("diag-tel"))==null?void 0:i.value)||"").trim(),t=document.querySelector('input[name="envio-plantilla-radio"]:checked'),a=(t==null?void 0:t.value)||"",o=((r=t==null?void 0:t.dataset)==null?void 0:r.idioma)||"es_MX",n=document.getElementById("diag-resultado");if(n){n.style.display="block",n.textContent="Consultando...";try{const d=await(await fetch(b+"/chatbot/wa-diagnostico",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({telefono:e,plantilla:a,idioma:o})})).json();n.textContent=JSON.stringify(d,null,2)}catch(s){n.textContent="Error: "+s.message}}};window.onCambiarPlantillaEnvio=(e,t)=>{window._envioPlantillaActual={nombre:e,idioma:t};const o=(window._envioPlantillas||[]).find(v=>v.name===e),n=document.getElementById("plantilla-preview-box"),i=document.getElementById("plantilla-preview-burbuja");if(!n||!i||!o)return;const r=[],s=(o.components||[]).find(v=>v.type==="HEADER"),d=(o.components||[]).find(v=>v.type==="BODY"),l=(o.components||[]).find(v=>v.type==="FOOTER"),c=(o.components||[]).find(v=>v.type==="BUTTONS"),p=((c==null?void 0:c.buttons)||[]).some(v=>v.sub_type==="MPM"||v.type==="MPM"||o.sub_category==="MULTI_PRODUCT_MESSAGE");(s==null?void 0:s.format)==="IMAGE"&&r.push("🖼️ [Imagen del producto]"),s!=null&&s.text&&r.push(`*${s.text}*`),d!=null&&d.text&&r.push(d.text),l!=null&&l.text&&r.push(`_${l.text}_`),p&&r.push("🛍️ [Catálogo de productos — selecciona abajo]"),i.textContent=r.join(`
+
+`)||"(sin contenido)",n.style.display="block";const m=document.getElementById("envio-seccion-foto");if(m){m.style.display="block";const v=m.querySelector("p");v&&(v.innerHTML=p?'<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto de portada del catálogo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(imagen principal que verá el cliente)</span>':'<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto del modelo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional — para plantillas con imagen)</span>')}const g=document.getElementById("envio-mpm-aviso");g&&(g.style.display=p?"block":"none"),window._envioEsMPM=p,window._envioHeaderTipo=(s==null?void 0:s.format)||(s!=null&&s.text?"TEXT":"NONE");const u=(d==null?void 0:d.text)||"",y=u.match(/\{\{[\d]*\}\}/g)||[];window._envioBodyVarsCount=y.length||(u.includes("{{")?1:0);const f=document.getElementById("envio-seccion-foto");f&&(f.style.display=window._envioHeaderTipo==="IMAGE"?"block":"none"),document.querySelectorAll('input[name="envio-plantilla-radio"]').forEach(v=>{const x=v.closest("label");x&&(x.style.borderColor=v.value===e?"#E91E8C":"#eee",x.style.background=v.value===e?"#fff0f8":"")})};const dt=e=>{const t=document.getElementById("envio-lista");t&&(t.innerHTML=e.map(a=>{var i;const o=(i=window._envioSeleccionados)==null?void 0:i.has(a.telefono),n=a.telefono.replace(/\D/g,"");return`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${o?"#E91E8C":"#f0f0f0"};background:${o?"#fff0f8":"white"}" id="envio-row-${n}">
+      <input type="checkbox" ${o?"checked":""} onchange="toggleEnvioContacto('${a.telefono}',this)"
+        style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
+      <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
+        ${(a.nombre||"?").charAt(0).toUpperCase()}
+      </div>
+      <div style="flex:1;min-width:0">
+        <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nombre||a.telefono}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${a.telefono}${a.tipo?" · "+a.tipo:""}</p>
+      </div>
+    </label>`}).join(""))},Me=()=>{var o;const e=((o=window._envioSeleccionados)==null?void 0:o.size)||0,t=document.getElementById("envio-count");t&&(t.textContent=`${e} seleccionado${e!==1?"s":""}`);const a=document.getElementById("envio-sel-todos");if(a){const n=window._envioContactosVisibles||[],i=n.length>0&&n.every(r=>{var s;return(s=window._envioSeleccionados)==null?void 0:s.has(r.telefono)});a.checked=i,a.indeterminate=!i&&n.some(r=>{var s;return(s=window._envioSeleccionados)==null?void 0:s.has(r.telefono)})}};window.toggleEnvioContacto=(e,t)=>{window._envioSeleccionados||(window._envioSeleccionados=new Set);const a=e.replace(/\D/g,""),o=document.getElementById("envio-row-"+a);t.checked?(window._envioSeleccionados.add(e),o&&(o.style.borderColor="#E91E8C",o.style.background="#fff0f8")):(window._envioSeleccionados.delete(e),o&&(o.style.borderColor="#f0f0f0",o.style.background="white")),Me()};window.toggleSelTodosEnvio=e=>{const t=window._envioContactosVisibles||[];window._envioSeleccionados||(window._envioSeleccionados=new Set),t.forEach(a=>{e?window._envioSeleccionados.add(a.telefono):window._envioSeleccionados.delete(a.telefono)}),dt(t),Me()};window.filtrarAudienciaEnvio=()=>{var n,i;const e=((n=document.getElementById("envio-filtro"))==null?void 0:n.value)||"todos",t=(((i=document.getElementById("envio-buscador"))==null?void 0:i.value)||"").toLowerCase(),a=window._envioClientes||[];let o=e==="todos"?a:a.filter(r=>r.tipo===e);t&&(o=o.filter(r=>(r.nombre||"").toLowerCase().includes(t)||(r.telefono||"").includes(t))),window._envioContactosVisibles=o.map(r=>({telefono:r.telefono,nombre:r.nombre,tipo:r.tipo})),dt(window._envioContactosVisibles),Me()};window.buscarContactosEnvio=e=>{filtrarAudienciaEnvio()};window.iniciarEnvioMasivo=async()=>{var p,m;const e=window._envioSeleccionados||new Set,a=(window._envioClientes||[]).filter(g=>e.has(g.telefono)).map(g=>({telefono:g.telefono,nombre:g.nombre}));if(a.length===0){alert("Selecciona al menos un destinatario");return}const o=document.querySelector('input[name="envio-plantilla-radio"]:checked');if(!o){alert("Selecciona una plantilla");return}const n=o.value,i=o.dataset.idioma||"es_MX",r=(((p=document.getElementById("envio-imagen"))==null?void 0:p.value)||"").trim(),s=window._envioEsMPM||!1,d=s?Array.from(window._envioProdSeleccionados||new Set):[];if(s&&d.length===0){alert("Esta plantilla es de catálogo — selecciona al menos un producto en la sección de abajo");return}if(!confirm(`¿Enviar la plantilla "${n}" a ${a.length} contacto${a.length!==1?"s":""} seleccionado${a.length!==1?"s":""}${s?` con ${d.length} producto${d.length!==1?"s":""}`:""}?`))return;const l=document.createElement("div");l.id="envio-masivo-overlay",l.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",l.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">📣</div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando campaña…</h3>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">${a.length} contactos · plantilla: <strong>${n}</strong></p>
+      <div style="background:#f5f5f5;border-radius:100px;height:8px;overflow:hidden;margin-bottom:0.5rem">
+        <div id="envio-progress-bar" style="height:100%;width:5%;background:linear-gradient(90deg,#E91E8C,#25D366);border-radius:100px;transition:width 0.3s"></div>
+      </div>
+      <p id="envio-progress-txt" style="font-size:0.75rem;color:#888">Procesando...</p>
+    </div>`,document.body.appendChild(l);const c=l.querySelector("#envio-progress-bar");l.querySelector("#envio-progress-txt"),c&&(c.style.width="15%");try{const u=await(await fetch(b+"/chatbot/envio-masivo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({plantilla:n,idioma:i,imagen_url:r,contactos:a,skus_mpm:d,body_vars_count:window._envioBodyVarsCount||0,header_tipo:window._envioHeaderTipo||"NONE"})})).json();if(u.error){l.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1.5rem">${u.error}</p>
+        <button onclick="document.getElementById('envio-masivo-overlay').remove()"
+          style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`;return}l.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${u.fallidos===0?"🎉":"✅"}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.75rem">¡Campaña enviada!</h3>
+      <div style="display:flex;justify-content:center;gap:1.5rem;margin-bottom:1rem">
+        <div><p style="font-size:1.5rem;font-weight:800;color:#25D366;margin:0">${u.enviados}</p><p style="font-size:0.75rem;color:#888;margin:0">enviados</p></div>
+        ${u.fallidos>0?`<div><p style="font-size:1.5rem;font-weight:800;color:#e53e3e;margin:0">${u.fallidos}</p><p style="font-size:0.75rem;color:#888;margin:0">fallidos</p></div>`:""}
+      </div>
+      ${((m=u.errores)==null?void 0:m.length)>0?`<details style="text-align:left;margin-bottom:1rem"><summary style="font-size:0.78rem;color:#888;cursor:pointer">Ver errores</summary><p style="font-size:0.72rem;color:#c62828;margin-top:6px">${u.errores.slice(0,5).join("<br>")}</p></details>`:""}
+      <button onclick="document.getElementById('envio-masivo-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`}catch(g){l.remove(),alert("Error de conexión: "+g.message)}};window.cargarProductosEnvioInteractivo=async()=>{const e=document.getElementById("envio-prod-grid");if(!e||window._envioProdInteractivoCargado){window._envioProdInteractivo&&renderizarEnvioProdGrid(window._envioProdInteractivo);return}try{const a=await(await fetch(b+"/productos/?activo=eq.true&select=id,nombre,sku_interno,categoria,imagen_principal&order=nombre.asc&limit=300")).json();window._envioProdInteractivo=a,window._envioProdSeleccionados=new Set,window._envioProdInteractivoCargado=!0,renderizarEnvioProdGrid(a)}catch{e&&(e.innerHTML='<p style="color:red;font-size:0.8rem;padding:4px">Error cargando productos</p>')}};window.renderizarEnvioProdGrid=e=>{const t=document.getElementById("envio-prod-grid");if(!t)return;const a=window._envioProdSeleccionados||new Set;if(!e.length){t.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin productos</p>';return}t.innerHTML=e.map(o=>{const n=o.sku_interno||o.id,i=a.has(n);return`<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer;border:1px solid ${i?"#E91E8C":"#f0f0f0"};background:${i?"#fff0f8":"white"}" id="envio-prod-lbl-${n}">
+      <input type="checkbox" ${i?"checked":""} onchange="toggleEnvioProd('${n}',this)" style="accent-color:#E91E8C;width:14px;height:14px;flex-shrink:0">
+      ${o.imagen_principal?`<img src="${o.imagen_principal}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0">`:'<div style="width:28px;height:28px;background:#f5f5f5;border-radius:4px;flex-shrink:0"></div>'}
+      <div style="min-width:0;flex:1">
+        <p style="font-size:0.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0">${o.nombre||n}</p>
+        <p style="font-size:0.65rem;color:#aaa;margin:0">${n}</p>
+      </div>
+    </label>`}).join(""),actualizarCountEnvioProd()};window.toggleEnvioProd=(e,t)=>{window._envioProdSeleccionados||(window._envioProdSeleccionados=new Set);const a=document.getElementById("envio-prod-lbl-"+e);if(t.checked){if(window._envioProdSeleccionados.size>=30){t.checked=!1,alert("Máximo 30 productos");return}window._envioProdSeleccionados.add(e),a&&(a.style.borderColor="#E91E8C",a.style.background="#fff0f8")}else window._envioProdSeleccionados.delete(e),a&&(a.style.borderColor="#f0f0f0",a.style.background="white");actualizarCountEnvioProd()};window.actualizarCountEnvioProd=()=>{var a;const e=document.getElementById("envio-prod-count");if(!e)return;const t=((a=window._envioProdSeleccionados)==null?void 0:a.size)||0;e.textContent=t>0?`${t}/30 producto${t>1?"s":""} seleccionado${t>1?"s":""}`:""};window.filtrarProductosEnvioInteractivo=e=>{const t=(e||"").toLowerCase().trim(),a=window._envioProdInteractivo||[];renderizarEnvioProdGrid(t?a.filter(o=>(o.nombre||"").toLowerCase().includes(t)||(o.sku_interno||"").toLowerCase().includes(t)):a)};window.iniciarEnvioInteractivo=async()=>{var n;const e=window._envioSeleccionados||new Set,t=(window._envioClientes||[]).filter(i=>e.has(i.telefono)).map(i=>({telefono:i.telefono,nombre:i.nombre})),a=Array.from(window._envioProdSeleccionados||new Set);if(!a.length){alert("Selecciona al menos un modelo del catálogo");return}if(!t.length){alert("No hay destinatarios seleccionados");return}if(!confirm(`¿Enviar catálogo con ${a.length} modelo${a.length>1?"s":""} a ${t.length} destinatario${t.length>1?"s":""} seleccionado${t.length>1?"s":""}?`))return;const o=document.createElement("div");o.id="envio-interactivo-overlay",o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",o.innerHTML=`<div style="background:white;border-radius:16px;padding:2rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">🛍️</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando catálogo interactivo…</h3>
+    <p style="font-size:0.82rem;color:#888">${t.length} contacto${t.length>1?"s":""} · ${a.length} producto${a.length>1?"s":""}</p>
+  </div>`,document.body.appendChild(o);try{const r=await(await fetch(b+"/chatbot/envio-productos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contactos:t.map(s=>({telefono:s.telefono,nombre:s.nombre})),skus:a,titulo:"Nuestros modelos 👠",cuerpo:"Mira los modelos disponibles. ¡Elige el tuyo!",pie:"Zapatillas May · León, Gto."})})).json();if(r.error){o.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error al enviar</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${r.error}</p>
+        <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
+          style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`;return}o.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${r.fallidos?"✅":"🎉"}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${r.enviados||0} enviados</p>
+      ${r.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1rem">${r.fallidos} fallidos</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:1rem">Sin errores</p>'}
+      ${(n=r.errores)!=null&&n.length?`<p style="font-size:0.72rem;color:#aaa;margin-bottom:1rem">${r.errores[0]}</p>`:""}
+      <button onclick="document.getElementById('envio-interactivo-overlay').remove()"
+        style="background:#E91E8C;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`}catch(i){o.remove(),alert("Error: "+i.message)}};window._fotosSeleccionadas=[];window.filtrarModelosFotos=e=>{const t=window._envioModelosList||[],a=document.getElementById("fotos-modelos-lista");if(!a)return;if(!e.trim()){a.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>';return}const o=t.filter(n=>(n.nombre||"").toLowerCase().includes(e.toLowerCase())||(n.sku_interno||"").toLowerCase().includes(e.toLowerCase()));if(!o.length){a.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>';return}a.innerHTML=o.map(n=>`
+    <div onclick="seleccionarModeloFotos('${n.id}','${(n.nombre||n.sku_interno).replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
+         onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+      ${n.imagen_principal?`<img src="${n.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0">`:'<div style="width:32px;height:32px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>'}
+      <span style="font-size:0.83rem;font-weight:500">${n.nombre||n.sku_interno}</span>
+    </div>`).join("")};window.seleccionarModeloFotos=async(e,t)=>{const a=document.getElementById("fotos-variantes-panel"),o=document.getElementById("fotos-variantes-titulo"),n=document.getElementById("fotos-variantes-grid"),i=document.getElementById("fotos-modelo-buscar");if(!(!a||!n)){i&&(i.value=t),document.getElementById("fotos-modelos-lista").innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar otro modelo...</p>',a.style.display="block",o&&(o.textContent=t+" — elige colores a enviar"),n.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando colores...</p>';try{const s=await(await fetch(b+"/variantes/producto/"+e)).json(),d={};for(const c of s)c.color&&(d[c.color]||(d[c.color]={color:c.color,color_hex:c.color_hex||null,foto_url:c.foto_url||null}),!d[c.color].foto_url&&c.foto_url&&(d[c.color].foto_url=c.foto_url));const l=Object.values(d);if(!l.length){n.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin colores registrados</p>';return}n.innerHTML=l.map(c=>{const p=Le(c.foto_url),m=window._fotosSeleccionadas.some(g=>g.url===p);return`
+      <div id="fotovar-${encodeURIComponent(c.color)}"
+           onclick="${c.foto_url?`toggleFotoVariante('${c.foto_url}','${c.color.replace(/'/g,"\\'")}','${t.replace(/'/g,"\\'")}',this)`:""}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid ${m?"#25D366":"#eee"};background:${m?"#f0faf4":""};cursor:${c.foto_url?"pointer":"default"};opacity:${c.foto_url?"1":"0.4"};transition:all 0.15s">
+        <div style="width:22px;height:22px;border-radius:50%;background:${c.color_hex||"#ccc"};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.83rem;font-weight:600">${c.color}</span>
+        ${c.foto_url?`<img src="${c.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`:'<span style="font-size:0.7rem;color:#bbb">sin foto</span>'}
+        <span style="font-size:1.1rem">${m?"✅":"⬜"}</span>
+      </div>`}).join("")}catch{n.innerHTML='<p style="font-size:0.8rem;color:red;padding:4px">Error cargando variantes</p>'}}};window.toggleFotoVariante=(e,t,a,o)=>{const n=Le(e),i=window._fotosSeleccionadas.findIndex(r=>r.url===n);i>=0?(window._fotosSeleccionadas.splice(i,1),o.style.borderColor="#eee",o.style.background="",o.querySelector("span:last-child").textContent="⬜"):(window._fotosSeleccionadas.push({url:n,caption:`${a} · ${t}`,modelo:a,color:t}),o.style.borderColor="#25D366",o.style.background="#f0faf4",o.querySelector("span:last-child").textContent="✅"),lt()};function lt(){const e=document.getElementById("fotos-seleccionadas-wrap"),t=document.getElementById("fotos-seleccionadas-grid"),a=document.getElementById("fotos-count"),o=window._fotosSeleccionadas.length;if(a&&(a.textContent=o>0?`${o} foto${o>1?"s":""} seleccionada${o>1?"s":""}`:""),!(!e||!t)){if(o===0){e.style.display="none";return}e.style.display="block",t.innerHTML=window._fotosSeleccionadas.map((n,i)=>`
+    <div style="position:relative;width:64px">
+      <img src="${n.url}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:2px solid #25D366">
+      <button onclick="quitarFotoSeleccionada(${i})"
+        style="position:absolute;top:-6px;right:-6px;background:#e53e3e;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:0.65rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>
+      <p style="font-size:0.6rem;color:#666;margin:2px 0 0;text-align:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:64px">${n.color}</p>
+    </div>`).join("")}}window.quitarFotoSeleccionada=e=>{window._fotosSeleccionadas.splice(e,1),lt()};window.iniciarEnvioFotos=async()=>{var r,s;const e=window._envioSeleccionados||new Set,t=(window._envioClientes||[]).filter(d=>e.has(d.telefono)).map(d=>({telefono:d.telefono,nombre:d.nombre}));if(!t.length){alert("Selecciona al menos un destinatario");return}if(!window._fotosSeleccionadas.length){alert("Selecciona al menos una variante en la sección de fotos");return}const a=(((r=document.getElementById("fotos-texto"))==null?void 0:r.value)||"").trim(),o=t.length,n=window._fotosSeleccionadas.length;if(!confirm(`¿Enviar ${n} foto${n>1?"s":""} a ${o} contacto${o>1?"s":""} seleccionado${o>1?"s":""}?
+
+⚠️ Solo llegará a quienes te hayan escrito en las últimas 24 horas.`))return;const i=document.createElement("div");i.id="fotos-overlay",i.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",i.innerHTML=`<div style="background:white;border-radius:16px;padding:2rem;max-width:380px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="font-size:2.5rem;margin-bottom:0.75rem">📸</div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">Enviando fotos…</h3>
+    <p style="font-size:0.82rem;color:#888">${o} contacto${o>1?"s":""} · ${n} foto${n>1?"s":""} por contacto</p>
+    <p style="font-size:0.72rem;color:#e65100;margin-top:6px">⏱ Solo clientes activos (24 h)</p>
+  </div>`,document.body.appendChild(i);try{const l=await(await fetch(b+"/chatbot/envio-fotos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contactos:t,texto:a,fotos:window._fotosSeleccionadas.map(c=>({url:c.url,caption:c.caption})),delay_segundos:3})})).json();if(l.error){i.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        <div style="font-size:3rem;margin-bottom:1rem">❌</div>
+        <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">Error</h3>
+        <p style="color:#e53e3e;font-size:0.82rem;margin-bottom:1.5rem">${l.error}</p>
+        <button onclick="document.getElementById('fotos-overlay').remove()"
+          style="background:#e65100;color:white;border:none;border-radius:10px;padding:10px 28px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+      </div>`;return}i.innerHTML=`<div style="background:white;border-radius:16px;padding:2.5rem;max-width:400px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <div style="font-size:3rem;margin-bottom:1rem">${l.fallidos?"✅":"🎉"}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem">¡Listo!</h3>
+      <p style="color:#25D366;font-weight:700;margin-bottom:4px">${l.enviados||0} enviados</p>
+      ${l.fallidos?`<p style="color:#e53e3e;font-size:0.82rem;margin-bottom:4px">${l.fallidos} contactos sin entregas</p>`:""}
+      ${(s=l.errores)!=null&&s.length?`<p style="font-size:0.7rem;color:#aaa;margin-bottom:6px;text-align:left;max-height:80px;overflow-y:auto">${l.errores.slice(0,5).join("<br>")}</p>`:'<p style="font-size:0.8rem;color:#888;margin-bottom:6px">Sin errores</p>'}
+      <button onclick="document.getElementById('fotos-overlay').remove()"
+        style="background:#e65100;color:white;border:none;border-radius:10px;padding:10px 28px;margin-top:8px;font-size:0.9rem;font-weight:700;cursor:pointer">Cerrar</button>
+    </div>`}catch(d){i.remove(),alert("Error: "+d.message)}};window.cargarProductosEnvio=async()=>{if(!window._envioModelosList)try{const e=await fetch(b+"/productos/?activo=eq.true&select=id,nombre,sku_interno,imagen_principal&order=nombre.asc&limit=500");window._envioModelosList=await e.json()}catch(e){console.error("Error cargando modelos:",e)}};window.filtrarModelosEnvio=e=>{const t=window._envioModelosList||[],a=document.getElementById("envio-modelos-lista");if(!a)return;if(!e.trim()){a.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar un modelo...</p>';return}const o=t.filter(n=>(n.nombre||"").toLowerCase().includes(e.toLowerCase())||(n.sku_interno||"").toLowerCase().includes(e.toLowerCase()));if(!o.length){a.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Sin resultados</p>';return}a.innerHTML=o.map(n=>`
+    <div onclick="seleccionarModeloEnvio('${n.id}', '${(n.nombre||n.sku_interno).replace(/'/g,"'")}')"
+         style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
+         onmouseover="this.style.background='#fff0f8'" onmouseout="this.style.background=''">
+      ${n.imagen_principal?`<img src="${n.imagen_principal}" style="width:32px;height:32px;object-fit:cover;border-radius:5px;flex-shrink:0">`:'<div style="width:32px;height:32px;background:#f0f0f0;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>'}
+      <span style="font-size:0.83rem;font-weight:500">${n.nombre||n.sku_interno}</span>
+    </div>`).join("")};window.seleccionarModeloEnvio=async(e,t)=>{const a=document.getElementById("envio-variantes-panel"),o=document.getElementById("envio-variantes-titulo"),n=document.getElementById("envio-variantes-grid"),i=document.getElementById("envio-modelo-buscar");if(!a||!n)return;i&&(i.value=t);const r=document.getElementById("envio-modelos-lista");r&&(r.innerHTML='<p style="padding:10px 12px;font-size:0.8rem;color:#aaa">Escribe para buscar otro modelo...</p>'),a.style.display="block",o&&(o.textContent=t+" — elige el color"),n.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando colores...</p>';try{const d=await(await fetch(b+"/variantes/producto/"+e)).json(),l={};for(const p of d)p.color&&(l[p.color]||(l[p.color]={color:p.color,color_hex:p.color_hex||null,foto_url:p.foto_url||null}),!l[p.color].foto_url&&p.foto_url&&(l[p.color].foto_url=p.foto_url));const c=Object.values(l);if(!c.length){n.innerHTML='<p style="font-size:0.8rem;color:#aaa;padding:4px">Sin colores registrados</p>';return}n.innerHTML=c.map(p=>`
+      <div onclick="${p.foto_url?`elegirVarianteEnvio('${p.foto_url}', '${t} · ${p.color}')`:""}"
+           style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid #eee;cursor:${p.foto_url?"pointer":"default"};opacity:${p.foto_url?"1":"0.4"};transition:all 0.15s"
+           onmouseover="${p.foto_url?"this.style.borderColor='#E91E8C';this.style.background='#fff0f8'":""}"
+           onmouseout="${p.foto_url?"this.style.borderColor='#eee';this.style.background=''":""}">
+        <div style="width:22px;height:22px;border-radius:50%;background:${p.color_hex||"#ccc"};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
+        <span style="flex:1;font-size:0.83rem;font-weight:600">${p.color}</span>
+        ${p.foto_url?`<img src="${p.foto_url}" style="width:52px;height:52px;object-fit:cover;border-radius:7px;border:1px solid #eee;flex-shrink:0">`:'<span style="font-size:0.7rem;color:#bbb">sin foto</span>'}
+      </div>`).join("")}catch{n.innerHTML='<p style="font-size:0.8rem;color:red;padding:4px">Error cargando variantes</p>'}};function Le(e){return e!=null&&e.includes("res.cloudinary.com")?e.replace(/\/upload\/(?:[a-z]+_[^/,]+(?:,[a-z]+_[^/,]+)*\/)*/,"/upload/f_jpg,q_95,w_1200/"):e}window.elegirVarianteEnvio=(e,t)=>{var d;const a=Le(e),o=document.getElementById("envio-imagen"),n=document.getElementById("envio-foto-seleccionada"),i=document.getElementById("envio-foto-img"),r=document.getElementById("envio-foto-label");o&&(o.value=a),i&&(i.src=a),r&&(r.textContent=t),n&&(n.style.display="block");const s=document.getElementById("plantilla-preview-burbuja");s&&s.textContent.startsWith("🖼️ [Imagen del producto]"),document.querySelectorAll("#envio-variantes-grid > div").forEach(l=>{l.style.borderColor="#eee",l.style.background=""}),(d=event==null?void 0:event.currentTarget)!=null&&d.closest&&(event.currentTarget.style.borderColor="#25D366")};window.quitarFotoEnvio=()=>{const e=document.getElementById("envio-imagen"),t=document.getElementById("envio-foto-seleccionada"),a=document.getElementById("envio-foto-img");e&&(e.value=""),a&&(a.src=""),t&&(t.style.display="none")};window.sincronizarColeccionesMeta=async()=>{const e=document.getElementById("btn-sync-colecciones"),t=document.getElementById("seo-colecciones-resultado");e&&(e.textContent="Sincronizando...",e.disabled=!0);try{const o=await(await fetch(b+"/catalogo/sincronizar-colecciones",{method:"POST"})).json();if(o.error)t.style.display="block",t.style.background="#ffebee",t.style.borderColor="#ef9a9a",t.innerHTML=`❌ Error: ${o.error}`;else{const n=o.resultados.filter(s=>s.accion==="creada").length,i=o.resultados.filter(s=>s.accion==="actualizada").length,r=o.resultados.filter(s=>s.accion==="error");t.style.display="block",t.style.background=r.length?"#fff8e1":"#e8f5e9",t.style.border=`1px solid ${r.length?"#ffe082":"#a5d6a7"}`,t.innerHTML=`
+        ✅ <strong>${n} colecciones creadas</strong> · ${i} actualizadas
+        ${r.length?`<br>⚠️ ${r.length} errores: ${r.map(s=>s.categoria+" ("+s.detalle+")").join(", ")}`:""}
+        <br><small style="color:#888;margin-top:4px;display:block">${o.resultados.map(s=>`${s.categoria}: ${s.accion}`).join(" · ")}</small>
+      `}}catch(a){t&&(t.style.display="block",t.style.background="#ffebee",t.innerHTML="❌ Error: "+a.message)}finally{e&&(e.textContent="🗂️ Sincronizar colecciones en Meta",e.disabled=!1)}};window.validarCantidadTalla=(e,t)=>{const a=document.getElementById("qty-"+e);if(!a)return;let o=parseInt(a.value)||0;o<0&&(o=0),o>t&&(o=t),a.value=o,a.style.borderColor=o>0?"#E91E8C":"#ddd"};window.recargarFinanzas=async e=>{await be()};window.verOportunidad=async e=>{var a;if(window._crmData)try{const n=await(await fetch(b+"/crm/oportunidades/"+e)).json(),i=Array.isArray(n)?n[0]:n;if(!i)return;const r={contacto:"📞 Contacto",interes:"👀 Interés",cotizacion:"📋 Cotización",negociacion:"🤝 Negociación",ganado:"✅ Ganado",perdido:"❌ Perdido"},s=document.createElement("div");s.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem",s.innerHTML=`
+      <div style="background:white;border-radius:16px;padding:2rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1.5rem">
+          <div>
+            <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px">${i.titulo}</h3>
+            <p style="font-size:0.82rem;color:#888">${((a=i.clientes)==null?void 0:a.nombre)||"Sin cliente"}</p>
+          </div>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Monto estimado</p>
+            <p style="font-weight:700;font-size:1.1rem;color:#E91E8C">$${parseFloat(i.monto_estimado||0).toFixed(0)}</p>
+          </div>
+          <div style="background:#f9f9f9;border-radius:8px;padding:1rem">
+            <p style="font-size:0.72rem;color:#888;margin-bottom:4px">Etapa</p>
+            <p style="font-weight:600;font-size:0.88rem">${r[i.etapa]||i.etapa}</p>
+          </div>
+        </div>
+        ${i.fecha_cierre?`<p style="font-size:0.82rem;color:#888;margin-bottom:1rem">📅 Cierre estimado: ${new Date(i.fecha_cierre).toLocaleDateString("es-MX")}</p>`:""}
+        ${i.notas?`<div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem"><p style="font-size:0.78rem;color:#888;margin-bottom:4px">Notas</p><p style="font-size:0.85rem">${i.notas}</p></div>`:""}
+        <div style="display:flex;gap:1rem;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cerrar</button>
+          <select class="form-input" style="flex:1" onchange="actualizarEtapaOportunidad('${i.id}', this.value)">
+            ${Object.entries(r).map(([d,l])=>`<option value="${d}" ${i.etapa===d?"selected":""}>${l}</option>`).join("")}
+          </select>
+        </div>
+      </div>
+    `,document.body.appendChild(s),s.addEventListener("click",d=>{d.target===s&&s.remove()})}catch(o){console.error("Error verOportunidad",o)}};window.actualizarEtapaOportunidad=async(e,t)=>{var a;try{await fetch(b+"/crm/oportunidades/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({etapa:t})}),(a=document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]'))==null||a.remove(),mostrarPipeline()}catch{alert("Error actualizando etapa")}};window.completarTareaDashboard=async(e,t)=>{try{await fetch(b+"/chatbot/tareas/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({completada:t})})}catch(a){console.error(a)}};async function Dt(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>';try{const[t,a]=await Promise.all([fetch(b+"/carrito-abandonado/listar").then(l=>l.json()).catch(()=>({carritos:[],stats:{}})),fetch(b+"/pedidos/pendientes").then(l=>l.json()).catch(()=>({pedidos:[]}))]),o=t.stats||{},n=t.carritos||[],i=Array.isArray(a)?a:Array.isArray(a.pedidos)?a.pedidos:[],r=l=>{try{return new Date(l).toLocaleString("es-MX",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}catch{return l}},s=l=>l.convertido?'<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">✓ Compró</span>':l.recordatorio_enviado?'<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">📧 Avisado</span>':'<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:600">⏳ Sin avisar</span>',d=l=>{const c={oxxo:"#e63946",spei:"#0a7c3e",tarjeta:"#1a56db",mercadopago:"#009ee3"}[l==null?void 0:l.toLowerCase()]||"#888";return`<span style="background:${c}18;color:${c};padding:2px 9px;border-radius:12px;font-size:0.7rem;font-weight:700;text-transform:uppercase">${l||"—"}</span>`};e.innerHTML=`
+      <div style="max-width:960px">
+        <h3 style="margin-bottom:0.25rem">🛒 Seguimiento de pagos pendientes</h3>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+          Clientes que no completaron su pago — ya sea por carrito abandonado o pedido OXXO/SPEI sin acreditar.
+        </p>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
+          <button id="tab-pp" onclick="switchTabPagos('pp')"
+            style="padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px">
+            💳 OXXO / SPEI sin pagar (${i.length})
+          </button>
+          <button id="tab-ca" onclick="switchTabPagos('ca')"
+            style="padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px">
+            🛒 Carritos abandonados (${n.filter(l=>!l.convertido).length})
+          </button>
+        </div>
+
+        <!-- Tab: Pedidos OXXO/SPEI pendientes -->
+        <div id="panel-pp">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div style="font-size:0.8rem;color:#856404">
+              <strong>💬 WhatsApp requiere plantilla aprobada.</strong> Si el botón "WhatsApp" no envía, crea la plantilla primero (solo se hace una vez).
+            </div>
+            <button onclick="crearPlantillaPago(this)" style="padding:6px 14px;border-radius:20px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
+              ⚙️ Crear plantilla en Meta
+            </button>
+          </div>
+          ${i.length===0?'<div class="table-card" style="padding:2rem;text-align:center;color:var(--text-muted)">No hay pedidos pendientes de pago 🎉</div>':`<div class="table-card" style="padding:0;overflow:hidden">
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+                <thead>
+                  <tr style="text-align:left;border-bottom:2px solid var(--border);background:var(--bg)">
+                    <th style="padding:10px 14px">Cliente</th>
+                    <th style="padding:10px 14px">Total</th>
+                    <th style="padding:10px 14px">Método</th>
+                    <th style="padding:10px 14px">Hace</th>
+                    <th style="padding:10px 14px">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${i.map(l=>{const c=l.nombre_cliente||"—",p=l.email_cliente||"",m=l.telefono_cliente||"",g=l.horas_pendiente!=null?l.horas_pendiente<1?"hace &lt;1h":`hace ${l.horas_pendiente}h`:"—",u=!!l.recordatorio_pago_enviado_at;return`<tr data-pedido-id="${l.id}" style="border-bottom:1px solid var(--border)">
+                      <td style="padding:10px 14px">
+                        <div style="font-weight:600">${c}</div>
+                        ${p?`<div style="font-size:0.75rem;color:var(--text-muted)">${p}</div>`:""}
+                        ${m?`<div style="font-size:0.75rem;color:var(--text-muted)">${m}</div>`:""}
+                      </td>
+                      <td style="padding:10px 14px;font-weight:700">$${parseFloat(l.total||0).toFixed(0)}</td>
+                      <td style="padding:10px 14px">${d(l.forma_pago)}</td>
+                      <td style="padding:10px 14px;color:var(--text-muted);font-size:0.8rem">${g}<br><span style="font-size:0.7rem">${r(l.created_at)}</span></td>
+                      <td style="padding:10px 14px">
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                          ${p?`<button onclick="enviarRecordatorioEmail('${l.id}', this, '${(l.nombre_cliente||"").split(" ")[0]}', '${parseFloat(l.total||0).toFixed(0)}', '${(l.forma_pago||"OXXO/SPEI").toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #1a56db;background:none;color:#1a56db;font-size:0.75rem;font-weight:600;cursor:pointer">📧 Email</button>`:""}
+                          ${m?`<button onclick="enviarRecordatorioWA('${l.id}', this, '${(l.nombre_cliente||"").split(" ")[0]}', '${parseFloat(l.total||0).toFixed(0)}', '${(l.forma_pago||"OXXO/SPEI").toUpperCase()}')" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>`:""}
+                        </div>
+                        ${u?`<div style="font-size:0.68rem;color:#aaa;margin-top:4px">Avisado ${r(l.recordatorio_pago_enviado_at)}</div>`:""}
+                      </td>
+                    </tr>`}).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>`}
+        </div>
+
+        <!-- Tab: Carritos abandonados -->
+        <div id="panel-ca" style="display:none">
+          <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem">
+              <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)">
+                <div style="font-size:1.6rem;font-weight:700">${o.total||0}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted)">Total</div>
+              </div>
+              <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a">
+                <div style="font-size:1.6rem;font-weight:700;color:#856404">${o.pendientes||0}</div>
+                <div style="font-size:0.72rem;color:#856404">Sin avisar</div>
+              </div>
+              <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;border:1px solid #bfdbfe">
+                <div style="font-size:1.6rem;font-weight:700;color:#1565c0">${o.enviados||0}</div>
+                <div style="font-size:0.72rem;color:#1565c0">Avisados</div>
+              </div>
+              <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:1px solid #bbf7d0">
+                <div style="font-size:1.6rem;font-weight:700;color:#15803d">${o.convertidos||0}</div>
+                <div style="font-size:0.72rem;color:#15803d">Compraron</div>
+              </div>
+            </div>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:1.25rem;font-size:0.82rem;color:#0369a1">
+              <strong>Recordatorio automático:</strong> se envía 1 hora después de inactividad.<br>
+              Copia BCC a <strong>olivr47@gmail.com</strong> · Verifica en <a href="https://resend.com/emails" target="_blank" style="color:#0369a1;font-weight:600">resend.com/emails</a>
+              <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input id="ca-test-email" type="email" placeholder="correo de prueba"
+                  style="border:1.5px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.82rem;flex:1;min-width:180px;outline:none">
+                <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Prueba</button>
+              </div>
+              <div id="ca-test-msg" style="margin-top:8px;font-size:0.8rem"></div>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+                <thead>
+                  <tr style="text-align:left;border-bottom:2px solid var(--border)">
+                    <th style="padding:8px">Email / Nombre</th>
+                    <th style="padding:8px">Total</th>
+                    <th style="padding:8px">Última actividad</th>
+                    <th style="padding:8px">Estado</th>
+                    <th style="padding:8px">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${n.length?n.map(l=>`
+                      <tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:8px">${l.email}${l.nombre?`<br><span style="color:var(--text-muted);font-size:0.75rem">${l.nombre}</span>`:""}</td>
+                        <td style="padding:8px;font-weight:600">$${parseFloat(l.total||0).toFixed(0)}</td>
+                        <td style="padding:8px;color:var(--text-muted)">${r(l.updated_at)}</td>
+                        <td style="padding:8px">${s(l)}</td>
+                        <td style="padding:8px">
+                          ${l.convertido?"":`<button onclick="enviarWACarrito('${l.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>`}
+                        </td>
+                      </tr>`).join(""):'<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>`}catch(t){document.getElementById("content").innerHTML=`<p style="padding:2rem;color:red">Error: ${t.message}</p>`}}window.switchTabPagos=function(e){document.getElementById("panel-pp").style.display=e==="pp"?"block":"none",document.getElementById("panel-ca").style.display=e==="ca"?"block":"none",document.getElementById("tab-pp").style.cssText=e==="pp"?"padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px":"padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px",document.getElementById("tab-ca").style.cssText=e==="ca"?"padding:8px 18px;border:none;border-bottom:3px solid #b5687a;background:none;font-weight:700;font-size:0.85rem;color:#b5687a;cursor:pointer;margin-bottom:-2px":"padding:8px 18px;border:none;border-bottom:3px solid transparent;background:none;font-weight:600;font-size:0.85rem;color:var(--text-muted);cursor:pointer;margin-bottom:-2px"};window.enviarWACarrito=async function(e,t){const a=t.textContent;t.disabled=!0,t.textContent="Enviando...";try{const n=await(await fetch(b+`/carrito-abandonado/${e}/whatsapp`,{method:"POST"})).json();n.ok?(t.textContent="✅ Enviado",t.style.borderColor="#15803d",t.style.color="#15803d"):(t.textContent=a,t.disabled=!1,alert("Error: "+(n.error||"No se pudo enviar")))}catch{t.textContent=a,t.disabled=!1}};window.abrirModalRecordatorio=async function(e,t,a,o,n){var c;const i=t==="wa",r=i?"":`Hola ${a}, te recordamos que tienes un pedido de $${o} MXN pendiente de pago vía ${n}.
+
+Cuando realices el pago lo procesamos de inmediato. Si tienes alguna duda estamos para ayudarte 😊`;(c=document.getElementById("modal-recordatorio"))==null||c.remove();let s="",d=[];if(i){try{d=await(await fetch(b+"/chatbot/plantillas")).json(),Array.isArray(d)||(d=[])}catch{d=[]}d.length?s=`
+        <div style="margin-bottom:10px">
+          <label style="font-size:0.78rem;color:#555;font-weight:600;display:block;margin-bottom:4px">Plantilla a usar:</label>
+          <select id="modal-wa-plantilla" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:7px 10px;font-size:0.83rem">
+            ${d.map(m=>`<option value="${m.name}" data-idioma="${m.language||"es_MX"}">${m.name} (${m.language||"es_MX"})</option>`).join("")}
+          </select>
+        </div>`:s=`<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:0.78rem;color:#856404">
+        ⚠️ No se encontraron plantillas aprobadas. Usa el botón <strong>"⚙️ Crear plantilla en Meta"</strong> y espera la aprobación.
+      </div>`}const l=document.createElement("div");l.id="modal-recordatorio",l.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",l.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <h3 style="margin:0;font-size:1rem;font-weight:700">${i?"💬 Recordatorio por WhatsApp":"📧 Recordatorio por Email"}</h3>
+        <button onclick="document.getElementById('modal-recordatorio').remove()" style="border:none;background:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1">×</button>
+      </div>
+
+      ${i?`
+        ${s}
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:0.76rem;color:#2e7d32;line-height:1.5">
+          <strong>WhatsApp solo entrega mensajes fuera de 24h si usas una plantilla UTILITY aprobada.</strong><br>
+          Si el cliente te escribió hace menos de 24h puedes usar texto libre — si no, se requiere plantilla.
+        </div>
+      `:`
+        <p style="font-size:0.78rem;color:#888;margin-bottom:8px">Edita el mensaje antes de enviarlo:</p>
+        <textarea id="modal-recordatorio-msg" rows="6"
+          style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:0.85rem;line-height:1.6;resize:vertical;font-family:inherit;box-sizing:border-box"
+        >${r}</textarea>
+      `}
+
+      <div id="modal-recordatorio-error" style="display:none;margin-top:8px;background:#ffebee;border:1px solid #ef9a9a;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#c62828"></div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+        <button onclick="document.getElementById('modal-recordatorio').remove()"
+          style="padding:8px 18px;border-radius:20px;border:1.5px solid #e5e7eb;background:none;color:#666;font-size:0.82rem;cursor:pointer">
+          Cancelar
+        </button>
+        <button id="modal-recordatorio-btn" onclick="enviarRecordatorioConfirmado('${e}','${t}')"
+          style="padding:8px 18px;border-radius:20px;border:none;background:${i?"#25D366":"#1a56db"};color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">
+          ${i?"💬 Enviar por WhatsApp":"📧 Enviar Email"}
+        </button>
+      </div>
+    </div>`,document.body.appendChild(l),l.addEventListener("click",p=>{p.target===l&&l.remove()})};window.enviarRecordatorioConfirmado=async function(e,t){var r,s,d,l,c;const a=document.getElementById("modal-recordatorio-btn"),o=document.getElementById("modal-recordatorio-error");if(!a)return;a.disabled=!0,a.textContent="Enviando...",o&&(o.style.display="none");const n=t==="wa"?b+`/pedidos/${e}/recordatorio-whatsapp`:b+`/pedidos/${e}/recordatorio-email`;let i={};if(t==="wa"){const p=document.getElementById("modal-wa-plantilla");p&&(i.plantilla=p.value,i.idioma=((s=(r=p.selectedOptions[0])==null?void 0:r.dataset)==null?void 0:s.idioma)||"es_MX")}else i.mensaje=((l=(d=document.getElementById("modal-recordatorio-msg"))==null?void 0:d.value)==null?void 0:l.trim())||"";try{const m=await(await fetch(n,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)})).json();m.ok?((c=document.getElementById("modal-recordatorio"))==null||c.remove(),document.querySelectorAll(`[data-pedido-id="${e}"]`).forEach(u=>u.style.opacity="0.5")):(a.disabled=!1,a.textContent=t==="wa"?"💬 Enviar por WhatsApp":"📧 Enviar Email",o&&(o.textContent=m.error||"No se pudo enviar",o.style.display="block"))}catch(p){a.disabled=!1,a.textContent=t==="wa"?"💬 Enviar por WhatsApp":"📧 Enviar Email",o&&(o.textContent="Error de red: "+p.message,o.style.display="block")}};window.enviarRecordatorioEmail=(e,t,a,o,n)=>window.abrirModalRecordatorio(e,"email",a,o,n);window.enviarRecordatorioWA=(e,t,a,o,n)=>window.abrirModalRecordatorio(e,"wa",a,o,n);window.crearPlantillaCatalogo=async function(e){const t=e.textContent;e.disabled=!0,e.textContent="Creando...";try{const o=await(await fetch(b+"/chatbot/crear-plantilla-catalogo",{method:"POST"})).json();o.ok?(e.textContent="✅ Enviada a Meta",e.style.borderColor="#16a34a",e.style.color="#15803d",alert('Plantilla "catalogo_disponible" enviada a Meta para revisión como UTILITY. Una vez aprobada (minutos/horas), selecciónala en la pestaña Campaña para enviar sin restricción de 24h.')):(e.disabled=!1,e.textContent=t,alert("Error: "+(o.error||JSON.stringify(o))))}catch(a){e.disabled=!1,e.textContent=t,alert("Error de red: "+a.message)}};window.crearPlantillaPago=async function(e){const t=e.textContent;e.disabled=!0,e.textContent="Creando...";try{const o=await(await fetch(b+"/chatbot/crear-plantilla-pago",{method:"POST"})).json();o.ok?(e.textContent="✅ Plantilla enviada a Meta",e.style.borderColor="#16a34a",e.style.color="#15803d",alert("Plantilla enviada a Meta para revisión. Puede tardar unos minutos en aprobarse. Una vez APROBADA, el botón WhatsApp funcionará.")):(e.textContent="❌ Error",e.disabled=!1,alert("Error: "+(o.error||JSON.stringify(o))))}catch(a){e.textContent=t,e.disabled=!1,alert("Error de red: "+a.message)}};window.probarRecordatorio=async function(){const e=(document.getElementById("ca-test-email").value||"").trim(),t=document.getElementById("ca-test-msg");t.textContent="Enviando...";try{const o=await(await fetch(b+"/carrito-abandonado/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:e})})).json();o.ok?(t.style.color="#15803d",t.innerHTML=`✅ Correo de prueba enviado a <strong>${o.enviado_a}</strong>. Revisa tu bandeja (y spam).`):(t.style.color="#c62828",t.textContent=o.resend_configurado===!1?"❌ Falta configurar RESEND_API_KEY en Railway":"❌ No se pudo enviar")}catch(a){t.style.color="#c62828",t.textContent="❌ Error: "+a.message}};async function Ft(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>';try{const a=await(await fetch(b+"/config/envio")).json();e.innerHTML=`
+      <div style="max-width:560px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">🚚 Configuración de Envíos</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Define el costo de envío y a partir de cuánto es gratis. Se aplica automáticamente en el carrito de la tienda.
+          </p>
+
+          <div style="display:grid;gap:1.2rem">
+
+            <div style="background:var(--bg);border-radius:10px;padding:1rem;border:1px solid var(--border)">
+              <p style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.75rem">Tarifas por número de pares</p>
+              <div style="display:grid;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">1 par</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier1" value="${a.tier1??99}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">2 pares</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier2" value="${a.tier2??150}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:0.82rem;min-width:80px">3+ pares</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-tier3" value="${a.tier3??199}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.9rem;width:110px;outline:none">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:0.4rem">
+                Envío gratis a partir de
+              </label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="color:var(--text-muted)">$</span>
+                <input type="number" id="envio-gratis-desde" value="${a.gratis_desde??1299}"
+                  min="0" step="1"
+                  style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.95rem;width:160px;outline:none">
+                <span style="font-size:0.82rem;color:var(--text-muted)">MXN de compra</span>
+              </div>
+            </div>
+
+            <div style="background:#f0fdf4;border-radius:10px;padding:1rem;font-size:0.82rem;color:#166534;border:1px solid #bbf7d0">
+              <strong style="display:block;margin-bottom:6px">📋 Resumen actual:</strong>
+              <div>1 par → <strong id="prev-t1">$${a.tier1??99}</strong> MXN</div>
+              <div>2 pares → <strong id="prev-t2">$${a.tier2??150}</strong> MXN</div>
+              <div>3+ pares → <strong id="prev-t3">$${a.tier3??199}</strong> MXN</div>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0">
+                Pedidos ≥ <strong id="prev-gratis">$${a.gratis_desde??1299}</strong> MXN → <strong style="color:#15803d">Envío gratis 🎉</strong>
+              </div>
+            </div>
+
+            <div id="envio-msg" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.85rem"></div>
+
+            <div>
+              <button class="btn btn-primary" onclick="guardarEnvio()">💾 Guardar configuración</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:1.5rem">
+          <h4 style="margin-bottom:0.5rem">📦 Paqueterías que usas</h4>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">
+            Referencia para tu equipo al hacer los envíos. Actualmente no integradas con tarifas automáticas.
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="background:#e8f4fd;color:#0066cc;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">FedEx</span>
+            <span style="background:#fff3cd;color:#856404;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">DHL</span>
+            <span style="background:#e8f5e9;color:#2e7d32;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600">Estafeta</span>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:10px">
+            ¿Quieres calcular tarifas automáticas por código postal? Podemos integrar la API de Estafeta o FedEx en el futuro.
+          </p>
+        </div>
+      </div>`,Object.entries({"envio-tier1":"prev-t1","envio-tier2":"prev-t2","envio-tier3":"prev-t3","envio-gratis-desde":"prev-gratis"}).forEach(([n,i])=>{const r=document.getElementById(n);r&&r.addEventListener("input",s=>{const d=document.getElementById(i);d&&(d.textContent="$"+(s.target.value||0))})})}catch(t){document.getElementById("content").innerHTML=`<p style="padding:2rem;color:red">Error: ${t.message}</p>`}}window.guardarEnvio=async function(){const e=parseFloat(document.getElementById("envio-tier1").value),t=parseFloat(document.getElementById("envio-tier2").value),a=parseFloat(document.getElementById("envio-tier3").value),o=parseFloat(document.getElementById("envio-gratis-desde").value);if([e,t,a,o].some(isNaN))return;const n=document.getElementById("envio-msg");try{const r=await(await fetch(b+"/config/envio",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tier1:e,tier2:t,tier3:a,gratis_desde:o})})).json();n.style.display="",r.ok?(n.style.background="#e8f5e9",n.style.color="#2e7d32",n.textContent="✅ Configuración guardada correctamente"):(n.style.background="#fdecea",n.style.color="#c62828",n.textContent="❌ Error: "+(r.error||"desconocido")),setTimeout(()=>{n.style.display="none"},3e3)}catch{n.style.display="",n.style.background="#fdecea",n.style.color="#c62828",n.textContent="❌ Error al guardar"}};async function Ht(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>';try{const a=await(await fetch(b+"/seo/config")).json(),o={};a.forEach(n=>o[n.clave]=n.valor||""),e.innerHTML=`
+      <div style="max-width:800px">
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1rem">🗂️ Colecciones WhatsApp</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem">Crea automáticamente las colecciones por categoría en el catálogo de Meta (Tacones, Sandalias, Botas, etc.) para que los clientes puedan navegar desde WhatsApp.</p>
+          <div id="seo-colecciones-resultado" style="display:none;margin-bottom:1rem;padding:1rem;border-radius:8px;font-size:0.82rem"></div>
+          <button onclick="sincronizarColeccionesMeta()" class="btn btn-primary" id="btn-sync-colecciones">🗂️ Sincronizar colecciones en Meta</button>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🟡 MercadoLibre — Inventario</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Sincroniza el stock de tus <b>96 publicaciones</b> de MercadoLibre con el ERP.<br>
+            Primero verifica las diferencias y luego sincroniza.
+          </p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+            <button onclick="mlVerStock(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#f59e0b;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🔍 Ver diferencias ERP vs ML
+            </button>
+            <button onclick="mlSincronizar(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🔄 Sincronizar stock ahora
+            </button>
+            <button onclick="mlVerLog(this)"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#6366f1;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              📋 Ver resultado
+            </button>
+          </div>
+          <div id="ml-resultado" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg-secondary);border-radius:8px;font-size:0.82rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+        </div>
+
+        <!-- ── MercadoLibre: Publicar nuevo estilo ── -->
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🟡 MercadoLibre — Publicar nuevo estilo</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Crea publicaciones individuales por variante (color+talla) directo desde el ERP.
+            Usa <b>Solo preview</b> para revisar el payload antes de publicar.
+          </p>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+            <div>
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU del producto</label>
+              <input id="ml-pub-sku" type="text" placeholder="Ej: M-TAC-0022"
+                style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;background:var(--bg-primary);color:var(--text-primary)">
+            </div>
+            <div>
+              <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de listing</label>
+              <select id="ml-pub-listing"
+                style="width:100%;padding:0.5rem;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;background:var(--bg-primary);color:var(--text-primary)">
+                <option value="free">Gratis (free)</option>
+                <option value="bronze">Bronce</option>
+                <option value="silver">Plata</option>
+                <option value="gold_pro" selected>Oro Pro (como los actuales)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+            <button onclick="mlPublicarPreview(this)"
+              style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#0284c7;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              👁️ Solo preview (sin publicar)
+            </button>
+            <button onclick="mlPublicarReal(this)"
+              style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#16a34a;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              🚀 Publicar en ML
+            </button>
+          </div>
+          <div id="ml-pub-resultado" style="display:none;margin-top:1rem;padding:1rem;background:var(--bg-secondary);border-radius:8px;font-size:0.82rem;max-height:500px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.5rem">🎵 TikTok Shop — Sincronización</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+            Descarga los archivos Excel listos para subir al <b>TikTok Shop Seller Center</b>.<br>
+            <b>Paso 1:</b> Importa todos los productos (primera vez).<br>
+            <b>Paso 2:</b> Actualiza el stock cuando cambie tu inventario.
+          </p>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap">
+            <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.csv')"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#6366f1;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              📥 Descargar Excel de Importación
+            </button>
+            <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.csv')"
+               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
+              📊 Descargar Excel de Stock
+            </button>
+          </div>
+          <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-secondary);border-radius:8px;font-size:0.78rem;color:var(--text-muted)">
+            <b>Cómo usar:</b>
+            1. Elimina los productos actuales en TikTok Shop.
+            2. Descarga "Excel de Importación" → súbelo en <i>Gestionar productos → Agregar producto</i>.
+            3. Cuando cambie tu stock, descarga "Excel de Stock" y súbelo en <i>Administrar existencias → Reabastecer en lote</i>.
+          </div>
+        </div>
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">SEO General</h3>
+          <div style="display:grid;gap:1rem">
+            <div>
+              <label class="form-label">Meta titulo (home)</label>
+              <input class="form-input" id="seo-titulo" value="${o.meta_titulo_home}" placeholder="Zapatillas May | Calzado de Moda...">
+              <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Recomendado: 50-60 caracteres. Actual: <span id="seo-titulo-count">${o.meta_titulo_home.length}</span></p>
+            </div>
+            <div>
+              <label class="form-label">Meta descripcion (home)</label>
+              <textarea class="form-input" id="seo-desc" rows="3" placeholder="Descripcion para Google...">${o.meta_descripcion_home}</textarea>
+              <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Recomendado: 150-160 caracteres. Actual: <span id="seo-desc-count">${o.meta_descripcion_home.length}</span></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Analiticas y Pixels</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Google Analytics ID</label>
+              <input class="form-input" id="seo-ga" value="${o.google_analytics_id}" placeholder="G-XXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">Facebook Pixel ID</label>
+              <input class="form-input" id="seo-fb" value="${o.facebook_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">Google Search Console (verification)</label>
+              <input class="form-input" id="seo-gsc" value="${o.google_search_console||""}" placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">Google Tag Manager ID</label>
+              <input class="form-input" id="seo-gtm" value="${o.google_tag_manager||""}" placeholder="GTM-XXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">TikTok Pixel ID</label>
+              <input class="form-input" id="seo-tt" value="${o.tiktok_pixel_id}" placeholder="XXXXXXXXXXXXXXXXX">
+            </div>
+            <div>
+              <label class="form-label">WhatsApp flotante</label>
+              <input class="form-input" id="seo-wa" value="${o.whatsapp_flotante}" placeholder="524771234567">
+            </div>
+          </div>
+        </div>
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+  <h3 style="margin-bottom:0.25rem">Portada del sitio (Hero)</h3>
+  <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.75rem">
+    Personaliza las imágenes que aparecen en la portada de tu tienda en línea.
+  </p>
+
+  <!-- ── FOTO LIFESTYLE ── -->
+  <div style="margin-bottom:2rem">
+    <div style="display:flex;align-items:baseline;gap:0.75rem;margin-bottom:0.4rem">
+      <h4 style="font-size:0.9rem;font-weight:700;color:var(--text-primary);margin:0">Foto lifestyle</h4>
+      <span style="font-size:0.72rem;background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:100px;font-weight:600">Desktop: lado izquierdo · Móvil: fondo</span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">
+      En escritorio se ve a la izquierda del visor 360°. En celular es el fondo detrás del título.
+      Recomendado: <b>1400 × 900 px</b> o mayor · JPG o WebP.
+    </p>
+
+    <!-- Drop zone -->
+    <div id="hero-drop-zone"
+      style="border:2px dashed var(--border);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:1rem;background:var(--bg-secondary);position:relative;overflow:hidden"
+      onclick="document.getElementById('hero-file-input').click()"
+      ondragover="event.preventDefault();this.style.borderColor='var(--purple)';this.style.background='#f5f3ff'"
+      ondragleave="this.style.borderColor='var(--border)';this.style.background='var(--bg-secondary)'"
+      ondrop="event.preventDefault();this.style.borderColor='var(--border)';this.style.background='var(--bg-secondary)';_heroHandleDrop(event)">
+      <div id="hero-preview-wrap">
+        ${(o.hero_imagen||"")!==""?`<img id="hero-img-preview"
+               src="${(o.hero_imagen||"").replace("/image/upload/","/image/upload/w_600,f_auto,q_auto/")}"
+               style="max-height:200px;width:100%;object-fit:cover;border-radius:8px;display:block">`:`<div style="color:var(--text-muted);padding:1rem 0">
+               <div style="font-size:2.2rem;margin-bottom:0.5rem">🖼️</div>
+               <p style="font-weight:600;margin-bottom:4px;font-size:0.88rem">Arrastra tu foto aquí</p>
+               <p style="font-size:0.78rem">o haz clic para seleccionar desde tu equipo</p>
+               <p style="font-size:0.72rem;margin-top:0.5rem;color:var(--text-muted)">JPG · PNG · WebP · máx 10 MB</p>
+             </div>`}
+      </div>
+      <input type="file" id="hero-file-input" accept="image/*" style="display:none" onchange="_heroHandleFile(this.files[0])">
+    </div>
+
+    <!-- Barra progreso (oculta por defecto) -->
+    <div id="hero-upload-bar" style="display:none;margin-bottom:0.75rem">
+      <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div id="hero-bar-fill" style="height:100%;width:0%;background:#7c3aed;transition:width 0.3s;border-radius:2px"></div>
+      </div>
+      <p id="hero-bar-label" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Subiendo...</p>
+    </div>
+
+    <!-- URL + botón manual -->
+    <div style="display:flex;gap:0.5rem;align-items:stretch">
+      <input class="form-input" id="seo-hero-img"
+        value="${(o.hero_imagen||"").replace(/"/g,"")}"
+        placeholder="https://res.cloudinary.com/..."
+        style="flex:1;font-size:0.8rem;font-family:monospace">
+      <button onclick="_heroAplicarUrl()"
+        style="padding:0 1rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--text-primary)">
+        Usar URL
+      </button>
+    </div>
+    <p style="font-size:0.72rem;color:var(--text-muted);margin-top:6px">
+      También puedes pegar directamente la URL de Cloudinary si ya tienes la imagen subida.
+    </p>
+  </div>
+
+  <!-- ── VISOR 360° (info) ── -->
+  <div style="padding:1.25rem;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+      <span style="font-size:1rem">🔄</span>
+      <h4 style="font-size:0.88rem;font-weight:700;margin:0;color:var(--text-primary)">Visor 360° (lado derecho)</h4>
+      <span style="font-size:0.7rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:100px;font-weight:600">Requiere deploy</span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem">
+      El visor usa <b>17 fotos</b> del zapato en distintos ángulos para el efecto de rotación.
+      Para cambiar el modelo, procesa las fotos y actualiza el array <code style="background:var(--border);padding:1px 5px;border-radius:4px">FRAMES</code> en el código.
+    </p>
+    <p style="font-size:0.72rem;color:var(--text-muted)">
+      Archivos actuales: <code style="font-size:0.7rem">images/360/_DSC0846 … _DSC0862-Editar.webp</code>
+    </p>
+  </div>
+</div>
+<div>
+  <label class="form-label">URL Favicon</label>
+  <input class="form-input" id="seo-favicon" value="${(o.favicon_url||"").replace(/"/g,"")}" placeholder="https://res.cloudinary.com/...">
+  <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Icono que aparece en la pestaña del navegador (recomendado 32x32px)</p>
+</div>
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Instagram URL</label>
+              <input class="form-input" id="seo-ig" value="${o.instagram_url}" placeholder="https://instagram.com/zapatillasmay">
+            </div>
+            <div>
+              <label class="form-label">Facebook URL</label>
+              <input class="form-input" id="seo-fb-url" value="${o.facebook_url}" placeholder="https://facebook.com/zapatillasmay">
+            </div>
+            <div>
+              <label class="form-label">TikTok URL</label>
+              <input class="form-input" id="seo-tt-url" value="${o.tiktok_url}" placeholder="https://tiktok.com/@zapatillasmay">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:1.5rem">Horarios</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Lunes</label>
+              <input class="form-input" id="seo-hor-lunes" value="${o.horario_lunes||"10:00 - 15:00"}" placeholder="10:00 - 15:00">
+            </div>
+            <div>
+              <label class="form-label">Martes a Viernes</label>
+              <input class="form-input" id="seo-hor1" value="${o.horario_semana}" placeholder="10:00 - 19:00">
+            </div>
+            <div>
+              <label class="form-label">Sabado</label>
+              <input class="form-input" id="seo-hor2" value="${o.horario_sabado}" placeholder="10:00 - 15:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+  <h3 style="margin-bottom:1rem">Herramientas y Feeds</h3>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <a href="https://zapatillasmay-production.up.railway.app/sitemap.xml" target="_blank" class="btn btn-secondary">🗺️ Sitemap.xml</a>
+    <a href="https://zapatillasmay-production.up.railway.app/robots.txt" target="_blank" class="btn btn-secondary">🤖 Robots.txt</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/meta.xml" target="_blank" class="btn btn-secondary">📘 Feed Meta</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/google.xml" target="_blank" class="btn btn-secondary">🛍️ Feed Google</a>
+    <a href="https://zapatillasmay-production.up.railway.app/feed/tiktok.json" target="_blank" class="btn btn-secondary">🎵 Feed TikTok</a>
+    <a href="https://search.google.com/search-console" target="_blank" class="btn btn-secondary">Google Search Console</a>
+    <a href="https://search.google.com/test/rich-results" target="_blank" class="btn btn-secondary">Probar Schema</a>
+  </div>
+</div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn btn-primary" onclick="guardarSEO()">Guardar configuracion</button>
+        </div>
+      </div>
+    `,document.getElementById("seo-titulo").addEventListener("input",function(){document.getElementById("seo-titulo-count").textContent=this.value.length}),document.getElementById("seo-desc").addEventListener("input",function(){document.getElementById("seo-desc-count").textContent=this.value.length})}catch{e.innerHTML='<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'}}window.guardarSEO=async()=>{const e={favicon_url:document.getElementById("seo-favicon").value,hero_imagen:document.getElementById("seo-hero-img").value,meta_titulo_home:document.getElementById("seo-titulo").value,meta_descripcion_home:document.getElementById("seo-desc").value,google_analytics_id:document.getElementById("seo-ga").value,google_search_console:document.getElementById("seo-gsc").value,google_tag_manager:document.getElementById("seo-gtm").value,facebook_pixel_id:document.getElementById("seo-fb").value,tiktok_pixel_id:document.getElementById("seo-tt").value,whatsapp_flotante:document.getElementById("seo-wa").value,instagram_url:document.getElementById("seo-ig").value,facebook_url:document.getElementById("seo-fb-url").value,tiktok_url:document.getElementById("seo-tt-url").value,horario_lunes:document.getElementById("seo-hor-lunes").value,horario_semana:document.getElementById("seo-hor1").value,horario_sabado:document.getElementById("seo-hor2").value};try{(await fetch(b+"/seo/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(e)})).ok?alert("Configuracion SEO guardada correctamente"):alert("Error al guardar")}catch{alert("Error conectando con el servidor")}};async function ct(e){if(!e)return;if(e.size>10*1024*1024){alert("La imagen pesa más de 10 MB. Comprimela y vuelve a intentar.");return}const t=document.getElementById("hero-upload-bar"),a=document.getElementById("hero-bar-fill"),o=document.getElementById("hero-bar-label");t&&(t.style.display="block",a.style.width="20%",o.textContent="Subiendo a Cloudinary...");try{const n=new FormData;n.append("archivo",e),n.append("carpeta","hero"),a&&(a.style.width="50%");const i=await fetch(b+"/imagenes/subir",{method:"POST",body:n});a&&(a.style.width="80%");const r=await i.json();if(r.url){const s=document.getElementById("seo-hero-img");s&&(s.value=r.url),pt(r.url),a&&(a.style.width="100%",o.textContent="✓ Imagen subida correctamente"),setTimeout(()=>{t&&(t.style.display="none"),a&&(a.style.width="0")},2500)}else o&&(o.textContent="✗ Error al subir la imagen")}catch{o&&(o.textContent="✗ Error de conexión")}}function pt(e){const t=document.getElementById("hero-preview-wrap");if(!t)return;const a=e.replace("/image/upload/","/image/upload/w_600,f_auto,q_auto/");t.innerHTML=`<img id="hero-img-preview" src="${a}" style="max-height:200px;width:100%;object-fit:cover;border-radius:8px;display:block">`}window._heroHandleFile=function(e){e&&ct(e)};window._heroHandleDrop=function(e){var a,o;const t=(o=(a=e.dataTransfer)==null?void 0:a.files)==null?void 0:o[0];t&&ct(t)};window._heroAplicarUrl=function(){var t;const e=(((t=document.getElementById("seo-hero-img"))==null?void 0:t.value)||"").trim();e&&pt(e)};async function Oe(){const e=document.getElementById("content");try{const a=await(await fetch(b+"/catalogos/todos")).json();e.innerHTML=`
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Catálogos (${a.length})</h3>
+          <button class="btn btn-primary" onclick="mostrarFormCatalogo()">+ Nuevo catálogo</button>
+        </div>
+        <div id="catalogos-form-area"></div>
+
+        <!-- Catálogos por categoría -->
+        <div style="background:#fef9f5;border:1px solid #fde8d8;border-radius:12px;padding:16px;margin-bottom:20px">
+          <p style="font-size:0.85rem;font-weight:700;color:#7c3a1a;margin-bottom:4px">📥 Descargar catálogo por categoría</p>
+          <p style="font-size:0.78rem;color:#A07860;margin-bottom:12px">Genera un PDF con todos los productos activos de esa categoría. Se actualiza automáticamente.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px" id="cat-pdf-btns">
+            ${[["tacones","👠 Tacones"],["sandalias","👡 Sandalias"],["botas","🥾 Botas"],["botines","👢 Botines"],["flats","🥿 Flats"],["plataformas","⬆️ Plataformas"],["tenis","👟 Tenis"],["nina","🎀 Niña"],["accesorios","👜 Accesorios"]].map(([o,n])=>`<button onclick="descargarCatalogoPorCategoria('${o}','${n}')" style="background:white;border:1.5px solid #C8967A;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;color:#7c3a1a;cursor:pointer">${n}</button>`).join("")}
+          </div>
+          <p id="cat-pdf-msg" style="font-size:0.78rem;color:#C8967A;margin-top:10px;display:none"></p>
+        </div>
+        ${a.length===0?`
+          <div style="padding:3rem;text-align:center;color:#888">
+            <div style="font-size:2.5rem;margin-bottom:12px">📖</div>
+            <p>Aún no tienes catálogos. ¡Crea el primero!</p>
+          </div>`:`
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;padding:8px 0 4px">
+          ${a.map(o=>`
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+              ${o.portada_url?`<img src="${o.portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">`:'<div style="width:100%;aspect-ratio:3/4;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:3rem">📖</div>'}
+              <div style="padding:14px">
+                ${o.temporada?`<p style="font-size:0.68rem;letter-spacing:2px;color:#C8967A;text-transform:uppercase;margin-bottom:4px">${o.temporada}</p>`:""}
+                <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${o.nombre}</p>
+                <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${o.activo?"✅ Visible":"🔴 Oculto"}</p>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${o.id}','${(o.nombre||"").replace(/'/g,"\\'")}')">📄 Gestionar páginas</button>
+                  <button class="btn btn-secondary" style="padding:6px;font-size:0.8rem" onclick="window.open('https://zapatillasmay.mx/catalogo?abrir=${o.id}','_blank')">👁 Vista previa</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem" onclick="mostrarFormCatalogo('${o.id}')">✏️ Editar</button>
+                    <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem;color:${o.activo?"#dc2626":"#16a34a"}" onclick="toggleCatalogo('${o.id}',${o.activo})">${o.activo?"Ocultar":"Publicar"}</button>
+                  </div>
+                </div>
+              </div>
+            </div>`).join("")}
+        </div>`}
+      </div>`}catch(t){e.innerHTML='<p style="padding:2rem;color:red">Error cargando catálogos: '+t.message+"</p>"}}window.mostrarFormCatalogo=function(e=null){const t=document.getElementById("catalogos-form-area");t&&(t.innerHTML=`
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px">
+      <h4 style="margin-bottom:16px;font-size:0.95rem">${e?"✏️ Editar catálogo":"➕ Nuevo catálogo"}</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nombre *</label>
+          <input class="form-input" id="cat-nombre" placeholder="Ej: Colección Primavera 2026" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Temporada</label>
+          <input class="form-input" id="cat-temporada" placeholder="Ej: PV26" style="width:100%">
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Imagen de portada</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-secondary" style="padding:6px 14px;font-size:0.8rem" onclick="document.getElementById('cat-portada-file').click()">📁 Subir imagen</button>
+          <input type="file" id="cat-portada-file" accept="image/*" style="display:none" onchange="previewPortadaCat(this)">
+          <span id="cat-portada-nombre" style="font-size:0.8rem;color:#888">Ningún archivo seleccionado</span>
+        </div>
+        <div id="cat-portada-preview" style="margin-top:8px"></div>
+        <input type="hidden" id="cat-portada-url" value="">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="guardarCatalogo('${e||""}')">💾 Guardar</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('catalogos-form-area').innerHTML=''">Cancelar</button>
+      </div>
+    </div>`,e&&fetch(b+"/catalogos/"+e).then(a=>a.json()).then(a=>{const o=Array.isArray(a)?a[0]:a;o&&(document.getElementById("cat-nombre").value=o.nombre||"",document.getElementById("cat-temporada").value=o.temporada||"",o.portada_url&&(document.getElementById("cat-portada-url").value=o.portada_url,document.getElementById("cat-portada-nombre").textContent="Portada actual",document.getElementById("cat-portada-preview").innerHTML=`<img src="${o.portada_url}" style="height:80px;border-radius:6px;object-fit:cover">`))}))};window.previewPortadaCat=function(e){const t=e.files[0];if(!t)return;document.getElementById("cat-portada-nombre").textContent=t.name;const a=new FileReader;a.onload=o=>{document.getElementById("cat-portada-preview").innerHTML=`<img src="${o.target.result}" style="height:80px;border-radius:6px;object-fit:cover">`},a.readAsDataURL(t)};window.guardarCatalogo=async function(e){const t=document.getElementById("cat-nombre").value.trim();if(!t){alert("El nombre es obligatorio");return}const a=document.getElementById("cat-temporada").value.trim();let o=document.getElementById("cat-portada-url").value;const n=document.getElementById("cat-portada-file");if(n.files.length>0){const r=new FormData;r.append("archivo",n.files[0]),r.append("carpeta","catalogos");try{o=(await(await fetch(b+"/imagenes/subir?carpeta=catalogos",{method:"POST",body:r})).json()).url||o}catch(s){alert("Error subiendo portada: "+s.message);return}}const i={nombre:t,temporada:a,portada_url:o||null};try{e?await fetch(b+"/catalogos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)}):await fetch(b+"/catalogos/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)}),await Oe()}catch(r){alert("Error guardando: "+r.message)}};window.toggleCatalogo=async function(e,t){confirm(t?"¿Ocultar este catálogo de la tienda?":"¿Publicar este catálogo en la tienda?")&&(await fetch(b+"/catalogos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({activo:!t})}),await Oe())};window.gestionarPaginas=async function(e,t){const a=document.getElementById("content");a.innerHTML='<p style="padding:2rem;color:#888">Cargando...</p>';try{const[o,n]=await Promise.all([fetch(b+"/catalogos/"+e),fetch(b+"/catalogos/"+e+"/paginas")]),i=await o.json(),r=Array.isArray(i)?i[0]:i,s=await n.json();window._catalogoPaginasData={catalogoId:e,nombre:t,paginas:s,tabActiva:"subir",portada_url:(r==null?void 0:r.portada_url)||null},Nt()}catch(o){a.innerHTML='<p style="padding:2rem;color:red">Error: '+o.message+"</p>"}};function ze(e,t){return`padding:9px 18px;font-size:0.83rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid ${e===t?"#C8967A":"transparent"};background:none;color:${e===t?"#C8967A":"#6b7280"};transition:all 0.2s;font-family:inherit`}function Nt(){const{catalogoId:e,nombre:t,paginas:a,tabActiva:o,portada_url:n}=window._catalogoPaginasData,i=document.getElementById("content");a.length>0&&Math.max(...a.map(r=>r.pagina_numero))+1,i.innerHTML=`
+    <div class="table-card">
+      <div class="table-header">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="padding:5px 12px;font-size:0.8rem" onclick="navegarA('catalogos')">← Catálogos</button>
+          <h3>📖 ${t} <span style="color:#888;font-weight:400">(${a.length} páginas)</span></h3>
+          <button class="btn btn-secondary" style="padding:5px 12px;font-size:0.8rem;margin-left:auto" onclick="window.open('https://zapatillasmay.mx/catalogo?abrir=${e}','_blank')">👁 Vista previa</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div style="display:flex;border-bottom:2px solid #e5e7eb;margin-bottom:20px;gap:4px">
+        <button style="${ze(o,"subir")}" onclick="switchTabCat('subir')">📁 Subir imágenes</button>
+        <button style="${ze(o,"seleccionar")}" onclick="switchTabCat('seleccionar')">🖼 De la tienda</button>
+        <button style="${ze(o,"generar")}" onclick="switchTabCat('generar')">✨ Generar automático</button>
+      </div>
+
+      <!-- Tab: SUBIR -->
+      <div id="tab-subir" style="display:${o==="subir"?"block":"none"}">
+        <div style="border:2px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s"
+             onclick="document.getElementById('cat-pag-files').click()"
+             ondragover="event.preventDefault();this.style.borderColor='#C8967A'"
+             ondragleave="this.style.borderColor='#e5e7eb'"
+             ondrop="event.preventDefault();this.style.borderColor='#e5e7eb';subirPaginasCatalogo({files:event.dataTransfer.files},'${e}')">
+          <div style="font-size:2.5rem;margin-bottom:10px">🖼️</div>
+          <p style="font-weight:600;margin-bottom:4px">Arrastra imágenes aquí o haz click</p>
+          <p style="font-size:0.8rem;color:#888">Selecciona varias a la vez — se agregan en orden alfabético</p>
+          <button class="btn btn-primary" style="margin-top:14px" onclick="event.stopPropagation();document.getElementById('cat-pag-files').click()">+ Seleccionar imágenes</button>
+        </div>
+        <input type="file" id="cat-pag-files" accept="image/*" multiple style="display:none" onchange="subirPaginasCatalogo(this,'${e}')">
+        <div id="upload-progress" style="display:none;margin-top:14px;padding:12px;background:#eff6ff;border-radius:8px">
+          <p id="upload-msg" style="font-size:0.85rem;color:#1d4ed8;margin-bottom:6px">Subiendo...</p>
+          <div style="height:6px;background:#dbeafe;border-radius:3px">
+            <div id="upload-bar" style="height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: SELECCIONAR DE LA TIENDA -->
+      <div id="tab-seleccionar" style="display:${o==="seleccionar"?"block":"none"}">
+        <div id="selector-tienda-content">
+          <p style="color:#888;font-size:0.85rem;margin-bottom:12px">Cargando fotos de tus productos...</p>
+        </div>
+      </div>
+
+      <!-- Tab: GENERAR AUTOMÁTICO -->
+      <div id="tab-generar" style="display:${o==="generar"?"block":"none"}">
+        <div id="generador-content">
+          <p style="color:#888;font-size:0.85rem;margin-bottom:12px">Cargando productos...</p>
+        </div>
+      </div>
+
+      <!-- Páginas actuales -->
+      <div style="margin-top:28px">
+        ${n||a.length>0?`
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin:0;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
+          <button onclick="descargarCatalogoPDF()" style="background:#C8967A;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            📥 Descargar PDF
+          </button>
+        </div>
+        <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
+          ${n?`
+            <div style="background:white;border:2px solid #C8967A;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+              <img src="${n}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+              <div style="padding:6px 8px;background:#fff8f5">
+                <div style="font-size:0.7rem;font-weight:700;color:#C8967A;margin-bottom:2px">🖼 Portada</div>
+                <div style="font-size:0.65rem;color:#888">Primera página</div>
+              </div>
+            </div>`:""}
+          ${a.map((r,s)=>`
+            <div style="background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+              <img src="${r.imagen_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+              <div style="padding:6px 8px">
+                <div style="font-size:0.7rem;font-weight:600;color:#374151;margin-bottom:4px">Pág ${r.pagina_numero}</div>
+                <div style="display:flex;gap:3px;flex-wrap:wrap">
+                  ${s>0?`<button onclick="moverPagina('${r.id}','up')" title="Mover arriba" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↑</button>`:""}
+                  ${s<a.length-1?`<button onclick="moverPagina('${r.id}','down')" title="Mover abajo" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↓</button>`:""}
+                  <button onclick="usarComoPortada('${r.imagen_url}','${e}')" title="Usar como portada" style="flex:1;background:#fef3c7;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">🖼</button>
+                  <button onclick="eliminarPagina('${r.id}','${e}')" title="Eliminar" style="flex:1;background:#fee2e2;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem;color:#dc2626">✕</button>
+                </div>
+              </div>
+            </div>`).join("")}
+        </div>`:`
+        <div style="text-align:center;padding:24px;color:#9ca3af;border:1px dashed #e5e7eb;border-radius:10px">
+          <p>Aún no hay páginas. Usa una de las opciones de arriba para agregarlas.</p>
+        </div>`}
+      </div>
+    </div>`,o==="seleccionar"&&mt(e),o==="generar"&&ut(e)}window.switchTabCat=function(e){const{catalogoId:t}=window._catalogoPaginasData;window._catalogoPaginasData.tabActiva=e,document.querySelectorAll("#tab-subir,#tab-seleccionar,#tab-generar").forEach(a=>a.style.display="none"),document.getElementById("tab-"+e).style.display="block",document.querySelectorAll('[onclick^="switchTabCat"]').forEach(a=>{var n;const o=(n=a.getAttribute("onclick").match(/'(\w+)'/))==null?void 0:n[1];a.style.borderBottomColor=o===e?"#C8967A":"transparent",a.style.color=o===e?"#C8967A":"#6b7280"}),e==="seleccionar"&&mt(t),e==="generar"&&ut(t)};window.descargarCatalogoPDF=async function(){const e=window._catalogoPaginasData;if(!e)return;const{portada_url:t,paginas:a,nombre:o}=e,n=[];if(t&&n.push(t),[...a].sort((s,d)=>s.pagina_numero-d.pagina_numero).forEach(s=>{s.imagen_url&&n.push(s.imagen_url)}),n.length===0){alert("No hay páginas para descargar.");return}const r=document.querySelector('[onclick="descargarCatalogoPDF()"]');r&&(r.disabled=!0,r.textContent="⏳ Generando PDF...");try{window.jspdf||await new Promise((f,v)=>{const x=document.createElement("script");x.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",x.onload=f,x.onerror=v,document.head.appendChild(x)});const{jsPDF:s}=window.jspdf,d=f=>new Promise(v=>{const x=new Image;x.crossOrigin="anonymous",x.onload=()=>{const h=document.createElement("canvas");h.width=x.naturalWidth||x.width,h.height=x.naturalHeight||x.height,h.getContext("2d").drawImage(x,0,0),v({dataUrl:h.toDataURL("image/jpeg",.92),w:h.width,h:h.height})},x.onerror=()=>v(null),x.src=f}),c=(await Promise.all(n.map(d))).filter(Boolean);if(c.length===0){alert("No se pudieron cargar las imágenes. Revisa tu conexión.");return}const p=210,m=280,g=new s({unit:"mm",format:[p,m]}),u=(f,v)=>{v||g.addPage([p,m]);const x=f.w/f.h,h=p/m;let $,w,C,A;x>h?($=p,w=p/x,C=0,A=(m-w)/2):(w=m,$=m*x,A=0,C=(p-$)/2),g.addImage(f.dataUrl,"JPEG",C,A,$,w)};c.forEach((f,v)=>u(f,v===0));const y=(o||"catalogo").replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑ ]/g,"").trim()||"catalogo";g.save(`${y}.pdf`)}catch(s){console.error("Error generando PDF:",s),alert("Error al generar el PDF: "+s.message)}finally{r&&(r.disabled=!1,r.innerHTML="📥 Descargar PDF")}};async function mt(e){const t=document.getElementById("selector-tienda-content");if(t)try{const[a,o]=await Promise.all([fetch(b+"/variantes/"),fetch(b+"/productos/")]),n=await a.json(),i=await o.json(),r=[];n.forEach(d=>{const l=i.find(p=>p.id===d.producto_id),c=(l==null?void 0:l.nombre)||d.sku||"";d.foto_url&&r.push({url:d.foto_url,nombre:c,color:d.color||""}),d.imagenes&&Array.isArray(d.imagenes)&&d.imagenes.forEach(p=>{p&&p!==d.foto_url&&r.push({url:p,nombre:c,color:d.color||""})})});const s=r.filter((d,l,c)=>c.findIndex(p=>p.url===d.url)===l);window._selectorFotos={fotos:s,seleccionadas:new Set},t.innerHTML=`
+      <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <p style="font-size:0.83rem;color:#374151">${s.length} fotos disponibles — haz click para seleccionar</p>
+        <div style="display:flex;gap:8px">
+          <span id="sel-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionadas</span>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="agregarSeleccionadas('${e}')">✅ Agregar seleccionadas</button>
+        </div>
+      </div>
+      <input class="form-input" placeholder="🔍 Buscar por nombre o color..." style="width:100%;margin-bottom:10px" oninput="_filtrarSelectorFotos(this.value)">
+      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;max-height:420px;overflow-y:auto;padding:4px">
+        ${s.map((d,l)=>`
+          <div id="foto-item-${l}" onclick="_toggleFoto(${l})"
+               style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color 0.15s;position:relative">
+            <img src="${d.url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+            <div style="padding:4px 6px;background:white">
+              <p style="font-size:0.62rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nombre}</p>
+              ${d.color?`<p style="font-size:0.6rem;color:#888">${d.color}</p>`:""}
+            </div>
+            <div id="foto-check-${l}" style="display:none;position:absolute;top:4px;right:4px;background:#C8967A;color:white;border-radius:50%;width:20px;height:20px;font-size:0.7rem;display:none;align-items:center;justify-content:center;font-weight:700">✓</div>
+          </div>`).join("")}
+      </div>`}catch(a){t.innerHTML='<p style="color:red">Error: '+a.message+"</p>"}}window._toggleFoto=function(e){const{seleccionadas:t,fotos:a}=window._selectorFotos,o=document.getElementById("foto-item-"+e),n=document.getElementById("foto-check-"+e);t.has(e)?(t.delete(e),o.style.borderColor="transparent",n.style.display="none"):(t.add(e),o.style.borderColor="#C8967A",n.style.display="flex"),document.getElementById("sel-count").textContent=t.size+" seleccionadas"};window._filtrarSelectorFotos=function(e){const{fotos:t}=window._selectorFotos,a=e.toLowerCase();t.forEach((o,n)=>{const i=document.getElementById("foto-item-"+n);i&&(i.style.display=!a||o.nombre.toLowerCase().includes(a)||o.color.toLowerCase().includes(a)?"":"none")})};window.agregarSeleccionadas=async function(e){const{seleccionadas:t,fotos:a}=window._selectorFotos;if(!t.size){alert("Selecciona al menos una foto");return}const{paginas:o}=window._catalogoPaginasData;let n=o.length>0?Math.max(...o.map(r=>r.pagina_numero))+1:1;const i=event.target;i.disabled=!0,i.textContent="Agregando...";for(const r of t)await fetch(b+"/catalogos/"+e+"/paginas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imagen_url:a[r].url,pagina_numero:n++})});await gestionarPaginas(e,window._catalogoPaginasData.nombre)};async function ut(e){const t=document.getElementById("generador-content");if(t)try{const[a,o]=await Promise.all([fetch(b+"/productos/"),fetch(b+"/variantes/")]),n=(await a.json()).filter(s=>s.activo&&s.imagen_principal),i=await o.json(),r=n.map(s=>{const d=i.filter(p=>p.producto_id===s.id&&p.activa!==!1),l=[],c=new Set;for(const p of d){const m=(p.color||"").trim();m&&!c.has(m)&&(c.add(m),l.push({color:m,hex:p.color_hex||"#999",foto:p.foto_url}))}return l});window._generadorData={productos:n,variantes:i,catalogoId:e,seleccionados:new Set,coloresPorProd:r},t.innerHTML=`
+      <div style="background:#fef9f5;border:1px solid #fde8d8;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.83rem;color:#7c3a1a">
+        <strong>✨ Cómo funciona:</strong> selecciona los productos que quieres incluir. Luego activa o desactiva los colores (bolitas) que aparecerán en cada página.
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:0.8rem;font-weight:600">Productos por página:</label>
+          <select id="gen-layout" class="form-input" style="width:auto;padding:5px 10px;font-size:0.8rem">
+            <option value="1">1 por página</option>
+            <option value="1e">1 prod. — editorial 📸</option>
+            <option value="2" selected>2 por página</option>
+            <option value="4">4 por página</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="gen-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionados</span>
+          <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="_selTodosGenerador()">Todos</button>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" id="btn-generar" onclick="generarPaginasCanvas('${e}')">✨ Generar páginas</button>
+        </div>
+      </div>
+      <div id="gen-progress" style="display:none;padding:10px;background:#eff6ff;border-radius:8px;margin-bottom:12px">
+        <p id="gen-msg" style="font-size:0.83rem;color:#1d4ed8;margin-bottom:6px">Generando...</p>
+        <div style="height:6px;background:#dbeafe;border-radius:3px"><div id="gen-bar" style="height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;width:0%"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-height:460px;overflow-y:auto;padding:4px">
+        ${n.map((s,d)=>{const l=i.filter(g=>g.producto_id===s.id),c=s.precio_menudeo||0,p=r[d],m=p.length>1?`<div id="gen-colores-${d}" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;opacity:0.35;pointer-events:none">
+                ${p.map((g,u)=>`
+                  <div id="gen-col-${d}-${u}"
+                       title="${g.color}"
+                       onclick="event.stopPropagation();_toggleColorGen(${d},${u})"
+                       data-sel="1"
+                       style="width:13px;height:13px;border-radius:50%;background:${g.hex};border:2px solid #C8967A;cursor:pointer;flex-shrink:0;box-sizing:border-box;transition:opacity 0.15s,border-color 0.15s">
+                  </div>`).join("")}
+               </div>`:"";return`
+          <div id="gen-item-${d}" onclick="_toggleGenProd(${d})"
+               style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color 0.15s;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+            <img src="${s.imagen_principal}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
+            <div style="padding:5px 7px 7px">
+              <p style="font-size:0.62rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.nombre}</p>
+              <p style="font-size:0.6rem;color:#C8967A;font-weight:600">$${c||"—"}</p>
+              ${m}
+            </div>
+          </div>`}).join("")}
+      </div>`}catch(a){t.innerHTML='<p style="color:red">Error: '+a.message+"</p>"}}window._toggleGenProd=function(e){const{seleccionados:t}=window._generadorData,a=document.getElementById("gen-item-"+e),o=document.getElementById("gen-colores-"+e);t.has(e)?(t.delete(e),a.style.borderColor="transparent",o&&(o.style.opacity="0.35",o.style.pointerEvents="none")):(t.add(e),a.style.borderColor="#C8967A",o&&(o.style.opacity="1",o.style.pointerEvents="auto")),document.getElementById("gen-count").textContent=t.size+" seleccionados"};window._toggleColorGen=function(e,t){var n,i;const a=document.getElementById(`gen-col-${e}-${t}`);if(!a)return;const o=a.dataset.sel==="1";a.dataset.sel=o?"0":"1",a.style.borderColor=o?"#ccc":"#C8967A",a.style.opacity=o?"0.3":"1",a.title=(((i=(n=window._generadorData.coloresPorProd[e])==null?void 0:n[t])==null?void 0:i.color)||"")+(o?" (excluido)":"")};window._selTodosGenerador=function(){const{productos:e,seleccionados:t}=window._generadorData,a=t.size===e.length;t.clear(),e.forEach((o,n)=>{const i=document.getElementById("gen-item-"+n);a?i&&(i.style.borderColor="transparent"):(t.add(n),i&&(i.style.borderColor="#C8967A"))}),document.getElementById("gen-count").textContent=t.size+" seleccionados"};function xe(e){return new Promise(t=>{const a=new Image;a.crossOrigin="anonymous",a.onload=()=>t(a),a.onerror=()=>t(null),a.src=e+(e.includes("?")?"&":"?")+"_t="+Date.now()})}function Re(e,t,a,o,n,i){const r=t.split(" ");let s="",d=o;for(let l of r){const c=s+(s?" ":"")+l;e.measureText(c).width>n&&s?(e.fillText(s,a,d),s=l,d+=i):s=c}return s&&e.fillText(s,a,d),d+i}window.generarPaginasCanvas=async function(e){const{productos:t,variantes:a,seleccionados:o,coloresPorProd:n}=window._generadorData;if(!o.size){alert("Selecciona al menos un producto");return}const i=document.getElementById("gen-layout").value,r=i==="1e"?1:parseInt(i),s=[];Array.from(o).sort((f,v)=>f-v).forEach(f=>{const v=t[f],x=n?n[f]:[];if(!x||x.length<=1)s.push({prod:v,origIdx:f,colorFiltro:null,todosColSel:x||[]});else{const h=x.filter((w,C)=>{const A=document.getElementById(`gen-col-${f}-${C}`);return!A||A.dataset.sel!=="0"}),$=h.length>0?h:x;for(const w of $)s.push({prod:v,origIdx:f,colorFiltro:w.color,todosColSel:$})}});const d=f=>{const v=a.filter(x=>x.producto_id===f.prod.id&&x.activa!==!1);return f.colorFiltro?v.filter(x=>(x.color||"").trim()===f.colorFiltro):v},l=[];for(let f=0;f<s.length;f+=r)l.push(s.slice(f,f+r));const c=document.getElementById("btn-generar"),p=document.getElementById("gen-progress"),m=document.getElementById("gen-msg"),g=document.getElementById("gen-bar");c.disabled=!0,p.style.display="block";const{paginas:u}=window._catalogoPaginasData;let y=u.length>0?Math.max(...u.map(f=>f.pagina_numero))+1:1;for(let f=0;f<l.length;f++){const v=l[f],x=k=>(k==null?void 0:k.prod)??k,h=k=>(k==null?void 0:k.origIdx)??t.indexOf((k==null?void 0:k.prod)??k);m.textContent=`Generando página ${f+1} de ${l.length}...`,g.style.width=f/l.length*100+"%";const $=document.createElement("canvas");$.width=1080,$.height=1440;const w=$.getContext("2d");if(w.fillStyle="#FAFAF8",w.fillRect(0,0,1080,1440),w.fillStyle="#C8967A",w.fillRect(60,48,960,1),w.fillStyle="#2A1A0E",w.font="300 22px DM Sans, sans-serif",w.textAlign="center",w.letterSpacing="8px",w.fillText("ZAPATILLAS MAY",540,42),w.letterSpacing="0px",w.fillStyle="#C8967A",w.fillRect(60,58,960,1),i==="1e"){const k=v[0],S=x(k),U=d(k),L=[],F=new Set,j=P=>{P&&!F.has(P)&&(F.add(P),L.push(P))};U.length>0&&U[0].foto_url?j(U[0].foto_url):j(S.imagen_principal);for(const P of U)if(j(P.foto_url),Array.isArray(P.imagenes)&&P.imagenes.forEach(j),L.length>=3)break;const N=L.length,I=(k.todosColSel||[]).map(P=>({color:P.color,hex:P.hex})),E={negro:"#1C1C1C",blanco:"#F8F8F8",hueso:"#F0EBE1",beige:"#D9C9A8",camel:"#C19A6B","cafe claro":"#A0725A","cafe medio":"#7A4A30","cafe oscuro":"#4A2010",cafe:"#6B3A2A",chocolate:"#3D1C02",cognac:"#9B4421",taupe:"#8B7355",nude:"#D4A97A","nude claro":"#E8C9A8","nude oscuro":"#C0886A","nude rosa":"#DDA090","palo de rosa":"#D4A0A0",salmon:"#FA8072",coral:"#FF6B4A",rojo:"#CC2200",vino:"#722F37",bordo:"#800020","rosa claro":"#F9C0CB",rosa:"#F4607A",fusha:"#E91E8C",naranja:"#FF8C00",amarillo:"#F5C518",dorado:"#D4AF37",oro:"#CFB53B","oro rosa":"#E8B4B8",plateado:"#C0C0C0","azul claro":"#5B8DB8",azul:"#1E4080","azul marino":"#001F5B",turquesa:"#40C4AA",verde:"#2D6A4F","verde menta":"#98D8C8","gris claro":"#C8C8C8",gris:"#909090","gris oscuro":"#505050",morado:"#7B2D8B",lila:"#C8A0D8",multicolor:"#CCAA88"},B=({color:P,hex:H})=>{if(H&&H.startsWith("#"))return H;const T=(P||"").toLowerCase();if(E[T])return E[T];for(const[R,q]of Object.entries(E))if(T.includes(R))return q;return"#BBAA99"},M=(P,H,T,R,q)=>{if(w.save(),w.fillStyle="#FFFFFF",w.fillRect(H,T,R,q),P){w.beginPath(),w.rect(H,T,R,q),w.clip();const V=P.naturalWidth/P.naturalHeight,Y=R/q;let W,oe,G,X;V>Y?(G=R,X=R/V,W=H,oe=T+(q-X)/2):(X=q,G=q*V,oe=T,W=H+(R-G)/2),w.drawImage(P,W,oe,G,X)}w.restore()},_=62,D=1080,O=_+D+12;if(N>=3){const[P,H,T]=await Promise.all(L.slice(0,3).map(xe)),R=10,q=10,V=648,Y=1080-V-R,W=Math.floor((D-q)/2);M(P,0,_,V,D),M(H,V+R,_,Y,W),M(T,V+R,_+W+q,Y,W)}else if(N===2){const[P,H]=await Promise.all(L.map(xe)),T=10,R=Math.floor((1080-T)/2);M(P,0,_,R,D),M(H,R+T,_,R,D)}else{const[P]=await Promise.all([xe(L[0])]);M(P,40,_,1e3,D)}if(w.fillStyle="#E8DDD5",w.fillRect(0,O,1080,1),w.fillStyle="#2A1A0E",w.textAlign="center",w.font="300 28px DM Sans, sans-serif",w.letterSpacing="3px",Re(w,S.nombre.toUpperCase(),540,O+42,960,38),w.letterSpacing="0px",S.sku&&(w.fillStyle="#A07860",w.font="400 14px DM Mono, monospace",w.fillText(S.sku,540,O+66)),I.length>0){const T=Math.min(I.length,14),R=T*(11*2)+(T-1)*8;let q=Math.round(540-R/2+11);const V=O+100;for(let Y=0;Y<T;Y++){const W=q+Y*30;w.beginPath(),w.arc(W,V,11,0,Math.PI*2),w.fillStyle=B(I[Y]),w.fill(),w.strokeStyle="rgba(0,0,0,0.18)",w.lineWidth=1.5,w.stroke()}}}else{const k=r<=2?r:2,S=r===4?2:1,U=80,L=100,F=r===1?0:20,j=r===4?20:0,N=r===1?40:28,I=(1080-N*2-F*(k-1))/k,E=(1440-U-L-j*(S-1))/S;for(let B=0;B<v.length;B++){const M=x(v[B]);h(v[B]);const _=B%k,D=Math.floor(B/k),O=N+_*(I+F),P=U+D*(E+j),H=r===1?120:r===2?90:70,T=E-H,R=d(v[B]),q=R.length>0&&R[0].foto_url?R[0].foto_url:M.imagen_principal,V=await xe(q);if(w.save(),w.fillStyle="#FFFFFF",w.fillRect(O,P,I,T),V){w.beginPath(),w.rect(O,P,I,T),w.clip();const oe=V.naturalWidth/V.naturalHeight,G=I/T;let X,ee,K,te;oe>G?(K=I,te=I/oe,X=O,ee=P+(T-te)/2):(te=T,K=T*oe,ee=P,X=O+(I-K)/2),w.drawImage(V,X,ee,K,te)}w.restore(),w.fillStyle="#E8DDD5",w.fillRect(O,P+T,I,1);const Y=P+T+H/2;w.fillStyle="#2A1A0E",w.textAlign="center";const W=r===1?34:r===2?24:19;w.font=`300 ${W}px DM Sans, sans-serif`,w.letterSpacing="2px",Re(w,M.nombre.toUpperCase(),O+I/2,Y-8,I-32,W+10),w.letterSpacing="0px",M.sku&&(w.fillStyle="#A07860",w.font=`400 ${r===1?18:13}px DM Mono, monospace`,w.fillText(M.sku,O+I/2,Y+(r===1?36:26)))}}w.fillStyle="#C8967A",w.fillRect(60,1340,960,1),w.fillStyle="#A07860",w.font="300 18px DM Sans, sans-serif",w.textAlign="center",w.letterSpacing="3px",w.fillText("@ZAPATILLASMAY",540,1368),w.letterSpacing="0px",w.fillStyle="#C0A898",w.font="300 15px DM Sans, sans-serif",w.fillText("zapatillasmay.mx  ·  León, Guanajuato",540,1394);const C=await new Promise(k=>$.toBlob(k,"image/jpeg",.92)),A=new FormData;A.append("archivo",C,`catalogo-pag-${y}.jpg`);try{const S=await(await fetch(b+"/imagenes/subir?carpeta=catalogos",{method:"POST",body:A})).json();S.url&&await fetch(b+"/catalogos/"+e+"/paginas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imagen_url:S.url,pagina_numero:y++})})}catch(k){console.error("Error subiendo página generada",k)}}g.style.width="100%",m.textContent=`✅ ${l.length} páginas generadas`,setTimeout(()=>{p.style.display="none"},2e3),c.disabled=!1,await gestionarPaginas(e,window._catalogoPaginasData.nombre)};window.descargarCatalogoPorCategoria=async function(e,t){const a=document.getElementById("cat-pdf-msg"),o=document.querySelectorAll("#cat-pdf-btns button");o.forEach(n=>n.disabled=!0),a&&(a.style.display="block",a.textContent=`⏳ Cargando productos de ${t}...`);try{const[n,i]=await Promise.all([fetch(b+`/productos/?categoria=eq.${e}&activo=eq.true&order=nombre.asc`),fetch(b+"/variantes/")]),r=await n.json(),s=await i.json();if(!r.length){a&&(a.textContent=`Sin productos activos en ${t}`),setTimeout(()=>{a&&(a.style.display="none")},3e3),o.forEach(j=>j.disabled=!1);return}const d=[];if(r.forEach(j=>{const N=s.filter(E=>E.producto_id===j.id&&E.activa!==!1),I=new Set;N.forEach(E=>{if(!E.color||I.has(E.color.trim().toUpperCase()))return;I.add(E.color.trim().toUpperCase());const B=E.foto_url||j.imagen_principal;B&&d.push({sku:j.sku_interno||"S/K",color:E.color.trim().toUpperCase(),imgUrl:B})}),I.size===0&&j.imagen_principal&&d.push({sku:j.sku_interno||"S/K",color:"ÚNICO",imgUrl:j.imagen_principal})}),!d.length){a&&(a.textContent=`Sin fotos disponibles para ${t}`),setTimeout(()=>{a&&(a.style.display="none")},3e3),o.forEach(j=>j.disabled=!1);return}a&&(a.textContent=`✏️ Generando catálogo PDF (${d.length} variantes)...`),window.jspdf||await new Promise((j,N)=>{const I=document.createElement("script");I.src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",I.onload=j,I.onerror=N,document.head.appendChild(I)});const{jsPDF:l}=window.jspdf,c=2,p=3,m=c*p,g=1080,u=1440,y=40,f=80,v=24,x=32,h=(g-y*2-v*(c-1))/c,$=(u-f*2-x*(p-1))/p,w=$-50,C=j=>new Promise(N=>{if(!j)return N(null);const I=new Image;I.crossOrigin="anonymous",I.onload=()=>N(I),I.onerror=()=>N(null),I.src=j+(j.includes("?")?"&":"?")+"_t="+Date.now()}),A=(j,N,I,E,B,M)=>{if(j.save(),j.fillStyle="#FFFFFF",j.fillRect(I,E,B,M),N){j.beginPath(),j.rect(I,E,B,M),j.clip();const _=N.naturalWidth/N.naturalHeight,D=B/M;let O,P,H,T;_>D?(H=B,T=B/_,O=I,P=E+(M-T)/2):(T=M,H=M*_,P=E,O=I+(B-H)/2),j.drawImage(N,O,P,H,T)}else j.fillStyle="#F3F4F6",j.fillRect(I,E,B,M),j.fillStyle="#9CA3AF",j.font="20px sans-serif",j.textAlign="center",j.fillText("Sin imagen",I+B/2,E+M/2);j.restore()},k=[];for(let j=0;j<d.length;j+=m)k.push(d.slice(j,j+m));const S=new l({orientation:"portrait",unit:"px",format:[g,u]});let U=!0;const L=t.replace(/^[^\s]+\s/,"").toUpperCase();for(let j=0;j<k.length;j++){a&&(a.textContent=`✏️ Generando página ${j+1} de ${k.length}...`);const N=k[j],I=document.createElement("canvas");I.width=g,I.height=u;const E=I.getContext("2d");E.fillStyle="#FAFAF8",E.fillRect(0,0,g,u),E.fillStyle="#2A1A0E",E.font="300 20px sans-serif",E.textAlign="center",E.letterSpacing="4px",E.fillText(`CATÁLOGO DE ${L}`,g/2,38),E.letterSpacing="0px",E.fillStyle="#C8967A",E.fillRect(y,48,g-y*2,1.5);for(let M=0;M<N.length;M++){const _=N[M],D=M%c,O=Math.floor(M/c),P=y+D*(h+v),H=f+O*($+x),T=await C(_.imgUrl);A(E,T,P,H,h,w),E.fillStyle="#E8DDD5",E.fillRect(P,H+w,h,1),E.fillStyle="#2A1A0E",E.textAlign="center",E.font="600 18px sans-serif",E.fillText(`${_.sku} ${_.color}`,P+h/2,H+w+28)}E.fillStyle="#C8967A",E.fillRect(y,u-48,g-y*2,1),E.fillStyle="#A07860",E.font="300 14px sans-serif",E.textAlign="center",E.fillText(`Página ${j+1} de ${k.length}`,g/2,u-30);const B=I.toDataURL("image/jpeg",.9);U||S.addPage([g,u]),S.addImage(B,"JPEG",0,0,g,u),U=!1}const F=`catalogo_${e}_${new Date().toISOString().slice(0,10)}.pdf`;S.save(F),a&&(a.textContent="✅ Descargado!",setTimeout(()=>{a.style.display="none"},4e3))}catch(n){console.error(n),a&&(a.textContent="Error generando el PDF: "+n.message)}finally{o.forEach(n=>n.disabled=!1)}};window.subirPaginasCatalogo=async function(e,t){const a=Array.from(e.files||e);if(!a.length)return;const o=document.getElementById("upload-progress"),n=document.getElementById("upload-msg"),i=document.getElementById("upload-bar");o&&(o.style.display="block");const{paginas:r}=window._catalogoPaginasData;let s=r.length>0?Math.max(...r.map(d=>d.pagina_numero))+1:1;for(let d=0;d<a.length;d++){n&&(n.textContent=`Subiendo ${d+1} de ${a.length}...`),i&&(i.style.width=d/a.length*100+"%");try{const l=new FormData;l.append("archivo",a[d]);const p=await(await fetch(b+"/imagenes/subir?carpeta=catalogos",{method:"POST",body:l})).json();p.url&&await fetch(b+"/catalogos/"+t+"/paginas",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({imagen_url:p.url,pagina_numero:s++})})}catch(l){console.error("Error subiendo página "+(d+1),l)}}i&&(i.style.width="100%"),n&&(n.textContent="✅ Listo"),setTimeout(()=>{o&&(o.style.display="none")},1500),e.value!==void 0&&(e.value=""),await gestionarPaginas(t,window._catalogoPaginasData.nombre)};window.moverPagina=async function(e,t){const{paginas:a,catalogoId:o,nombre:n}=window._catalogoPaginasData,i=a.findIndex(l=>l.id===e);if(i===-1)return;const r=t==="up"?i-1:i+1;if(r<0||r>=a.length)return;const s=a[i].pagina_numero,d=a[r].pagina_numero;await Promise.all([fetch(b+"/catalogos/paginas/"+a[i].id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({pagina_numero:d})}),fetch(b+"/catalogos/paginas/"+a[r].id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({pagina_numero:s})})]),await gestionarPaginas(o,n)};window.eliminarPagina=async function(e,t){confirm("¿Eliminar esta página?")&&(await fetch(b+"/catalogos/paginas/"+e,{method:"DELETE"}),await gestionarPaginas(t,window._catalogoPaginasData.nombre))};window.usarComoPortada=async function(e,t){await fetch(b+"/catalogos/"+t,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({portada_url:e})}),alert("✅ Portada actualizada")};window.mlVerStock=async function(e){const t=e.innerHTML;e.innerHTML="⏳ Consultando...",e.disabled=!0;const a=document.getElementById("ml-resultado");try{const n=await(await fetch(b+"/ml/stock")).json();if(a.style.display="block",n.diferencias&&n.diferencias.length>0){const i=n.diferencias.map(r=>`${r.item_id} | SKU: ${r.seller_sku} | ML: ${r.qty_ml} | ERP: ${r.qty_erp}`).join(`
+`);a.textContent=`📊 ${n.total_items} items · ${n.desactualizados} desactualizados · ${n.sin_sku} sin SKU
+
+DIFERENCIAS:
+${i}`}else a.textContent=`✅ Todo sincronizado — ${n.total_items} items revisados`}catch(o){a.style.display="block",a.textContent="Error: "+o.message}e.innerHTML=t,e.disabled=!1};window.mlSincronizar=async function(e){if(!confirm("¿Sincronizar el stock de todas las publicaciones de MercadoLibre con el ERP?"))return;const t=e.innerHTML;e.innerHTML="⏳ Sincronizando...",e.disabled=!0;const a=document.getElementById("ml-resultado");try{const n=await(await fetch(b+"/ml/sync",{method:"POST"})).json();a.style.display="block",a.textContent="🔄 "+n.message+`
+
+Espera 30 segundos y haz clic en "Ver resultado".`}catch(o){a.style.display="block",a.textContent="Error: "+o.message}e.innerHTML=t,e.disabled=!1};window.mlVerLog=async function(e){var o,n,i;const t=e.innerHTML;e.innerHTML="⏳ Cargando...",e.disabled=!0;const a=document.getElementById("ml-resultado");try{const s=await(await fetch(b+"/ml/sync/log")).json();if(a.style.display="block",s.error)a.textContent="❌ Error: "+s.error;else if(s.message)a.textContent=s.message;else{const d=s.ts?new Date(s.ts*1e3).toLocaleString("es-MX"):"";a.textContent=`Última sync: ${d}
+
+✅ Actualizados: ${s.actualizados}
+⏭️  Sin cambio:   ${s.sin_cambio}
+❓ Sin match:    ${s.sin_match}
+❌ Errores:      ${s.errores}`+((o=s.detalle_actualizados)!=null&&o.length?`
+
+ACTUALIZADOS:
+`+s.detalle_actualizados.map(l=>`  ${l.sku}: ${l.antes} → ${l.despues}`).join(`
+`):"")+((n=s.detalle_errores)!=null&&n.length?`
+
+ERRORES:
+`+s.detalle_errores.map(l=>`  ${l.sku}: ${l.error}`).join(`
+`):"")+((i=s.detalle_sin_match)!=null&&i.length?`
+
+SIN MATCH (primeros 20):
+`+s.detalle_sin_match.map(l=>`  ${l.item} ${l.sku}`).join(`
+`):"")}}catch(r){a.style.display="block",a.textContent="Error: "+r.message}e.innerHTML=t,e.disabled=!1};async function gt(e,t){var r,s,d,l,c,p;const a=document.getElementById("ml-pub-sku").value.trim(),o=document.getElementById("ml-pub-listing").value,n=document.getElementById("ml-pub-resultado"),i=t.innerHTML;if(!a){alert("Ingresa el SKU del producto (ej: M-SAN-0148)");return}t.innerHTML=e?"⏳ Generando preview...":"⏳ Publicando en ML...",t.disabled=!0,n.style.display="none";try{const m=await fetch(b+"/ml/publicar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_interno:a.toUpperCase().trim(),listing_type:o,solo_preview:e})}),g=await m.json();if(n.style.display="block",!m.ok){n.textContent="❌ Error: "+(g.detail||JSON.stringify(g));return}if(e){const u=(r=g.resultados)==null?void 0:r[0];if(!u){n.textContent="Sin resultados";return}const y=u.preview;let f=`=== PREVIEW — ${g.producto} (${g.total} variantes) ===
+
+`;f+=`Producto:    ${g.producto} (${g.categoria})
+`,f+=`Category ID: ${g.category_id}
+`,f+=`Listing:     ${o}
+
+`,f+=`--- Primera variante: ${u.sku} ---
+`,f+=`Título:      ${y.title}
+`,f+=`Precio:      $${y.price} MXN
+`,f+=`Stock:       ${y.available_quantity}
+`,f+=`Imágenes:    ${((s=y.pictures)==null?void 0:s.length)||0}
+`,f+=`Descripción: ${(l=(d=y.description)==null?void 0:d.plain_text)==null?void 0:l.substring(0,120)}...
+
+`,f+=`Atributos:
+`+(y.attributes||[]).map(v=>`  ${v.id}: ${v.value_name}`).join(`
+`),f+=`
+
+... y ${g.total-1} variantes más con la misma estructura.`,n.textContent=f}else{const u=((c=g.resultados)==null?void 0:c.filter(v=>v.status==="publicado"))||[],y=((p=g.resultados)==null?void 0:p.filter(v=>v.status==="error"))||[];let f=`=== RESULTADO — ${g.producto} ===
+`;f+=`✅ Publicados: ${u.length}   ❌ Errores: ${y.length}
+
+`,u.length&&(f+=`PUBLICADOS:
+`,u.forEach(v=>{f+=`  ${v.sku} → ${v.item_id}
+  ${v.permalink||""}
+`})),y.length&&(f+=`
+ERRORES:
+`,y.forEach(v=>{var x;f+=`  ${v.sku}  [${v.codigo}] ${v.error}
+`,(x=v.causas)!=null&&x.length&&v.causas.forEach(h=>{f+=`    ↳ ${h.code}: ${h.message}
+`})})),n.textContent=f}}catch(m){n.style.display="block",n.textContent="Error inesperado: "+m.message}finally{t.innerHTML=i,t.disabled=!1}}window.mlPublicarPreview=function(e){gt(!0,e)};window.mlPublicarReal=function(e){confirm("¿Publicar TODAS las variantes activas de este producto en MercadoLibre? Esto creará nuevos items en tu cuenta.")&&gt(!1,e)};window.descargarExcelTikTok=async function(e,t,a){const o=e.innerHTML;try{e.innerHTML="⏳ Generando...",e.disabled=!0;const n=await fetch(`${b}/tiktok/${t}`);if(!n.ok){const d=await n.text();throw new Error(`Error ${n.status}: ${d}`)}const i=await n.blob(),r=URL.createObjectURL(i),s=document.createElement("a");s.href=r,s.download=a,document.body.appendChild(s),s.click(),document.body.removeChild(s),URL.revokeObjectURL(r)}catch(n){alert("Error al descargar el archivo: "+n.message)}finally{e.innerHTML=o,e.disabled=!1}};async function Rt(){const e=document.getElementById("content");e.innerHTML=`
+    <div style="padding:2rem;max-width:860px">
+      <h2 style="margin-bottom:0.25rem">🛒 MercadoLibre</h2>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">
+        Genera el preview, edita el JSON de cada variante (especialmente el título), y publica.
+      </p>
+
+      <!-- Mis publicaciones -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <h3 style="margin:0">📋 Mis publicaciones</h3>
+          <button onclick="mlCargarPublicaciones(this)"
+                  style="padding:0.4rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔄 Cargar / Actualizar
+          </button>
+        </div>
+        <div id="ml-pubs-wrap">
+          <p style="color:#aaa;font-size:0.85rem;margin:0">Haz clic en "Cargar" para ver tus publicaciones activas en MercadoLibre.</p>
+        </div>
+      </div>
+
+      <!-- Paso 1: configurar -->
+      <div class="card" style="margin-bottom:1.5rem">
+        <h3 style="margin-bottom:1rem">Paso 1 — Publicar producto nuevo</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+          <div style="position:relative">
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU o modelo del producto</label>
+            <input id="ml-sku" type="text" placeholder="Ej: CR3385 o C-TAC-0118" autocomplete="off"
+                   style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;box-sizing:border-box">
+            <div id="ml-sku-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de publicación</label>
+            <select id="ml-listing"
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+              <option value="gold_pro">Oro Premium — gold_pro (16%)</option>
+              <option value="gold_special">Oro Especial — gold_special (12%)</option>
+              <option value="silver">Plata (9%)</option>
+              <option value="bronze">Bronce (5%)</option>
+            </select>
+            <div style="font-size:0.75rem;color:#e67e22;margin-top:3px">⚠️ La categoría de calzado no admite publicaciones gratis</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem;align-items:start">
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+              Título para ML <span style="color:#3483fa">★</span>
+              <span style="font-weight:400;color:#888">(igual para todas las variantes)</span>
+            </label>
+            <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
+                   maxlength="60"
+                   style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
+            <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+              Precio ML (MXN) <span style="color:#888;font-weight:400">— opcional</span>
+            </label>
+            <input id="ml-precio" type="number" min="1" step="1" placeholder="Ej: 520"
+                   style="width:130px;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
+            <div style="font-size:0.75rem;color:#888;margin-top:3px">Vacío = precio del ERP</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
+            Descripción ML
+            <span style="font-weight:400;color:#888">— vacío = usa la del ERP</span>
+          </label>
+          <textarea id="ml-descripcion" rows="4"
+                    placeholder="Descripción del producto para MercadoLibre..."
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.88rem;resize:vertical;box-sizing:border-box"></textarea>
+        </div>
+
+        <!-- Selector de foto de portada — se llena al generar preview -->
+        <div id="ml-fotos-wrap" style="display:none;margin-bottom:0.75rem">
+          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:6px">
+            📷 Foto de portada
+            <span style="color:#e67e22">★</span>
+            <span style="font-weight:400;color:#888"> — ML exige fondo blanco/sin fondo. Click para seleccionar cuál va primero.</span>
+          </label>
+          <div id="ml-fotos-grid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        </div>
+
+        <button onclick="mlGenerarPreview()" id="ml-btn-preview"
+                style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
+          🔍 Generar preview
+        </button>
+      </div>
+
+      <!-- Paso 2: editar variantes -->
+      <div id="ml-variantes-wrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <h3 id="ml-variantes-titulo" style="margin:0">Paso 2 — Edita los JSONs</h3>
+          <button onclick="mlPublicarTodas()" id="ml-btn-publicar"
+                  style="padding:0.6rem 1.5rem;background:#ffe600;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:700">
+            🚀 Publicar todas en ML
+          </button>
+        </div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">
+          Cada textarea es el JSON que se enviará a ML. Puedes cambiar el título, precio, imágenes, etc.
+        </p>
+        <div id="ml-variantes-list"></div>
+      </div>
+
+      <!-- Resultado publicación -->
+      <div id="ml-resultado" style="display:none;margin-top:1.5rem" class="card">
+        <h3 id="ml-resultado-titulo" style="margin-bottom:0.75rem">Resultado</h3>
+        <div id="ml-resultado-body"></div>
+      </div>
+    </div>
+  `,document.getElementById("ml-titulo").addEventListener("input",function(){document.getElementById("ml-titulo-count").textContent=this.value.length});let t=[];fetch(`${b}/productos/?select=id,sku_interno,nombre,activo`).then(r=>r.json()).then(r=>{t=(Array.isArray(r)?r:[]).filter(s=>s.activo!==!1)}).catch(()=>{});const a=document.getElementById("ml-sku"),o=document.getElementById("ml-sku-sug"),n=r=>{if(r=(r||"").toLowerCase().trim(),!r||!t.length){o.style.display="none";return}const s=t.filter(d=>(d.nombre||"").toLowerCase().includes(r)||(d.sku_interno||"").toLowerCase().includes(r)).slice(0,12);if(!s.length){o.style.display="none";return}o.innerHTML=s.map(d=>`
+      <div onclick="window._mlElegirSku('${(d.sku_interno||"").replace(/'/g,"\\'")}')"
+           style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.85rem"
+           onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='#fff'">
+        <span style="font-weight:600">${d.nombre||""}</span>
+        <span style="color:#888;font-size:0.75rem;margin-left:6px">${d.sku_interno||""}</span>
+      </div>`).join(""),o.style.display="block"};window._mlElegirSku=r=>{a.value=r,o.style.display="none"},a.addEventListener("input",()=>n(a.value)),a.addEventListener("focus",()=>n(a.value)),document.addEventListener("click",r=>{o&&!o.contains(r.target)&&r.target!==a&&(o.style.display="none")}),window._mlResolverSku=r=>{const s=(r||"").trim();if(!s||!t.length)return s.toUpperCase();const d=t.find(c=>(c.sku_interno||"").toUpperCase()===s.toUpperCase());if(d)return d.sku_interno.toUpperCase();const l=t.filter(c=>(c.nombre||"").toLowerCase().includes(s.toLowerCase()));return l.length===1?l[0].sku_interno.toUpperCase():l.length>1?"__AMBIGUO__":s.toUpperCase()},window.mlGenerarPreview=async()=>{var g,u,y,f;const r=document.getElementById("ml-sku").value.trim(),s=document.getElementById("ml-listing").value,d=document.getElementById("ml-titulo").value.trim(),l=document.getElementById("ml-precio").value.trim(),c=l?parseFloat(l):null;if(!r){alert("Ingresa el SKU o modelo del producto");return}const p=window._mlResolverSku(r);if(p==="__AMBIGUO__"){alert('Hay varios productos que coinciden con "'+r+'". Elige uno de la lista que aparece al escribir.');return}if(!d){alert("Ingresa el título para ML");return}if(d.length>60){alert("El título no puede superar 60 caracteres");return}if(c!==null&&(isNaN(c)||c<=0)){alert("El precio debe ser mayor a 0");return}const m=document.getElementById("ml-btn-preview");m.textContent="⏳ Generando...",m.disabled=!0;try{const v=await fetch(`${b}/ml/publicar`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_interno:p,listing_type:s,solo_preview:!0})}),x=await v.json();if(!v.ok){alert("Error: "+(x.detail||JSON.stringify(x)));return}const h=x.resultados||[];if(!h.length){alert("No se encontraron variantes activas");return}const $=document.getElementById("ml-descripcion"),w=((y=(u=(g=h[0])==null?void 0:g.preview)==null?void 0:u.description)==null?void 0:y.plain_text)||"";$.value.trim()||($.value=w);const C={},A=[],k=new Set;for(const I of h){const E=I.color||"Sin color";C[E]||(C[E]=[]);for(const B of((f=I.preview)==null?void 0:f.pictures)||[])B.source&&(C[E].find(M=>M.source===B.source)||C[E].push(B),k.has(B.source)||(k.add(B.source),A.push(B)))}const S={},U=new Set,L=new Set;for(const I of Object.keys(C))S[I]=0,U.add(I);const F=Object.keys(C);if(F.length>0){const I=document.getElementById("ml-fotos-wrap"),E=document.getElementById("ml-fotos-grid"),B=()=>{M();const _=h.filter(D=>U.has(D.color||"Sin color"));i(_,d,c,S,$.value.trim(),C,L)},M=()=>{E.innerHTML=F.map(_=>{const D=C[_];if(!D.length)return"";const O=U.has(_),P=_.replace(/'/g,"\\'"),H=_.replace(/[^a-zA-Z0-9]/g,"_");return`
+              <div style="margin-bottom:1rem;width:100%;opacity:${O?1:.4}">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px">
+                  <input type="checkbox" id="ml-chk-${H}" ${O?"checked":""}
+                    onchange="mlToggleColor('${P}')"
+                    style="width:16px;height:16px;cursor:pointer;accent-color:#3483fa">
+                  <span style="font-size:0.82rem;font-weight:700;color:#333">${_}</span>
+                  <span style="font-size:0.72rem;color:#888">(${h.filter(T=>(T.color||"Sin color")===_).length} tallas)</span>
+                </label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;padding-left:24px">
+                  ${D.map((T,R)=>{const q=L.has(T.source),V=R===S[_]&&O&&!q;return`
+                    <div onclick="${O&&!q?`mlSeleccionarPortadaColor('${P}',${R})`:""}"
+                         id="ml-foto-${H}-${R}"
+                         style="cursor:${O&&!q?"pointer":"default"};border:3px solid ${V?"#3483fa":"#ddd"};border-radius:8px;overflow:hidden;width:80px;height:80px;position:relative;flex-shrink:0;opacity:${q?.35:1}">
+                      <img src="${T.source}" style="width:100%;height:100%;object-fit:cover">
+                      ${O?`<div onclick="event.stopPropagation();mlToggleFoto('${P}',${R},'${T.source.replace(/'/g,"\\'")}')" title="${q?"Incluir foto":"Quitar foto"}" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:${q?"#16a34a":"#e74c3c"};color:#fff;font-size:0.75rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.3)">${q?"+":"✕"}</div>`:""}
+                      ${V?'<div style="position:absolute;bottom:0;left:0;right:0;background:#3483fa;color:#fff;font-size:0.55rem;text-align:center;padding:2px;font-weight:700">PORTADA</div>':""}
+                    </div>`}).join("")}
+                </div>
+              </div>`}).join("")};M(),I.style.display="block",window.mlToggleColor=_=>{U.has(_)?U.delete(_):U.add(_),B()},window.mlSeleccionarPortadaColor=(_,D)=>{S[_]=D,B()},window.mlToggleFoto=(_,D,O)=>{if(L.has(O))L.delete(O);else{L.add(O);const P=C[_]||[];if(P[S[_]]&&P[S[_]].source===O){const H=P.findIndex(T=>!L.has(T.source));S[_]=H>=0?H:0}}B()}}const j=h.filter(I=>U.has(I.color||"Sin color"));i(j,d,c,S,$.value.trim(),C);const N=document.getElementById("ml-variantes-wrap");N.style.display="block",N.scrollIntoView({behavior:"smooth",block:"start"})}catch(v){alert("Error de conexión: "+v.message)}finally{m.textContent="🔍 Generar preview",m.disabled=!1}};function i(r,s,d,l,c,p,m){m=m||new Set;const g=document.getElementById("ml-variantes-titulo"),u=document.getElementById("ml-variantes-list");g.textContent=`Paso 2 — Revisa y edita (${r.length} variantes, título aplicado a todas)`,u.innerHTML=r.map((y,f)=>{const v={...y.preview};if(delete v.title,v.family_name=s,d!==null&&(v.price=d),c&&(v.description={plain_text:c}),p){const x=y.color||"Sin color",h=p[x]||[],$=l&&l[x]||0,w=h[$]?h[$].source:null;let C=h.filter(A=>!m.has(A.source));if(w){const A=C.findIndex(k=>k.source===w);if(A>0){const[k]=C.splice(A,1);C.unshift(k)}}if(C.length<3){for(const[A,k]of Object.entries(p))if(A!==x){for(const S of k)if(!m.has(S.source)&&(C.find(U=>U.source===S.source)||C.push(S),C.length>=12))break;if(C.length>=12)break}}v.pictures=C.slice(0,12)}return`
+        <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
+          <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
+            <span>${y.sku||"Variante "+(f+1)} &nbsp;·&nbsp; ${y.color||""} ${y.talla||""}</span>
+            <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
+          </summary>
+          <div style="padding:0.5rem">
+            <textarea id="ml-json-${f}"
+                      style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
+                      spellcheck="false">${JSON.stringify(v,null,2)}</textarea>
+          </div>
+        </details>`}).join("")}window.mlCargarPublicaciones=async r=>{const s=document.getElementById("ml-pubs-wrap"),d=r.innerHTML;r.innerHTML="⏳ Cargando...",r.disabled=!0,s.innerHTML='<p style="color:#aaa;font-size:0.85rem">Consultando MercadoLibre (puede tardar ~10 s)...</p>';try{const l=await fetch(`${b}/ml/items`),c=await l.json();if(!l.ok){s.innerHTML=`<p style="color:red">Error: ${c.detail||JSON.stringify(c)}</p>`;return}const p=c.items||[];if(!p.length){s.innerHTML='<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>';return}const m=v=>{const x={active:["#27ae60","Activa"],paused:["#e67e22","Pausada"],closed:["#e74c3c","Cerrada"],under_review:["#8e44ad","En revisión"]},[h,$]=x[v]||["#999",v];return`<span style="background:${h};color:#fff;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700">${$}</span>`},g=p.map(v=>`
+        <tr data-search="${(v.item_id+" "+(v.title||"")+" "+(v.seller_sku||"")).toLowerCase().replace(/"/g,"")}" style="border-bottom:1px solid var(--border)">
+          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;white-space:nowrap">
+            <a href="https://articulo.mercadolibre.com.mx/${v.item_id.replace(/^(ML[A-Z]+)(\d+)$/,"$1-$2")}" target="_blank" style="color:#3483fa;text-decoration:none">
+              ${v.item_id}
+            </a>
+          </td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${v.title}">${v.title}</td>
+          <td style="padding:0.4rem 0.5rem;white-space:nowrap">${m(v.status)}</td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${v.seller_sku||"—"}</td>
+          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">${v.qty}</td>
+        </tr>`).join(""),u=p.filter(v=>v.status==="active").length,y=p.filter(v=>v.status==="paused").length,f=c.sin_sku||0;s.innerHTML=`
+        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+          <span style="font-size:0.82rem;color:#555">Total: <b>${c.total}</b></span>
+          <span style="font-size:0.82rem;color:#27ae60">Activas: <b>${u}</b></span>
+          <span style="font-size:0.82rem;color:#e67e22">Pausadas: <b>${y}</b></span>
+          ${f?`<span style="font-size:0.82rem;color:#e74c3c">Sin SKU ERP: <b>${f}</b></span>`:""}
+        </div>
+        <input id="ml-pubs-buscar" oninput="mlFiltrarPubs(this.value)" placeholder="🔍 Buscar por título, SKU o item ID..."
+               style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--bg-secondary);position:sticky;top:0">
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Item ID</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Título</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Estado</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKU ERP</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888;font-weight:600">Stock</th>
+              </tr>
+            </thead>
+            <tbody>${g}</tbody>
+          </table>
+        </div>`}catch(l){s.innerHTML=`<p style="color:red">Error de conexión: ${l.message}</p>`}finally{r.innerHTML=d,r.disabled=!1}},window.mlFiltrarPubs=r=>{r=(r||"").toLowerCase().trim(),document.querySelectorAll("#ml-pubs-wrap tbody tr").forEach(s=>{s.style.display=!r||(s.dataset.search||"").includes(r)?"":"none"})},window.mlPublicarTodas=async()=>{if(!confirm("¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?"))return;const s=document.getElementById("ml-variantes-list").querySelectorAll("textarea"),d=[];for(let g=0;g<s.length;g++)try{d.push(JSON.parse(s[g].value))}catch(u){alert(`JSON inválido en variante ${g+1}: ${u.message}`);return}const l=document.getElementById("ml-btn-publicar");l.textContent="⏳ Publicando...",l.disabled=!0;const c=document.getElementById("ml-resultado"),p=document.getElementById("ml-resultado-titulo"),m=document.getElementById("ml-resultado-body");c.style.display="block",p.textContent="⏳ Publicando...",m.innerHTML='<p style="color:#888">Enviando a MercadoLibre...</p>';try{const u=await(await fetch(`${b}/ml/publicar-payloads`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({payloads:d})})).json(),y=u.publicados||0,f=u.errores||0;p.textContent=`✅ ${y} publicado(s)${f?` · ❌ ${f} con error`:""} de ${u.total||0}`,m.innerHTML=(u.resultados||[]).map(v=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #eee">
+          <span style="font-size:0.85rem">${v.sku||"—"} ${v.title?"— "+v.title:""}</span>
+          ${v.ok?`<a href="${v.permalink||"#"}" target="_blank"
+                 style="font-size:0.8rem;color:#3483fa;white-space:nowrap">🔗 ${v.item_id}</a>`:`<span style="font-size:0.8rem;color:red"
+                     title='${JSON.stringify(v.causa||[])}'>❌ ${v.error||"Error"}</span>`}
+        </div>
+      `).join("")||'<p style="color:#888">Sin detalles</p>'}catch(g){p.textContent="❌ Error de conexión",m.innerHTML=`<p style="color:red">${g.message}</p>`}finally{l.textContent="🚀 Publicar todas en ML",l.disabled=!1}}}let Q=[],me="";async function qt(){const e=document.getElementById("content");e.innerHTML=`
+    <style>
+      .oh-wrap { padding:1rem; max-width:700px; }
+      .oh-row {
+        display:flex; align-items:center; gap:0.6rem;
+        background:#fff; border:1px solid #eee; border-radius:8px;
+        padding:0.5rem 0.65rem; margin-bottom:0.4rem;
+        transition: box-shadow .15s, opacity .15s;
+      }
+      .oh-row.dragging { opacity:.4; }
+      .oh-row.drag-over { box-shadow:0 0 0 2px #3483fa; background:#f0f6ff; }
+      .oh-handle { cursor:grab; color:#ccc; font-size:1.1rem; user-select:none; flex-shrink:0; }
+      .oh-pos-input {
+        width:42px; height:32px; border:1px solid #ddd; border-radius:6px;
+        text-align:center; font-size:0.85rem; font-weight:700; color:#3483fa;
+        background:#f8f9ff; flex-shrink:0;
+      }
+      .oh-pos-input:focus { outline:none; border-color:#3483fa; background:#fff; }
+      .oh-img { width:40px; height:40px; object-fit:cover; border-radius:6px; background:#f5f5f5; flex-shrink:0; }
+      .oh-info { flex:1; min-width:0; }
+      .oh-nombre { font-size:0.83rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .oh-sku { font-size:0.7rem; color:#aaa; }
+      .oh-btns { display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+      .oh-btn {
+        width:26px; height:26px; border:1px solid #e0e0e0; border-radius:5px;
+        background:#fafafa; cursor:pointer; font-size:0.85rem;
+        display:flex; align-items:center; justify-content:center; padding:0;
+      }
+      .oh-btn:active { background:#e8f0ff; }
+      .oh-btn:disabled { opacity:.25; cursor:default; }
+      .oh-stock-badge {
+        background:#e8f5e9; color:#2e7d32; font-size:0.66rem; font-weight:700;
+        padding:1px 6px; border-radius:100px; margin-left:4px; white-space:nowrap;
+      }
+      @media(max-width:480px){
+        .oh-nombre { font-size:0.78rem; }
+        .oh-img { width:34px; height:34px; }
+        .oh-handle { display:none; }
+      }
+    </style>
+    <div class="oh-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+        <div>
+          <h2 style="margin:0;font-size:1.05rem">🏠 Orden en Home</h2>
+          <p style="margin:0.2rem 0 0;font-size:0.75rem;color:#888">Escribe un número para mover el modelo a esa posición</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <button id="oh-sort-stock-btn" onclick="_ohOrdenarPorStock()" style="background:#fff;color:#2e7d32;border:1px solid #a5d6a7;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.83rem;font-weight:600;cursor:pointer">
+            📦 Por stock
+          </button>
+          <button id="oh-save-btn" onclick="guardarOrdenHome()" style="background:#3483fa;color:#fff;border:none;border-radius:8px;padding:0.5rem 1.1rem;font-size:0.83rem;font-weight:600;cursor:pointer">
+            💾 Guardar orden
+          </button>
+        </div>
+      </div>
+      <input id="oh-search" type="text" placeholder="🔍 Buscar modelo o SKU..."
+        oninput="_ohFiltrar(this.value)"
+        style="width:100%;box-sizing:border-box;padding:0.55rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;margin-bottom:0.75rem">
+      <div id="oh-count" style="font-size:0.75rem;color:#aaa;margin-bottom:0.5rem"></div>
+      <div id="oh-lista"><p style="color:#888;text-align:center;padding:2rem">Cargando...</p></div>
+    </div>
+  `;try{Q=(await(await fetch(`${b}/productos/`)).json()).filter(o=>o.activo).sort((o,n)=>{const i=o.orden_home??99999,r=n.orden_home??99999;return i!==r?i-r:new Date(n.created_at)-new Date(o.created_at)}),me="",ye()}catch(t){document.getElementById("oh-lista").innerHTML=`<p style="color:red">Error: ${t.message}</p>`}}window._ohFiltrar=function(e){me=e.toLowerCase().trim(),ye()};function ye(){const e=document.getElementById("oh-lista"),t=document.getElementById("oh-count");if(!e)return;const a=Q.length,o=me?Q.filter(n=>(n.nombre||"").toLowerCase().includes(me)||(n.sku_interno||"").toLowerCase().includes(me)):Q;if(t&&(t.textContent=me?`${o.length} de ${a} modelos`:`${a} modelos activos`),!a){e.innerHTML='<p style="color:#888;text-align:center;padding:2rem">No hay productos activos</p>';return}if(!o.length){e.innerHTML='<p style="color:#aaa;text-align:center;padding:1.5rem">Sin resultados para esa búsqueda</p>';return}e.innerHTML=o.map(n=>{const i=Q.indexOf(n),r=i+1,s=n.foto_principal||n.imagenes&&n.imagenes[0]||"",d=s?`<img class="oh-img" src="${s}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<div class="oh-img" style="display:flex;align-items:center;justify-content:center;font-size:1.1rem">👠</div>';return`
+      <div class="oh-row" id="oh-row-${i}" draggable="true"
+           ondragstart="_ohDragStart(event,${i})"
+           ondragover="_ohDragOver(event,${i})"
+           ondrop="_ohDrop(event,${i})"
+           ondragend="_ohDragEnd()">
+        <span class="oh-handle">⠿</span>
+        <input class="oh-pos-input" type="number" min="1" max="${a}" value="${r}"
+          title="Posición — presiona Enter para mover"
+          onkeydown="if(event.key==='Enter')_ohSetPos('${n.id}',+this.value)"
+          onblur="_ohSetPos('${n.id}',+this.value)">
+        ${d}
+        <div class="oh-info">
+          <div class="oh-nombre">${n.nombre||"Sin nombre"}</div>
+          <div class="oh-sku">${n.sku_interno||""}${n._stockTotal!=null?`<span class="oh-stock-badge">📦 ${n._stockTotal}</span>`:""}</div>
+        </div>
+        <div class="oh-btns">
+          <button class="oh-btn" onclick="_ohMover(${i},-1)" ${i===0?"disabled":""}>↑</button>
+          <button class="oh-btn" onclick="_ohMover(${i},1)" ${i===a-1?"disabled":""}>↓</button>
+        </div>
+      </div>`}).join("")}window._ohSetPos=function(e,t){const a=Q.findIndex(n=>n.id===e);if(a===-1||(t=Math.max(1,Math.min(Math.round(t),Q.length))-1,a===t))return;const[o]=Q.splice(a,1);Q.splice(t,0,o),ye()};window._ohMover=function(e,t){const a=e+t;if(a<0||a>=Q.length)return;const o=Q[e];Q[e]=Q[a],Q[a]=o,ye()};let ue=null;window._ohDragStart=function(e,t){ue=t,e.dataTransfer.effectAllowed="move",setTimeout(()=>{const a=document.getElementById(`oh-row-${t}`);a&&a.classList.add("dragging")},0)};window._ohDragOver=function(e,t){e.preventDefault(),document.querySelectorAll(".oh-row").forEach(o=>o.classList.remove("drag-over"));const a=document.getElementById(`oh-row-${t}`);a&&a.classList.add("drag-over")};window._ohDrop=function(e,t){if(e.preventDefault(),ue===null||ue===t)return;const[a]=Q.splice(ue,1);Q.splice(t,0,a),ue=null,ye()};window._ohDragEnd=function(){ue=null,document.querySelectorAll(".oh-row").forEach(e=>{e.classList.remove("dragging"),e.classList.remove("drag-over")})};window._ohOrdenarPorStock=async function(){const e=document.getElementById("oh-sort-stock-btn");e&&(e.disabled=!0,e.textContent="Cargando...");try{const[t,a]=await Promise.all([fetch(`${b}/variantes/`),fetch(`${b}/inventario/slim`)]),o=await t.json(),n=await a.json(),i={};o.forEach(s=>{i[s.id]=s.producto_id});const r={};n.forEach(s=>{const d=i[s.variante_id];d&&(r[d]=(r[d]||0)+(s.cantidad||0))}),Q.forEach(s=>{s._stockTotal=r[s.id]||0}),Q.sort((s,d)=>(d._stockTotal||0)-(s._stockTotal||0)),ye(),e&&(e.style.background="#e8f5e9",e.textContent="📦 Por stock ✓"),setTimeout(()=>{e&&(e.style.background="#fff",e.textContent="📦 Por stock")},2e3)}catch(t){alert("Error al obtener stock: "+t.message)}finally{e&&(e.disabled=!1)}};window.guardarOrdenHome=async function(){const e=document.getElementById("oh-save-btn");e&&(e.disabled=!0,e.textContent="Guardando...");try{const t=Q.map((n,i)=>({id:n.id,orden_home:i+1})),o=await(await fetch(`${b}/productos/orden-home`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)})).json();o.ok?(e&&(e.textContent="✅ Guardado",e.style.background="#22c55e"),setTimeout(()=>{e&&(e.disabled=!1,e.textContent="💾 Guardar orden",e.style.background="#3483fa")},2e3)):(alert("Error al guardar: "+JSON.stringify(o)),e&&(e.disabled=!1,e.textContent="💾 Guardar orden"))}catch(t){alert("Error: "+t.message),e&&(e.disabled=!1,e.textContent="💾 Guardar orden")}};let ce=null;async function Vt(){ce&&(clearInterval(ce),ce=null);const e=document.getElementById("content");e.innerHTML=`
+    <style>
+      .ga-wrap { padding:1rem; max-width:900px; box-sizing:border-box; }
+      .ga-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem; }
+      .ga-top { display:grid; grid-template-columns:160px 1fr; gap:1rem; margin-bottom:1rem; }
+      .ga-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:0.6rem; }
+      .ga-stat { text-align:center; }
+      .ga-stat-num { font-size:1.6rem; font-weight:700; line-height:1.2; }
+      .ga-stat-lbl { font-size:0.7rem; color:#888; margin-top:2px; }
+      .ga-bar-bg { background:#f0f0f0;border-radius:4px;height:8px;flex:1 }
+      .ga-bar-fill { height:100%;border-radius:4px;background:#3483fa;transition:width .4s }
+      @media(max-width:600px){
+        .ga-wrap { padding:0.75rem; }
+        .ga-top { grid-template-columns:1fr; }
+        .ga-stats { grid-template-columns:repeat(3,1fr); gap:0.4rem; }
+        .ga-stat-num { font-size:1.25rem; }
+        .ga-stat-lbl { font-size:0.65rem; }
+        .ga-2col { grid-template-columns:1fr !important; }
+      }
+    </style>
+    <div class="ga-wrap">
+      <div class="ga-header">
+        <h2 style="margin:0;font-size:1.1rem">📊 Google Analytics</h2>
+        <span id="ga-ultima-act" style="font-size:0.75rem;color:#aaa"></span>
+      </div>
+
+      <!-- Tiempo real + Hoy -->
+      <div class="ga-top">
+        <div class="card" style="text-align:center;padding:1.25rem">
+          <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0.25rem">Ahora en el sitio</div>
+          <div id="ga-activos" style="font-size:3rem;font-weight:700;color:#22c55e;line-height:1">—</div>
+          <div style="font-size:0.7rem;color:#888;margin-top:0.2rem">usuarios activos</div>
+          <div id="ga-dispositivos" style="font-size:0.68rem;color:#bbb;margin-top:0.4rem;line-height:1.5"></div>
+          <div id="ga-paginas-rt" style="margin-top:0.6rem;text-align:left"></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em" id="ga-hoy-label">Hoy</div>
+          <div class="ga-stats">
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-sesiones">—</div><div class="ga-stat-lbl">Sesiones</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-usuarios">—</div><div class="ga-stat-lbl">Usuarios</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-pageviews">—</div><div class="ga-stat-lbl">Páginas</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-nuevos">—</div><div class="ga-stat-lbl">Nuevos</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-duracion">—</div><div class="ga-stat-lbl">Duración</div></div>
+            <div class="ga-stat"><div class="ga-stat-num" id="ga-rebote">—</div><div class="ga-stat-lbl">Rebote</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfica tabs 7d / 30d -->
+      <div class="card" style="margin-bottom:1rem;padding:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em" id="ga-chart-label">Últimos 7 días</div>
+          <div style="display:flex;gap:4px">
+            <button id="ga-tab-7d" onclick="window._gaSetPeriodo('7d')"
+              style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #3483fa;background:#3483fa;color:white;cursor:pointer">7 días</button>
+            <button id="ga-tab-30d" onclick="window._gaSetPeriodo('30d')"
+              style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">30 días</button>
+          </div>
+        </div>
+        <canvas id="ga-chart" height="90"></canvas>
+      </div>
+
+      <!-- Fuentes + Ciudades lado a lado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem" class="ga-2col">
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Fuentes de tráfico</div>
+          <div id="ga-fuentes"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Top ciudades (7 días)</div>
+          <div id="ga-ciudades"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+      </div>
+
+      <!-- Horario de visitas -->
+      <div class="card" style="margin-bottom:1rem;padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Horario de visitas (últimos 7 días)</div>
+        <canvas id="ga-chart-horario" height="70"></canvas>
+      </div>
+
+      <!-- Top páginas -->
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Top páginas hoy</div>
+        <div id="ga-top-paginas"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
+      <!-- Setup guide si no está configurado -->
+      <div id="ga-setup" style="display:none;margin-top:1rem" class="card">
+        <h4 style="margin-top:0">⚙️ Configuración pendiente</h4>
+        <div id="ga-setup-body"></div>
+      </div>
+    </div>
+  `,await Gt(),ce=setInterval(async()=>{document.getElementById("ga-activos")?await ft():(clearInterval(ce),ce=null)},3e4)}async function se(e,t=8e3){const a=new AbortController,o=setTimeout(()=>a.abort(),t);try{const n=await fetch(e,{signal:a.signal});return clearTimeout(o),n}catch(n){throw clearTimeout(o),n.name==="AbortError"?new Error("timeout"):n}}async function Gt(){const e=[ft().catch(()=>Se("ga-activos","—")),Ut().catch(()=>Se("ga-sesiones","—")),bt().catch(()=>Se("ga-chart",null)),Xt().catch(()=>{}),Wt().catch(()=>{}),Kt().catch(()=>{})];await Promise.allSettled(e);const t=document.getElementById("ga-ultima-act");t&&(t.textContent="Actualizado: "+new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",second:"2-digit"}))}function Se(e,t){const a=document.getElementById(e);a&&t!==null&&(a.textContent=t)}async function ft(){var e;try{const a=await(await se(`${b}/analytics/tiempo-real`)).json();if(!a.configurado){Yt(a);return}const o=document.getElementById("ga-activos");if(!o)return;o.textContent=a.activos_ahora??0;const n=document.getElementById("ga-dispositivos");n&&a.por_dispositivo&&(n.textContent=Object.entries(a.por_dispositivo).map(([r,s])=>`${r}: ${s}`).join(" · "));const i=document.getElementById("ga-paginas-rt");i&&((e=a.por_pais)!=null&&e.length)?i.innerHTML='<div style="font-size:0.65rem;color:#aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Por país</div>'+a.por_pais.map(r=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f5f5f5;gap:4px">
+            <span style="font-size:0.68rem;color:#555;flex:1">${r.pais||"Desconocido"}</span>
+            <span style="font-size:0.68rem;font-weight:700;color:#22c55e;flex-shrink:0">${r.activos}</span>
+          </div>`).join(""):i&&(i.innerHTML="")}catch(t){console.warn("GA realtime:",t.message)}}async function Ut(){var e;try{const a=await(await se(`${b}/analytics/hoy`)).json();if(!a.configurado)return;if(a.error){console.warn("GA hoy error:",a.error);return}const o=document.getElementById("ga-hoy-label");o&&(o.textContent=a.periodo==="ayer"?"Ayer (GA4 procesando hoy)":"Hoy");const n=(s,d)=>{const l=document.getElementById(s);l&&(l.textContent=d)};n("ga-sesiones",a.sesiones??"—"),n("ga-usuarios",a.usuarios_activos??"—"),n("ga-pageviews",a.paginas_vistas??"—"),n("ga-nuevos",a.usuarios_nuevos??"—");const i=a.duracion_promedio_s;n("ga-duracion",i?`${Math.floor(i/60)}m ${i%60}s`:"—"),n("ga-rebote",a.tasa_rebote!=null?`${a.tasa_rebote}%`:"—");const r=document.getElementById("ga-top-paginas");r&&((e=a.top_paginas)!=null&&e.length?r.innerHTML=a.top_paginas.map(s=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid #f0f0f0;gap:0.5rem">
+            <span style="font-size:0.8rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
+                  title="${s.pagina}">${s.pagina}</span>
+            <span style="font-size:0.8rem;font-weight:600;color:#3483fa;flex-shrink:0">${s.vistas} vistas</span>
+          </div>`).join(""):r.innerHTML='<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos de páginas aún</p>')}catch(t){console.warn("GA hoy:",t.message)}}async function bt(){var e;try{const a=await(await se(`${b}/analytics/semana`)).json();if(!a.configurado||!((e=a.dias)!=null&&e.length))return;yt(a.dias)}catch(t){console.warn("GA semana:",t.message)}}window._gaPeriodoActivo="7d";window._gaSetPeriodo=async function(e){window._gaPeriodoActivo=e;const t=document.getElementById("ga-tab-7d"),a=document.getElementById("ga-tab-30d"),o=document.getElementById("ga-chart-label");t&&(t.style.background=e==="7d"?"#3483fa":"white",t.style.color=e==="7d"?"white":"#888",t.style.borderColor=e==="7d"?"#3483fa":"#ddd"),a&&(a.style.background=e==="30d"?"#3483fa":"white",a.style.color=e==="30d"?"white":"#888",a.style.borderColor=e==="30d"?"#3483fa":"#ddd"),o&&(o.textContent=e==="7d"?"Últimos 7 días":"Últimos 30 días"),e==="7d"?await bt():await Jt()};async function Jt(){var e;try{const a=await(await se(`${b}/analytics/mes`)).json();if(!a.configurado||!((e=a.dias)!=null&&e.length))return;yt(a.dias)}catch(t){console.warn("GA mes:",t.message)}}function yt(e){const t=document.getElementById("ga-chart");!t||!window.Chart||(t._chartInstance&&t._chartInstance.destroy(),t._chartInstance=new Chart(t,{type:"bar",data:{labels:e.map(a=>a.fecha),datasets:[{label:"Sesiones",data:e.map(a=>a.sesiones),backgroundColor:"rgba(52,131,250,0.7)",borderRadius:4},{label:"Usuarios",data:e.map(a=>a.usuarios),backgroundColor:"rgba(34,197,94,0.5)",borderRadius:4}]},options:{responsive:!0,plugins:{legend:{position:"top"}},scales:{y:{beginAtZero:!0,ticks:{precision:0}}}}}))}async function Xt(){var e;try{const a=await(await se(`${b}/analytics/fuentes`)).json(),o=document.getElementById("ga-fuentes");if(!o)return;if(!a.configurado||a.error||!((e=a.fuentes)!=null&&e.length)){o.innerHTML='<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>';return}const n=a.total_sesiones||1,i={google:"🔍",instagram:"📸",facebook:"👥",direct:"🔗","(direct)":"🔗",tiktok:"🎵",youtube:"▶️",bing:"🔍",email:"📧",whatsapp:"💬"};o.innerHTML=a.fuentes.map(r=>{var l;const s=Math.round(r.sesiones/n*100);return`<div style="margin-bottom:0.55rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${i[(l=r.source)==null?void 0:l.toLowerCase()]||"🌐"} ${r.source}</span>
+          <span style="font-size:0.75rem;color:#888">${r.sesiones} ses · ${s}%</span>
+        </div>
+        <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${s}%"></div></div>
+      </div>`}).join("")}catch(t){console.warn("GA fuentes:",t.message)}}async function Wt(){var e;try{const a=await(await se(`${b}/analytics/ciudades`)).json(),o=document.getElementById("ga-ciudades");if(!o)return;if(!a.configurado||a.error||!((e=a.ciudades)!=null&&e.length)){o.innerHTML='<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>';return}const n=a.ciudades[0].sesiones||1;o.innerHTML=a.ciudades.map((i,r)=>{const s=Math.round(i.sesiones/n*100);return`<div style="margin-bottom:0.55rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${r===0?"🥇":r===1?"🥈":r===2?"🥉":"  "} ${i.ciudad}</span>
+          <span style="font-size:0.75rem;color:#888">${i.sesiones} ses</span>
+        </div>
+        <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${s}%;background:#E91E8C"></div></div>
+      </div>`}).join("")}catch(t){console.warn("GA ciudades:",t.message)}}async function Kt(){var e;try{const a=await(await se(`${b}/analytics/horario`)).json();if(!a.configurado||!((e=a.horas)!=null&&e.length))return;const o=document.getElementById("ga-chart-horario");if(!o||!window.Chart)return;o._chartInstance&&o._chartInstance.destroy();const n=Math.max(...a.horas.map(r=>r.sesiones)),i=a.horas.map(r=>r.sesiones===n?"rgba(233,30,140,0.8)":"rgba(52,131,250,0.55)");o._chartInstance=new Chart(o,{type:"bar",data:{labels:a.horas.map(r=>r.hora.replace(":00","")),datasets:[{label:"Sesiones",data:a.horas.map(r=>r.sesiones),backgroundColor:i,borderRadius:3}]},options:{responsive:!0,plugins:{legend:{display:!1},tooltip:{callbacks:{title:r=>`${r[0].label}:00 hs`}}},scales:{y:{beginAtZero:!0,ticks:{precision:0}},x:{ticks:{font:{size:10}}}}}})}catch(t){console.warn("GA horario:",t.message)}}function Yt(e){const t=document.getElementById("ga-setup"),a=document.getElementById("ga-setup-body");!t||!a||(t.style.display="block",a.innerHTML=`
+    <p style="color:#666;margin-bottom:0.75rem">${e.mensaje||""}</p>
+    <ol style="color:#555;font-size:0.85rem;line-height:1.8">
+      ${(e.pasos||[]).map(o=>`<li>${o}</li>`).join("")}
+    </ol>
+    <p style="font-size:0.82rem;color:#888;margin-top:0.75rem">
+      Variables a agregar en Railway → Variables:
+      <code style="background:#f0f0f0;padding:2px 6px;border-radius:4px">GA4_PROPERTY_ID</code> y
+      <code style="background:#f0f0f0;padding:2px 6px;border-radius:4px">GA4_CREDENTIALS_JSON</code>
+    </p>`,["ga-activos","ga-sesiones","ga-usuarios","ga-pageviews","ga-nuevos","ga-duracion","ga-rebote"].forEach(o=>{const n=document.getElementById(o);n&&(n.textContent="—")}))}async function De(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando referidos...</p>';try{const a=await(await fetch(b+"/clientes/referidos")).json(),o=a.filter(d=>d.codigo_referido).length,n=a.filter(d=>parseFloat(d.credito_disponible||0)>0).length,i=a.reduce((d,l)=>d+parseFloat(l.credito_disponible||0),0),r=a.filter(d=>d.codigo_referido&&a.some(l=>l.referido_por===d.codigo_referido)),s={};a.forEach(d=>{d.codigo_referido&&(s[d.codigo_referido]=d.nombre)}),window._referidosData=a,e.innerHTML=`
+      <div style="padding:1rem;max-width:960px">
+        <h2 style="margin:0 0 1rem;font-size:1.1rem">🎁 Programa de Referidos</h2>
+
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+          <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#333">${a.length}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Clientes menudeo</p>
+          </div>
+          <div style="background:#fff8e1;border-radius:12px;padding:1rem;border:1px solid #ffe082;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#f57f17">${r.length}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Han referido alguien</p>
+          </div>
+          <div style="background:#e8f5e9;border-radius:12px;padding:1rem;border:1px solid #a5d6a7;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${n}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Con crédito activo</p>
+          </div>
+          <div style="background:#fce4ec;border-radius:12px;padding:1rem;border:1px solid #f48fb1;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#c62828">$${i.toFixed(0)}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Crédito total emitido</p>
+          </div>
+        </div>
+
+        <!-- Buscador -->
+        <input id="ref-buscar" type="text" placeholder="Buscar cliente..." oninput="filtrarReferidos(this.value)"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;outline:none">
+
+        <!-- Tabla -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:1px solid #eee">
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Cliente</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Código</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Referido por</th>
+                <th style="padding:10px 12px;text-align:right;font-weight:600;color:#555">Crédito</th>
+                <th style="padding:10px 12px;text-align:center;font-weight:600;color:#555">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="ref-tbody">
+              ${a.map(d=>Zt(d,s)).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `}catch(t){e.innerHTML=`<p style="padding:2rem;color:red">Error cargando referidos: ${t.message}</p>`}}function Zt(e,t){const a=parseFloat(e.credito_disponible||0),o=e.referido_por?t[e.referido_por]||e.referido_por:"—",n=a>0?"#2e7d32":"#aaa";return`<tr id="ref-row-${e.id}" style="border-bottom:1px solid #f5f5f5">
+    <td style="padding:10px 12px">
+      <p style="font-weight:600;margin:0">${e.nombre||"—"}</p>
+      <p style="font-size:0.75rem;color:#888;margin:2px 0 0">${e.email||e.telefono||""}</p>
+    </td>
+    <td style="padding:10px 12px">
+      ${e.codigo_referido?`<span style="font-family:monospace;background:#f0f0f0;padding:3px 8px;border-radius:6px;font-size:0.8rem;letter-spacing:1px">${e.codigo_referido}</span>`:`<button onclick="generarCodigoReferido('${e.id}')" style="font-size:0.75rem;padding:3px 8px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#555">Generar</button>`}
+    </td>
+    <td style="padding:10px 12px;color:#555">${o}</td>
+    <td style="padding:10px 12px;text-align:right;font-weight:700;color:${n}">$${a.toFixed(0)} MXN</td>
+    <td style="padding:10px 12px;text-align:center">
+      <button onclick="ajustarCredito('${e.id}','${(e.nombre||"").replace(/'/g,"\\'")}',${a})"
+        style="font-size:0.75rem;padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#333">
+        Ajustar
+      </button>
+    </td>
+  </tr>`}window.filtrarReferidos=function(e){const t=document.querySelectorAll("#ref-tbody tr"),a=e.toLowerCase();t.forEach(o=>{o.style.display=o.textContent.toLowerCase().includes(a)?"":"none"})};window.generarCodigoReferido=async function(e){try{(await(await fetch(b+"/referidos/mi-codigo/"+e)).json()).codigo_referido?await De():alert("Error generando código")}catch(t){alert("Error: "+t.message)}};window.ajustarCredito=async function(e,t,a){const o=prompt(`Ajustar crédito de ${t}
+Crédito actual: $${a} MXN
+
+Nuevo monto:`,a);if(o===null)return;const n=parseFloat(o);if(isNaN(n)||n<0)return alert("Monto inválido");try{(await fetch(b+"/clientes/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({credito_disponible:n})})).ok?await De():alert("Error actualizando crédito")}catch(i){alert("Error: "+i.message)}};async function Ee(){const e=document.getElementById("content");e.innerHTML='<p style="padding:2rem;color:#888">Cargando carritos...</p>';try{const[t,a,o]=await Promise.all([fetch(b+"/pedidos/?status=borrador").then(i=>i.json()).catch(()=>[]),fetch(b+"/clientes/").then(i=>i.json()),fetch(b+"/sucursales/").then(i=>i.json())]),n=Array.isArray(t)?t.filter(i=>i.status==="borrador"&&(!i.canal||i.canal==="sucursal"||i.canal==="mayoreo")):[];e.innerHTML=`
+      <div style="padding:0 0 1rem">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px">
+          <div>
+            <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Punto de venta</p>
+            <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Carritos activos</h2>
+            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">El stock se reserva al confirmar la venta</p>
+          </div>
+          <button class="btn btn-primary" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+        </div>
+
+        ${n.length===0?`
+          <div class="table-card" style="padding:3rem;text-align:center">
+            <p style="font-weight:700;color:#0f172a;font-size:1rem">Sin carritos abiertos</p>
+            <p style="font-size:0.82rem;color:#94a3b8;margin-top:4px">Crea uno para agregar productos a un cliente</p>
+            <button class="btn btn-primary" style="margin-top:1.25rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+          </div>
+        `:`
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
+            ${n.map(i=>{const r=i.clientes||{},s=i.created_at?Math.floor((Date.now()-new Date(i.created_at).getTime())/864e5):0;return`
+                <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${i.id}')"
+                     onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)';this.style.borderColor='#E91E8C'" onmouseleave="this.style.boxShadow='';this.style.borderColor='#e2e8f0'">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+                    <div>
+                      <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${r.nombre||"Sin cliente"}</p>
+                      <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${r.telefono||"Sin teléfono"}</p>
+                    </div>
+                    <span style="background:${s===0?"#f0fdf4":s<=2?"#fffbeb":"#fef2f2"};color:${s===0?"#065f46":s<=2?"#b45309":"#991b1b"};border:1px solid ${s===0?"#bbf7d0":s<=2?"#fde68a":"#fecaca"};border-radius:100px;padding:3px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">
+                      ${s===0?"Hoy":s===1?"1 día":s+" días"}
+                    </span>
+                  </div>
+                  <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
+                    <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
+                    <p style="font-weight:700;font-size:1.35rem;color:#E91E8C;margin:0">$${parseFloat(i.total||0).toLocaleString("es-MX",{minimumFractionDigits:2})}</p>
+                  </div>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${i.id}')">Abrir</button>
+                    <button class="btn btn-secondary" style="font-size:0.8rem;color:#dc2626;border-color:#fca5a5" onclick="event.stopPropagation();liberarCarrito('${i.id}')">Liberar</button>
+                  </div>
+                </div>
+              `}).join("")}
+          </div>
+        `}
+      </div>
+    `,window._carritoClientes=a,window._carritoSucursales=o}catch{e.innerHTML='<p style="padding:2rem;color:red">Error cargando carritos</p>'}}window.nuevoCarrito=async()=>{const e=window._carritoClientes||[],t=window._carritoSucursales||[],a=document.getElementById("content");a.innerHTML=`
+    <div class="table-card" style="padding:2rem;max-width:500px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="cargarCarritos()">← Volver</button>
+        <h3 style="margin:0">Nuevo carrito</h3>
+      </div>
+      <div style="display:grid;gap:1rem">
+        <div>
+          <label class="form-label">Cliente</label>
+          <select id="nc-cliente" class="form-input">
+            <option value="">— Selecciona cliente —</option>
+            ${e.map(o=>`<option value="${o.id}">${o.nombre}${o.telefono?" · "+o.telefono:""}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Sucursal</label>
+          <select id="nc-sucursal" class="form-input">
+            ${t.map(o=>`<option value="${o.id}">${o.nombre}</option>`).join("")}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Comentario (opcional)</label>
+          <input class="form-input" id="nc-comentario" placeholder="Ej: Anticipo $500, entrega el viernes...">
+        </div>
+        <button class="btn btn-primary" onclick="crearNuevoCarrito()">Crear carrito</button>
+      </div>
+    </div>
+  `};window.crearNuevoCarrito=async()=>{var o;const e=document.getElementById("nc-cliente").value,t=document.getElementById("nc-sucursal").value,a=document.getElementById("nc-comentario").value;if(!e){alert("Selecciona un cliente");return}try{const i=await(await fetch(b+"/pedidos/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cliente_id:e,sucursal_id:t,canal:"sucursal",forma_pago:"efectivo",status:"borrador",total:0,subtotal:0,comentarios:a||null,items:[]})})).json(),r=i.id||((o=i[0])==null?void 0:o.id);if(!r){alert("Error creando carrito");return}abrirCarrito(r)}catch(n){alert("Error: "+n.message)}};window.cargarCarritos=Ee;window.abrirCarrito=async e=>{const t=document.getElementById("content");t.innerHTML='<p style="padding:2rem;color:#888">Cargando carrito...</p>';try{const[a,o,n,i,r]=await Promise.all([fetch(b+"/pedidos/"+e).then(l=>l.json()),fetch(b+"/pedidos/"+e+"/items").then(l=>l.json()),fetch(b+"/variantes/?activa=eq.true").then(l=>l.json()),fetch(b+"/productos/").then(l=>l.json()),fetch(b+"/inventario/").then(l=>l.json()).catch(()=>[])]),s=Array.isArray(a)?a[0]:a,d=s.clientes||{};window._carritoActivo={pedidoId:e,items:Array.isArray(o)?o:[],variantes:n,productos:i,inventario:r,sucursalId:s.sucursal_id},vt(s)}catch{t.innerHTML='<p style="padding:2rem;color:red">Error cargando carrito</p>'}};function vt(e){const t=document.getElementById("content"),{pedidoId:a,items:o,variantes:n,productos:i,inventario:r,sucursalId:s}=window._carritoActivo,d=e.clientes||{},l=o.reduce((m,g)=>m+g.cantidad*g.precio_unitario,0),c=o.reduce((m,g)=>m+g.cantidad,0),p=e.created_at?Math.floor((Date.now()-new Date(e.created_at).getTime())/864e5):0;t.innerHTML=`
+    <div style="max-width:860px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="cargarCarritos()">← Carritos</button>
+        <div style="flex:1">
+          <h3 style="margin:0">${d.nombre||"Sin cliente"}</h3>
+          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${d.telefono||""} · Abierto hace ${p===0?"hoy":p+" día(s)"}</p>
+        </div>
+        <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${a}','${e.forma_pago||"efectivo"}')">
+          ✅ Confirmar venta
+        </button>
+        <button class="btn btn-secondary" onclick="generarCotizacionCarrito('${a}')">
+          📄 Cotización PDF
+        </button>
+        <button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="liberarCarrito('${a}')">
+          🗑 Liberar
+        </button>
+      </div>
+
+      <!-- Buscador para agregar productos -->
+      <div class="table-card" style="padding:1.2rem;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <p style="font-weight:600;color:#333;margin:0">Agregar producto</p>
+          <div style="display:flex;gap:0;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+            <button id="c-modo-par" onclick="carritoModo('par')"
+              style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">Par suelto</button>
+            <button id="c-modo-corrida" onclick="carritoModo('corrida')"
+              style="padding:5px 14px;font-size:0.8rem;border:none;cursor:pointer;background:white;color:#888">Corrida completa</button>
+          </div>
+        </div>
+
+        <!-- Modo par suelto -->
+        <div id="c-panel-par">
+          <div style="position:relative">
+            <input class="form-input" id="c-buscar-prod" placeholder="🔍 Busca el modelo (nombre o SKU)…" oninput="buscarProductoCarrito(this.value)" autocomplete="off"
+              onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('c-prod-resultados');if(el)el.style.display='none'},250)">
+            <div id="c-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:340px;overflow-y:auto;min-width:300px"></div>
+          </div>
+          <p style="font-size:0.76rem;color:#888;margin:7px 0 0;line-height:1.4">Busca el modelo y <strong>toca una talla</strong> para agregar 1 par. El precio se ajusta solo (menudeo · mayoreo). Ajusta cantidades en la lista de abajo.</p>
+          <p id="c-prod-seleccionado" style="display:none"></p>
+        </div>
+
+        <!-- Modo corrida -->
+        <div id="c-panel-corrida" style="display:none">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+            <div style="flex:2;min-width:200px;position:relative">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Modelo (busca sin talla)</label>
+              <input class="form-input" id="c-buscar-corrida" placeholder="Ej: M-TAC-0033 o nombre..." oninput="buscarModeloCarrito(this.value)" autocomplete="off" style="font-size:0.9rem"
+                onfocus="posicionarDropdownCarrito('c-corrida-resultados','c-buscar-corrida')" onblur="setTimeout(()=>{const el=document.getElementById('c-corrida-resultados');if(el)el.style.display='none'},200)">
+              <div id="c-corrida-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;min-width:320px"></div>
+            </div>
+            <div style="width:90px">
+              <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Precio/par</label>
+              <input type="number" class="form-input" id="c-precio-corrida" placeholder="$" style="font-size:0.9rem">
+            </div>
+          </div>
+          <div id="c-corrida-tallas" style="display:none;background:#f9f9f9;border-radius:8px;padding:12px;margin-top:8px">
+            <p style="font-size:0.8rem;font-weight:600;color:#333;margin-bottom:8px">Selecciona tallas a agregar:</p>
+            <div id="c-corrida-tallas-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+            <button class="btn btn-primary" style="background:#6a1b9a;border-color:#6a1b9a" onclick="agregarCorridaAlCarritoActivo()">📦 Agregar corrida</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de productos en el carrito -->
+      <div class="table-card" style="padding:1.2rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <p style="font-weight:600;color:#333;margin:0">Productos en carrito (<span id="carrito-total-pares">${c}</span> pares)</p>
+          <p style="font-weight:700;font-size:1.2rem;color:#E91E8C;margin:0">Total: $<span id="carrito-total-monto">${l.toFixed(2)}</span></p>
+        </div>
+
+        <div id="carrito-items-lista">
+          ${o.length===0?'<p style="color:#aaa;text-align:center;padding:2rem">Carrito vacío — agrega productos arriba</p>':""}
+          ${(()=>{const m={};return o.forEach((g,u)=>{const y=g.variantes||{},f=y.productos||{},v=f.nombre||g.nombre||"—",x=y.color||g.color||"",h=!!g.es_corrida,$=h?"c|"+v+"|"+x:"s|"+g.id;m[$]||(m[$]={nombre:v,color:x,esCorrida:h,items:[],imagen:y.foto_url||f.imagen_principal||null}),m[$].items.push({...g,_idx:u})}),Object.values(m).map(g=>{const u=g.esCorrida,y=g.imagen;if(u){const f=g.items.reduce(($,w)=>$+w.cantidad,0),v=g.items.reduce(($,w)=>$+w.cantidad*w.precio_unitario,0),x=(v/f).toFixed(2),h=g.items.map($=>$.id).join(",");return`
+                  <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
+                    <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
+                      ${y?`<img src="${y}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>'}
+                      <div style="flex:1">
+                        <p style="font-weight:700;font-size:0.88rem;margin:0">${g.nombre}</p>
+                        <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600;margin:2px 0 4px">📦 Corrida · ${g.color}</p>
+                        <div style="display:flex;flex-wrap:wrap;gap:4px">
+                          ${g.items.map($=>`<span style="background:#f3e5f5;border-radius:100px;padding:2px 8px;font-size:0.72rem;color:#6a1b9a">T${($.variantes||{}).talla||$.talla||"?"}</span>`).join("")}
+                        </div>
+                      </div>
+                      <button onclick="eliminarCorridaCarrito('${h}')" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                      <span id="corrida-header-${h.replace(/,/g,"_").substring(0,20)}" style="font-size:0.85rem;color:#888">${f} pares · <strong style="color:#6a1b9a">$${v.toFixed(2)}</strong></span>
+                      <div style="display:flex;align-items:center;gap:4px">
+                        <span style="font-size:0.72rem;color:#888">$</span>
+                        <input type="number" value="${x}"
+                          onchange="actualizarPrecioCorridaCarrito('${h}', this.value)"
+                          style="width:70px;text-align:center;border:1px solid #6a1b9a;border-radius:6px;padding:4px;font-size:0.9rem;font-weight:700;color:#6a1b9a">
+                        <span style="font-size:0.72rem;color:#888">/par</span>
+                      </div>
+                      <strong style="color:#6a1b9a">$${v.toFixed(2)}</strong>
+                    </div>
+                    <!-- Detalle editable por talla (toggle) -->
+                    <div id="corrida-detalle-${h.replace(/,/g,"_").substring(0,20)}" style="display:none;margin-top:10px;border-top:1px solid #e8d5f5;padding-top:10px">
+                      ${g.items.map($=>{const C=($.variantes||{}).talla||$.talla||"?",A=r.find(S=>S.variante_id===$.variante_id&&(s?S.sucursal_id===s:!0)),k=A?A.cantidad:999;return`
+                          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"
+                               data-item-id="${$.id}" data-item-idx="${$._idx}" data-stock="${k}" data-precio="${$.precio_unitario}">
+                            <span style="background:#f3e5f5;border-radius:100px;padding:3px 10px;font-size:0.8rem;font-weight:700;color:#6a1b9a;min-width:44px;text-align:center">T${C}</span>
+                            <button onclick="cambiarCantCorridaDOM(this.parentElement,-1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">−</button>
+                            <span class="ccd-cant" style="font-weight:700;min-width:20px;text-align:center;font-size:0.9rem">${$.cantidad}</span>
+                            <button onclick="cambiarCantCorridaDOM(this.parentElement,1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">+</button>
+                            <span style="font-size:0.8rem;color:#888;flex:1">× $${$.precio_unitario}</span>
+                            <strong class="ccd-sub" style="color:#6a1b9a;font-size:0.82rem">$${($.cantidad*$.precio_unitario).toFixed(2)}</strong>
+                            <button onclick="eliminarDeCarrito('${$.id}',${$._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem;padding:2px">🗑</button>
+                          </div>`}).join("")}
+                    </div>
+                    <button onclick="toggleCorridaDetalle('${h.replace(/,/g,"_").substring(0,20)}')"
+                      style="margin-top:8px;background:none;border:1px solid #d8b4fe;border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#6a1b9a;cursor:pointer;width:100%">
+                      ✏️ Editar tallas individualmente
+                    </button>
+                  </div>`}else{const f=g.items[0],v=f.variantes||{};v.productos;const x=v.talla||f.talla||"",h=r.find(w=>w.variante_id===f.variante_id&&(s?w.sucursal_id===s:!0)),$=h?h.cantidad:null;return`
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+                    ${y?`<img src="${y}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>'}
+                    <div style="flex:1;min-width:120px">
+                      <p style="font-weight:600;font-size:0.85rem;margin:0">${g.nombre}${g.color?" · "+g.color:""}${x?" T"+x:""}</p>
+                      ${$!==null?`<p style="font-size:0.72rem;color:${$>0?"#2e7d32":"#c62828"};margin:2px 0 0">Stock: ${$} pares</p>`:""}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <button onclick="cambiarCantidadCarrito(${f._idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
+                      <span style="font-weight:700;min-width:24px;text-align:center">${f.cantidad}</span>
+                      <button onclick="cambiarCantidadCarrito(${f._idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
+                    </div>
+                    <input type="number" value="${f.precio_unitario}" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
+                      onchange="actualizarPrecioCarrito(${f._idx}, this.value)">
+                    <strong style="color:#E91E8C;min-width:70px;text-align:right">$${(f.cantidad*f.precio_unitario).toFixed(2)}</strong>
+                    <button onclick="eliminarDeCarrito('${f.id}',${f._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                  </div>`}}).join("")})()}
+        </div>
+
+        ${o.length>0?`
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
+              <select id="c-forma-pago" class="form-input" style="width:140px">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="spei">SPEI</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${a}')">
+              ✅ Confirmar venta — $<span id="carrito-total-btn">${l.toFixed(2)}</span>
+            </button>
+          </div>
+        `:""}
+      </div>
+    </div>
+  `,window._carritoActivo.pedidoData=e,window._carritoActivo.varianteSeleccionada=null}window.mostrarToastPanel=e=>{let t=document.getElementById("panel-toast");t||(t=document.createElement("div"),t.id="panel-toast",t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:10px 20px;border-radius:8px;font-size:0.9rem;z-index:99999;transition:opacity 0.3s",document.body.appendChild(t)),t.textContent=e,t.style.opacity="1",clearTimeout(t._timer),t._timer=setTimeout(()=>{t.style.opacity="0"},3e3)};window.posicionarDropdownCarrito=(e,t)=>{const a=document.getElementById(t),o=document.getElementById(e);if(!a||!o)return;const n=a.getBoundingClientRect();o.style.top=n.bottom+4+"px",o.style.left=n.left+"px",o.style.width=Math.max(n.width,320)+"px"};window.buscarProductoCarrito=e=>{const{variantes:t,productos:a}=window._carritoActivo,o=document.getElementById("c-prod-resultados");if(!o)return;if(posicionarDropdownCarrito("c-prod-resultados","c-buscar-prod"),!e||e.length<2){o.style.display="none";return}const n=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],i=e.toLowerCase().split(" ").filter(Boolean),r=t.filter(l=>{const c=a.find(m=>m.id===l.producto_id);if(!c||c.activo===!1)return!1;const p=(((c==null?void 0:c.nombre)||"")+" "+(l.color||"")+" "+(l.talla||"")+" "+((c==null?void 0:c.sku_interno)||"")).toLowerCase();return i.every(m=>p.includes(m))});if(!r.length){o.innerHTML='<div style="padding:12px 14px;color:#888;font-size:0.85rem">Sin resultados</div>',o.style.display="block";return}const s={};r.forEach(l=>{const c=a.find(m=>m.id===l.producto_id),p=l.producto_id+"|"+(l.color||"");s[p]||(s[p]={nombre:(c==null?void 0:c.nombre)||"—",color:l.color||"",foto:c==null?void 0:c.imagen_principal,hex:l.color_hex,vars:[]}),s[p].vars.push(l)});const d=Object.values(s).slice(0,6);o.style.display="block",o.innerHTML=d.map(l=>{const c=l.vars.sort((p,m)=>n.indexOf(p.talla)-n.indexOf(m.talla)).map(p=>{const m=window._carritoActivo.inventario.filter(u=>u.variante_id===p.id).reduce((u,y)=>u+(y.cantidad||0),0),g=window._carritoActivo.items.filter(u=>u.variante_id===p.id&&!u.es_corrida).reduce((u,y)=>u+y.cantidad,0);return`
+          <button onmousedown="event.preventDefault()" onclick="quickAddCarrito('${p.id}')" ${m<=0?"disabled":""}
+                  style="position:relative;min-width:50px;min-height:48px;padding:5px 9px;border:1.5px solid ${g>0?"#E91E8C":"#ddd"};border-radius:10px;background:${g>0?"#fce4f3":"#fff"};font-family:inherit;cursor:${m<=0?"not-allowed":"pointer"};${m<=0?"opacity:0.45":""};display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;touch-action:manipulation">
+            <span style="font-size:0.92rem;font-weight:800;color:#333">T${p.talla}</span>
+            <span style="font-size:0.6rem;font-weight:600;color:${m>0?"#2e7d32":"#c62828"}">${m>0?"stock "+m:"agotado"}</span>
+            ${g>0?`<span style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:19px;height:19px;font-size:0.65rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 4px">${g}</span>`:""}
+          </button>`}).join("");return`
+      <div style="padding:11px 12px;border-bottom:1px solid #f0f0f0">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:9px">
+          ${l.foto?`<img src="${l.foto}" style="width:36px;height:36px;object-fit:cover;border-radius:7px;flex-shrink:0">`:'<div style="width:36px;height:36px;background:#f3f3f3;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
+          ${l.hex?`<span style="width:13px;height:13px;border-radius:50%;background:${l.hex};border:1px solid #ddd;flex-shrink:0"></span>`:""}
+          <span style="font-size:0.86rem;font-weight:600;line-height:1.2">${l.nombre}</span>
+          <span style="font-size:0.78rem;color:#888">· ${l.color}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">${c}</div>
+      </div>`}).join("")};window.quickAddCarrito=async e=>{const t=window._carritoActivo;if(!t)return;const a=t.variantes.find(s=>s.id===e),o=a?t.productos.find(s=>s.id===a.producto_id):null,n=parseFloat((o==null?void 0:o.precio_mayoreo6)||(o==null?void 0:o.precio_mayoreo3)||(o==null?void 0:o.precio_menudeo))||0,i=t.items.find(s=>s.variante_id===e&&!s.es_corrida),r=document.getElementById("c-buscar-prod")?document.getElementById("c-buscar-prod").value:"";try{i?await fetch(b+"/pedidos/"+t.pedidoId+"/items/"+i.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:i.cantidad+1,precio_unitario:i.precio_unitario})}):await fetch(b+"/pedidos/"+t.pedidoId+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,cantidad:1,precio_unitario:n,subtotal:n,nombre:(o==null?void 0:o.nombre)||"",color:(a==null?void 0:a.color)||"",talla:(a==null?void 0:a.talla)||""})});const s=await fetch(b+"/pedidos/"+t.pedidoId+"/items").then(l=>l.json());t.items=Array.isArray(s)?s:[],t._tier=null,await recalcularPreciosCarrito(),vt(t.pedidoData);const d=t.items.reduce((l,c)=>l+c.cantidad,0);mostrarToastPanel("✓ "+((o==null?void 0:o.nombre)||"")+" T"+((a==null?void 0:a.talla)||"")+" · "+d+" pares"),r&&setTimeout(()=>{const l=document.getElementById("c-buscar-prod");l&&(l.value=r,buscarProductoCarrito(r))},300)}catch(s){alert("Error: "+s.message)}};window.seleccionarVarianteCarrito=e=>{const{variantes:t,productos:a}=window._carritoActivo,o=t.find(s=>s.id===e),n=a.find(s=>s.id===(o==null?void 0:o.producto_id));window._carritoActivo.varianteSeleccionada=e,document.getElementById("c-buscar-prod").value=`${(n==null?void 0:n.nombre)||""} · ${(o==null?void 0:o.color)||""} T${(o==null?void 0:o.talla)||""}`,document.getElementById("c-prod-resultados").style.display="none";const i=(n==null?void 0:n.precio_mayoreo6)||(n==null?void 0:n.precio_mayoreo3)||(n==null?void 0:n.precio_menudeo)||"";document.getElementById("c-precio").value=i;const r=document.getElementById("c-prod-seleccionado");r.style.display="block",r.textContent=`✓ Seleccionado: ${n==null?void 0:n.nombre} — ${o==null?void 0:o.color} T${o==null?void 0:o.talla}`};window.agregarAlCarritoActivo=async()=>{var s;const e=(s=window._carritoActivo)==null?void 0:s.varianteSeleccionada,t=parseInt(document.getElementById("c-cantidad").value)||1,a=parseFloat(document.getElementById("c-precio").value)||0;if(!e){alert("Selecciona un producto primero");return}if(!a){alert("Ingresa el precio por par");return}const{variantes:o,productos:n}=window._carritoActivo,i=o.find(d=>d.id===e),r=n.find(d=>d.id===(i==null?void 0:i.producto_id));try{if(!(await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:e,cantidad:t,precio_unitario:a,subtotal:t*a,nombre:(r==null?void 0:r.nombre)||"",color:(i==null?void 0:i.color)||"",talla:(i==null?void 0:i.talla)||""})})).ok){alert("Error agregando producto");return}const l=await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items").then(c=>c.json());window._carritoActivo.items=Array.isArray(l)?l:[],window._carritoActivo._tier=null,await recalcularPreciosCarrito(),document.getElementById("c-buscar-prod").value="",document.getElementById("c-cantidad").value="1",document.getElementById("c-precio").value="",document.getElementById("c-prod-seleccionado").style.display="none",window._carritoActivo.varianteSeleccionada=null,await abrirCarrito(window._carritoActivo.pedidoId)}catch(d){alert("Error: "+d.message)}};window.cambiarCantidadCarrito=async(e,t)=>{const a=window._carritoActivo.items[e];if(!a)return;const o=Math.max(1,a.cantidad+t);window._carritoActivo.items[e].cantidad=o;try{await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+a.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:o,precio_unitario:a.precio_unitario})}),await recalcularPreciosCarrito(),await abrirCarrito(window._carritoActivo.pedidoId)}catch(n){alert("Error: "+n.message)}};window.recalcularPreciosCarrito=async()=>{const{pedidoId:e,items:t,variantes:a,productos:o}=window._carritoActivo,n=t.reduce((c,p)=>c+p.cantidad,0),i=n>=6?"mayoreo6":n>=3?"mayoreo3":"menudeo",r=window._carritoActivo._tier||"menudeo";if(i===r)return;window._carritoActivo._tier=i;const s=i==="mayoreo6"?"Mayoreo 6+ pares":i==="mayoreo3"?"Mayoreo 3-5 pares":"Menudeo";let d=!1;for(const c of t){if(c._precio_manual)continue;const p=a.find(y=>y.id===c.variante_id),m=p?o.find(y=>y.id===p.producto_id):null;if(!m)continue;const g=parseFloat(m.precio_menudeo)||0;let u;i==="mayoreo6"?u=parseFloat(m.precio_mayoreo6)||(g>0?Math.round(g-70):g):i==="mayoreo3"?u=parseFloat(m.precio_mayoreo3)||(g>0?Math.round(g-30):g):u=g,u&&u!==c.precio_unitario&&(c.precio_unitario=u,await fetch(b+"/pedidos/"+e+"/items/"+c.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:c.cantidad,precio_unitario:u})}),d=!0)}const l=t.reduce((c,p)=>c+p.cantidad*p.precio_unitario,0);await fetch(b+"/pedidos/"+e,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:l})}),d&&mostrarToastPanel(`📦 Precios actualizados a ${s}`)};window.actualizarPrecioCarrito=async(e,t)=>{const a=window._carritoActivo.items[e],o=parseFloat(t)||0;if(!(!o||!a)){a._precio_manual=!0;try{await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+a.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:a.cantidad,precio_unitario:o})});const n=window._carritoActivo.items.map((i,r)=>(r===e?o:i.precio_unitario)*i.cantidad).reduce((i,r)=>i+r,0);await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:n})}),await abrirCarrito(window._carritoActivo.pedidoId)}catch(n){alert("Error: "+n.message)}}};window.eliminarDeCarrito=async(e,t)=>{if(!e||e==="undefined"){alert("Error: el ítem no tiene ID válido");return}try{const a=await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+e,{method:"DELETE"});if(!a.ok){const n=await a.json().catch(()=>({}));alert("Error eliminando: "+(n.error||a.status));return}const o=window._carritoActivo.items.filter((n,i)=>i!==t).reduce((n,i)=>n+i.cantidad*i.precio_unitario,0);await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:o})}),await abrirCarrito(window._carritoActivo.pedidoId)}catch(a){alert("Error: "+a.message)}};window.cambiarCantCorridaDOM=async(e,t)=>{const a=e.dataset.itemId,o=parseInt(e.dataset.itemIdx),n=parseInt(e.dataset.stock)||999,i=parseFloat(e.dataset.precio)||0,r=e.querySelector(".ccd-cant"),s=e.querySelector(".ccd-sub");if(!a||!r)return;const d=parseInt(r.textContent)||1,l=Math.max(1,d+t);if(t>0&&l>n){mostrarToastPanel(`⚠️ Solo hay ${n} pares en stock`);return}try{await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+a,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:l,precio_unitario:i})}),r.textContent=l,s&&(s.textContent="$"+(l*i).toFixed(2)),window._carritoActivo.items[o]&&(window._carritoActivo.items[o].cantidad=l);const c=e.closest('[id^="corrida-detalle-"]');if(c){const f=c.querySelectorAll("[data-item-id]");let v=0,x=0;f.forEach(C=>{var S;const A=parseInt(((S=C.querySelector(".ccd-cant"))==null?void 0:S.textContent)||0),k=parseFloat(C.dataset.precio||0);v+=A,x+=A*k});const h=c.id.replace("corrida-detalle-","corrida-header-"),$=document.getElementById(h);$&&($.innerHTML=`${v} pares · <strong style="color:#6a1b9a">$${x.toFixed(2)}</strong>`);const w=c.parentElement;w&&w.querySelectorAll('strong[style*="6a1b9a"]').forEach(A=>{A.closest('[id^="corrida-header"]')||(A.textContent="$"+x.toFixed(2))})}const p=window._carritoActivo.items.reduce((f,v)=>f+v.cantidad*v.precio_unitario,0),m=window._carritoActivo.items.reduce((f,v)=>f+v.cantidad,0),g=document.getElementById("carrito-total-monto"),u=document.getElementById("carrito-total-pares"),y=document.getElementById("carrito-total-btn");g&&(g.textContent=p.toFixed(2)),u&&(u.textContent=m),y&&(y.textContent=p.toFixed(2)),fetch(b+"/pedidos/"+window._carritoActivo.pedidoId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:p})})}catch(c){alert("Error: "+c.message)}};window.toggleCorridaDetalle=e=>{const t=document.getElementById("corrida-detalle-"+e);if(!t)return;const a=t.style.display!=="none";t.style.display=a?"none":"block";const o=t.nextElementSibling;o&&(o.textContent=a?"✏️ Editar tallas individualmente":"▲ Cerrar edición")};window.eliminarCorridaCarrito=async e=>{const t=e.split(",").filter(Boolean);try{for(const o of t)await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+o,{method:"DELETE"});const a=window._carritoActivo.items.filter(o=>!t.includes(o.id)).reduce((o,n)=>o+n.cantidad*n.precio_unitario,0);await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:a})}),await abrirCarrito(window._carritoActivo.pedidoId)}catch(a){alert("Error: "+a.message)}};window.actualizarPrecioCorridaCarrito=async(e,t)=>{const a=e.split(",").filter(Boolean),o=parseFloat(t)||0;if(o)try{for(const i of a){const r=window._carritoActivo.items.find(s=>s.id===i);r&&(r._precio_manual=!0,r.precio_unitario=o,await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId+"/items/"+i,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({cantidad:r.cantidad,precio_unitario:o})}))}const n=window._carritoActivo.items.reduce((i,r)=>i+r.cantidad*r.precio_unitario,0);await fetch(b+"/pedidos/"+window._carritoActivo.pedidoId,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:n})}),await abrirCarrito(window._carritoActivo.pedidoId)}catch(n){alert("Error: "+n.message)}};window.confirmarVentaCarrito=async e=>{const t=document.getElementById("c-forma-pago"),a=t?t.value:"efectivo";if(confirm("¿Confirmar la venta? Se descontará el stock del inventario."))try{const n=await(await fetch(b+"/pedidos/"+e+"/confirmar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({forma_pago:a})})).json();n.ok?(alert("✅ Venta confirmada. Stock descontado."),Ee()):alert("Error: "+JSON.stringify(n))}catch(o){alert("Error: "+o.message)}};window.carritoModo=e=>{document.getElementById("c-panel-par").style.display=e==="par"?"block":"none",document.getElementById("c-panel-corrida").style.display=e==="corrida"?"block":"none",document.getElementById("c-modo-par").style.background=e==="par"?"#E91E8C":"white",document.getElementById("c-modo-par").style.color=e==="par"?"white":"#888",document.getElementById("c-modo-corrida").style.background=e==="corrida"?"#6a1b9a":"white",document.getElementById("c-modo-corrida").style.color=e==="corrida"?"white":"#888"};window.buscarModeloCarrito=e=>{const{variantes:t,productos:a}=window._carritoActivo,o=document.getElementById("c-corrida-resultados"),n=document.getElementById("c-corrida-tallas");if(posicionarDropdownCarrito("c-corrida-resultados","c-buscar-corrida"),!e||e.length<2){o.style.display="none",n.style.display="none";return}const i={};t.forEach(s=>{const d=a.find(p=>p.id===s.producto_id);if(!d)return;const l=((d.nombre||"")+" "+(s.color||"")+" "+(d.sku_interno||"")).toLowerCase();if(!e.toLowerCase().split(" ").every(p=>l.includes(p)))return;const c=d.id+"|"+(s.color||"");i[c]||(i[c]={prod:d,color:s.color||"",variantes:[]}),i[c].variantes.push(s)});const r=Object.values(i).slice(0,6);if(!r.length){o.style.display="none";return}o.style.display="block",o.innerHTML=r.map(s=>`
+    <div onclick="seleccionarModeloCorrida('${s.prod.id}','${s.color.replace(/'/g,"\\'")}')"
+         style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0"
+         onmouseenter="this.style.background='#f9f9f9'" onmouseleave="this.style.background=''">
+      ${s.prod.imagen_principal?`<img src="${s.prod.imagen_principal}" style="width:36px;height:36px;object-fit:cover;border-radius:6px">`:'<div style="width:36px;height:36px;background:#eee;border-radius:6px"></div>'}
+      <div>
+        <p style="font-size:0.85rem;font-weight:600;margin:0">${s.prod.nombre} · ${s.color}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0">${s.variantes.length} tallas disponibles</p>
+      </div>
+    </div>
+  `).join("")};window.seleccionarModeloCorrida=(e,t)=>{const{variantes:a,productos:o,inventario:n,sucursalId:i}=window._carritoActivo,r=o.find(m=>m.id===e);document.getElementById("c-buscar-corrida").value=`${(r==null?void 0:r.nombre)||""} · ${t}`,document.getElementById("c-corrida-resultados").style.display="none";const s=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],d=a.filter(m=>m.producto_id===e&&m.color===t).sort((m,g)=>s.indexOf(m.talla)-s.indexOf(g.talla)),l=parseFloat(r==null?void 0:r.precio_menudeo)||0,c=parseFloat(r==null?void 0:r.precio_corrida)||(l>0?Math.round(l-100):0);document.getElementById("c-precio-corrida").value=c||"",window._corridaSeleccionada={productoId:e,color:t,variantes:d,prod:r,precioCorrida:c};const p=document.getElementById("c-corrida-tallas-grid");p.innerHTML=d.map(m=>{const g=n.find(w=>w.variante_id===m.id&&(i?w.sucursal_id===i:!0)),u=g?g.cantidad:null,y=u!==null&&u===0,f=y?0:1,v=`c-card-${m.id}`,x=`c-qty-${m.id}`,h=f>0?"#fdf2f8":"#ffffff",$=f>0?"#E91E8C":"#e2e8f0";return`
+      <div id="${v}" class="size-card" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;border:2px solid ${y?"#fecaca":$};border-radius:12px;background:${y?"#fef2f2":h};min-width:70px;transition:all 0.2s ease;position:relative;opacity:${y?.6:1}">
+        <span style="font-weight:800;font-size:0.9rem;color:#0f172a">T${m.talla}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button type="button" onclick="const inp=document.getElementById('${x}');inp.value=Math.max(0,parseInt(inp.value||0)-1);inp.dispatchEvent(new Event('input'))"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${y?"disabled":""}>−</button>
+          
+          <input type="number" value="${f}" min="0" max="${u!==null?u:999}" id="${x}" data-variante="${m.id}"
+            style="width:36px;height:24px;text-align:center;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;font-weight:700;color:#0f172a;outline:none"
+            oninput="const val=Math.min(parseInt(this.max)||999,Math.max(0,parseInt(this.value)||0));this.value=val;const card=document.getElementById('${v}');if(val>0){card.style.borderColor='#E91E8C';card.style.background='#fdf2f8'}else{card.style.borderColor='#e2e8f0';card.style.background='#ffffff'}"
+            ${y?"disabled":""}>
+          
+          <button type="button" onclick="const inp=document.getElementById('${x}');const max=parseInt(inp.max||999);const cur=parseInt(inp.value||0);if(cur<max){inp.value=cur+1;inp.dispatchEvent(new Event('input'))}else{inp.style.borderColor='#ef4444';setTimeout(()=>inp.style.borderColor='#cbd5e1',800)}"
+            style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:1rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background 0.2s"
+            onmouseenter="this.style.background='#e2e8f0'" onmouseleave="this.style.background='#f1f5f9'" ${y?"disabled":""}>+</button>
+        </div>
+        <span style="font-size:0.65rem;font-weight:600;color:${u===null?"#94a3b8":u>0?"#10b981":"#ef4444"}">
+          ${u===null?"Stock: ?":u>0?`${u} disp.`:"Agotado"}
+        </span>
+      </div>
+    `}).join(""),document.getElementById("c-corrida-tallas").style.display="block"};window.agregarCorridaAlCarritoActivo=async()=>{var c;const{productoId:e,color:t,variantes:a,prod:o}=window._corridaSeleccionada||{};if(!o){alert("Selecciona un modelo primero");return}const n=parseFloat(document.getElementById("c-precio-corrida").value)||((c=window._corridaSeleccionada)==null?void 0:c.precioCorrida)||0;if(!n){alert("No se encontró precio para este producto. Ingrésalo manualmente.");return}const i=document.querySelectorAll("#c-corrida-tallas-grid input[type=number][data-variante]"),r=Array.from(i).filter(p=>parseInt(p.value)>0);if(r.length===0){alert("Ingresa al menos 1 par en alguna talla");return}const s=window._carritoActivo.pedidoId;let d=0;for(const p of r){const m=p.dataset.variante,g=parseInt(p.value)||1,u=a.find(y=>y.id===m);await fetch(b+"/pedidos/"+s+"/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({variante_id:m,cantidad:g,precio_unitario:n,subtotal:g*n,nombre:o.nombre,color:t,talla:(u==null?void 0:u.talla)||"",es_corrida:!0})}),d+=g*n}const l=window._carritoActivo.items.reduce((p,m)=>p+m.cantidad*m.precio_unitario,0);await fetch(b+"/pedidos/"+s,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({total:l+d})}),await abrirCarrito(s)};window.liberarCarrito=async e=>{if(confirm("¿Liberar este carrito? Los productos quedan disponibles para otros clientes."))try{(await(await fetch(b+"/pedidos/"+e+"/cancelar",{method:"POST"})).json()).ok&&(alert("Carrito liberado."),Ee())}catch(t){alert("Error: "+t.message)}};async function Qt(){const e=document.getElementById("content");e.innerHTML=`
+    <div style="padding:1.5rem;max-width:860px">
+      <h2 style="margin:0 0 4px;font-size:1.05rem">✏️ Generar nombres de productos</h2>
+      <p style="margin:0 0 1.2rem;font-size:0.82rem;color:#64748b">
+        Construye nombres descriptivos automáticamente usando SKU + categoría + palabras clave de la descripción + altura del tacón.
+        Primero revisa el preview y luego aplica los cambios.
+      </p>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:1rem;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#475569;cursor:pointer">
+          <input type="checkbox" id="gn-solo-cortos"> Solo productos sin nombre descriptivo
+        </label>
+        <button onclick="gnPreview()" style="padding:8px 18px;background:#3483fa;color:#fff;border:none;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer">
+          👁 Ver preview
+        </button>
+        <button id="gn-btn-aplicar" onclick="gnAplicar()" style="padding:8px 18px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:none">
+          ✅ Aplicar todos los cambios
+        </button>
+        <span id="gn-status" style="font-size:0.8rem;color:#64748b"></span>
+      </div>
+
+      <div id="gn-tabla" style="display:none">
+        <div style="display:grid;grid-template-columns:200px 1fr 80px;gap:4px;font-size:0.72rem;font-weight:700;color:#94a3b8;padding:4px 8px;text-transform:uppercase">
+          <span>Nombre actual</span><span>Nombre nuevo (editable)</span><span></span>
+        </div>
+        <div id="gn-rows"></div>
+      </div>
+    </div>`,window.gnPreview=async()=>{var a;const t=((a=document.getElementById("gn-solo-cortos"))==null?void 0:a.checked)||!1;document.getElementById("gn-status").textContent="Cargando...";try{const n=await(await fetch(b+"/productos/generar-nombres",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({modo:"preview",solo_sin_descripcion:t})})).json();if(!n.ok){alert("Error: "+n.error);return}window._gnProductos=n.productos,document.getElementById("gn-tabla").style.display="block",document.getElementById("gn-btn-aplicar").style.display="inline-block",document.getElementById("gn-status").textContent=`${n.total} productos`,document.getElementById("gn-rows").innerHTML=n.productos.map((i,r)=>`
+        <div style="display:grid;grid-template-columns:200px 1fr 80px;gap:6px;padding:5px 8px;border-bottom:1px solid #f1f5f9;align-items:center">
+          <span style="color:#64748b;font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${i.nombre_orig}">${i.nombre_orig}</span>
+          <input
+            class="gn-input"
+            data-idx="${r}"
+            value="${i.nombre_nuevo.replace(/"/g,"&quot;")}"
+            style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:0.81rem;width:100%;outline:none;color:#0f172a"
+            oninput="window._gnProductos[${r}].nombre_nuevo=this.value"
+            onfocus="this.style.borderColor='#E91E8C'"
+            onblur="this.style.borderColor='#e2e8f0'">
+          <button onclick="window.gnGuardarUno(${r})" style="padding:4px 10px;border:none;background:#10b981;color:#fff;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap">
+            Guardar
+          </button>
+        </div>`).join("")}catch(o){alert("Error: "+o.message)}},window.gnGuardarUno=async t=>{var n,i;const a=(n=window._gnProductos)==null?void 0:n[t];if(!a)return;const o=(i=document.querySelectorAll(".gn-input")[t])==null?void 0:i.nextElementSibling;o&&(o.textContent="...",o.disabled=!0);try{await fetch(`${b}/productos/${a.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nombre:a.nombre_nuevo})}),o&&(o.textContent="✓",o.style.background="#94a3b8",o.disabled=!0)}catch(r){o&&(o.textContent="Guardar",o.disabled=!1),alert("Error: "+r.message)}},window.gnAplicar=async()=>{var o;if(!confirm(`¿Aplicar los ${((o=window._gnProductos)==null?void 0:o.length)||0} nombres del preview? Los que ya guardaste individualmente no se sobreescriben.`))return;document.getElementById("gn-status").textContent="Aplicando...",document.getElementById("gn-btn-aplicar").disabled=!0;let t=0,a=0;for(const n of window._gnProductos||[])try{await fetch(`${b}/productos/${n.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nombre:n.nombre_nuevo})}),t++}catch{a++}document.getElementById("gn-status").textContent=`✅ ${t} actualizados${a?" · ⚠ "+a+" errores":""}`,document.getElementById("gn-btn-aplicar").disabled=!1,document.querySelectorAll(".gn-input + button").forEach(n=>{n.textContent="✓",n.style.background="#94a3b8",n.disabled=!0})}}const ae="/api",ke="pc_carrito",ne=["22","22.5","23","23.5","24","24.5","25","25.5","26","26.5","27","Unica"],Z=e=>"$"+Math.round(parseFloat(e)||0).toLocaleString("es-MX"),J=e=>String(e??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;"),_e=e=>parseFloat(e.precio_mayoreo3)||Math.max(0,parseFloat(e.precio_menudeo||0)-30),Ce=e=>parseFloat(e.precio_mayoreo6)||Math.max(0,parseFloat(e.precio_menudeo||0)-70),Fe=e=>parseFloat(e.precio_corrida)||Math.max(0,parseFloat(e.precio_menudeo||0)-100),z={sesion:null,tab:"inicio",productos:[],variantes:[],inventario:[],carrito:[],pedidos:[],referido:null,clienteData:null,filtroCat:"",busqueda:"",borradores:[]};function xt(e){z.sesion=e;try{z.carrito=JSON.parse(localStorage.getItem(ke)||"[]")}catch{z.carrito=[]}try{z.borradores=JSON.parse(localStorage.getItem("pc_borradores")||"[]")}catch{z.borradores=[]}try{eo()}catch(t){document.querySelector("#app");const a=document.createElement("div");a.style.cssText="position:fixed;top:0;left:0;right:0;background:#dc2626;color:white;padding:16px;z-index:9999;font-family:monospace;font-size:13px",a.textContent="renderPC ERROR: "+((t==null?void 0:t.message)||String(t)),document.body.appendChild(a);return}oo()}function eo(){var a;const e=document.querySelector("#app");e.innerHTML=`
+  <div id="pc-root" style="display:flex;min-height:100vh;width:100%;background:#0f0f1c;font-family:'DM Sans',sans-serif;color:#e2e2f0">
+
+    <!-- Sidebar -->
+    <aside id="pc-sidebar" style="width:220px;flex-shrink:0;background:#0c0c17;border-right:1px solid #1e1e30;display:flex;flex-direction:column;padding:0;transition:width 0.2s">
+      <!-- Logo -->
+      <div style="padding:24px 20px 20px;border-bottom:1px solid #1e1e30">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="width:8px;height:8px;border-radius:50%;background:#E91E8C;flex-shrink:0"></span>
+          <span style="font-size:0.65rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
+        </div>
+        <p style="font-size:0.75rem;font-weight:600;color:#a0a0c0;margin:0">Portal Mayoreo <span style="font-size:0.6rem;color:#3a3a5c">v5</span></p>
+        <p style="font-size:0.72rem;color:#5a5a7a;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${J(((a=z.sesion)==null?void 0:a.nombre)||"")}</p>
+      </div>
+
+      <!-- Nav -->
+      <nav style="flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px" id="pc-nav">
+        ${pe("inicio","🏠","Mi resumen")}
+        ${pe("catalogo","👟","Catálogo")}
+        ${pe("carrito","🛒","Carrito")}
+        ${pe("pedidos","📦","Mis pedidos")}
+        ${pe("referidos","🎁","Referidos")}
+        ${pe("cuenta","👤","Mi cuenta")}
+      </nav>
+
+      <!-- Cerrar sesión -->
+      <div style="padding:12px 10px;border-top:1px solid #1e1e30">
+        <button onclick="pcCerrarSesion()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid #2a2a40;border-radius:8px;color:#5a5a7a;font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s"
+          onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='#2a2a40';this.style.color='#5a5a7a'">
+          ← Cerrar sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- Contenido principal -->
+    <main id="pc-main" style="flex:1;overflow-y:auto;min-width:0">
+      <!-- Topbar móvil -->
+      <div id="pc-topbar" style="display:none;align-items:center;justify-content:space-between;padding:14px 16px;background:#0c0c17;border-bottom:1px solid #1e1e30;position:sticky;top:0;z-index:50">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#E91E8C"></span>
+          <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Portal Mayoreo</span>
+        </div>
+        <button onclick="pcToggleSidebar()" style="background:none;border:none;color:#a0a0c0;cursor:pointer;padding:4px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Área de contenido -->
+      <div id="pc-content" style="padding:28px 32px;max-width:1200px">
+        <div style="text-align:center;padding:60px;color:#3a3a5c">
+          <div style="width:32px;height:32px;border:3px solid #E91E8C;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
+          Cargando...
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <style>
+    @keyframes spin { to { transform: rotate(360deg) } }
+    @media (max-width: 768px) {
+      #pc-sidebar { position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform 0.25s; }
+      #pc-sidebar.open { transform:translateX(0); }
+      #pc-topbar { display:flex!important; }
+      #pc-content { padding:20px 16px!important; }
+    }
+    .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
+      font-size:0.83rem;font-weight:500;color:#6a6a8a;border:none;background:none;
+      font-family:inherit;width:100%;text-align:left;transition:all 0.15s; }
+    .pc-nav-item:hover { background:#161625;color:#c0c0e0; }
+    .pc-nav-item.activo { background:rgba(233,30,140,0.12);color:#E91E8C; }
+    .pc-kpi { background:#161625;border:1px solid #1e1e30;border-radius:12px;padding:20px;min-width:0; }
+    .pc-kpi-val { font-size:1.6rem;font-weight:800;color:#e2e2f0;margin:4px 0 2px;letter-spacing:-0.02em; }
+    .pc-kpi-lbl { font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a; }
+    .pc-kpi-sub { font-size:0.75rem;color:#5a5a7a; }
+    .pc-card { background:#161625;border:1px solid #1e1e30;border-radius:12px;padding:20px; }
+    .pc-prod-card { background:#161625;border:1px solid #1e1e30;border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color 0.15s; }
+    .pc-prod-card:hover { border-color:#E91E8C; }
+    .pc-badge { display:inline-block;padding:3px 8px;border-radius:100px;font-size:0.65rem;font-weight:700; }
+    .pc-btn { padding:10px 20px;border:none;border-radius:8px;font-family:inherit;font-size:0.83rem;font-weight:600;cursor:pointer;transition:all 0.15s; }
+    .pc-btn-primary { background:#E91E8C;color:white; }
+    .pc-btn-primary:hover { background:#d01a7e; }
+    .pc-btn-secondary { background:#1e1e30;color:#a0a0c0;border:1px solid #2a2a40; }
+    .pc-btn-secondary:hover { border-color:#E91E8C;color:#E91E8C; }
+    .pc-input { width:100%;padding:10px 14px;background:#0f0f1c;border:1.5px solid #1e1e30;border-radius:8px;
+      color:#e2e2f0;font-family:inherit;font-size:0.85rem;outline:none;box-sizing:border-box;transition:border-color 0.15s; }
+    .pc-input:focus { border-color:#E91E8C; }
+    .pc-status-chip { display:inline-block;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em; }
+  </style>`,window.pcIrA=He,window.pcCerrarSesion=uo,window.pcToggleSidebar=to,window.pcQuitarDelCarrito=pcQuitarDelCarrito,window.pcGuardarBorrador=pcGuardarBorrador,window.pcCargarBorrador=pcCargarBorrador,window.pcBorrarBorrador=pcBorrarBorrador,window.pcHacerPedido=pcHacerPedido,window.pcFiltrarCat=o=>{z.filtroCat=o,ve()},window.pcBuscar=o=>{z.busqueda=o,ve()},window.pcVaciarCarrito=()=>{z.carrito=[];try{localStorage.removeItem(ke)}catch{}le()};const t=document.getElementById("pc-content");if(t)try{ht(t)}catch(o){console.error("[pc] renderInicio init error",o),t.innerHTML=`<div style="padding:40px;text-align:center;color:#ef4444">Error al inicializar: ${o.message}</div>`}}function pe(e,t,a){return`<button class="pc-nav-item${z.tab===e?" activo":""}" onclick="pcIrA('${e}')">${t} ${a}</button>`}function He(e){var a;z.tab=e,document.querySelectorAll(".pc-nav-item").forEach(o=>{var i,r;const n=(r=(i=o.getAttribute("onclick"))==null?void 0:i.match(/'(\w+)'/))==null?void 0:r[1];o.classList.toggle("activo",n===e)});const t=document.getElementById("pc-content");if(t){try{switch(e){case"inicio":ht(t);break;case"catalogo":ve(t);break;case"carrito":le(t);break;case"pedidos":so(t);break;case"referidos":po(t);break;case"cuenta":mo(t);break}}catch(o){console.error("[portal] renderTab error",e,o),t.innerHTML=`<div style="padding:40px;color:#ef4444;text-align:center">Error al cargar sección. <button onclick="pcIrA('${e}')" style="color:#E91E8C;background:none;border:none;cursor:pointer;text-decoration:underline">Reintentar</button></div>`}(a=document.getElementById("pc-sidebar"))==null||a.classList.remove("open")}}function to(){var e;(e=document.getElementById("pc-sidebar"))==null||e.classList.toggle("open")}async function oo(){var e,t,a;try{const[o,n,i,r,s,d]=await Promise.all([fetch(`${ae}/productos/`),fetch(`${ae}/variantes/?activa=eq.true`),fetch(`${ae}/inventario/`),(e=z.sesion)!=null&&e.cliente_id?fetch(`${ae}/auth/pedidos/${z.sesion.cliente_id}`):Promise.resolve(null),(t=z.sesion)!=null&&t.cliente_id?fetch(`${ae}/referidos/mi-codigo/${z.sesion.cliente_id}`):Promise.resolve(null),(a=z.sesion)!=null&&a.cliente_id?fetch(`${ae}/clientes/${z.sesion.cliente_id}`):Promise.resolve(null)]);if(o.ok){const l=await o.json();z.productos=Array.isArray(l)?l.filter(c=>c.activo!==!1):[]}if(n.ok){const l=await n.json();z.variantes=Array.isArray(l)?l:[]}if(i.ok){const l=await i.json();z.inventario=Array.isArray(l)?l:[]}if(r!=null&&r.ok&&(z.pedidos=await r.json()),s!=null&&s.ok&&(z.referido=await s.json()),d!=null&&d.ok){const l=await d.json();z.clienteData=Array.isArray(l)?l[0]:l}}catch(o){console.error("[portal] cargarDatosPC error",o)}He(z.tab)}function ht(e){var r,s,d;if(e=e||document.getElementById("pc-content"),!e)return;const t=z.pedidos||[],a=t.reduce((l,c)=>l+parseFloat(c.total||0),0),o=t.filter(l=>!["entregado","cancelado"].includes(l.status)).length,n=parseFloat(((r=z.referido)==null?void 0:r.credito_disponible)||0),i=[...t].sort((l,c)=>new Date(c.created_at)-new Date(l.created_at)).slice(0,3);e.innerHTML=`
+    <div style="margin-bottom:28px">
+      <h1 style="font-size:1.5rem;font-weight:800;color:#e2e2f0;margin:0 0 4px;letter-spacing:-0.01em">
+        Hola, ${J(((d=(s=z.sesion)==null?void 0:s.nombre)==null?void 0:d.split(" ")[0])||"bienvenida")} 👋
+      </h1>
+      <p style="font-size:0.85rem;color:#5a5a7a;margin:0">Resumen de tu cuenta mayoreo</p>
+    </div>
+
+    <!-- KPIs -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px">
+      <div class="pc-kpi">
+        <p class="pc-kpi-lbl">Total comprado</p>
+        <p class="pc-kpi-val">${Z(a)}</p>
+        <p class="pc-kpi-sub">${t.length} pedido${t.length!==1?"s":""}</p>
+      </div>
+      <div class="pc-kpi">
+        <p class="pc-kpi-lbl">En proceso</p>
+        <p class="pc-kpi-val">${o}</p>
+        <p class="pc-kpi-sub">pedido${o!==1?"s":""} activo${o!==1?"s":""}</p>
+      </div>
+      <div class="pc-kpi" style="${n>0?"border-color:rgba(233,30,140,0.3)":""}">
+        <p class="pc-kpi-lbl">Crédito disponible</p>
+        <p class="pc-kpi-val" style="${n>0?"color:#E91E8C":""}">${Z(n)}</p>
+        <p class="pc-kpi-sub">${n>0?"se aplica en tu próximo pedido":"invita y gana $50"}</p>
+      </div>
+      <div class="pc-kpi" style="cursor:pointer" onclick="pcIrA('catalogo')">
+        <p class="pc-kpi-lbl">Catálogo</p>
+        <p class="pc-kpi-val">${z.productos.length}</p>
+        <p class="pc-kpi-sub" style="color:#E91E8C">Ver productos →</p>
+      </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:28px">
+      ${[{icon:"👟",label:"Ver catálogo",tab:"catalogo"},{icon:"🛒",label:"Carrito",tab:"carrito"},{icon:"📦",label:"Mis pedidos",tab:"pedidos"},{icon:"🎁",label:"Referidos",tab:"referidos"}].map(l=>`
+        <button onclick="pcIrA('${l.tab}')" class="pc-btn pc-btn-secondary" style="padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;border-radius:10px;font-size:0.82rem">
+          <span style="font-size:1.5rem">${l.icon}</span>${l.label}
+        </button>`).join("")}
+    </div>
+
+    <!-- Últimos pedidos -->
+    ${i.length?`
+    <div class="pc-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <p style="font-weight:700;color:#e2e2f0;margin:0">Últimos pedidos</p>
+        <button onclick="pcIrA('pedidos')" style="background:none;border:none;color:#E91E8C;font-size:0.78rem;cursor:pointer;font-family:inherit">Ver todos →</button>
+      </div>
+      ${i.map(l=>ao(l)).join("")}
+    </div>`:`
+    <div class="pc-card" style="text-align:center;padding:40px">
+      <p style="font-size:2rem;margin:0 0 12px">🛍️</p>
+      <p style="color:#a0a0c0;font-weight:600;margin:0 0 8px">Aún no tienes pedidos</p>
+      <p style="color:#5a5a7a;font-size:0.83rem;margin:0 0 20px">Explora el catálogo y haz tu primer pedido mayoreo</p>
+      <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary">Ver catálogo</button>
+    </div>`}
+  `}function ao(e){const a={pendiente_pago:"#f59e0b",pagado:"#10b981",preparando:"#3b82f6",enviado:"#8b5cf6",entregado:"#10b981",cancelado:"#ef4444"}[e.status]||"#6b7280";return`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e1e30;gap:12px" onclick="pcIrA('pedidos')" style="cursor:pointer">
+      <div style="min-width:0">
+        <p style="font-size:0.78rem;font-family:monospace;color:#6a6a8a;margin:0 0 2px">#${(e.id||"").substring(0,8).toUpperCase()}</p>
+        <p style="font-size:0.83rem;color:#a0a0c0;margin:0">${new Date(e.created_at).toLocaleDateString("es-MX")}</p>
+      </div>
+      <span class="pc-status-chip" style="background:${a}20;color:${a};white-space:nowrap">${e.status}</span>
+      <p style="font-weight:700;color:#e2e2f0;margin:0;white-space:nowrap">${Z(e.total)}</p>
+    </div>`}function ve(e){if(e=e||document.getElementById("pc-content"),!e)return;const t=[...new Set(z.productos.map(o=>o.categoria).filter(Boolean))];let a=z.productos;if(z.filtroCat&&(a=a.filter(o=>o.categoria===z.filtroCat)),z.busqueda){const o=z.busqueda.toLowerCase();a=a.filter(n=>{var i,r;return((i=n.nombre)==null?void 0:i.toLowerCase().includes(o))||((r=n.sku_interno)==null?void 0:r.toLowerCase().includes(o))})}e.innerHTML=`
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Catálogo mayoreo</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${z.productos.length} modelos</p>
+    </div>
+
+    <!-- Buscador + filtros -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+      <input class="pc-input" style="max-width:260px" placeholder="🔍 Buscar modelo o SKU..."
+        value="${J(z.busqueda)}" oninput="pcBuscar(this.value)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="pcFiltrarCat('')" class="pc-btn ${z.filtroCat?"pc-btn-secondary":"pc-btn-primary"}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
+        ${t.map(o=>`<button onclick="pcFiltrarCat('${J(o)}')" class="pc-btn ${z.filtroCat===o?"pc-btn-primary":"pc-btn-secondary"}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${o}</button>`).join("")}
+      </div>
+    </div>
+
+    <!-- Grid productos -->
+    ${a.length===0?`<div style="text-align:center;padding:60px;color:#5a5a7a">Sin resultados para "${J(z.busqueda)}"</div>`:`
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">
+      ${a.map(o=>no(o)).join("")}
+    </div>`}
+
+    ${(()=>{const o=z.carrito.reduce((i,r)=>i+r.cantidad,0),n=z.carrito.reduce((i,r)=>i+r.precio_unitario*r.cantidad,0);return o===0?"":`<div onclick="pcIrA('carrito')" style="position:sticky;bottom:16px;margin-top:20px;background:#E91E8C;color:white;border-radius:14px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;box-shadow:0 4px 20px rgba(233,30,140,0.4)">
+        <span style="font-weight:700;font-size:0.95rem">🛒 ${o} par${o!==1?"es":""} en carrito</span>
+        <span style="font-weight:800;font-size:1rem">${Z(n)} →</span>
+      </div>`})()}
+  `}function no(e){var d,l;const t=_e(e),a=Ce(e),o=z.variantes.filter(c=>c.producto_id===e.id),n={};o.forEach(c=>{n[c.color]?!n[c.color].foto&&c.foto_url&&(n[c.color].foto=c.foto_url):n[c.color]={hex:c.color_hex,foto:c.foto_url}});const i=Object.entries(n),r=e.imagen_principal||((l=(d=i[0])==null?void 0:d[1])==null?void 0:l.foto)||"",s=z.carrito.filter(c=>c.producto_id===e.id).reduce((c,p)=>c+p.cantidad,0);return`
+    <div class="pc-prod-card" onclick="pcAbrirProducto('${e.id}')" style="display:flex;flex-direction:column">
+      <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:#0c0c17">
+        <img id="pc-card-img-${e.id}" src="${J(r)}" alt="${J(e.nombre)}" loading="lazy"
+          style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
+        ${e.es_oferta?'<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>':""}
+        ${e.nuevo?'<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>':""}
+        ${s>0?`<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${s} par${s!==1?"es":""}</span>`:""}
+      </div>
+      <!-- Swatches de color -->
+      ${i.length>0?`
+      <div style="display:flex;gap:5px;padding:8px 10px;background:#0c0c17;flex-wrap:wrap" onclick="event.stopPropagation()">
+        ${i.slice(0,8).map(([c,p])=>`
+          <div title="${J(c)}" onclick="pcCardColor('${e.id}','${J(p.foto||r)}',this)"
+            style="width:18px;height:18px;border-radius:50%;background:${p.hex||"#888"};border:2px solid #2a2a40;cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
+            onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='#2a2a40'">
+          </div>`).join("")}
+        ${i.length>8?`<span style="font-size:0.62rem;color:#5a5a7a;align-self:center">+${i.length-8}</span>`:""}
+      </div>`:""}
+      <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column">
+        <p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;font-family:monospace">${J(e.sku_interno||"")}</p>
+        <p style="font-size:0.83rem;font-weight:600;color:#c0c0e0;margin:0 0 8px;line-height:1.3;flex:1">${J(e.nombre)}</p>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          ${t?`<span style="font-size:0.72rem;color:#a0a0c0">3-5: <strong style="color:#e2e2f0">${Z(t)}</strong></span>`:""}
+          ${a?`<span style="font-size:0.72rem;color:#a0a0c0">6+: <strong style="color:#E91E8C">${Z(a)}</strong></span>`:""}
+        </div>
+        <button onclick="event.stopPropagation();pcAbrirProducto('${e.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:7px;font-size:0.78rem">
+          ${s>0?`✓ ${s} par${s!==1?"es":""} · Editar`:"+ Seleccionar tallas"}
+        </button>
+      </div>
+    </div>`}window.pcCardColor=function(e,t,a){var n;const o=document.getElementById("pc-card-img-"+e);o&&t&&(o.style.opacity="0.5",o.src=t,o.onload=()=>{o.style.opacity="1"}),(n=a.closest('[onclick*="stopPropagation"]'))==null||n.querySelectorAll("div[data-sel]").forEach(i=>{delete i.dataset.sel,i.style.borderColor="#2a2a40"}),a.dataset.sel="1",a.style.borderColor="#E91E8C"};window.pcAbrirProducto=function(e){const t=document.getElementById("pc-modal");t&&t.remove();const a=z.productos.find(c=>c.id===e);if(!a)return;const o=z.variantes.filter(c=>c.producto_id===e),n=[...new Set(o.map(c=>c.color).filter(Boolean))],i=_e(a),r=Ce(a),s=Fe(a),d=c=>"$"+Math.round(c).toLocaleString("es-MX");window._pcBuffer={},window._pcModo="variado",window._pcColores=n,window._pcCorridaCantidades={};const l=document.createElement("div");l.id="pc-modal",l.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem",l.innerHTML=`
+    <div style="background:#161625;border:1px solid #2a2a40;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
+
+      <!-- Header: foto + nombre + precios -->
+      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #2a2a40;flex-shrink:0">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <img id="pc-modal-img" src="${J(a.imagen_principal||"")}" onclick="abrirLightboxPC(this.src)"
+            style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in;background:#0c0c17">
+          <div style="flex:1;min-width:0">
+            <p style="font-size:0.65rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${J(a.sku_interno||"")}</p>
+            <p style="font-weight:700;font-size:0.95rem;line-height:1.25;color:#e2e2f0;margin:0">${J(a.nombre)}</p>
+            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${d(parseFloat(a.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:#5a5a7a">menudeo</span></p>
+          </div>
+          <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#5a5a7a;flex-shrink:0;line-height:1">✕</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <div style="flex:1;background:#0f0f1c;border:1px solid #2a2a40;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#5a5a7a;font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 3-5</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#e2e2f0;margin:0">${d(i)}</p>
+          </div>
+          <div style="flex:1;background:#0f0f1c;border:1px solid #2a2a40;border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#5a5a7a;font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 6+</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#E91E8C;margin:0">${d(r)}</p>
+          </div>
+          ${a.corrida_activa?`
+          <div style="flex:1;background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:#b39ddb;font-weight:700;text-transform:uppercase;margin:0 0 2px">Corrida c/u</p>
+            <p style="font-size:0.92rem;font-weight:800;color:#b39ddb;margin:0">${d(s)}</p>
+          </div>`:""}
+        </div>
+        <!-- Strip de fotos por color -->
+        <div id="pc-modal-foto-strip" style="display:none;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0 0;-webkit-overflow-scrolling:touch"></div>
+      </div>
+
+      <!-- Scroll area: tabs + colores + tallas -->
+      <div id="pc-modal-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
+
+        ${a.corrida_activa?`
+        <div style="padding:12px 1.5rem 0">
+          <div style="display:flex;gap:4px;background:#0c0c17;border-radius:12px;padding:4px">
+            <button id="pc-modo-variado" onclick="pcCambiarModo('${e}','variado')"
+              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:#E91E8C;color:white;transition:all 0.15s">
+              🧺 Variado
+            </button>
+            <button id="pc-modo-corrida" onclick="pcCambiarModo('${e}','corrida')"
+              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:transparent;color:#b39ddb;transition:all 0.15s">
+              📦 Corrida
+            </button>
+          </div>
+          <p id="pc-modo-hint" style="font-size:0.72rem;color:#5a5a7a;margin:6px 0 0;line-height:1.4">Elige tallas sueltas — precio ajusta según total de pares en tu pedido.</p>
+        </div>`:""}
+
+        <!-- Selector de colores -->
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #1e1e30">
+          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em">Selecciona color</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${n.map(c=>{var f;const p=o.filter(v=>v.color===c),m=p.map(v=>v.foto_url).find(Boolean),g=((f=p[0])==null?void 0:f.color_hex)||"#888",u=p.reduce((v,x)=>v+z.inventario.filter(h=>h.variante_id===x.id).reduce((h,$)=>h+($.cantidad||0),0),0),y=m?`<img src="${J(m)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid #2a2a40">`:`<div style="width:46px;height:46px;border-radius:8px;background:${g};border:1px solid #2a2a40"></div>`;return`
+                <div onclick="pcSeleccionarColor('${e}','${J(c)}')"
+                     id="pc-color-btn-${J(c.replace(/\s/g,"_"))}"
+                     style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;border:2px solid ${u===0?"#1e1e30":"#2a2a40"};opacity:${u===0?"0.4":"1"};width:74px;transition:border-color 0.15s">
+                  ${y}
+                  <span style="font-size:0.6rem;color:#8888aa;text-align:center;line-height:1.1;height:2.2em;overflow:hidden">${J(c)}</span>
+                  <span id="pc-color-badge-${J(c.replace(/\s/g,"_"))}" style="font-size:0.6rem;color:#E91E8C;font-weight:700;display:none"></span>
+                </div>`}).join("")}
+          </div>
+        </div>
+
+        <!-- Panel de tallas (se rellena al seleccionar color) -->
+        <div id="pc-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid #1e1e30">
+          <p style="color:#5a5a7a;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
+        </div>
+
+      </div><!-- /scroll -->
+
+      <!-- Resumen selección -->
+      <div id="pc-modal-resumen" style="padding:0.75rem 1.5rem;border-bottom:1px solid #1e1e30;display:none;flex-shrink:0"></div>
+
+      <!-- Footer: botón confirmar -->
+      <div id="pc-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #2a2a40">
+        <button onclick="pcConfirmarModal('${e}')" id="pc-btn-confirmar" disabled
+          style="width:100%;padding:14px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
+          Selecciona al menos una talla
+        </button>
+        <button onclick="pcIrA('carrito');document.getElementById('pc-modal').remove()"
+          style="width:100%;padding:10px;background:transparent;color:#5a5a7a;border:1px solid #2a2a40;border-radius:10px;font-family:inherit;font-size:0.82rem;cursor:pointer">
+          Ver pedido actual →
+        </button>
+      </div>
+    </div>`,document.body.appendChild(l),l.addEventListener("click",c=>{c.target===l&&l.remove()}),window._pcSeleccion={prodId:e,color:null},n.length&&pcSeleccionarColor(e,n[0])};window.pcCambiarModo=(e,t)=>{var s;window._pcModo=t;const a=document.getElementById("pc-modo-variado"),o=document.getElementById("pc-modo-corrida");a&&(a.style.background=t==="variado"?"#E91E8C":"transparent",a.style.color=t==="variado"?"white":"#5a5a7a"),o&&(o.style.background=t==="corrida"?"#6a1b9a":"transparent",o.style.color=t==="corrida"?"white":"#b39ddb");const n=document.getElementById("pc-modo-hint");n&&(n.textContent=t==="corrida"?'Corrida completa: varias tallas del mismo color a precio de corrida. Usa "Sugerir" para llenarla rápido.':"Elige tallas sueltas — precio ajusta según total de pares en tu pedido."),document.querySelectorAll('[id^="pc-color-badge-"]').forEach(d=>{d.style.display="none"});const i=document.getElementById("pc-modal-footer"),r=((s=window._pcSeleccion)==null?void 0:s.color)||window._pcColores&&window._pcColores[0];t==="corrida"?(window._pcCorridaCantidades||(window._pcCorridaCantidades={}),i&&(i.innerHTML=`
+      <button onclick="pcSugerirCorrida('${e}', window._pcSeleccion?.color)"
+        style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:rgba(107,27,154,0.15);color:#b39ddb;border:1.5px solid rgba(107,27,154,0.4);border-radius:10px;font-family:inherit">
+        ✨ Sugerir corrida (6 pares)
+      </button>
+      <button onclick="pcConfirmarCorrida('${e}')" id="pc-btn-confirmar-corrida" disabled
+        style="width:100%;padding:14px;background:#6a1b9a;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
+        Agrega tallas a la corrida
+      </button>`),r&&(we(r,"#6a1b9a","rgba(107,27,154,0.12)"),pcRenderCorridaTallas(e,r),window._pcSeleccion.color=r)):(i&&(i.innerHTML=`
+      <button onclick="pcConfirmarModal('${e}')" id="pc-btn-confirmar" disabled
+        style="width:100%;padding:14px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
+        Selecciona al menos una talla
+      </button>`),r&&pcSeleccionarColor(e,r))};function we(e,t,a){document.querySelectorAll('[id^="pc-color-btn-"]').forEach(n=>{n.style.borderColor="#2a2a40",n.style.background="transparent"});const o=document.getElementById("pc-color-btn-"+e.replace(/\s/g,"_"));o&&(o.style.borderColor=t,o.style.background=a)}window.pcSeleccionarColor=(e,t)=>{if(window._pcModo==="corrida")window._pcSeleccion.color=t,we(t,"#6a1b9a","rgba(107,27,154,0.12)"),pcRenderCorridaTallas(e,t);else{window._pcSeleccion&&window._pcSeleccion.color&&window._pcSeleccion.color!==t&&$t(e,window._pcSeleccion.color),we(t,"#E91E8C","rgba(233,30,140,0.08)"),window._pcSeleccion.color=t;const o=z.variantes.filter(c=>c.producto_id===e).filter(c=>c.color===t).sort((c,p)=>ne.indexOf(c.talla)-ne.indexOf(p.talla)),n=[];o.forEach(c=>{(Array.isArray(c.imagenes)&&c.imagenes.length?c.imagenes:c.foto_url?[c.foto_url]:[]).forEach(m=>{m&&!n.includes(m)&&n.push(m)})});const i=n[0]||null,r=document.getElementById("pc-modal-img");r&&i&&(r.src=i);const s=document.getElementById("pc-modal-foto-strip");s&&(n.length<=1?s.style.display="none":(s.style.display="flex",s.innerHTML=n.map((c,p)=>`
+          <img src="${J(c)}" onclick="document.getElementById('pc-modal-img').src='${J(c)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C'"
+            style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${p===0?"2px solid #E91E8C":"none"}">
+        `).join("")));const d=window._pcBuffer[t]||{},l=document.getElementById("pc-tallas-panel");l&&(l.innerHTML=`
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <p style="font-size:0.75rem;color:#5a5a7a;font-weight:600;margin:0;text-transform:uppercase">Tallas — ${J(t)}</p>
+          <p style="font-size:0.7rem;color:#3a3a5c;margin:0">Toca para agregar</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px">
+          ${o.map(c=>{const p=z.inventario.filter(g=>g.variante_id===c.id).reduce((g,u)=>g+(u.cantidad||0),0),m=d[c.id]||0;return`
+              <div style="position:relative">
+                <button id="pc-chip-talla-${c.id}"
+                  onclick="pcTallaTap('${c.id}','${e}','${J(t)}',${p})"
+                  ${p===0?"disabled":""}
+                  style="width:100%;min-height:62px;border:2px solid ${m>0?"#E91E8C":"#2a2a40"};background:${m>0?"rgba(233,30,140,0.12)":"#0f0f1c"};border-radius:12px;cursor:${p===0?"not-allowed":"pointer"};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${p===0?"opacity:0.4":""}">
+                  <span style="font-size:1rem;font-weight:800;color:${p===0?"#3a3a5c":"#e2e2f0"}">${J(c.talla)}</span>
+                  <span style="font-size:0.62rem;color:${p===0?"#3a3a5c":"#4ade80"}">${p===0?"Agotado":"Stk "+p}</span>
+                </button>
+                <span id="pc-chipbadge-${c.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${m>0?"flex":"none"};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${m}</span>
+                <button id="pc-chipmenos-${c.id}"
+                  onclick="pcTallaMenos('${c.id}','${e}','${J(t)}')"
+                  style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#0f0f1c;border:1.5px solid #E91E8C;color:#E91E8C;border-radius:100px;width:26px;height:26px;display:${m>0?"flex":"none"};align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;cursor:pointer;line-height:1;touch-action:manipulation">−</button>
+                <input type="hidden" id="pc-qty-modal-${c.id}" value="${m}">
+              </div>`}).join("")}
+        </div>`)}};window.pcTallaTap=(e,t,a,o)=>{const n=document.getElementById("pc-qty-modal-"+e);if(!n)return;const i=Math.min(o,(parseInt(n.value)||0)+1);n.value=i,wt(e,i),Ne(t,a)};window.pcTallaMenos=(e,t,a)=>{const o=document.getElementById("pc-qty-modal-"+e);if(!o)return;const n=Math.max(0,(parseInt(o.value)||0)-1);o.value=n,wt(e,n),Ne(t,a)};function wt(e,t){const a=document.getElementById("pc-chip-talla-"+e);a&&(a.style.borderColor=t>0?"#E91E8C":"#2a2a40",a.style.background=t>0?"rgba(233,30,140,0.12)":"#0f0f1c");const o=document.getElementById("pc-chipbadge-"+e);o&&(o.textContent=t,o.style.display=t>0?"flex":"none");const n=document.getElementById("pc-chipmenos-"+e);n&&(n.style.display=t>0?"flex":"none")}function $t(e,t){const a=z.variantes.filter(o=>o.producto_id===e&&o.color===t);window._pcBuffer[t]||(window._pcBuffer[t]={}),a.forEach(o=>{const n=document.getElementById("pc-qty-modal-"+o.id);window._pcBuffer[t][o.id]=n&&parseInt(n.value)||0}),Ne(e,t)}function Ne(e,t){const a=z.variantes.filter(i=>i.producto_id===e&&i.color===t);let o=0;a.forEach(i=>{const r=document.getElementById("pc-qty-modal-"+i.id);o+=r&&parseInt(r.value)||0});const n=document.getElementById("pc-color-badge-"+t.replace(/\s/g,"_"));n&&(o>0?(n.textContent=o+" par"+(o>1?"es":""),n.style.display="block"):n.style.display="none"),io(e)}function io(e){var s;let t=0;const a=[],o=z.variantes.filter(d=>d.producto_id===e);Object.entries(window._pcBuffer).forEach(([d,l])=>{Object.entries(l).forEach(([c,p])=>{if(p>0){const m=o.find(g=>g.id===c);m&&(a.push({color:d,talla:m.talla,cantidad:p}),t+=p)}})});const n=(s=window._pcSeleccion)==null?void 0:s.color;n&&!window._pcBuffer[n]&&o.filter(d=>d.color===n).forEach(d=>{const l=document.getElementById("pc-qty-modal-"+d.id),c=l&&parseInt(l.value)||0;c>0&&(a.push({color:n,talla:d.talla,cantidad:c}),t+=c)});const i=document.getElementById("pc-modal-resumen"),r=document.getElementById("pc-btn-confirmar");t>0?(i&&(i.style.display="block",i.innerHTML=`<p style="font-size:0.75rem;font-weight:700;color:#4ade80;margin-bottom:6px">🛒 ${t} pares seleccionados</p>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${a.map(d=>`<span style="background:#0c0c17;border:1px solid #2a2a40;border-radius:100px;padding:2px 10px;font-size:0.78rem;color:#c0c0e0"><strong>${J(d.color)}</strong> T${d.talla} ×${d.cantidad}</span>`).join("")}
+        </div>`),r&&(r.textContent=`✅ Agregar ${t} pares al pedido`,r.disabled=!1,r.style.opacity="1")):(i&&(i.style.display="none"),r&&(r.textContent="Selecciona al menos una talla",r.disabled=!0,r.style.opacity="0.5"))}window.pcConfirmarModal=e=>{var n;const t=z.productos.find(i=>i.id===e);if(!t)return;const a=z.variantes.filter(i=>i.producto_id===e);(n=window._pcSeleccion)!=null&&n.color&&$t(e,window._pcSeleccion.color);let o=0;if(Object.entries(window._pcBuffer).forEach(([i,r])=>{Object.entries(r).forEach(([s,d])=>{if(d<=0)return;const l=a.find(m=>m.id===s),c=(l==null?void 0:l.foto_url)||t.imagen_principal||null,p=z.carrito.find(m=>m.variante_id===s&&!m.es_corrida);if(p)p.cantidad+=d;else{const m=z.carrito.reduce((g,u)=>g+u.cantidad,0)+d;z.carrito.push({producto_id:e,variante_id:s,nombre:t.nombre,sku:t.sku_interno,imagen:c,talla:(l==null?void 0:l.talla)||"",color:i,cantidad:d,precio_unitario:m>=6?Ce(t):_e(t),es_corrida:!1})}o++})}),o===0){alert("Agrega al menos una talla");return}document.getElementById("pc-modal").remove(),window._pcBuffer={},de(),ve()};window.pcRenderCorridaTallas=(e,t)=>{const a=z.variantes.filter(n=>n.producto_id===e&&n.color===t).sort((n,i)=>ne.indexOf(n.talla)-ne.indexOf(i.talla)),o=document.getElementById("pc-tallas-panel");o&&(window._pcCorridaCantidades||(window._pcCorridaCantidades={}),o.innerHTML=`
+    <p style="font-size:0.75rem;color:#b39ddb;font-weight:700;margin-bottom:12px">📦 CORRIDA · ${J(t)} — ajusta cantidades</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${a.map(n=>{const i=z.inventario.filter(s=>s.variante_id===n.id).reduce((s,d)=>s+(d.cantidad||0),0),r=window._pcCorridaCantidades[n.id]||0;return`
+          <div style="display:flex;align-items:center;gap:10px;opacity:${i===0?"0.4":"1"}">
+            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#e2e2f0">${J(n.talla)}</span>
+            <span style="font-size:0.72rem;color:#3a3a5c;min-width:54px">Stock: ${i}</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <button ${i===0?"disabled":""} onclick="pcCorridaQty('${n.id}',-1,${i},'${e}')"
+                style="background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
+              <input type="number" min="0" max="${i}" value="${r}" id="pc-qty-corrida-${n.id}" ${i===0?"disabled":""}
+                style="width:56px;height:40px;text-align:center;border:2px solid ${r>0?"#6a1b9a":"#2a2a40"};border-radius:8px;font-size:1rem;font-weight:700;background:#0f0f1c;color:#e2e2f0;font-family:inherit"
+                oninput="window._pcCorridaCantidades['${n.id}']=Math.min(${i},Math.max(0,parseInt(this.value)||0));this.value=window._pcCorridaCantidades['${n.id}'];this.style.borderColor=window._pcCorridaCantidades['${n.id}']>0?'#6a1b9a':'#2a2a40';pcActualizarBadgesCorrida('${e}')">
+              <button ${i===0?"disabled":""} onclick="pcCorridaQty('${n.id}',1,${i},'${e}')"
+                style="background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
+            </div>
+            ${i===0?'<span style="font-size:0.7rem;color:#ef4444;background:rgba(239,68,68,0.1);padding:2px 8px;border-radius:100px">Agotado</span>':""}
+          </div>`}).join("")}
+    </div>`,pcActualizarBadgesCorrida(e))};window.pcCorridaQty=(e,t,a,o)=>{const n=window._pcCorridaCantidades[e]||0,i=Math.min(a,Math.max(0,n+t));window._pcCorridaCantidades[e]=i;const r=document.getElementById("pc-qty-corrida-"+e);r&&(r.value=i,r.style.borderColor=i>0?"#6a1b9a":"#2a2a40"),pcActualizarBadgesCorrida(o)};window.pcActualizarBadgesCorrida=e=>{let t=0;(window._pcColores||[]).forEach(n=>{const i=z.variantes.filter(d=>d.producto_id===e&&d.color===n);let r=0;i.forEach(d=>{r+=window._pcCorridaCantidades[d.id]||0}),t+=r;const s=document.getElementById("pc-color-badge-"+n.replace(/\s/g,"_"));s&&(r>0?(s.textContent=r+" par"+(r>1?"es":""),s.style.color="#b39ddb",s.style.display="block"):s.style.display="none")});const a=document.getElementById("pc-modal-resumen"),o=document.getElementById("pc-btn-confirmar-corrida");if(t>0){if(a){const n=[];Object.entries(window._pcCorridaCantidades).forEach(([i,r])=>{if(r>0){const s=z.variantes.find(d=>d.id===i);s&&n.push({color:s.color,talla:s.talla,cantidad:r})}}),a.style.display="block",a.innerHTML=`<p style="font-size:0.75rem;font-weight:700;color:#b39ddb;margin-bottom:6px">📦 CORRIDA — ${t} pares</p>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${n.map(i=>`<span style="background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:#b39ddb">T${i.talla} ×${i.cantidad}</span>`).join("")}
+        </div>`}o&&(o.textContent=`✅ Agregar corrida (${t} pares)`,o.disabled=!1,o.style.opacity="1")}else a&&(a.style.display="none"),o&&(o.textContent="Agrega tallas a la corrida",o.disabled=!0,o.style.opacity="0.5")};window.pcSugerirCorrida=(e,t)=>{if(!t){alert("Selecciona un color primero");return}const o=z.variantes.filter(c=>c.producto_id===e).filter(c=>c.color===t).sort((c,p)=>ne.indexOf(c.talla)-ne.indexOf(p.talla)),n=o.filter(c=>z.inventario.filter(p=>p.variante_id===c.id).reduce((p,m)=>p+(m.cantidad||0),0)>0),i=n.some(c=>c.talla.includes("."));o.forEach(c=>{window._pcCorridaCantidades[c.id]=0});const r=n.some(c=>c.talla==="26"),s=i?{con26:["26","25.5","25","24.5","24","23.5"],sin26:["25.5","25","24.5","24","23.5","23"]}:{con26:["26","25","24","23"],sin26:["25","24","23","22"]},d=r?s.con26:s.sin26;let l=d.map(c=>n.find(p=>p.talla===c)).filter(Boolean);if(l.length<6){const c=new Set(l.map(g=>g.id)),p=ne.indexOf(d[d.length-1]),m=n.filter(g=>!c.has(g.id)&&ne.indexOf(g.talla)<p).sort((g,u)=>ne.indexOf(u.talla)-ne.indexOf(g.talla));for(const g of m){if(l.length>=6)break;l.push(g)}}if(l.length||(l=n.slice(0,i?6:5)),i)l.slice(0,6).forEach(c=>{window._pcCorridaCantidades[c.id]=1});else{const c=l.slice(0,5);c.length===4?c.forEach((p,m)=>{window._pcCorridaCantidades[p.id]=m===1||m===2?2:1}):c.length===5?c.forEach((p,m)=>{window._pcCorridaCantidades[p.id]=m===2?2:1}):l.slice(0,6).forEach(p=>{window._pcCorridaCantidades[p.id]=Math.ceil(6/l.length)})}we(t,"#6a1b9a","rgba(107,27,154,0.12)"),pcRenderCorridaTallas(e,t)};window.pcConfirmarCorrida=e=>{const t=z.productos.find(n=>n.id===e);if(!t)return;let a=0;const o=Fe(t);if(Object.entries(window._pcCorridaCantidades).forEach(([n,i])=>{if(i<=0)return;const r=z.variantes.find(l=>l.id===n);if(!r)return;const s=r.foto_url||t.imagen_principal||null,d=z.carrito.find(l=>l.variante_id===n&&l.es_corrida);d?d.cantidad+=i:z.carrito.push({producto_id:e,variante_id:n,nombre:t.nombre,sku:t.sku_interno,imagen:s,talla:r.talla,color:r.color,cantidad:i,precio_unitario:o,es_corrida:!0}),a++}),a===0){alert("Agrega al menos una talla");return}document.getElementById("pc-modal").remove(),window._pcCorridaCantidades={},de(),ve()};window.abrirLightboxPC=function(e,t){if(!e)return;const a=document.getElementById("pc-lightbox");if(a&&a.remove(),!t||!t.length){const d=document.getElementById("pc-modal-foto-strip");d&&d.style.display!=="none"&&(t=Array.from(d.querySelectorAll("img")).map(l=>l.src)),(!t||!t.length)&&(t=[e]),t.includes(e)||(t=[e,...t])}let o=t.indexOf(e);o<0&&(o=0);const n=document.createElement("div");n.id="pc-lightbox",n.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:19999;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none";const i=()=>{const d=t.length;n.innerHTML=`
+      <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
+      ${d>1?`<button id="lb-prev" onclick="lbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${o===0?.3:1}">‹</button>`:""}
+      <img id="lb-img" src="${t[o]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none">
+      ${d>1?`<button id="lb-next" onclick="lbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${o===d-1?.3:1}">›</button>`:""}
+      ${d>1?`<div style="display:flex;gap:6px;margin-top:14px">${t.map((l,c)=>`<div onclick="lbGoto(${c})" style="width:${c===o?"22px":"8px"};height:8px;border-radius:4px;background:${c===o?"#E91E8C":"rgba(255,255,255,0.3)"};cursor:pointer;transition:all 0.2s"></div>`).join("")}</div>`:""}
+    `};window.lbNav=d=>{o=Math.max(0,Math.min(t.length-1,o+d)),i(),r()},window.lbGoto=d=>{o=d,i(),r()};const r=()=>{const d=document.getElementById("lb-img");if(!d)return;let l=0;d.addEventListener("touchstart",c=>{l=c.touches[0].clientX},{passive:!0}),d.addEventListener("touchend",c=>{const p=c.changedTouches[0].clientX-l;Math.abs(p)>50&&window.lbNav(p<0?1:-1)},{passive:!0})};n.addEventListener("click",d=>{d.target===n&&n.remove()});const s=d=>{d.key==="ArrowRight"?window.lbNav(1):d.key==="ArrowLeft"?window.lbNav(-1):d.key==="Escape"&&(n.remove(),document.removeEventListener("keydown",s))};document.addEventListener("keydown",s),n.addEventListener("remove",()=>document.removeEventListener("keydown",s)),i(),document.body.appendChild(n),r()};function de(){try{localStorage.setItem(ke,JSON.stringify(z.carrito))}catch{}}function le(e){var n;if(e=e||document.getElementById("pc-content"),!e)return;if(z.productos.length>0){const i=z.carrito.reduce((r,s)=>r+s.cantidad,0);z.carrito.forEach(r=>{const s=z.productos.find(d=>d.id===r.producto_id);s&&(r.es_corrida?r.precio_unitario=Fe(s):i>=6?r.precio_unitario=Ce(s):r.precio_unitario=_e(s))}),de()}const t=z.carrito.reduce((i,r)=>i+r.precio_unitario*r.cantidad,0),a=z.carrito.reduce((i,r)=>i+r.cantidad,0),o=parseFloat(((n=z.referido)==null?void 0:n.credito_disponible)||0);if(z.carrito.length===0&&z.borradores.length===0){e.innerHTML=`
+      <div style="text-align:center;padding:60px 20px">
+        <p style="font-size:3rem;margin:0 0 16px">🛒</p>
+        <p style="font-size:1rem;font-weight:700;color:#a0a0c0;margin:0 0 8px">Tu pedido está vacío</p>
+        <p style="color:#5a5a7a;font-size:0.83rem;margin:0 0 24px">Agrega productos desde el catálogo</p>
+        <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary">Ver catálogo</button>
+      </div>`;return}e.innerHTML=`
+    <div style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Carrito</h1>
+        <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${a} par${a!==1?"es":""} · ${Z(t)}</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${z.carrito.length>0?`
+        <button onclick="pcGuardarBorrador()" class="pc-btn pc-btn-secondary" style="font-size:0.78rem">💾 Guardar borrador</button>
+        <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-secondary" style="font-size:0.78rem">+ Agregar más</button>`:""}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+
+      <!-- Items del carrito -->
+      <div>
+        ${z.carrito.length===0?"":(()=>{const i=z.carrito.filter(d=>!d.es_corrida),r=z.carrito.filter(d=>d.es_corrida),s={};return r.forEach(d=>{const l=d.producto_id+"|"+d.color;s[l]||(s[l]={nombre:d.nombre,sku:d.sku,color:d.color,producto_id:d.producto_id,imagen:d.imagen||null,tallas:[],subtotal:0,precio_unitario:d.precio_unitario}),s[l].tallas.push({talla:d.talla,cantidad:d.cantidad,variante_id:d.variante_id}),s[l].subtotal+=d.cantidad*d.precio_unitario}),`<div class="pc-card" style="margin-bottom:16px">
+          ${i.map(d=>{const l=z.carrito.indexOf(d);return`<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #1e1e30">
+              ${d.imagen?`<img src="${J(d.imagen)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:#0c0c17;flex-shrink:0">`:'<div style="width:60px;height:60px;background:#0c0c17;border-radius:8px;flex-shrink:0"></div>'}
+              <div style="flex:1;min-width:0">
+                <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${J(d.sku||"")}</p>
+                <p style="font-size:0.88rem;font-weight:600;color:#c0c0e0;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${J(d.nombre)}</p>
+                <p style="font-size:0.78rem;color:#6a6a8a;margin:0">Talla ${J(d.talla)} ${d.color?"· "+J(d.color):""} · ${d.cantidad} par${d.cantidad!==1?"es":""}</p>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">${Z(d.precio_unitario*d.cantidad)}</p>
+                <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${Z(d.precio_unitario)} c/u</p>
+                <button onclick="pcQuitarDelCarrito(${l})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">✕ quitar</button>
+              </div>
+            </div>`}).join("")}
+          ${Object.entries(s).map(([d,l])=>`
+          <div style="padding:12px 0;border-bottom:1px solid #1e1e30;background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              ${l.imagen?`<img src="${J(l.imagen)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:#0c0c17;flex-shrink:0">`:'<div style="width:52px;height:52px;background:#0c0c17;border-radius:8px;flex-shrink:0"></div>'}
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div style="flex:1;min-width:0">
+                    <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${J(l.sku||"")}</p>
+                    <p style="font-size:0.88rem;font-weight:700;color:#c0c0e0;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${J(l.nombre)}</p>
+                    <p style="font-size:0.75rem;color:#a855f7;font-weight:600;margin:0 0 6px">📦 Corrida · ${J(l.color)}</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                      ${l.tallas.map(c=>`<span style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:100px;padding:2px 8px;font-size:0.7rem;color:#a855f7">T${J(c.talla)} ×${c.cantidad}</span>`).join("")}
+                    </div>
+                  </div>
+                  <button onclick="pcQuitarCorrida('${d}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                  <span style="font-size:0.75rem;color:#6a6a8a">${l.tallas.reduce((c,p)=>c+p.cantidad,0)} pares · ${Z(l.precio_unitario)} c/u</span>
+                  <span style="font-weight:700;color:#a855f7">${Z(l.subtotal)}</span>
+                </div>
+              </div>
+            </div>
+          </div>`).join("")}
+        </div>`})()}
+
+        <!-- Borradores guardados -->
+        ${z.borradores.length>0?`
+        <div class="pc-card">
+          <p style="font-weight:700;color:#a0a0c0;margin:0 0 14px;font-size:0.88rem">📋 Borradores guardados</p>
+          ${z.borradores.map((i,r)=>{var s,d;return`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1e1e30;gap:12px">
+              <div>
+                <p style="font-size:0.83rem;font-weight:600;color:#c0c0e0;margin:0 0 2px">${J(i.nombre)}</p>
+                <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${((s=i.items)==null?void 0:s.length)||0} producto${(((d=i.items)==null?void 0:d.length)||0)!==1?"s":""} · ${Z(i.total)}</p>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button onclick="pcCargarBorrador(${r})" class="pc-btn pc-btn-secondary" style="padding:6px 12px;font-size:0.75rem">Cargar</button>
+                <button onclick="pcBorrarBorrador(${r})" style="background:none;border:none;color:#5a5a7a;cursor:pointer;font-size:0.78rem">✕</button>
+              </div>
+            </div>`}).join("")}
+        </div>`:""}
+      </div>
+
+      <!-- Resumen del pedido -->
+      ${z.carrito.length>0?`
+      <div class="pc-card" style="min-width:240px;position:sticky;top:20px">
+        <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Resumen</p>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="color:#6a6a8a;font-size:0.83rem">${a} pares</span>
+          <span style="color:#e2e2f0;font-size:0.83rem">${Z(t)}</span>
+        </div>
+        ${o>0?`
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="color:#10b981;font-size:0.83rem">Crédito</span>
+          <span style="color:#10b981;font-size:0.83rem">-${Z(o)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid #1e1e30">
+          <span style="font-weight:700;color:#e2e2f0">Total</span>
+          <span style="font-weight:700;color:#E91E8C">${Z(Math.max(0,t-o))}</span>
+        </div>`:`
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid #1e1e30">
+          <span style="font-weight:700;color:#e2e2f0">Total</span>
+          <span style="font-weight:700;color:#E91E8C">${Z(t)}</span>
+        </div>`}
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:6px">Notas del pedido</label>
+          <textarea id="pc-notas" class="pc-input" style="height:70px;resize:none" placeholder="Color específico, urgencia, instrucciones..."></textarea>
+        </div>
+        <button onclick="pcHacerPedido()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px">
+          Enviar pedido →
+        </button>
+        <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="width:100%;font-size:0.78rem">
+          Vaciar carrito
+        </button>
+        <p id="pc-pedido-err" style="color:#ef4444;font-size:0.78rem;margin-top:8px;display:none"></p>
+      </div>`:""}
+    </div>
+  `}window.pcQuitarDelCarrito=function(e){z.carrito.splice(e,1),de(),le()};window.pcQuitarCorrida=function(e){const[t,a]=e.split("|");z.carrito=z.carrito.filter(o=>!(o.es_corrida&&o.producto_id===t&&o.color===a)),de(),le()};window.pcGuardarBorrador=function(){const e=prompt('Nombre para este borrador (ej. "Pedido tacones julio"):');if(!e)return;const t=z.carrito.reduce((a,o)=>a+o.precio_unitario*o.cantidad,0);z.borradores.unshift({nombre:e,items:[...z.carrito],total:t,fecha:new Date().toISOString()});try{localStorage.setItem("pc_borradores",JSON.stringify(z.borradores))}catch{}le()};window.pcCargarBorrador=function(e){var t;confirm("¿Cargar este borrador? Reemplazará el carrito actual.")&&(z.carrito=[...((t=z.borradores[e])==null?void 0:t.items)||[]],de(),le())};window.pcBorrarBorrador=function(e){z.borradores.splice(e,1);try{localStorage.setItem("pc_borradores",JSON.stringify(z.borradores))}catch{}le()};window.pcHacerPedido=async function(){var i,r,s,d;const e=((r=(i=document.getElementById("pc-notas"))==null?void 0:i.value)==null?void 0:r.trim())||"",t=document.getElementById("pc-pedido-err");if(z.carrito.length===0)return;if(!((s=z.sesion)!=null&&s.cliente_id)){t&&(t.textContent="Sin sesión activa",t.style.display="block");return}const a=z.carrito.reduce((l,c)=>l+c.precio_unitario*c.cantidad,0),o=z.carrito.map(l=>`${l.sku} T${l.talla}${l.color?" "+l.color:""} x${l.cantidad}`).join(", "),n=document.querySelector('[onclick="pcHacerPedido()"]');n&&(n.textContent="Enviando...",n.disabled=!0);try{const l=await fetch(`${ae}/pedidos`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cliente_id:z.sesion.cliente_id,total:a,status:"pendiente_pago",canal:"portal_mayoreo",descripcion:o,notas_cliente:e,items:z.carrito.map(c=>({producto_id:c.producto_id,talla:c.talla,color:c.color,cantidad:c.cantidad,precio_unitario:c.precio_unitario}))})});if(l.ok){if(z.carrito=[],de(),(d=z.sesion)!=null&&d.cliente_id){const c=await fetch(`${ae}/auth/pedidos/${z.sesion.cliente_id}`);c.ok&&(z.pedidos=await c.json())}ro("¡Pedido enviado! Te contactaremos para coordinar el pago y envío."),He("pedidos")}else{const c=await l.json();t&&(t.textContent=c.error||"Error al enviar el pedido",t.style.display="block"),n&&(n.textContent="Enviar pedido →",n.disabled=!1)}}catch{t&&(t.textContent="Error conectando con el servidor",t.style.display="block"),n&&(n.textContent="Enviar pedido →",n.disabled=!1)}};function ro(e){const t=document.createElement("div");t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#10b981;color:white;padding:12px 24px;border-radius:10px;font-size:0.88rem;font-weight:600;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.3)",t.textContent=e,document.body.appendChild(t),setTimeout(()=>t.remove(),4e3)}function so(e){if(e=e||document.getElementById("pc-content"),!e)return;const t=[...z.pedidos||[]].sort((a,o)=>new Date(o.created_at)-new Date(a.created_at));e.innerHTML=`
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Mis pedidos</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${t.length} pedido${t.length!==1?"s":""} en total</p>
+    </div>
+
+    ${t.length===0?`
+    <div style="text-align:center;padding:60px;color:#5a5a7a">
+      <p style="font-size:2rem;margin:0 0 12px">📦</p>
+      <p style="color:#a0a0c0;font-weight:600;margin:0 0 8px">Sin pedidos aún</p>
+      <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary" style="margin-top:16px">Ver catálogo</button>
+    </div>`:t.map(a=>co(a)).join("")}
+  `}const Ie=["pendiente_pago","pagado","preparando","enviado","entregado"],qe={pendiente_pago:"Pendiente de pago",pagado:"Pago confirmado",preparando:"Preparando",enviado:"En camino",entregado:"Entregado",cancelado:"Cancelado"},lo={pendiente_pago:"⏳",pagado:"✅",preparando:"📦",enviado:"🚚",entregado:"🎉",cancelado:"❌"};function co(e){const a={pendiente_pago:"#f59e0b",pagado:"#10b981",preparando:"#3b82f6",enviado:"#8b5cf6",entregado:"#10b981",cancelado:"#ef4444"}[e.status]||"#6b7280",o=Ie.indexOf(e.status),n=e.pedido_items||[];return`
+    <div class="pc-card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <div>
+          <p style="font-size:0.72rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">#${(e.id||"").substring(0,8).toUpperCase()}</p>
+          <p style="font-size:0.83rem;color:#6a6a8a;margin:0">${new Date(e.created_at).toLocaleDateString("es-MX",{day:"2-digit",month:"long",year:"numeric"})}</p>
+        </div>
+        <div style="text-align:right">
+          <span class="pc-status-chip" style="background:${a}20;color:${a}">${lo[e.status]||""} ${qe[e.status]||e.status}</span>
+          <p style="font-size:1.1rem;font-weight:800;color:#e2e2f0;margin:6px 0 0">${Z(e.total)}</p>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      ${e.status!=="cancelado"?`
+      <div style="display:flex;align-items:center;margin-bottom:20px;overflow-x:auto;padding:4px 0">
+        ${Ie.map((i,r)=>{const s=r<=o;return`
+            <div style="display:flex;align-items:center;flex-shrink:0">
+              <div style="text-align:center;min-width:70px">
+                <div style="width:28px;height:28px;border-radius:50%;background:${s?"rgba(233,30,140,0.15)":"#0f0f1c"};border:2px solid ${s?"#E91E8C":"#2a2a40"};display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:0.75rem">${s?"✓":""}</div>
+                <p style="font-size:0.6rem;color:${s?"#E91E8C":"#3a3a5c"};margin:0;white-space:nowrap">${qe[i]||i}</p>
+              </div>
+              ${r<Ie.length-1?`<div style="flex:1;height:2px;background:${r<o?"#E91E8C":"#1e1e30"};min-width:20px;margin:0 2px;margin-bottom:18px"></div>`:""}
+            </div>`}).join("")}
+      </div>`:""}
+
+      <!-- Tracking -->
+      ${e.numero_guia||e.tracking_url?`
+      <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#8b5cf6;margin:0 0 2px">${e.paqueteria||"Paquetería"}</p>
+          <p style="font-size:0.85rem;font-family:monospace;color:#c0c0e0;margin:0">${e.numero_guia||""}</p>
+        </div>
+        ${e.tracking_url?`<a href="${J(e.tracking_url)}" target="_blank" class="pc-btn pc-btn-primary" style="font-size:0.78rem;padding:8px 16px;text-decoration:none">🔍 Rastrear envío</a>`:""}
+      </div>`:""}
+
+      <!-- Items -->
+      ${n.length>0?`
+      <div style="border-top:1px solid #1e1e30;padding-top:12px">
+        ${n.map(i=>{var r,s,d,l,c;return`
+          <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
+            ${(s=(r=i.variantes)==null?void 0:r.productos)!=null&&s.imagen_principal?`<img src="${J(i.variantes.productos.imagen_principal)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:#0c0c17;flex-shrink:0">`:""}
+            <div style="flex:1;min-width:0">
+              <p style="font-size:0.83rem;font-weight:500;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${J(((l=(d=i.variantes)==null?void 0:d.productos)==null?void 0:l.nombre)||"Producto")}</p>
+              <p style="font-size:0.72rem;color:#5a5a7a;margin:0">Talla ${J(((c=i.variantes)==null?void 0:c.talla)||"")} · ${i.cantidad} par${i.cantidad!==1?"es":""}</p>
+            </div>
+            <p style="font-weight:700;color:#e2e2f0;margin:0;flex-shrink:0">${Z((i.precio_unitario||0)*i.cantidad)}</p>
+          </div>`}).join("")}
+      </div>`:""}
+    </div>`}function po(e){if(e=e||document.getElementById("pc-content"),!e)return;const t=z.referido,a=parseFloat((t==null?void 0:t.credito_disponible)||0),o=(t==null?void 0:t.usos)||0;e.innerHTML=`
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">🎁 Programa de referidos</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Invita a otras zapaterías y gana $50 por cada una</p>
+    </div>
+
+    ${t?`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px">
+      <div class="pc-kpi" style="${a>0?"border-color:rgba(16,185,129,0.3)":""}">
+        <p class="pc-kpi-lbl">Crédito disponible</p>
+        <p class="pc-kpi-val" style="color:${a>0?"#10b981":"#e2e2f0"}">${Z(a)}</p>
+        <p class="pc-kpi-sub">${a>0?"se aplica en tu próximo pedido":"sin crédito pendiente"}</p>
+      </div>
+      <div class="pc-kpi">
+        <p class="pc-kpi-lbl">Referidos registrados</p>
+        <p class="pc-kpi-val">${o}</p>
+        <p class="pc-kpi-sub">zapatería${o!==1?"s":""} invitada${o!==1?"s":""}</p>
+      </div>
+    </div>
+
+    <div class="pc-card" style="margin-bottom:16px">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Tu código personal</p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="background:#0f0f1c;border:1.5px solid #2a2a40;border-radius:10px;padding:14px 24px;flex:1;min-width:160px">
+          <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:0;font-family:monospace">${J(t.codigo||"—")}</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button onclick="navigator.clipboard.writeText('${J(t.codigo||"")}').then(()=>pcMostrarExito('¡Código copiado!'))" class="pc-btn pc-btn-primary">📋 Copiar código</button>
+          ${t.link?`<button onclick="navigator.clipboard.writeText('${J(t.link)}').then(()=>pcMostrarExito('¡Enlace copiado!'))" class="pc-btn pc-btn-secondary">🔗 Copiar enlace</button>`:""}
+        </div>
+      </div>
+      ${t.link?`<p style="font-size:0.72rem;color:#3a3a5c;margin:12px 0 0;word-break:break-all">${J(t.link)}</p>`:""}
+    </div>
+
+    <div class="pc-card">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 12px">¿Cómo funciona?</p>
+      ${[["1.","Comparte tu código o enlace con otra zapatería"],["2.","Se registran con tu código en zapatillasmay.mx"],["3.","Ambas reciben $50 de descuento en su siguiente pedido"],["4.","Sin límite — cuantas más referidas, más crédito acumulado"]].map(([n,i])=>`<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #1e1e30">
+        <span style="font-size:0.8rem;font-weight:800;color:#E91E8C;flex-shrink:0;min-width:20px">${n}</span>
+        <span style="font-size:0.83rem;color:#a0a0c0">${i}</span>
+      </div>`).join("")}
+    </div>`:`<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
+      <div style="width:28px;height:28px;border:3px solid #E91E8C;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
+      Cargando...
+    </div>`}
+  `}function mo(e){if(e=e||document.getElementById("pc-content"),!e)return;const t=z.clienteData||{},a=z.sesion||{};e.innerHTML=`
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Mi cuenta</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${J(a.email||"")}</p>
+    </div>
+
+    <div class="pc-card" style="margin-bottom:14px">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Datos de contacto</p>
+      <div style="display:grid;gap:12px">
+        <div>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Nombre</label>
+          <input id="mc-nombre" class="pc-input" value="${J(a.nombre||t.nombre||"")}">
+        </div>
+        <div>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Teléfono</label>
+          <input id="mc-tel" class="pc-input" type="tel" value="${J(t.telefono||"")}">
+        </div>
+        <div>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Ciudad / Estado</label>
+          <input id="mc-ciudad" class="pc-input" placeholder="ej. Guadalajara, Jalisco" value="${J((t.ciudad||"")+(t.estado?", "+t.estado:""))}">
+        </div>
+      </div>
+      <button onclick="pcGuardarCuenta()" class="pc-btn pc-btn-primary" style="margin-top:16px">Guardar cambios</button>
+      <p id="mc-msg" style="font-size:0.78rem;margin-top:8px;display:none"></p>
+    </div>
+
+    <div class="pc-card">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Cambiar contraseña</p>
+      <div style="display:grid;gap:12px">
+        <input type="password" id="mc-pass-actual" class="pc-input" placeholder="Contraseña actual">
+        <input type="password" id="mc-pass-nueva" class="pc-input" placeholder="Nueva contraseña (mín. 6 caracteres)">
+      </div>
+      <button onclick="pcCambiarPass()" class="pc-btn pc-btn-secondary" style="margin-top:14px">Actualizar contraseña</button>
+      <p id="mc-pass-msg" style="font-size:0.78rem;margin-top:8px;display:none"></p>
+    </div>
+  `,window.pcGuardarCuenta=async function(){const o=document.getElementById("mc-msg"),n={telefono:document.getElementById("mc-tel").value},i=document.getElementById("mc-ciudad").value.split(",");i.length>=2&&(n.ciudad=i[0].trim(),n.estado=i.slice(1).join(",").trim());try{const r=await fetch(`${ae}/clientes/${z.sesion.cliente_id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(n)});o.textContent=r.ok?"✅ Guardado correctamente":"❌ Error al guardar",o.style.color=r.ok?"#10b981":"#ef4444"}catch{o.textContent="Error de conexión",o.style.color="#ef4444"}o.style.display="block"},window.pcCambiarPass=async function(){const o=document.getElementById("mc-pass-msg"),n=document.getElementById("mc-pass-actual").value,i=document.getElementById("mc-pass-nueva").value;if(!n||!i){o.textContent="Completa ambos campos",o.style.color="#ef4444",o.style.display="block";return}try{const r=await fetch(`${ae}/auth/cambiar-password`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({usuario_id:z.sesion.id,password_actual:n,password_nueva:i})}),s=await r.json();o.textContent=r.ok?"✅ Contraseña actualizada":"❌ "+(s.error||"Error"),o.style.color=r.ok?"#10b981":"#ef4444"}catch{o.textContent="Error de conexión",o.style.color="#ef4444"}o.style.display="block"}}function uo(){confirm("¿Cerrar sesión?")&&(sessionStorage.removeItem("erp_empleado"),sessionStorage.removeItem("erp_token"),localStorage.removeItem(ke),z.sesion=null,window.location.reload())}document.querySelector("#app").style.cssText="display:flex;min-height:100vh;width:100%;flex:1";const Et="erp_empleado",kt="pc_sesion";function Te(){document.querySelector("#app").innerHTML=`
+    <div style="min-height:100vh;width:100vw;display:flex;font-family:DM Sans,sans-serif">
+
+      <!-- Panel izquierdo: marca -->
+      <div style="display:none;flex:0 0 42%;background:#0c0c17;flex-direction:column;justify-content:space-between;padding:48px 52px;position:relative;overflow:hidden"
+           id="login-brand-panel">
+        <!-- Glow decorativo -->
+        <div style="position:absolute;top:-120px;left:-80px;width:420px;height:420px;background:radial-gradient(circle,rgba(233,30,140,0.18) 0%,transparent 70%);pointer-events:none"></div>
+        <div style="position:absolute;bottom:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(233,30,140,0.1) 0%,transparent 70%);pointer-events:none"></div>
+
+        <!-- Logo -->
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:0">
+            <span style="width:8px;height:8px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span>
+            <span style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
+          </div>
+        </div>
+
+        <!-- Texto central -->
+        <div>
+          <p style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#E91E8C;margin:0 0 16px">ERP · Panel interno</p>
+          <h2 style="font-size:3rem;font-weight:800;color:white;line-height:1.08;margin:0 0 20px;letter-spacing:-0.02em">
+            Gestiona<br>tu negocio<br>desde aquí.
+          </h2>
+          <p style="font-size:0.85rem;color:#4a4a6a;line-height:1.6;max-width:280px;margin:0">
+            Pedidos, clientes, inventario, WhatsApp y campañas, todo en un solo lugar.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div>
+          <p style="font-size:0.7rem;color:#2a2a3f;margin:0">León, Guanajuato · México</p>
+        </div>
+      </div>
+
+      <!-- Panel derecho: formulario -->
+      <div style="flex:1;background:#0f0f1c;display:flex;align-items:center;justify-content:center;padding:24px;position:relative">
+        <!-- Glow sutil -->
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);width:500px;height:400px;background:radial-gradient(ellipse,rgba(233,30,140,0.07) 0%,transparent 65%);pointer-events:none"></div>
+
+        <div style="width:100%;max-width:360px;position:relative">
+          <!-- Logo en móvil (oculto en desktop cuando el panel izq está visible) -->
+          <div style="text-align:center;margin-bottom:40px">
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px">
+              <span style="width:7px;height:7px;border-radius:50%;background:#E91E8C;flex-shrink:0"></span>
+              <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
+            </div>
+            <h1 style="font-size:1.6rem;font-weight:800;color:white;margin:0;letter-spacing:-0.01em">Bienvenida</h1>
+            <p style="color:#3a3a5c;font-size:0.82rem;margin:6px 0 0">Ingresa tus credenciales para continuar</p>
+          </div>
+
+          <div style="margin-bottom:18px">
+            <label style="display:block;font-size:0.68rem;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Correo electrónico</label>
+            <input type="email" id="login-email" placeholder="tu@correo.com"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color 0.15s"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'"
+              onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+
+          <div style="margin-bottom:28px">
+            <label style="display:block;font-size:0.68rem;font-weight:700;color:#4a4a6a;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">Contraseña</label>
+            <input type="password" id="login-password" placeholder="••••••••"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;transition:border-color 0.15s"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'"
+              onkeydown="if(event.key==='Enter')hacerLogin()">
+          </div>
+
+          <button onclick="hacerLogin()" id="btn-login"
+            style="width:100%;padding:13px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;letter-spacing:0.01em;transition:background 0.15s"
+            onmouseover="this.style.background='#d01a7e'" onmouseout="this.style.background='#E91E8C'">
+            Iniciar sesión
+          </button>
+
+          <p style="text-align:center;margin-top:16px">
+            <a href="#" onclick="mostrarRecuperar(event)"
+               style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </p>
+
+          <p id="login-error" style="color:#f87171;font-size:0.8rem;text-align:center;margin-top:10px;display:none;background:rgba(248,113,113,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(248,113,113,0.2)"></p>
+          <p id="login-ok" style="color:#4ade80;font-size:0.8rem;text-align:center;margin-top:10px;display:none;background:rgba(74,222,128,0.08);padding:8px 12px;border-radius:8px;border:1px solid rgba(74,222,128,0.2)"></p>
+
+          <!-- Sección recuperar contraseña (oculta por defecto) -->
+          <div id="recuperar-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid #1e1e30">
+            <p style="font-size:0.8rem;color:#8888aa;margin:0 0 12px;text-align:center">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+            <input type="email" id="recuperar-email" placeholder="tu@correo.com"
+              style="width:100%;padding:12px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.9rem;outline:none;box-sizing:border-box;margin-bottom:10px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <button onclick="enviarRecuperar()"
+              style="width:100%;padding:11px;background:transparent;color:#E91E8C;border:1.5px solid #E91E8C;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">
+              Enviar enlace
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      @media(min-width:720px){
+        #login-brand-panel{display:flex!important}
+      }
+    </style>
+  `,window.hacerLogin=async()=>{const a=document.getElementById("login-email").value,o=document.getElementById("login-password").value,n=document.getElementById("btn-login");if(!a||!o){e("Por favor completa todos los campos");return}n.textContent="Verificando...",n.disabled=!0;try{const i=await fetch("/api/empleados/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:a,password:o})}),r=await i.json();if(i.ok){sessionStorage.setItem(Et,JSON.stringify(r)),r.token&&sessionStorage.setItem("erp_token",r.token),window._empleadoActual=r,We();return}}catch{}try{const i=await fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:a,password:o})}),r=await i.json();if(i.ok)if(r.tipo==="zapateria"||r.tipo==="mayoreo"){const s={...r,email:a};sessionStorage.setItem(kt,JSON.stringify(s)),r.token&&sessionStorage.setItem("erp_token",r.token),xt(s);return}else{e("Esta cuenta no tiene acceso al portal mayoreo"),n.textContent="Iniciar sesión",n.disabled=!1;return}}catch{}e("Email o contraseña incorrectos"),n.textContent="Iniciar sesión",n.disabled=!1};function e(a){const o=document.getElementById("login-error"),n=document.getElementById("login-ok");o&&(o.textContent=a,o.style.display="block"),n&&(n.style.display="none")}function t(a){const o=document.getElementById("login-ok"),n=document.getElementById("login-error");o&&(o.textContent=a,o.style.display="block"),n&&(n.style.display="none")}window.mostrarRecuperar=a=>{a.preventDefault();const o=document.getElementById("recuperar-section");o&&(o.style.display=o.style.display==="none"?"block":"none");const n=document.getElementById("recuperar-email");n&&(n.value=document.getElementById("login-email").value||"")},window.enviarRecuperar=async()=>{const a=(document.getElementById("recuperar-email").value||"").trim();if(!a){e("Ingresa tu correo electrónico");return}try{const o=await fetch("/api/auth/recuperar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:a})});t("Si existe una cuenta con ese correo, recibirás las instrucciones.");const n=document.getElementById("recuperar-section");n&&(n.style.display="none")}catch{e("Error al enviar. Intenta de nuevo.")}}}window.authHeaders=()=>{const e=sessionStorage.getItem("erp_token");return e?{"Content-Type":"application/json",Authorization:`Bearer ${e}`}:{"Content-Type":"application/json"}};const Ve=sessionStorage.getItem(Et),Ge=sessionStorage.getItem(kt);if(Ve)try{window._empleadoActual=JSON.parse(Ve),We()}catch{Te()}else if(Ge)try{xt(JSON.parse(Ge))}catch{Te()}else Te();

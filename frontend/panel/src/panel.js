@@ -16348,11 +16348,46 @@ window.descargarCatalogoPorCategoria = async function(cat, label) {
 
     if (!productos.length) {
       if (msg) msg.textContent = `Sin productos activos en ${label}`
+      setTimeout(() => { if (msg) msg.style.display = 'none' }, 3000)
       btns.forEach(b => b.disabled = false)
       return
     }
 
-    if (msg) msg.textContent = `✏️ Generando PDF (${productos.length} productos)...`
+    const items = [];
+    productos.forEach(p => {
+      const productVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false);
+      const colorsSeen = new Set();
+      
+      productVars.forEach(v => {
+        if (!v.color || colorsSeen.has(v.color.trim().toUpperCase())) return;
+        colorsSeen.add(v.color.trim().toUpperCase());
+        const imgUrl = v.foto_url || p.imagen_principal;
+        if (imgUrl) {
+          items.push({
+            sku: p.sku_interno || 'S/K',
+            color: v.color.trim().toUpperCase(),
+            imgUrl: imgUrl
+          });
+        }
+      });
+      
+      if (colorsSeen.size === 0 && p.imagen_principal) {
+        items.push({
+          sku: p.sku_interno || 'S/K',
+          color: 'ÚNICO',
+          imgUrl: p.imagen_principal
+        });
+      }
+    });
+
+    if (!items.length) {
+      if (msg) msg.textContent = `Sin fotos disponibles para ${label}`
+      setTimeout(() => { if (msg) msg.style.display = 'none' }, 3000)
+      btns.forEach(b => b.disabled = false)
+      return
+    }
+
+    if (msg) msg.textContent = `✏️ Generando catálogo PDF (${items.length} variantes)...`
 
     // Cargar jsPDF
     if (!window.jspdf) {
@@ -16365,20 +16400,27 @@ window.descargarCatalogoPorCategoria = async function(cat, label) {
     }
     const { jsPDF } = window.jspdf
 
-    const COLS = 2, ROWS = 2, PER_PAGE = COLS * ROWS
-    const CW = 1080, CH = 1440
-    const PAD = 40, GAP = 16
-    const HEADER_H = 70, FOOTER_H = 80
-    const cellW = (CW - PAD * 2 - GAP * (COLS - 1)) / COLS
-    const cellH = (CH - HEADER_H - FOOTER_H - GAP * (ROWS - 1)) / ROWS
-    const NAME_H = 60
+    const cols = 2;
+    const rows = 3;
+    const itemsPerPage = cols * rows;
+    const pageW = 1080;
+    const pageH = 1440;
+    
+    const marginX = 40;
+    const marginY = 80;
+    const gapX = 24;
+    const gapY = 32;
+    
+    const cellW = (pageW - marginX * 2 - gapX * (cols - 1)) / cols;
+    const cellH = (pageH - marginY * 2 - gapY * (rows - 1)) / rows;
+    const imgH = cellH - 50;
 
     const _cargarImg = url => new Promise(resolve => {
       if (!url) return resolve(null)
       const img = new Image(); img.crossOrigin = 'anonymous'
       img.onload = () => resolve(img)
       img.onerror = () => resolve(null)
-      img.src = url
+      img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now()
     })
 
     const _drawContain = (ctx, img, x, y, w, h) => {
@@ -16391,81 +16433,92 @@ window.descargarCatalogoPorCategoria = async function(cat, label) {
         if (ir > cr) { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2 }
         else          { dh = h; dw = h * ir; dy = y; dx = x + (w - dw) / 2 }
         ctx.drawImage(img, dx, dy, dw, dh)
+      } else {
+        ctx.fillStyle = '#F3F4F6';
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Sin imagen', x + w / 2, y + h / 2);
       }
       ctx.restore()
     }
 
-    const grupos = []
-    for (let i = 0; i < productos.length; i += PER_PAGE) grupos.push(productos.slice(i, i + PER_PAGE))
+    const pages = [];
+    for (let i = 0; i < items.length; i += itemsPerPage) {
+      pages.push(items.slice(i, i + itemsPerPage));
+    }
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [CW, CH] })
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [pageW, pageH]
+    });
     let primeraPagina = true
 
-    for (let gi = 0; gi < grupos.length; gi++) {
-      if (msg) msg.textContent = `✏️ Página ${gi + 1} de ${grupos.length}...`
-      const grupo = grupos[gi]
+    const catLabelClean = label.replace(/^[^\s]+\s/, '').toUpperCase();
+
+    for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+      if (msg) msg.textContent = `✏️ Generando página ${pIdx + 1} de ${pages.length}...`
+      const pageItems = pages[pIdx]
 
       const canvas = document.createElement('canvas')
-      canvas.width = CW; canvas.height = CH
+      canvas.width = pageW; canvas.height = pageH
       const ctx = canvas.getContext('2d')
 
       // Fondo
-      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, CW, CH)
+      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, pageW, pageH)
 
-      // Header
-      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, 36, CW - PAD * 2, 1)
-      ctx.fillStyle = '#2A1A0E'; ctx.font = '300 20px sans-serif'
-      ctx.textAlign = 'center'; ctx.letterSpacing = '8px'
-      ctx.fillText('ZAPATILLAS MAY', CW / 2, 32)
-      ctx.letterSpacing = '3px'
-      ctx.font = '400 13px sans-serif'; ctx.fillStyle = '#A07860'
-      ctx.fillText(label.replace(/^[^\s]+\s/, '').toUpperCase(), CW / 2, 54)
-      ctx.letterSpacing = '0px'
-      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, 62, CW - PAD * 2, 1)
+      // White-label Header (No logo text, only generic catalog name)
+      ctx.fillStyle = '#2A1A0E';
+      ctx.font = '300 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '4px';
+      ctx.fillText(`CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38);
+      ctx.letterSpacing = '0px';
+      
+      ctx.fillStyle = '#C8967A';
+      ctx.fillRect(marginX, 48, pageW - marginX * 2, 1.5);
 
       // Celdas
-      for (let pi = 0; pi < grupo.length; pi++) {
-        const p = grupo[pi]
-        const col = pi % COLS, row = Math.floor(pi / COLS)
-        const x = PAD + col * (cellW + GAP)
-        const y = HEADER_H + row * (cellH + GAP)
-        const imgH = cellH - NAME_H
-
-        const vars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
-        const fotoUrl = (vars.length > 0 && vars[0].foto_url) ? vars[0].foto_url : p.imagen_principal
-        const img = await _cargarImg(fotoUrl)
-        _drawContain(ctx, img, x, y, cellW, imgH)
+      for (let cellIdx = 0; cellIdx < pageItems.length; cellIdx++) {
+        const item = pageItems[cellIdx];
+        const colIdx = cellIdx % cols;
+        const rowIdx = Math.floor(cellIdx / cols);
+        
+        const cellX = marginX + colIdx * (cellW + gapX);
+        const cellY = marginY + rowIdx * (cellH + gapY);
+        
+        const img = await _cargarImg(item.imgUrl);
+        _drawContain(ctx, img, cellX, cellY, cellW, imgH);
 
         // Separador
-        ctx.fillStyle = '#E8DDD5'; ctx.fillRect(x, y + imgH, cellW, 1)
+        ctx.fillStyle = '#E8DDD5'; ctx.fillRect(cellX, cellY + imgH, cellW, 1)
 
-        // Nombre
+        // SKU y Color
         ctx.fillStyle = '#2A1A0E'; ctx.textAlign = 'center'
         ctx.font = '600 18px sans-serif'
-        const nombre = p.nombre.length > 28 ? p.nombre.substring(0, 26) + '…' : p.nombre
-        ctx.fillText(nombre.toUpperCase(), x + cellW / 2, y + imgH + 26)
-        if (p.precio_menudeo) {
-          ctx.fillStyle = '#C8967A'; ctx.font = '400 15px sans-serif'
-          ctx.fillText(`$${Number(p.precio_menudeo).toFixed(0)} MXN`, x + cellW / 2, y + imgH + 48)
-        }
+        ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 28)
       }
 
-      // Footer
-      ctx.fillStyle = '#C8967A'; ctx.fillRect(PAD, CH - FOOTER_H, CW - PAD * 2, 1)
-      ctx.fillStyle = '#A07860'; ctx.textAlign = 'center'; ctx.font = '300 16px sans-serif'
-      ctx.letterSpacing = '3px'; ctx.fillText('@ZAPATILLASMAY', CW / 2, CH - 50)
-      ctx.letterSpacing = '0px'; ctx.fillStyle = '#C0A898'; ctx.font = '300 13px sans-serif'
-      ctx.fillText('zapatillasmay.mx  ·  León, Guanajuato', CW / 2, CH - 28)
+      // White-label Footer (No brand name, no website url, only page number)
+      ctx.fillStyle = '#C8967A';
+      ctx.fillRect(marginX, pageH - 48, pageW - marginX * 2, 1);
+      
+      ctx.fillStyle = '#A07860';
+      ctx.font = '300 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30);
 
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
-      if (!primeraPagina) pdf.addPage()
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, CW, CH)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
+      if (!primeraPagina) pdf.addPage([pageW, pageH])
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH)
       primeraPagina = false
     }
 
-    const nombreArchivo = `catalogo-${cat}-zapatillasmay.pdf`
+    const nombreArchivo = `catalogo_${cat}_${new Date().toISOString().slice(0,10)}.pdf`
     pdf.save(nombreArchivo)
-    if (msg) { msg.textContent = `✅ Descargado: ${nombreArchivo}`; setTimeout(() => { msg.style.display = 'none' }, 4000) }
+    if (msg) { msg.textContent = `✅ Descargado!`; setTimeout(() => { msg.style.display = 'none' }, 4000) }
 
   } catch(e) {
     console.error(e)
