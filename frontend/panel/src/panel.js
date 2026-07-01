@@ -18428,7 +18428,8 @@ window.buscarProductoCarrito = (texto) => {
     const chips = g.vars
       .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
       .map(v => {
-        const inv = window._carritoActivo.inventario.find(i => i.variante_id === v.id && i.sucursal_id === window._carritoActivo.sucursalId)
+        const sucId = window._carritoActivo.sucursalId
+        const inv = window._carritoActivo.inventario.find(i => i.variante_id === v.id && (sucId ? i.sucursal_id === sucId : true))
         const stock = inv ? inv.cantidad : 0
         const enCarrito = window._carritoActivo.items.filter(i => i.variante_id === v.id && !i.es_corrida).reduce((s, i) => s + i.cantidad, 0)
         return `

@@ -146,7 +146,8 @@ function renderPC() {
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
 
-  pcIrA('inicio')
+  // Pequeño delay para que el DOM se pinte antes de renderizar el contenido
+  setTimeout(() => pcIrA('inicio'), 0)
 }
 
 function pcNavItem(tab, icon, label) {
@@ -162,13 +163,18 @@ function pcIrA(tab) {
   })
   const content = document.getElementById('pc-content')
   if (!content) return
-  switch (tab) {
-    case 'inicio':   renderInicio(content); break
-    case 'catalogo': renderCatalogo(content); break
-    case 'carrito':  renderCarrito(content); break
-    case 'pedidos':  renderMisPedidos(content); break
-    case 'referidos': renderReferidos(content); break
-    case 'cuenta':   renderMiCuenta(content); break
+  try {
+    switch (tab) {
+      case 'inicio':   renderInicio(content); break
+      case 'catalogo': renderCatalogo(content); break
+      case 'carrito':  renderCarrito(content); break
+      case 'pedidos':  renderMisPedidos(content); break
+      case 'referidos': renderReferidos(content); break
+      case 'cuenta':   renderMiCuenta(content); break
+    }
+  } catch(e) {
+    console.error('[portal] renderTab error', tab, e)
+    content.innerHTML = `<div style="padding:40px;color:#ef4444;text-align:center">Error al cargar sección. <button onclick="pcIrA('${tab}')" style="color:#E91E8C;background:none;border:none;cursor:pointer;text-decoration:underline">Reintentar</button></div>`
   }
   // Cerrar sidebar en móvil
   document.getElementById('pc-sidebar')?.classList.remove('open')
@@ -190,11 +196,15 @@ async function cargarDatosPC() {
     if (resProd.ok) {
       const todos = await resProd.json()
       pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : []
+    } else {
+      console.error('[portal] productos fetch error', resProd.status, await resProd.text().catch(() => ''))
     }
     if (resPed?.ok) pc.pedidos = await resPed.json()
     if (resRef?.ok) pc.referido = await resRef.json()
     if (resCli?.ok) { const d = await resCli.json(); pc.clienteData = Array.isArray(d) ? d[0] : d }
-  } catch(e) {}
+  } catch(e) {
+    console.error('[portal] cargarDatosPC error', e)
+  }
   // Re-renderizar la pestaña activa con datos
   pcIrA(pc.tab)
 }
