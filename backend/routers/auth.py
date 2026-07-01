@@ -90,13 +90,24 @@ def registro(datos: dict):
 @limiter.limit("10/minute")
 async def login(request: Request, datos: dict):
     try:
-        email = datos.get("email")
+        identificador = (datos.get("email") or "").strip()
         password = datos.get("password")
-        if not email or not password:
-            return JSONResponse(status_code=400, content={"error": "Email y password requeridos"})
+        if not identificador or not password:
+            return JSONResponse(status_code=400, content={"error": "Usuario y password requeridos"})
 
-        # Buscar solo por email (nunca enviar el hash en la URL)
-        usuarios = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
+        usuarios = None
+        if "@" in identificador:
+            # Login por email
+            usuarios = supabase_get(f"usuarios?email=eq.{identificador}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
+        else:
+            # Login por teléfono: buscar cliente por teléfono, luego su usuario vinculado
+            solo_digitos = "".join(c for c in identificador if c.isdigit())
+            if solo_digitos:
+                clientes_tel = supabase_get(f"clientes?telefono=eq.{solo_digitos}&select=id")
+                if clientes_tel:
+                    cliente_id = clientes_tel[0]["id"]
+                    usuarios = supabase_get(f"usuarios?cliente_id=eq.{cliente_id}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
+
         if not usuarios:
             return JSONResponse(status_code=401, content={"error": "Email o password incorrectos"})
 

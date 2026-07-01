@@ -6266,6 +6266,27 @@ window.guardarCliente = async (id) => {
   }
 }
 
+window.darAccesoPortal = async (id) => {
+  try {
+    const res = await fetch(API + '/clientes/' + id + '/dar-acceso', { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) { alert(data.error || 'Error al generar el acceso'); return }
+
+    const link = 'https://zapatillasmay-panel.vercel.app'
+    const mensaje = `Hola ${data.nombre}! 👋 Ya tienes acceso a nuestro portal de mayoreo, aquí puedes ver precios especiales y hacer tus pedidos:\n\n${link}\n\n📱 Usuario: ${data.usuario}\n🔑 Contraseña: ${data.password}\n\nGuarda estos datos, los vas a necesitar cada vez que entres.`
+
+    const telLimpio = (data.telefono || '').replace(/\D/g, '')
+    const waUrl = telLimpio ? `https://wa.me/52${telLimpio}?text=${encodeURIComponent(mensaje)}` : null
+
+    if (confirm(`Acceso generado ✅\n\nUsuario: ${data.usuario}\nContraseña: ${data.password}\n\n¿Abrir WhatsApp para enviárselo al cliente?`)) {
+      if (waUrl) window.open(waUrl, '_blank')
+      else { alert('El cliente no tiene teléfono registrado. Copia los datos manualmente.') }
+    }
+  } catch (e) {
+    alert('Error al generar el acceso: ' + e.message)
+  }
+}
+
 window.verCliente = async (id) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
@@ -6303,6 +6324,7 @@ window.verCliente = async (id) => {
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>` : ''}
             <button class="btn btn-secondary" onclick="mostrarFormCliente('${c.id}')">✏️ Editar</button>
+            ${(c.tipo === 'zapateria' || c.tipo === 'mayoreo') ? `<button class="btn btn-secondary" onclick="darAccesoPortal('${c.id}')">🔑 Dar acceso al portal</button>` : ''}
             <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
           </div>
         </div>
@@ -16353,27 +16375,34 @@ window.descargarCatalogoPorCategoria = async function(cat, label) {
       return
     }
 
+    // Extrae el código del modelo desde el nombre, ej. "Jv160 Flats con tacon..." → "JV160"
+    const _codigoModelo = (nombre) => {
+      const m = (nombre || '').trim().match(/^([A-Za-z]+\d+)/);
+      return m ? m[1].toUpperCase() : (nombre || '').trim().split(/\s+/)[0]?.toUpperCase() || 'S/C';
+    };
+
     const items = [];
     productos.forEach(p => {
+      const codigo = _codigoModelo(p.nombre);
       const productVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false);
       const colorsSeen = new Set();
-      
+
       productVars.forEach(v => {
         if (!v.color || colorsSeen.has(v.color.trim().toUpperCase())) return;
         colorsSeen.add(v.color.trim().toUpperCase());
         const imgUrl = v.foto_url || p.imagen_principal;
         if (imgUrl) {
           items.push({
-            sku: p.sku_interno || 'S/K',
+            sku: codigo,
             color: v.color.trim().toUpperCase(),
             imgUrl: imgUrl
           });
         }
       });
-      
+
       if (colorsSeen.size === 0 && p.imagen_principal) {
         items.push({
-          sku: p.sku_interno || 'S/K',
+          sku: codigo,
           color: 'ÚNICO',
           imgUrl: p.imagen_principal
         });

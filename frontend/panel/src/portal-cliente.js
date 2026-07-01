@@ -347,6 +347,18 @@ function renderCatalogo(el) {
       </div>
     </div>
 
+    <!-- Descargar catálogo por categoría -->
+    <div class="pc-card" style="margin-bottom:20px">
+      <p style="font-size:0.85rem;font-weight:700;color:#e2e2f0;margin:0 0 4px">📥 Descargar catálogo por categoría</p>
+      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 12px">Genera un PDF con fotos de todos los modelos activos de esa categoría.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px" id="pc-cat-pdf-btns">
+        ${[['tacones','👠 Tacones'],['sandalias','👡 Sandalias'],['botas','🥾 Botas'],['botines','👢 Botines'],['flats','🥿 Flats'],['plataformas','⬆️ Plataformas'],['tenis','👟 Tenis'],['nina','🎀 Niña'],['accesorios','👜 Accesorios']].map(([id,label]) =>
+          `<button onclick="pcDescargarCatalogoPorCategoria('${id}','${esc(label)}')" class="pc-btn pc-btn-secondary" style="padding:6px 14px;font-size:0.78rem">${label}</button>`
+        ).join('')}
+      </div>
+      <p id="pc-cat-pdf-msg" style="font-size:0.78rem;color:#a0a0c0;margin-top:10px;display:none"></p>
+    </div>
+
     <!-- Grid productos -->
     ${prods.length === 0 ? `<div style="text-align:center;padding:60px;color:#5a5a7a">Sin resultados para "${esc(pc.busqueda)}"</div>` : `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">
@@ -1181,6 +1193,170 @@ function renderCarrito(el) {
       </div>` : ''}
     </div>
   `
+}
+
+window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
+  const msg = document.getElementById('pc-cat-pdf-msg')
+  const btns = document.querySelectorAll('#pc-cat-pdf-btns button')
+  btns.forEach(b => b.disabled = true)
+  if (msg) { msg.style.display = 'block'; msg.textContent = `⏳ Cargando productos de ${label}...` }
+
+  try {
+    const productos = pc.productos.filter(p => p.categoria === cat && p.activo !== false)
+    const variantes = pc.variantes
+
+    if (!productos.length) {
+      if (msg) msg.textContent = `Sin productos activos en ${label}`
+      setTimeout(() => { if (msg) msg.style.display = 'none' }, 3000)
+      btns.forEach(b => b.disabled = false)
+      return
+    }
+
+    // Extrae el código del modelo desde el nombre, ej. "Jv160 Flats con tacon..." → "JV160"
+    const _codigoModelo = (nombre) => {
+      const m = (nombre || '').trim().match(/^([A-Za-z]+\d+)/)
+      return m ? m[1].toUpperCase() : (nombre || '').trim().split(/\s+/)[0]?.toUpperCase() || 'S/C'
+    }
+
+    const items = []
+    productos.forEach(p => {
+      const codigo = _codigoModelo(p.nombre)
+      const productVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+      const colorsSeen = new Set()
+
+      productVars.forEach(v => {
+        if (!v.color || colorsSeen.has(v.color.trim().toUpperCase())) return
+        colorsSeen.add(v.color.trim().toUpperCase())
+        const imgUrl = v.foto_url || p.imagen_principal
+        if (imgUrl) items.push({ sku: codigo, color: v.color.trim().toUpperCase(), imgUrl })
+      })
+
+      if (colorsSeen.size === 0 && p.imagen_principal) {
+        items.push({ sku: codigo, color: 'ÚNICO', imgUrl: p.imagen_principal })
+      }
+    })
+
+    if (!items.length) {
+      if (msg) msg.textContent = `Sin fotos disponibles para ${label}`
+      setTimeout(() => { if (msg) msg.style.display = 'none' }, 3000)
+      btns.forEach(b => b.disabled = false)
+      return
+    }
+
+    if (msg) msg.textContent = `✏️ Generando catálogo PDF (${items.length} variantes)...`
+
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = resolve; s.onerror = reject
+        document.head.appendChild(s)
+      })
+    }
+    const { jsPDF } = window.jspdf
+
+    const cols = 2, rows = 3
+    const itemsPerPage = cols * rows
+    const pageW = 1080, pageH = 1440
+    const marginX = 40, marginY = 80, gapX = 24, gapY = 32
+    const cellW = (pageW - marginX * 2 - gapX * (cols - 1)) / cols
+    const cellH = (pageH - marginY * 2 - gapY * (rows - 1)) / rows
+    const imgH = cellH - 50
+
+    const _cargarImg = url => new Promise(resolve => {
+      if (!url) return resolve(null)
+      const img = new Image(); img.crossOrigin = 'anonymous'
+      img.onload = () => resolve(img)
+      img.onerror = () => resolve(null)
+      img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now()
+    })
+
+    const _drawContain = (ctx, img, x, y, w, h) => {
+      ctx.save()
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x, y, w, h)
+      if (img) {
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip()
+        const ir = img.naturalWidth / img.naturalHeight, cr = w / h
+        let dx, dy, dw, dh
+        if (ir > cr) { dw = w; dh = w / ir; dx = x; dy = y + (h - dh) / 2 }
+        else          { dh = h; dw = h * ir; dy = y; dx = x + (w - dw) / 2 }
+        ctx.drawImage(img, dx, dy, dw, dh)
+      } else {
+        ctx.fillStyle = '#F3F4F6'; ctx.fillRect(x, y, w, h)
+        ctx.fillStyle = '#9CA3AF'; ctx.font = '20px sans-serif'; ctx.textAlign = 'center'
+        ctx.fillText('Sin imagen', x + w / 2, y + h / 2)
+      }
+      ctx.restore()
+    }
+
+    const pages = []
+    for (let i = 0; i < items.length; i += itemsPerPage) pages.push(items.slice(i, i + itemsPerPage))
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [pageW, pageH] })
+    let primeraPagina = true
+    const catLabelClean = label.replace(/^[^\s]+\s/, '').toUpperCase()
+
+    for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+      if (msg) msg.textContent = `✏️ Generando página ${pIdx + 1} de ${pages.length}...`
+      const pageItems = pages[pIdx]
+
+      const canvas = document.createElement('canvas')
+      canvas.width = pageW; canvas.height = pageH
+      const ctx = canvas.getContext('2d')
+
+      ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, pageW, pageH)
+
+      ctx.fillStyle = '#2A1A0E'
+      ctx.font = '300 20px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.letterSpacing = '4px'
+      ctx.fillText(`CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38)
+      ctx.letterSpacing = '0px'
+
+      ctx.fillStyle = '#C8967A'
+      ctx.fillRect(marginX, 48, pageW - marginX * 2, 1.5)
+
+      for (let cellIdx = 0; cellIdx < pageItems.length; cellIdx++) {
+        const item = pageItems[cellIdx]
+        const colIdx = cellIdx % cols
+        const rowIdx = Math.floor(cellIdx / cols)
+        const cellX = marginX + colIdx * (cellW + gapX)
+        const cellY = marginY + rowIdx * (cellH + gapY)
+
+        const img = await _cargarImg(item.imgUrl)
+        _drawContain(ctx, img, cellX, cellY, cellW, imgH)
+
+        ctx.fillStyle = '#E8DDD5'; ctx.fillRect(cellX, cellY + imgH, cellW, 1)
+
+        ctx.fillStyle = '#2A1A0E'; ctx.textAlign = 'center'
+        ctx.font = '600 18px sans-serif'
+        ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 28)
+      }
+
+      ctx.fillStyle = '#C8967A'
+      ctx.fillRect(marginX, pageH - 48, pageW - marginX * 2, 1)
+
+      ctx.fillStyle = '#A07860'
+      ctx.font = '300 14px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30)
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
+      if (!primeraPagina) pdf.addPage([pageW, pageH])
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, pageW, pageH)
+      primeraPagina = false
+    }
+
+    const nombreArchivo = `catalogo_${cat}_${new Date().toISOString().slice(0,10)}.pdf`
+    pdf.save(nombreArchivo)
+    if (msg) { msg.textContent = `✅ Descargado!`; setTimeout(() => { msg.style.display = 'none' }, 4000) }
+
+  } catch(e) {
+    console.error(e)
+    if (msg) msg.textContent = 'Error generando el PDF: ' + e.message
+  } finally {
+    btns.forEach(b => b.disabled = false)
+  }
 }
 
 window.pcQuitarDelCarrito = function(idx) {
