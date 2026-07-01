@@ -357,9 +357,17 @@ function renderCatalogo(el) {
       const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
       const totalMonto = pc.carrito.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
       if (totalPares === 0) return ''
-      return `<div onclick="pcIrA('carrito')" style="position:sticky;bottom:16px;margin-top:20px;background:#E91E8C;color:white;border-radius:14px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;box-shadow:0 4px 20px rgba(233,30,140,0.4)">
-        <span style="font-weight:700;font-size:0.95rem">🛒 ${totalPares} par${totalPares !== 1 ? 'es' : ''} en carrito</span>
-        <span style="font-weight:800;font-size:1rem">${money(totalMonto)} →</span>
+      return `
+      <div onclick="pcIrA('carrito')"
+        style="position:fixed;bottom:20px;right:20px;z-index:900;background:#161625;border:1.5px solid #E91E8C;border-radius:100px;padding:10px 18px 10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,0.5);transition:transform 0.15s"
+        onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+        <div style="position:relative;width:38px;height:38px;background:#E91E8C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛒
+          <span style="position:absolute;top:-5px;right:-5px;background:white;color:#E91E8C;font-size:0.62rem;font-weight:800;min-width:18px;height:18px;border-radius:100px;display:flex;align-items:center;justify-content:center;padding:0 4px">${totalPares}</span>
+        </div>
+        <div style="line-height:1.2">
+          <p style="margin:0;font-size:0.68rem;color:#8888aa;font-weight:600">${totalPares} par${totalPares !== 1 ? 'es' : ''} · Ver carrito</p>
+          <p style="margin:0;font-size:0.95rem;font-weight:800;color:#E91E8C">${money(totalMonto)}</p>
+        </div>
       </div>`
     })()}
   `
