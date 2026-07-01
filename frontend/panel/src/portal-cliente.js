@@ -146,7 +146,6 @@ function renderPC() {
   window.pcIrA = pcIrA
   window.pcCerrarSesion = pcCerrarSesion
   window.pcToggleSidebar = pcToggleSidebar
-  window.pcAgregarAlCarrito = pcAgregarAlCarrito
   window.pcQuitarDelCarrito = pcQuitarDelCarrito
   window.pcGuardarBorrador = pcGuardarBorrador
   window.pcCargarBorrador = pcCargarBorrador
