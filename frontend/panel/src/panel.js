@@ -18404,6 +18404,7 @@ window.buscarProductoCarrito = (texto) => {
   const terminos = texto.toLowerCase().split(' ').filter(Boolean)
   const filtradas = variantes.filter(v => {
     const prod = productos.find(p => p.id === v.producto_id)
+    if (!prod || prod.activo === false) return false
     const txt = ((prod?.nombre || '') + ' ' + (v.color || '') + ' ' + (v.talla || '') + ' ' + (prod?.sku_interno || '')).toLowerCase()
     return terminos.every(t => txt.includes(t))
   })
