@@ -28,6 +28,8 @@ const pc = {
   clienteData: null,
   filtroCat: '',
   busqueda: '',
+  filtroTallas: [],
+  filtroColores: [],
   borradores: [],
 }
 
@@ -159,6 +161,17 @@ function renderPC() {
   window.pcBorrarBorrador = pcBorrarBorrador
   window.pcHacerPedido = pcHacerPedido
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; renderCatalogo() }
+  window.pcToggleFiltroTalla = (t) => {
+    const i = pc.filtroTallas.indexOf(t)
+    if (i === -1) pc.filtroTallas.push(t); else pc.filtroTallas.splice(i, 1)
+    renderCatalogo()
+  }
+  window.pcToggleFiltroColor = (c) => {
+    const i = pc.filtroColores.indexOf(c)
+    if (i === -1) pc.filtroColores.push(c); else pc.filtroColores.splice(i, 1)
+    renderCatalogo()
+  }
+  window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
   window.pcVaciarCarrito = () => { pc.carrito = []; try { localStorage.removeItem(PC_CARRITO_KEY) } catch {} renderCarrito() }
 
@@ -336,27 +349,81 @@ function renderCatalogo(el) {
   el = el || document.getElementById('pc-content')
   if (!el) return
   const cats = [...new Set(pc.productos.map(p => p.categoria).filter(Boolean))]
+
+  // Tallas y colores disponibles (derivados de las variantes activas)
+  const varsActivas = pc.variantes.filter(v => v.activa !== false)
+  const tallasDisponibles = TALLAS_ORDEN.filter(t => varsActivas.some(v => v.talla === t))
+  const coloresMapa = {}
+  varsActivas.forEach(v => {
+    if (!v.color) return
+    if (!coloresMapa[v.color]) coloresMapa[v.color] = v.color_hex || null
+  })
+  const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
+
   let prods = pc.productos
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
     const q = pc.busqueda.toLowerCase()
     prods = prods.filter(p => p.nombre?.toLowerCase().includes(q) || p.sku_interno?.toLowerCase().includes(q))
   }
+  if (pc.filtroTallas.length) {
+    prods = prods.filter(p => varsActivas.some(v => v.producto_id === p.id && pc.filtroTallas.includes(v.talla)))
+  }
+  if (pc.filtroColores.length) {
+    prods = prods.filter(p => varsActivas.some(v => v.producto_id === p.id && pc.filtroColores.includes(v.color)))
+  }
+
+  const hayFiltrosActivos = pc.filtroTallas.length > 0 || pc.filtroColores.length > 0
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
       <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Productos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${pc.productos.length} modelos</p>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${prods.length} de ${pc.productos.length} modelos</p>
     </div>
 
-    <!-- Buscador + filtros -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    <!-- Buscador + categorías -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
       <input class="pc-input" style="max-width:260px" placeholder="🔍 Buscar modelo o SKU..."
         value="${esc(pc.busqueda)}" oninput="pcBuscar(this.value)">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
         ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
       </div>
+    </div>
+
+    <!-- Filtros: talla y color -->
+    <div class="pc-card" style="margin-bottom:20px;padding:16px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${tallasDisponibles.length || coloresDisponibles.length ? '14px' : '0'}">
+        <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0">Filtrar por talla o color</p>
+        ${hayFiltrosActivos ? `<button onclick="pcLimpiarFiltrosTC()" style="background:none;border:none;color:#E91E8C;font-size:0.75rem;cursor:pointer;font-weight:600">Limpiar filtros</button>` : ''}
+      </div>
+
+      ${tallasDisponibles.length ? `
+      <div style="margin-bottom:${coloresDisponibles.length ? '14px' : '0'}">
+        <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Talla</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${tallasDisponibles.map(t => {
+            const sel = pc.filtroTallas.includes(t)
+            return `<button onclick="pcToggleFiltroTalla('${esc(t)}')"
+              style="min-width:40px;padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.15)' : '#0f0f1c'};color:${sel ? '#E91E8C' : '#a0a0c0'};font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s">${esc(t)}</button>`
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      ${coloresDisponibles.length ? `
+      <div>
+        <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Color</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${coloresDisponibles.map(([color, hex]) => {
+            const sel = pc.filtroColores.includes(color)
+            return `<button onclick="pcToggleFiltroColor('${esc(color)}')" title="${esc(color)}"
+              style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.1)' : '#0f0f1c'};cursor:pointer;font-family:inherit;transition:all 0.15s">
+              <span style="width:16px;height:16px;border-radius:50%;background:${hex || '#888'};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></span>
+              <span style="font-size:0.75rem;color:${sel ? '#E91E8C' : '#a0a0c0'};font-weight:${sel ? '700' : '500'};white-space:nowrap">${esc(color)}</span>
+            </button>`
+          }).join('')}
+        </div>
+      </div>` : ''}
     </div>
 
     <!-- Grid productos -->
