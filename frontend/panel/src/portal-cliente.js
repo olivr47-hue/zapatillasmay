@@ -1742,8 +1742,8 @@ function renderReferidos(el) {
     </div>
 
     <div class="pc-card" style="margin-bottom:16px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">Tu código personal</p>
-      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Compártelo directo — el que lo reciba solo tiene que usarlo al crear su cuenta</p>
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">✅ Ya tienes tu código, no necesitas hacer nada más</p>
+      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Se generó solo para tu cuenta. Compártelo por WhatsApp o cópialo — la persona que lo use lo escribe al crear su cuenta en el portal.</p>
       <div style="background:#0f0f1c;border:1.5px solid #2a2a40;border-radius:10px;padding:14px 24px;margin-bottom:14px;text-align:center">
         <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:0;font-family:monospace">${esc(r.codigo||'—')}</p>
       </div>
@@ -1763,10 +1763,10 @@ function renderReferidos(el) {
     <div class="pc-card">
       <p style="font-weight:700;color:#e2e2f0;margin:0 0 12px">¿Cómo funciona?</p>
       ${[
-        ['1.','Comparte tu código o enlace con otra zapatería'],
-        ['2.','Se registran con tu código en zapatillasmay.mx'],
-        ['3.','Ambas reciben $50 de descuento en su siguiente pedido'],
-        ['4.','Sin límite — cuantas más referidas, más crédito acumulado'],
+        ['1.','Toca "Invitar por WhatsApp" o copia tu código/enlace'],
+        ['2.','La otra persona crea su cuenta mayorista y escribe tu código'],
+        ['3.',`Tú ganas ${money(bono)} de crédito, ella recibe $50 de descuento en su primer pedido`],
+        ['4.','Sin límite — cuantas más personas invites, más crédito acumulas'],
       ].map(([n,t]) => `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #1e1e30">
         <span style="font-size:0.8rem;font-weight:800;color:#E91E8C;flex-shrink:0;min-width:20px">${n}</span>
         <span style="font-size:0.83rem;color:#a0a0c0">${t}</span>
