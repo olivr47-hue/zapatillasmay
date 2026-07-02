@@ -152,12 +152,18 @@ def perfil(usuario_id: str):
         if not usuarios:
             return JSONResponse(status_code=404, content={"error": "Usuario no encontrado"})
         u = usuarios[0]
+        cliente_id = u.get("cliente_id")
+        if not cliente_id and u.get("email"):
+            clientes_email = supabase_get(f"clientes?email=eq.{u['email']}&select=id")
+            if clientes_email:
+                cliente_id = clientes_email[0]["id"]
+                supabase_patch(f"usuarios?id=eq.{usuario_id}", {"cliente_id": cliente_id})
         return {
             "id": u["id"],
             "nombre": u["nombre"],
             "email": u["email"],
             "tipo": u["tipo"],
-            "cliente_id": u.get("cliente_id"),
+            "cliente_id": cliente_id,
             "cliente": u.get("clientes")
         }
     except Exception as e:

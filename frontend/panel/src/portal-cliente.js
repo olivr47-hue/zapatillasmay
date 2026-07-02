@@ -236,6 +236,20 @@ function pcToggleSidebar(_fromBack) {
 
 // ── Carga inicial de datos ───────────────────────────────────
 async function cargarDatosPC() {
+  // Auto-reparar sesiones viejas guardadas antes de vincular usuario↔cliente:
+  // si no tenemos cliente_id pero sí el id del usuario, refrescarlo desde el backend.
+  if (!pc.sesion?.cliente_id && pc.sesion?.id) {
+    try {
+      const res = await fetch(`${PC_API}/auth/perfil/${pc.sesion.id}`)
+      if (res.ok) {
+        const perfil = await res.json()
+        if (perfil.cliente_id) {
+          pc.sesion.cliente_id = perfil.cliente_id
+          try { localStorage.setItem('pc_sesion', JSON.stringify(pc.sesion)) } catch {}
+        }
+      }
+    } catch (e) {}
+  }
   const cid = pc.sesion?.cliente_id
   // Cada fetch se resuelve de forma independiente: si una falla, no debe
   // tumbar a las demás (antes un error en cualquiera dejaba todo sin cargar,
