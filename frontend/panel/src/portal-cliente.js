@@ -1689,6 +1689,7 @@ function pcCerrarSesion() {
   if (!confirm('¿Cerrar sesión?')) return
   localStorage.removeItem('erp_empleado')
   localStorage.removeItem('erp_token')
+  localStorage.removeItem('pc_sesion')
   localStorage.removeItem(PC_CARRITO_KEY)
   pc.sesion = null
   window.location.reload()
