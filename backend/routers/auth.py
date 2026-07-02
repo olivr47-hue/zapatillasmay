@@ -17,7 +17,7 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 def registro(datos: dict):
     try:
         nombre = datos.get("nombre")
-        email = datos.get("email")
+        email = (datos.get("email") or "").strip().lower()
         password = datos.get("password")
         tipo = datos.get("tipo", "cliente")
         if not nombre or not email or not password:
@@ -36,7 +36,7 @@ def registro(datos: dict):
         })
         u = usuario[0]
         # Buscar si ya existe cliente con ese email o telefono para no duplicar
-        cliente_existente = supabase_get(f"clientes?email=eq.{email}")
+        cliente_existente = supabase_get(f"clientes?email=ilike.{email}")
         if not cliente_existente and telefono:
             cliente_existente = supabase_get(f"clientes?telefono=eq.{telefono}")
 
@@ -93,7 +93,7 @@ def registro(datos: dict):
 @limiter.limit("10/minute")
 async def login(request: Request, datos: dict):
     try:
-        identificador = (datos.get("email") or "").strip()
+        identificador = (datos.get("email") or "").strip().lower()
         password = datos.get("password")
         if not identificador or not password:
             return JSONResponse(status_code=400, content={"error": "Usuario y password requeridos"})
@@ -101,7 +101,7 @@ async def login(request: Request, datos: dict):
         usuarios = None
         if "@" in identificador:
             # Login por email
-            usuarios = supabase_get(f"usuarios?email=eq.{identificador}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
+            usuarios = supabase_get(f"usuarios?email=ilike.{identificador}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
         else:
             # Login por teléfono: buscar cliente por teléfono, luego su usuario vinculado
             solo_digitos = "".join(c for c in identificador if c.isdigit())
@@ -127,7 +127,7 @@ async def login(request: Request, datos: dict):
         # Auto-reparar cuentas viejas cuyo usuario nunca quedó vinculado a su cliente
         cliente_id = u.get("cliente_id")
         if not cliente_id and u.get("email"):
-            clientes_email = supabase_get(f"clientes?email=eq.{u['email']}&select=id")
+            clientes_email = supabase_get(f"clientes?email=ilike.{u['email']}&select=id")
             if clientes_email:
                 cliente_id = clientes_email[0]["id"]
                 supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
@@ -154,9 +154,20 @@ def perfil(usuario_id: str):
         u = usuarios[0]
         cliente_id = u.get("cliente_id")
         if not cliente_id and u.get("email"):
-            clientes_email = supabase_get(f"clientes?email=eq.{u['email']}&select=id")
+            clientes_email = supabase_get(f"clientes?email=ilike.{u['email']}&select=id")
             if clientes_email:
                 cliente_id = clientes_email[0]["id"]
+            elif u.get("tipo") in ("zapateria", "mayoreo", "menudeo", "cliente"):
+                # Cuenta huérfana: nunca tuvo un cliente asociado. Se crea uno.
+                nuevo_cliente = supabase_post("clientes", {
+                    "nombre": u["nombre"],
+                    "email": u["email"],
+                    "tipo": u["tipo"] if u["tipo"] in ("zapateria", "mayoreo") else "menudeo",
+                    "activo": True,
+                    "origen": "auto-reparado",
+                })
+                cliente_id = nuevo_cliente[0]["id"] if nuevo_cliente else None
+            if cliente_id:
                 supabase_patch(f"usuarios?id=eq.{usuario_id}", {"cliente_id": cliente_id})
         return {
             "id": u["id"],
