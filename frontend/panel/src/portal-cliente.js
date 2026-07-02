@@ -31,6 +31,7 @@ const pc = {
   filtroTallas: [],
   filtroColores: [],
   filtrosExpandido: false,
+  datosCargados: false,
   borradores: [],
 }
 
@@ -127,7 +128,9 @@ function renderPC() {
       #pc-sidebar.open { transform:translateX(0); }
       #pc-topbar { display:flex!important; }
       #pc-content { padding:20px 16px!important; }
+      .pc-prod-grid { grid-template-columns:repeat(2,1fr)!important; gap:10px!important; }
     }
+    .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
     .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
       font-size:0.83rem;font-weight:500;color:#6a6a8a;border:none;background:none;
       font-family:inherit;width:100%;text-align:left;transition:all 0.15s; }
@@ -174,6 +177,7 @@ function renderPC() {
   }
   window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
   window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
+  window.pcReintentarReferidos = () => { pc.datosCargados = false; renderReferidos(); cargarDatosPC() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
   window.pcVaciarCarrito = () => { pc.carrito = []; try { localStorage.removeItem(PC_CARRITO_KEY) } catch {} renderCarrito() }
 
@@ -232,26 +236,40 @@ function pcToggleSidebar(_fromBack) {
 
 // ── Carga inicial de datos ───────────────────────────────────
 async function cargarDatosPC() {
-  try {
-    const [resProd, resVar, resInv, resPed, resRef, resRefStats, resCli] = await Promise.all([
-      fetch(`${PC_API}/productos/`),
-      fetch(`${PC_API}/variantes/?activa=eq.true`),
-      fetch(`${PC_API}/inventario/`),
-      pc.sesion?.cliente_id ? fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`) : Promise.resolve(null),
-      pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/mi-codigo/${pc.sesion.cliente_id}`) : Promise.resolve(null),
-      pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/stats/${pc.sesion.cliente_id}`) : Promise.resolve(null),
-      pc.sesion?.cliente_id ? fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`) : Promise.resolve(null),
-    ])
-    if (resProd.ok) { const todos = await resProd.json(); pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : [] }
-    if (resVar.ok) { const d = await resVar.json(); pc.variantes = Array.isArray(d) ? d : [] }
-    if (resInv.ok) { const d = await resInv.json(); pc.inventario = Array.isArray(d) ? d : [] }
-    if (resPed?.ok) pc.pedidos = await resPed.json()
-    if (resRef?.ok) pc.referido = await resRef.json()
-    if (resRefStats?.ok) { const s = await resRefStats.json(); if (pc.referido) pc.referido.usos = s.referidos || 0 }
-    if (resCli?.ok) { const d = await resCli.json(); pc.clienteData = Array.isArray(d) ? d[0] : d }
-  } catch(e) {
-    console.error('[portal] cargarDatosPC error', e)
+  const cid = pc.sesion?.cliente_id
+  // Cada fetch se resuelve de forma independiente: si una falla, no debe
+  // tumbar a las demás (antes un error en cualquiera dejaba todo sin cargar,
+  // incluida la sección de referidos, con el spinner pegado para siempre).
+  const _safeFetch = async (url) => {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) return null
+      return await res.json()
+    } catch (e) {
+      console.error('[portal] fetch error', url, e)
+      return null
+    }
   }
+
+  const [prod, vari, inv, ped, ref, refStats, cli] = await Promise.all([
+    _safeFetch(`${PC_API}/productos/`),
+    _safeFetch(`${PC_API}/variantes/?activa=eq.true`),
+    _safeFetch(`${PC_API}/inventario/`),
+    cid ? _safeFetch(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
+    cid ? _safeFetch(`${PC_API}/referidos/mi-codigo/${cid}`) : Promise.resolve(null),
+    cid ? _safeFetch(`${PC_API}/referidos/stats/${cid}`) : Promise.resolve(null),
+    cid ? _safeFetch(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
+  ])
+
+  if (Array.isArray(prod)) pc.productos = prod.filter(p => p.activo !== false)
+  if (Array.isArray(vari)) pc.variantes = vari
+  if (Array.isArray(inv)) pc.inventario = inv
+  if (ped) pc.pedidos = ped
+  if (ref) pc.referido = ref
+  if (refStats && pc.referido) pc.referido.usos = refStats.referidos || 0
+  if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
+
+  pc.datosCargados = true
   // Re-renderizar la pestaña activa con datos
   pcIrA(pc.tab)
 }
@@ -440,7 +458,7 @@ function renderCatalogo(el) {
 
     <!-- Grid productos -->
     ${prods.length === 0 ? `<div style="text-align:center;padding:60px;color:#5a5a7a">Sin resultados para "${esc(pc.busqueda)}"</div>` : `
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px">
+    <div class="pc-prod-grid">
       ${prods.map(p => pcProductoCard(p)).join('')}
     </div>`}
 
@@ -1682,10 +1700,13 @@ function renderReferidos(el) {
       <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Invita a otros negocios mayoristas y gana ${money(bono)} por cada uno</p>
     </div>
 
-    ${!r ? `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
+    ${!r ? (pc.datosCargados ? `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
+      <p style="margin:0 0 14px">No se pudo cargar tu información de referidos.</p>
+      <button onclick="pcReintentarReferidos()" class="pc-btn pc-btn-primary">Reintentar</button>
+    </div>` : `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
       <div style="width:28px;height:28px;border:3px solid #E91E8C;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
       Cargando...
-    </div>` : `
+    </div>`) : `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px">
       <div class="pc-kpi" style="${credito > 0 ? 'border-color:rgba(16,185,129,0.3)' : ''}">
         <p class="pc-kpi-lbl">Crédito disponible</p>
