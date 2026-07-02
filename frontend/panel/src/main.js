@@ -403,6 +403,67 @@ if (sesion) {
   renderLogin()
 }
 
+// ── Banner "Instalar app" ────────────────────────────────────────────
+;(() => {
+  const DISMISS_KEY = 'zm_install_dismissed'
+  const DIAS_ESPERA = 7
+
+  const yaInstalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  if (yaInstalada) return
+
+  const dismissedAt = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10)
+  if (dismissedAt && (Date.now() - dismissedAt) < DIAS_ESPERA * 86400000) return
+
+  const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  let deferredPrompt = null
+
+  function mostrarBanner(modoIOS) {
+    if (document.getElementById('zm-install-banner')) return
+    const banner = document.createElement('div')
+    banner.id = 'zm-install-banner'
+    banner.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:9998;background:#161625;border:1.5px solid #E91E8C;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 28px rgba(0,0,0,0.45);font-family:DM Sans,sans-serif;animation:zmSlideUp 0.3s ease-out'
+    banner.innerHTML = `
+      <img src="/icons/icon-192.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <p style="margin:0;font-size:0.85rem;font-weight:700;color:white">Instala Zapatillas May</p>
+        <p style="margin:2px 0 0;font-size:0.75rem;color:#a0a0c0">${modoIOS ? 'Toca compartir 􀈂 y luego "Agregar a pantalla de inicio"' : 'Acceso directo desde tu pantalla de inicio, sin navegador'}</p>
+      </div>
+      ${modoIOS ? '' : `<button id="zm-install-btn" style="background:#E91E8C;color:white;border:none;border-radius:100px;padding:9px 16px;font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap">Instalar</button>`}
+      <button id="zm-install-close" style="background:none;border:none;color:#5a5a7a;font-size:1.2rem;cursor:pointer;flex-shrink:0;line-height:1;padding:4px">✕</button>
+    `
+    document.body.appendChild(banner)
+
+    const style = document.createElement('style')
+    style.textContent = '@keyframes zmSlideUp{from{transform:translateY(120%)}to{transform:translateY(0)}}'
+    document.head.appendChild(style)
+
+    document.getElementById('zm-install-close').onclick = () => {
+      localStorage.setItem(DISMISS_KEY, String(Date.now()))
+      banner.remove()
+    }
+    const btnInstalar = document.getElementById('zm-install-btn')
+    if (btnInstalar) {
+      btnInstalar.onclick = async () => {
+        if (!deferredPrompt) return
+        deferredPrompt.prompt()
+        await deferredPrompt.userChoice
+        deferredPrompt = null
+        banner.remove()
+      }
+    }
+  }
+
+  if (esIOS) {
+    setTimeout(() => mostrarBanner(true), 2500)
+  } else {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault()
+      deferredPrompt = e
+      setTimeout(() => mostrarBanner(false), 1500)
+    })
+  }
+})()
+
 // ── Navegación interna con el botón "atrás" ─────────────────────────
 // Pila de pantallas: cada sección/modal/sidebar que se abre puede
 // registrar cómo "regresar". Si no hay nada que regresar, se pide
