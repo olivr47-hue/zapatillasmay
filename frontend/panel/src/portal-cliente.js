@@ -32,7 +32,7 @@ const pc = {
 }
 
 function pcAuthHeaders() {
-  const token = sessionStorage.getItem('erp_token')
+  const token = localStorage.getItem('erp_token')
   return token
     ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
     : { 'Content-Type': 'application/json' }
@@ -1678,8 +1678,8 @@ function renderMiCuenta(el) {
 // ── CERRAR SESIÓN ────────────────────────────────────────────
 function pcCerrarSesion() {
   if (!confirm('¿Cerrar sesión?')) return
-  sessionStorage.removeItem('erp_empleado')
-  sessionStorage.removeItem('erp_token')
+  localStorage.removeItem('erp_empleado')
+  localStorage.removeItem('erp_token')
   localStorage.removeItem(PC_CARRITO_KEY)
   pc.sesion = null
   window.location.reload()

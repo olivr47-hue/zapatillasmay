@@ -171,8 +171,8 @@ function renderLogin() {
       })
       const data = await res.json()
       if (res.ok) {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(data))
-        if (data.token) sessionStorage.setItem('erp_token', data.token)
+        localStorage.setItem(SESSION_KEY, JSON.stringify(data))
+        if (data.token) localStorage.setItem('erp_token', data.token)
         window._empleadoActual = data
         renderPanel()
         return
@@ -190,8 +190,8 @@ function renderLogin() {
       if (res2.ok) {
         if (data2.tipo === 'zapateria' || data2.tipo === 'mayoreo') {
           const sesionCliente = { ...data2, email }
-          sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
-          if (data2.token) sessionStorage.setItem('erp_token', data2.token)
+          localStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+          if (data2.token) localStorage.setItem('erp_token', data2.token)
           renderPortalCliente(sesionCliente)
           return
         } else {
@@ -294,8 +294,8 @@ function renderLogin() {
       if (!res.ok) { mostrarError(data.error || 'Error al iniciar sesión con Google'); return }
       if (data.tipo === 'zapateria' || data.tipo === 'mayoreo') {
         const sesionCliente = { ...data, email: data.email }
-        sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
-        if (data.token) sessionStorage.setItem('erp_token', data.token)
+        localStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+        if (data.token) localStorage.setItem('erp_token', data.token)
         renderPortalCliente(sesionCliente)
       } else {
         mostrarError('Esta cuenta no tiene acceso al portal mayoreo')
@@ -358,8 +358,8 @@ function renderLogin() {
       const dataLogin = await resLogin.json()
       if (resLogin.ok) {
         const sesionCliente = { ...dataLogin, email }
-        sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
-        if (dataLogin.token) sessionStorage.setItem('erp_token', dataLogin.token)
+        localStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+        if (dataLogin.token) localStorage.setItem('erp_token', dataLogin.token)
         renderPortalCliente(sesionCliente)
       } else {
         mostrarOk('Cuenta creada. Ahora inicia sesión.')
@@ -378,13 +378,13 @@ function renderLogin() {
 
 // Helper global: encabezados con JWT para endpoints protegidos
 window.authHeaders = () => {
-  const token = sessionStorage.getItem('erp_token')
+  const token = localStorage.getItem('erp_token')
   return token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
                : { 'Content-Type': 'application/json' }
 }
 
-const sesion = sessionStorage.getItem(SESSION_KEY)
-const sesionCliente = sessionStorage.getItem(PC_SESSION_KEY)
+const sesion = localStorage.getItem(SESSION_KEY)
+const sesionCliente = localStorage.getItem(PC_SESSION_KEY)
 
 if (sesion) {
   try {
@@ -402,3 +402,22 @@ if (sesion) {
 } else {
   renderLogin()
 }
+
+// ── Evita que el botón "atrás" cierre la app instalada (PWA) de golpe ──
+// Atrapa el primer "atrás": si no hay nada que confirmar, solo lo absorbe.
+// Si el usuario insiste (2 veces en <2s) sí deja salir.
+;(() => {
+  let ultimoIntento = 0
+  history.pushState({ zmApp: true }, '')
+  window.addEventListener('popstate', () => {
+    const ahora = Date.now()
+    if (ahora - ultimoIntento < 2000) return // segundo "atrás" rápido: deja salir
+    ultimoIntento = ahora
+    history.pushState({ zmApp: true }, '') // vuelve a atrapar el siguiente "atrás"
+    const toast = document.createElement('div')
+    toast.textContent = 'Presiona atrás de nuevo para salir'
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#161625;color:white;padding:10px 20px;border-radius:100px;font-family:DM Sans,sans-serif;font-size:0.82rem;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,0.3)'
+    document.body.appendChild(toast)
+    setTimeout(() => toast.remove(), 1800)
+  })
+})()

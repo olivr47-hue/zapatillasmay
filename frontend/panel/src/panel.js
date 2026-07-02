@@ -11464,8 +11464,8 @@ window.eliminarItemPedido = (idx) => {
 }
 window.cerrarSesionPanel = () => {
   if (!confirm('Cerrar sesion?')) return
-  sessionStorage.removeItem('erp_empleado')
-  sessionStorage.removeItem('erp_token')
+  localStorage.removeItem('erp_empleado')
+  localStorage.removeItem('erp_token')
   window._empleadoActual = null
   location.reload()
 }
