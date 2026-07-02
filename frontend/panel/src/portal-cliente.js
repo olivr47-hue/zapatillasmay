@@ -815,8 +815,9 @@ window.pcSeleccionarColor = (prodId, color) => {
         strip.style.display = 'none'
       } else {
         strip.style.display = 'flex'
+        window._pcFotosColorActual = todasFotos
         strip.innerHTML = todasFotos.map((u, i) => `
-          <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C'"
+          <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual)"
             style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${i===0?'2px solid #E91E8C':'none'}">
         `).join('')
       }
