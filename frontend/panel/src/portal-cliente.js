@@ -30,6 +30,7 @@ const pc = {
   busqueda: '',
   filtroTallas: [],
   filtroColores: [],
+  filtrosExpandido: false,
   borradores: [],
 }
 
@@ -172,6 +173,7 @@ function renderPC() {
     renderCatalogo()
   }
   window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
+  window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
   window.pcVaciarCarrito = () => { pc.carrito = []; try { localStorage.removeItem(PC_CARRITO_KEY) } catch {} renderCarrito() }
 
@@ -391,40 +393,50 @@ function renderCatalogo(el) {
       </div>
     </div>
 
-    <!-- Filtros: talla y color -->
-    <div class="pc-card" style="margin-bottom:20px;padding:16px 20px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${tallasDisponibles.length || coloresDisponibles.length ? '14px' : '0'}">
-        <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0">Filtrar por talla o color</p>
-        ${hayFiltrosActivos ? `<button onclick="pcLimpiarFiltrosTC()" style="background:none;border:none;color:#E91E8C;font-size:0.75rem;cursor:pointer;font-weight:600">Limpiar filtros</button>` : ''}
-      </div>
+    <!-- Filtros: talla y color (colapsable) -->
+    ${(tallasDisponibles.length || coloresDisponibles.length) ? `
+    <div class="pc-card" style="margin-bottom:20px;padding:0;overflow:hidden">
+      <button onclick="pcToggleFiltrosPanel()" style="width:100%;background:none;border:none;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:inherit">
+        <span style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.85rem;font-weight:700;color:#e2e2f0">🎛️ Filtrar por talla o color</span>
+          ${hayFiltrosActivos ? `<span style="background:#E91E8C;color:white;font-size:0.68rem;font-weight:700;border-radius:100px;padding:2px 8px">${pc.filtroTallas.length + pc.filtroColores.length}</span>` : ''}
+        </span>
+        <span style="color:#5a5a7a;font-size:0.75rem;display:flex;align-items:center;gap:10px">
+          ${hayFiltrosActivos ? `<span onclick="event.stopPropagation();pcLimpiarFiltrosTC()" style="color:#E91E8C;font-weight:600;cursor:pointer">Limpiar</span>` : ''}
+          <span style="transition:transform 0.2s;display:inline-block;transform:rotate(${pc.filtrosExpandido ? '180deg' : '0deg'})">▾</span>
+        </span>
+      </button>
 
-      ${tallasDisponibles.length ? `
-      <div style="margin-bottom:${coloresDisponibles.length ? '14px' : '0'}">
-        <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Talla</p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${tallasDisponibles.map(t => {
-            const sel = pc.filtroTallas.includes(t)
-            return `<button onclick="pcToggleFiltroTalla('${esc(t)}')"
-              style="min-width:40px;padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.15)' : '#0f0f1c'};color:${sel ? '#E91E8C' : '#a0a0c0'};font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s">${esc(t)}</button>`
-          }).join('')}
-        </div>
-      </div>` : ''}
+      ${pc.filtrosExpandido ? `
+      <div style="padding:4px 20px 18px;border-top:1px solid #1e1e30">
+        ${tallasDisponibles.length ? `
+        <div style="margin-top:14px;margin-bottom:${coloresDisponibles.length ? '14px' : '0'}">
+          <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Talla</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${tallasDisponibles.map(t => {
+              const sel = pc.filtroTallas.includes(t)
+              return `<button onclick="pcToggleFiltroTalla('${esc(t)}')"
+                style="min-width:40px;padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.15)' : '#0f0f1c'};color:${sel ? '#E91E8C' : '#a0a0c0'};font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s">${esc(t)}</button>`
+            }).join('')}
+          </div>
+        </div>` : ''}
 
-      ${coloresDisponibles.length ? `
-      <div>
-        <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Color</p>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          ${coloresDisponibles.map(([color, hex]) => {
-            const sel = pc.filtroColores.includes(color)
-            return `<button onclick="pcToggleFiltroColor('${esc(color)}')" title="${esc(color)}"
-              style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.1)' : '#0f0f1c'};cursor:pointer;font-family:inherit;transition:all 0.15s">
-              <span style="width:16px;height:16px;border-radius:50%;background:${hex || '#888'};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></span>
-              <span style="font-size:0.75rem;color:${sel ? '#E91E8C' : '#a0a0c0'};font-weight:${sel ? '700' : '500'};white-space:nowrap">${esc(color)}</span>
-            </button>`
-          }).join('')}
-        </div>
+        ${coloresDisponibles.length ? `
+        <div style="margin-top:${tallasDisponibles.length ? '0' : '14px'}">
+          <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Color</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:160px;overflow-y:auto">
+            ${coloresDisponibles.map(([color, hex]) => {
+              const sel = pc.filtroColores.includes(color)
+              return `<button onclick="pcToggleFiltroColor('${esc(color)}')" title="${esc(color)}"
+                style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.1)' : '#0f0f1c'};cursor:pointer;font-family:inherit;transition:all 0.15s">
+                <span style="width:16px;height:16px;border-radius:50%;background:${hex || '#888'};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></span>
+                <span style="font-size:0.75rem;color:${sel ? '#E91E8C' : '#a0a0c0'};font-weight:${sel ? '700' : '500'};white-space:nowrap">${esc(color)}</span>
+              </button>`
+            }).join('')}
+          </div>
+        </div>` : ''}
       </div>` : ''}
-    </div>
+    </div>` : ''}
 
     <!-- Grid productos -->
     ${prods.length === 0 ? `<div style="text-align:center;padding:60px;color:#5a5a7a">Sin resultados para "${esc(pc.busqueda)}"</div>` : `
