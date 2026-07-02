@@ -643,6 +643,11 @@ _PAGINAS_CONTENT = {
   </table>
   <h2 style="font-size:1.2rem;margin-top:28px">¿Qué es una corrida?</h2>
   <p>Una corrida es un mismo modelo en todos los colores y tallas disponibles — ideal para revendedoras y tiendas. Al completar una corrida obtienes el mejor precio por par.</p>
+  <div style="margin-top:28px;padding:22px 24px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:14px;text-align:center">
+    <p style="font-size:1.05rem;font-weight:700;margin:0 0 6px;color:#3a2e28">¿Buscas comprar por corrida completa?</p>
+    <p style="margin:0 0 16px;color:#7a6055">Entra a nuestro Portal de Mayoristas: precios especiales, arma tu corrida por talla y color, descarga catálogos y haz tu pedido directo.</p>
+    <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:#E91E8C;color:white;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px">Entrar al portal de mayoristas →</a>
+  </div>
   <h2 style="font-size:1.2rem;margin-top:28px">Sin registro</h2>
   <p>No necesitas cuenta especial ni autorización previa. Cualquier persona puede comprar a precio de mayoreo desde el primer pedido.</p>
 </section>""",
