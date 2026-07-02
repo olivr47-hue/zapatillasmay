@@ -5,7 +5,7 @@ import secrets, string
 
 router = APIRouter(prefix="/referidos", tags=["Referidos"])
 
-CREDITO_MXN = 50
+CREDITO_MXN = 300
 
 
 def _codigo_unico():

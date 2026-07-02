@@ -72,7 +72,7 @@ def registro(datos: dict):
                     })
                     credito_actual = float(ref.get("credito_disponible") or 0)
                     supabase_patch(f"clientes?id=eq.{ref['id']}", {
-                        "credito_disponible": credito_actual + 50
+                        "credito_disponible": credito_actual + 300
                     })
 
         return {
