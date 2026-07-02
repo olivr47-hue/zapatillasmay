@@ -80,6 +80,13 @@ function renderLogin() {
             Iniciar sesión
           </button>
 
+          <div style="display:flex;align-items:center;gap:10px;margin:16px 0">
+            <div style="flex:1;height:1px;background:#1e1e30"></div>
+            <span style="font-size:0.72rem;color:#4a4a6a">clientes mayoristas</span>
+            <div style="flex:1;height:1px;background:#1e1e30"></div>
+          </div>
+          <div id="google-btn-container" style="display:flex;justify-content:center;min-height:40px"></div>
+
           <p style="text-align:center;margin-top:16px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap">
             <a href="#" onclick="mostrarRecuperar(event)"
                style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
@@ -234,6 +241,64 @@ function renderLogin() {
       if (sec) sec.style.display = 'none'
     } catch(e) {
       mostrarError('Error al enviar. Intenta de nuevo.')
+    }
+  }
+
+  // ── Google Sign-In (solo clientes mayoristas) ──────────────────
+  ;(async () => {
+    try {
+      const res = await fetch('/api/seo/config')
+      const config = await res.json()
+      const entry = Array.isArray(config) ? config.find(c => c.clave === 'google_client_id') : null
+      const googleClientId = entry ? entry.valor : null
+      if (!googleClientId) return
+
+      const cargarScript = () => new Promise((resolve, reject) => {
+        if (window.google && window.google.accounts) return resolve()
+        const s = document.createElement('script')
+        s.src = 'https://accounts.google.com/gsi/client'
+        s.async = true; s.defer = true
+        s.onload = resolve; s.onerror = reject
+        document.head.appendChild(s)
+      })
+      await cargarScript()
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleLoginPortal,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      })
+      const container = document.getElementById('google-btn-container')
+      if (container) {
+        window.google.accounts.id.renderButton(container, {
+          theme: 'outline', size: 'large', width: 320, locale: 'es_MX', text: 'signin_with'
+        })
+      }
+    } catch (e) {}
+  })()
+
+  async function handleGoogleLoginPortal(credentialResponse) {
+    const idToken = credentialResponse.credential
+    if (!idToken) { mostrarError('Error al conectar con Google'); return }
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken, tipo: 'mayoreo' })
+      })
+      const data = await res.json()
+      if (!res.ok) { mostrarError(data.error || 'Error al iniciar sesión con Google'); return }
+      if (data.tipo === 'zapateria' || data.tipo === 'mayoreo') {
+        const sesionCliente = { ...data, email: data.email }
+        sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+        if (data.token) sessionStorage.setItem('erp_token', data.token)
+        renderPortalCliente(sesionCliente)
+      } else {
+        mostrarError('Esta cuenta no tiene acceso al portal mayoreo')
+      }
+    } catch (e) {
+      mostrarError('Error conectando con el servidor')
     }
   }
 

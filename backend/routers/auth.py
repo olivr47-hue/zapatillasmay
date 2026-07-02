@@ -163,8 +163,13 @@ def pedidos_cliente(cliente_id: str):
 
 @router.post("/google")
 def google_login(datos: dict):
-    """Verifica un Google ID token y devuelve sesión, creando al usuario si no existe."""
+    """Verifica un Google ID token y devuelve sesión, creando al usuario si no existe.
+    Si se envía tipo=mayoreo/zapateria (desde el portal mayorista), la cuenta nueva
+    se crea con ese tipo en vez del menudeo por defecto."""
     id_token = datos.get("id_token", "").strip()
+    tipo_solicitado = datos.get("tipo", "")
+    tipo_nuevo = tipo_solicitado if tipo_solicitado in ("mayoreo", "zapateria") else "cliente"
+    tipo_cliente_nuevo = tipo_solicitado if tipo_solicitado in ("mayoreo", "zapateria") else "menudeo"
     if not id_token:
         return JSONResponse(status_code=400, content={"error": "Token requerido"})
     try:
@@ -195,7 +200,7 @@ def google_login(datos: dict):
                 "nombre": nombre or email.split("@")[0],
                 "email": email,
                 "password_hash": secrets.token_hex(32),
-                "tipo": "cliente",
+                "tipo": tipo_nuevo,
                 "activo": True,
             })
             u = nuevo[0]
@@ -204,7 +209,7 @@ def google_login(datos: dict):
                 cliente = supabase_post("clientes", {
                     "nombre": u["nombre"],
                     "email": email,
-                    "tipo": "menudeo",
+                    "tipo": tipo_cliente_nuevo,
                     "activo": True,
                     "origen": "google",
                 })
