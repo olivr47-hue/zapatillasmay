@@ -625,6 +625,18 @@ _PAGINAS_CONTENT = {
 </section>""",
     "mayoreo": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
+  <div style="background:linear-gradient(135deg,#E91E8C,#c8967a);border-radius:18px;padding:28px 26px;margin-bottom:32px;color:white;text-align:center">
+    <p style="font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85;margin:0 0 10px">¿Tienes zapatería o vendes por catálogo?</p>
+    <p style="font-size:1.4rem;font-weight:800;margin:0 0 12px;line-height:1.3">Entra al Portal de Mayoristas</p>
+    <p style="font-size:0.92rem;opacity:0.95;margin:0 0 20px;line-height:1.6">Ahí puedes descargar catálogos con fotos por categoría, armar tu corrida por talla y color, ver tus precios especiales y hacer tu pedido directo — todo desde tu celular.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px">
+      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">📥 Catálogos por categoría</span>
+      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">👟 Arma tu corrida</span>
+      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">💰 Precios de mayoreo</span>
+      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">📱 Pide desde tu celular</span>
+    </div>
+    <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:white;color:#E91E8C;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:100px;font-size:0.95rem">Entrar al portal de mayoristas →</a>
+  </div>
   <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h2>
   <p style="color:#7a6055;margin-bottom:24px">Desde 3 pares, sin registro especial · León, Guanajuato</p>
   <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial. El descuento se aplica automáticamente en el carrito.</p>
