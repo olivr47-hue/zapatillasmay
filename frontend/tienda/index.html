@@ -6191,7 +6191,10 @@ function initScrollAnimations(container) {
     if (!ticking) { ticking = true; requestAnimationFrame(function(){ check(); ticking = false; }); }
   }
   window.addEventListener('scroll', onScroll, { passive: true });
-  check(); // revisar inmediatamente los que ya están en viewport
+  // Esperar a que el navegador pinte el estado inicial (oculto) antes de revisar,
+  // si no los elementos ya visibles en pantalla se marcan in-view al instante
+  // y nunca se ve la transición de aparición.
+  requestAnimationFrame(function(){ requestAnimationFrame(check); })
 }
 
 function animarPaginaInterna(contenido) {
