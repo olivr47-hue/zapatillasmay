@@ -1597,6 +1597,13 @@ function pcMostrarExito(msg) {
   document.body.appendChild(toast)
   setTimeout(() => toast.remove(), 4000)
 }
+window.pcMostrarExito = pcMostrarExito
+
+window.pcInvitarWhatsapp = function(codigo, link, bono) {
+  const nombre = (pc.sesion?.nombre || '').split(' ')[0] || 'Un cliente de Zapatillas May'
+  const mensaje = `Hola! Te comparto mi código para el portal de mayoreo de Zapatillas May 👟\n\nCon él, tú y yo ganamos ${bono} de crédito en nuestro siguiente pedido.\n\n📌 Código: ${codigo}\n🔗 Regístrate aquí: ${link}`
+  window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
+}
 
 // ── MIS PEDIDOS ──────────────────────────────────────────────
 function renderMisPedidos(el) {
@@ -1721,15 +1728,20 @@ function renderReferidos(el) {
     </div>
 
     <div class="pc-card" style="margin-bottom:16px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Tu código personal</p>
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="background:#0f0f1c;border:1.5px solid #2a2a40;border-radius:10px;padding:14px 24px;flex:1;min-width:160px">
-          <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:0;font-family:monospace">${esc(r.codigo||'—')}</p>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button onclick="navigator.clipboard.writeText('${esc(r.codigo||'')}').then(()=>pcMostrarExito('¡Código copiado!'))" class="pc-btn pc-btn-primary">📋 Copiar código</button>
-          ${r.link ? `<button onclick="navigator.clipboard.writeText('${esc(r.link)}').then(()=>pcMostrarExito('¡Enlace copiado!'))" class="pc-btn pc-btn-secondary">🔗 Copiar enlace</button>` : ''}
-        </div>
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">Tu código personal</p>
+      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Compártelo directo — el que lo reciba solo tiene que usarlo al crear su cuenta</p>
+      <div style="background:#0f0f1c;border:1.5px solid #2a2a40;border-radius:10px;padding:14px 24px;margin-bottom:14px;text-align:center">
+        <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:0;font-family:monospace">${esc(r.codigo||'—')}</p>
+      </div>
+
+      <button onclick="pcInvitarWhatsapp('${esc(r.codigo||'')}','${esc(r.link||'')}','${esc(bono)}')"
+        style="width:100%;padding:13px;background:#25D366;color:white;border:none;border-radius:8px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.71.44 3.35 1.29 4.79L2 22l5.44-1.42a9.9 9.9 0 0 0 4.6 1.17h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.06h-.01a8.14 8.14 0 0 1-4.15-1.14l-.3-.18-3.08.81.82-3-.19-.31a8.15 8.15 0 0 1-1.25-4.33c0-4.51 3.67-8.18 8.19-8.18 2.18 0 4.24.85 5.78 2.4a8.13 8.13 0 0 1 2.39 5.79c0 4.51-3.67 8.18-8.18 8.18zm4.48-6.13c-.25-.12-1.45-.72-1.68-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.77.96-.14.16-.28.18-.53.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.48-1.39-1.73-.14-.25-.02-.38.11-.51.11-.11.25-.28.37-.42.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14 0-.31-.02-.47-.02-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.57.12.16 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.45-.59 1.65-1.17.2-.57.2-1.06.14-1.17-.06-.1-.22-.16-.47-.28z"/></svg>
+        Invitar por WhatsApp
+      </button>
+      <div style="display:flex;gap:8px">
+        <button onclick="navigator.clipboard.writeText('${esc(r.codigo||'')}').then(()=>pcMostrarExito('¡Código copiado!'))" class="pc-btn pc-btn-secondary" style="flex:1">📋 Copiar código</button>
+        ${r.link ? `<button onclick="navigator.clipboard.writeText('${esc(r.link)}').then(()=>pcMostrarExito('¡Enlace copiado!'))" class="pc-btn pc-btn-secondary" style="flex:1">🔗 Copiar enlace</button>` : ''}
       </div>
       ${r.link ? `<p style="font-size:0.72rem;color:#3a3a5c;margin:12px 0 0;word-break:break-all">${esc(r.link)}</p>` : ''}
     </div>
