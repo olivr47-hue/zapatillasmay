@@ -18154,12 +18154,12 @@ window.nuevoCarrito = async () => {
         <h3 style="margin:0">Nuevo carrito</h3>
       </div>
       <div style="display:grid;gap:1rem">
-        <div>
+        <div style="position:relative">
           <label class="form-label">Cliente</label>
-          <select id="nc-cliente" class="form-input">
-            <option value="">— Selecciona cliente —</option>
-            ${clientes.map(c => `<option value="${c.id}">${c.nombre}${c.telefono ? ' · ' + c.telefono : ''}</option>`).join('')}
-          </select>
+          <input class="form-input" id="nc-cliente-buscar" placeholder="🔍 Buscar cliente por nombre o teléfono..." autocomplete="off" oninput="buscarClienteNuevoCarrito(this.value)">
+          <input type="hidden" id="nc-cliente">
+          <div id="nc-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:220px;overflow-y:auto;display:none;background:white;margin-top:4px;position:absolute;left:0;right:0;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,0.1)"></div>
+          <div id="nc-cliente-sel" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.82rem;color:#2e7d32;cursor:pointer" onclick="limpiarClienteNuevoCarrito()"></div>
         </div>
         <div>
           <label class="form-label">Sucursal</label>
@@ -18175,6 +18175,46 @@ window.nuevoCarrito = async () => {
       </div>
     </div>
   `
+}
+
+window.buscarClienteNuevoCarrito = function(q) {
+  const clientes = window._carritoClientes || []
+  const resultados = document.getElementById('nc-cliente-resultados')
+  if (!resultados) return
+  const query = q.trim().toLowerCase()
+  if (!query) { resultados.style.display = 'none'; resultados.innerHTML = ''; return }
+  const matches = clientes.filter(c =>
+    (c.nombre || '').toLowerCase().includes(query) || (c.telefono || '').includes(query)
+  ).slice(0, 30)
+  if (!matches.length) {
+    resultados.innerHTML = '<div style="padding:10px;font-size:0.82rem;color:#888">Sin resultados</div>'
+    resultados.style.display = 'block'
+    return
+  }
+  resultados.innerHTML = matches.map(c => `
+    <div onclick="seleccionarClienteNuevoCarrito('${c.id}')" style="padding:8px 12px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f5f5f5" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+      <strong>${c.nombre}</strong>${c.telefono ? ` <span style="color:#888">· ${c.telefono}</span>` : ''}
+    </div>
+  `).join('')
+  resultados.style.display = 'block'
+}
+
+window.seleccionarClienteNuevoCarrito = function(id) {
+  const clientes = window._carritoClientes || []
+  const c = clientes.find(x => x.id === id)
+  if (!c) return
+  document.getElementById('nc-cliente').value = id
+  document.getElementById('nc-cliente-buscar').value = ''
+  document.getElementById('nc-cliente-resultados').style.display = 'none'
+  const sel = document.getElementById('nc-cliente-sel')
+  sel.textContent = `✓ ${c.nombre}${c.telefono ? ' · ' + c.telefono : ''} — toca para cambiar`
+  sel.style.display = 'block'
+}
+
+window.limpiarClienteNuevoCarrito = function() {
+  document.getElementById('nc-cliente').value = ''
+  document.getElementById('nc-cliente-sel').style.display = 'none'
+  document.getElementById('nc-cliente-buscar').value = ''
 }
 
 window.crearNuevoCarrito = async () => {
