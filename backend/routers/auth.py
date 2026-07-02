@@ -56,6 +56,8 @@ def registro(datos: dict):
                 "origen": "tienda"
             })
         cliente_id = cliente[0]["id"] if cliente else None
+        if cliente_id:
+            supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
 
         # Aplicar código de referido: $50 si quien refiere es menudeo, $300 si es mayoreo/zapatería
         codigo_ref = datos.get("codigo_referido", "").strip().upper()
@@ -122,6 +124,14 @@ async def login(request: Request, datos: dict):
             nuevo_hash = hash_password(password)
             supabase_patch(f"usuarios?id=eq.{u['id']}", {"password_hash": nuevo_hash})
 
+        # Auto-reparar cuentas viejas cuyo usuario nunca quedó vinculado a su cliente
+        cliente_id = u.get("cliente_id")
+        if not cliente_id and u.get("email"):
+            clientes_email = supabase_get(f"clientes?email=eq.{u['email']}&select=id")
+            if clientes_email:
+                cliente_id = clientes_email[0]["id"]
+                supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
+
         token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"]})
         return {
             "token": token,
@@ -129,7 +139,7 @@ async def login(request: Request, datos: dict):
             "nombre": u["nombre"],
             "email": u["email"],
             "tipo": u["tipo"],
-            "cliente_id": u.get("cliente_id")
+            "cliente_id": cliente_id
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
