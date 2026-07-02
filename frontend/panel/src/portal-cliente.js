@@ -77,7 +77,8 @@ function renderPC() {
       <!-- Nav -->
       <nav style="flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px" id="pc-nav">
         ${pcNavItem('inicio',   '🏠', 'Mi resumen')}
-        ${pcNavItem('catalogo', '👟', 'Catálogo')}
+        ${pcNavItem('catalogo', '👟', 'Productos')}
+        ${pcNavItem('catalogos','📥', 'Catálogos')}
         ${pcNavItem('carrito',  '🛒', 'Carrito')}
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
         ${pcNavItem('referidos','🎁', 'Referidos')}
@@ -192,6 +193,7 @@ function pcIrA(tab, _fromBack) {
     switch (tab) {
       case 'inicio':   renderInicio(content); break
       case 'catalogo': renderCatalogo(content); break
+      case 'catalogos': renderCatalogosDescarga(content); break
       case 'carrito':  renderCarrito(content); break
       case 'pedidos':  renderMisPedidos(content); break
       case 'referidos': renderReferidos(content); break
@@ -343,7 +345,7 @@ function renderCatalogo(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Catálogo mayoreo</h1>
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Productos</h1>
       <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${pc.productos.length} modelos</p>
     </div>
 
@@ -355,18 +357,6 @@ function renderCatalogo(el) {
         <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
         ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
       </div>
-    </div>
-
-    <!-- Descargar catálogo por categoría -->
-    <div class="pc-card" style="margin-bottom:20px">
-      <p style="font-size:0.85rem;font-weight:700;color:#e2e2f0;margin:0 0 4px">📥 Descargar catálogo por categoría</p>
-      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 12px">Genera un PDF con fotos de todos los modelos activos de esa categoría.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:8px" id="pc-cat-pdf-btns">
-        ${[['tacones','👠 Tacones'],['sandalias','👡 Sandalias'],['botas','🥾 Botas'],['botines','👢 Botines'],['flats','🥿 Flats'],['plataformas','⬆️ Plataformas'],['tenis','👟 Tenis'],['nina','🎀 Niña'],['accesorios','👜 Accesorios']].map(([id,label]) =>
-          `<button onclick="pcDescargarCatalogoPorCategoria('${id}','${esc(label)}')" class="pc-btn pc-btn-secondary" style="padding:6px 14px;font-size:0.78rem">${label}</button>`
-        ).join('')}
-      </div>
-      <p id="pc-cat-pdf-msg" style="font-size:0.78rem;color:#a0a0c0;margin-top:10px;display:none"></p>
     </div>
 
     <!-- Grid productos -->
@@ -392,6 +382,50 @@ function renderCatalogo(el) {
         </div>
       </div>`
     })()}
+  `
+}
+
+// ── CATÁLOGOS (descarga PDF por categoría) ────────────────────
+const PC_CATEGORIAS_CATALOGO = [
+  ['tacones',    '👠', 'Tacones'],
+  ['sandalias',  '👡', 'Sandalias'],
+  ['botas',      '🥾', 'Botas'],
+  ['botines',    '👢', 'Botines'],
+  ['flats',      '🥿', 'Flats'],
+  ['plataformas','⬆️', 'Plataformas'],
+  ['tenis',      '👟', 'Tenis'],
+  ['nina',       '🎀', 'Niña'],
+  ['accesorios', '👜', 'Accesorios'],
+]
+
+function renderCatalogosDescarga(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+
+  el.innerHTML = `
+    <div style="margin-bottom:24px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">📥 Catálogos</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Descarga un PDF con fotos de todos los modelos activos por categoría, listo para compartir con tus clientes.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
+      ${PC_CATEGORIAS_CATALOGO.map(([id, icon, label]) => {
+        const total = pc.productos.filter(p => p.categoria === id && p.activo !== false).length
+        return `
+        <div id="pc-cat-card-${id}" class="pc-card" style="text-align:center;padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;transition:border-color 0.15s,transform 0.15s"
+          onmouseover="this.style.borderColor='#E91E8C';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#1e1e30';this.style.transform='translateY(0)'">
+          <div style="width:56px;height:56px;border-radius:50%;background:rgba(233,30,140,0.1);display:flex;align-items:center;justify-content:center;font-size:1.6rem">${icon}</div>
+          <div>
+            <p style="font-weight:700;color:#e2e2f0;margin:0 0 2px;font-size:0.92rem">${label}</p>
+            <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${total} modelo${total !== 1 ? 's' : ''}</p>
+          </div>
+          <button onclick="pcDescargarCatalogoPorCategoria('${id}','${icon} ${label}')" class="pc-btn pc-btn-primary" style="width:100%;padding:9px;font-size:0.8rem;margin-top:4px" ${total === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+            Descargar PDF
+          </button>
+          <p class="pc-cat-msg" id="pc-cat-msg-${id}" style="font-size:0.7rem;color:#a0a0c0;margin:0;display:none;min-height:14px"></p>
+        </div>`
+      }).join('')}
+    </div>
   `
 }
 
@@ -1207,10 +1241,11 @@ function renderCarrito(el) {
 }
 
 window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
-  const msg = document.getElementById('pc-cat-pdf-msg')
-  const btns = document.querySelectorAll('#pc-cat-pdf-btns button')
+  const msg = document.getElementById('pc-cat-msg-' + cat)
+  const card = document.getElementById('pc-cat-card-' + cat)
+  const btns = card ? card.querySelectorAll('button') : []
   btns.forEach(b => b.disabled = true)
-  if (msg) { msg.style.display = 'block'; msg.textContent = `⏳ Cargando productos de ${label}...` }
+  if (msg) { msg.style.display = 'block'; msg.textContent = `⏳ Cargando productos...` }
 
   try {
     const productos = pc.productos.filter(p => p.categoria === cat && p.activo !== false)
