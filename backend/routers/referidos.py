@@ -5,7 +5,8 @@ import secrets, string
 
 router = APIRouter(prefix="/referidos", tags=["Referidos"])
 
-CREDITO_MXN = 300
+CREDITO_MENUDEO_MXN = 50
+CREDITO_MAYOREO_MXN = 300
 
 
 def _codigo_unico():
@@ -26,17 +27,18 @@ def mi_codigo(cliente_id: str):
         if not cs:
             return JSONResponse(status_code=404, content={"error": "Cliente no encontrado"})
         c = cs[0]
-        if c.get("tipo") != "menudeo":
-            return JSONResponse(status_code=403, content={"error": "Solo clientes menudeo"})
         codigo = c.get("codigo_referido")
         if not codigo:
             codigo = _codigo_unico()
             supabase_patch(f"clientes?id=eq.{cliente_id}", {"codigo_referido": codigo})
+        es_mayorista = c.get("tipo") in ("mayoreo", "zapateria")
+        dominio = "https://portal.zapatillasmay.mx" if es_mayorista else "https://zapatillasmay.mx"
         return {
             "codigo": codigo,
-            "link": f"https://zapatillasmay.mx/?ref={codigo}",
+            "link": f"{dominio}/?ref={codigo}",
             "credito_disponible": float(c.get("credito_disponible") or 0),
             "referido_por": c.get("referido_por"),
+            "bono_por_referido": CREDITO_MAYOREO_MXN if es_mayorista else CREDITO_MENUDEO_MXN,
         }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -48,7 +50,7 @@ def validar_codigo(datos: dict):
         codigo = (datos.get("codigo") or "").strip().upper()
         if not codigo:
             return JSONResponse(status_code=400, content={"error": "Código requerido"})
-        cs = supabase_get(f"clientes?codigo_referido=eq.{codigo}&tipo=eq.menudeo&select=id,nombre")
+        cs = supabase_get(f"clientes?codigo_referido=eq.{codigo}&select=id,nombre")
         if not cs:
             return JSONResponse(status_code=404, content={"error": "Código inválido"})
         return {"valido": True, "nombre_referidor": cs[0]["nombre"].split()[0]}
@@ -59,10 +61,11 @@ def validar_codigo(datos: dict):
 @router.get("/stats/{cliente_id}")
 def stats_referidos(cliente_id: str):
     try:
-        cs = supabase_get(f"clientes?id=eq.{cliente_id}&select=codigo_referido,credito_disponible")
+        cs = supabase_get(f"clientes?id=eq.{cliente_id}&select=codigo_referido,credito_disponible,tipo")
         if not cs:
             return JSONResponse(status_code=404, content={"error": "Cliente no encontrado"})
         c = cs[0]
+        bono = CREDITO_MAYOREO_MXN if c.get("tipo") in ("mayoreo", "zapateria") else CREDITO_MENUDEO_MXN
         codigo = c.get("codigo_referido")
         if not codigo:
             return {"referidos": 0, "credito_disponible": 0, "credito_total_ganado": 0}
@@ -70,7 +73,7 @@ def stats_referidos(cliente_id: str):
         return {
             "referidos": len(referidos),
             "credito_disponible": float(c.get("credito_disponible") or 0),
-            "credito_total_ganado": len(referidos) * CREDITO_MXN,
+            "credito_total_ganado": len(referidos) * bono,
             "lista": referidos,
         }
     except Exception as e:

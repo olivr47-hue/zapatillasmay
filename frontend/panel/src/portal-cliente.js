@@ -208,12 +208,13 @@ function pcToggleSidebar() {
 // ── Carga inicial de datos ───────────────────────────────────
 async function cargarDatosPC() {
   try {
-    const [resProd, resVar, resInv, resPed, resRef, resCli] = await Promise.all([
+    const [resProd, resVar, resInv, resPed, resRef, resRefStats, resCli] = await Promise.all([
       fetch(`${PC_API}/productos/`),
       fetch(`${PC_API}/variantes/?activa=eq.true`),
       fetch(`${PC_API}/inventario/`),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/mi-codigo/${pc.sesion.cliente_id}`) : Promise.resolve(null),
+      pc.sesion?.cliente_id ? fetch(`${PC_API}/referidos/stats/${pc.sesion.cliente_id}`) : Promise.resolve(null),
       pc.sesion?.cliente_id ? fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`) : Promise.resolve(null),
     ])
     if (resProd.ok) { const todos = await resProd.json(); pc.productos = Array.isArray(todos) ? todos.filter(p => p.activo !== false) : [] }
@@ -221,6 +222,7 @@ async function cargarDatosPC() {
     if (resInv.ok) { const d = await resInv.json(); pc.inventario = Array.isArray(d) ? d : [] }
     if (resPed?.ok) pc.pedidos = await resPed.json()
     if (resRef?.ok) pc.referido = await resRef.json()
+    if (resRefStats?.ok) { const s = await resRefStats.json(); if (pc.referido) pc.referido.usos = s.referidos || 0 }
     if (resCli?.ok) { const d = await resCli.json(); pc.clienteData = Array.isArray(d) ? d[0] : d }
   } catch(e) {
     console.error('[portal] cargarDatosPC error', e)
@@ -262,7 +264,7 @@ function renderInicio(el) {
       <div class="pc-kpi" style="${credito > 0 ? 'border-color:rgba(233,30,140,0.3)' : ''}">
         <p class="pc-kpi-lbl">Crédito disponible</p>
         <p class="pc-kpi-val" style="${credito > 0 ? 'color:#E91E8C' : ''}">${money(credito)}</p>
-        <p class="pc-kpi-sub">${credito > 0 ? 'se aplica en tu próximo pedido' : 'invita y gana $50'}</p>
+        <p class="pc-kpi-sub">${credito > 0 ? 'se aplica en tu próximo pedido' : `invita y gana ${money(pc.referido?.bono_por_referido || 300)}`}</p>
       </div>
       <div class="pc-kpi" style="cursor:pointer" onclick="pcIrA('catalogo')">
         <p class="pc-kpi-lbl">Catálogo</p>
@@ -1549,11 +1551,12 @@ function renderReferidos(el) {
   const r = pc.referido
   const credito = parseFloat(r?.credito_disponible || 0)
   const usos = r?.usos || 0
+  const bono = r?.bono_por_referido || 300
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
       <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">🎁 Programa de referidos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Invita a otras zapaterías y gana $50 por cada una</p>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Invita a otros negocios mayoristas y gana ${money(bono)} por cada uno</p>
     </div>
 
     ${!r ? `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">

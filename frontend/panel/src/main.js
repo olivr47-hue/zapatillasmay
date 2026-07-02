@@ -131,10 +131,13 @@ function renderLogin() {
               style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px"
               onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
             <select id="reg-tipo"
-              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:12px">
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px">
               <option value="mayoreo">Compro surtido variado (3+ pares)</option>
               <option value="zapateria">Compro corridas completas (zapatería)</option>
             </select>
+            <input type="text" id="reg-referido" placeholder="Código de referido (opcional)"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:12px;text-transform:uppercase"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
             <button onclick="crearCuentaMayoreo()" id="btn-registro-mayoreo"
               style="width:100%;padding:12px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer">
               Crear cuenta
@@ -303,11 +306,19 @@ function renderLogin() {
   }
 
   window.mostrarRegistroMayoreo = (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     const sec = document.getElementById('registro-mayoreo-section')
     if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none'
     const recSec = document.getElementById('recuperar-section')
     if (recSec) recSec.style.display = 'none'
+  }
+
+  // Si llegan con un link de referido (?ref=CODIGO), precargar y abrir el formulario
+  const refParam = new URLSearchParams(window.location.search).get('ref')
+  if (refParam) {
+    const campo = document.getElementById('reg-referido')
+    if (campo) campo.value = refParam.toUpperCase()
+    mostrarRegistroMayoreo()
   }
 
   window.crearCuentaMayoreo = async () => {
@@ -316,6 +327,7 @@ function renderLogin() {
     const email = (document.getElementById('reg-email').value || '').trim()
     const password = document.getElementById('reg-password').value || ''
     const tipo = document.getElementById('reg-tipo').value
+    const codigo_referido = (document.getElementById('reg-referido').value || '').trim().toUpperCase()
 
     if (!nombre || !email || !password) { mostrarError('Completa nombre, correo y contraseña'); return }
     if (password.length < 4) { mostrarError('La contraseña debe tener al menos 4 caracteres'); return }
@@ -328,7 +340,7 @@ function renderLogin() {
       const res = await fetch('/api/auth/registro', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, email, password, telefono, tipo })
+        body: JSON.stringify({ nombre, email, password, telefono, tipo, codigo_referido })
       })
       const data = await res.json()
       if (!res.ok) {
