@@ -123,12 +123,15 @@ export function renderPanel() {
     </div>
   `
 
-  window.toggleSidebar = () => {
+  window.toggleSidebar = (_fromBack) => {
     const sidebar = document.getElementById('sidebar')
     const overlay = document.getElementById('sidebar-overlay')
     const isOpen = sidebar.classList.toggle('open')
     overlay.classList.toggle('active', isOpen)
     document.body.style.overflow = isOpen ? 'hidden' : ''
+    if (isOpen && !_fromBack && window._zmPushBack) {
+      window._zmPushBack(() => window.toggleSidebar(true))
+    }
   }
 
   // Interval global para notificaciones de WhatsApp
@@ -284,12 +287,16 @@ _arrancarPollPedidos()
 if (window._pedidosInterval) clearInterval(window._pedidosInterval)
 window._pedidosInterval = setInterval(_pollPedidosPorEnviar, 30000)
 
- window.navegarA = (id) => {
+ window.navegarA = (id, _fromBack) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
     if (modulo?.soloAdmin && !esAdmin) {
       alert('No tienes permisos para acceder a este módulo')
       return
+    }
+    if (!_fromBack && moduloActivo && moduloActivo !== id && window._zmPushBack) {
+      const prevId = moduloActivo
+      window._zmPushBack(() => window.navegarA(prevId, true))
     }
     moduloActivo = id
     try { localStorage.setItem('zm_panel_modulo', id) } catch(e) {}
@@ -4978,6 +4985,7 @@ window.eliminarFotoClave = (idx, fIdx) => {
 }
 
 window.mostrarFormProducto = (datos) => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarModulo('productos'))
   if (!datos) window._coloresExistentes = null
   varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0 
   ? window._coloresExistentes.length 
@@ -6117,6 +6125,7 @@ window.filtrarClientes = () => {
 }
 
 window.mostrarFormCliente = async (id) => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarModulo('clientes'))
   const content = document.getElementById('content')
   let d = {}
   if (id) {
@@ -6288,6 +6297,7 @@ window.darAccesoPortal = async (id) => {
 }
 
 window.verCliente = async (id) => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarModulo('clientes'))
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
@@ -7753,6 +7763,7 @@ window.abrirPreviewPedido = async (id) => {
 }
 
 window.verPedido = async (id) => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarModulo('pedidos'))
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando pedido...</p>'
   try {
@@ -18143,6 +18154,7 @@ async function cargarCarritos() {
 }
 
 window.nuevoCarrito = async () => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarCarritos())
   const clientes = window._carritoClientes || []
   const sucursales = window._carritoSucursales || []
 
@@ -18250,6 +18262,7 @@ window.crearNuevoCarrito = async () => {
 
 window.cargarCarritos = cargarCarritos
 window.abrirCarrito = async (pedidoId) => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarCarritos())
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carrito...</p>'
   try {

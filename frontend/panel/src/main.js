@@ -403,13 +403,25 @@ if (sesion) {
   renderLogin()
 }
 
-// ── Evita que el botón "atrás" cierre la app instalada (PWA) de golpe ──
-// Atrapa el primer "atrás": si no hay nada que confirmar, solo lo absorbe.
-// Si el usuario insiste (2 veces en <2s) sí deja salir.
+// ── Navegación interna con el botón "atrás" ─────────────────────────
+// Pila de pantallas: cada sección/modal/sidebar que se abre puede
+// registrar cómo "regresar". Si no hay nada que regresar, se pide
+// confirmar (2 veces) antes de cerrar la app instalada.
+window._zmNavStack = []
+window._zmPushBack = (restoreFn) => {
+  history.pushState({ zmNav: window._zmNavStack.length + 1 }, '')
+  window._zmNavStack.push(restoreFn)
+}
 ;(() => {
   let ultimoIntento = 0
   history.pushState({ zmApp: true }, '')
   window.addEventListener('popstate', () => {
+    if (window._zmNavStack.length > 0) {
+      const restoreFn = window._zmNavStack.pop()
+      history.pushState({ zmApp: true }, '') // mantener un peldaño base para no salir de golpe
+      try { restoreFn() } catch (e) {}
+      return
+    }
     const ahora = Date.now()
     if (ahora - ultimoIntento < 2000) return // segundo "atrás" rápido: deja salir
     ultimoIntento = ahora

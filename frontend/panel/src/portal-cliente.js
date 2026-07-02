@@ -175,7 +175,11 @@ function pcNavItem(tab, icon, label) {
   return `<button class="pc-nav-item${pc.tab === tab ? ' activo' : ''}" onclick="pcIrA('${tab}')">${icon} ${label}</button>`
 }
 
-function pcIrA(tab) {
+function pcIrA(tab, _fromBack) {
+  if (!_fromBack && pc.tab && pc.tab !== tab && window._zmPushBack) {
+    const prevTab = pc.tab
+    window._zmPushBack(() => pcIrA(prevTab, true))
+  }
   pc.tab = tab
   // Actualizar nav items
   document.querySelectorAll('.pc-nav-item').forEach(el => {
@@ -201,8 +205,12 @@ function pcIrA(tab) {
   document.getElementById('pc-sidebar')?.classList.remove('open')
 }
 
-function pcToggleSidebar() {
-  document.getElementById('pc-sidebar')?.classList.toggle('open')
+function pcToggleSidebar(_fromBack) {
+  const sidebar = document.getElementById('pc-sidebar')
+  const isOpen = sidebar?.classList.toggle('open')
+  if (isOpen && !_fromBack && window._zmPushBack) {
+    window._zmPushBack(() => pcToggleSidebar(true))
+  }
 }
 
 // ── Carga inicial de datos ───────────────────────────────────
@@ -451,6 +459,7 @@ window.pcCardColor = function(prodId, fotoUrl, swatchEl) {
 
 // ── Modal de producto: port del POS (misma lógica, datos de pc.*) ──────────────
 window.pcAbrirProducto = function(prodId) {
+  if (window._zmPushBack) window._zmPushBack(() => document.getElementById('pc-modal')?.remove())
   const prev = document.getElementById('pc-modal')
   if (prev) prev.remove()
 
