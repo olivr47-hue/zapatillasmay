@@ -86,6 +86,7 @@ const modulos = [
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
   { id: 'carritos-abandonados', icon: '🛒', label: 'Carritos abandonados', section: 'Ventas', soloAdmin: true },
+  { id: 'sugerencias', icon: '💡', label: 'Sugerencias', section: 'Ventas', soloAdmin: true },
 ]
 
 let moduloActivo = window._empleadoActual?.rol === 'admin' ? 'dashboard' : 'pos'
@@ -360,6 +361,7 @@ async function cargarModulo(id) {
     case 'generar-nombres': await cargarGenerarNombres(); break;
     case 'referidos':    await cargarReferidos(); break;
     case 'carritos-abandonados': await cargarCarritosAbandonados(); break;
+    case 'sugerencias': await cargarSugerencias(); break;
   }
 }
 
@@ -14488,6 +14490,64 @@ window.completarTareaDashboard = async (id, checked) => {
       body: JSON.stringify({ completada: checked })
     })
   } catch(e) { console.error(e) }
+}
+
+function _escSugerencia(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+async function cargarSugerencias() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando sugerencias...</p>'
+  try {
+    const res = await fetch(API + '/sugerencias/')
+    const sugerencias = await res.json()
+    const iconos = { sugerencia: '💡', funcion: '✨', problema: '⚠️', otro: '💬' }
+    const labels = { sugerencia: 'Sugerencia', funcion: 'Función nueva', problema: 'Problema/Error', otro: 'Otro' }
+
+    content.innerHTML = `
+      <div class="table-card">
+        <div class="table-header">
+          <h3>💡 Sugerencias de clientes (${sugerencias.length})</h3>
+        </div>
+        ${sugerencias.length === 0 ? `
+          <div style="padding:3rem;text-align:center;color:#888">
+            <div style="font-size:2.5rem;margin-bottom:12px">💡</div>
+            <p>Aún no hay sugerencias de clientes.</p>
+          </div>` : `
+        <div style="display:flex;flex-direction:column;gap:12px;padding:8px 0">
+          ${sugerencias.map(s => `
+            <div style="background:white;border:1px solid #eee;border-radius:12px;padding:1.1rem 1.3rem;${s.estado === 'nueva' ? 'border-left:4px solid #E91E8C' : ''}">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px">
+                <div>
+                  <span style="font-size:0.78rem;font-weight:700;color:#E91E8C">${iconos[s.tipo] || '💬'} ${labels[s.tipo] || s.tipo || 'Sugerencia'}</span>
+                  <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${_escSugerencia(s.nombre_cliente || 'Cliente')} · ${new Date(s.created_at).toLocaleDateString('es-MX', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+                </div>
+                <select onchange="cambiarEstadoSugerencia('${s.id}', this.value)" style="font-size:0.75rem;padding:4px 8px;border-radius:6px;border:1px solid #ddd;background:${s.estado === 'nueva' ? '#fce4f3' : s.estado === 'resuelta' ? '#e8f5e9' : '#f5f5f5'}">
+                  <option value="nueva" ${s.estado === 'nueva' ? 'selected' : ''}>Nueva</option>
+                  <option value="revisando" ${s.estado === 'revisando' ? 'selected' : ''}>Revisando</option>
+                  <option value="resuelta" ${s.estado === 'resuelta' ? 'selected' : ''}>Resuelta</option>
+                </select>
+              </div>
+              <p style="font-size:0.88rem;color:#333;margin:0;white-space:pre-wrap">${_escSugerencia(s.mensaje)}</p>
+            </div>
+          `).join('')}
+        </div>`}
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando sugerencias</p>'
+  }
+}
+
+window.cambiarEstadoSugerencia = async (id, estado) => {
+  try {
+    await fetch(API + '/sugerencias/' + id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado })
+    })
+  } catch(e) {}
 }
 
 async function cargarCarritosAbandonados() {

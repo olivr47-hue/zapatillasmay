@@ -85,7 +85,7 @@ function renderPC() {
         ${pcNavItem('catalogos','📥', 'Catálogos')}
         ${pcNavItem('carrito',  '🛒', 'Carrito')}
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
-        ${pcNavItem('referidos','🎁', 'Referidos')}
+        ${pcNavItem('sugerencias','💡', 'Sugerencias')}
         ${pcNavItem('cuenta',   '👤', 'Mi cuenta')}
       </nav>
 
@@ -177,7 +177,6 @@ function renderPC() {
   }
   window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
   window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
-  window.pcReintentarReferidos = () => { pc.datosCargados = false; renderReferidos(); cargarDatosPC() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
   window.pcVaciarCarrito = () => { pc.carrito = []; try { localStorage.removeItem(PC_CARRITO_KEY) } catch {} renderCarrito() }
 
@@ -215,7 +214,7 @@ function pcIrA(tab, _fromBack) {
       case 'catalogos': renderCatalogosDescarga(content); break
       case 'carrito':  renderCarrito(content); break
       case 'pedidos':  renderMisPedidos(content); break
-      case 'referidos': renderReferidos(content); break
+      case 'sugerencias': renderSugerencias(content); break
       case 'cuenta':   renderMiCuenta(content); break
     }
   } catch(e) {
@@ -265,13 +264,11 @@ async function cargarDatosPC() {
     }
   }
 
-  const [prod, vari, inv, ped, ref, refStats, cli] = await Promise.all([
+  const [prod, vari, inv, ped, cli] = await Promise.all([
     _safeFetch(`${PC_API}/productos/`),
     _safeFetch(`${PC_API}/variantes/?activa=eq.true`),
     _safeFetch(`${PC_API}/inventario/`),
     cid ? _safeFetch(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
-    cid ? _safeFetch(`${PC_API}/referidos/mi-codigo/${cid}`) : Promise.resolve(null),
-    cid ? _safeFetch(`${PC_API}/referidos/stats/${cid}`) : Promise.resolve(null),
     cid ? _safeFetch(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
   ])
 
@@ -279,8 +276,6 @@ async function cargarDatosPC() {
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
   if (ped) pc.pedidos = ped
-  if (ref) pc.referido = ref
-  if (refStats && pc.referido) pc.referido.usos = refStats.referidos || 0
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
 
   pc.datosCargados = true
@@ -295,7 +290,7 @@ function renderInicio(el) {
   const pedidos = pc.pedidos || []
   const totalGastado = pedidos.reduce((s, p) => s + parseFloat(p.total || 0), 0)
   const pedidosActivos = pedidos.filter(p => !['entregado','cancelado'].includes(p.status)).length
-  const credito = parseFloat(pc.referido?.credito_disponible || 0)
+  const credito = parseFloat(pc.clienteData?.credito_disponible || 0)
   const ultimosPedidos = [...pedidos].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0,3)
 
   el.innerHTML = `
@@ -321,7 +316,7 @@ function renderInicio(el) {
       <div class="pc-kpi" style="${credito > 0 ? 'border-color:rgba(233,30,140,0.3)' : ''}">
         <p class="pc-kpi-lbl">Crédito disponible</p>
         <p class="pc-kpi-val" style="${credito > 0 ? 'color:#E91E8C' : ''}">${money(credito)}</p>
-        <p class="pc-kpi-sub">${credito > 0 ? 'se aplica en tu próximo pedido' : `invita y gana ${money(pc.referido?.bono_por_referido || 300)}`}</p>
+        <p class="pc-kpi-sub">${credito > 0 ? 'se aplica en tu próximo pedido' : 'sin crédito pendiente'}</p>
       </div>
       <div class="pc-kpi" style="cursor:pointer" onclick="pcIrA('catalogo')">
         <p class="pc-kpi-lbl">Catálogo</p>
@@ -336,7 +331,7 @@ function renderInicio(el) {
         { icon:'👟', label:'Ver catálogo', tab:'catalogo' },
         { icon:'🛒', label:'Carrito', tab:'carrito' },
         { icon:'📦', label:'Mis pedidos',  tab:'pedidos' },
-        { icon:'🎁', label:'Referidos',    tab:'referidos' },
+        { icon:'💡', label:'Sugerencias',  tab:'sugerencias' },
       ].map(a => `
         <button onclick="pcIrA('${a.tab}')" class="pc-btn pc-btn-secondary" style="padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;border-radius:10px;font-size:0.82rem">
           <span style="font-size:1.5rem">${a.icon}</span>${a.label}
@@ -1213,7 +1208,7 @@ function renderCarrito(el) {
   }
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
-  const credito = parseFloat(pc.referido?.credito_disponible || 0)
+  const credito = parseFloat(pc.clienteData?.credito_disponible || 0)
 
   if (pc.carrito.length === 0 && pc.borradores.length === 0) {
     el.innerHTML = `
@@ -1707,73 +1702,74 @@ function pcPedidoDetalle(p) {
     </div>`
 }
 
-// ── REFERIDOS ────────────────────────────────────────────────
-function renderReferidos(el) {
+// ── SUGERENCIAS ──────────────────────────────────────────────
+function renderSugerencias(el) {
   el = el || document.getElementById('pc-content')
   if (!el) return
-  const r = pc.referido
-  const credito = parseFloat(r?.credito_disponible || 0)
-  const usos = r?.usos || 0
-  const bono = r?.bono_por_referido || 300
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">🎁 Programa de referidos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Invita a otros negocios mayoristas y gana ${money(bono)} por cada uno</p>
-    </div>
-
-    ${!r ? (pc.datosCargados ? `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
-      <p style="margin:0 0 14px">No se pudo cargar tu información de referidos.</p>
-      <button onclick="pcReintentarReferidos()" class="pc-btn pc-btn-primary">Reintentar</button>
-    </div>` : `<div class="pc-card" style="text-align:center;padding:40px;color:#5a5a7a">
-      <div style="width:28px;height:28px;border:3px solid #E91E8C;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
-      Cargando...
-    </div>`) : `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px">
-      <div class="pc-kpi" style="${credito > 0 ? 'border-color:rgba(16,185,129,0.3)' : ''}">
-        <p class="pc-kpi-lbl">Crédito disponible</p>
-        <p class="pc-kpi-val" style="color:${credito > 0 ? '#10b981' : '#e2e2f0'}">${money(credito)}</p>
-        <p class="pc-kpi-sub">${credito > 0 ? 'se aplica en tu próximo pedido' : 'sin crédito pendiente'}</p>
-      </div>
-      <div class="pc-kpi">
-        <p class="pc-kpi-lbl">Referidos registrados</p>
-        <p class="pc-kpi-val">${usos}</p>
-        <p class="pc-kpi-sub">zapatería${usos !== 1 ? 's' : ''} invitada${usos !== 1 ? 's' : ''}</p>
-      </div>
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">💡 Sugerencias</h1>
+      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">¿Te gustaría alguna función nueva, una mejora o tienes alguna recomendación? Cuéntanos.</p>
     </div>
 
     <div class="pc-card" style="margin-bottom:16px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">✅ Ya tienes tu código, no necesitas hacer nada más</p>
-      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Se generó solo para tu cuenta. Compártelo por WhatsApp o cópialo — la persona que lo use lo escribe al crear su cuenta en el portal.</p>
-      <div style="background:#0f0f1c;border:1.5px solid #2a2a40;border-radius:10px;padding:14px 24px;margin-bottom:14px;text-align:center">
-        <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:0;font-family:monospace">${esc(r.codigo||'—')}</p>
+      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Tipo</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="pc-sug-tipos">
+        ${[['sugerencia','💡 Sugerencia'],['funcion','✨ Función nueva'],['problema','⚠️ Problema/Error'],['otro','💬 Otro']].map(([v,l], i) => `
+          <button type="button" data-tipo="${v}" onclick="pcSeleccionarTipoSugerencia('${v}')" class="pc-btn ${i===0?'pc-btn-primary':'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">${l}</button>
+        `).join('')}
       </div>
-
-      <button onclick="pcInvitarWhatsapp('${esc(r.codigo||'')}','${esc(r.link||'')}','${esc(bono)}')"
-        style="width:100%;padding:13px;background:#25D366;color:white;border:none;border-radius:8px;font-family:inherit;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.71.44 3.35 1.29 4.79L2 22l5.44-1.42a9.9 9.9 0 0 0 4.6 1.17h.01c5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.06h-.01a8.14 8.14 0 0 1-4.15-1.14l-.3-.18-3.08.81.82-3-.19-.31a8.15 8.15 0 0 1-1.25-4.33c0-4.51 3.67-8.18 8.19-8.18 2.18 0 4.24.85 5.78 2.4a8.13 8.13 0 0 1 2.39 5.79c0 4.51-3.67 8.18-8.18 8.18zm4.48-6.13c-.25-.12-1.45-.72-1.68-.8-.22-.08-.39-.12-.55.12-.16.25-.63.8-.77.96-.14.16-.28.18-.53.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.48-1.39-1.73-.14-.25-.02-.38.11-.51.11-.11.25-.28.37-.42.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14 0-.31-.02-.47-.02-.16 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.57.12.16 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.45-.59 1.65-1.17.2-.57.2-1.06.14-1.17-.06-.1-.22-.16-.47-.28z"/></svg>
-        Invitar por WhatsApp
-      </button>
-      <div style="display:flex;gap:8px">
-        <button onclick="navigator.clipboard.writeText('${esc(r.codigo||'')}').then(()=>pcMostrarExito('¡Código copiado!'))" class="pc-btn pc-btn-secondary" style="flex:1">📋 Copiar código</button>
-        ${r.link ? `<button onclick="navigator.clipboard.writeText('${esc(r.link)}').then(()=>pcMostrarExito('¡Enlace copiado!'))" class="pc-btn pc-btn-secondary" style="flex:1">🔗 Copiar enlace</button>` : ''}
-      </div>
-      ${r.link ? `<p style="font-size:0.72rem;color:#3a3a5c;margin:12px 0 0;word-break:break-all">${esc(r.link)}</p>` : ''}
+      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Tu mensaje</label>
+      <textarea id="pc-sug-mensaje" class="pc-input" style="height:120px;resize:none" placeholder="Escribe aquí tu idea, recomendación o lo que te gustaría que mejoráramos..."></textarea>
+      <button onclick="pcEnviarSugerencia()" id="pc-sug-btn" class="pc-btn pc-btn-primary" style="width:100%;margin-top:14px">Enviar sugerencia</button>
+      <p id="pc-sug-msg" style="font-size:0.78rem;margin-top:10px;display:none"></p>
     </div>
-
-    <div class="pc-card">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 12px">¿Cómo funciona?</p>
-      ${[
-        ['1.','Toca "Invitar por WhatsApp" o copia tu código/enlace'],
-        ['2.','La otra persona crea su cuenta mayorista y escribe tu código'],
-        ['3.',`Tú ganas ${money(bono)} de crédito, ella recibe $50 de descuento en su primer pedido`],
-        ['4.','Sin límite — cuantas más personas invites, más crédito acumulas'],
-      ].map(([n,t]) => `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #1e1e30">
-        <span style="font-size:0.8rem;font-weight:800;color:#E91E8C;flex-shrink:0;min-width:20px">${n}</span>
-        <span style="font-size:0.83rem;color:#a0a0c0">${t}</span>
-      </div>`).join('')}
-    </div>`}
   `
+  window._pcTipoSugerencia = 'sugerencia'
+}
+
+window.pcSeleccionarTipoSugerencia = function(tipo) {
+  window._pcTipoSugerencia = tipo
+  document.querySelectorAll('#pc-sug-tipos button').forEach(b => {
+    const activo = b.dataset.tipo === tipo
+    b.classList.toggle('pc-btn-primary', activo)
+    b.classList.toggle('pc-btn-secondary', !activo)
+  })
+}
+
+window.pcEnviarSugerencia = async function() {
+  const mensaje = (document.getElementById('pc-sug-mensaje').value || '').trim()
+  const msgEl = document.getElementById('pc-sug-msg')
+  if (!mensaje) {
+    msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; msgEl.textContent = 'Escribe tu mensaje antes de enviar.'
+    return
+  }
+  const btn = document.getElementById('pc-sug-btn')
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  try {
+    const res = await fetch(`${PC_API}/sugerencias/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cliente_id: pc.sesion?.cliente_id || null,
+        nombre_cliente: pc.sesion?.nombre || '',
+        tipo: window._pcTipoSugerencia || 'sugerencia',
+        mensaje
+      })
+    })
+    if (res.ok) {
+      document.getElementById('pc-sug-mensaje').value = ''
+      msgEl.style.display = 'block'; msgEl.style.color = '#10b981'; msgEl.textContent = '¡Gracias! Ya recibimos tu mensaje.'
+      pcMostrarExito('¡Sugerencia enviada!')
+    } else {
+      msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; msgEl.textContent = 'No se pudo enviar, intenta de nuevo.'
+    }
+  } catch (e) {
+    msgEl.style.display = 'block'; msgEl.style.color = '#ef4444'; msgEl.textContent = 'Error de conexión.'
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar sugerencia'
+  }
 }
 
 // ── MI CUENTA ────────────────────────────────────────────────
