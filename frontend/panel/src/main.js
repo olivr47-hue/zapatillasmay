@@ -80,11 +80,16 @@ function renderLogin() {
             Iniciar sesión
           </button>
 
-          <p style="text-align:center;margin-top:16px">
+          <p style="text-align:center;margin-top:16px;display:flex;justify-content:center;gap:16px;flex-wrap:wrap">
             <a href="#" onclick="mostrarRecuperar(event)"
                style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
               ¿Olvidaste tu contraseña?
+            </a>
+            <a href="#" onclick="mostrarRegistroMayoreo(event)"
+               style="color:#E91E8C;font-size:0.8rem;text-decoration:none;opacity:0.85"
+               onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">
+              Crear cuenta mayorista
             </a>
           </p>
 
@@ -100,6 +105,32 @@ function renderLogin() {
             <button onclick="enviarRecuperar()"
               style="width:100%;padding:11px;background:transparent;color:#E91E8C;border:1.5px solid #E91E8C;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.85rem;font-weight:700;cursor:pointer">
               Enviar enlace
+            </button>
+          </div>
+
+          <!-- Sección crear cuenta mayorista (oculta por defecto) -->
+          <div id="registro-mayoreo-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid #1e1e30">
+            <p style="font-size:0.8rem;color:#8888aa;margin:0 0 14px;text-align:center">Crea tu cuenta para ver precios de mayoreo y hacer pedidos.</p>
+            <input type="text" id="reg-nombre" placeholder="Nombre del negocio o tuyo"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <input type="tel" id="reg-telefono" placeholder="Teléfono (10 dígitos)"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <input type="email" id="reg-email" placeholder="Correo electrónico"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <input type="password" id="reg-password" placeholder="Crea una contraseña"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:8px"
+              onfocus="this.style.borderColor='#E91E8C'" onblur="this.style.borderColor='#1e1e30'">
+            <select id="reg-tipo"
+              style="width:100%;padding:11px 16px;border:1.5px solid #1e1e30;border-radius:10px;background:#161625;color:white;font-family:DM Sans,sans-serif;font-size:0.88rem;outline:none;box-sizing:border-box;margin-bottom:12px">
+              <option value="mayoreo">Compro surtido variado (3+ pares)</option>
+              <option value="zapateria">Compro corridas completas (zapatería)</option>
+            </select>
+            <button onclick="crearCuentaMayoreo()" id="btn-registro-mayoreo"
+              style="width:100%;padding:12px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:DM Sans,sans-serif;font-size:0.88rem;font-weight:700;cursor:pointer">
+              Crear cuenta
             </button>
           </div>
         </div>
@@ -203,6 +234,67 @@ function renderLogin() {
       if (sec) sec.style.display = 'none'
     } catch(e) {
       mostrarError('Error al enviar. Intenta de nuevo.')
+    }
+  }
+
+  window.mostrarRegistroMayoreo = (e) => {
+    e.preventDefault()
+    const sec = document.getElementById('registro-mayoreo-section')
+    if (sec) sec.style.display = sec.style.display === 'none' ? 'block' : 'none'
+    const recSec = document.getElementById('recuperar-section')
+    if (recSec) recSec.style.display = 'none'
+  }
+
+  window.crearCuentaMayoreo = async () => {
+    const nombre = (document.getElementById('reg-nombre').value || '').trim()
+    const telefono = (document.getElementById('reg-telefono').value || '').trim()
+    const email = (document.getElementById('reg-email').value || '').trim()
+    const password = document.getElementById('reg-password').value || ''
+    const tipo = document.getElementById('reg-tipo').value
+
+    if (!nombre || !email || !password) { mostrarError('Completa nombre, correo y contraseña'); return }
+    if (password.length < 4) { mostrarError('La contraseña debe tener al menos 4 caracteres'); return }
+
+    const btn = document.getElementById('btn-registro-mayoreo')
+    btn.textContent = 'Creando cuenta...'
+    btn.disabled = true
+
+    try {
+      const res = await fetch('/api/auth/registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, email, password, telefono, tipo })
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        mostrarError(data.error || 'No se pudo crear la cuenta')
+        btn.textContent = 'Crear cuenta'
+        btn.disabled = false
+        return
+      }
+      // Auto-login tras registro exitoso
+      const resLogin = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const dataLogin = await resLogin.json()
+      if (resLogin.ok) {
+        const sesionCliente = { ...dataLogin, email }
+        sessionStorage.setItem(PC_SESSION_KEY, JSON.stringify(sesionCliente))
+        if (dataLogin.token) sessionStorage.setItem('erp_token', dataLogin.token)
+        renderPortalCliente(sesionCliente)
+      } else {
+        mostrarOk('Cuenta creada. Ahora inicia sesión.')
+        const sec = document.getElementById('registro-mayoreo-section')
+        if (sec) sec.style.display = 'none'
+        btn.textContent = 'Crear cuenta'
+        btn.disabled = false
+      }
+    } catch (e) {
+      mostrarError('Error al crear la cuenta. Intenta de nuevo.')
+      btn.textContent = 'Crear cuenta'
+      btn.disabled = false
     }
   }
 }

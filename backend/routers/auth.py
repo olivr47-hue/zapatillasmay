@@ -51,7 +51,7 @@ def registro(datos: dict):
                 "nombre": nombre,
                 "email": email,
                 "telefono": telefono,
-                "tipo": "zapateria" if tipo == "zapateria" else "menudeo",
+                "tipo": tipo if tipo in ("zapateria", "mayoreo") else "menudeo",
                 "activo": True,
                 "origen": "tienda"
             })
