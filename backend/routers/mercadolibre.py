@@ -95,7 +95,8 @@ def ml_put(path: str, data: dict):
         with urllib.request.urlopen(req) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
-        return {"error": json.loads(e.read()).get("message", str(e))}
+        body_err = json.loads(e.read())
+        return {"error": body_err.get("message", str(e)), "cause": body_err.get("cause")}
 
 # ─── OAuth — obtener / renovar token ──────────────────────────────────────────
 
@@ -860,8 +861,8 @@ def reparar_titulo_color(body: dict):
                 "color_nuevo": color_nuevo,
                 "ok": ok,
                 "detalle": {
-                    "titulo": resp_titulo.get("error") if "error" in resp_titulo else None,
-                    "color": resp_color.get("error") if "error" in resp_color else None,
+                    "titulo": {"error": resp_titulo.get("error"), "cause": resp_titulo.get("cause")} if "error" in resp_titulo else None,
+                    "color": {"error": resp_color.get("error"), "cause": resp_color.get("cause")} if "error" in resp_color else None,
                 } if not ok else None,
             })
         except Exception as e:
