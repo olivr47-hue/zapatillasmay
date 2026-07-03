@@ -848,19 +848,21 @@ def reparar_titulo_color(body: dict):
             color_raw = (variante.get("color") or "").strip()
             color_nuevo = " ".join(color_raw.split()).title() if color_raw else ""
 
-            update_body = {"title": title_nuevo}
-            attrs_actuales = item.get("attributes", [])
-            nuevos_attrs = [a for a in attrs_actuales if a.get("id") != "COLOR"]
-            nuevos_attrs.append({"id": "COLOR", "value_name": color_nuevo})
-            update_body["attributes"] = nuevos_attrs
-
-            resp = ml_put(f"/items/{item_id}", update_body)
+            # Enviar SOLO los campos a cambiar (no reenviar el array completo de
+            # attributes tal como lo devuelve el GET: trae metadatos internos
+            # de solo-lectura que ML rechaza con BODY_INVALID_FIELDS en el PUT).
+            resp_titulo = ml_put(f"/items/{item_id}", {"title": title_nuevo})
+            resp_color  = ml_put(f"/items/{item_id}", {"attributes": [{"id": "COLOR", "value_name": color_nuevo}]})
+            ok = "error" not in resp_titulo and "error" not in resp_color
             resultados.append({
                 "item_id": item_id, "seller_sku": seller_sku,
                 "title_anterior": item.get("title"), "title_nuevo": title_nuevo,
                 "color_nuevo": color_nuevo,
-                "ok": "error" not in resp,
-                "detalle": resp.get("error") if "error" in resp else None,
+                "ok": ok,
+                "detalle": {
+                    "titulo": resp_titulo.get("error") if "error" in resp_titulo else None,
+                    "color": resp_color.get("error") if "error" in resp_color else None,
+                } if not ok else None,
             })
         except Exception as e:
             resultados.append({"item_id": item_id, "error": str(e)})
