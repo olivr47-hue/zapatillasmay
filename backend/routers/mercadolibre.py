@@ -559,7 +559,10 @@ def _build_item(producto: dict, variante: dict, qty: int,
     talla_raw     = str(variante.get("talla") or "")
     talla_display = talla_raw.replace("_", ".")
     color_raw     = (variante.get("color") or "").strip()
-    color_simple  = color_raw.split()[0].title() if color_raw else ""
+    # Nombre completo (normalizando espacios) — antes se truncaba a la primera
+    # palabra, lo que hacía que colores distintos como "Azul claro" y
+    # "Azul marino charol" colisionaran en el mismo valor "Azul" al publicar.
+    color_simple  = " ".join(color_raw.split()).title() if color_raw else ""
 
     # ── Título ML (máx 60 chars, sin color ni talla — ML los agrega solo) ──
     # Usar el nombre del producto para que ML lo asocie al catálogo correcto.
@@ -796,6 +799,73 @@ def cerrar_item(item_id: str):
     pasos["cerrar"] = ml_put(f"/items/{item_id}", {"status": "closed"})
     pasos["eliminar"] = ml_put(f"/items/{item_id}", {"deleted": "true"})
     return {"item_id": item_id, "pasos": pasos}
+
+
+@router.post("/reparar-titulo-color")
+def reparar_titulo_color(body: dict):
+    """
+    Corrige título y atributo COLOR de publicaciones ya activas cuya variante
+    tenga colisión de color (bug de color_simple truncado a la 1a palabra) o
+    título inconsistente (enriquecido distinto por publicación en ML).
+    Body: { "item_ids": ["MLM...", ...] }  (si viene vacío, no hace nada)
+    Reconstruye título y color desde la fuente de verdad: producto + variante
+    en el ERP, buscados por SELLER_SKU de cada item.
+    """
+    item_ids = body.get("item_ids") or []
+    if not item_ids:
+        return {"error": "item_ids requerido"}
+
+    resultados = []
+    for item_id in item_ids:
+        try:
+            item = ml_get(f"/items/{item_id}")
+            seller_sku = ""
+            for attr in item.get("attributes", []):
+                if attr.get("id") == "SELLER_SKU":
+                    seller_sku = (attr.get("value_name") or "").strip()
+                    break
+            if not seller_sku:
+                resultados.append({"item_id": item_id, "error": "sin SELLER_SKU"})
+                continue
+
+            variantes = supabase_get(f"variantes?sku=eq.{seller_sku}&select=id,color,producto_id")
+            if not variantes:
+                resultados.append({"item_id": item_id, "seller_sku": seller_sku, "error": "variante no encontrada en ERP"})
+                continue
+            variante = variantes[0]
+            productos = supabase_get(f"productos?id=eq.{variante['producto_id']}&select=nombre,categoria")
+            if not productos:
+                resultados.append({"item_id": item_id, "seller_sku": seller_sku, "error": "producto no encontrado"})
+                continue
+            producto = productos[0]
+
+            cat    = (producto.get("categoria") or "sandalia").lower().strip()
+            tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
+            nombre = (producto.get("nombre") or "").strip()
+            title_raw = f"{tipo} {nombre} Marca May".strip() if nombre else f"{tipo} Marca May"
+            title_nuevo = title_raw[:60].strip()
+
+            color_raw = (variante.get("color") or "").strip()
+            color_nuevo = " ".join(color_raw.split()).title() if color_raw else ""
+
+            update_body = {"title": title_nuevo}
+            attrs_actuales = item.get("attributes", [])
+            nuevos_attrs = [a for a in attrs_actuales if a.get("id") != "COLOR"]
+            nuevos_attrs.append({"id": "COLOR", "value_name": color_nuevo})
+            update_body["attributes"] = nuevos_attrs
+
+            resp = ml_put(f"/items/{item_id}", update_body)
+            resultados.append({
+                "item_id": item_id, "seller_sku": seller_sku,
+                "title_anterior": item.get("title"), "title_nuevo": title_nuevo,
+                "color_nuevo": color_nuevo,
+                "ok": "error" not in resp,
+                "detalle": resp.get("error") if "error" in resp else None,
+            })
+        except Exception as e:
+            resultados.append({"item_id": item_id, "error": str(e)})
+
+    return {"total": len(item_ids), "reparados": sum(1 for r in resultados if r.get("ok")), "resultados": resultados}
 
 
 @router.post("/validar")
