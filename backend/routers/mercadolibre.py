@@ -615,6 +615,13 @@ def _build_item(producto: dict, variante: dict, qty: int,
         {"id": "MAIN_COLOR",    "value_id": mc_id, "value_name": mc_name},
         {"id": "SIZE",          "value_name": size_value},
     ]
+    # PATTERN_NAME tiene allow_variations+defines_picture en ML: si no lo
+    # mandamos, ML lo infiere solo con IA por foto y sale distinto en cada
+    # talla, lo que puede partir la publicación en varias fichas separadas.
+    # Se manda fijo para que todas las tallas/colores de un modelo coincidan.
+    # Solo existe en MLM192717 (categoría a la que siempre publicamos, salvo tenis).
+    if category_id == "MLM192717":
+        attrs.append({"id": "PATTERN_NAME", "value_name": "Liso"})
     if fw:
         attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
     if grid_id:
