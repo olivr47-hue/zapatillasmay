@@ -7,7 +7,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from database import supabase_get_all, supabase_get
+from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/ml", tags=["MercadoLibre"])
@@ -451,6 +451,146 @@ def ver_log_sync():
     if not log:
         return {"message": "No hay sincronizaciones recientes"}
     return log
+
+
+# ─── Ventas ML → descontar inventario en el ERP ────────────────────────────────
+
+def _buscar_variante_por_sku(seller_sku: str):
+    """Busca la variante del ERP que corresponde a un SELLER_SKU de ML."""
+    sku_norm = _norm_sku(seller_sku)
+    variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id,activa")
+    for v in variantes:
+        if not v.get("sku"):
+            continue
+        if _norm_sku(v["sku"]) == sku_norm:
+            return v
+        # También intentar con el color completo (SKU manual: BASE-COLORCOMPLETO-TALLA)
+        partes = v["sku"].split("-")
+        if len(partes) >= 3 and v.get("color"):
+            sku_base  = "-".join(partes[:-2])
+            cod_talla = partes[-1].replace(".", "_")
+            color_completo = _norm_sku(v["color"])
+            if f"{sku_base}-{color_completo}-{cod_talla}" == sku_norm:
+                return v
+    return None
+
+
+def _descontar_inventario_variante(variante_id: str, cantidad: int):
+    """Resta `cantidad` del inventario de la variante (de la sucursal con más stock;
+    si nadie tiene suficiente, se resta de la que tenga más aunque quede en 0)."""
+    filas = supabase_get(f"inventario?variante_id=eq.{variante_id}&select=id,sucursal_id,cantidad&order=cantidad.desc")
+    if not filas:
+        return False
+    fila = filas[0]
+    nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
+    supabase_patch(f"inventario?id=eq.{fila['id']}", {"cantidad": nueva_cantidad})
+    supabase_post("movimientos_inventario", {
+        "variante_id":  variante_id,
+        "sucursal_id":  fila["sucursal_id"],
+        "tipo":         "salida",
+        "cantidad":     cantidad,
+        "motivo":       "Venta MercadoLibre",
+    })
+    return True
+
+
+def _hacer_sync_ventas():
+    """
+    Busca órdenes pagadas recientes en ML que no se hayan procesado todavía
+    (por ml_order_id en pedidos), descuenta el inventario correspondiente y
+    crea un registro de pedido para cada una.
+    """
+    resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
+    try:
+        offset = 0
+        ordenes = []
+        while True:
+            resp = ml_get(
+                f"/orders/search?seller={ML_USER_ID}&order.status=paid"
+                f"&sort=date_desc&limit=50&offset={offset}"
+            )
+            batch = resp.get("results", [])
+            ordenes.extend(batch)
+            if len(batch) < 50 or offset >= 200:  # tope: últimas 250 órdenes pagadas
+                break
+            offset += 50
+
+        for orden in ordenes:
+            resultado["revisadas"] += 1
+            order_id = str(orden.get("id"))
+
+            ya_existe = supabase_get(f"pedidos?ml_order_id=eq.{order_id}&select=id")
+            if ya_existe:
+                continue
+
+            items_pedido = []
+            faltante = False
+            for oi in orden.get("order_items", []):
+                item_info  = oi.get("item", {}) or {}
+                seller_sku = (item_info.get("seller_sku") or "").strip()
+                cantidad   = int(oi.get("quantity") or 0)
+                if not seller_sku or cantidad <= 0:
+                    continue
+                variante = _buscar_variante_por_sku(seller_sku)
+                if not variante:
+                    resultado["sin_match"].append({"orden": order_id, "sku": seller_sku})
+                    faltante = True
+                    continue
+                items_pedido.append({
+                    "variante_id":     variante["id"],
+                    "cantidad":        cantidad,
+                    "precio_unitario": float(oi.get("unit_price") or 0),
+                    "nombre":          item_info.get("title") or "",
+                    "color":           variante.get("color") or "",
+                    "talla":           variante.get("talla") or "",
+                    "sku":             seller_sku,
+                })
+
+            if not items_pedido:
+                continue
+
+            try:
+                for it in items_pedido:
+                    _descontar_inventario_variante(it["variante_id"], it["cantidad"])
+
+                comprador = orden.get("buyer", {}) or {}
+                pedido = supabase_post("pedidos", {
+                    "ml_order_id": order_id,
+                    "canal":       "mercadolibre",
+                    "status":      "confirmado",
+                    "tipo":        "online",
+                    "total":       float(orden.get("total_amount") or 0),
+                    "subtotal":    float(orden.get("total_amount") or 0),
+                    "forma_pago":  "mercadolibre",
+                    "nombre_cliente": (comprador.get("nickname") or "Comprador MercadoLibre"),
+                    "notas":       f"Pedido generado automáticamente desde MercadoLibre (orden {order_id}){' — faltó match de algún SKU' if faltante else ''}",
+                })
+                pedido_id = pedido[0]["id"] if pedido else None
+                if pedido_id:
+                    for it in items_pedido:
+                        supabase_post("pedido_items", {
+                            "pedido_id":       pedido_id,
+                            "variante_id":     it["variante_id"],
+                            "cantidad":        it["cantidad"],
+                            "precio_unitario": it["precio_unitario"],
+                            "nombre":          it["nombre"],
+                            "color":           it["color"],
+                            "talla":           it["talla"],
+                        })
+                resultado["procesadas"] += 1
+            except Exception as e:
+                resultado["errores"].append({"orden": order_id, "error": str(e)})
+
+    except Exception as e:
+        resultado["errores"].append({"error_general": str(e)})
+
+    return resultado
+
+
+@router.post("/sync-ventas")
+def sincronizar_ventas():
+    """Trigger manual: descuenta inventario de ventas ML no procesadas todavía."""
+    return _hacer_sync_ventas()
 
 
 # ─── Publicar productos en ML ──────────────────────────────────────────────────

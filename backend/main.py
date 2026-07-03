@@ -119,6 +119,19 @@ def _loop_carritos_abandonados():
             print(f"[carrito-abandonado] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_ml_ventas():
+    """Descuenta inventario del ERP por ventas nuevas en MercadoLibre cada 10 minutos."""
+    _time.sleep(150)  # espera inicial
+    while True:
+        try:
+            from routers.mercadolibre import _hacer_sync_ventas
+            res = _hacer_sync_ventas()
+            if res.get("procesadas"):
+                print(f"[ml-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
+        except Exception as e:
+            print(f"[ml-ventas] Error en loop: {e}")
+        _time.sleep(10 * 60)  # cada 10 minutos
+
 def _loop_tiktok_sync():
     """Sincroniza inventario con TikTok Shop cada 30 minutos si hay token activo."""
     _time.sleep(180)  # espera 3 min al arrancar
@@ -145,6 +158,10 @@ def _iniciar_hilos():
     t2 = threading.Thread(target=_loop_tiktok_sync, daemon=True)
     t2.start()
     print("[tiktok-sync] Hilo de sincronización de inventario iniciado (cada 30 min)")
+    # MercadoLibre: descontar inventario por ventas nuevas
+    t3 = threading.Thread(target=_loop_ml_ventas, daemon=True)
+    t3.start()
+    print("[ml-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
 
 @app.get("/")
 def inicio():
