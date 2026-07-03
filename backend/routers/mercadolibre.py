@@ -7,7 +7,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from database import supabase_get_all
+from database import supabase_get_all, supabase_get
 from cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/ml", tags=["MercadoLibre"])
