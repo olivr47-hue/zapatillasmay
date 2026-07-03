@@ -1,0 +1,32 @@
+Calling: https://zapatillasmay-production.up.railway.app/ml/items?limit=150
+Total items in response: 341
+Checking 341 items for creation date...
+
+--- ITEMS CREATED TODAY (27) ---
+ID: MLM5623771820 | SKU: I-SAN-0096-CAFE-23_5 | Created: 2026-07-02T17:32:36.342Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe Con Brillos / Puntos Metálicos 23.5 Mx
+ID: MLM3076069067 | SKU: I-SAN-0096-VIN-26 | Created: 2026-07-02T17:32:37.006Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino Con Brillos 26 Mx
+ID: MLM5623771822 | SKU: I-SAN-0096-CAFE-26 | Created: 2026-07-02T17:32:37.654Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe Con Brillos 26 Mx
+ID: MLM5623771830 | SKU: I-SAN-0096-CAFE-25_5 | Created: 2026-07-02T17:32:38.298Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe Con Brillos 25.5 Mx
+ID: MLM5623771834 | SKU: I-SAN-0096-VIN-23_5 | Created: 2026-07-02T17:32:38.957Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino 23.5 Mx
+ID: MLM3075945019 | SKU: I-SAN-0096-VIN-24 | Created: 2026-07-02T17:32:39.642Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino 24 Mx
+ID: MLM3075945021 | SKU: I-SAN-0096-VIN-25 | Created: 2026-07-02T17:32:40.307Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino Con Brillos 25 Mx
+ID: MLM3076091121 | SKU: I-SAN-0096-CAFE-24 | Created: 2026-07-02T17:32:40.956Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe 24 Mx
+ID: MLM5623771854 | SKU: I-SAN-0096-VIN-23 | Created: 2026-07-02T17:32:41.613Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino Con Brillos / Lunares Pequeños 23 Mx
+ID: MLM5623771860 | SKU: I-SAN-0096-VIN-25_5 | Created: 2026-07-02T17:32:42.250Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino Con Brillos / Salpicado De Puntos Pequeños 25.5 Mx
+ID: MLM3075945031 | SKU: I-SAN-0096-VIN-24_5 | Created: 2026-07-02T17:32:42.907Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Vino Con Brillos 24.5 Mx
+ID: MLM3076091143 | SKU: I-SAN-0096-CAFE-24_5 | Created: 2026-07-02T17:32:43.589Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe Con Brillos 24.5 Mx
+ID: MLM5623771878 | SKU: I-SAN-0096-CAFE-23 | Created: 2026-07-02T17:32:44.243Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe Con Brillos 23 Mx
+ID: MLM5623771884 | SKU: I-SAN-0096-CAFE-25 | Created: 2026-07-02T17:32:44.924Z | Title: Flats Con Brillos De Moda Para Mujer Marca May Cafe 25 Mx
+ID: MLM5625625400 | SKU: M-TAC-0146-CAFE-26 | Created: 2026-07-02T22:32:06.523Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe Forro Imitación Borrego 26 Mx
+ID: MLM5625490674 | SKU: M-TAC-0146-NEGRO-24 | Created: 2026-07-02T22:32:07.267Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro Liso 24 Mx
+ID: MLM5625625404 | SKU: M-TAC-0146-NEGRO-25_5 | Created: 2026-07-02T22:32:07.929Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro Forro Imitación Borrego 25.5 Mx
+ID: MLM5625490680 | SKU: M-TAC-0146-CAFE-24 | Created: 2026-07-02T22:32:09.309Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe Forro Imitación Borrego 24 Mx
+ID: MLM3076551829 | SKU: M-TAC-0146-NEGRO-23 | Created: 2026-07-02T22:32:09.937Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro Imitación Borrego (forro) 23 Mx
+ID: MLM5625338404 | SKU: M-TAC-0146-NEGRO-23_5 | Created: 2026-07-02T22:32:10.584Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro Forro Imitación Borrego 23.5 Mx
+ID: MLM5625490688 | SKU: M-TAC-0146-CAFE-25 | Created: 2026-07-02T22:32:11.258Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe Liso 25 Mx
+ID: MLM5625490690 | SKU: M-TAC-0146-NEGRO-24_5 | Created: 2026-07-02T22:32:11.923Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro 24.5 Mx
+ID: MLM5625625410 | SKU: M-TAC-0146-CAFE-23 | Created: 2026-07-02T22:32:12.567Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe 23 Mx
+ID: MLM3076551837 | SKU: M-TAC-0146-CAFE-24_5 | Created: 2026-07-02T22:32:13.199Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe Forro Imitación Borrego 24.5 Mx
+ID: MLM3076551841 | SKU: M-TAC-0146-NEGRO-26 | Created: 2026-07-02T22:32:13.847Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro 26 Mx
+ID: MLM5625490698 | SKU: M-TAC-0146-CAFE-23_5 | Created: 2026-07-02T22:32:14.488Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Cafe Liso 23.5 Mx
+ID: MLM5625625414 | SKU: M-TAC-0146-NEGRO-25 | Created: 2026-07-02T22:32:15.151Z | Title: Botin Dama Tacon Corrido De Moda Forro Imitacion Borrego Negro Forro Imitación Borrego 25 Mx

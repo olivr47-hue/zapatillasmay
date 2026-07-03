@@ -155,7 +155,34 @@ if (!window.fbq){
     s.parentNode.insertBefore(t,s)
   }(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js'));
-  fbq('init','1494129305549843');
+  
+  // Coincidencia avanzada (Advanced Matching) de Meta
+  var _fbAMData = {};
+  try {
+    var _d = JSON.parse(localStorage.getItem('zm_form_datos') || 'null') || {};
+    var _sub = JSON.parse(localStorage.getItem('zm_subscriber') || 'null') || {};
+    var _usr = JSON.parse(localStorage.getItem('usuario') || 'null') || {};
+    var _ckEmail = (localStorage.getItem('zm_checkout_email') || '').trim();
+    
+    var _email = _d.email || _sub.email || _usr.email || _ckEmail;
+    if (_email) _fbAMData.em = _email.trim().toLowerCase();
+    
+    var _tel = _d.telefono || _usr.telefono || '';
+    if (_tel) _fbAMData.ph = String(_tel).replace(/\D/g, '');
+    
+    var _nom = _d.nombre || _sub.nombre || _usr.nombre || '';
+    if (_nom) {
+      var _parts = _nom.trim().split(/\s+/);
+      if (_parts[0]) _fbAMData.fn = _parts[0].toLowerCase();
+      if (_parts.length > 1) _fbAMData.ln = _parts[_parts.length - 1].toLowerCase();
+    }
+    
+    if (_d.ciudad) _fbAMData.ct = _d.ciudad.toLowerCase().replace(/\s/g,'');
+    if (_d.estado) _fbAMData.st = _d.estado.toLowerCase().replace(/\s/g,'');
+    if (_d.cp)     _fbAMData.zp = String(_d.cp).replace(/\D/g,'');
+  } catch(e) {}
+
+  fbq('init','1494129305549843', _fbAMData);
   fbq('track','PageView');
 }
 </script>
