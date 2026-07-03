@@ -1147,6 +1147,10 @@ function renderTallas(color, varsProd) {
 }
 
 function seleccionarColor(color) {
+  // Defensivo: si el usuario toca un color antes de que termine de cargar
+  // el producto (fetch async todavía en curso), reintentar en breve en vez
+  // de tronar en silencio y dejar la foto pegada en la de portada.
+  if (!producto) { setTimeout(() => seleccionarColor(color), 150); return }
   colorSeleccionado = color
   tallaSeleccionada = null
   const varsProd = variantes.filter(v => v.producto_id === producto.id && v.activa !== false)
