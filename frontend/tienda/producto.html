@@ -1176,6 +1176,10 @@ function seleccionarColor(color) {
     if (Array.isArray(v.imagenes)) v.imagenes.forEach(u => { if (u && u !== v.foto_url) fotosActuales.push(u) })
     if (!fotosActuales.length && producto.imagen_principal) fotosActuales.push(producto.imagen_principal)
     const imgMain = document.getElementById('gallery-main')
+    // El srcset inicial (portada, inyectado por SSR) tiene prioridad sobre src
+    // para el navegador -- si no se quita, la foto grande se queda pegada en
+    // la de portada aunque src ya apunte al color correcto.
+    imgMain.removeAttribute('srcset')
     imgMain.src = zmImg(fotosActuales[0] || '', targetImgWidth)
     imgMain.alt = `${producto.nombre} ${color} ${producto.categoria || ''} — Zapatillas May`.replace(/\s+/g, ' ').trim()
     renderThumbs()
@@ -1243,7 +1247,7 @@ function cambiarFoto(idx) {
   img.onload = () => {
     imgMain.style.transition = 'opacity 0.15s'
     imgMain.style.opacity = '0'
-    requestAnimationFrame(() => { imgMain.src = nextSrc; imgMain.style.opacity = '1' })
+    requestAnimationFrame(() => { imgMain.removeAttribute('srcset'); imgMain.src = nextSrc; imgMain.style.opacity = '1' })
   }
   img.src = nextSrc
 }
