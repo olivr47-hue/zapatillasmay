@@ -4988,7 +4988,14 @@ window.eliminarFotoClave = (idx, fIdx) => {
 
 window.mostrarFormProducto = (datos) => {
   if (window._zmPushBack) window._zmPushBack(() => cargarModulo('productos'))
-  if (!datos) window._coloresExistentes = null
+  if (!datos) {
+    // "+ Nuevo producto": limpiar por completo cualquier rastro de una edición
+    // anterior. Si _productoEditandoId se quedaba pegado de una edición previa,
+    // guardarProducto() hacia PATCH sobre ESE producto en vez de crear uno
+    // nuevo -- sobrescribiendo nombre/fotos del producto viejo por accidente.
+    window._productoEditandoId = null
+    window._coloresExistentes = null
+  }
   varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0 
   ? window._coloresExistentes.length 
   : 1
