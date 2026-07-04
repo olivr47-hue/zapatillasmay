@@ -398,6 +398,12 @@ def detalle_item(item_id: str):
     """Devuelve el detalle completo de un item de ML (para ver estructura)."""
     return ml_get(f"/items/{item_id}")
 
+
+@router.get("/order/{order_id}")
+def detalle_orden(order_id: str):
+    """Devuelve el detalle completo de una orden de ML (para debug/backfill)."""
+    return ml_get(f"/orders/{order_id}")
+
 @router.get("/items")
 def listar_items():
     """Devuelve todos los items del vendedor con su SELLER_SKU del ERP."""
@@ -669,6 +675,9 @@ def _hacer_sync_ventas():
                     _descontar_inventario_variante(it["variante_id"], it["cantidad"])
 
                 comprador = orden.get("buyer", {}) or {}
+                # Fecha real de la venta en ML (no la fecha en que corre la sincronizacion),
+                # para que no aparezca como venta "de hoy" en los reportes del ERP.
+                fecha_orden = orden.get("date_closed") or orden.get("date_created")
                 datos_pedido = {
                     "ml_order_id": order_id,
                     "canal":       "mercadolibre",
@@ -680,6 +689,8 @@ def _hacer_sync_ventas():
                     "nombre_cliente": (comprador.get("nickname") or "Comprador MercadoLibre"),
                     "notas":       f"Pedido generado automáticamente desde MercadoLibre (orden {order_id}){' — faltó match de algún SKU' if faltante else ''}",
                 }
+                if fecha_orden:
+                    datos_pedido["created_at"] = fecha_orden
                 try:
                     pedido = supabase_post("pedidos", datos_pedido)
                 except Exception as e:
