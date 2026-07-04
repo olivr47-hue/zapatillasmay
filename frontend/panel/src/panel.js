@@ -17132,21 +17132,26 @@ window._mlCargarResumenCatalogo = async () => {
       return
     }
     window._mlCatalogoPendiente = d.productos
+    window._mlCatalogoSeleccion = new Set(d.productos.map(p => p.id))
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
-        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> del ERP todavía no están en MercadoLibre.</p>
-        ${_mlBtn('cart', `Publicar los ${d.total} pendientes`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
+        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> del ERP todavía no están en MercadoLibre. Desmarca los que no quieras publicar (ej. les faltan fotos con fondo blanco).</p>
+        ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
       </div>
-      <details>
-        <summary style="cursor:pointer;font-size:0.78rem;color:#3483fa;list-style:none">Ver cuáles son</summary>
-        <div style="max-height:220px;overflow-y:auto;margin-top:8px">
-          ${d.productos.map(p => `
-            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
-              <span>${p.nombre}</span>
-              <span style="color:#aaa;font-family:monospace">${p.sku_interno}</span>
-            </div>`).join('')}
-        </div>
-      </details>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
+        <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(true)">Seleccionar todos</label>
+        <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(false)">Ninguno</label>
+        <span id="ml-catalogo-contador" style="color:#888;margin-left:auto">${d.total} de ${d.total} seleccionados</span>
+      </div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+        ${d.productos.map(p => `
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;cursor:pointer">
+            <input type="checkbox" checked data-ml-catprod="${p.id}" onchange="window._mlToggleCatProd('${p.id}',this.checked)"
+                   style="width:15px;height:15px;cursor:pointer;accent-color:#3483fa;flex-shrink:0">
+            <span style="flex:1">${p.nombre}</span>
+            <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
+          </label>`).join('')}
+      </div>
       <div id="ml-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
     `
   } catch(e) {
@@ -17154,8 +17159,26 @@ window._mlCargarResumenCatalogo = async () => {
   }
 }
 
-window._mlAbrirConfirmMasivo = () => {
+window._mlToggleCatProd = (id, marcado) => {
+  if (!window._mlCatalogoSeleccion) return
+  if (marcado) window._mlCatalogoSeleccion.add(id)
+  else window._mlCatalogoSeleccion.delete(id)
+  const contador = document.getElementById('ml-catalogo-contador')
   const total = (window._mlCatalogoPendiente || []).length
+  if (contador) contador.textContent = `${window._mlCatalogoSeleccion.size} de ${total} seleccionados`
+}
+
+window._mlSelTodosCatalogo = (todos) => {
+  const total = window._mlCatalogoPendiente || []
+  window._mlCatalogoSeleccion = todos ? new Set(total.map(p => p.id)) : new Set()
+  document.querySelectorAll('[data-ml-catprod]').forEach(chk => { chk.checked = todos })
+  const contador = document.getElementById('ml-catalogo-contador')
+  if (contador) contador.textContent = `${window._mlCatalogoSeleccion.size} de ${total.length} seleccionados`
+}
+
+window._mlAbrirConfirmMasivo = () => {
+  const total = (window._mlCatalogoSeleccion || new Set()).size
+  if (!total) { alert('No seleccionaste ningún modelo para publicar.'); return }
   const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión).\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
   if (!confirm(msg)) return
   window._mlEjecutarPublicacionMasiva()
@@ -17170,10 +17193,11 @@ window._mlEjecutarPublicacionMasiva = async () => {
   log.style.display = 'block'
   log.innerHTML = '<p style="margin:0;color:#888">Iniciando...</p>'
   try {
+    const producto_ids = Array.from(window._mlCatalogoSeleccion || [])
     await fetch(`${API}/ml/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_type: 'gold_special', limite: (window._mlCatalogoPendiente || []).length })
+      body: JSON.stringify({ listing_type: 'gold_special', producto_ids })
     })
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_mlBtn('refresh', 'Actualizar progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}`

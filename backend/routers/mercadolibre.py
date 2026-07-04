@@ -1407,8 +1407,13 @@ def catalogo_sin_publicar():
     }
 
 
-def _hacer_publicar_catalogo(listing_type: str, limite: int):
-    productos = _productos_sin_publicar()[:limite]
+def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list = None):
+    pendientes = _productos_sin_publicar()
+    if producto_ids:
+        ids_set = set(producto_ids)
+        productos = [p for p in pendientes if p["id"] in ids_set]
+    else:
+        productos = pendientes[:limite]
     resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
     for p in productos:
         try:
@@ -1439,12 +1444,15 @@ def publicar_catalogo(body: dict, background_tasks: BackgroundTasks):
     Publica en MercadoLibre todos los productos activos del ERP que todavía
     no tienen ninguna publicación. Se ejecuta en background por el volumen
     de llamadas a la API de ML (una por producto).
-    Body: { "listing_type": "gold_special", "limite": 20 }
+    Body: { "listing_type": "gold_special", "limite": 20, "producto_ids": ["uuid", ...] (opcional) }
+    Si se manda producto_ids, solo se publican esos (filtrados igual contra
+    los pendientes reales); si no, se publican los primeros "limite" pendientes.
     """
     listing_type = body.get("listing_type") or "gold_special"
     limite       = int(body.get("limite") or 20)
+    producto_ids = body.get("producto_ids") or None
     pendientes   = len(_productos_sin_publicar())
-    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite)
+    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite, producto_ids)
     return {"message": f"Publicación masiva iniciada para hasta {min(limite, pendientes)} producto(s). Consulta /ml/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
 
 
