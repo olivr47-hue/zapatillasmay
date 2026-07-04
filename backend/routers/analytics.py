@@ -459,6 +459,36 @@ def metricas_mes():
     return {"configurado": True, "dias": dias}
 
 
+@router.get("/compras")
+def compras_por_dia(dias: int = 14):
+    """Transacciones (compras) y su ingreso reportadas por GA4, por día."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "transactions"}, {"name": "purchaseRevenue"}, {"name": "sessions"}],
+        "dimensions": [{"name": "date"}],
+        "orderBys":   [{"dimension": {"dimensionName": "date"}}],
+    })
+
+    if not resp:
+        return {"configurado": True, "error": _last_ga4_error, "dias": []}
+
+    filas = []
+    for row in resp.get("rows", []):
+        fecha = row["dimensionValues"][0]["value"]  # YYYYMMDD
+        vals  = row["metricValues"]
+        filas.append({
+            "fecha":       f"{fecha[0:4]}-{fecha[4:6]}-{fecha[6:8]}",
+            "transacciones": int(float(vals[0]["value"])),
+            "ingreso":       round(float(vals[1]["value"]), 2),
+            "sesiones":      int(float(vals[2]["value"])),
+        })
+
+    return {"configurado": True, "dias": filas}
+
+
 @router.get("/fuentes")
 def fuentes_trafico():
     """Top fuentes/medios de tráfico de los últimos 7 días."""
