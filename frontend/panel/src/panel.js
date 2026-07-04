@@ -17137,7 +17137,8 @@ window._mlCargarResumenCatalogo = async () => {
     const fotoBadge = (p) => {
       const color = p.listo ? '#166534' : '#b45309'
       const bg = p.listo ? '#f0fdf4' : '#fffbeb'
-      return `<span style="background:${bg};color:${color};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">${p.num_fotos} foto${p.num_fotos===1?'':'s'}</span>`
+      const titulo = p.num_colores > 1 ? `Mínimo entre sus ${p.num_colores} colores` : 'Ese color'
+      return `<span title="${titulo}" style="background:${bg};color:${color};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">${p.num_fotos} foto${p.num_fotos===1?'':'s'}/color</span>`
     }
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">

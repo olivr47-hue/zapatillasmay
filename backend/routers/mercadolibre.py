@@ -1408,8 +1408,10 @@ def _productos_sin_publicar() -> list:
 @router.get("/catalogo-sin-publicar")
 def catalogo_sin_publicar():
     """Lista de productos del ERP que todavía no tienen ninguna publicación en ML,
-    con el conteo de fotos por color para saber cuáles ya están listos para publicar
-    (ML pide mínimo unas cuantas fotos por variante; usamos 3 como referencia)."""
+    con el conteo de fotos POR COLOR para saber cuáles ya están listos para publicar
+    (ML pide mínimo unas cuantas fotos por variante; usamos 3 como referencia).
+    Un producto solo se marca "listo" si TODOS sus colores tienen 3+ fotos —
+    el color con menos fotos es el que manda."""
     productos = _productos_sin_publicar()
     if not productos:
         return {"total": 0, "productos": []}
@@ -1417,22 +1419,30 @@ def catalogo_sin_publicar():
     ids_str   = ",".join(p["id"] for p in productos)
     variantes = supabase_get_all(f"variantes?producto_id=in.({ids_str})&activa=eq.true&select=producto_id,color,imagenes,foto_url")
 
-    fotos_por_producto: dict = {}
+    fotos_por_color: dict = {}   # {(producto_id, color): set(urls)}
     for v in variantes:
         pid = v.get("producto_id")
         if not pid:
             continue
+        color = v.get("color") or "Sin color"
         fotos = list(v.get("imagenes") or [])
         if not fotos and v.get("foto_url"):
             fotos = [v["foto_url"]]
-        fotos_por_producto.setdefault(pid, set()).update(u for u in fotos if u)
+        key = (pid, color)
+        fotos_por_color.setdefault(key, set()).update(u for u in fotos if u)
+
+    conteos_por_producto: dict = {}   # {producto_id: [num_fotos_color1, ...]}
+    for (pid, color), fotos in fotos_por_color.items():
+        conteos_por_producto.setdefault(pid, []).append(len(fotos))
 
     resultado = []
     for p in productos:
-        num_fotos = len(fotos_por_producto.get(p["id"], set()))
+        conteos = conteos_por_producto.get(p["id"], [0])
+        min_fotos = min(conteos) if conteos else 0
         resultado.append({
             "id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
-            "categoria": p.get("categoria"), "num_fotos": num_fotos, "listo": num_fotos >= 3,
+            "categoria": p.get("categoria"), "num_colores": len(conteos),
+            "num_fotos": min_fotos, "listo": min_fotos >= 3,
         })
 
     # Los que ya tienen suficientes fotos primero, para verlos de un vistazo.
