@@ -17003,7 +17003,7 @@ const _mlIcon = (name, size = 18, color = 'currentColor') => {
 }
 
 // Botón de acción consistente para toda la sección de MercadoLibre
-const _mlBtn = (icon, label, onclick, variant = 'primary') => {
+const _mlBtn = (icon, label, onclick, variant = 'primary', id = '') => {
   const variants = {
     primary:   { bg: '#3483fa', fg: '#fff' },
     warning:   { bg: '#fff', fg: '#b45309', border: '1px solid #fcd34d', bgHover: '#fffbeb' },
@@ -17012,10 +17012,10 @@ const _mlBtn = (icon, label, onclick, variant = 'primary') => {
   }
   const v = variants[variant] || variants.primary
   const border = v.border ? `border:${v.border}` : 'border:none'
-  return `<button onclick="${onclick}"
+  return `<button ${id ? `id="${id}"` : ''} onclick="${onclick}"
     style="display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:${v.bg};color:${v.fg};${border};border-radius:8px;cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit;transition:filter 0.15s"
     onmouseover="this.style.filter='brightness(0.96)'" onmouseout="this.style.filter='none'">
-    ${_mlIcon(icon, 15)}${label}
+    ${_mlIcon(icon, 15)}<span id="${id}-label">${label}</span>
   </button>`
 }
 
@@ -17318,101 +17318,132 @@ async function _mlRenderReputacionTab() {
 }
 
 // ─── Pestaña: Publicar nuevo estilo (flujo existente) ────────────────────────
+const _ML_LISTING_TYPES = [
+  { id: 'gold_pro',     nombre: 'Oro Premium',  comision: '16%', desc: 'Máxima exposición, aparece primero en resultados', recomendado: false },
+  { id: 'gold_special', nombre: 'Oro Especial',  comision: '12%', desc: 'Buen balance entre exposición y comisión', recomendado: true },
+  { id: 'silver',       nombre: 'Plata',         comision: '9%',  desc: 'Exposición estándar, menor comisión', recomendado: false },
+  { id: 'bronze',       nombre: 'Bronce',        comision: '5%',  desc: 'Comisión mínima, menor visibilidad', recomendado: false },
+]
+
+const _mlPaso = (num, label, activo) => `
+  <div style="display:flex;align-items:center;gap:8px">
+    <span style="width:22px;height:22px;border-radius:50%;background:${activo?'#3483fa':'#e5e5e5'};color:${activo?'#fff':'#999'};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;flex-shrink:0">${num}</span>
+    <span style="font-size:0.82rem;font-weight:700;color:${activo?'#333':'#aaa'}">${label}</span>
+  </div>`
+
 async function _mlRenderPublicarTab() {
   const content = document.getElementById('ml-tab-body')
   content.innerHTML = `
-    <div>
+    <div style="max-width:820px">
+      <div style="display:flex;align-items:center;gap:18px;margin-bottom:1.25rem;flex-wrap:wrap">
+        ${_mlPaso(1, 'Elige el producto', true)}
+        <div style="width:24px;height:1px;background:#ddd"></div>
+        ${_mlPaso(2, 'Personaliza cada talla/color', false)}
+        <div style="width:24px;height:1px;background:#ddd"></div>
+        ${_mlPaso(3, 'Publica', false)}
+      </div>
+
       <!-- Paso 1: configurar -->
-      <div class="card" style="margin-bottom:1.5rem">
-        <h3 style="margin-bottom:1rem">Paso 1 — Publicar producto nuevo</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-          <div style="position:relative">
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">SKU o modelo del producto</label>
-            <input id="ml-sku" type="text" placeholder="Ej: CR3385 o C-TAC-0118" autocomplete="off"
-                   style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem;box-sizing:border-box">
-            <div id="ml-sku-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
-          </div>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;margin-bottom:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.1rem">
+          <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('plusCircle', 17, '#3483fa')}</div>
           <div>
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">Tipo de publicación</label>
-            <select id="ml-listing"
-                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
-              <option value="gold_pro">Oro Premium — gold_pro (16%)</option>
-              <option value="gold_special">Oro Especial — gold_special (12%)</option>
-              <option value="silver">Plata (9%)</option>
-              <option value="bronze">Bronce (5%)</option>
-            </select>
-            <div style="font-size:0.75rem;color:#e67e22;margin-top:3px">⚠️ La categoría de calzado no admite publicaciones gratis</div>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;margin-bottom:0.75rem;align-items:start">
-          <div>
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
-              Título para ML <span style="color:#3483fa">★</span>
-              <span style="font-weight:400;color:#888">(igual para todas las variantes)</span>
-            </label>
-            <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
-                   maxlength="60"
-                   style="width:100%;padding:0.5rem 0.75rem;border:2px solid #3483fa;border-radius:6px;font-size:0.95rem">
-            <div style="font-size:0.75rem;color:#888;margin-top:3px">Máximo 60 caracteres — <span id="ml-titulo-count">0</span>/60</div>
-          </div>
-          <div>
-            <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
-              Precio ML (MXN) <span style="color:#888;font-weight:400">— opcional</span>
-            </label>
-            <input id="ml-precio" type="number" min="1" step="1" placeholder="Ej: 520"
-                   style="width:130px;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.95rem">
-            <div style="font-size:0.75rem;color:#888;margin-top:3px">Vacío = precio del ERP</div>
+            <h3 style="margin:0 0 2px;font-size:1rem">¿Qué modelo quieres publicar?</h3>
+            <p style="font-size:0.8rem;color:#888;margin:0">Busca por nombre o SKU, como lo tienes cargado en el ERP.</p>
           </div>
         </div>
 
-        <div style="margin-bottom:0.75rem">
-          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:4px">
-            Descripción ML
-            <span style="font-weight:400;color:#888">— vacío = usa la del ERP</span>
-          </label>
+        <div style="position:relative;margin-bottom:1.1rem">
+          <input id="ml-sku" type="text" placeholder="Ej: Sandalia CR3385, o el SKU C-TAC-0118" autocomplete="off"
+                 style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.95rem;box-sizing:border-box">
+          <div id="ml-sku-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
+        </div>
+
+        <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:8px;color:#333">Tipo de publicación — define tu comisión y exposición</label>
+        <div id="ml-listing-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:1.25rem">
+          ${_ML_LISTING_TYPES.map((t, i) => `
+            <div onclick="window._mlElegirListing('${t.id}')" id="ml-lcard-${t.id}"
+                 style="cursor:pointer;border:2px solid ${i===1?'#3483fa':'#e5e5e5'};background:${i===1?'#eff6ff':'#fff'};border-radius:10px;padding:0.8rem;position:relative;transition:border-color 0.15s">
+              ${t.recomendado ? `<span style="position:absolute;top:-9px;right:8px;background:#3483fa;color:#fff;font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:100px">Recomendado</span>` : ''}
+              <p style="font-size:0.85rem;font-weight:700;margin:0 0 2px;color:#222">${t.nombre}</p>
+              <p style="font-size:0.78rem;color:#666;margin:0 0 6px">Comisión ${t.comision}</p>
+              <p style="font-size:0.7rem;color:#999;margin:0;line-height:1.3">${t.desc}</p>
+            </div>`).join('')}
+        </div>
+        <input type="hidden" id="ml-listing" value="gold_special">
+        <p style="font-size:0.76rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;margin:0 0 1.25rem;display:flex;align-items:center;gap:6px">
+          ${_mlIcon('clock', 13, '#b45309')} La categoría de calzado en MercadoLibre no admite publicaciones gratuitas.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;margin-bottom:1rem;align-items:start">
+          <div>
+            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">
+              Título para MercadoLibre <span style="color:#3483fa">*</span>
+            </label>
+            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Se usará para todas las tallas y colores de este modelo.</p>
+            <input id="ml-titulo" type="text" placeholder="Ej: Sandalia Tacón Alto Para Fiesta Marca May"
+                   maxlength="60"
+                   style="width:100%;padding:0.65rem 0.9rem;border:1.5px solid #3483fa;border-radius:8px;font-size:0.95rem;box-sizing:border-box">
+            <div style="font-size:0.74rem;color:#888;margin-top:4px"><span id="ml-titulo-count">0</span>/60 caracteres</div>
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Precio (MXN)</label>
+            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Opcional</p>
+            <input id="ml-precio" type="number" min="1" step="1" placeholder="Del ERP"
+                   style="width:130px;padding:0.65rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.95rem">
+          </div>
+        </div>
+
+        <div style="margin-bottom:0.5rem">
+          <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Descripción</label>
+          <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Déjala vacía para usar automáticamente la del ERP.</p>
           <textarea id="ml-descripcion" rows="4"
-                    placeholder="Descripción del producto para MercadoLibre..."
-                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.88rem;resize:vertical;box-sizing:border-box"></textarea>
+                    placeholder="Describe el producto para tus compradores de MercadoLibre..."
+                    style="width:100%;padding:0.65rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.88rem;resize:vertical;box-sizing:border-box"></textarea>
         </div>
 
         <!-- Selector de foto de portada — se llena al generar preview -->
-        <div id="ml-fotos-wrap" style="display:none;margin-bottom:0.75rem">
-          <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:6px">
-            📷 Foto de portada
-            <span style="color:#e67e22">★</span>
-            <span style="font-weight:400;color:#888"> — ML exige fondo blanco/sin fondo. Click para seleccionar cuál va primero.</span>
-          </label>
-          <div id="ml-fotos-grid" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-        </div>
+        <div id="ml-fotos-wrap" style="display:none;margin:1rem 0"></div>
 
         <button onclick="mlGenerarPreview()" id="ml-btn-preview"
-                style="padding:0.6rem 1.5rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:600">
-          🔍 Generar preview
+                style="display:inline-flex;align-items:center;gap:8px;padding:0.7rem 1.6rem;background:#3483fa;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:700;font-family:inherit;transition:filter 0.15s"
+                onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'">
+          ${_mlIcon('search', 16, '#fff')} Ver cómo va a quedar
         </button>
       </div>
 
       <!-- Paso 2: editar variantes -->
       <div id="ml-variantes-wrap" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-          <h3 id="ml-variantes-titulo" style="margin:0">Paso 2 — Edita los JSONs</h3>
-          <button onclick="mlPublicarTodas()" id="ml-btn-publicar"
-                  style="padding:0.6rem 1.5rem;background:#ffe600;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:0.95rem;font-weight:700">
-            🚀 Publicar todas en ML
-          </button>
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <h3 id="ml-variantes-titulo" style="margin:0 0 2px;font-size:1rem">Revisa cada talla y color</h3>
+              <p style="font-size:0.8rem;color:#888;margin:0">Ajusta precio o stock individual si lo necesitas antes de publicar.</p>
+            </div>
+            ${_mlBtn('cart', 'Publicar todas en MercadoLibre', 'mlPublicarTodas()', 'primary', 'ml-btn-publicar')}
+          </div>
         </div>
-        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">
-          Cada textarea es el JSON que se enviará a ML. Puedes cambiar el título, precio, imágenes, etc.
-        </p>
         <div id="ml-variantes-list"></div>
       </div>
 
       <!-- Resultado publicación -->
-      <div id="ml-resultado-publicar" style="display:none;margin-top:1.5rem" class="card">
-        <h3 id="ml-resultado-titulo" style="margin-bottom:0.75rem">Resultado</h3>
+      <div id="ml-resultado-publicar" style="display:none;margin-top:1.25rem;background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <h3 id="ml-resultado-titulo" style="margin:0 0 0.75rem;font-size:1rem">Resultado</h3>
         <div id="ml-resultado-body"></div>
       </div>
     </div>
   `
+
+  window._mlElegirListing = (id) => {
+    document.getElementById('ml-listing').value = id
+    _ML_LISTING_TYPES.forEach(t => {
+      const card = document.getElementById('ml-lcard-' + t.id)
+      if (!card) return
+      const activo = t.id === id
+      card.style.border = activo ? '2px solid #3483fa' : '2px solid #e5e5e5'
+      card.style.background = activo ? '#eff6ff' : '#fff'
+    })
+  }
 
   // Contador de caracteres del título
   document.getElementById('ml-titulo').addEventListener('input', function() {
@@ -17476,8 +17507,9 @@ async function _mlRenderPublicarTab() {
     if (precio !== null && (isNaN(precio) || precio <= 0)) { alert('El precio debe ser mayor a 0'); return }
 
     const btn = document.getElementById('ml-btn-preview')
-    btn.textContent = '⏳ Generando...'
+    btn.innerHTML = 'Generando...'
     btn.disabled = true
+    btn.style.opacity = '0.7'
 
     // Descripción e índice de portada (se llenan después del fetch)
     let portadaIdx = 0
@@ -17527,6 +17559,13 @@ async function _mlRenderPublicarTab() {
       const colores = Object.keys(fotosPorColor)
       if (colores.length > 0) {
         const fotosWrap = document.getElementById('ml-fotos-wrap')
+        fotosWrap.innerHTML = `
+          <label style="font-size:0.8rem;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#333">
+            ${_mlIcon('list', 15, '#3483fa')} Fotos por color
+          </label>
+          <p style="font-size:0.76rem;color:#888;margin:0 0 10px">MercadoLibre exige fondo blanco. Elige qué colores publicar y toca una foto para hacerla portada de ese color.</p>
+          <div id="ml-fotos-grid"></div>
+        `
         const fotosGrid = document.getElementById('ml-fotos-grid')
 
         const rerenderTodo = () => {
@@ -17607,8 +17646,9 @@ async function _mlRenderPublicarTab() {
     } catch(e) {
       alert('Error de conexión: ' + e.message)
     } finally {
-      btn.textContent = '🔍 Generar preview'
+      btn.innerHTML = `${_mlIcon('search', 16, '#fff')} Ver cómo va a quedar`
       btn.disabled = false
+      btn.style.opacity = '1'
     }
   }
 
@@ -17616,7 +17656,8 @@ async function _mlRenderPublicarTab() {
     fotosExcluidas = fotosExcluidas || new Set()
     const tit  = document.getElementById('ml-variantes-titulo')
     const list = document.getElementById('ml-variantes-list')
-    tit.textContent = `Paso 2 — Revisa y edita (${resultados.length} variantes, título aplicado a todas)`
+    tit.textContent = `Revisa cada talla y color (${resultados.length} en total)`
+    window._mlPayloads = []
 
     list.innerHTML = resultados.map((r, i) => {
       const payload = { ...r.preview }
@@ -17657,24 +17698,55 @@ async function _mlRenderPublicarTab() {
         payload.pictures = fotos.slice(0, 12)
       }
 
+      window._mlPayloads[i] = payload
+      const foto = (payload.pictures && payload.pictures[0]) ? payload.pictures[0].source : ''
+
       return `
-        <details style="margin-bottom:0.5rem;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">
-          <summary style="padding:0.5rem 1rem;cursor:pointer;background:#f8f8f8;font-size:0.85rem;font-weight:600;list-style:none;display:flex;justify-content:space-between">
-            <span>${r.sku || 'Variante ' + (i+1)} &nbsp;·&nbsp; ${r.color || ''} ${r.talla || ''}</span>
-            <span style="font-size:0.75rem;color:#aaa">▾ editar JSON</span>
-          </summary>
-          <div style="padding:0.5rem">
-            <textarea id="ml-json-${i}"
-                      style="width:100%;height:260px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box"
-                      spellcheck="false">${JSON.stringify(payload, null, 2)}</textarea>
+        <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:1rem;margin-bottom:0.6rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+            ${foto
+              ? `<img src="${foto}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid #eee;flex-shrink:0">`
+              : `<div style="width:60px;height:60px;border-radius:8px;background:#f5f5f5;flex-shrink:0"></div>`}
+            <div style="flex:1;min-width:180px">
+              <p style="font-weight:700;font-size:0.88rem;margin:0 0 1px;color:#222">${r.color || 'Sin color'} · Talla ${r.talla || '—'}</p>
+              <p style="font-size:0.74rem;color:#aaa;margin:0;font-family:monospace">${r.sku || ''}</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div>
+                <label style="font-size:0.7rem;color:#888;display:block;margin-bottom:2px">Precio</label>
+                <div style="position:relative">
+                  <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:0.82rem;color:#888">$</span>
+                  <input type="number" id="ml-price-${i}" value="${payload.price ?? ''}" min="1"
+                         oninput="window._mlActualizarCampo(${i},'price',this.value)"
+                         style="width:100px;padding:0.4rem 0.5rem 0.4rem 20px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+                </div>
+              </div>
+              <div>
+                <label style="font-size:0.7rem;color:#888;display:block;margin-bottom:2px">Stock a publicar</label>
+                <input type="number" id="ml-stock-${i}" value="${payload.available_quantity ?? 1}" min="0"
+                       oninput="window._mlActualizarCampo(${i},'available_quantity',this.value)"
+                       style="width:90px;padding:0.4rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+              </div>
+            </div>
           </div>
-        </details>`
+          <details style="margin-top:0.6rem">
+            <summary style="cursor:pointer;font-size:0.74rem;color:#3483fa;list-style:none;user-select:none">Ver/editar JSON avanzado</summary>
+            <textarea id="ml-json-${i}" oninput="try{window._mlPayloads[${i}]=JSON.parse(this.value)}catch(e){}"
+                      style="width:100%;height:240px;font-family:monospace;font-size:0.73rem;border:1px solid #ddd;border-radius:4px;padding:0.5rem;resize:vertical;box-sizing:border-box;margin-top:0.5rem"
+                      spellcheck="false">${JSON.stringify(payload, null, 2)}</textarea>
+          </details>
+        </div>`
     }).join('')
   }
 
-  window.mlPublicarTodas = async () => {
-    if (!confirm('¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?')) return
+  window._mlActualizarCampo = (i, campo, valor) => {
+    if (!window._mlPayloads || !window._mlPayloads[i]) return
+    window._mlPayloads[i][campo] = campo === 'price' ? parseFloat(valor) || 0 : parseInt(valor) || 0
+    const ta = document.getElementById('ml-json-' + i)
+    if (ta) ta.value = JSON.stringify(window._mlPayloads[i], null, 2)
+  }
 
+  window.mlPublicarTodas = async () => {
     const list     = document.getElementById('ml-variantes-list')
     const textareas = list.querySelectorAll('textarea')
     const payloads = []
@@ -17688,16 +17760,28 @@ async function _mlRenderPublicarTab() {
       }
     }
 
+    const totalStock = payloads.reduce((s, p) => s + (p.available_quantity || 0), 0)
+    const precios = payloads.map(p => p.price).filter(p => p != null)
+    const precioMin = precios.length ? Math.min(...precios) : 0
+    const precioMax = precios.length ? Math.max(...precios) : 0
+    const rangoPrecio = precioMin === precioMax ? `$${precioMin}` : `$${precioMin} – $${precioMax}`
+    const confirmMsg = `Vas a publicar ${payloads.length} talla(s)/color(es) en MercadoLibre.\n\nStock total: ${totalStock} pares\nPrecio: ${rangoPrecio}\n\n¿Confirmar publicación?`
+    if (!confirm(confirmMsg)) return
+
     const btn = document.getElementById('ml-btn-publicar')
-    btn.textContent = '⏳ Publicando...'
+    const label = document.getElementById('ml-btn-publicar-label')
+    if (label) label.textContent = 'Publicando...'
     btn.disabled = true
+    btn.style.opacity = '0.6'
+    btn.style.cursor = 'wait'
 
     const resDiv = document.getElementById('ml-resultado-publicar')
     const titulo = document.getElementById('ml-resultado-titulo')
     const body   = document.getElementById('ml-resultado-body')
     resDiv.style.display = 'block'
-    titulo.textContent   = '⏳ Publicando...'
-    body.innerHTML       = '<p style="color:#888">Enviando a MercadoLibre...</p>'
+    titulo.innerHTML   = 'Publicando...'
+    body.innerHTML       = '<p style="color:#888;margin:0">Enviando a MercadoLibre...</p>'
+    resDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 
     try {
       const res  = await fetch(`${API}/ml/publicar-payloads`, {
@@ -17709,26 +17793,29 @@ async function _mlRenderPublicarTab() {
 
       const pub = data.publicados || 0
       const err = data.errores    || 0
-      titulo.textContent = `✅ ${pub} publicado(s)${err ? ` · ❌ ${err} con error` : ''} de ${data.total || 0}`
+      const colorTitulo = err ? '#b45309' : '#166534'
+      titulo.innerHTML = `<span style="color:${colorTitulo}">${pub} publicado(s)${err ? ` · ${err} con error` : ''} de ${data.total || 0}</span>`
 
       body.innerHTML = (data.resultados || []).map(it => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.5rem 0;border-bottom:1px solid #eee">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid #f0f0f0">
           <span style="font-size:0.85rem">${it.sku || '—'} ${it.title ? '— ' + it.title : ''}</span>
           ${it.ok
             ? `<a href="${it.permalink || '#'}" target="_blank"
-                 style="font-size:0.8rem;color:#3483fa;white-space:nowrap">🔗 ${it.item_id}</a>`
-            : `<span style="font-size:0.8rem;color:red"
-                     title='${JSON.stringify(it.causa||[])}'>❌ ${it.error || 'Error'}</span>`
+                 style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;color:#3483fa;white-space:nowrap;text-decoration:none">${_mlIcon('externalLink', 13)} ${it.item_id}</a>`
+            : `<span style="font-size:0.8rem;color:#dc2626"
+                     title='${JSON.stringify(it.causa||[])}'>${it.error || 'Error'}</span>`
           }
         </div>
-      `).join('') || '<p style="color:#888">Sin detalles</p>'
+      `).join('') || '<p style="color:#888;margin:0">Sin detalles</p>'
 
     } catch(e) {
-      titulo.textContent = '❌ Error de conexión'
-      body.innerHTML = `<p style="color:red">${e.message}</p>`
+      titulo.innerHTML = '<span style="color:#dc2626">Error de conexión</span>'
+      body.innerHTML = `<p style="color:#dc2626;margin:0">${e.message}</p>`
     } finally {
-      btn.textContent = '🚀 Publicar todas en ML'
+      if (label) label.textContent = 'Publicar todas en MercadoLibre'
       btn.disabled = false
+      btn.style.opacity = '1'
+      btn.style.cursor = 'pointer'
     }
   }
 }
