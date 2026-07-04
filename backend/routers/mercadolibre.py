@@ -5,7 +5,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 """
 
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate
@@ -618,6 +618,24 @@ def _hacer_sync_ventas():
 def sincronizar_ventas():
     """Trigger manual: descuenta inventario de ventas ML no procesadas todavía."""
     return _hacer_sync_ventas()
+
+
+@router.post("/notificaciones")
+async def recibir_notificacion(request: Request, background_tasks: BackgroundTasks):
+    """
+    Recibe las notificaciones push (topics) que configuramos en la app de ML
+    (Orders_v2, etc). MercadoLibre solo espera un 200 OK rápido; el trabajo
+    pesado (leer la orden y descontar inventario) se hace en background
+    reusando la misma sincronización que corre cada 10 min.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    topic = body.get("topic", "")
+    if topic in ("orders_v2", "orders"):
+        background_tasks.add_task(_hacer_sync_ventas)
+    return {"ok": True}
 
 
 # ─── Publicar productos en ML ──────────────────────────────────────────────────
