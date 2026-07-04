@@ -18,8 +18,12 @@ HEADERS = {
 def supabase_get(tabla):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read())
+    try:
+        with urllib.request.urlopen(req) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        raise Exception(f"HTTP {e.code}: {error_body}")
 
 def supabase_get_all(tabla_base, page_size=1000):
     """Trae todos los registros paginando con Range headers (método oficial PostgREST/Supabase)."""
