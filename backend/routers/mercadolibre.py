@@ -5,6 +5,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 """
 
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
@@ -285,6 +286,7 @@ def mensajes(dias: int = 15):
     del comprador sin leer.
     """
     try:
+        limite_fecha = datetime.now(timezone.utc) - timedelta(days=dias)
         resp = ml_get(f"/orders/search?seller={ML_USER_ID}&sort=date_desc&limit=50")
         ordenes = resp.get("results", [])
         resultado = []
@@ -300,6 +302,16 @@ def mensajes(dias: int = 15):
             no_leidos = [m for m in msgs if m.get("from", {}).get("user_id") != int(ML_USER_ID) and not m.get("read")]
             if no_leidos:
                 ultimo = no_leidos[-1]
+                # Ignorar mensajes viejos que ML nunca actualiza como "leidos"
+                # (conversaciones ya cerradas/resueltas hace meses).
+                fecha_str = ultimo.get("message_date", {}).get("received")
+                if fecha_str:
+                    try:
+                        fecha_msg = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
+                        if fecha_msg < limite_fecha:
+                            continue
+                    except ValueError:
+                        pass
                 texto = ultimo.get("text") or ultimo.get("message") or ""
                 if isinstance(texto, dict):
                     texto = texto.get("plain") or texto.get("original") or ""
