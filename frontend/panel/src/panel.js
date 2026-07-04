@@ -17221,7 +17221,7 @@ async function _mlRenderMensajesTab() {
           No tienes mensajes pendientes por responder.
         </div>` : `
         <p style="font-size:0.74rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;margin:0 0 10px">
-          MercadoLibre no permite enlazar directo a una conversación — copia el nombre del comprador y búscalo en la bandeja.
+          "Ver venta" te lleva a esa orden filtrada en Mis ventas — ahí puedes entrar a responder el mensaje.
         </p>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${msjs.map(m => `
@@ -17238,7 +17238,7 @@ async function _mlRenderMensajesTab() {
                           style="font-size:0.72rem;color:#3483fa;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">Copiar nombre</button>
                   <a href="${m.link}" target="_blank" rel="noopener"
                      style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:#3483fa;text-decoration:none;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px">
-                    Ir a bandeja ${_mlIcon('externalLink', 11, '#3483fa')}
+                    Ver venta ${_mlIcon('externalLink', 11, '#3483fa')}
                   </a>
                 </div>
               </div>
