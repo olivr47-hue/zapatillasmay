@@ -581,7 +581,7 @@ def _hacer_sync_ventas():
                     _descontar_inventario_variante(it["variante_id"], it["cantidad"])
 
                 comprador = orden.get("buyer", {}) or {}
-                pedido = supabase_post("pedidos", {
+                datos_pedido = {
                     "ml_order_id": order_id,
                     "canal":       "mercadolibre",
                     "status":      "confirmado",
@@ -591,7 +591,22 @@ def _hacer_sync_ventas():
                     "forma_pago":  "mercadolibre",
                     "nombre_cliente": (comprador.get("nickname") or "Comprador MercadoLibre"),
                     "notas":       f"Pedido generado automáticamente desde MercadoLibre (orden {order_id}){' — faltó match de algún SKU' if faltante else ''}",
-                })
+                }
+                try:
+                    pedido = supabase_post("pedidos", datos_pedido)
+                except Exception as e:
+                    if "PGRST204" in str(e) or "schema cache" in str(e):
+                        # Cache de esquema de Supabase desfasado para ml_order_id: insertar
+                        # sin ese campo y completarlo despues con un PATCH.
+                        pedido_min = {k: v for k, v in datos_pedido.items() if k != "ml_order_id"}
+                        pedido = supabase_post("pedidos", pedido_min)
+                        if pedido:
+                            try:
+                                supabase_patch(f"pedidos?id=eq.{pedido[0]['id']}", {"ml_order_id": order_id})
+                            except Exception:
+                                pass
+                    else:
+                        raise
                 pedido_id = pedido[0]["id"] if pedido else None
                 if pedido_id:
                     for it in items_pedido:
