@@ -16983,27 +16983,70 @@ window.descargarExcelTikTok = async function(btn, endpoint, filename) {
 
 // ─── MERCADOLIBRE ─────────────────────────────────────────────────────────────
 
+// ─── Set de íconos SVG (reemplaza emojis como íconos estructurales) ──────────
+const _mlIcon = (name, size = 18, color = 'currentColor') => {
+  const paths = {
+    list:       '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
+    dollar:     '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    message:    '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+    star:       '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    plusCircle: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+    search:     '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    refresh:    '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+    clipboard:  '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',
+    cart:       '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
+    externalLink: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+    clock:      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    xCircle:    '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:-3px">${paths[name] || ''}</svg>`
+}
+
+// Botón de acción consistente para toda la sección de MercadoLibre
+const _mlBtn = (icon, label, onclick, variant = 'primary') => {
+  const variants = {
+    primary:   { bg: '#3483fa', fg: '#fff' },
+    warning:   { bg: '#fff', fg: '#b45309', border: '1px solid #fcd34d', bgHover: '#fffbeb' },
+    success:   { bg: '#fff', fg: '#166534', border: '1px solid #86efac', bgHover: '#f0fdf4' },
+    secondary: { bg: '#fff', fg: '#444', border: '1px solid #ddd', bgHover: '#f8f8f8' },
+  }
+  const v = variants[variant] || variants.primary
+  const border = v.border ? `border:${v.border}` : 'border:none'
+  return `<button onclick="${onclick}"
+    style="display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:${v.bg};color:${v.fg};${border};border-radius:8px;cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit;transition:filter 0.15s"
+    onmouseover="this.style.filter='brightness(0.96)'" onmouseout="this.style.filter='none'">
+    ${_mlIcon(icon, 15)}${label}
+  </button>`
+}
+
 const _ML_TABS = [
-  { id: 'publicaciones', label: '📋 Publicaciones' },
-  { id: 'ventas',        label: '💰 Ventas' },
-  { id: 'mensajes',      label: '💬 Mensajes' },
-  { id: 'reputacion',    label: '⭐ Reputación' },
-  { id: 'publicar',      label: '➕ Publicar nuevo' },
+  { id: 'publicaciones', label: 'Publicaciones', icon: 'list' },
+  { id: 'ventas',        label: 'Ventas',        icon: 'dollar' },
+  { id: 'mensajes',      label: 'Mensajes',       icon: 'message' },
+  { id: 'reputacion',    label: 'Reputación',     icon: 'star' },
+  { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
 ]
 
 async function cargarMercadoLibre() {
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:1.5rem 2rem;max-width:1100px">
-      <h2 style="margin-bottom:0.25rem">🛒 MercadoLibre</h2>
-      <p style="color:#888;font-size:0.85rem;margin-bottom:1.1rem">
+    <div style="padding:1.5rem 2rem;max-width:1150px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:#3483fa;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${_mlIcon('cart', 18, '#fff')}
+        </div>
+        <h2 style="margin:0;font-size:1.25rem">MercadoLibre</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
         Publicaciones, ventas, mensajes y reputación de tu cuenta.
       </p>
-      <div id="ml-tabs" style="display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #eee;margin-bottom:1.25rem">
+      <div id="ml-tabs" style="display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #e5e5e5;margin-bottom:1.5rem">
         ${_ML_TABS.map(t => `
           <button class="ml-tab-btn" data-tab="${t.id}" onclick="window._mlSwitchTab('${t.id}')"
-                  style="padding:0.6rem 1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:3px solid transparent;color:#666;font-weight:600">
-            ${t.label}
+                  onmouseover="if(this.dataset.tab!==window._mlTabActivo)this.style.color='#3483fa'"
+                  onmouseout="if(this.dataset.tab!==window._mlTabActivo)this.style.color='#666'"
+                  style="display:flex;align-items:center;gap:7px;padding:0.7rem 1.1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:2px solid transparent;color:#666;font-weight:600;transition:color 0.15s,border-color 0.15s;font-family:inherit">
+            ${_mlIcon(t.icon, 16)}${t.label}
           </button>`).join('')}
       </div>
       <div id="ml-tab-body"></div>
@@ -17013,13 +17056,18 @@ async function cargarMercadoLibre() {
 }
 
 window._mlSwitchTab = async (tab) => {
+  window._mlTabActivo = tab
   document.querySelectorAll('#ml-tabs .ml-tab-btn').forEach(b => {
     const activo = b.dataset.tab === tab
-    b.style.borderBottom = activo ? '3px solid #3483fa' : '3px solid transparent'
+    b.style.borderBottom = activo ? '2px solid #3483fa' : '2px solid transparent'
     b.style.color = activo ? '#3483fa' : '#666'
+    b.querySelectorAll('svg').forEach(s => s.setAttribute('stroke', activo ? '#3483fa' : '#666'))
   })
   const body = document.getElementById('ml-tab-body')
-  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando...</p>'
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:2.5rem;color:#aaa;font-size:0.85rem">
+    <span style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#3483fa;border-radius:50%;display:inline-block;animation:mlspin 0.7s linear infinite"></span>
+    Cargando...
+  </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
   if (tab === 'publicaciones')   await _mlRenderPublicacionesTab()
   else if (tab === 'ventas')     await _mlRenderVentasTab()
   else if (tab === 'mensajes')   await _mlRenderMensajesTab()
@@ -17031,29 +17079,20 @@ window._mlSwitchTab = async (tab) => {
 async function _mlRenderPublicacionesTab() {
   const body = document.getElementById('ml-tab-body')
   body.innerHTML = `
-    <div class="card" style="padding:1.5rem">
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-        <div>
-          <h3 style="margin:0 0 4px">📋 Publicaciones y stock</h3>
-          <p style="font-size:0.82rem;color:#888;margin:0">Compara y sincroniza el inventario del ERP con MercadoLibre.</p>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('list', 17, '#3483fa')}</div>
+          <div>
+            <h3 style="margin:0 0 2px;font-size:1rem">Publicaciones y stock</h3>
+            <p style="font-size:0.82rem;color:#888;margin:0">Compara y sincroniza el inventario del ERP con MercadoLibre.</p>
+          </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button onclick="mlCargarPublicaciones(this)"
-                  style="padding:0.5rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            🔄 Cargar publicaciones
-          </button>
-          <button onclick="mlVerStock(this)"
-                  style="padding:0.5rem 1rem;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            🔍 Ver diferencias
-          </button>
-          <button onclick="mlSincronizar(this)"
-                  style="padding:0.5rem 1rem;background:#10B981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            🔄 Sincronizar stock
-          </button>
-          <button onclick="mlVerLog(this)"
-                  style="padding:0.5rem 1rem;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            📋 Último resultado
-          </button>
+          ${_mlBtn('refresh', 'Cargar publicaciones', 'mlCargarPublicaciones(this)', 'primary')}
+          ${_mlBtn('search', 'Ver diferencias', 'mlVerStock(this)', 'warning')}
+          ${_mlBtn('refresh', 'Sincronizar stock', 'mlSincronizar(this)', 'success')}
+          ${_mlBtn('clipboard', 'Último resultado', 'mlVerLog(this)', 'secondary')}
         </div>
       </div>
       <div id="ml-resultado" style="display:none;margin-bottom:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.8rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
@@ -17077,23 +17116,33 @@ async function _mlRenderVentasTab() {
     const totalVentas = ventas.reduce((s, p) => s + parseFloat(p.total || 0), 0)
 
     body.innerHTML = `
-      <div class="card" style="padding:1.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
-          <div>
-            <h3 style="margin:0 0 4px">💰 Ventas desde MercadoLibre</h3>
-            <p style="font-size:0.82rem;color:#888;margin:0">Se descuenta el inventario automáticamente cada 10 min al detectarse una venta nueva.</p>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('dollar', 17, '#3483fa')}</div>
+            <div>
+              <h3 style="margin:0 0 2px;font-size:1rem">Ventas desde MercadoLibre</h3>
+              <p style="font-size:0.82rem;color:#888;margin:0">Se descuenta el inventario automáticamente cada 10 min al detectarse una venta nueva.</p>
+            </div>
           </div>
-          <button onclick="_mlForzarSyncVentas(this)"
-                  style="padding:0.5rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            🔄 Sincronizar ahora
-          </button>
+          ${_mlBtn('refresh', 'Sincronizar ahora', '_mlForzarSyncVentas(this)', 'primary')}
         </div>
-        <div id="ml-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
-        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
-          <span style="font-size:0.82rem;color:#555">Ventas registradas: <b>${ventas.length}</b></span>
-          <span style="font-size:0.82rem;color:#27ae60">Total: <b>$${totalVentas.toLocaleString('es-MX',{maximumFractionDigits:0})}</b></span>
+        <div id="ml-ventas-resultado" style="display:none;margin:1rem 0 0;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:1rem">
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <p style="font-size:1.5rem;font-weight:800;color:#3483fa;margin:0">${ventas.length}</p>
+          <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Ventas registradas</p>
         </div>
-        ${ventas.length === 0 ? '<p style="color:#aaa;font-size:0.85rem">Todavía no hay ventas de MercadoLibre registradas en el ERP.</p>' : `
+        <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <p style="font-size:1.5rem;font-weight:800;color:#16a34a;margin:0">$${totalVentas.toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.72rem;color:#888;margin:2px 0 0;text-transform:uppercase;letter-spacing:0.04em">Total vendido</p>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        ${ventas.length === 0 ? '<p style="color:#aaa;font-size:0.85rem;margin:0">Todavía no hay ventas de MercadoLibre registradas en el ERP.</p>' : `
         <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">
           <table style="width:100%;border-collapse:collapse">
             <thead>
@@ -17158,19 +17207,29 @@ async function _mlRenderMensajesTab() {
     if (!d.ok) { body.innerHTML = `<p style="padding:2rem;color:red">Error: ${d.error || 'no se pudo cargar'}</p>`; return }
     const msjs = d.mensajes || []
     body.innerHTML = `
-      <div class="card" style="padding:1.5rem">
-        <h3 style="margin:0 0 4px">💬 Mensajes pendientes</h3>
-        <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">Compradores con mensajes sin leer en tus últimas ${d.revisadas} órdenes.</p>
-        ${msjs.length === 0 ? '<p style="color:#27ae60;font-size:0.88rem">✅ No tienes mensajes pendientes por responder.</p>' : `
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+          <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('message', 17, '#3483fa')}</div>
+          <div>
+            <h3 style="margin:0 0 2px;font-size:1rem">Mensajes pendientes</h3>
+            <p style="font-size:0.82rem;color:#888;margin:0">Compradores con mensajes sin leer en tus últimas ${d.revisadas} órdenes.</p>
+          </div>
+        </div>
+        ${msjs.length === 0 ? `
+        <div style="display:flex;align-items:center;gap:8px;padding:1rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+          No tienes mensajes pendientes por responder.
+        </div>` : `
         <div style="display:flex;flex-direction:column;gap:8px">
           ${msjs.map(m => `
-            <a href="${m.link}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit;padding:0.8rem 1rem;border:1px solid #eee;border-radius:8px;background:#fffbeb">
+            <a href="${m.link}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit;padding:0.8rem 1rem;border:1px solid #fde68a;border-radius:10px;background:#fffbeb;transition:background 0.15s"
+               onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fffbeb'">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                 <strong style="font-size:0.86rem">${m.comprador || 'Comprador'}</strong>
                 <span style="background:#e67e22;color:#fff;border-radius:100px;padding:2px 8px;font-size:0.72rem;font-weight:700">${m.no_leidos} sin leer</span>
               </div>
               <p style="margin:0;font-size:0.8rem;color:#666">${m.ultimo_mensaje || '(sin vista previa)'}</p>
-              <p style="margin:4px 0 0;font-size:0.72rem;color:#aaa">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
+              <p style="margin:4px 0 0;font-size:0.72rem;color:#aaa;display:flex;align-items:center;gap:4px">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''} ${_mlIcon('externalLink', 11, '#aaa')}</p>
             </a>`).join('')}
         </div>`}
       </div>
@@ -17189,42 +17248,69 @@ async function _mlRenderReputacionTab() {
     const d = await res.json()
     if (!d.ok) { body.innerHTML = `<p style="padding:2rem;color:red">Error: ${d.error || 'no se pudo cargar'}</p>`; return }
 
-    const nivelColor = { '5_green': '#16a34a', '4_light_green': '#65a30d', '3_yellow': '#ca8a04', '2_orange': '#ea580c', '1_red': '#dc2626' }[d.nivel] || '#888'
+    const nivelMap = {
+      '5_green':       { color: '#16a34a', label: 'Verde' },
+      '4_light_green': { color: '#65a30d', label: 'Verde claro' },
+      '3_yellow':      { color: '#ca8a04', label: 'Amarillo' },
+      '2_orange':      { color: '#ea580c', label: 'Naranja' },
+      '1_red':         { color: '#dc2626', label: 'Rojo' },
+    }
+    const nivel = nivelMap[d.nivel] || { color: '#888', label: d.nivel || '—' }
     const pct = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%'
-    const box = (label, valor, color) => `
-      <div style="background:#f8f8f8;border-radius:10px;padding:1rem;text-align:center">
-        <p style="font-size:1.3rem;font-weight:800;color:${color};margin:0 0 2px">${valor}</p>
-        <p style="font-size:0.72rem;color:#888;margin:0;text-transform:uppercase;letter-spacing:0.04em">${label}</p>
+
+    // { label, icon, valor, total, tasa, limite, buena=tasa<=limite }
+    const metricCard = (icon, label, valor, sub, tasa, limite) => {
+      const buena = tasa == null || tasa <= limite
+      const pillBg = buena ? '#f0fdf4' : '#fef2f2'
+      const pillColor = buena ? '#166534' : '#991b1b'
+      const pillTxt = tasa == null ? '' : (buena ? `Por debajo del ${(limite*100).toFixed(0)}% permitido` : `Pasaste el ${(limite*100).toFixed(0)}% permitido`)
+      return `
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <p style="font-size:0.82rem;font-weight:700;color:#333;margin:0 0 10px;display:flex;align-items:center;gap:6px">${_mlIcon(icon, 15, '#666')} ${label}</p>
+        <p style="font-size:1.7rem;font-weight:800;color:${buena?'#16a34a':'#dc2626'};margin:0 0 4px">${valor}</p>
+        <p style="font-size:0.76rem;color:#888;margin:0 0 10px">${sub}</p>
+        ${pillTxt ? `<span style="display:inline-block;background:${pillBg};color:${pillColor};font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:100px">${pillTxt}</span>` : ''}
       </div>`
+    }
 
     body.innerHTML = `
-      <div class="card" style="padding:1.5rem">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem">
-          <span style="width:16px;height:16px;border-radius:50%;background:${nivelColor};flex-shrink:0"></span>
-          <div>
-            <h3 style="margin:0">${d.nickname || 'Vendedor'}</h3>
-            <p style="margin:0;font-size:0.82rem;color:#888">Nivel de reputación: <b style="color:${nivelColor}">${d.nivel || '—'}</b>${d.power_seller ? ` · Power Seller ${d.power_seller}` : ''}</p>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;margin-bottom:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:52px;height:52px;border-radius:50%;background:${nivel.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 0 4px ${nivel.color}22">
+              ${_mlIcon('star', 24, '#fff')}
+            </div>
+            <div>
+              <h3 style="margin:0;font-size:1.1rem">${d.nickname || 'Vendedor'}</h3>
+              <p style="margin:2px 0 0;font-size:0.82rem;color:#888">Nivel de reputación: <b style="color:${nivel.color}">${nivel.label}</b>${d.power_seller ? ` · Power Seller ${d.power_seller}` : ''}</p>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <p style="font-size:1.6rem;font-weight:800;color:#3483fa;margin:0">${d.ventas_completadas ?? '—'}</p>
+            <p style="font-size:0.72rem;color:#888;margin:0;text-transform:uppercase;letter-spacing:0.04em">Ventas completadas</p>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:1rem">
-          ${box('Ventas completadas', d.ventas_completadas ?? '—', '#3483fa')}
-          ${box('Reclamos', pct(d.reclamos?.tasa), d.reclamos?.tasa > 0.03 ? '#dc2626' : '#16a34a')}
-          ${box('Cancelaciones', pct(d.cancelaciones?.tasa), d.cancelaciones?.tasa > 0.03 ? '#dc2626' : '#16a34a')}
-          ${box('Entregas tarde', pct(d.entregas_tarde?.tasa), d.entregas_tarde?.tasa > 0.05 ? '#dc2626' : '#16a34a')}
-        </div>
-        ${d.transacciones ? `
-        <div style="border-top:1px solid #eee;padding-top:1rem">
-          <p style="font-size:0.8rem;color:#888;margin:0 0 6px">Calificaciones de compradores (histórico, ${d.transacciones.total || 0} transacciones)</p>
-          <div style="display:flex;height:10px;border-radius:100px;overflow:hidden;width:100%;max-width:400px">
-            <div style="background:#16a34a;width:${(d.transacciones.ratings?.positive||0)*100}%"></div>
-            <div style="background:#ca8a04;width:${(d.transacciones.ratings?.neutral||0)*100}%"></div>
-            <div style="background:#dc2626;width:${(d.transacciones.ratings?.negative||0)*100}%"></div>
-          </div>
-          <p style="font-size:0.72rem;color:#888;margin:6px 0 0">
-            🟢 ${pct(d.transacciones.ratings?.positive)} positivas &nbsp; 🟡 ${pct(d.transacciones.ratings?.neutral)} neutras &nbsp; 🔴 ${pct(d.transacciones.ratings?.negative)} negativas
-          </p>
-        </div>` : ''}
       </div>
+
+      <p style="font-size:0.8rem;font-weight:700;color:#555;margin:0 0 0.6rem">Variables sobre tus ventas</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:1.25rem">
+        ${metricCard('message', 'Reclamos', pct(d.reclamos?.tasa), `Son ${d.reclamos?.total ?? 0} de tus ventas`, d.reclamos?.tasa, 0.03)}
+        ${metricCard('xCircle', 'Cancelaciones', pct(d.cancelaciones?.tasa), `Son ${d.cancelaciones?.total ?? 0} de tus ventas`, d.cancelaciones?.tasa, 0.03)}
+        ${metricCard('clock', 'Entregas tarde', pct(d.entregas_tarde?.tasa), `Son ${d.entregas_tarde?.total ?? 0} de tus envíos`, d.entregas_tarde?.tasa, 0.10)}
+      </div>
+
+      ${d.transacciones ? `
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <p style="font-size:0.82rem;font-weight:700;color:#333;margin:0 0 10px">Calificaciones de compradores <span style="font-weight:400;color:#888">(histórico, ${d.transacciones.total || 0} transacciones)</span></p>
+        <div style="display:flex;height:10px;border-radius:100px;overflow:hidden;width:100%;max-width:420px;margin-bottom:8px">
+          <div style="background:#16a34a;width:${(d.transacciones.ratings?.positive||0)*100}%"></div>
+          <div style="background:#ca8a04;width:${(d.transacciones.ratings?.neutral||0)*100}%"></div>
+          <div style="background:#dc2626;width:${(d.transacciones.ratings?.negative||0)*100}%"></div>
+        </div>
+        <p style="font-size:0.76rem;color:#888;margin:0">
+          🟢 ${pct(d.transacciones.ratings?.positive)} positivas &nbsp;·&nbsp; 🟡 ${pct(d.transacciones.ratings?.neutral)} neutras &nbsp;·&nbsp; 🔴 ${pct(d.transacciones.ratings?.negative)} negativas
+        </p>
+      </div>` : ''}
     `
   } catch(e) {
     body.innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
