@@ -309,7 +309,8 @@ def mensajes(dias: int = 15):
                     "no_leidos":     len(no_leidos),
                     "ultimo_mensaje": (texto or "")[:200],
                     "fecha":         ultimo.get("message_date", {}).get("received"),
-                    "link":          f"https://myaccount.mercadolibre.com.mx/messages/inbox?pack_id={pack_id}",
+                    "pack_id":       pack_id,
+                    "link":          "https://myaccount.mercadolibre.com.mx/messages/inbox",
                 })
         return {"ok": True, "revisadas": len(ordenes[:30]), "con_pendientes": len(resultado), "mensajes": resultado}
     except HTTPException as e:

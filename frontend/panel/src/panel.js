@@ -17220,17 +17220,29 @@ async function _mlRenderMensajesTab() {
           <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
           No tienes mensajes pendientes por responder.
         </div>` : `
+        <p style="font-size:0.74rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;margin:0 0 10px">
+          MercadoLibre no permite enlazar directo a una conversación — copia el nombre del comprador y búscalo en la bandeja.
+        </p>
         <div style="display:flex;flex-direction:column;gap:8px">
           ${msjs.map(m => `
-            <a href="${m.link}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit;padding:0.8rem 1rem;border:1px solid #fde68a;border-radius:10px;background:#fffbeb;transition:background 0.15s"
-               onmouseover="this.style.background='#fef3c7'" onmouseout="this.style.background='#fffbeb'">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="padding:0.8rem 1rem;border:1px solid #fde68a;border-radius:10px;background:#fffbeb">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
                 <strong style="font-size:0.86rem">${m.comprador || 'Comprador'}</strong>
-                <span style="background:#e67e22;color:#fff;border-radius:100px;padding:2px 8px;font-size:0.72rem;font-weight:700">${m.no_leidos} sin leer</span>
+                <span style="background:#e67e22;color:#fff;border-radius:100px;padding:2px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap">${m.no_leidos} sin leer</span>
               </div>
-              <p style="margin:0;font-size:0.8rem;color:#666">${m.ultimo_mensaje || '(sin vista previa)'}</p>
-              <p style="margin:4px 0 0;font-size:0.72rem;color:#aaa;display:flex;align-items:center;gap:4px">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''} ${_mlIcon('externalLink', 11, '#aaa')}</p>
-            </a>`).join('')}
+              <p style="margin:0 0 6px;font-size:0.8rem;color:#666">${m.ultimo_mensaje || '(sin vista previa)'}</p>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+                <p style="margin:0;font-size:0.72rem;color:#aaa">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
+                <div style="display:flex;gap:6px">
+                  <button onclick="navigator.clipboard.writeText('${(m.comprador||'').replace(/'/g,"\\'")}');this.textContent='Copiado'"
+                          style="font-size:0.72rem;color:#3483fa;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">Copiar nombre</button>
+                  <a href="${m.link}" target="_blank" rel="noopener"
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:#3483fa;text-decoration:none;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px">
+                    Ir a bandeja ${_mlIcon('externalLink', 11, '#3483fa')}
+                  </a>
+                </div>
+              </div>
+            </div>`).join('')}
         </div>`}
       </div>
     `
