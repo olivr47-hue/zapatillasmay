@@ -310,7 +310,11 @@ def mensajes(dias: int = 15):
                     "ultimo_mensaje": (texto or "")[:200],
                     "fecha":         ultimo.get("message_date", {}).get("received"),
                     "pack_id":       pack_id,
-                    "link":          f"https://www.mercadolibre.com.mx/ventas/omni/listado?search={order_id}",
+                    "link":          (
+                        f"https://www.mercadolibre.com.mx/ventas/nueva/mensajeria/{pack_id}"
+                        "?source=ml&callbackWording=Ventas"
+                        "&callbackUrl=https%3A%2F%2Fwww.mercadolibre.com.mx%2Fventas%2Fomni%2Flistado"
+                    ),
                 })
         return {"ok": True, "revisadas": len(ordenes[:30]), "con_pendientes": len(resultado), "mensajes": resultado}
     except HTTPException as e:
