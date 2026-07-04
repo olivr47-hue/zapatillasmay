@@ -245,6 +245,73 @@ def ping():
     except HTTPException as e:
         return {"ok": False, "error": e.detail, "tip": "Actualiza ML_ACCESS_TOKEN en Railway Variables"}
 
+
+@router.get("/reputacion")
+def reputacion():
+    """Reputación del vendedor: nivel, métricas de venta, reclamos y cancelaciones."""
+    try:
+        info = ml_get(f"/users/{ML_USER_ID}")
+        rep  = info.get("seller_reputation", {}) or {}
+        metricas = rep.get("metrics", {}) or {}
+        return {
+            "ok":               True,
+            "nickname":         info.get("nickname"),
+            "nivel":            rep.get("level_id"),
+            "power_seller":     rep.get("power_seller_status"),
+            "transacciones":    rep.get("transactions", {}),
+            "reclamos": {
+                "tasa":     (metricas.get("claims") or {}).get("rate"),
+                "total":    (metricas.get("claims") or {}).get("value"),
+            },
+            "cancelaciones": {
+                "tasa":  (metricas.get("cancellations") or {}).get("rate"),
+                "total": (metricas.get("cancellations") or {}).get("value"),
+            },
+            "entregas_tarde": {
+                "tasa":  (metricas.get("delayed_handling_time") or {}).get("rate"),
+                "total": (metricas.get("delayed_handling_time") or {}).get("value"),
+            },
+            "ventas_completadas": (metricas.get("sales") or {}).get("completed"),
+        }
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+
+@router.get("/mensajes")
+def mensajes(dias: int = 15):
+    """
+    Mensajes pre/post venta pendientes de responder. Revisa las órdenes recientes
+    (mismo criterio que sync-ventas) y para cada una consulta si tiene mensajes
+    del comprador sin leer.
+    """
+    try:
+        resp = ml_get(f"/orders/search?seller={ML_USER_ID}&sort=date_desc&limit=50")
+        ordenes = resp.get("results", [])
+        resultado = []
+        for orden in ordenes[:30]:
+            pack_id = orden.get("pack_id") or orden.get("id")
+            order_id = orden.get("id")
+            comprador = orden.get("buyer", {}) or {}
+            try:
+                pack = ml_get(f"/messages/packs/{pack_id}/sellers/{ML_USER_ID}?tag=post_sale&mark_as_read=false")
+            except HTTPException:
+                continue
+            msgs = pack.get("messages", []) or []
+            no_leidos = [m for m in msgs if m.get("from", {}).get("user_id") != int(ML_USER_ID) and not m.get("read")]
+            if no_leidos:
+                resultado.append({
+                    "order_id":      order_id,
+                    "comprador":     comprador.get("nickname"),
+                    "no_leidos":     len(no_leidos),
+                    "ultimo_mensaje": (no_leidos[-1].get("message") or "")[:200],
+                    "fecha":         no_leidos[-1].get("message_date", {}).get("received"),
+                    "link":          f"https://myaccount.mercadolibre.com.mx/messages/inbox",
+                })
+        return {"ok": True, "revisadas": len(ordenes[:30]), "con_pendientes": len(resultado), "mensajes": resultado}
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+
 # ─── Listar todos los items con su SELLER_SKU ────────────────────────────────
 
 def _get_all_item_ids() -> list:
