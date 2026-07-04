@@ -17132,23 +17132,31 @@ window._mlCargarResumenCatalogo = async () => {
       return
     }
     window._mlCatalogoPendiente = d.productos
-    window._mlCatalogoSeleccion = new Set(d.productos.map(p => p.id))
+    // Por default solo se marcan los que ya tienen 3+ fotos (listos para ML).
+    window._mlCatalogoSeleccion = new Set(d.productos.filter(p => p.listo).map(p => p.id))
+    const fotoBadge = (p) => {
+      const color = p.listo ? '#166534' : '#b45309'
+      const bg = p.listo ? '#f0fdf4' : '#fffbeb'
+      return `<span style="background:${bg};color:${color};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">${p.num_fotos} foto${p.num_fotos===1?'':'s'}</span>`
+    }
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
-        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> del ERP todavía no están en MercadoLibre. Desmarca los que no quieras publicar (ej. les faltan fotos con fondo blanco).</p>
+        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen 3+ fotos y están marcados por default. Desmarca/marca lo que quieras cambiar.</p>
         ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(true)">Seleccionar todos</label>
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(false)">Ninguno</label>
-        <span id="ml-catalogo-contador" style="color:#888;margin-left:auto">${d.total} de ${d.total} seleccionados</span>
+        <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelSoloListos()">Solo con 3+ fotos</label>
+        <span id="ml-catalogo-contador" style="color:#888;margin-left:auto">${window._mlCatalogoSeleccion.size} de ${d.total} seleccionados</span>
       </div>
       <div style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
           <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;cursor:pointer">
-            <input type="checkbox" checked data-ml-catprod="${p.id}" onchange="window._mlToggleCatProd('${p.id}',this.checked)"
+            <input type="checkbox" ${p.listo ? 'checked' : ''} data-ml-catprod="${p.id}" onchange="window._mlToggleCatProd('${p.id}',this.checked)"
                    style="width:15px;height:15px;cursor:pointer;accent-color:#3483fa;flex-shrink:0">
             <span style="flex:1">${p.nombre}</span>
+            ${fotoBadge(p)}
             <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
           </label>`).join('')}
       </div>
@@ -17172,6 +17180,16 @@ window._mlSelTodosCatalogo = (todos) => {
   const total = window._mlCatalogoPendiente || []
   window._mlCatalogoSeleccion = todos ? new Set(total.map(p => p.id)) : new Set()
   document.querySelectorAll('[data-ml-catprod]').forEach(chk => { chk.checked = todos })
+  const contador = document.getElementById('ml-catalogo-contador')
+  if (contador) contador.textContent = `${window._mlCatalogoSeleccion.size} de ${total.length} seleccionados`
+}
+
+window._mlSelSoloListos = () => {
+  const total = window._mlCatalogoPendiente || []
+  window._mlCatalogoSeleccion = new Set(total.filter(p => p.listo).map(p => p.id))
+  document.querySelectorAll('[data-ml-catprod]').forEach(chk => {
+    chk.checked = window._mlCatalogoSeleccion.has(chk.dataset.mlCatprod)
+  })
   const contador = document.getElementById('ml-catalogo-contador')
   if (contador) contador.textContent = `${window._mlCatalogoSeleccion.size} de ${total.length} seleccionados`
 }

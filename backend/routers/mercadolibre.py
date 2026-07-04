@@ -1407,14 +1407,41 @@ def _productos_sin_publicar() -> list:
 
 @router.get("/catalogo-sin-publicar")
 def catalogo_sin_publicar():
-    """Lista de productos del ERP que todavía no tienen ninguna publicación en ML."""
+    """Lista de productos del ERP que todavía no tienen ninguna publicación en ML,
+    con el conteo de fotos por color para saber cuáles ya están listos para publicar
+    (ML pide mínimo unas cuantas fotos por variante; usamos 3 como referencia)."""
     productos = _productos_sin_publicar()
+    if not productos:
+        return {"total": 0, "productos": []}
+
+    ids_str   = ",".join(p["id"] for p in productos)
+    variantes = supabase_get_all(f"variantes?producto_id=in.({ids_str})&activa=eq.true&select=producto_id,color,imagenes,foto_url")
+
+    fotos_por_producto: dict = {}
+    for v in variantes:
+        pid = v.get("producto_id")
+        if not pid:
+            continue
+        fotos = list(v.get("imagenes") or [])
+        if not fotos and v.get("foto_url"):
+            fotos = [v["foto_url"]]
+        fotos_por_producto.setdefault(pid, set()).update(u for u in fotos if u)
+
+    resultado = []
+    for p in productos:
+        num_fotos = len(fotos_por_producto.get(p["id"], set()))
+        resultado.append({
+            "id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
+            "categoria": p.get("categoria"), "num_fotos": num_fotos, "listo": num_fotos >= 3,
+        })
+
+    # Los que ya tienen suficientes fotos primero, para verlos de un vistazo.
+    resultado.sort(key=lambda p: (not p["listo"], -p["num_fotos"]))
+
     return {
-        "total": len(productos),
-        "productos": [
-            {"id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "categoria": p.get("categoria")}
-            for p in productos
-        ],
+        "total": len(resultado),
+        "listos": sum(1 for p in resultado if p["listo"]),
+        "productos": resultado,
     }
 
 
