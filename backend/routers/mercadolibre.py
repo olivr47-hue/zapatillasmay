@@ -1364,6 +1364,98 @@ def publicar_producto(body: dict):
     }
 
 
+# ─── Publicar catálogo completo (masivo) ──────────────────────────────────────
+
+def _productos_sin_publicar() -> list:
+    """Productos activos del ERP cuyo SKU no aparece en ninguna publicación
+    activa de MercadoLibre todavía."""
+    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria")
+    all_ids   = _get_all_item_ids()
+    items     = _get_items_with_sku(all_ids)
+    publicados_norm = set()
+    for it in items:
+        if it["status"] not in ("active", "paused", "under_review"):
+            continue
+        sku = _norm_sku(it["seller_sku"])
+        if sku:
+            # El sku_interno es la primera parte antes de "-COLOR-TALLA"
+            partes = sku.split("-")
+            if len(partes) >= 3:
+                publicados_norm.add("-".join(partes[:-2]))
+
+    sin_publicar = []
+    for p in productos:
+        sku_interno = (p.get("sku_interno") or "").strip()
+        if not sku_interno:
+            continue
+        if _norm_sku(sku_interno) in publicados_norm:
+            continue
+        sin_publicar.append(p)
+    return sin_publicar
+
+
+@router.get("/catalogo-sin-publicar")
+def catalogo_sin_publicar():
+    """Lista de productos del ERP que todavía no tienen ninguna publicación en ML."""
+    productos = _productos_sin_publicar()
+    return {
+        "total": len(productos),
+        "productos": [
+            {"id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "categoria": p.get("categoria")}
+            for p in productos
+        ],
+    }
+
+
+def _hacer_publicar_catalogo(listing_type: str, limite: int):
+    productos = _productos_sin_publicar()[:limite]
+    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
+    for p in productos:
+        try:
+            res = publicar_producto({
+                "producto_id":  p["id"],
+                "listing_type": listing_type,
+                "solo_preview": False,
+            })
+            pub = res.get("publicados", 0)
+            err = res.get("errores", 0)
+            if pub > 0:
+                resumen["publicados"] += 1
+            if err > 0 and pub == 0:
+                resumen["con_error"] += 1
+            resumen["detalle"].append({
+                "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
+                "variantes_publicadas": pub, "variantes_error": err,
+            })
+        except Exception as e:
+            resumen["con_error"] += 1
+            resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": str(e)})
+    cache_set("ml_publicar_catalogo_log", resumen, ttl=3600)
+
+
+@router.post("/publicar-catalogo")
+def publicar_catalogo(body: dict, background_tasks: BackgroundTasks):
+    """
+    Publica en MercadoLibre todos los productos activos del ERP que todavía
+    no tienen ninguna publicación. Se ejecuta en background por el volumen
+    de llamadas a la API de ML (una por producto).
+    Body: { "listing_type": "gold_special", "limite": 20 }
+    """
+    listing_type = body.get("listing_type") or "gold_special"
+    limite       = int(body.get("limite") or 20)
+    pendientes   = len(_productos_sin_publicar())
+    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite)
+    return {"message": f"Publicación masiva iniciada para hasta {min(limite, pendientes)} producto(s). Consulta /ml/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
+
+
+@router.get("/publicar-catalogo/log")
+def publicar_catalogo_log():
+    log = cache_get("ml_publicar_catalogo_log")
+    if not log:
+        return {"message": "Todavía no hay resultados. ¿Ya iniciaste la publicación masiva?"}
+    return log
+
+
 # ─── Actualizar token manualmente ─────────────────────────────────────────────
 
 @router.post("/token")

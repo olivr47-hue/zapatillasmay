@@ -17079,6 +17079,19 @@ window._mlSwitchTab = async (tab) => {
 async function _mlRenderPublicacionesTab() {
   const body = document.getElementById('ml-tab-body')
   body.innerHTML = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.9rem">
+        <div style="width:34px;height:34px;border-radius:9px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('cart', 17, '#16a34a')}</div>
+        <div>
+          <h3 style="margin:0 0 2px;font-size:1rem">Publicar catálogo completo</h3>
+          <p style="font-size:0.82rem;color:#888;margin:0">Publica de un jalón todos los modelos del ERP que todavía no tienes en MercadoLibre.</p>
+        </div>
+      </div>
+      <div id="ml-catalogo-resumen">
+        <p style="color:#aaa;font-size:0.85rem;margin:0">Buscando modelos sin publicar...</p>
+      </div>
+    </div>
+
     <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:10px">
@@ -17101,6 +17114,97 @@ async function _mlRenderPublicacionesTab() {
       </div>
     </div>
   `
+  window._mlCargarResumenCatalogo()
+}
+
+window._mlCargarResumenCatalogo = async () => {
+  const box = document.getElementById('ml-catalogo-resumen')
+  if (!box) return
+  try {
+    const res = await fetch(`${API}/ml/catalogo-sin-publicar`)
+    const d = await res.json()
+    if (!d.total) {
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+          Ya tienes todo tu catálogo activo publicado en MercadoLibre.
+        </div>`
+      return
+    }
+    window._mlCatalogoPendiente = d.productos
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
+        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> del ERP todavía no están en MercadoLibre.</p>
+        ${_mlBtn('cart', `Publicar los ${d.total} pendientes`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
+      </div>
+      <details>
+        <summary style="cursor:pointer;font-size:0.78rem;color:#3483fa;list-style:none">Ver cuáles son</summary>
+        <div style="max-height:220px;overflow-y:auto;margin-top:8px">
+          ${d.productos.map(p => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+              <span>${p.nombre}</span>
+              <span style="color:#aaa;font-family:monospace">${p.sku_interno}</span>
+            </div>`).join('')}
+        </div>
+      </details>
+      <div id="ml-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
+    `
+  } catch(e) {
+    box.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
+}
+
+window._mlAbrirConfirmMasivo = () => {
+  const total = (window._mlCatalogoPendiente || []).length
+  const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión).\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
+  if (!confirm(msg)) return
+  window._mlEjecutarPublicacionMasiva()
+}
+
+window._mlEjecutarPublicacionMasiva = async () => {
+  const btn = document.getElementById('ml-btn-catalogo-masivo')
+  const label = document.getElementById('ml-btn-catalogo-masivo-label')
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6' }
+  if (label) label.textContent = 'Publicando en segundo plano...'
+  const log = document.getElementById('ml-catalogo-masivo-log')
+  log.style.display = 'block'
+  log.innerHTML = '<p style="margin:0;color:#888">Iniciando...</p>'
+  try {
+    await fetch(`${API}/ml/publicar-catalogo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_type: 'gold_special', limite: (window._mlCatalogoPendiente || []).length })
+    })
+    log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
+      `${_mlBtn('refresh', 'Actualizar progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}`
+  } catch(e) {
+    log.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
+}
+
+window._mlVerLogCatalogoMasivo = async () => {
+  const log = document.getElementById('ml-catalogo-masivo-log')
+  try {
+    const res = await fetch(`${API}/ml/publicar-catalogo/log`)
+    const d = await res.json()
+    if (!d.detalle) {
+      log.innerHTML = `<p style="margin:0;color:#888">${d.message || 'Sin resultados todavía.'}</p>`
+      return
+    }
+    log.innerHTML = `
+      <p style="margin:0 0 8px;font-weight:700">${d.publicados} publicado(s) · ${d.con_error} con error · de ${d.total_productos}</p>
+      <div style="max-height:260px;overflow-y:auto">
+        ${d.detalle.map(x => `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;font-size:0.78rem">
+            <span>${x.nombre || x.sku_interno}</span>
+            <span style="color:${x.error ? '#dc2626' : '#16a34a'}">${x.error ? 'Error' : (x.variantes_publicadas + ' variante(s)')}</span>
+          </div>`).join('')}
+      </div>
+      ${_mlBtn('refresh', 'Ver catálogo sin publicar', 'window._mlCargarResumenCatalogo()', 'secondary')}
+    `
+  } catch(e) {
+    log.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
 }
 
 // ─── Pestaña: Ventas ML ──────────────────────────────────────────────────────
