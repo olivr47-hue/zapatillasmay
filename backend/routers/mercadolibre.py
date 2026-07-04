@@ -260,27 +260,48 @@ def _get_all_item_ids() -> list:
     return all_ids
 
 def _get_items_with_sku(all_ids: list) -> list:
-    """Devuelve lista de dicts con item_id, title, status, qty, seller_sku."""
+    """Devuelve lista de line-items con item_id, variation_id (o None), title, status, qty, seller_sku.
+    Publicaciones con variaciones (un solo item_id con varios colores/tallas) generan
+    un line-item por variación, ya que el SELLER_SKU vive en la variación, no en el item."""
     items = []
     for i in range(0, len(all_ids), 20):
         batch = ",".join(all_ids[i:i+20])
-        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,available_quantity,attributes")
+        resp = ml_get(f"/items?ids={batch}&attributes=id,title,status,available_quantity,attributes,variations")
         for entry in resp:
             if entry.get("code") != 200:
                 continue
             b = entry["body"]
-            sku = ""
-            for attr in b.get("attributes", []):
-                if attr.get("id") == "SELLER_SKU":
-                    sku = (attr.get("value_name") or "").strip()
-                    break
-            items.append({
-                "item_id":    b["id"],
-                "title":      b.get("title", ""),
-                "status":     b.get("status", ""),
-                "qty":        b.get("available_quantity", 0),
-                "seller_sku": sku,
-            })
+            variaciones = b.get("variations") or []
+            if variaciones:
+                for v in variaciones:
+                    sku = (v.get("seller_custom_field") or "").strip()
+                    if not sku:
+                        for attr in v.get("attribute_combinations", []):
+                            if attr.get("id") == "SELLER_SKU":
+                                sku = (attr.get("value_name") or "").strip()
+                                break
+                    items.append({
+                        "item_id":      b["id"],
+                        "variation_id": v.get("id"),
+                        "title":        b.get("title", ""),
+                        "status":       b.get("status", ""),
+                        "qty":          v.get("available_quantity", 0) or 0,
+                        "seller_sku":   sku,
+                    })
+            else:
+                sku = ""
+                for attr in b.get("attributes", []):
+                    if attr.get("id") == "SELLER_SKU":
+                        sku = (attr.get("value_name") or "").strip()
+                        break
+                items.append({
+                    "item_id":      b["id"],
+                    "variation_id": None,
+                    "title":        b.get("title", ""),
+                    "status":       b.get("status", ""),
+                    "qty":          b.get("available_quantity", 0),
+                    "seller_sku":   sku,
+                })
     return items
 
 
@@ -374,15 +395,16 @@ def ver_stock_ml():
             continue
         sku = _norm_sku(it["seller_sku"])
         if not sku:
-            sin_match.append(it["item_id"])
+            sin_match.append(it.get("variation_id") and f"{it['item_id']}/{it['variation_id']}" or it["item_id"])
             continue
         qty_erp = stock_erp.get(sku)
         reporte.append({
-            "item_id":    it["item_id"],
-            "seller_sku": sku,
-            "qty_ml":     it["qty"],
-            "qty_erp":    qty_erp if qty_erp is not None else "no encontrado",
-            "ok":         qty_erp == it["qty"] if qty_erp is not None else False,
+            "item_id":     it["item_id"],
+            "variation_id": it.get("variation_id"),
+            "seller_sku":  sku,
+            "qty_ml":      it["qty"],
+            "qty_erp":     qty_erp if qty_erp is not None else "no encontrado",
+            "ok":          qty_erp == it["qty"] if qty_erp is not None else False,
         })
 
     desactualizados = [r for r in reporte if not r["ok"]]
@@ -416,19 +438,24 @@ def _hacer_sync():
         for it in items:
             if it["status"] != "active":
                 continue
+            etiqueta = f"{it['item_id']}/{it['variation_id']}" if it.get("variation_id") else it["item_id"]
             sku = _norm_sku(it["seller_sku"])
             if not sku or sku not in stock_erp:
-                sin_match.append({"item": it["item_id"], "sku": sku or "(vacio)"})
+                sin_match.append({"item": etiqueta, "sku": sku or "(vacio)"})
                 continue
             nueva_qty = stock_erp[sku]
             if nueva_qty == it["qty"]:
-                iguales.append(it["item_id"])
+                iguales.append(etiqueta)
                 continue
-            resultado = ml_put(f"/items/{it['item_id']}", {"available_quantity": nueva_qty})
-            if resultado and "error" not in resultado:
-                actualizados.append({"item": it["item_id"], "sku": sku, "antes": it["qty"], "despues": nueva_qty})
+            if it.get("variation_id"):
+                body = {"variations": [{"id": it["variation_id"], "available_quantity": nueva_qty}]}
             else:
-                errores.append({"item": it["item_id"], "sku": sku, "error": str(resultado)})
+                body = {"available_quantity": nueva_qty}
+            resultado = ml_put(f"/items/{it['item_id']}", body)
+            if resultado and "error" not in resultado:
+                actualizados.append({"item": etiqueta, "sku": sku, "antes": it["qty"], "despues": nueva_qty})
+            else:
+                errores.append({"item": etiqueta, "sku": sku, "error": str(resultado)})
 
         cache_set("ml_sync_log", {
             "ts":           time.time(),
