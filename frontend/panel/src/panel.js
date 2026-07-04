@@ -7118,7 +7118,12 @@ function _renderFilaPedido(p) {
         ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
         ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
       </td>
-      <td>${p.canal || (p.mp_preference_id ? 'online' : '—')}</td>
+      <td>${{
+        web:          '🌐 Web',
+        sucursal:     '🏬 Sucursal',
+        whatsapp:     '💬 WhatsApp',
+        mercadolibre: '🛒 MercadoLibre',
+      }[p.canal] || p.canal || (p.mp_preference_id ? '🌐 Web' : '—')}</td>
       <td><strong>$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></td>
       <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
       <td>
@@ -7291,7 +7296,8 @@ async function cargarPedidos() {
             <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span></button>
             <button class="pill-filter" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
             <button class="pill-filter" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
-            <button class="pill-filter" onclick="cargarPedidosFiltro('online')">Online</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('web')">Web</button>
+            <button class="pill-filter" onclick="cargarPedidosFiltro('mercadolibre')">🛒 MercadoLibre</button>
             <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI/OXXO pendiente</button>
             <button class="pill-filter pill-danger" onclick="cargarPedidosFiltro('abandonado')">Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}</button>
             <button class="pill-filter pill-info" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
@@ -16790,6 +16796,81 @@ window.mlVerLog = async function(btn) {
   btn.disabled = false
 }
 
+window.mlCargarPublicaciones = async (btn) => {
+  const wrap = document.getElementById('ml-pubs-wrap')
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Cargando...'
+  btn.disabled = true
+  wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Consultando MercadoLibre (puede tardar ~10 s)...</p>'
+  try {
+    const res  = await fetch(`${API}/ml/items`)
+    const data = await res.json()
+    if (!res.ok) { wrap.innerHTML = `<p style="color:red">Error: ${data.detail || JSON.stringify(data)}</p>`; return }
+
+    const items = data.items || []
+    if (!items.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
+
+    const statusBadge = (s) => {
+      const map = { active: ['#27ae60','Activa'], paused: ['#e67e22','Pausada'], closed: ['#e74c3c','Cerrada'], under_review: ['#8e44ad','En revisión'] }
+      const [color, label] = map[s] || ['#999', s]
+      return `<span style="background:${color};color:#fff;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700">${label}</span>`
+    }
+
+    const filas = items.map(it => `
+      <tr data-search="${(it.item_id + ' ' + (it.title||'') + ' ' + (it.seller_sku||'')).toLowerCase().replace(/"/g,'')}" style="border-bottom:1px solid var(--border)">
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;white-space:nowrap">
+          <a href="https://articulo.mercadolibre.com.mx/${it.item_id.replace(/^(ML[A-Z]+)(\d+)$/, '$1-$2')}" target="_blank" style="color:#3483fa;text-decoration:none">
+            ${it.item_id}
+          </a>
+        </td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.82rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.title}">${it.title}</td>
+        <td style="padding:0.4rem 0.5rem;white-space:nowrap">${statusBadge(it.status)}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${it.seller_sku || '—'}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">${it.qty}</td>
+      </tr>`).join('')
+
+    const active  = items.filter(i => i.status === 'active').length
+    const paused  = items.filter(i => i.status === 'paused').length
+    const sinSku  = data.sin_sku || 0
+
+    wrap.innerHTML = `
+      <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+        <span style="font-size:0.82rem;color:#555">Total: <b>${data.total}</b></span>
+        <span style="font-size:0.82rem;color:#27ae60">Activas: <b>${active}</b></span>
+        <span style="font-size:0.82rem;color:#e67e22">Pausadas: <b>${paused}</b></span>
+        ${sinSku ? `<span style="font-size:0.82rem;color:#e74c3c">Sin SKU ERP: <b>${sinSku}</b></span>` : ''}
+      </div>
+      <input id="ml-pubs-buscar" oninput="mlFiltrarPubs(this.value)" placeholder="🔍 Buscar por título, SKU o item ID..."
+             style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
+      <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--bg-secondary);position:sticky;top:0">
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Item ID</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Título</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Estado</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKU ERP</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888;font-weight:600">Stock</th>
+            </tr>
+          </thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>`
+  } catch(e) {
+    wrap.innerHTML = `<p style="color:red">Error de conexión: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = orig
+    btn.disabled = false
+  }
+}
+
+window.mlFiltrarPubs = (q) => {
+  q = (q || '').toLowerCase().trim()
+  document.querySelectorAll('#ml-pubs-wrap tbody tr').forEach(tr => {
+    tr.style.display = !q || (tr.dataset.search || '').includes(q) ? '' : 'none'
+  })
+}
+
 // ─── MercadoLibre: Publicar nuevo estilo ────────────────────────────────────
 
 async function _mlPublicar(solo_preview, btn) {
@@ -16902,29 +16983,259 @@ window.descargarExcelTikTok = async function(btn, endpoint, filename) {
 
 // ─── MERCADOLIBRE ─────────────────────────────────────────────────────────────
 
+const _ML_TABS = [
+  { id: 'publicaciones', label: '📋 Publicaciones' },
+  { id: 'ventas',        label: '💰 Ventas' },
+  { id: 'mensajes',      label: '💬 Mensajes' },
+  { id: 'reputacion',    label: '⭐ Reputación' },
+  { id: 'publicar',      label: '➕ Publicar nuevo' },
+]
+
 async function cargarMercadoLibre() {
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:2rem;max-width:860px">
+    <div style="padding:1.5rem 2rem;max-width:1100px">
       <h2 style="margin-bottom:0.25rem">🛒 MercadoLibre</h2>
-      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">
-        Genera el preview, edita el JSON de cada variante (especialmente el título), y publica.
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.1rem">
+        Publicaciones, ventas, mensajes y reputación de tu cuenta.
       </p>
+      <div id="ml-tabs" style="display:flex;gap:4px;flex-wrap:wrap;border-bottom:2px solid #eee;margin-bottom:1.25rem">
+        ${_ML_TABS.map(t => `
+          <button class="ml-tab-btn" data-tab="${t.id}" onclick="window._mlSwitchTab('${t.id}')"
+                  style="padding:0.6rem 1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:3px solid transparent;color:#666;font-weight:600">
+            ${t.label}
+          </button>`).join('')}
+      </div>
+      <div id="ml-tab-body"></div>
+    </div>
+  `
+  window._mlSwitchTab('publicaciones')
+}
 
-      <!-- Mis publicaciones -->
-      <div class="card" style="margin-bottom:1.5rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-          <h3 style="margin:0">📋 Mis publicaciones</h3>
+window._mlSwitchTab = async (tab) => {
+  document.querySelectorAll('#ml-tabs .ml-tab-btn').forEach(b => {
+    const activo = b.dataset.tab === tab
+    b.style.borderBottom = activo ? '3px solid #3483fa' : '3px solid transparent'
+    b.style.color = activo ? '#3483fa' : '#666'
+  })
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando...</p>'
+  if (tab === 'publicaciones')   await _mlRenderPublicacionesTab()
+  else if (tab === 'ventas')     await _mlRenderVentasTab()
+  else if (tab === 'mensajes')   await _mlRenderMensajesTab()
+  else if (tab === 'reputacion') await _mlRenderReputacionTab()
+  else if (tab === 'publicar')   await _mlRenderPublicarTab()
+}
+
+// ─── Pestaña: Publicaciones ──────────────────────────────────────────────────
+async function _mlRenderPublicacionesTab() {
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = `
+    <div class="card" style="padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+        <div>
+          <h3 style="margin:0 0 4px">📋 Publicaciones y stock</h3>
+          <p style="font-size:0.82rem;color:#888;margin:0">Compara y sincroniza el inventario del ERP con MercadoLibre.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button onclick="mlCargarPublicaciones(this)"
-                  style="padding:0.4rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
-            🔄 Cargar / Actualizar
+                  style="padding:0.5rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔄 Cargar publicaciones
+          </button>
+          <button onclick="mlVerStock(this)"
+                  style="padding:0.5rem 1rem;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔍 Ver diferencias
+          </button>
+          <button onclick="mlSincronizar(this)"
+                  style="padding:0.5rem 1rem;background:#10B981;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔄 Sincronizar stock
+          </button>
+          <button onclick="mlVerLog(this)"
+                  style="padding:0.5rem 1rem;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            📋 Último resultado
           </button>
         </div>
-        <div id="ml-pubs-wrap">
-          <p style="color:#aaa;font-size:0.85rem;margin:0">Haz clic en "Cargar" para ver tus publicaciones activas en MercadoLibre.</p>
-        </div>
       </div>
+      <div id="ml-resultado" style="display:none;margin-bottom:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.8rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+      <div id="ml-pubs-wrap">
+        <p style="color:#aaa;font-size:0.85rem;margin:0">Haz clic en "Cargar publicaciones" para ver tus publicaciones activas en MercadoLibre.</p>
+      </div>
+    </div>
+  `
+}
 
+// ─── Pestaña: Ventas ML ──────────────────────────────────────────────────────
+async function _mlRenderVentasTab() {
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando ventas...</p>'
+  try {
+    const res  = await fetch(`${API}/pedidos/`)
+    const data = await res.json()
+    const ventas = (Array.isArray(data) ? data : []).filter(p => p.canal === 'mercadolibre')
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+
+    const totalVentas = ventas.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+
+    body.innerHTML = `
+      <div class="card" style="padding:1.5rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+          <div>
+            <h3 style="margin:0 0 4px">💰 Ventas desde MercadoLibre</h3>
+            <p style="font-size:0.82rem;color:#888;margin:0">Se descuenta el inventario automáticamente cada 10 min al detectarse una venta nueva.</p>
+          </div>
+          <button onclick="_mlForzarSyncVentas(this)"
+                  style="padding:0.5rem 1rem;background:#3483fa;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;font-weight:600">
+            🔄 Sincronizar ahora
+          </button>
+        </div>
+        <div id="ml-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
+        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+          <span style="font-size:0.82rem;color:#555">Ventas registradas: <b>${ventas.length}</b></span>
+          <span style="font-size:0.82rem;color:#27ae60">Total: <b>$${totalVentas.toLocaleString('es-MX',{maximumFractionDigits:0})}</b></span>
+        </div>
+        ${ventas.length === 0 ? '<p style="color:#aaa;font-size:0.85rem">Todavía no hay ventas de MercadoLibre registradas en el ERP.</p>' : `
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--bg-secondary)">
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Orden ML</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Cliente</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Status</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ventas.map(p => `
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;font-family:monospace">${p.ml_order_id || '—'}</td>
+                  <td style="padding:0.4rem 0.5rem;font-size:0.82rem">${p.nombre_cliente || '—'}</td>
+                  <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:0.4rem 0.5rem"><span class="badge badge-success" style="font-size:0.72rem">${p.status}</span></td>
+                  <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      </div>
+    `
+  } catch(e) {
+    body.innerHTML = `<p style="padding:2rem;color:red">Error cargando ventas: ${e.message}</p>`
+  }
+}
+window._mlForzarSyncVentas = async (btn) => {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Sincronizando...'
+  btn.disabled = true
+  const box = document.getElementById('ml-ventas-resultado')
+  try {
+    const r = await fetch(API + '/ml/sync-ventas', { method: 'POST' })
+    const d = await r.json()
+    box.style.display = 'block'
+    if (d.procesadas > 0) {
+      box.style.background = '#f0fdf4'; box.style.color = '#166534'
+      box.textContent = `✅ ${d.procesadas} venta(s) nueva(s) procesada(s) de ${d.revisadas} revisadas.`
+      setTimeout(() => _mlRenderVentasTab(), 1200)
+    } else {
+      box.style.background = '#f8f8f8'; box.style.color = '#555'
+      box.textContent = `Sin ventas nuevas (${d.revisadas} revisadas).` + (d.errores?.length ? ` ⚠️ ${d.errores.length} error(es).` : '')
+    }
+  } catch(e) {
+    box.style.display = 'block'; box.style.background = '#fef2f2'; box.style.color = '#991b1b'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
+}
+
+// ─── Pestaña: Mensajes ───────────────────────────────────────────────────────
+async function _mlRenderMensajesTab() {
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando mensajes...</p>'
+  try {
+    const res = await fetch(`${API}/ml/mensajes?dias=15`)
+    const d = await res.json()
+    if (!d.ok) { body.innerHTML = `<p style="padding:2rem;color:red">Error: ${d.error || 'no se pudo cargar'}</p>`; return }
+    const msjs = d.mensajes || []
+    body.innerHTML = `
+      <div class="card" style="padding:1.5rem">
+        <h3 style="margin:0 0 4px">💬 Mensajes pendientes</h3>
+        <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">Compradores con mensajes sin leer en tus últimas ${d.revisadas} órdenes.</p>
+        ${msjs.length === 0 ? '<p style="color:#27ae60;font-size:0.88rem">✅ No tienes mensajes pendientes por responder.</p>' : `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${msjs.map(m => `
+            <a href="${m.link}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit;padding:0.8rem 1rem;border:1px solid #eee;border-radius:8px;background:#fffbeb">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <strong style="font-size:0.86rem">${m.comprador || 'Comprador'}</strong>
+                <span style="background:#e67e22;color:#fff;border-radius:100px;padding:2px 8px;font-size:0.72rem;font-weight:700">${m.no_leidos} sin leer</span>
+              </div>
+              <p style="margin:0;font-size:0.8rem;color:#666">${m.ultimo_mensaje || '(sin vista previa)'}</p>
+              <p style="margin:4px 0 0;font-size:0.72rem;color:#aaa">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
+            </a>`).join('')}
+        </div>`}
+      </div>
+    `
+  } catch(e) {
+    body.innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
+  }
+}
+
+// ─── Pestaña: Reputación ─────────────────────────────────────────────────────
+async function _mlRenderReputacionTab() {
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando reputación...</p>'
+  try {
+    const res = await fetch(`${API}/ml/reputacion`)
+    const d = await res.json()
+    if (!d.ok) { body.innerHTML = `<p style="padding:2rem;color:red">Error: ${d.error || 'no se pudo cargar'}</p>`; return }
+
+    const nivelColor = { '5_green': '#16a34a', '4_light_green': '#65a30d', '3_yellow': '#ca8a04', '2_orange': '#ea580c', '1_red': '#dc2626' }[d.nivel] || '#888'
+    const pct = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%'
+    const box = (label, valor, color) => `
+      <div style="background:#f8f8f8;border-radius:10px;padding:1rem;text-align:center">
+        <p style="font-size:1.3rem;font-weight:800;color:${color};margin:0 0 2px">${valor}</p>
+        <p style="font-size:0.72rem;color:#888;margin:0;text-transform:uppercase;letter-spacing:0.04em">${label}</p>
+      </div>`
+
+    body.innerHTML = `
+      <div class="card" style="padding:1.5rem">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem">
+          <span style="width:16px;height:16px;border-radius:50%;background:${nivelColor};flex-shrink:0"></span>
+          <div>
+            <h3 style="margin:0">${d.nickname || 'Vendedor'}</h3>
+            <p style="margin:0;font-size:0.82rem;color:#888">Nivel de reputación: <b style="color:${nivelColor}">${d.nivel || '—'}</b>${d.power_seller ? ` · Power Seller ${d.power_seller}` : ''}</p>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:1rem">
+          ${box('Ventas completadas', d.ventas_completadas ?? '—', '#3483fa')}
+          ${box('Reclamos', pct(d.reclamos?.tasa), d.reclamos?.tasa > 0.03 ? '#dc2626' : '#16a34a')}
+          ${box('Cancelaciones', pct(d.cancelaciones?.tasa), d.cancelaciones?.tasa > 0.03 ? '#dc2626' : '#16a34a')}
+          ${box('Entregas tarde', pct(d.entregas_tarde?.tasa), d.entregas_tarde?.tasa > 0.05 ? '#dc2626' : '#16a34a')}
+        </div>
+        ${d.transacciones ? `
+        <div style="border-top:1px solid #eee;padding-top:1rem">
+          <p style="font-size:0.8rem;color:#888;margin:0 0 6px">Calificaciones de compradores (histórico, ${d.transacciones.total || 0} transacciones)</p>
+          <div style="display:flex;height:10px;border-radius:100px;overflow:hidden;width:100%;max-width:400px">
+            <div style="background:#16a34a;width:${(d.transacciones.ratings?.positive||0)*100}%"></div>
+            <div style="background:#ca8a04;width:${(d.transacciones.ratings?.neutral||0)*100}%"></div>
+            <div style="background:#dc2626;width:${(d.transacciones.ratings?.negative||0)*100}%"></div>
+          </div>
+          <p style="font-size:0.72rem;color:#888;margin:6px 0 0">
+            🟢 ${pct(d.transacciones.ratings?.positive)} positivas &nbsp; 🟡 ${pct(d.transacciones.ratings?.neutral)} neutras &nbsp; 🔴 ${pct(d.transacciones.ratings?.negative)} negativas
+          </p>
+        </div>` : ''}
+      </div>
+    `
+  } catch(e) {
+    body.innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
+  }
+}
+
+// ─── Pestaña: Publicar nuevo estilo (flujo existente) ────────────────────────
+async function _mlRenderPublicarTab() {
+  const content = document.getElementById('ml-tab-body')
+  content.innerHTML = `
+    <div>
       <!-- Paso 1: configurar -->
       <div class="card" style="margin-bottom:1.5rem">
         <h3 style="margin-bottom:1rem">Paso 1 — Publicar producto nuevo</h3>
@@ -17010,7 +17321,7 @@ async function cargarMercadoLibre() {
       </div>
 
       <!-- Resultado publicación -->
-      <div id="ml-resultado" style="display:none;margin-top:1.5rem" class="card">
+      <div id="ml-resultado-publicar" style="display:none;margin-top:1.5rem" class="card">
         <h3 id="ml-resultado-titulo" style="margin-bottom:0.75rem">Resultado</h3>
         <div id="ml-resultado-body"></div>
       </div>
@@ -17275,81 +17586,6 @@ async function cargarMercadoLibre() {
     }).join('')
   }
 
-  window.mlCargarPublicaciones = async (btn) => {
-    const wrap = document.getElementById('ml-pubs-wrap')
-    const orig = btn.innerHTML
-    btn.innerHTML = '⏳ Cargando...'
-    btn.disabled = true
-    wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Consultando MercadoLibre (puede tardar ~10 s)...</p>'
-    try {
-      const res  = await fetch(`${API}/ml/items`)
-      const data = await res.json()
-      if (!res.ok) { wrap.innerHTML = `<p style="color:red">Error: ${data.detail || JSON.stringify(data)}</p>`; return }
-
-      const items = data.items || []
-      if (!items.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
-
-      const statusBadge = (s) => {
-        const map = { active: ['#27ae60','Activa'], paused: ['#e67e22','Pausada'], closed: ['#e74c3c','Cerrada'], under_review: ['#8e44ad','En revisión'] }
-        const [color, label] = map[s] || ['#999', s]
-        return `<span style="background:${color};color:#fff;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700">${label}</span>`
-      }
-
-      const filas = items.map(it => `
-        <tr data-search="${(it.item_id + ' ' + (it.title||'') + ' ' + (it.seller_sku||'')).toLowerCase().replace(/"/g,'')}" style="border-bottom:1px solid var(--border)">
-          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;white-space:nowrap">
-            <a href="https://articulo.mercadolibre.com.mx/${it.item_id.replace(/^(ML[A-Z]+)(\d+)$/, '$1-$2')}" target="_blank" style="color:#3483fa;text-decoration:none">
-              ${it.item_id}
-            </a>
-          </td>
-          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.title}">${it.title}</td>
-          <td style="padding:0.4rem 0.5rem;white-space:nowrap">${statusBadge(it.status)}</td>
-          <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${it.seller_sku || '—'}</td>
-          <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">${it.qty}</td>
-        </tr>`).join('')
-
-      const active  = items.filter(i => i.status === 'active').length
-      const paused  = items.filter(i => i.status === 'paused').length
-      const sinSku  = data.sin_sku || 0
-
-      wrap.innerHTML = `
-        <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
-          <span style="font-size:0.82rem;color:#555">Total: <b>${data.total}</b></span>
-          <span style="font-size:0.82rem;color:#27ae60">Activas: <b>${active}</b></span>
-          <span style="font-size:0.82rem;color:#e67e22">Pausadas: <b>${paused}</b></span>
-          ${sinSku ? `<span style="font-size:0.82rem;color:#e74c3c">Sin SKU ERP: <b>${sinSku}</b></span>` : ''}
-        </div>
-        <input id="ml-pubs-buscar" oninput="mlFiltrarPubs(this.value)" placeholder="🔍 Buscar por título, SKU o item ID..."
-               style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
-        <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
-          <table style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr style="background:var(--bg-secondary);position:sticky;top:0">
-                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Item ID</th>
-                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Título</th>
-                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Estado</th>
-                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKU ERP</th>
-                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888;font-weight:600">Stock</th>
-              </tr>
-            </thead>
-            <tbody>${filas}</tbody>
-          </table>
-        </div>`
-    } catch(e) {
-      wrap.innerHTML = `<p style="color:red">Error de conexión: ${e.message}</p>`
-    } finally {
-      btn.innerHTML = orig
-      btn.disabled = false
-    }
-  }
-
-  window.mlFiltrarPubs = (q) => {
-    q = (q || '').toLowerCase().trim()
-    document.querySelectorAll('#ml-pubs-wrap tbody tr').forEach(tr => {
-      tr.style.display = !q || (tr.dataset.search || '').includes(q) ? '' : 'none'
-    })
-  }
-
   window.mlPublicarTodas = async () => {
     if (!confirm('¿Publicar TODAS las variantes en MercadoLibre con los JSONs editados?')) return
 
@@ -17370,7 +17606,7 @@ async function cargarMercadoLibre() {
     btn.textContent = '⏳ Publicando...'
     btn.disabled = true
 
-    const resDiv = document.getElementById('ml-resultado')
+    const resDiv = document.getElementById('ml-resultado-publicar')
     const titulo = document.getElementById('ml-resultado-titulo')
     const body   = document.getElementById('ml-resultado-body')
     resDiv.style.display = 'block'

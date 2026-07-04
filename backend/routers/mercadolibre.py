@@ -299,13 +299,17 @@ def mensajes(dias: int = 15):
             msgs = pack.get("messages", []) or []
             no_leidos = [m for m in msgs if m.get("from", {}).get("user_id") != int(ML_USER_ID) and not m.get("read")]
             if no_leidos:
+                ultimo = no_leidos[-1]
+                texto = ultimo.get("text") or ultimo.get("message") or ""
+                if isinstance(texto, dict):
+                    texto = texto.get("plain") or texto.get("original") or ""
                 resultado.append({
                     "order_id":      order_id,
                     "comprador":     comprador.get("nickname"),
                     "no_leidos":     len(no_leidos),
-                    "ultimo_mensaje": (no_leidos[-1].get("message") or "")[:200],
-                    "fecha":         no_leidos[-1].get("message_date", {}).get("received"),
-                    "link":          f"https://myaccount.mercadolibre.com.mx/messages/inbox",
+                    "ultimo_mensaje": (texto or "")[:200],
+                    "fecha":         ultimo.get("message_date", {}).get("received"),
+                    "link":          f"https://myaccount.mercadolibre.com.mx/messages/inbox?pack_id={pack_id}",
                 })
         return {"ok": True, "revisadas": len(ordenes[:30]), "con_pendientes": len(resultado), "mensajes": resultado}
     except HTTPException as e:
