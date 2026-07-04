@@ -706,6 +706,21 @@ window.pcAbrirProducto = function(prodId) {
           <p style="color:#5a5a7a;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
         </div>
 
+        ${(p.descripcion || p.material || p.forro || p.tipo_tacon || p.horma) ? `
+        <div style="padding:1rem 1.5rem">
+          ${p.descripcion ? `
+          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Descripción</p>
+          <p style="font-size:0.85rem;color:#c0c0e0;line-height:1.6;margin:0 0 16px">${esc(p.descripcion)}</p>` : ''}
+          ${(p.material || p.forro || p.tipo_tacon || p.horma) ? `
+          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Detalles del producto</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            ${p.material ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Material</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.material)}</p></div>` : ''}
+            ${p.forro ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Forro</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.forro)}</p></div>` : ''}
+            ${p.tipo_tacon ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Tipo de tacón</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.tipo_tacon)}</p></div>` : ''}
+            ${p.horma ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Horma</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.horma)}</p></div>` : ''}
+          </div>` : ''}
+        </div>` : ''}
+
       </div><!-- /scroll -->
 
       <!-- Resumen selección -->
@@ -838,6 +853,7 @@ window.pcSeleccionarColor = (prodId, color) => {
                   style="width:100%;min-height:62px;border:2px solid ${qty>0?'#E91E8C':'#2a2a40'};background:${qty>0?'rgba(233,30,140,0.12)':'#0f0f1c'};border-radius:12px;cursor:${stock===0?'not-allowed':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock===0?'opacity:0.4':''}">
                   <span style="font-size:1rem;font-weight:800;color:${stock===0?'#3a3a5c':'#e2e2f0'}">${esc(v.talla)}</span>
                   <span style="font-size:0.62rem;color:${stock===0?'#3a3a5c':'#4ade80'}">${stock===0?'Agotado':'Stk '+stock}</span>
+                  ${v.sku ? `<span style="font-size:0.55rem;color:#5a5a7a;font-family:monospace">${esc(v.sku)}</span>` : ''}
                 </button>
                 <span id="pc-chipbadge-${v.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${qty}</span>
                 <button id="pc-chipmenos-${v.id}"

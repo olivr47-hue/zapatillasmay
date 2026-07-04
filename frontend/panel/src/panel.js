@@ -4995,8 +4995,9 @@ window.mostrarFormProducto = (datos) => {
     // nuevo -- sobrescribiendo nombre/fotos del producto viejo por accidente.
     window._productoEditandoId = null
     window._coloresExistentes = null
+    window._variantesEditandoActuales = null
   }
-  varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0 
+  varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0
   ? window._coloresExistentes.length 
   : 1
   const d = datos || {}
@@ -5645,21 +5646,28 @@ window.actualizarTablaStock = () => {
         <span style="margin-left:auto;font-size:0.82rem;color:#E91E8C;font-weight:700">Total: <span id="total-color-${c.id}">0</span> pares</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
-        ${tallas.map(t => `
-          <div style="display:flex;align-items:center;gap:6px;background:white;padding:6px 8px;border-radius:8px;border:1px solid #eee">
-            <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:32px">T${t}</span>
-            <button type="button"
-                    onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
-                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">−</button>
-            <input type="number" min="0" placeholder="0"
-                   id="stock-ini-${c.id}-${t.replace('.','_')}"
-                   oninput="actualizarTotalColor('${c.id}')"
-                   style="flex:1;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700;min-width:0">
-            <button type="button"
-                    onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
-                    style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">+</button>
+        ${tallas.map(t => {
+          const varExistente = window._variantesEditandoActuales
+            ? window._variantesEditandoActuales.find(v => v.color === c.nombre && v.talla === t)
+            : null
+          return `
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:center;gap:6px;background:white;padding:6px 8px;border-radius:8px;border:1px solid #eee">
+              <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:32px">T${t}</span>
+              <button type="button"
+                      onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
+                      style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">−</button>
+              <input type="number" min="0" placeholder="0"
+                     id="stock-ini-${c.id}-${t.replace('.','_')}"
+                     oninput="actualizarTotalColor('${c.id}')"
+                     style="flex:1;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700;min-width:0">
+              <button type="button"
+                      onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
+                      style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">+</button>
+            </div>
+            ${varExistente && varExistente.sku ? `<span style="font-size:0.62rem;color:#aaa;font-family:monospace;padding-left:2px">${varExistente.sku}</span>` : ''}
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     </div>
   `).join('')
@@ -6046,6 +6054,7 @@ window.editarProducto = async (id) => {
 
     window._productoEditandoId = id
     window._coloresExistentes = coloresUnicos.length > 0 ? coloresUnicos : null
+    window._variantesEditandoActuales = variantes.filter(v => v.producto_id === id)
 
     // Derivar tallas disponibles desde las variantes (fuente de verdad)
     // Esto garantiza que los checkboxes estén correctamente marcados al editar
