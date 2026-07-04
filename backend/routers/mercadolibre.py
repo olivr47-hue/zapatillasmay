@@ -505,12 +505,12 @@ def _buscar_variante_por_sku(seller_sku: str):
 def _descontar_inventario_variante(variante_id: str, cantidad: int):
     """Resta `cantidad` del inventario de la variante (de la sucursal con más stock;
     si nadie tiene suficiente, se resta de la que tenga más aunque quede en 0)."""
-    filas = supabase_get(f"inventario?variante_id=eq.{variante_id}&select=id,sucursal_id,cantidad&order=cantidad.desc")
+    filas = supabase_get(f"inventario?variante_id=eq.{variante_id}&select=sucursal_id,cantidad&order=cantidad.desc")
     if not filas:
         return False
     fila = filas[0]
     nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
-    supabase_patch(f"inventario?id=eq.{fila['id']}", {"cantidad": nueva_cantidad})
+    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
     supabase_post("movimientos_inventario", {
         "variante_id":  variante_id,
         "sucursal_id":  fila["sucursal_id"],
