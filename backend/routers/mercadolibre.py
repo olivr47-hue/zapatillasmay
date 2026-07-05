@@ -1379,11 +1379,15 @@ def publicar_producto(body: dict):
                 "causas": err.get("cause") or [],
                 "ml_raw": err,   # respuesta completa de ML para debug
             })
-        # Pausa entre tallas del mismo modelo: publicar muchas variantes casi
-        # identicas (mismo titulo/fotos, solo cambia la talla) muy seguido
-        # dispara la deteccion de duplicados/spam de MercadoLibre.
+        # Pausa entre tallas del mismo modelo. Mas larga justo despues de la
+        # PRIMERA talla publicada: cuando el modelo es nuevo, ML tarda unos
+        # segundos en indexar la "familia" (family_id) del primer item. Si la
+        # siguiente talla se manda antes de que eso termine, ML la asigna a
+        # una familia distinta y la publicacion queda partida en varias
+        # fichas (mismo titulo, tallas repartidas) — esto es lo que paso con
+        # JV30060 y EF1200, aun con PATTERN_NAME correcto en todas.
         if idx_v < len(variantes) - 1:
-            time.sleep(0.8)
+            time.sleep(8 if idx_v == 0 else 1.5)
 
     ok  = [r for r in resultados if r.get("status") == "publicado"]
     err = [r for r in resultados if r.get("status") == "error"]
