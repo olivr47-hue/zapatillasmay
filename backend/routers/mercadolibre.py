@@ -1039,7 +1039,6 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
 
     payload = {
         "title":             title,
-        "family_name":       title,
         "category_id":       category_id,
         "price":             precio,
         "available_quantity": sum(max(1, int(v["available_quantity"])) for v in variations),
