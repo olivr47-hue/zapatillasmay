@@ -951,6 +951,220 @@ def _build_item(producto: dict, variante: dict, qty: int,
     }
 
 
+def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
+                          category_id: str, listing_type: str) -> tuple:
+    """
+    Construye el payload de POST /items con VARIACIONES NATIVAS de ML: un solo
+    item para todo el modelo (todos los colores/tallas), en vez de un item por
+    talla. Este es el modelo actual correcto de la API — publicar un item por
+    talla y dejar que ML las agrupe despues (metodo viejo) es lo que causaba
+    que un mismo modelo quedara partido en 2-3 fichas distintas.
+
+    Devuelve (payload, fotos_por_variante_id) — fotos_por_variante_id se usa
+    despues para el PATCH que asigna las fotos correctas a cada variacion.
+    """
+    cat    = (producto.get("categoria") or "sandalia").lower().strip()
+    tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
+    nombre = (producto.get("nombre") or "").strip()
+
+    title_raw = f"{tipo} {nombre} Marca May".strip() if nombre else f"{tipo} Marca May"
+    title     = title_raw[:60].strip()
+
+    # Fotos: pool de TODAS las fotos de TODOS los colores del modelo.
+    fotos_por_variante: dict = {}
+    todas_fotos, vistas = [], set()
+    for v in variantes:
+        fotos = list(v.get("imagenes") or [])
+        if not fotos and v.get("foto_url"):
+            fotos = [v["foto_url"]]
+        if not fotos and producto.get("imagen_principal"):
+            fotos = [producto["imagen_principal"]]
+        fotos_por_variante[v["id"]] = fotos
+        for u in fotos:
+            if u and u not in vistas:
+                vistas.add(u)
+                todas_fotos.append(u)
+    pictures = [{"source": u} for u in todas_fotos[:12] if u]
+
+    descripcion = (producto.get("descripcion") or "").strip()[:4000]
+    grid_id = _SIZE_GRID.get(category_id)
+    fw      = _FOOTWEAR_BY_CAT.get(category_id)
+    precio  = float(producto.get("precio_menudeo") or 0)
+
+    attrs = [
+        {"id": "BRAND",     "value_name": "May"},
+        {"id": "GENDER",    "value_name": "Mujer"},
+        {"id": "AGE_GROUP", "value_id": "6725189"},
+    ]
+    if category_id == "MLM192717":
+        attrs.append({"id": "PATTERN_NAME", "value_name": "Liso"})
+    if fw:
+        attrs.append({"id": "FOOTWEAR_TYPE", "value_id": fw[0], "value_name": fw[1]})
+    if grid_id:
+        attrs.append({"id": "SIZE_GRID_ID", "value_name": grid_id})
+    if nombre:
+        attrs.append({"id": "MODEL", "value_name": nombre})
+
+    variations = []
+    for v in variantes:
+        talla_raw     = str(v.get("talla") or "")
+        talla_display = talla_raw.replace("_", ".")
+        color_raw     = (v.get("color") or "").strip()
+        color_simple  = " ".join(color_raw.split()).title() if color_raw else ""
+        color_key     = color_raw.lower().split()[0] if color_raw else ""
+        mc_id, mc_name = _MAIN_COLOR.get(color_key, ("46671867", "Multicolor"))
+
+        if grid_id:
+            size_value = f"{talla_display} MX"
+            row_id     = _talla_to_row(talla_display, grid_id)
+        else:
+            size_value = talla_display
+            row_id     = None
+
+        combo = [
+            {"id": "COLOR",      "value_name": color_simple},
+            {"id": "MAIN_COLOR", "value_id": mc_id, "value_name": mc_name},
+            {"id": "SIZE",       "value_name": size_value},
+        ]
+        if row_id:
+            combo.append({"id": "SIZE_GRID_ROW_ID", "value_name": row_id})
+
+        qty = stock_map.get(v["id"], 0)
+        variations.append({
+            "attribute_combinations": combo,
+            "price":                  precio,
+            "available_quantity":     max(1, int(qty)),
+            "seller_custom_field":    v.get("sku", ""),
+        })
+
+    payload = {
+        "title":             title,
+        "category_id":       category_id,
+        "price":             precio,
+        "currency_id":       "MXN",
+        "buying_mode":       "buy_it_now",
+        "listing_type_id":   listing_type,
+        "condition":         "new",
+        "catalog_listing":   False,
+        "shipping":          {"mode": "me2", "local_pick_up": False, "free_shipping": True},
+        "description":       {"plain_text": descripcion},
+        "pictures":          pictures,
+        "attributes":        attrs,
+        "variations":        variations,
+    }
+    return payload, fotos_por_variante
+
+
+@router.post("/publicar-agrupado")
+def publicar_producto_agrupado(body: dict):
+    """
+    NUEVO metodo de publicacion: un solo item con variaciones nativas de ML
+    para todo el modelo (todos los colores/tallas juntos), en vez de un item
+    por talla. Evita de raiz que la publicacion se parta en varias fichas.
+
+    Body: { "producto_id": "uuid", "listing_type": "gold_special", "solo_preview": true }
+    """
+    producto_id  = (body.get("producto_id") or "").strip()
+    sku_interno  = (body.get("sku_interno") or "").strip().upper()
+    listing_type = body.get("listing_type") or "gold_special"
+    solo_preview = bool(body.get("solo_preview", False))
+
+    if not producto_id and not sku_interno:
+        raise HTTPException(400, "Se requiere producto_id o sku_interno")
+
+    if producto_id:
+        prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
+    else:
+        prods = supabase_get_all(f"productos?sku_interno=eq.{sku_interno}&select=*&limit=1")
+    if not prods:
+        raise HTTPException(404, f"Producto no encontrado (sku={sku_interno or producto_id})")
+    producto = prods[0]
+    producto_id = producto_id or producto.get("id", "")
+
+    variantes = supabase_get_all(f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*")
+    if not variantes:
+        raise HTTPException(404, "Sin variantes activas para este producto")
+
+    # No republicar si ya existe alguna variante de este producto viva en ML.
+    if not solo_preview:
+        try:
+            items_ml = _get_items_with_sku(_get_all_item_ids())
+            vivos = {_norm_sku(it["seller_sku"]) for it in items_ml
+                     if it["status"] in ("active", "paused", "under_review") and it["seller_sku"]}
+            ya_publicadas = [v.get("sku") for v in variantes if _norm_sku(v.get("sku") or "") in vivos]
+            if ya_publicadas:
+                return {"error": "Algunas variantes ya tienen publicacion viva en ML, cancela para evitar duplicados.",
+                        "skus_ya_publicados": ya_publicadas}
+        except Exception:
+            pass
+
+    vids_str = ",".join(v["id"] for v in variantes)
+    inv_rows = supabase_get_all(f"inventario?variante_id=in.({vids_str})&select=variante_id,cantidad")
+    stock_map: dict = {}
+    for row in inv_rows:
+        vid = row.get("variante_id")
+        if vid:
+            stock_map[vid] = stock_map.get(vid, 0) + (row.get("cantidad") or 0)
+
+    cat_key     = (producto.get("categoria") or "sandalia").lower().strip()
+    category_id = (body.get("category_id") or "").strip() or _CATEGORY_ID.get(cat_key, _CATEGORY_DEFAULT)
+
+    payload, fotos_por_variante = _build_item_agrupado(producto, variantes, stock_map, category_id, listing_type)
+
+    if solo_preview:
+        return {"producto": producto.get("nombre"), "categoria": cat_key, "category_id": category_id,
+                "variaciones": len(variantes), "preview": payload}
+
+    req_body = json.dumps(payload).encode()
+    req = urllib.request.Request(f"{ML_BASE}/items", data=req_body, headers=ml_headers(), method="POST")
+    try:
+        with urllib.request.urlopen(req) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            err = json.loads(raw)
+        except Exception:
+            err = {"raw_text": raw.decode(errors="replace")}
+        return {"error": err.get("message") or err.get("error") or str(err), "causas": err.get("cause") or [], "ml_raw": err}
+
+    item_id = resp.get("id")
+
+    # Paso 2: asignar a cada variacion las fotos de SU color (ML asigna ids a
+    # las fotos del pool general en la respuesta del POST; hay que mapear
+    # source -> id y mandarlas de vuelta en un PUT sobre las variations).
+    try:
+        fotos_creadas = resp.get("pictures", [])
+        id_por_source = {}
+        for foto in fotos_creadas:
+            src = foto.get("source") or foto.get("secure_url") or foto.get("url")
+            if src:
+                id_por_source[src] = foto.get("id")
+
+        variations_resp = resp.get("variations", [])
+        variations_actualizadas = []
+        for i, v in enumerate(variantes):
+            fotos_de_esta = fotos_por_variante.get(v["id"], [])
+            picture_ids = [id_por_source[u] for u in fotos_de_esta if u in id_por_source]
+            if picture_ids and i < len(variations_resp):
+                variations_actualizadas.append({
+                    "id": variations_resp[i].get("id"),
+                    "picture_ids": picture_ids,
+                })
+        if variations_actualizadas:
+            ml_put(f"/items/{item_id}", {"variations": variations_actualizadas})
+    except Exception as e:
+        print(f"[ml publicar-agrupado] no se pudieron asignar fotos por color: {e}")
+
+    return {
+        "producto":   producto.get("nombre"),
+        "item_id":    item_id,
+        "permalink":  resp.get("permalink"),
+        "variaciones_publicadas": len(resp.get("variations", [])),
+        "status":     resp.get("status"),
+    }
+
+
 @router.post("/publicar-payloads")
 def publicar_payloads_raw(body: dict):
     """
