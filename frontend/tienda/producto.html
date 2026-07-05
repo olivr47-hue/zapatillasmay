@@ -842,7 +842,15 @@ async function init() {
 function renderProducto() {
   const p = producto
   const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
-  const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+  const _coloresTodos = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
+  const _stockDeColor = (c) => varsProd.filter(v => v.color === c).reduce((s, v) => {
+    const inv = inventario.find(i => i.variante_id === v.id)
+    return s + (inv ? (inv.cantidad || 0) : 0)
+  }, 0)
+  // Oculta colores sin stock en ninguna talla (evita que un color de portada agotado
+  // sea lo primero que ve el cliente sin poder comprar nada).
+  const _coloresConStock = _coloresTodos.filter(c => _stockDeColor(c) > 0)
+  const colores = _coloresConStock.length ? _coloresConStock : _coloresTodos
 
   // SEO dinámico
   const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
@@ -1084,7 +1092,7 @@ function renderProducto() {
     let colorPrincipal = colores[0]
     if (p.imagen_principal) {
       const vp = varsProd.find(v => v.foto_url === p.imagen_principal || (Array.isArray(v.imagenes) && v.imagenes.includes(p.imagen_principal)))
-      if (vp && vp.color) colorPrincipal = vp.color
+      if (vp && vp.color && colores.includes(vp.color)) colorPrincipal = vp.color
     }
     setTimeout(() => seleccionarColor(colorPrincipal), 60)
   }
