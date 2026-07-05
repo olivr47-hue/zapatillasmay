@@ -1482,6 +1482,12 @@ def size_charts(cat: str = "MLM193197"):
     return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
 
 
+@router.get("/categoria-attrs/{category_id}")
+def categoria_attrs(category_id: str):
+    """Lista los atributos validos de una categoria de ML (para debug)."""
+    return ml_get(f"/categories/{category_id}/attributes")
+
+
 @router.post("/publicar")
 def publicar_producto(body: dict):
     """
