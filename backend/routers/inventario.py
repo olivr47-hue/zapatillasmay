@@ -42,11 +42,14 @@ def alertas_stock_bajo():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/")
-def listar_inventario():
+def listar_inventario(fresh: bool = False):
+    """fresh=true evita la cache de 10 min — lo usa el POS para no vender
+    con stock desactualizado si hubo una venta/ajuste reciente en otro lado."""
     try:
-        cached = cache_get(_CK + "_all")
-        if cached is not None:
-            return cached
+        if not fresh:
+            cached = cache_get(_CK + "_all")
+            if cached is not None:
+                return cached
         data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno,marca)),sucursales(nombre)")
         cache_set(_CK + "_all", data, ttl=TTL_STOCK)
         return data

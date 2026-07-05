@@ -8569,7 +8569,7 @@ async function cargarPOS() {
       fetch(API + '/variantes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json()),
       fetch(API + '/clientes/').then(r => r.json()),
-      fetch(API + '/inventario/').then(r => r.json())
+      fetch(API + '/inventario/?fresh=true').then(r => r.json())
     ])
 
     window._posData = { productos, variantes, sucursales, clientes, inventario }
@@ -10473,6 +10473,7 @@ window.cobrarPOS = async () => {
     const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
     window._posCarrito = []
     window._cobrando = false
+    ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
     renderCarritoPOS()
     imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
 

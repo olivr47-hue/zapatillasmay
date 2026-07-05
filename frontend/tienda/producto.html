@@ -1922,7 +1922,7 @@ async function buscarProductos(q) {
   const term = (q || '').trim()
   const containers = ['search-results', 'mobile-search-results']
   if (term.length < 2) {
-    containers.forEach(id => { const el = document.getElementById(id); if(el) el.innerHTML = '' })
+    containers.forEach(id => { const el = document.getElementById(id); if(el) { el.innerHTML = ''; el.classList.remove('show') } })
     return
   }
   if (_searchCache[term]) {
@@ -1944,15 +1944,16 @@ async function buscarProductos(q) {
 function renderSearchResults(data, containerId) {
   const el = document.getElementById(containerId)
   if (!el) return
-  if (!data.length) { el.innerHTML = '<div style="padding:12px 16px;font-size:0.82rem;color:#999">Sin resultados</div>'; return }
+  if (!data.length) { el.innerHTML = '<div style="padding:12px 16px;font-size:0.82rem;color:#999">Sin resultados</div>'; el.classList.add('show'); return }
   el.innerHTML = data.map(p => {
     const precio = p.precio_menudeo ? `$${p.precio_menudeo + 80} MXN` : ''
     const img = p.imagen_principal ? p.imagen_principal.replace('/upload/', '/upload/w_80,f_auto,q_auto/') : ''
-    return `<a href="/producto/${p.sku_interno}" style="display:flex;align-items:center;gap:10px;padding:9px 14px;text-decoration:none;color:inherit;border-bottom:1px solid #f5f0ea">
+    return `<a href="/producto/${p.sku_interno}" onclick="document.querySelectorAll('.search-results').forEach(function(c){c.classList.remove('show')})" style="display:flex;align-items:center;gap:10px;padding:9px 14px;text-decoration:none;color:inherit;border-bottom:1px solid #f5f0ea">
       ${img ? `<img src="${img}" width="40" height="40" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" alt="${p.nombre}">` : ''}
       <span style="flex:1;min-width:0"><span style="display:block;font-size:0.82rem;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</span><span style="font-size:0.75rem;color:var(--tan)">${precio}</span></span>
     </a>`
   }).join('')
+  el.classList.add('show')
 }
 </script>
 </body>
