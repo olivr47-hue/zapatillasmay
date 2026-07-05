@@ -5097,6 +5097,14 @@ window.mostrarFormProducto = (datos) => {
               <option value="sin_tacon" ${d.tipo_tacon === 'sin_tacon' ? 'selected' : ''}>Sin tacon</option>
             </select>
           </div>
+          <div>
+            <label class="form-label">Temporada (para MercadoLibre)</label>
+            <select class="form-input" id="f-temporada">
+              <option value="">Automático (según descripción)</option>
+              <option value="primavera_verano" ${d.temporada === 'primavera_verano' ? 'selected' : ''}>Primavera/Verano</option>
+              <option value="otono_invierno" ${d.temporada === 'otono_invierno' ? 'selected' : ''}>Otoño/Invierno</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -5806,6 +5814,7 @@ document.querySelectorAll('.variante-item').forEach(v => {
     material_suela: document.getElementById('f-suela') ? document.getElementById('f-suela').value || null : null,
     forro: document.getElementById('f-forro') ? document.getElementById('f-forro').value || null : null,
     horma: document.getElementById('f-horma') ? document.getElementById('f-horma').value || null : null,
+    temporada: document.getElementById('f-temporada') ? document.getElementById('f-temporada').value || null : null,
     altura_tacon: document.getElementById('f-tacon') && document.getElementById('f-tacon').value ? parseFloat(document.getElementById('f-tacon').value) : null,
     tipo_tacon: document.getElementById('f-tipotacon') ? document.getElementById('f-tipotacon').value || null : null,
     costo: parseFloat(costo),

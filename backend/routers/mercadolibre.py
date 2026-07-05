@@ -945,12 +945,17 @@ def _build_item(producto: dict, variante: dict, qty: int,
     color_key = color_raw.lower().split()[0] if color_raw else ""
     mc_id, mc_name = _MAIN_COLOR.get(color_key, ("46671867", "Multicolor"))
 
-    # ── Temporada desde descripción ──
+    # ── Temporada: usa el campo del formulario si se eligió; si quedó en
+    # "Automático" (vacío), la infiere de la descripción como respaldo. ──
     descripcion  = (producto.get("descripcion") or "").strip()[:4000]
     desc_lower   = descripcion.lower()
-    season_key = ("otono_invierno"
-                  if any(p in desc_lower for p in ("otoño", "invierno"))
-                  else "primavera_verano")
+    temporada_manual = (producto.get("temporada") or "").strip()
+    if temporada_manual in _RELEASE_SEASON:
+        season_key = temporada_manual
+    else:
+        season_key = ("otono_invierno"
+                      if any(p in desc_lower for p in ("otoño", "invierno"))
+                      else "primavera_verano")
     season_id, season_name = _RELEASE_SEASON[season_key]
 
     # FOOTWEAR_TYPE válido según la categoría (value_id estándar de ML).
@@ -1052,7 +1057,9 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
 
     descripcion = (producto.get("descripcion") or "").strip()[:4000]
     desc_lower  = descripcion.lower()
-    season_key  = ("otono_invierno" if any(p in desc_lower for p in ("otoño", "invierno")) else "primavera_verano")
+    temporada_manual = (producto.get("temporada") or "").strip()
+    season_key = temporada_manual if temporada_manual in _RELEASE_SEASON else (
+        "otono_invierno" if any(p in desc_lower for p in ("otoño", "invierno")) else "primavera_verano")
     season_id, season_name = _RELEASE_SEASON[season_key]
     grid_id = _SIZE_GRID.get(category_id)
     fw      = _FOOTWEAR_BY_CAT.get(category_id)
