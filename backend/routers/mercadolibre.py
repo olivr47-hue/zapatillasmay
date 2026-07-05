@@ -1313,11 +1313,30 @@ def publicar_producto(body: dict):
     cat_key     = (producto.get("categoria") or "sandalia").lower().strip()
     category_id = (body.get("category_id") or "").strip() or _CATEGORY_ID.get(cat_key, _CATEGORY_DEFAULT)
 
+    # SKUs que ya tienen una publicacion viva en ML: nunca volver a publicar
+    # el mismo SKU encima (esto es lo que causo publicaciones duplicadas).
+    skus_ya_publicados = set()
+    if not solo_preview:
+        try:
+            items_ml = _get_items_with_sku(_get_all_item_ids())
+            for it in items_ml:
+                if it["status"] in ("active", "paused", "under_review") and it["seller_sku"]:
+                    skus_ya_publicados.add(_norm_sku(it["seller_sku"]))
+        except Exception:
+            pass  # si falla el chequeo, seguir publicando (no bloquear por un error de red)
+
     # Construir y publicar
     resultados = []
     for idx_v, variante in enumerate(variantes):
         qty     = stock_map.get(variante["id"], 0)
         payload = _build_item(producto, variante, qty, category_id, listing_type)
+
+        if not solo_preview and _norm_sku(variante.get("sku") or "") in skus_ya_publicados:
+            resultados.append({
+                "sku": variante.get("sku"), "status": "omitido",
+                "error": "Este SKU ya tiene una publicacion activa/pausada/en revision en ML. Usa /ml/sync para actualizar su stock, o cierra la publicacion vieja antes de republicar.",
+            })
+            continue
 
         if solo_preview:
             resultados.append({
