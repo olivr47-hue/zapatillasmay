@@ -829,6 +829,56 @@ _MAIN_COLOR = {
     "multicolor":("46671867","Multicolor"),
 }
 
+# Material del corte (FOOTWEAR_MATERIALS, MLM192717) — value_id ML por texto ERP.
+# El ERP casi siempre trae "SINTETICO" (con variantes/erratas), de ahi el
+# fallback por defecto a Sintetico si no se reconoce nada mas especifico.
+_FOOTWEAR_MATERIAL = {
+    "charol": "3675718", "corcho": "10869424", "cuero sintetico": "18654879",
+    "fomi": "19586002", "gamuza": "3675717", "goma": "3993038", "madera": "3630288",
+    "malla": "5167250", "mezclilla": "39073668", "nobuck": "7122115", "pvc": "6802485",
+    "piel sintetica": "963343", "piel": "312072", "plastico": "994251",
+    "sintetico": "11809863", "tejido": "312073", "yute": "39073669",
+}
+# Material de la suela (OUTSOLE_MATERIAL, MLM192717).
+_OUTSOLE_MATERIAL = {
+    "antideslizante": "39073670", "cuero": "39073671", "caucho": "35681084",
+    "goma": "930364", "plastico": "930363", "poliuretano": "3560836",
+    "pvc": "3189183", "sintetico": "12004923", "tpr": "39073673", "tr": "11351677",
+    "corcho": "39073674", "madera": "3632893", "tpu": "11865317",
+}
+# Tipo de tacon (HEEL_TYPE, MLM192717) — solo tiene 4 opciones validas, no hay
+# "Bloque"; se mapea a "Ancho" que es lo mas cercano. "sin_tacon" se omite.
+_HEEL_TYPE = {
+    "aguja": ("1006229", "Aguja"), "ancho": ("994260", "Ancho"),
+    "bloque": ("994260", "Ancho"), "cuna": ("994262", "Cuña"),
+    "plataforma": ("994264", "Plataforma"),
+}
+_RELEASE_SEASON = {"primavera_verano": ("994283", "Primavera/Verano"), "otono_invierno": ("994284", "Otoño/Invierno")}
+
+
+def _normalizar_material(texto: str) -> str:
+    """Quita acentos/espacios extra y pasa a minusculas para emparejar contra
+    los diccionarios de arriba, tolerando erratas comunes del formulario."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", (texto or "")).encode("ascii", "ignore").decode().lower().strip()
+    return t
+
+
+def _material_a_value_id(texto: str, tabla: dict) -> str | None:
+    t = _normalizar_material(texto)
+    if not t:
+        return None
+    if t in tabla:
+        return tabla[t]
+    # Coincidencia parcial (ej. "sintetico" dentro de "SINTETICOS"/"SINTETIOCO")
+    for clave, value_id in tabla.items():
+        if clave in t or t in clave:
+            return value_id
+    # Por defecto, la gran mayoria del catalogo es sintetico.
+    if "sintet" in t:
+        return tabla.get("sintetico")
+    return None
+
 
 def _talla_to_row(talla, grid_id: str = "487994") -> str | None:
     """
@@ -898,12 +948,18 @@ def _build_item(producto: dict, variante: dict, qty: int,
     # ── Temporada desde descripción ──
     descripcion  = (producto.get("descripcion") or "").strip()[:4000]
     desc_lower   = descripcion.lower()
-    season = ("Otoño/Invierno"
-              if any(p in desc_lower for p in ("otoño", "invierno"))
-              else "Primavera/Verano")
+    season_key = ("otono_invierno"
+                  if any(p in desc_lower for p in ("otoño", "invierno"))
+                  else "primavera_verano")
+    season_id, season_name = _RELEASE_SEASON[season_key]
 
     # FOOTWEAR_TYPE válido según la categoría (value_id estándar de ML).
     fw = _FOOTWEAR_BY_CAT.get(category_id)
+
+    # ── Material del corte / suela / tipo de tacón (desde el form del ERP) ──
+    material_id  = _material_a_value_id(producto.get("material"), _FOOTWEAR_MATERIAL)
+    suela_id     = _material_a_value_id(producto.get("material_suela"), _OUTSOLE_MATERIAL)
+    heel = _HEEL_TYPE.get(_normalizar_material(producto.get("tipo_tacon")))
 
     attrs = [
         {"id": "SELLER_SKU",    "value_name": variante.get("sku", "")},
@@ -913,7 +969,15 @@ def _build_item(producto: dict, variante: dict, qty: int,
         {"id": "COLOR",         "value_name": color_simple},
         {"id": "MAIN_COLOR",    "value_id": mc_id, "value_name": mc_name},
         {"id": "SIZE",          "value_name": size_value},
+        {"id": "RELEASE_YEAR",  "value_name": str(datetime.now().year)},
+        {"id": "RELEASE_SEASON","value_id": season_id, "value_name": season_name},
     ]
+    if material_id:
+        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_id": material_id})
+    if suela_id:
+        attrs.append({"id": "OUTSOLE_MATERIAL", "value_id": suela_id})
+    if heel:
+        attrs.append({"id": "HEEL_TYPE", "value_id": heel[0], "value_name": heel[1]})
     # PATTERN_NAME tiene allow_variations+defines_picture en ML: si no lo
     # mandamos, ML lo infiere solo con IA por foto y sale distinto en cada
     # talla, lo que puede partir la publicación en varias fichas separadas.
@@ -987,15 +1051,30 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
     pictures = [{"source": u} for u in todas_fotos[:12] if u]
 
     descripcion = (producto.get("descripcion") or "").strip()[:4000]
+    desc_lower  = descripcion.lower()
+    season_key  = ("otono_invierno" if any(p in desc_lower for p in ("otoño", "invierno")) else "primavera_verano")
+    season_id, season_name = _RELEASE_SEASON[season_key]
     grid_id = _SIZE_GRID.get(category_id)
     fw      = _FOOTWEAR_BY_CAT.get(category_id)
     precio  = float(producto.get("precio_menudeo") or 0)
+
+    material_id = _material_a_value_id(producto.get("material"), _FOOTWEAR_MATERIAL)
+    suela_id    = _material_a_value_id(producto.get("material_suela"), _OUTSOLE_MATERIAL)
+    heel        = _HEEL_TYPE.get(_normalizar_material(producto.get("tipo_tacon")))
 
     attrs = [
         {"id": "BRAND",     "value_name": "May"},
         {"id": "GENDER",    "value_name": "Mujer"},
         {"id": "AGE_GROUP", "value_id": "6725189"},
+        {"id": "RELEASE_YEAR",   "value_name": str(datetime.now().year)},
+        {"id": "RELEASE_SEASON", "value_id": season_id, "value_name": season_name},
     ]
+    if material_id:
+        attrs.append({"id": "FOOTWEAR_MATERIALS", "value_id": material_id})
+    if suela_id:
+        attrs.append({"id": "OUTSOLE_MATERIAL", "value_id": suela_id})
+    if heel:
+        attrs.append({"id": "HEEL_TYPE", "value_id": heel[0], "value_name": heel[1]})
     if category_id == "MLM192717":
         attrs.append({"id": "PATTERN_NAME", "value_name": "Liso"})
     if fw:
@@ -1602,6 +1681,20 @@ def publicar_producto(body: dict):
                     "status":  "publicado",
                     "permalink": resp.get("permalink"),
                 })
+                # La descripcion embebida en el payload de creacion no siempre
+                # la toma ML; se manda tambien por su endpoint dedicado.
+                descripcion_item = (producto.get("descripcion") or "").strip()[:4000]
+                if descripcion_item and resp.get("id"):
+                    try:
+                        desc_req = urllib.request.Request(
+                            f"{ML_BASE}/items/{resp['id']}/description",
+                            data=json.dumps({"plain_text": descripcion_item}).encode(),
+                            headers=ml_headers(), method="POST",
+                        )
+                        with urllib.request.urlopen(desc_req):
+                            pass
+                    except Exception as e:
+                        print(f"[ml publicar] no se pudo mandar descripcion de {resp.get('id')}: {e}")
         except urllib.error.HTTPError as e:
             raw = e.read()
             try:
