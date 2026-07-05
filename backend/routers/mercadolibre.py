@@ -1315,7 +1315,7 @@ def publicar_producto(body: dict):
 
     # Construir y publicar
     resultados = []
-    for variante in variantes:
+    for idx_v, variante in enumerate(variantes):
         qty     = stock_map.get(variante["id"], 0)
         payload = _build_item(producto, variante, qty, category_id, listing_type)
 
@@ -1360,6 +1360,11 @@ def publicar_producto(body: dict):
                 "causas": err.get("cause") or [],
                 "ml_raw": err,   # respuesta completa de ML para debug
             })
+        # Pausa entre tallas del mismo modelo: publicar muchas variantes casi
+        # identicas (mismo titulo/fotos, solo cambia la talla) muy seguido
+        # dispara la deteccion de duplicados/spam de MercadoLibre.
+        if idx_v < len(variantes) - 1:
+            time.sleep(0.8)
 
     ok  = [r for r in resultados if r.get("status") == "publicado"]
     err = [r for r in resultados if r.get("status") == "error"]
@@ -1463,7 +1468,21 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
     else:
         productos = pendientes[:limite]
     resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
-    for p in productos:
+    ya_publicados_ahora = set()  # sku_interno publicados en esta misma corrida
+    for idx, p in enumerate(productos):
+        sku_interno = _norm_sku(p.get("sku_interno") or "")
+        # Chequeo de seguridad cada 15 productos: si el servidor se reinicio a
+        # medio proceso (ej. un deploy) y esta corrida se repite, no publicar
+        # de nuevo lo que ya quedo en ML desde antes de este relanzamiento.
+        if idx > 0 and idx % 15 == 0:
+            pendientes_ahora = {_norm_sku(x.get("sku_interno") or "") for x in _productos_sin_publicar()}
+        else:
+            pendientes_ahora = None
+        if sku_interno in ya_publicados_ahora:
+            continue
+        if pendientes_ahora is not None and sku_interno not in pendientes_ahora:
+            resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "omitido": "ya estaba publicado"})
+            continue
         try:
             res = publicar_producto({
                 "producto_id":  p["id"],
@@ -1474,6 +1493,7 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
             err = res.get("errores", 0)
             if pub > 0:
                 resumen["publicados"] += 1
+                ya_publicados_ahora.add(sku_interno)
             if err > 0 and pub == 0:
                 resumen["con_error"] += 1
             resumen["detalle"].append({
@@ -1483,6 +1503,9 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
         except Exception as e:
             resumen["con_error"] += 1
             resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": str(e)})
+        # Pausa entre modelos para no disparar la deteccion de spam/duplicados
+        # de MercadoLibre al crear muchas publicaciones parecidas muy seguido.
+        time.sleep(2)
     cache_set("ml_publicar_catalogo_log", resumen, ttl=3600)
 
 
