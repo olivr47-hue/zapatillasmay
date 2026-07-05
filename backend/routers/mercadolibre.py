@@ -1039,6 +1039,9 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
 
     payload = {
         "title":             title,
+        # family_name debe ser generico (no igual al title completo con nombre
+        # de modelo) o ML lo rechaza como "invalido con variations".
+        "family_name":       f"{tipo} Marca May",
         "category_id":       category_id,
         "price":             precio,
         "available_quantity": sum(max(1, int(v["available_quantity"])) for v in variations),
