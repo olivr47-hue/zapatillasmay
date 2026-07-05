@@ -1108,6 +1108,18 @@ def cerrar_item(item_id: str):
     return {"item_id": item_id, "pasos": pasos}
 
 
+@router.post("/actualizar-sku/{item_id}")
+def actualizar_sku_item(item_id: str, body: dict):
+    """Corrige el SELLER_SKU de una publicacion ya activa (ej. arreglar un
+    SKU mal generado como 'None-COG-23' que quedo publicado por error).
+    Body: { "sku": "M-SAN-0037-COG-23" }"""
+    sku = (body.get("sku") or "").strip()
+    if not sku:
+        return {"error": "sku requerido"}
+    resultado = ml_put(f"/items/{item_id}", {"attributes": [{"id": "SELLER_SKU", "value_name": sku}]})
+    return {"item_id": item_id, "sku": sku, "resultado": resultado}
+
+
 @router.post("/reparar-titulo-color")
 def reparar_titulo_color(body: dict):
     """
