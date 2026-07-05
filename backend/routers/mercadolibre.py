@@ -1043,8 +1043,9 @@ def _build_item_agrupado(producto: dict, variantes: list, stock_map: dict,
         # de modelo) o ML lo rechaza como "invalido con variations".
         "family_name":       f"{tipo} Marca May",
         "category_id":       category_id,
-        "price":             precio,
-        "available_quantity": sum(max(1, int(v["available_quantity"])) for v in variations),
+        # NOTA: price/available_quantity a nivel item se omiten a proposito
+        # cuando se usan variations — cada variacion ya trae su propio precio
+        # y stock, y ML rechaza el payload si se mandan ambos a la vez.
         "currency_id":       "MXN",
         "buying_mode":       "buy_it_now",
         "listing_type_id":   listing_type,
