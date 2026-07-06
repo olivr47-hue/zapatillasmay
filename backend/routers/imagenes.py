@@ -3,34 +3,22 @@ from fastapi.responses import JSONResponse, Response, RedirectResponse
 from storage import subir_imagen, eliminar_imagen, subir_video
 import cloudinary.uploader
 import urllib.request as _urllib
+import urllib.error
 import urllib.parse as _up
-import json as _json
 import os
 
 router = APIRouter(prefix="/imagenes", tags=["Imágenes"])
 
 _SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 _SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-_BUCKET = "wa-docs"
 
 
 def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
-    """Sube un PDF a Supabase Storage (bucket público wa-docs) y devuelve la URL pública."""
-    # Crear bucket si no existe (falla silenciosamente si ya existe)
-    try:
-        body = _json.dumps({"id": _BUCKET, "name": _BUCKET, "public": True}).encode()
-        req = _urllib.Request(
-            f"{_SUPABASE_URL}/storage/v1/bucket",
-            data=body, method="POST",
-            headers={"Authorization": f"Bearer {_SUPABASE_KEY}", "Content-Type": "application/json"}
-        )
-        _urllib.urlopen(req, timeout=10)
-    except Exception:
-        pass  # bucket ya existe o no hay permisos — intentar upload igual
-
-    # Subir archivo
+    """Sube un PDF al bucket wa-media (ya existe) y devuelve la URL pública."""
+    if not _SUPABASE_URL or not _SUPABASE_KEY:
+        raise RuntimeError("SUPABASE_URL o SUPABASE_KEY no configurados")
     req = _urllib.Request(
-        f"{_SUPABASE_URL}/storage/v1/object/{_BUCKET}/{filename}",
+        f"{_SUPABASE_URL}/storage/v1/object/wa-media/{filename}",
         data=contenido, method="POST",
         headers={
             "Authorization": f"Bearer {_SUPABASE_KEY}",
@@ -38,8 +26,12 @@ def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
             "x-upsert": "true"
         }
     )
-    _urllib.urlopen(req, timeout=30)
-    return f"{_SUPABASE_URL}/storage/v1/object/public/{_BUCKET}/{filename}"
+    try:
+        with _urllib.urlopen(req, timeout=30) as r:
+            r.read()
+    except _urllib.error.HTTPError as e:
+        raise RuntimeError(f"Supabase Storage {e.code}: {e.read().decode()}")
+    return f"{_SUPABASE_URL}/storage/v1/object/public/wa-media/{filename}"
 
 
 @router.post("/subir")
