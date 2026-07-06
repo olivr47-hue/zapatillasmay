@@ -3617,6 +3617,18 @@ window.addEventListener('load', () => {
 })
 
   // Advanced Matching: datos del comprador (que el pixel encripta solo) para mejorar la coincidencia
+  // ID anonimo persistente por navegador — se manda como external_id a Pinterest
+  // para que pueda enlazar varios eventos del mismo visitante entre visitas.
+  window._zmVisitorId = function() {
+    try {
+      let id = localStorage.getItem('zm_visitor_id')
+      if (!id) {
+        id = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2)
+        localStorage.setItem('zm_visitor_id', id)
+      }
+      return id
+    } catch(e) { return '' }
+  }
   window._fbAM = function() {
     try {
       const d = JSON.parse(localStorage.getItem('zm_form_datos') || 'null') || {}
@@ -4364,6 +4376,7 @@ if (window.ttq) {
           content_ids:      [p.sku_interno || p.id],
           content_name:     p.nombre,
           num_items:        1,
+          external_id:      window._zmVisitorId ? window._zmVisitorId() : '',
         })
       }).catch(() => {})
     } catch(e) {}

@@ -87,8 +87,13 @@ def enviar_checkout(pedido: dict, payment: dict) -> dict:
         user_data["fn"] = [_sha256(fn)]
     if ln:
         user_data["ln"] = [_sha256(ln)]
-    if cliente_id:
-        user_data["external_id"] = [_sha256(cliente_id)]
+    # external_id: identificador estable del comprador. Pinterest lo recomienda
+    # en todos los eventos de checkout; si no hay cuenta (compra de invitado,
+    # el caso mas comun), se usa el email o en ultimo caso el id del pedido
+    # para no dejarlo vacio.
+    external_id_raw = cliente_id or email or pedido_id
+    if external_id_raw:
+        user_data["external_id"] = [_sha256(external_id_raw)]
     user_data["country"] = [_sha256("mx")]
 
     content_ids = [str(it.get("variante_id") or it.get("producto_id") or "") for it in items if it]
@@ -152,6 +157,12 @@ async def recibir_evento(request: Request):
     email = (body.get("email") or "").strip().lower()
     if email:
         user_data["em"] = [_sha256(email)]
+    # external_id: usa el visitante anonimo persistente que manda el frontend
+    # (o el email si ya se conoce) para que Pinterest pueda enlazar eventos
+    # del mismo usuario a traves de varias visitas.
+    external_id_raw = (body.get("external_id") or "").strip() or email
+    if external_id_raw:
+        user_data["external_id"] = [_sha256(external_id_raw)]
 
     custom_data: dict = {"currency": body.get("currency", "MXN")}
     if body.get("value"):
