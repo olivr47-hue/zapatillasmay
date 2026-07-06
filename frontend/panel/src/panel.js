@@ -83,6 +83,7 @@ const modulos = [
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
+  { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
   { id: 'carritos-abandonados', icon: '🛒', label: 'Carritos abandonados', section: 'Ventas', soloAdmin: true },
@@ -356,6 +357,7 @@ async function cargarModulo(id) {
     case 'conversaciones': await cargarConversaciones(); break;
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
+    case 'notificaciones': await cargarNotificaciones(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
     case 'orden-home':     await cargarOrdenHome(); break;
     case 'generar-nombres': await cargarGenerarNombres(); break;
@@ -12384,7 +12386,10 @@ window._renderBurbujas = (chat) => {
       const _docUrlMatch = _docRaw.match(/(https?:\/\/\S+)$/)
       const furl  = _docUrlMatch ? _docUrlMatch[1] : ''
       const fname = furl ? _docRaw.slice(0, _docRaw.lastIndexOf(furl)).trim() || 'documento' : (_docRaw || 'documento')
-      msgBody = `<a href="${furl}" target="_blank" class="wa-doc-link">
+      const viewUrl = furl && furl.startsWith('https://res.cloudinary.com/')
+        ? `${API}/imagenes/pdf-viewer?url=${encodeURIComponent(furl)}`
+        : furl
+      msgBody = `<a href="${viewUrl}" target="_blank" class="wa-doc-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         ${fname}</a>`
     } else if (m.tipo === 'video_saliente') {
@@ -14731,7 +14736,7 @@ async function cargarCarritosAbandonados() {
                         <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
                         <td style="padding:8px">${badgeCA(c)}</td>
                         <td style="padding:8px">
-                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer">💬 WhatsApp</button>` : ''}
+                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">💬 WhatsApp</button><button onclick="enviarPushCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #7c3aed;background:none;color:#7c3aed;font-size:0.75rem;font-weight:600;cursor:pointer">🔔 Push</button>` : ''}
                         </td>
                       </tr>`).join('')
                     : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
@@ -14772,6 +14777,28 @@ window.enviarWACarrito = async function(carritoId, btn) {
       btn.textContent = orig
       btn.disabled = false
       alert('Error: ' + (d.error || 'No se pudo enviar'))
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
+  }
+}
+
+window.enviarPushCarrito = async function(carritoId, btn) {
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  try {
+    const res = await fetch(API + `/carrito-abandonado/${carritoId}/push`, { method: 'POST' })
+    const d = await res.json()
+    if (d.ok) {
+      btn.textContent = '✅ Enviado'
+      btn.style.borderColor = '#15803d'
+      btn.style.color = '#15803d'
+    } else {
+      btn.textContent = orig
+      btn.disabled = false
+      alert('Error: ' + (d.error || 'El cliente no tiene notificaciones push activas'))
     }
   } catch(e) {
     btn.textContent = orig
@@ -17009,6 +17036,10 @@ const _mlIcon = (name, size = 18, color = 'currentColor') => {
     externalLink: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
     clock:      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
     xCircle:    '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    bell:       '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+    users:      '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    send:       '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+    checkCircle:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
   }
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:-3px">${paths[name] || ''}</svg>`
 }
@@ -17988,6 +18019,212 @@ async function _mlRenderPublicarTab() {
       btn.style.cursor = 'pointer'
     }
   }
+}
+
+// ─── NOTIFICACIONES PUSH ──────────────────────────────────────────────────────
+
+const _PUSH_TABS = [
+  { id: 'enviar',       label: 'Enviar',       icon: 'send' },
+  { id: 'suscriptores', label: 'Suscriptores', icon: 'users' },
+  { id: 'historial',    label: 'Historial',    icon: 'clock' },
+]
+
+async function cargarNotificaciones() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:1.5rem 2rem;max-width:1150px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:#7c3aed;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${_mlIcon('bell', 18, '#fff')}
+        </div>
+        <h2 style="margin:0;font-size:1.25rem">Notificaciones push</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
+        Avisos tipo WhatsApp para clientes de la tienda y del portal mayorista.
+      </p>
+      <div id="push-tabs" style="display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #e5e5e5;margin-bottom:1.5rem">
+        ${_PUSH_TABS.map(t => `
+          <button class="push-tab-btn" data-tab="${t.id}" onclick="window._pushSwitchTab('${t.id}')"
+                  onmouseover="if(this.dataset.tab!==window._pushTabActivo)this.style.color='#7c3aed'"
+                  onmouseout="if(this.dataset.tab!==window._pushTabActivo)this.style.color='#666'"
+                  style="display:flex;align-items:center;gap:7px;padding:0.7rem 1.1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:2px solid transparent;color:#666;font-weight:600;transition:color 0.15s,border-color 0.15s;font-family:inherit">
+            ${_mlIcon(t.icon, 16)}${t.label}
+          </button>`).join('')}
+      </div>
+      <div id="push-tab-body"></div>
+    </div>
+  `
+  window._pushSwitchTab('enviar')
+}
+
+window._pushSwitchTab = async (tab) => {
+  window._pushTabActivo = tab
+  document.querySelectorAll('#push-tabs .push-tab-btn').forEach(b => {
+    const activo = b.dataset.tab === tab
+    b.style.borderBottom = activo ? '2px solid #7c3aed' : '2px solid transparent'
+    b.style.color = activo ? '#7c3aed' : '#666'
+    b.querySelectorAll('svg').forEach(s => s.setAttribute('stroke', activo ? '#7c3aed' : '#666'))
+  })
+  const body = document.getElementById('push-tab-body')
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:2.5rem;color:#aaa;font-size:0.85rem">
+    <span style="width:16px;height:16px;border:2px solid #ddd;border-top-color:#7c3aed;border-radius:50%;display:inline-block;animation:pushspin 0.7s linear infinite"></span>
+    Cargando...
+  </div><style>@keyframes pushspin{to{transform:rotate(360deg)}}</style>`
+  if (tab === 'enviar') await _pushRenderEnviarTab()
+  else if (tab === 'suscriptores') await _pushRenderSuscriptoresTab()
+  else if (tab === 'historial') await _pushRenderHistorialTab()
+}
+
+// ─── Pestaña: Enviar ──────────────────────────────────────────────────────────
+async function _pushRenderEnviarTab() {
+  const body = document.getElementById('push-tab-body')
+  let diag = { pywebpush_instalado: false, vapid_configurado: false }
+  try { diag = await (await fetch(`${API}/push/diagnostico`)).json() } catch (e) {}
+
+  const avisoConfig = (diag.pywebpush_instalado && diag.vapid_configurado) ? '' : `
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;gap:10px;align-items:flex-start">
+      ${_mlIcon('xCircle', 17, '#b45309')}
+      <div style="font-size:0.82rem;color:#92400e">
+        <b>El envío aún no está activo.</b> Falta configurar
+        ${!diag.pywebpush_instalado ? '<code>pywebpush</code> en el backend' : ''}${(!diag.pywebpush_instalado && !diag.vapid_configurado) ? ' y ' : ''}${!diag.vapid_configurado ? 'las llaves VAPID en Railway' : ''}.
+      </div>
+    </div>`
+
+  body.innerHTML = `
+    ${avisoConfig}
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.1rem">
+        <div style="width:34px;height:34px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('send', 17, '#7c3aed')}</div>
+        <div>
+          <h3 style="margin:0 0 2px;font-size:1rem">Enviar notificación</h3>
+          <p style="font-size:0.82rem;color:#888;margin:0">Manda un aviso manual a todos los suscriptores (promoción, aviso general, etc.)</p>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.9rem;max-width:520px">
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#444;margin-bottom:4px">Sitio</label>
+          <select id="push-sitio" style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+            <option value="">Ambos (tienda + portal)</option>
+            <option value="tienda">Solo tienda</option>
+            <option value="portal">Solo portal mayorista</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#444;margin-bottom:4px">Título</label>
+          <input id="push-titulo" type="text" maxlength="60" placeholder="Ej. 20% de descuento hoy"
+                 style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        </div>
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#444;margin-bottom:4px">Mensaje</label>
+          <textarea id="push-cuerpo" rows="3" maxlength="150" placeholder="Escribe el mensaje que verán tus clientes..."
+                 style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit;resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.8rem;font-weight:600;color:#444;margin-bottom:4px">Link al hacer clic (opcional)</label>
+          <input id="push-url" type="text" placeholder="/producto/C-TAC-0060"
+                 style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        </div>
+        <div id="push-enviar-resultado" style="display:none;font-size:0.82rem;padding:0.7rem 0.9rem;border-radius:8px"></div>
+        <div>
+          ${_mlBtn('send', 'Enviar notificación', 'window._pushEnviar(this)', 'primary')}
+        </div>
+      </div>
+    </div>
+  `
+}
+
+window._pushEnviar = async (btn) => {
+  const titulo = document.getElementById('push-titulo').value.trim()
+  const cuerpo = document.getElementById('push-cuerpo').value.trim()
+  const url = document.getElementById('push-url').value.trim() || '/'
+  const sitio = document.getElementById('push-sitio').value || null
+  const resultado = document.getElementById('push-enviar-resultado')
+  if (!titulo || !cuerpo) {
+    resultado.style.display = 'block'
+    resultado.style.background = '#fef2f2'
+    resultado.style.color = '#991b1b'
+    resultado.textContent = 'Escribe un título y un mensaje.'
+    return
+  }
+  btn.disabled = true
+  btn.style.opacity = '0.6'
+  btn.style.cursor = 'default'
+  try {
+    const res = await fetch(`${API}/push/enviar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titulo, cuerpo, url, sitio }),
+    })
+    const data = await res.json()
+    resultado.style.display = 'block'
+    resultado.style.background = '#f0fdf4'
+    resultado.style.color = '#166534'
+    resultado.textContent = `Enviado a ${data.enviadas ?? 0} suscriptor(es)${data.fallidas ? `, ${data.fallidas} fallidas` : ''}.`
+  } catch (e) {
+    resultado.style.display = 'block'
+    resultado.style.background = '#fef2f2'
+    resultado.style.color = '#991b1b'
+    resultado.textContent = 'Error al enviar: ' + (e?.message || e)
+  } finally {
+    btn.disabled = false
+    btn.style.opacity = '1'
+    btn.style.cursor = 'pointer'
+  }
+}
+
+// ─── Pestaña: Suscriptores ────────────────────────────────────────────────────
+async function _pushRenderSuscriptoresTab() {
+  const body = document.getElementById('push-tab-body')
+  let data = { total: 0, por_sitio: {} }
+  try { data = await (await fetch(`${API}/push/suscriptores`)).json() } catch (e) {}
+  const tienda = data.por_sitio?.tienda || 0
+  const portal = data.por_sitio?.portal || 0
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem">
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.4rem">${_mlIcon('users', 16, '#7c3aed')}<span style="font-size:0.8rem;color:#888">Total activos</span></div>
+        <div style="font-size:1.6rem;font-weight:700">${data.total || 0}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.4rem">${_mlIcon('cart', 16, '#3483fa')}<span style="font-size:0.8rem;color:#888">Tienda</span></div>
+        <div style="font-size:1.6rem;font-weight:700">${tienda}</div>
+      </div>
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.4rem">${_mlIcon('list', 16, '#16a34a')}<span style="font-size:0.8rem;color:#888">Portal mayorista</span></div>
+        <div style="font-size:1.6rem;font-weight:700">${portal}</div>
+      </div>
+    </div>
+  `
+}
+
+// ─── Pestaña: Historial ───────────────────────────────────────────────────────
+async function _pushRenderHistorialTab() {
+  const body = document.getElementById('push-tab-body')
+  let historial = []
+  try { historial = await (await fetch(`${API}/push/historial`)).json() } catch (e) {}
+  if (!Array.isArray(historial) || !historial.length) {
+    body.innerHTML = `<div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:2rem;text-align:center;color:#aaa;font-size:0.85rem">
+      Todavía no se ha enviado ninguna notificación.
+    </div>`
+    return
+  }
+  body.innerHTML = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:0.5rem 0;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+      ${historial.map(h => `
+        <div style="padding:0.9rem 1.25rem;border-bottom:1px solid #f2f2f2;display:flex;justify-content:space-between;gap:1rem;align-items:flex-start">
+          <div style="min-width:0">
+            <div style="font-weight:600;font-size:0.88rem">${h.titulo || ''}</div>
+            <div style="font-size:0.8rem;color:#888;margin-top:2px">${h.cuerpo || ''}</div>
+            <div style="font-size:0.72rem;color:#bbb;margin-top:4px">${h.sitio ? h.sitio : 'ambos'} · ${h.created_at ? new Date(h.created_at).toLocaleString('es-MX') : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;font-size:0.78rem">
+            ${_mlIcon('checkCircle', 14, '#16a34a')}<span style="color:#16a34a">${h.enviadas || 0}</span>
+            ${h.fallidas ? `${_mlIcon('xCircle', 14, '#dc2626')}<span style="color:#dc2626">${h.fallidas}</span>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `
 }
 
 // ─── GOOGLE ANALYTICS ─────────────────────────────────────────────────────────

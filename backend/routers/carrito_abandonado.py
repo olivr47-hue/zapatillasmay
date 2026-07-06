@@ -303,3 +303,30 @@ def recordatorio_whatsapp(id: str):
             return JSONResponse(status_code=500, content={"error": "No se pudo enviar por WhatsApp. Verifica WHATSAPP_TOKEN y WHATSAPP_PHONE_ID."})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ── 9. Push: recordatorio de carrito abandonado ──────────────────────
+@router.post("/{id}/push")
+def recordatorio_push(id: str):
+    """Envía recordatorio de carrito abandonado como notificación push."""
+    try:
+        rows = supabase_get(f"carritos_abandonados?id=eq.{id}&select=*&limit=1")
+        if not rows:
+            return JSONResponse(status_code=404, content={"error": "Carrito no encontrado"})
+        c = rows[0]
+        total = c.get("total") or 0
+        cliente_id = c.get("cliente_id")
+        email = c.get("email", "")
+
+        from routers.push import enviar_push
+        resultado = enviar_push(
+            "Olvidaste algo en tu carrito",
+            f"Tienes productos por ${float(total):.0f} MXN esperando por ti.",
+            url="/carrito",
+            cliente_id=cliente_id,
+        )
+        if not resultado.get("enviadas"):
+            return JSONResponse(status_code=400, content={"error": "El cliente no tiene notificaciones activas", "detalle": resultado})
+        return {"ok": True, **resultado}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

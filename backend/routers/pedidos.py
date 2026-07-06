@@ -483,6 +483,17 @@ def confirmar_pedido(id: str, datos: dict):
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
         _enviar_confirmacion_wa(pedido[0], items)
 
+        try:
+            from routers.push import enviar_push
+            enviar_push(
+                "Tu pedido fue confirmado",
+                f"Ya estamos preparando tu pedido #{str(id)[:8]}.",
+                url="/portal" if pedido[0].get("cliente_id") else "/",
+                cliente_id=pedido[0].get("cliente_id"),
+            )
+        except Exception as e:
+            print(f"[pedidos] Error push confirmacion: {e}")
+
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -530,6 +541,17 @@ def marcar_enviado(id: str, datos: dict):
                 enviar_email(email_cliente, subj, html)
             except Exception as e:
                 print(f"[pedidos] Error email tracking: {e}")
+
+        try:
+            from routers.push import enviar_push
+            enviar_push(
+                "Tu pedido va en camino",
+                f"Envío con {paqueteria}, guía {numero_guia}.",
+                url=tracking_url or "/",
+                cliente_id=p.get("cliente_id"),
+            )
+        except Exception as e:
+            print(f"[pedidos] Error push envio: {e}")
 
         return {"ok": True, "tracking_url": tracking_url}
     except Exception as e:
