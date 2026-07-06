@@ -2,7 +2,6 @@ from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse, Response
 from storage import subir_imagen, eliminar_imagen, subir_video
 import cloudinary.uploader
-import urllib.request
 
 router = APIRouter(prefix="/imagenes", tags=["Imágenes"])
 
@@ -61,20 +60,28 @@ async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(
 
 @router.get("/pdf-viewer")
 async def pdf_viewer(url: str):
-    """Sirve un PDF de Cloudinary con Content-Type correcto para que el visor del navegador lo abra."""
+    """Sirve un PDF con Content-Type correcto. Fallback a Google Docs Viewer si Cloudinary bloquea el servidor."""
     if not url.startswith("https://res.cloudinary.com/"):
         return JSONResponse(status_code=400, content={"error": "URL no permitida"})
+    import requests as _req
+    import urllib.parse as _up
+    from fastapi.responses import RedirectResponse
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            data = resp.read()
+        resp = _req.get(url, timeout=15, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/pdf,*/*;q=0.9"
+        }, allow_redirects=True)
+        resp.raise_for_status()
         return Response(
-            content=data,
+            content=resp.content,
             media_type="application/pdf",
             headers={"Content-Disposition": "inline", "Cache-Control": "max-age=3600"}
         )
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    except Exception:
+        return RedirectResponse(
+            url=f"https://docs.google.com/viewer?url={_up.quote(url, safe='')}",
+            status_code=302
+        )
 
 @router.delete("/{public_id:path}")
 def eliminar(public_id: str):
