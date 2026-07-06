@@ -1,0 +1,16 @@
+{
+  "name": "Zapatillas May",
+  "short_name": "Zapatillas May",
+  "description": "Panel y portal mayorista Zapatillas May",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f1c",
+  "theme_color": "#E91E8C",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

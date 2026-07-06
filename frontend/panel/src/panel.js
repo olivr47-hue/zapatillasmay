@@ -12380,9 +12380,10 @@ window._renderBurbujas = (chat) => {
         ? `<img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer" onclick="window.open('${imgUrl}')">`
         : `<p>${textoLimpio}</p>`
     } else if (m.tipo === 'documento_saliente') {
-      const parts = textoLimpio.replace('[Documento] ', '').split(' ')
-      const fname = parts[0] || 'documento'
-      const furl  = parts[1] || ''
+      const _docRaw = textoLimpio.replace('[Documento] ', '')
+      const _docUrlMatch = _docRaw.match(/(https?:\/\/\S+)$/)
+      const furl  = _docUrlMatch ? _docUrlMatch[1] : ''
+      const fname = furl ? _docRaw.slice(0, _docRaw.lastIndexOf(furl)).trim() || 'documento' : (_docRaw || 'documento')
       msgBody = `<a href="${furl}" target="_blank" class="wa-doc-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         ${fname}</a>`
