@@ -45,4 +45,4 @@ PyJWT==2.10.1
 slowapi==0.1.9
 pywebpush==2.0.3
 py-vapid==1.9.2
-# rebuild: forzar reinstalación de dependencias (PyJWT/cryptography para JWT de service accounts)
+# rebuild: forzar reinstalación de dependencias (pywebpush para notificaciones push)

@@ -16,7 +16,7 @@ router = APIRouter(prefix="/push", tags=["Push"])
 
 VAPID_PUBLIC_KEY  = os.getenv("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
-VAPID_EMAIL       = os.getenv("VAPID_EMAIL", "contacto@zapatillasmay.mx")
+VAPID_EMAIL       = os.getenv("VAPID_EMAIL", "zapateriasmay@gmail.com")
 
 try:
     from pywebpush import webpush, WebPushException
