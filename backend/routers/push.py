@@ -163,3 +163,18 @@ def diagnostico():
         "vapid_configurado": bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY),
         "error_import": None if _PYWEBPUSH_OK else _import_error,
     }
+
+
+@router.get("/diagnostico-detalle")
+def diagnostico_detalle():
+    """Temporal: lista los paquetes realmente instalados en el venv del servidor."""
+    import subprocess, sys
+    try:
+        out = subprocess.run([sys.executable, "-m", "pip", "list"], capture_output=True, text=True, timeout=20)
+        paquetes = out.stdout
+    except Exception as e:
+        paquetes = f"error corriendo pip list: {e}"
+    return {
+        "python_executable": sys.executable,
+        "paquetes_instalados": paquetes,
+    }
