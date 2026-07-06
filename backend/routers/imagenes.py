@@ -1,9 +1,46 @@
 from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, RedirectResponse
 from storage import subir_imagen, eliminar_imagen, subir_video
 import cloudinary.uploader
+import urllib.request as _urllib
+import urllib.parse as _up
+import json as _json
+import os
 
 router = APIRouter(prefix="/imagenes", tags=["Imágenes"])
+
+_SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+_SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+_BUCKET = "wa-docs"
+
+
+def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
+    """Sube un PDF a Supabase Storage (bucket público wa-docs) y devuelve la URL pública."""
+    # Crear bucket si no existe (falla silenciosamente si ya existe)
+    try:
+        body = _json.dumps({"id": _BUCKET, "name": _BUCKET, "public": True}).encode()
+        req = _urllib.Request(
+            f"{_SUPABASE_URL}/storage/v1/bucket",
+            data=body, method="POST",
+            headers={"Authorization": f"Bearer {_SUPABASE_KEY}", "Content-Type": "application/json"}
+        )
+        _urllib.urlopen(req, timeout=10)
+    except Exception:
+        pass  # bucket ya existe o no hay permisos — intentar upload igual
+
+    # Subir archivo
+    req = _urllib.Request(
+        f"{_SUPABASE_URL}/storage/v1/object/{_BUCKET}/{filename}",
+        data=contenido, method="POST",
+        headers={
+            "Authorization": f"Bearer {_SUPABASE_KEY}",
+            "Content-Type": "application/pdf",
+            "x-upsert": "true"
+        }
+    )
+    _urllib.urlopen(req, timeout=30)
+    return f"{_SUPABASE_URL}/storage/v1/object/public/{_BUCKET}/{filename}"
+
 
 @router.post("/subir")
 async def subir(archivo: UploadFile = File(...), carpeta: str = "productos"):
@@ -11,23 +48,25 @@ async def subir(archivo: UploadFile = File(...), carpeta: str = "productos"):
     resultado = subir_imagen(contenido, carpeta)
     return resultado
 
+
 @router.post("/videos/subir")
 async def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video"):
     contenido = await archivo.read()
     resultado = subir_video(contenido, carpeta)
     return resultado
 
+
 @router.post("/upload-temp")
 async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None)):
-    """Sube cualquier archivo (imagen, video, PDF) a Cloudinary para enviar por WhatsApp.
-    Devuelve { url, public_id } compatible con el panel."""
+    """Sube cualquier archivo (imagen, video, PDF) para enviar por WhatsApp.
+    PDFs van a Supabase Storage; imágenes/videos a Cloudinary."""
     try:
         upload = archivo or file
         if not upload:
             return JSONResponse(status_code=422, content={"error": "Se requiere un archivo (campo 'archivo' o 'file')"})
         contenido = await upload.read()
         content_type = upload.content_type or ""
-        archivo = upload  # normalizar nombre para las líneas siguientes
+        archivo = upload
 
         if content_type.startswith("video/"):
             resultado = cloudinary.uploader.upload(
@@ -35,37 +74,37 @@ async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(
                 folder="wa_media",
                 resource_type="video"
             )
+            url = resultado.get("secure_url", "")
+            if not url:
+                return JSONResponse(status_code=500, content={"error": "Cloudinary no devolvió URL"})
+            return {"url": url, "public_url": url, "public_id": resultado.get("public_id", "")}
+
         elif content_type == "application/pdf" or archivo.filename.lower().endswith(".pdf"):
             safe_name = archivo.filename.replace(" ", "_")
-            resultado = cloudinary.uploader.upload(
-                contenido,
-                folder="wa_media",
-                resource_type="raw",
-                public_id=safe_name
-            )
+            url = _subir_pdf_supabase(contenido, safe_name)
+            return {"url": url, "public_url": url, "public_id": safe_name}
+
         else:
-            # imagen u otro archivo
             resultado = cloudinary.uploader.upload(
                 contenido,
                 folder="wa_media",
                 transformation=[{"quality": "auto"}, {"fetch_format": "auto"}]
             )
+            url = resultado.get("secure_url", "")
+            if not url:
+                return JSONResponse(status_code=500, content={"error": "Cloudinary no devolvió URL"})
+            return {"url": url, "public_url": url, "public_id": resultado.get("public_id", "")}
 
-        url = resultado.get("secure_url", "")
-        if not url:
-            return JSONResponse(status_code=500, content={"error": "Cloudinary no devolvió URL"})
-        return {"url": url, "public_url": url, "public_id": resultado.get("public_id", "")}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
 @router.get("/pdf-viewer")
 async def pdf_viewer(url: str):
-    """Sirve un PDF con Content-Type correcto. Fallback a Google Docs Viewer si Cloudinary bloquea el servidor."""
+    """Proxy para PDFs de Cloudinary con fallback a Google Docs Viewer (URLs legacy)."""
     if not url.startswith("https://res.cloudinary.com/"):
         return JSONResponse(status_code=400, content={"error": "URL no permitida"})
     import requests as _req
-    import urllib.parse as _up
-    from fastapi.responses import RedirectResponse
     try:
         resp = _req.get(url, timeout=15, headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -82,6 +121,7 @@ async def pdf_viewer(url: str):
             url=f"https://docs.google.com/viewer?url={_up.quote(url, safe='')}",
             status_code=302
         )
+
 
 @router.delete("/{public_id:path}")
 def eliminar(public_id: str):
