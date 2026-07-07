@@ -5087,12 +5087,12 @@ window.mostrarFormProducto = (datos) => {
           <div><label class="form-label">Material suela</label><input class="form-input" id="f-suela" placeholder="Ej: Hule" value="${d.material_suela || ''}"></div>
           <div><label class="form-label">Forro</label><input class="form-input" id="f-forro" placeholder="Ej: Textil" value="${d.forro || ''}"></div>
           <div>
-            <label class="form-label">Horma</label>
+            <label class="form-label">Horma (¿corre chico o grande de talla?)</label>
             <select class="form-input" id="f-horma">
               <option value="">Selecciona...</option>
-              <option value="normal" ${d.horma === 'normal' ? 'selected' : ''}>Normal</option>
-              <option value="reducida" ${d.horma === 'reducida' ? 'selected' : ''}>Reducida</option>
-              <option value="amplia" ${d.horma === 'amplia' ? 'selected' : ''}>Amplia</option>
+              <option value="normal" ${d.horma === 'normal' ? 'selected' : ''}>Normal — talla real</option>
+              <option value="reducida" ${d.horma === 'reducida' ? 'selected' : ''}>Reducida — corre chico (pedir talla mayor)</option>
+              <option value="amplia" ${d.horma === 'amplia' ? 'selected' : ''}>Amplia — corre grande (pedir talla menor)</option>
             </select>
           </div>
           <div><label class="form-label">Altura tacon (cm)</label><input class="form-input" id="f-tacon" type="number" step="0.5" placeholder="Ej: 8.5" value="${d.altura_tacon || ''}"></div>
