@@ -1647,17 +1647,26 @@ function calcularTallaRecomendada(perfil, p) {
   
   let recommendedSize = standardSize
   let horma = (p.horma || '').trim().toLowerCase()
-  if (horma === 'reducida') {
-    recommendedSize += 0.5
-  } else if (horma === 'amplia') {
-    recommendedSize -= 0.5
+
+  // Cuánto compensar según la horma del modelo (reducida = corre chico,
+  // amplia = corre grande), modulado por el ancho de pie del cliente.
+  // Ej. real: CH2300 (reducida) — pie delgado +0.5, pie ancho +1 (el pie
+  // ancho resiente más lo chico del modelo). CH2100 (amplia) — pie ancho
+  // -0.5, pie delgado -1 (el pie delgado resiente más lo grande del modelo).
+  // "normal" usa el valor base (el mismo que antes de tener este detalle).
+  const AJUSTE_POR_HORMA = {
+    reducida: { delgado: 0.5, normal: 0.5, alto: 1.0 },
+    amplia:   { delgado: -1.0, normal: -0.5, alto: -0.5 },
   }
-  
+  if (AJUSTE_POR_HORMA[horma]) {
+    recommendedSize += AJUSTE_POR_HORMA[horma][userInstep] ?? AJUSTE_POR_HORMA[horma].normal
+  }
+
   let ajusteEmpeine = (p.ajuste_empeine || '').trim().toLowerCase()
   if (userInstep === 'alto' && ajusteEmpeine === 'delgado') {
     recommendedSize += 0.5
   }
-  
+
   return Math.round(recommendedSize * 2) / 2
 }
 
