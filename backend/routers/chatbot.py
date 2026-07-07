@@ -1411,6 +1411,20 @@ async def cambiar_etiqueta(telefono: str, datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/diagnostico-claude")
+async def diagnostico_claude():
+    """Temporal: prueba la conexión con la API de Claude y muestra el error exacto si falla."""
+    key = get_api_key()
+    resultado = {"api_key_configurada": bool(key), "api_key_prefix": (key[:12] + "...") if key else None}
+    try:
+        respuesta = llamar_claude([{"role": "user", "content": "Responde solo con: ok"}], "Eres un asistente de prueba.")
+        resultado["status"] = "ok"
+        resultado["respuesta"] = respuesta
+    except Exception as e:
+        resultado["status"] = "error"
+        resultado["error"] = str(e)
+    return resultado
+
 @router.get("/config")
 async def obtener_config():
     try:
