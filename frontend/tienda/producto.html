@@ -1678,18 +1678,40 @@ function actualizarWidgetAjuste() {
   const p = producto
 
   if (!perfil) {
-    container.innerHTML = `
-      <div class="talla-ajuste-card" onclick="abrirRecomendadorTallas()" style="background:linear-gradient(135deg, #fffbf7, #fdf5ee);border:1.5px dashed var(--tan);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(200,150,122,0.06)">
-        <div style="display:flex;align-items:center;gap:12px">
-          <div style="font-size:1.5rem">📐</div>
-          <div>
-            <div style="font-size:0.8rem;font-weight:700;color:#6b3a2a;margin-bottom:2px">¿Dudas con tu talla?</div>
-            <div style="font-size:0.7rem;color:#9a5a42">Compara este modelo con marcas que ya usas (Nike, Adidas...)</div>
+    // Si el modelo corre chico/grande, un aviso normal ("¿Dudas con tu talla?")
+    // se pierde entre el resto de la página y el cliente termina pidiendo su
+    // talla habitual sin saberlo. Este caso usa un aviso más fuerte (color de
+    // advertencia, ícono, texto explícito) para que sea imposible de ignorar
+    // — no bloquea la selección normal de talla, solo la hace muy visible.
+    const hormaPre = (p.horma || '').trim().toLowerCase()
+    if (hormaPre === 'reducida' || hormaPre === 'amplia') {
+      const texto = hormaPre === 'reducida' ? 'corre chico' : 'corre grande'
+      container.innerHTML = `
+        <div class="talla-ajuste-card" onclick="abrirRecomendadorTallas()" style="background:linear-gradient(135deg, #fff7ed, #ffedd5);border:1.5px solid #f59e0b;border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(245,158,11,0.12)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:1.5rem">⚠️</div>
+            <div>
+              <div style="font-size:0.8rem;font-weight:700;color:#92400e;margin-bottom:2px">Este modelo ${texto}</div>
+              <div style="font-size:0.7rem;color:#b45309">Usa el Probador de Talla antes de elegir tu talla habitual</div>
+            </div>
           </div>
+          <span style="font-size:0.72rem;font-weight:700;color:white;background:linear-gradient(135deg,#f59e0b,#d97706);padding:6px 12px;border-radius:20px;box-shadow:0 3px 8px rgba(245,158,11,0.3);white-space:nowrap">Probar talla ✨</span>
         </div>
-        <span style="font-size:0.72rem;font-weight:700;color:white;background:linear-gradient(135deg,#C8967A,#b5687a);padding:6px 12px;border-radius:20px;box-shadow:0 3px 8px rgba(200,150,122,0.25);white-space:nowrap">Probar talla ✨</span>
-      </div>
-    `
+      `
+    } else {
+      container.innerHTML = `
+        <div class="talla-ajuste-card" onclick="abrirRecomendadorTallas()" style="background:linear-gradient(135deg, #fffbf7, #fdf5ee);border:1.5px dashed var(--tan);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(200,150,122,0.06)">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:1.5rem">📐</div>
+            <div>
+              <div style="font-size:0.8rem;font-weight:700;color:#6b3a2a;margin-bottom:2px">¿Dudas con tu talla?</div>
+              <div style="font-size:0.7rem;color:#9a5a42">Compara este modelo con marcas que ya usas (Nike, Adidas...)</div>
+            </div>
+          </div>
+          <span style="font-size:0.72rem;font-weight:700;color:white;background:linear-gradient(135deg,#C8967A,#b5687a);padding:6px 12px;border-radius:20px;box-shadow:0 3px 8px rgba(200,150,122,0.25);white-space:nowrap">Probar talla ✨</span>
+        </div>
+      `
+    }
   } else {
     const tallaRecomendada = calcularTallaRecomendada(perfil, p)
     const tallaStr = String(tallaRecomendada)
