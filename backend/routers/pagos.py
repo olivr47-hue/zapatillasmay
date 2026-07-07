@@ -663,6 +663,18 @@ async def webhook_mercadopago(request: Request):
                 status = payment.get("status")
                 pedido_id = payment.get("external_reference")
 
+                # Forma de pago real según el método de MercadoPago. Se calcula una sola
+                # vez y se aplica tanto si el pago quedó aprobado como si quedó pendiente
+                # (OXXO/SPEI): antes solo se guardaba al aprobar, así que un pedido con
+                # voucher de OXXO generado (pero aún sin pagar en tienda) se quedaba
+                # mostrando el valor por defecto de la columna ("efectivo"), engañoso.
+                _pt = (payment or {}).get("payment_type_id", "")
+                _forma = {
+                    "credit_card": "tarjeta", "debit_card": "tarjeta", "prepaid_card": "tarjeta",
+                    "account_money": "mercadopago", "digital_wallet": "mercadopago",
+                    "ticket": "oxxo", "atm": "spei", "bank_transfer": "spei",
+                }.get(_pt, "mercadopago")
+
                 if pedido_id:
                     if status == "approved":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
@@ -692,13 +704,6 @@ async def webhook_mercadopago(request: Request):
                                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{inv_suc}",
                                         {"cantidad": nueva_cantidad}
                                     )
-                            # Guardar la forma de pago real según el método de MercadoPago
-                            _pt = (payment or {}).get("payment_type_id", "")
-                            _forma = {
-                                "credit_card": "tarjeta", "debit_card": "tarjeta", "prepaid_card": "tarjeta",
-                                "account_money": "mercadopago", "digital_wallet": "mercadopago",
-                                "ticket": "oxxo", "atm": "spei", "bank_transfer": "spei",
-                            }.get(_pt, "mercadopago")
                             supabase_patch(
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma}
@@ -735,7 +740,7 @@ async def webhook_mercadopago(request: Request):
                     elif status == "pending":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
                         ya_era_pendiente = pedido and pedido[0].get("status") == "pendiente_pago"
-                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago"})
+                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago", "forma_pago": _forma})
                         # Email SPEI/OXXO pendiente al cliente (solo la primera vez)
                         if pedido and not ya_era_pendiente:
                             p = pedido[0]
