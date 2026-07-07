@@ -22,22 +22,33 @@ def siguiente_sku(categoria: str, proveedor: str):
     return {"sku_base": sku_base, "consecutivo": num}
 
 @router.get("/")
-def listar_productos(categoria: str = None, activo: str = None):
+def listar_productos(categoria: str = None, activo: str = None, q: str = None, limit: int = None):
     cached = cache_get(_CK + "_all")
     if cached is not None:
         data = cached
     else:
         data = supabase_get("productos?order=orden_home.asc.nullslast,created_at.desc")
         cache_set(_CK + "_all", data)
-        
+
     if categoria:
         cat_val = categoria.replace("eq.", "").strip().lower()
         data = [p for p in data if p.get("categoria") and p.get("categoria").strip().lower() == cat_val]
-        
+
     if activo:
         act_val = activo.replace("eq.", "").strip().lower() == "true"
         data = [p for p in data if p.get("activo") == act_val]
-        
+
+    # Buscador del sitio (header): antes mandaba nombre=ilike.*termino* pero esta
+    # función solo reconoce parámetros explícitos de FastAPI, así que ese filtro
+    # (y el limit) se ignoraban en silencio -> siempre regresaba el catálogo
+    # completo en el orden de acomodo, no lo que el cliente buscó.
+    if q:
+        q_val = q.strip().lower()
+        data = [p for p in data if q_val in (p.get("nombre") or "").lower() or q_val in (p.get("sku_interno") or "").lower()]
+
+    if limit:
+        data = data[:limit]
+
     return data
 
 @router.get("/destacados")

@@ -2340,7 +2340,11 @@ async function buscarProductos(q) {
   _searchTimer = setTimeout(async () => {
     try {
       const API = 'https://zapatillasmay-production.up.railway.app'
-      const res = await fetch(`${API}/productos/?nombre=ilike.*${encodeURIComponent(term)}*&activo=eq.true&select=sku_interno,nombre,imagen_principal,precio_menudeo&limit=8`)
+      // OJO: /productos/ solo reconoce los parámetros categoria/activo/q/limit
+      // (ver backend). Antes se mandaba nombre=ilike.*term* + select, que el
+      // backend ignoraba en silencio -> siempre regresaba el catálogo completo
+      // sin filtrar, en el orden de acomodo (por eso "buscar" no buscaba nada).
+      const res = await fetch(`${API}/productos/?q=${encodeURIComponent(term)}&activo=eq.true&limit=8`)
       const data = await res.json()
       _searchCache[term] = data
       containers.forEach(id => renderSearchResults(data, id))
