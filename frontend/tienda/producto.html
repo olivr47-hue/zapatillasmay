@@ -1033,6 +1033,9 @@ function renderProducto() {
     </p>
     <div class="color-grid" id="color-grid"></div>` : ''}
 
+    <!-- WIDGET AJUSTE / RECOMENDADOR -->
+    <div id="talla-ajuste-container" style="margin:16px 0 12px"></div>
+
     <p class="section-label" id="talla-section-label" style="display:flex;align-items:center;justify-content:space-between">
       <span style="display:inline-flex;align-items:center">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:#ddd;color:#999;border-radius:50%;font-size:0.6rem;font-weight:700;margin-right:6px;flex-shrink:0;transition:background-color 0.3s, color 0.3s" id="talla-step-num">${colores.length ? '2' : '1'}</span>
@@ -1116,6 +1119,8 @@ function renderProducto() {
     detCard.style.display = 'block'
     document.getElementById('details-body').innerHTML = `<div class="details-grid">${detalles.map(([l,v]) => `<div class="detail-item"><div class="detail-label">${l}</div><div class="detail-val">${v}</div></div>`).join('')}</div>`
   }
+
+  try { actualizarWidgetAjuste() } catch(e) { console.error("Error cargando recomendador:", e) }
 
   // GA4: view_item  +  Meta / TikTok ViewContent
   if (typeof gtag === 'function') gtag('event', 'view_item', {
@@ -1617,6 +1622,317 @@ function zmRechazarCookies() {
     img.style.transform = 'scale(1) rotateY(0deg) rotateX(0deg)'
   })
 })()
+
+// ── PROBADOR VIRTUAL (SIZEBAY CLONE) ─────────────────────────────
+let recStep = 1
+let recBrand = ''
+let recSize = ''
+let recInstep = ''
+
+function calcularTallaRecomendada(perfil, p) {
+  let userSize = parseFloat(perfil.size)
+  let userBrand = perfil.brand.toLowerCase()
+  let userInstep = perfil.instep.toLowerCase()
+  
+  let standardSize = userSize
+  if (userBrand === 'nike') {
+    standardSize -= 0.5
+  } else if (userBrand === 'converse') {
+    standardSize += 0.5
+  }
+  
+  let recommendedSize = standardSize
+  let horma = (p.horma || '').trim().toLowerCase()
+  if (horma === 'reducida') {
+    recommendedSize += 0.5
+  } else if (horma === 'amplia') {
+    recommendedSize -= 0.5
+  }
+  
+  let ajusteEmpeine = (p.ajuste_empeine || '').trim().toLowerCase()
+  if (userInstep === 'alto' && ajusteEmpeine === 'delgado') {
+    recommendedSize += 0.5
+  }
+  
+  return Math.round(recommendedSize * 2) / 2
+}
+
+function actualizarWidgetAjuste() {
+  const container = document.getElementById('talla-ajuste-container')
+  if (!container) return
+
+  const perfil = JSON.parse(localStorage.getItem('zm_perfil_talla') || 'null')
+  const p = producto
+
+  if (!perfil) {
+    container.innerHTML = `
+      <div class="talla-ajuste-card" onclick="abrirRecomendadorTallas()" style="background:linear-gradient(135deg, #fffbf7, #fdf5ee);border:1.5px dashed var(--tan);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(200,150,122,0.06)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:1.5rem">📐</div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:700;color:#6b3a2a;margin-bottom:2px">¿Dudas con tu talla?</div>
+            <div style="font-size:0.7rem;color:#9a5a42">Compara este modelo con marcas que ya usas (Nike, Adidas...)</div>
+          </div>
+        </div>
+        <span style="font-size:0.72rem;font-weight:700;color:white;background:linear-gradient(135deg,#C8967A,#b5687a);padding:6px 12px;border-radius:20px;box-shadow:0 3px 8px rgba(200,150,122,0.25);white-space:nowrap">Probar talla ✨</span>
+      </div>
+    `
+  } else {
+    const tallaRecomendada = calcularTallaRecomendada(perfil, p)
+    const tallaStr = String(tallaRecomendada)
+    
+    const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+    const tallasDisponibles = [...new Set(varsProd.map(v => v.talla).filter(Boolean))]
+    const estaDisponible = tallasDisponibles.includes(tallaStr)
+
+    let disponibilidadMsg = ""
+    if (estaDisponible) {
+      disponibilidadMsg = `<span style="color:#10b981;font-weight:700;margin-left:4px">🟢 ¡Disponible!</span>`
+    } else {
+      disponibilidadMsg = `<span style="color:#ef4444;font-weight:600;margin-left:4px">🔴 Sin stock</span>`
+    }
+
+    container.innerHTML = `
+      <div class="talla-ajuste-card" style="background:#fcfaf7;border:1.5px solid rgba(200,150,122,0.25);border-radius:12px;padding:12px 14px;box-shadow:0 2px 8px rgba(200,150,122,0.06)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:1.25rem">✨</div>
+            <div>
+              <div style="font-size:0.78rem;font-weight:700;color:#6b3a2a">Ajuste Inteligente ZM</div>
+              <div style="font-size:0.68rem;color:#777">Basado en tu perfil (${perfil.brand.toUpperCase()} - T${perfil.size})</div>
+            </div>
+          </div>
+          <button onclick="abrirRecomendadorTallas()" style="background:none;border:none;font-size:0.68rem;color:var(--tan);font-weight:700;cursor:pointer;text-decoration:underline;padding:0">Recalcular 🔄</button>
+        </div>
+        
+        <div style="display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:8px 10px;border:1px solid #f0ece8">
+          <div style="font-size:0.76rem;color:#444">
+            Talla recomendada: <strong style="font-size:0.86rem;color:#6b3a2a">${tallaRecomendada} MX</strong> ${disponibilidadMsg}
+          </div>
+          ${estaDisponible ? `
+            <button onclick="aplicarTallaRecomendada('${tallaRecomendada}')" style="font-size:0.7rem;font-weight:700;color:white;background:#10b981;border:none;padding:5px 10px;border-radius:15px;cursor:pointer;transition:background-color 0.2s">Elegir talla</button>
+          ` : ''}
+        </div>
+        
+        ${p.recomendacion_talla ? `
+          <div style="margin-top:8px;font-size:0.68rem;color:#8B6A54;background:#fffcf5;border-radius:6px;padding:6px 8px;border:1px solid #fcf2e6">
+            <strong>💡 Consejo ZM:</strong> ${p.recomendacion_talla}
+          </div>
+        ` : ''}
+      </div>
+    `
+  }
+}
+
+function renderRecomendadorStep(step) {
+  recStep = step
+  const progress = document.getElementById('rec-progress')
+  if (progress) progress.style.width = (step * 25) + '%'
+
+  const body = document.getElementById('rec-body')
+  if (!body) return
+
+  if (step === 1) {
+    const brands = [
+      { id: 'nike', name: 'Nike' },
+      { id: 'adidas', name: 'Adidas' },
+      { id: 'puma', name: 'Puma' },
+      { id: 'converse', name: 'Converse' },
+      { id: 'vans', name: 'Vans' },
+      { id: 'standard', name: 'Otra marca / Estándar' }
+    ]
+    body.innerHTML = `
+      <p style="font-size:0.8rem;color:#666;margin:0 0 14px">Selecciona la marca de tenis o zapatos que uses con más frecuencia:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${brands.map(b => `
+          <button class="talla-btn rec-btn" onclick="guardarRecomendadorMarca('${b.id}')" style="padding:14px 10px;text-align:center;font-weight:600;border:1.5px solid #ede8e3;border-radius:10px;cursor:pointer;background:white;font-family:var(--font-body)">
+            ${b.name}
+          </button>
+        `).join('')}
+      </div>
+    `
+  } else if (step === 2) {
+    const sizes = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26']
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <button onclick="renderRecomendadorStep(1)" style="background:none;border:none;color:var(--tan);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">← Volver</button>
+        <span style="font-size:0.72rem;color:#888">Marca: ${recBrand.toUpperCase()}</span>
+      </div>
+      <p style="font-size:0.8rem;color:#666;margin:0 0 14px">¿Qué talla sueles comprar en esa marca?</p>
+      <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px">
+        ${sizes.map(s => `
+          <button class="talla-btn rec-btn" onclick="guardarRecomendadorTalla('${s}')" style="padding:12px 6px;text-align:center;font-weight:600;border:1.5px solid #ede8e3;border-radius:10px;cursor:pointer;background:white;font-family:var(--font-body)">
+            ${s} MX
+          </button>
+        `).join('')}
+      </div>
+    `
+  } else if (step === 3) {
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <button onclick="renderRecomendadorStep(2)" style="background:none;border:none;color:var(--tan);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">← Volver</button>
+        <span style="font-size:0.72rem;color:#888">Talla: ${recBrand.toUpperCase()} T${recSize}</span>
+      </div>
+      <p style="font-size:0.8rem;color:#666;margin:0 0 14px">¿Cómo describirías el ancho de tu pie o empeine?</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="talla-btn rec-btn" onclick="guardarRecomendadorEmpeine('delgado')" style="padding:12px 14px;text-align:left;font-weight:600;border:1.5px solid #ede8e3;border-radius:10px;cursor:pointer;background:white;display:flex;justify-content:space-between;align-items:center;font-family:var(--font-body)">
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:#333">Delgado / Angosto</div>
+            <div style="font-size:0.68rem;font-weight:400;color:#888">Los zapatos te suelen quedar algo sueltos</div>
+          </div>
+          <span>🦶</span>
+        </button>
+        <button class="talla-btn rec-btn" onclick="guardarRecomendadorEmpeine('normal')" style="padding:12px 14px;text-align:left;font-weight:600;border:1.5px solid #ede8e3;border-radius:10px;cursor:pointer;background:white;display:flex;justify-content:space-between;align-items:center;font-family:var(--font-body)">
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:#333">Normal</div>
+            <div style="font-size:0.68rem;font-weight:400;color:#888">El calzado estándar te horma bien</div>
+          </div>
+          <span>👣</span>
+        </button>
+        <button class="talla-btn rec-btn" onclick="guardarRecomendadorEmpeine('alto')" style="padding:12px 14px;text-align:left;font-weight:600;border:1.5px solid #ede8e3;border-radius:10px;cursor:pointer;background:white;display:flex;justify-content:space-between;align-items:center;font-family:var(--font-body)">
+          <div>
+            <div style="font-size:0.78rem;font-weight:700;color:#333">Ancho o Empeine Alto</div>
+            <div style="font-size:0.68rem;font-weight:400;color:#888">Los zapatos te suelen ajustar o apretar de arriba</div>
+          </div>
+          <span>🦶✨</span>
+        </button>
+      </div>
+    `
+  } else if (step === 4) {
+    const perfil = { brand: recBrand, size: recSize, instep: recInstep }
+    const p = producto
+    const tallaRecomendada = calcularTallaRecomendada(perfil, p)
+
+    localStorage.setItem('zm_perfil_talla', JSON.stringify(perfil))
+    actualizarWidgetAjuste()
+
+    const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+    const tallasDisponibles = [...new Set(varsProd.map(v => v.talla).filter(Boolean))]
+    const estaDisponible = tallasDisponibles.includes(String(tallaRecomendada))
+
+    let fitsStatus = "Perfecto"
+    let fitsProgress = "50%"
+    let fitsColor = "#10b981"
+    let fitsTip = "Este modelo en tu talla recomendada se adaptará perfectamente a tu pie."
+
+    let horma = (p.horma || '').trim().toLowerCase()
+    let ajusteEmpeine = (p.ajuste_empeine || '').trim().toLowerCase()
+
+    if (horma === 'reducida' || ajusteEmpeine === 'delgado') {
+      if (recInstep === 'alto') {
+        fitsStatus = "Ajustado"
+        fitsProgress = "20%"
+        fitsColor = "#ef4444"
+        fitsTip = "Este calzado es estrecho y tu empeine es alto. Si prefieres mayor comodidad, te sugerimos subir media talla más."
+      } else {
+        fitsStatus = "Ligeramente exacto"
+        fitsProgress = "40%"
+        fitsColor = "#e07a30"
+        fitsTip = "Horma ligeramente reducida. Te recomendamos la talla indicada."
+      }
+    } else if (horma === 'amplia') {
+      if (recInstep === 'delgado') {
+        fitsStatus = "Holgado"
+        fitsProgress = "80%"
+        fitsColor = "#3b82f6"
+        fitsTip = "Este calzado es amplio y tu pie es delgado. Te recomendamos bajar media talla para mejor sujeción."
+      }
+    }
+
+    body.innerHTML = `
+      <p style="font-size:0.8rem;color:#666;margin:0 0 14px;text-align:center">¡Tenemos tu resultado!</p>
+      
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff8f5;border-radius:12px;padding:16px;border:1px solid rgba(200,150,122,0.25);margin-bottom:14px">
+        <span style="font-size:0.7rem;color:#8B6A54;text-transform:uppercase;letter-spacing:1px;font-weight:700">Talla recomendada</span>
+        <div style="font-size:2.5rem;font-weight:800;color:#6b3a2a;margin:4px 0">${tallaRecomendada} MX</div>
+        <span style="font-size:0.74rem;color:#10b981;font-weight:700;display:flex;align-items:center;gap:4px">
+          ${estaDisponible ? '🟢 ¡Disponible en stock!' : '🔴 Agotada temporalmente'}
+        </span>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:0.66rem;color:#666;margin-bottom:4px">
+          <span>Ajustado</span>
+          <span style="color:${fitsColor};font-weight:700">${fitsStatus}</span>
+          <span>Holgado</span>
+        </div>
+        <div style="width:100%;height:6px;background:#f0ece8;border-radius:3px;overflow:hidden;position:relative">
+          <div style="width:${fitsProgress};height:100%;background:${fitsColor};border-radius:3px;transition:width 0.3s ease"></div>
+        </div>
+        <p style="font-size:0.68rem;color:#777;margin-top:6px;line-height:1.3">${fitsTip}</p>
+      </div>
+
+      ${p.recomendacion_talla ? `
+        <div style="background:#fffcf5;border-radius:10px;padding:10px 12px;font-size:0.72rem;color:#8B6A54;border:1px solid #fcf2e6;margin-bottom:16px;line-height:1.3">
+          <strong>💡 Consejo del equipo ZM:</strong> ${p.recomendacion_talla}
+        </div>
+      ` : ''}
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${estaDisponible ? `
+          <button onclick="aplicarTallaRecomendada('${tallaRecomendada}')" style="width:100%;padding:12px;border-radius:10px;font-weight:700;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(200,150,122,0.4);font-family:var(--font-body)">
+            Elegir talla ${tallaRecomendada} MX
+          </button>
+        ` : `
+          <button onclick="cerrarRecomendadorTallas()" style="width:100%;padding:12px;border-radius:10px;font-weight:700;background:#999;color:white;border:none;cursor:pointer;font-family:var(--font-body)">
+            Cerrar y ver otras tallas
+          </button>
+        `}
+        <button onclick="renderRecomendadorStep(1)" style="background:none;border:none;color:#888;font-size:0.7rem;font-weight:600;cursor:pointer;text-decoration:underline;font-family:var(--font-body)">
+          Volver a empezar
+        </button>
+      </div>
+    `
+  }
+}
+
+function guardarRecomendadorMarca(brand) {
+  recBrand = brand
+  renderRecomendadorStep(2)
+}
+
+function guardarRecomendadorTalla(size) {
+  recSize = size
+  renderRecomendadorStep(3)
+}
+
+function guardarRecomendadorEmpeine(instep) {
+  recInstep = instep
+  renderRecomendadorStep(4)
+}
+
+function abrirRecomendadorTallas() {
+  const m = document.getElementById('modal-recomendador')
+  if (m) {
+    m.style.display = 'flex'
+    document.body.style.overflow = 'hidden'
+    renderRecomendadorStep(1)
+  }
+}
+
+function cerrarRecomendadorTallas() {
+  const m = document.getElementById('modal-recomendador')
+  if (m) {
+    m.style.display = 'none'
+    document.body.style.overflow = ''
+  }
+}
+
+function aplicarTallaRecomendada(talla) {
+  seleccionarTalla(talla)
+  const btn = document.getElementById('tbtn-' + talla.replace('.','_'))
+  if (btn) {
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    btn.classList.add('pop')
+    setTimeout(() => btn.classList.remove('pop'), 500)
+  }
+  cerrarRecomendadorTallas()
+}
+
+  gallery.addEventListener('mouseleave', function() {
+    img.style.transform = 'scale(1) rotateY(0deg) rotateX(0deg)'
+  })
+})()
 </script>
 <!-- MODAL GUÍA DE TALLAS -->
 <div id="modal-tallas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:flex-end;justify-content:center" onclick="if(event.target===this)cerrarGuiaTallas()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') { if(event.target===this) cerrarGuiaTallas(); }">
@@ -1651,8 +1967,38 @@ function zmRechazarCookies() {
     </div>
   </div>
 </div>
+
+<!-- MODAL PROBADOR VIRTUAL (SIZEBAY CLONE) -->
+<div id="modal-recomendador" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:flex-end;justify-content:center" onclick="if(event.target===this)cerrarRecomendadorTallas()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') { if(event.target===this) cerrarRecomendadorTallas(); }">
+  <div style="background:white;border-radius:20px 20px 0 0;padding:24px 20px 30px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease;box-shadow:0 -5px 25px rgba(0,0,0,0.15)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:0.95rem;font-weight:700;color:#333;display:flex;align-items:center;gap:6px">📐 Probador Virtual ZM</span>
+      <button onclick="cerrarRecomendadorTallas()" aria-label="Cerrar" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#888;padding:4px">✕</button>
+    </div>
+    
+    <!-- Progress Bar -->
+    <div style="width:100%;height:4px;background:#f0ece8;border-radius:2px;margin-bottom:20px;overflow:hidden">
+      <div id="rec-progress" style="width:25%;height:100%;background:linear-gradient(90deg, #C8967A, #b5687a);transition:width 0.3s ease"></div>
+    </div>
+    
+    <!-- Content container -->
+    <div id="rec-body"></div>
+  </div>
+</div>
+
 <style>
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.talla-ajuste-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.talla-ajuste-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(200,150,122,0.12) !important;
+}
+.rec-btn:hover {
+  border-color: var(--tan) !important;
+  background-color: #fffbf9 !important;
+}
 </style>
 <script>
 function abrirGuiaTallas() {
