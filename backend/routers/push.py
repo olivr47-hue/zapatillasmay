@@ -8,6 +8,7 @@ usando el estandar Web Push (VAPID + cifrado aes128gcm), sin depender de
 ningun servicio de terceros de pago.
 """
 import os
+import json
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
@@ -81,7 +82,11 @@ def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str) -> bool
                 "endpoint": sub["endpoint"],
                 "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
             },
-            data='{"title": %r, "body": %r, "url": %r}' % (titulo, cuerpo, url or "/"),
+            # OJO: antes se armaba a mano con %r (repr de Python -> comillas simples),
+            # lo que produce JSON inválido. El service worker (evento 'push') hace
+            # event.data.json(), fallaba en silencio, y mostraba el texto genérico de
+            # respaldo ("Tienes una novedad") en vez del título/cuerpo reales.
+            data=json.dumps({"title": titulo, "body": cuerpo, "url": url or "/"}),
             vapid_private_key=VAPID_PRIVATE_KEY,
             vapid_claims={"sub": f"mailto:{VAPID_EMAIL}"},
         )
