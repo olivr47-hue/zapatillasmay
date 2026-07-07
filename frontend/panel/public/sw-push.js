@@ -5,8 +5,11 @@ self.addEventListener('push', function (event) {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Zapatillas May', {
       body: data.body || '',
-      icon: '/favicon.png',
-      badge: '/favicon.png',
+      // icon-192.png es más nítido que favicon.png (64px). Sin "badge": ese campo
+      // necesita un PNG con canal alpha real para que el SO recorte la silueta;
+      // como favicon.png tiene fondo blanco opaco (sin transparencia), Windows lo
+      // pintaba como un cuadro blanco liso en vez del logo.
+      icon: '/icons/icon-192.png',
       data: { url: data.url || '/' },
     })
   )
