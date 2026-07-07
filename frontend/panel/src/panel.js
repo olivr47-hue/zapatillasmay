@@ -7373,7 +7373,9 @@ window.cargarPedidosFiltro = (filtro) => {
   } else if (filtro === 'por_enviar') {
     filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id))
   } else if (filtro) {
-    filtrados = data.filter(p => p.canal === filtro)
+    // Igual que "Todos": un borrador/checkout_iniciado no es una venta real,
+    // no debe aparecer mezclado al filtrar por canal (Web/Sucursal/WhatsApp/ML).
+    filtrados = data.filter(p => p.canal === filtro && p.status !== 'checkout_iniciado' && p.status !== 'borrador')
   }
 
   // Marcar botón activo
