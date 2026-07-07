@@ -738,7 +738,9 @@ async def webhook_mercadopago(request: Request):
                         # "expired": el voucher de OXXO/SPEI venció sin pagarse (~3 días). Sin
                         # este caso el pedido se quedaba en "pendiente_pago" para siempre, sin
                         # que nadie se enterara de que el cliente ya no va a pagar.
-                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado"})
+                        # Se guarda también forma_pago para que el registro quede completo
+                        # (saber que fue un intento de OXXO/SPEI aunque no se haya concretado).
+                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado", "forma_pago": _forma})
 
                     elif status == "pending":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
