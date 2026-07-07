@@ -122,7 +122,12 @@ def marcar_convertido(email: str):
 def _enviar_recordatorio(carrito: dict) -> bool:
     if not _RESEND_OK or not resend.api_key:
         return False
-    email  = carrito["email"]
+    # Sanear: algunos clientes teclean el correo con espacios o un punto final
+    # (typo/autocorrección) y Resend rechaza el envío con ese formato.
+    email = (carrito["email"] or "").strip().rstrip(".")
+    if "@" not in email:
+        print(f"[carrito-abandonado] Email inválido, se omite recordatorio: {carrito.get('email')!r}")
+        return False
     nombre = (carrito.get("nombre") or "").split(" ")[0].capitalize() if carrito.get("nombre") else "Hola"
     items  = carrito.get("items") or []
     total  = carrito.get("total") or 0

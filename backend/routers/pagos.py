@@ -634,16 +634,29 @@ def procesar_pago(datos: dict):
 async def webhook_mercadopago(request: Request):
     try:
         raw_body = await request.body()
+        query = request.query_params
 
-        # Validar firma HMAC de Mercado Pago
-        if not _validar_firma_mp(raw_body, dict(request.headers)):
+        # Mercado Pago manda dos formatos al mismo webhook:
+        # 1) el nuevo, firmado (body JSON con type/data.id + header x-signature).
+        # 2) el IPN legado (?id=...&topic=payment), que NUNCA trae x-signature —
+        #    no es un fallo, así lo diseñó MP. Sin este bypass, rechazamos siempre
+        #    ese formato con 400 y el pago nunca se marca como pagado.
+        # Es seguro aceptarlo sin firma porque la verdad real no viene del webhook:
+        # más abajo volvemos a preguntarle a la API de MP (con NUESTRO access token)
+        # el estado del pago antes de tocar cualquier dato.
+        es_formato_legado = not request.headers.get("x-signature") and query.get("topic") and query.get("id")
+
+        if not es_formato_legado and not _validar_firma_mp(raw_body, dict(request.headers)):
             return JSONResponse(status_code=400, content={"error": "Firma invalida"})
 
-        body = json.loads(raw_body)
-        tipo = body.get("type")
+        try:
+            body = json.loads(raw_body) if raw_body else {}
+        except Exception:
+            body = {}
+        tipo = body.get("type") or query.get("topic")
 
         if tipo == "payment":
-            payment_id = body.get("data", {}).get("id")
+            payment_id = body.get("data", {}).get("id") or query.get("id")
             if payment_id:
                 result = sdk.payment().get(payment_id)
                 payment = result["response"]
