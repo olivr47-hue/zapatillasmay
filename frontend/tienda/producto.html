@@ -1759,6 +1759,12 @@ function renderRecomendadorStep(step) {
       { id: 'puma', name: 'Puma' },
       { id: 'converse', name: 'Converse' },
       { id: 'vans', name: 'Vans' },
+      { id: 'steve_madden', name: 'Steve Madden' },
+      { id: 'aldo', name: 'Aldo' },
+      { id: 'andrea', name: 'Andrea' },
+      { id: 'cklass', name: 'Cklass' },
+      { id: 'price_shoes', name: 'Price Shoes' },
+      { id: 'zara', name: 'Zara' },
       { id: 'standard', name: 'Otra marca / Estándar' }
     ]
     body.innerHTML = `
@@ -1772,7 +1778,7 @@ function renderRecomendadorStep(step) {
       </div>
     `
   } else if (step === 2) {
-    const sizes = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26']
+    const sizes = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27']
     body.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <button onclick="renderRecomendadorStep(1)" style="background:none;border:none;color:var(--tan);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">← Volver</button>
