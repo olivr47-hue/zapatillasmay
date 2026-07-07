@@ -774,6 +774,7 @@ function zmImg(url, w){
 let producto = null
 let variantes = []
 let inventario = []
+let datosInventarioCargados = false  // true solo si /variantes y /inventario SÍ respondieron
 let fotosActuales = []
 let colorSeleccionado = null
 let tallaSeleccionada = null
@@ -814,6 +815,7 @@ async function init() {
     const [resV, resI, resEnvio] = await Promise.all(fetchPromises)
     variantes  = resV ? await resV.json() : []
     inventario = resI ? await resI.json() : []
+    datosInventarioCargados = !!(resV && resI)
     if (resEnvio?.ok) { try { window._cfgEnvio = await resEnvio.json() } catch(e) {} }
 
     if (window.__ZM_PRODUCT__) {
@@ -1200,6 +1202,8 @@ function seleccionarColor(color) {
 
   // Renderizar tallas para este color
   renderTallas(color, varsProd)
+  // El widget de ajuste de talla depende del color (disponibilidad real por variante)
+  try { actualizarWidgetAjuste() } catch(e) { console.error("Error actualizando recomendador:", e) }
   // Activar visualmente el paso 2 (talla)
   const stepNum = document.getElementById('talla-step-num')
   const tallaHint = document.getElementById('talla-hint-text')
@@ -1680,13 +1684,29 @@ function actualizarWidgetAjuste() {
   } else {
     const tallaRecomendada = calcularTallaRecomendada(perfil, p)
     const tallaStr = String(tallaRecomendada)
-    
-    const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
-    const tallasDisponibles = [...new Set(varsProd.map(v => v.talla).filter(Boolean))]
-    const estaDisponible = tallasDisponibles.includes(tallaStr)
 
+    // Igual que renderTallas(): filtrar por el color YA seleccionado (si el
+    // producto tiene colores) y confirmar contra el inventario real, no solo
+    // que exista la fila de variante — si no, el widget podía decir
+    // "🟢 Disponible" en una talla o color sin existencia real.
+    const varsTodasColores = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+    const tieneColores = varsTodasColores.some(v => v.color)
+    const varsProd = (tieneColores && colorSeleccionado)
+      ? varsTodasColores.filter(v => v.color === colorSeleccionado)
+      : varsTodasColores
+    const variante = varsProd.find(v => String(v.talla) === tallaStr)
+    const stockVariante = variante ? (inventario.find(i => i.variante_id === variante.id)?.cantidad ?? 0) : 0
+    const estaDisponible = stockVariante > 0
+
+    // Si /variantes o /inventario fallaron (red lenta, API caída), NO afirmar
+    // "Sin stock" con datos que no tenemos — eso podía espantar una venta real
+    // por un simple problema de red. Mismo criterio que stockDisponible() en carrito.html.
     let disponibilidadMsg = ""
-    if (estaDisponible) {
+    if (!datosInventarioCargados) {
+      disponibilidadMsg = `<span style="color:#888;font-weight:600;margin-left:4px">Verificando disponibilidad…</span>`
+    } else if (tieneColores && !colorSeleccionado) {
+      disponibilidadMsg = `<span style="color:#888;font-weight:600;margin-left:4px">Elige un color para ver disponibilidad</span>`
+    } else if (estaDisponible) {
       disponibilidadMsg = `<span style="color:#10b981;font-weight:700;margin-left:4px">🟢 ¡Disponible!</span>`
     } else {
       disponibilidadMsg = `<span style="color:#ef4444;font-weight:600;margin-left:4px">🔴 Sin stock</span>`
@@ -1709,7 +1729,7 @@ function actualizarWidgetAjuste() {
           <div style="font-size:0.76rem;color:#444">
             Talla recomendada: <strong style="font-size:0.86rem;color:#6b3a2a">${tallaRecomendada} MX</strong> ${disponibilidadMsg}
           </div>
-          ${estaDisponible ? `
+          ${(datosInventarioCargados && estaDisponible && !(tieneColores && !colorSeleccionado)) ? `
             <button onclick="aplicarTallaRecomendada('${tallaRecomendada}')" style="font-size:0.7rem;font-weight:700;color:white;background:#10b981;border:none;padding:5px 10px;border-radius:15px;cursor:pointer;transition:background-color 0.2s">Elegir talla</button>
           ` : ''}
         </div>
@@ -1806,9 +1826,18 @@ function renderRecomendadorStep(step) {
     localStorage.setItem('zm_perfil_talla', JSON.stringify(perfil))
     actualizarWidgetAjuste()
 
-    const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
-    const tallasDisponibles = [...new Set(varsProd.map(v => v.talla).filter(Boolean))]
-    const estaDisponible = tallasDisponibles.includes(String(tallaRecomendada))
+    // Mismo criterio que actualizarWidgetAjuste(): filtrar por color ya
+    // elegido y confirmar contra inventario real, no solo que exista la fila
+    // de variante (si no, decía "Disponible" en tallas/colores agotados).
+    const tallaStr4 = String(tallaRecomendada)
+    const varsTodasColores4 = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+    const tieneColores4 = varsTodasColores4.some(v => v.color)
+    const varsProd = (tieneColores4 && colorSeleccionado)
+      ? varsTodasColores4.filter(v => v.color === colorSeleccionado)
+      : varsTodasColores4
+    const variante4 = varsProd.find(v => String(v.talla) === tallaStr4)
+    const stock4 = variante4 ? (inventario.find(i => i.variante_id === variante4.id)?.cantidad ?? 0) : 0
+    const estaDisponible = datosInventarioCargados ? stock4 > 0 : null  // null = no se pudo verificar
 
     let fitsStatus = "Perfecto"
     let fitsProgress = "50%"
@@ -1846,7 +1875,7 @@ function renderRecomendadorStep(step) {
         <span style="font-size:0.7rem;color:#8B6A54;text-transform:uppercase;letter-spacing:1px;font-weight:700">Talla recomendada</span>
         <div style="font-size:2.5rem;font-weight:800;color:#6b3a2a;margin:4px 0">${tallaRecomendada} MX</div>
         <span style="font-size:0.74rem;color:#10b981;font-weight:700;display:flex;align-items:center;gap:4px">
-          ${estaDisponible ? '🟢 ¡Disponible en stock!' : '🔴 Agotada temporalmente'}
+          ${estaDisponible === null ? '⏳ No pudimos verificar disponibilidad' : estaDisponible ? '🟢 ¡Disponible en stock!' : '🔴 Agotada temporalmente'}
         </span>
       </div>
 
@@ -1869,7 +1898,7 @@ function renderRecomendadorStep(step) {
       ` : ''}
 
       <div style="display:flex;flex-direction:column;gap:10px">
-        ${estaDisponible ? `
+        ${estaDisponible !== false ? `
           <button onclick="aplicarTallaRecomendada('${tallaRecomendada}')" style="width:100%;padding:12px;border-radius:10px;font-weight:700;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(200,150,122,0.4);font-family:var(--font-body)">
             Elegir talla ${tallaRecomendada} MX
           </button>
@@ -1928,11 +1957,6 @@ function aplicarTallaRecomendada(talla) {
   }
   cerrarRecomendadorTallas()
 }
-
-  gallery.addEventListener('mouseleave', function() {
-    img.style.transform = 'scale(1) rotateY(0deg) rotateX(0deg)'
-  })
-})()
 </script>
 <!-- MODAL GUÍA DE TALLAS -->
 <div id="modal-tallas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:flex-end;justify-content:center" onclick="if(event.target===this)cerrarGuiaTallas()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') { if(event.target===this) cerrarGuiaTallas(); }">
