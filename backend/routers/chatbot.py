@@ -7,6 +7,8 @@ import json
 import os
 import time
 import base64
+import hmac
+import hashlib
 import re
 import mercadopago
 
@@ -833,8 +835,74 @@ async def link_pago_manual(datos: dict):
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
+def _verificar_firma_meta(body: bytes, signature_header: str) -> bool:
+    """Valida `X-Hub-Signature-256` del webhook de Meta con el App Secret.
+
+    Si `WHATSAPP_APP_SECRET` no está configurado no se puede validar: se permite el
+    request (comportamiento actual) para no tumbar el bot en vivo, pero se registra una
+    advertencia. En cuanto se configure el secret en el entorno, la firma se exige.
+    """
+    app_secret = os.environ.get("WHATSAPP_APP_SECRET", "")
+    if not app_secret:
+        print("[wa webhook] WHATSAPP_APP_SECRET no configurado; firma NO verificada")
+        return True
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+    esperado = "sha256=" + hmac.new(app_secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperado, signature_header)
+
+
+# Dedup de reintentos de Meta: si el webhook no recibe 200 rápido, Meta REENVÍA el
+# mismo payload → el mensaje se procesaba dos veces (doble fila en el panel y doble
+# respuesta de Maya al cliente). Guardamos los wamid vistos por ~15 min en memoria.
+_WAMIDS_VISTOS: dict = {}
+_TAREAS_BG: set = set()  # referencias fuertes a tareas de webhook en vuelo (anti-GC)
+
+def _wamid_duplicado(wamid: str) -> bool:
+    if not wamid:
+        return False
+    ahora = time.time()
+    if len(_WAMIDS_VISTOS) > 2000:  # límite de seguridad
+        _WAMIDS_VISTOS.clear()
+    for k in [k for k, t in _WAMIDS_VISTOS.items() if ahora - t > 900]:
+        _WAMIDS_VISTOS.pop(k, None)
+    if wamid in _WAMIDS_VISTOS:
+        return True
+    _WAMIDS_VISTOS[wamid] = ahora
+    return False
+
+
 @router.post("/whatsapp")
-async def recibir_mensaje_whatsapp(datos: dict):
+async def recibir_mensaje_whatsapp(request: Request):
+    """Recibe webhooks de Meta. Responde 200 DE INMEDIATO y procesa en segundo plano:
+    si tardamos más de ~10 s en contestar (Claude, media, etc.), Meta reintenta la
+    entrega y el mensaje se duplicaba. El procesamiento vive en
+    `_procesar_webhook_whatsapp`."""
+    import asyncio
+    raw_body = await request.body()
+    if not _verificar_firma_meta(raw_body, request.headers.get("X-Hub-Signature-256", "")):
+        print("[wa webhook] firma inválida — request rechazado")
+        return JSONResponse(status_code=403, content={"error": "firma inválida"})
+    try:
+        datos = json.loads(raw_body) if raw_body else {}
+    except Exception:
+        datos = {}
+    try:
+        _msgs = datos.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {}).get("messages", [])
+        _wamid = _msgs[0].get("id", "") if _msgs else ""
+    except Exception:
+        _wamid = ""
+    if _wamid and _wamid_duplicado(_wamid):
+        print(f"[wa webhook] reintento de Meta ignorado (wamid ya procesado): {_wamid}")
+        return {"status": "ok"}
+    # Guardar referencia fuerte: sin esto el GC puede matar la tarea antes de terminar.
+    tarea = asyncio.create_task(_procesar_webhook_whatsapp(datos))
+    _TAREAS_BG.add(tarea)
+    tarea.add_done_callback(_TAREAS_BG.discard)
+    return {"status": "ok"}
+
+
+async def _procesar_webhook_whatsapp(datos: dict):
     try:
         print(f"WHATSAPP DATOS: {json.dumps(datos)}")
         entry = datos.get("entry", [{}])[0]
@@ -846,6 +914,7 @@ async def recibir_mensaje_whatsapp(datos: dict):
         for st in statuses:
             status_type = st.get("status")   # sent | delivered | read | failed
             recipient   = st.get("recipient_id", "")
+            st_wamid    = st.get("id", "")    # wamid del mensaje SALIENTE al que refiere el recibo
             if status_type in ("delivered", "read") and recipient:
                 try:
                     existing = supabase_get(f"chats_control?telefono=eq.{recipient}")
@@ -859,6 +928,12 @@ async def recibir_mensaje_whatsapp(datos: dict):
                     cache_invalidate("chats_lista")
                 except Exception as e:
                     print(f"Error guardando status {status_type}: {e}")
+            # Métricas de broadcast: si este wamid pertenece a un envío masivo, actualizar su estado.
+            if status_type in ("delivered", "read", "failed") and st_wamid:
+                try:
+                    _actualizar_metrica_broadcast(st_wamid, status_type)
+                except Exception as e:
+                    print(f"[broadcast] error métrica {status_type}: {e}")
 
         messages = value.get("messages", [])
         if not messages:
@@ -1069,8 +1144,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
                     enviar_whatsapp_texto(from_number, "¡Hola! Un asesor te atenderá en breve 😊")
                 else:
                     # Pasar a Maya como si fuera texto
+                    from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": btn_title}]
-                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, btn_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -1081,8 +1157,9 @@ async def recibir_mensaje_whatsapp(datos: dict):
                 mensaje = f"[Lista] {row_title}"
                 guardar_conversacion(from_number, mensaje, None, "list_reply", nombre_contacto)
                 if not control:
+                    from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": row_title}]
-                    respuesta_claude = llamar_claude(mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, row_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -1102,6 +1179,19 @@ async def recibir_mensaje_whatsapp(datos: dict):
 
         if control:
             guardar_conversacion(from_number, mensaje, None, "texto", nombre_contacto)
+            return {"status": "ok"}
+
+        # ── FLUJO por palabra clave (automatización estilo ManyChat) ──
+        # Aquí el bot está activo (control es falsy). Si el mensaje coincide con un
+        # flujo activo, respondemos con su texto y NO gastamos una llamada a Claude.
+        try:
+            _resp_flujo = _buscar_flujo(mensaje, en_control=False)
+        except Exception:
+            _resp_flujo = None
+        if _resp_flujo:
+            enviar_whatsapp_texto(from_number, _resp_flujo)
+            guardar_conversacion(from_number, mensaje, _resp_flujo, "texto", nombre_contacto)
+            cache_invalidate("chats_lista")
             return {"status": "ok"}
 
         # ── DEBOUNCE: guardar mensaje primero, esperar 2s y verificar si llegó otro ──
@@ -1157,9 +1247,10 @@ async def recibir_mensaje_whatsapp(datos: dict):
         # ── Llamar Claude con retry en caso de error temporal ──────────────────
         respuesta_claude = None
         ultimo_error = None
+        from fastapi.concurrency import run_in_threadpool
         for intento in range(2):  # 1 reintento
             try:
-                respuesta_claude = llamar_claude(mensajes_claude, sistema)
+                respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_claude, sistema)
                 break
             except Exception as e:
                 ultimo_error = e
@@ -1483,6 +1574,103 @@ async def eliminar_respuesta(id: str):
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ── FLUJOS DE AUTOMATIZACIÓN (respuestas por palabra clave, estilo ManyChat) ──
+@router.get("/flujos")
+async def listar_flujos():
+    try:
+        return supabase_get("wa_flujos?order=orden.asc,created_at.asc") or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/flujos")
+async def crear_flujo(datos: dict):
+    try:
+        from database import supabase_post
+        return supabase_post("wa_flujos", {
+            "nombre": (datos.get("nombre") or "").strip() or "Flujo sin nombre",
+            "activo": bool(datos.get("activo", True)),
+            "palabras_clave": (datos.get("palabras_clave") or "").strip(),
+            "coincidencia": datos.get("coincidencia") or "contiene",
+            "respuesta": (datos.get("respuesta") or "").strip(),
+            "solo_si_bot": bool(datos.get("solo_si_bot", True)),
+            "orden": int(datos.get("orden") or 0),
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/flujos/{id}")
+async def actualizar_flujo(id: str, datos: dict):
+    try:
+        from database import supabase_patch
+        permitidos = {"nombre", "activo", "palabras_clave", "coincidencia", "respuesta", "solo_si_bot", "orden"}
+        upd = {k: v for k, v in datos.items() if k in permitidos}
+        supabase_patch(f"wa_flujos?id=eq.{id}", upd)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/flujos/{id}")
+async def eliminar_flujo(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"wa_flujos?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _buscar_flujo(texto: str, en_control: bool):
+    """Devuelve la respuesta del primer flujo activo cuya palabra clave coincida con
+    el texto entrante, o None. Reglas de coincidencia: contiene | exacta | empieza."""
+    try:
+        flujos = supabase_get("wa_flujos?activo=eq.true&order=orden.asc,created_at.asc") or []
+    except Exception:
+        return None
+    t = (texto or "").strip().lower()
+    if not t:
+        return None
+    for f in flujos:
+        if f.get("solo_si_bot", True) and en_control:
+            continue  # el chat lo lleva un asesor manual: no auto-responder
+        modo = f.get("coincidencia") or "contiene"
+        claves = [k.strip().lower() for k in (f.get("palabras_clave") or "").split(",") if k.strip()]
+        for k in claves:
+            hit = (t == k) if modo == "exacta" else (t.startswith(k) if modo == "empieza" else (k in t))
+            if hit:
+                try:
+                    supabase_patch(f"wa_flujos?id=eq.{f['id']}", {"veces_disparado": (f.get("veces_disparado") or 0) + 1})
+                except Exception:
+                    pass
+                return f.get("respuesta") or None
+    return None
+
+
+def _actualizar_metrica_broadcast(wamid: str, status_type: str):
+    """Correlaciona un recibo de Meta (delivered/read/failed) con un envío de broadcast
+    por su wamid y actualiza el estado del envío + recalcula los contadores del broadcast."""
+    from database import supabase_patch
+    envios = supabase_get(f"wa_broadcast_envios?wa_message_id=eq.{wamid}&select=id,broadcast_id,estado") or []
+    if not envios:
+        return
+    env = envios[0]
+    nuevo = {"delivered": "entregado", "read": "leido", "failed": "fallido"}.get(status_type)
+    if not nuevo:
+        return
+    rango = {"enviado": 0, "entregado": 1, "leido": 2}
+    # No degradar (read>delivered); fallido siempre se registra.
+    if nuevo != "fallido" and rango.get(nuevo, 0) <= rango.get(env.get("estado", "enviado"), 0):
+        return
+    supabase_patch(f"wa_broadcast_envios?id=eq.{env['id']}", {"estado": nuevo})
+    bid = env.get("broadcast_id")
+    if not bid:
+        return
+    todos = supabase_get(f"wa_broadcast_envios?broadcast_id=eq.{bid}&select=estado") or []
+    entregados = sum(1 for e in todos if e.get("estado") in ("entregado", "leido"))
+    leidos = sum(1 for e in todos if e.get("estado") == "leido")
+    fallidos = sum(1 for e in todos if e.get("estado") == "fallido")
+    supabase_patch(f"wa_broadcasts?id=eq.{bid}", {"entregados": entregados, "leidos": leidos, "fallidos": fallidos})
+
 
 @router.get("/notas/{telefono}")
 async def obtener_notas(telefono: str):
@@ -2672,17 +2860,33 @@ async def enviar_carrusel(telefono: str, datos: dict):
 
 @router.post("/broadcast")
 async def broadcast_masivo(datos: dict):
-    """Envia un template aprobado a multiples telefonos."""
+    """Envia un template aprobado a multiples telefonos y registra el broadcast +
+    un envío por destinatario en wa_broadcasts / wa_broadcast_envios para métricas."""
     try:
         template_name = datos.get("template", "")
         params        = datos.get("params", [])
         telefonos     = datos.get("telefonos", [])
         idioma        = datos.get("idioma", "es_MX")
+        nombre        = (datos.get("nombre") or template_name).strip()
+        filtro_etiqueta = datos.get("filtro_etiqueta")
 
         if not template_name:
             return JSONResponse(status_code=400, content={"error": "template requerido"})
         if not telefonos:
             return JSONResponse(status_code=400, content={"error": "telefonos requeridos"})
+
+        # Registro del broadcast (para historial y métricas de entrega/lectura)
+        broadcast_id = None
+        try:
+            creado = supabase_post("wa_broadcasts", {
+                "nombre": nombre, "plantilla": template_name, "idioma": idioma,
+                "parametros": params, "filtro_etiqueta": filtro_etiqueta,
+                "estado": "enviando", "total": len(telefonos),
+            })
+            if isinstance(creado, list) and creado:
+                broadcast_id = creado[0].get("id")
+        except Exception as e:
+            print(f"[broadcast] no se pudo crear registro: {e}")
 
         resultados = []
         for tel in telefonos:
@@ -2702,13 +2906,43 @@ async def broadcast_masivo(datos: dict):
                     except Exception: pass
                 try: supabase_post("conversaciones_whatsapp", row_bc)
                 except Exception: pass
+                if broadcast_id:
+                    try:
+                        supabase_post("wa_broadcast_envios", {
+                            "broadcast_id": broadcast_id, "telefono": tel,
+                            "wa_message_id": wamid or None,
+                            "estado": "enviado" if wamid else "fallido",
+                        })
+                    except Exception: pass
             except Exception as e:
                 resultados.append({"tel": tel, "ok": False, "error": str(e)})
+                if broadcast_id:
+                    try:
+                        supabase_post("wa_broadcast_envios", {
+                            "broadcast_id": broadcast_id, "telefono": tel,
+                            "estado": "fallido", "error": str(e)[:300],
+                        })
+                    except Exception: pass
 
         cache_invalidate("chats_lista")
         enviados = sum(1 for r in resultados if r.get("ok"))
-        return {"ok": True, "total": len(telefonos), "enviados": enviados,
+        if broadcast_id:
+            try:
+                supabase_patch(f"wa_broadcasts?id=eq.{broadcast_id}", {
+                    "estado": "enviado", "enviados": enviados, "fallidos": len(telefonos) - enviados,
+                })
+            except Exception: pass
+        return {"ok": True, "broadcast_id": broadcast_id, "total": len(telefonos), "enviados": enviados,
                 "errores": len(telefonos) - enviados, "resultados": resultados}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/broadcasts")
+async def listar_broadcasts():
+    """Historial de broadcasts con sus métricas (para el panel)."""
+    try:
+        return supabase_get("wa_broadcasts?order=created_at.desc&limit=50") or []
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

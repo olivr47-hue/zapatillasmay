@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_invalidate_prefix
+from security import require_staff
 
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
@@ -13,7 +14,7 @@ def listar_movimientos():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/ajuste")
-def ajuste_inventario(datos: dict):
+def ajuste_inventario(datos: dict, _staff=Depends(require_staff)):
     try:
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")
@@ -53,7 +54,7 @@ def ajuste_inventario(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/entrada")
-def entrada_mercancia(datos: dict):
+def entrada_mercancia(datos: dict, _staff=Depends(require_staff)):
     try:
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")
@@ -99,7 +100,7 @@ def listar_cambios():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/cambio")
-def registrar_cambio(datos: dict):
+def registrar_cambio(datos: dict, _staff=Depends(require_staff)):
     try:
         variante_origen_id = datos.get("variante_origen_id")
         variante_destino_id = datos.get("variante_destino_id")
@@ -152,7 +153,7 @@ def registrar_cambio(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/traspaso")
-def registrar_traspaso(datos: dict):
+def registrar_traspaso(datos: dict, _staff=Depends(require_staff)):
     try:
         variante_id = datos.get("variante_id")
         sucursal_origen_id = datos.get("sucursal_origen_id")

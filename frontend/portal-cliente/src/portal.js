@@ -23,6 +23,14 @@ const num = (v) => parseFloat(v) || 0
 const money = (n) => '$' + Math.round(n).toLocaleString('es-MX')
 const esc = (s) => String(s ?? '').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
+// Solo permite URLs http(s); bloquea javascript:, data:, etc. Devuelve '' si no es segura.
+const urlSegura = (u) => {
+  try {
+    const url = new URL(String(u ?? ''), window.location.origin)
+    return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : ''
+  } catch { return '' }
+}
+
 // Encabezados con el JWT de cliente para los endpoints /portal/* protegidos
 function authHeaders() {
   const t = state.sesion?.token
@@ -707,7 +715,7 @@ async function renderPedidos() {
       ${items.length > 4 ? `<div class="muted" style="font-size:.76rem;margin-top:4px">+${items.length - 4} más…</div>` : ''}
       ${p.numero_guia ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
         <div class="muted" style="font-size:.74rem">📦 ${esc(p.paqueteria || 'Envío')} · Guía ${esc(p.numero_guia)}</div>
-        ${p.tracking_url ? `<a href="${esc(p.tracking_url)}" target="_blank" style="color:var(--pink);font-size:.8rem;font-weight:600;text-decoration:none">Rastrear envío →</a>` : ''}
+        ${urlSegura(p.tracking_url) ? `<a href="${esc(urlSegura(p.tracking_url))}" target="_blank" rel="noopener noreferrer" style="color:var(--pink);font-size:.8rem;font-weight:600;text-decoration:none">Rastrear envío →</a>` : ''}
       </div>` : ''}
     </div>`
   }).join('')

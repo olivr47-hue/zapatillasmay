@@ -152,3 +152,25 @@ def require_auth(
     if not credentials:
         raise HTTPException(status_code=401, detail="Autenticacion requerida")
     return verify_token(credentials.credentials)
+
+
+# Interruptor de despliegue seguro: mientras AUTH_ENFORCE != "1", require_staff NO
+# bloquea (permite desplegar el backend ANTES que el panel sin romper producción).
+# Activar AUTH_ENFORCE=1 en Railway SOLO cuando el panel (con el interceptor que
+# adjunta el token a /api) ya esté en vivo en Vercel. Ver memoria project_env_vars_pendientes.
+AUTH_ENFORCE = os.getenv("AUTH_ENFORCE", "0") == "1"
+
+
+def require_staff(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Exige un token de personal (empleado; su JWT lleva 'rol'). Los clientes
+    (token con 'tipo', sin 'rol') quedan fuera. Gated por AUTH_ENFORCE."""
+    if not AUTH_ENFORCE:
+        return {"_auth": "disabled"}
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Autenticacion requerida")
+    payload = verify_token(credentials.credentials)
+    if not payload.get("rol"):
+        raise HTTPException(status_code=403, detail="Se requiere acceso de personal")
+    return payload

@@ -139,6 +139,10 @@ export function renderPanel() {
   // Interval global para notificaciones de WhatsApp
   if (window._conversacionesInterval) clearInterval(window._conversacionesInterval)
   window._conversacionesInterval = setInterval(async () => {
+    // Guarda de "en vuelo": si la petición anterior sigue pendiente (red lenta),
+    // NO disparar otra — sin esto se apilan requests hasta saturar el navegador.
+    if (window._chatsPollEnVuelo) return
+    window._chatsPollEnVuelo = true
     try {
       const chats = await window._recargarChats()
       const noLeidosAntes = window._totalNoLeidos || 0
@@ -198,6 +202,7 @@ export function renderPanel() {
         }
       }
     } catch(e) {}
+    finally { window._chatsPollEnVuelo = false }
   }, 8000)
 
  // ── Polling: pedidos por enviar ───────────────────────────────────
@@ -212,6 +217,8 @@ function _setBadge(count) {
 }
 
 async function _pollPedidosPorEnviar() {
+  if (window._pedidosPollEnVuelo) return  // no apilar requests si la red va lenta
+  window._pedidosPollEnVuelo = true
   try {
     const res = await fetch(API + '/pedidos/?status=pagado')
     if (!res.ok) return
@@ -237,6 +244,7 @@ async function _pollPedidosPorEnviar() {
     }
     _ultimosPedidosPorEnviar = idsActuales
   } catch(e) {}
+  finally { window._pedidosPollEnVuelo = false }
 }
 
 function _mostrarNotifPedido(msg) {
@@ -11859,6 +11867,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             </div>
             <div style="display:flex;gap:4px">
               <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
+              <button id="tab-pipeline" onclick="mostrarTabWA('pipeline')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Embudo</button>
               <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Config</button>
             </div>
           </div>
@@ -11910,25 +11919,140 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
 
 
 window.mostrarTabWA = async (tab) => {
-  const btnChats = document.getElementById('tab-chats')
-  const btnConfig = document.getElementById('tab-config')
-  if (btnChats) {
-    const active = tab === 'chats'
-    btnChats.style.background = active ? '#E91E8C' : 'var(--surface)'
-    btnChats.style.color = active ? 'white' : 'var(--text-2)'
-    btnChats.style.borderColor = active ? '#E91E8C' : 'var(--border)'
+  const setActive = (id, active) => {
+    const b = document.getElementById(id)
+    if (!b) return
+    b.style.background = active ? '#E91E8C' : 'var(--surface)'
+    b.style.color = active ? 'white' : 'var(--text-2)'
+    b.style.borderColor = active ? '#E91E8C' : 'var(--border)'
   }
-  if (btnConfig) {
-    const active = tab === 'config'
-    btnConfig.style.background = active ? '#E91E8C' : 'var(--surface)'
-    btnConfig.style.color = active ? 'white' : 'var(--text-2)'
-    btnConfig.style.borderColor = active ? '#E91E8C' : 'var(--border)'
-  }
+  setActive('tab-chats', tab === 'chats')
+  setActive('tab-pipeline', tab === 'pipeline')
+  setActive('tab-config', tab === 'config')
   if (tab === 'chats') {
     await window.cargarConversaciones()
+  } else if (tab === 'pipeline') {
+    await window.mostrarPipelineWA()
   } else {
     await mostrarConfigWA()
   }
+}
+
+// ── EMBUDO / PIPELINE KANBAN (estilo Kommo) ─────────────────────────────────
+// Reutiliza el campo `etiqueta` de chats_control como etapa del embudo. Cada
+// columna es una etapa; arrastrar una tarjeta a otra columna cambia su etiqueta
+// llamando al endpoint existente (cambiarEtiqueta). Sin tablas nuevas.
+window._WA_ETAPAS = [
+  { id: 'sin_etiqueta',      nombre: 'Nuevos',      color: '#94a3b8' },
+  { id: 'solo_pregunta',     nombre: 'Pregunta',    color: '#3b82f6' },
+  { id: 'posible_comprador', nombre: 'Posible',     color: '#f59e0b' },
+  { id: 'comprador',         nombre: 'Comprador',   color: '#10b981' },
+  { id: 'seguimiento',       nombre: 'Seguimiento', color: '#ef4444' },
+  { id: 'frecuente',         nombre: 'Frecuente',   color: '#E91E8C' },
+]
+
+window.mostrarPipelineWA = async function() {
+  const content = document.getElementById('content')
+  if (content) content.innerHTML = '<p style="padding:2rem;color:#888">Cargando embudo...</p>'
+  let chats = []
+  try {
+    const raw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
+    chats = Array.isArray(raw) ? raw : []
+  } catch (e) { chats = [] }
+  window._chatsData = window._chatsData || {}
+  chats.forEach(c => { window._chatsData[c.telefono] = { ...(window._chatsData[c.telefono] || {}), ...c } })
+
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const porEtapa = (id) => chats.filter(c => (c.etiqueta || 'sin_etiqueta') === id)
+
+  const columnas = window._WA_ETAPAS.map(et => {
+    const items = porEtapa(et.id)
+    const cards = items.map(c => {
+      const inicial = (c.nombre || c.telefono || '?').charAt(0).toUpperCase()
+      // Texto del último mensaje (limpiando el prefijo "[Agente]: " de mensajes manuales)
+      const arr = Array.isArray(c.mensajes) ? c.mensajes : []
+      const last = arr[arr.length - 1]
+      const rawTxt = (last && (last.respuesta || last.mensaje)) || ''
+      const preview = esc(rawTxt.toString().replace(/^\[[^\]]+\]:\s*/, '').replace(/\s+/g, ' ').slice(0, 46))
+      const fecha = window._waKbFecha(c.ultimo_mensaje)
+      const noLeidos = c.no_leidos || 0
+      return `
+        <div class="wa-kb-card" draggable="true"
+             ondragstart="window._waKbDragStart(event,'${c.telefono}')"
+             ondragend="window._waKbDragEnd(event)"
+             onclick="window._waKbAbrir('${c.telefono}')">
+          <div class="wa-kb-card-top">
+            <span class="wa-kb-ava" style="background:${et.color}">${esc(inicial)}</span>
+            <span class="wa-kb-name">${esc(c.nombre || c.telefono)}</span>
+            ${noLeidos > 0 ? `<span class="wa-kb-unread">${noLeidos}</span>` : ''}
+          </div>
+          ${preview ? `<div class="wa-kb-prev">${preview}</div>` : ''}
+          ${fecha ? `<div class="wa-kb-fecha">${fecha}</div>` : ''}
+        </div>`
+    }).join('') || `<div class="wa-kb-empty">Sin conversaciones</div>`
+    return `
+      <div class="wa-kb-col" data-etapa="${et.id}"
+           ondragover="window._waKbDragOver(event)"
+           ondragleave="window._waKbDragLeave(event)"
+           ondrop="window._waKbDrop(event,'${et.id}')">
+        <div class="wa-kb-col-head">
+          <span class="wa-kb-dot" style="background:${et.color}"></span>
+          <span class="wa-kb-col-title">${et.nombre}</span>
+          <span class="wa-kb-count">${items.length}</span>
+        </div>
+        <div class="wa-kb-col-body">${cards}</div>
+      </div>`
+  }).join('')
+
+  const tab = document.getElementById('wa-tab-content') || content
+  tab.innerHTML = `
+    <div class="wa-kb-wrap">
+      <div class="wa-kb-header">
+        <div>
+          <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp · CRM</p>
+          <span style="font-weight:700;color:var(--text-1);font-size:1rem">Embudo de ventas</span>
+        </div>
+        <span style="font-size:0.75rem;color:var(--text-3)">Arrastra una tarjeta entre columnas para cambiar su etapa · ${chats.length} conversaciones</span>
+      </div>
+      <div class="wa-kb-board">${columnas}</div>
+    </div>`
+}
+
+window._waKbFecha = (iso) => {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    if (isNaN(d)) return ''
+    const ahora = new Date()
+    const difDias = Math.floor((ahora - d) / 86400000)
+    if (difDias === 0) return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+    if (difDias === 1) return 'Ayer'
+    if (difDias < 7) return `Hace ${difDias} días`
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+  } catch (e) { return '' }
+}
+window._waKbDragStart = (ev, telefono) => {
+  window._waKbDragTel = telefono
+  try { ev.dataTransfer.setData('text/plain', telefono); ev.dataTransfer.effectAllowed = 'move' } catch (e) {}
+  ev.currentTarget.classList.add('dragging')
+}
+window._waKbDragEnd = (ev) => { ev.currentTarget.classList.remove('dragging') }
+window._waKbDragOver = (ev) => { ev.preventDefault(); ev.currentTarget.classList.add('wa-kb-over') }
+window._waKbDragLeave = (ev) => { ev.currentTarget.classList.remove('wa-kb-over') }
+window._waKbDrop = async (ev, etapa) => {
+  ev.preventDefault()
+  const col = ev.currentTarget
+  col.classList.remove('wa-kb-over')
+  const telefono = window._waKbDragTel || (ev.dataTransfer && ev.dataTransfer.getData('text/plain'))
+  if (!telefono) return
+  const actual = window._chatsData?.[telefono]?.etiqueta || 'sin_etiqueta'
+  if (actual === etapa) return
+  await window.cambiarEtiqueta(telefono, etapa)  // reutiliza el endpoint existente
+  if (window._chatsData[telefono]) window._chatsData[telefono].etiqueta = etapa
+  await window.mostrarPipelineWA()  // re-render con el conteo actualizado
+}
+window._waKbAbrir = (telefono) => {
+  window.mostrarTabWA('chats').then(() => { setTimeout(() => { try { window.abrirChat(telefono) } catch (e) {} }, 120) })
 }
 
 window.filtrarEtiqueta = (etiqueta) => {
@@ -12087,10 +12211,24 @@ window.mostrarConfigWA = async () => {
             <div id="broadcast-resultado" style="font-size:0.8rem;color:#64748b;text-align:center"></div>
           </div>
         </div>
+
+        <!-- ── Flujos de automatización (respuestas por palabra clave, estilo ManyChat) ── -->
+        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:20px;margin-top:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div>
+              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">Automatización</p>
+              <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem">🤖 Flujos por palabra clave</p>
+              <p style="margin:2px 0 0;font-size:0.75rem;color:#94a3b8">Cuando un cliente escribe una palabra clave, el bot responde al instante sin gastar IA. Solo actúa si el chat no lo lleva un asesor.</p>
+            </div>
+            <button onclick="nuevoFlujoWA()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">+ Nuevo flujo</button>
+          </div>
+          <div id="flujos-lista"><p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px">Cargando flujos...</p></div>
+        </div>
       </div>
     `
 
     cargarPlantillas()
+    cargarFlujosWA()
     // Poblar select de broadcast con plantillas aprobadas
     fetch(API + '/chatbot/templates').then(r => r.json()).then(data => {
       const sel = document.getElementById('broadcast-template')
@@ -12134,15 +12272,131 @@ window.ejecutarBroadcast = async () => {
   if (resEl) resEl.textContent = 'Enviando...'
   try {
     const params = param1 ? [param1] : []
+    const filtro_etiqueta = destOpt === 'compradores' ? 'comprador' : (destOpt === 'posibles' ? 'posible_comprador' : null)
     const r = await fetch(API + '/chatbot/broadcast', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template, params, telefonos })
+      body: JSON.stringify({ template, params, telefonos, nombre: template, filtro_etiqueta })
     })
     const data = await r.json()
-    if (resEl) resEl.textContent = `✓ Enviados: ${data.enviados}/${data.total} — Errores: ${data.errores}`
+    if (resEl) resEl.textContent = `✓ Enviados: ${data.enviados}/${data.total} — Errores: ${data.errores}. Entregas y lecturas se irán registrando.`
   } catch(e) {
     if (resEl) resEl.textContent = 'Error: ' + e.message
   }
+}
+
+// ── FLUJOS DE AUTOMATIZACIÓN (UI) ───────────────────────────────────────────
+window._flujosData = []
+window.cargarFlujosWA = async () => {
+  const el = document.getElementById('flujos-lista')
+  if (!el) return
+  try {
+    const flujos = await fetch(API + '/chatbot/flujos').then(r => r.json()).catch(() => [])
+    window._flujosData = Array.isArray(flujos) ? flujos : []
+    if (!window._flujosData.length) {
+      el.innerHTML = `<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:16px">Aún no tienes flujos. Crea uno: por ejemplo, palabra clave <b>"precio"</b> → "Con gusto te paso precios 😊 ¿Qué modelo te interesa?"</p>`
+      return
+    }
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    const modoTxt = { contiene: 'contiene', exacta: 'exacta', empieza: 'empieza con' }
+    el.innerHTML = window._flujosData.map(f => `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;${f.activo ? '' : 'opacity:0.55'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0">
+            <span style="font-weight:700;font-size:0.86rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.nombre)}</span>
+            ${f.veces_disparado ? `<span style="font-size:0.64rem;color:#64748b;background:#f1f5f9;border-radius:100px;padding:1px 8px;white-space:nowrap">${f.veces_disparado}× usado</span>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="toggleFlujoWA('${f.id}', ${f.activo ? 'false' : 'true'})" title="${f.activo ? 'Desactivar' : 'Activar'}" style="background:${f.activo ? '#dcfce7' : '#f1f5f9'};color:${f.activo ? '#16a34a' : '#94a3b8'};border:none;border-radius:6px;padding:4px 10px;font-size:0.72rem;font-weight:700;cursor:pointer">${f.activo ? 'ON' : 'OFF'}</button>
+            <button onclick="editarFlujoWA('${f.id}')" style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer">✏️</button>
+            <button onclick="eliminarFlujoWA('${f.id}')" style="background:#fce4ec;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#c62828">🗑️</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">
+          ${(f.palabras_clave || '').split(',').filter(k=>k.trim()).map(k => `<span style="font-size:0.7rem;background:#eef2ff;color:#4338ca;border-radius:100px;padding:2px 9px">${esc(k.trim())}</span>`).join('')}
+          <span style="font-size:0.66rem;color:#94a3b8;align-self:center">(${modoTxt[f.coincidencia] || f.coincidencia})</span>
+        </div>
+        <p style="font-size:0.78rem;color:#475569;line-height:1.5;margin:0">↳ ${esc((f.respuesta || '').substring(0, 120))}${(f.respuesta || '').length > 120 ? '…' : ''}</p>
+      </div>
+    `).join('')
+  } catch(e) {
+    el.innerHTML = `<p style="font-size:0.8rem;color:#ef4444;text-align:center;padding:16px">Error cargando flujos</p>`
+  }
+}
+
+window.nuevoFlujoWA = () => window._modalFlujoWA(null)
+window.editarFlujoWA = (id) => window._modalFlujoWA(window._flujosData.find(f => f.id === id) || null)
+
+window._modalFlujoWA = (flujo) => {
+  const esEdit = !!flujo
+  const f = flujo || { nombre: '', palabras_clave: '', coincidencia: 'contiene', respuesta: '', solo_si_bot: true, activo: true }
+  const esc = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;')
+  const prev = document.getElementById('modal-flujo-wa'); if (prev) prev.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-flujo-wa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit">
+      <h3 style="font-weight:700;font-size:1.05rem;margin:0 0 4px">${esEdit ? 'Editar flujo' : 'Nuevo flujo'}</h3>
+      <p style="font-size:0.76rem;color:#94a3b8;margin:0 0 16px">Respuesta automática cuando el cliente escribe una palabra clave.</p>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Nombre</label>
+      <input id="fl-nombre" value="${esc(f.nombre)}" placeholder="ej: Consulta de precio" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;outline:none">
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Palabras clave (separadas por coma)</label>
+      <input id="fl-claves" value="${esc(f.palabras_clave)}" placeholder="precio, precios, cuanto cuesta" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;outline:none">
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Coincidencia</label>
+      <select id="fl-modo" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;background:#fff">
+        <option value="contiene" ${f.coincidencia==='contiene'?'selected':''}>El mensaje contiene la palabra</option>
+        <option value="empieza" ${f.coincidencia==='empieza'?'selected':''}>El mensaje empieza con la palabra</option>
+        <option value="exacta" ${f.coincidencia==='exacta'?'selected':''}>El mensaje es exactamente la palabra</option>
+      </select>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Respuesta automática</label>
+      <textarea id="fl-respuesta" rows="3" placeholder="Con gusto te paso precios 😊 ¿Qué modelo te interesa?" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;resize:none;outline:none">${esc(f.respuesta)}</textarea>
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#475569;margin-bottom:18px;cursor:pointer">
+        <input type="checkbox" id="fl-solobot" ${f.solo_si_bot?'checked':''} style="width:16px;height:16px;cursor:pointer">
+        Solo responder si el chat no lo lleva un asesor
+      </label>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-flujo-wa').remove()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b;font-family:inherit">Cancelar</button>
+        <button onclick="window._guardarFlujoWA(${esEdit ? `'${f.id}'` : 'null'})" style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;font-family:inherit">Guardar</button>
+      </div>
+    </div>`
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+  setTimeout(() => document.getElementById('fl-nombre')?.focus(), 50)
+}
+
+window._guardarFlujoWA = async (id) => {
+  const body = {
+    nombre: document.getElementById('fl-nombre')?.value.trim() || '',
+    palabras_clave: document.getElementById('fl-claves')?.value.trim() || '',
+    coincidencia: document.getElementById('fl-modo')?.value || 'contiene',
+    respuesta: document.getElementById('fl-respuesta')?.value.trim() || '',
+    solo_si_bot: !!document.getElementById('fl-solobot')?.checked,
+  }
+  if (!body.palabras_clave || !body.respuesta) { alert('Pon al menos una palabra clave y la respuesta'); return }
+  try {
+    if (id) {
+      await fetch(API + '/chatbot/flujos/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    } else {
+      await fetch(API + '/chatbot/flujos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    }
+    document.getElementById('modal-flujo-wa')?.remove()
+    await window.cargarFlujosWA()
+  } catch(e) { alert('Error guardando el flujo') }
+}
+
+window.toggleFlujoWA = async (id, activar) => {
+  try {
+    await fetch(API + '/chatbot/flujos/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: activar }) })
+    await window.cargarFlujosWA()
+  } catch(e) { alert('Error') }
+}
+
+window.eliminarFlujoWA = async (id) => {
+  if (!confirm('¿Eliminar este flujo?')) return
+  try {
+    await fetch(API + '/chatbot/flujos/' + id, { method: 'DELETE' })
+    await window.cargarFlujosWA()
+  } catch(e) { alert('Error eliminando') }
 }
 
 window.cargarPlantillas = async () => {

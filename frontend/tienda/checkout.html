@@ -636,9 +636,14 @@ async function procesarPago() {
       body: JSON.stringify({ pedido_id:pedido.id, items:mpItems, cliente:{nombre,email}, total:totalFinal })
     })
     const pagoRaw = await resPago.text()
-    console.log('Respuesta /pagos/crear-preferencia:', resPago.status, pagoRaw)
-    const pago = JSON.parse(pagoRaw)
-    if (!pago.init_point) throw new Error(pago.error || pago.detail || pago.message || JSON.stringify(pago))
+    let pago
+    try {
+      pago = JSON.parse(pagoRaw)
+    } catch {
+      // El backend devolvió algo que no es JSON (p. ej. HTML de error 500)
+      throw new Error(`El servidor respondió de forma inesperada (${resPago.status}). Intenta de nuevo.`)
+    }
+    if (!resPago.ok || !pago.init_point) throw new Error(pago.error || pago.detail || pago.message || `No se pudo iniciar el pago (${resPago.status})`)
     // Guardar IDs, valor y email para el evento Purchase tras volver de MercadoPago
     // IMPORTANTE: localStorage, no sessionStorage — la sesión puede morir en el redirect
     try {

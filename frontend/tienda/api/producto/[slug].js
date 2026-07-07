@@ -1,7 +1,11 @@
 export default async function handler(req, res) {
   const { slug } = req.query
+  // Un SKU solo contiene letras, dígitos, punto, guion y guion bajo. Saneamos para evitar
+  // inyección de operadores PostgREST en la consulta y XSS al interpolar en el HTML/URLs.
+  const safeSlug = (slug || '').toString().replace(/[^A-Za-z0-9._-]/g, '')
+  if (!safeSlug) { res.redirect(302, '/'); return }
   try {
-    const apiRes = await fetch(`https://zapatillasmay-production.up.railway.app/productos/?sku_interno=eq.${slug}&select=nombre,descripcion,imagen_principal,precio_menudeo`)
+    const apiRes = await fetch(`https://zapatillasmay-production.up.railway.app/productos/?sku_interno=eq.${encodeURIComponent(safeSlug)}&select=nombre,descripcion,imagen_principal,precio_menudeo`)
     const productos = await apiRes.json()
     const p = productos[0]
     
@@ -22,14 +26,14 @@ export default async function handler(req, res) {
   "name": nombreClean,
   "description": descripcionClean,
   "image": imagen,
-  "sku": slug,
+  "sku": safeSlug,
   "brand": { "@type": "Brand", "name": "Zapatillas May" },
   "offers": {
     "@type": "Offer",
     "priceCurrency": "MXN",
     "price": precio,
     "availability": "https://schema.org/InStock",
-    "url": `https://zapatillasmay.mx/producto/${slug}`,
+    "url": `https://zapatillasmay.mx/producto/${safeSlug}`,
     "shippingDetails": {
       "@type": "OfferShippingDetails",
       "shippingRate": { "@type": "MonetaryAmount", "value": "0", "currency": "MXN" },
@@ -64,7 +68,7 @@ export default async function handler(req, res) {
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:type" content="image/jpeg">
-  <meta property="og:url" content="https://www.zapatillasmay.mx/producto/${slug}">
+  <meta property="og:url" content="https://www.zapatillasmay.mx/producto/${safeSlug}">
   <meta property="og:type" content="product">
   <meta property="og:site_name" content="Zapatillas May">
   <meta property="fb:app_id" content="1476063547636095">
@@ -77,7 +81,7 @@ export default async function handler(req, res) {
   <script type="application/ld+json">${schema}</script>
 </head>
 <body>
-  <script>window.location.href = 'https://zapatillasmay.mx/?p=${slug}'</script>
+  <script>window.location.href = 'https://zapatillasmay.mx/?p=${safeSlug}'</script>
 </body>
 </html>`
 

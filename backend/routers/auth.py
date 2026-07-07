@@ -14,7 +14,8 @@ resend.api_key = os.getenv("RESEND_API_KEY")
 
 
 @router.post("/registro")
-def registro(datos: dict):
+@limiter.limit("5/minute")
+async def registro(request: Request, datos: dict):
     try:
         nombre = datos.get("nombre")
         email = (datos.get("email") or "").strip().lower()
@@ -190,7 +191,8 @@ def pedidos_cliente(cliente_id: str):
 
 
 @router.post("/google")
-def google_login(datos: dict):
+@limiter.limit("10/minute")
+async def google_login(request: Request, datos: dict):
     """Verifica un Google ID token y devuelve sesión, creando al usuario si no existe.
     Si se envía tipo=mayoreo/zapateria (desde el portal mayorista), la cuenta nueva
     se crea con ese tipo en vez del menudeo por defecto."""

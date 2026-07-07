@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends
 from typing import List
 from database import supabase_get, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix
+from security import require_staff
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
@@ -87,7 +88,7 @@ def obtener_producto(id: str):
     return supabase_get(f"productos?id=eq.{id}")
 
 @router.post("/")
-def crear_producto(producto: dict):
+def crear_producto(producto: dict, _staff=Depends(require_staff)):
     # Si tiene SKU, verificar que no exista
     if producto.get("sku_interno"):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}")
@@ -109,7 +110,7 @@ def crear_producto(producto: dict):
     return resultado
 
 @router.patch("/{id}")
-def actualizar_producto(id: str, producto: dict):
+def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
     if producto.get("sku_interno"):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
         if existente:
@@ -119,19 +120,19 @@ def actualizar_producto(id: str, producto: dict):
     return resultado
 
 @router.patch("/{id}/desactivar")
-def desactivar_producto(id: str):
+def desactivar_producto(id: str, _staff=Depends(require_staff)):
     resultado = supabase_patch(f"productos?id=eq.{id}", {"activo": False})
     cache_invalidate_prefix(_CK)
     return resultado
 
 @router.patch("/{id}/activar")
-def activar_producto(id: str):
+def activar_producto(id: str, _staff=Depends(require_staff)):
     resultado = supabase_patch(f"productos?id=eq.{id}", {"activo": True})
     cache_invalidate_prefix(_CK)
     return resultado
 
 @router.post("/generar-nombres")
-def generar_nombres(datos: dict = Body(default={})):
+def generar_nombres(datos: dict = Body(default={}), _staff=Depends(require_staff)):
     """Genera nombres descriptivos para todos los productos basándose en
     SKU + categoría + descripción/SEO. Muestra preview o aplica según modo."""
     modo = datos.get("modo", "preview")  # "preview" o "aplicar"
@@ -267,7 +268,7 @@ def generar_nombres(datos: dict = Body(default={})):
     }
 
 @router.post("/orden-home")
-def guardar_orden_home(ordenes: List[dict] = Body(...)):
+def guardar_orden_home(ordenes: List[dict] = Body(...), _staff=Depends(require_staff)):
     """Guarda el orden de aparición en la home. Recibe [{id, orden_home}]."""
     errores = []
     for item in ordenes:

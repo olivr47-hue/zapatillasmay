@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from fastapi.responses import Response, JSONResponse
 from cache import cache_get, cache_set, cache_invalidate_prefix
+from security import require_staff
 
 router = APIRouter(prefix="/variantes", tags=["Variantes"])
 
@@ -59,7 +60,7 @@ def variantes_producto_todas(producto_id: str):
     return supabase_get(f"variantes?producto_id=eq.{producto_id}&select=id,color,color_hex,talla,activa,foto_url")
 
 @router.post("/toggle-color")
-def toggle_color(datos: dict):
+def toggle_color(datos: dict, _staff=Depends(require_staff)):
     """Activa o desactiva TODAS las variantes de un color de un producto (mostrar/ocultar en el sitio)."""
     from urllib.parse import quote
     producto_id = datos.get("producto_id")
@@ -78,7 +79,7 @@ def toggle_color(datos: dict):
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 @router.post("/")
-def crear_variante(variante: dict):
+def crear_variante(variante: dict, _staff=Depends(require_staff)):
     variante["activa"] = True  # Siempre activa al crear
     producto_id = variante.get("producto_id")
     color = variante.get("color", "")
@@ -129,7 +130,7 @@ def crear_variante(variante: dict):
         raise e
 
 @router.post("/activar-todas")
-def activar_variantes_sin_activa():
+def activar_variantes_sin_activa(_staff=Depends(require_staff)):
     """Activa todas las variantes que tienen activa=null (creadas sin el campo)"""
     from database import get_url, get_headers
     import urllib.request, json
@@ -144,13 +145,13 @@ def activar_variantes_sin_activa():
         return {"error": str(e)}
 
 @router.patch("/{variante_id}")
-def actualizar_variante(variante_id: str, variante: dict):
+def actualizar_variante(variante_id: str, variante: dict, _staff=Depends(require_staff)):
     resultado = supabase_patch(f"variantes?id=eq.{variante_id}", variante)
     cache_invalidate_prefix(_CK)
     return resultado
 
 @router.delete("/{variante_id}")
-def eliminar_variante(variante_id: str):
+def eliminar_variante(variante_id: str, _staff=Depends(require_staff)):
     try:
         resultado = supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
         cache_invalidate_prefix(_CK)
@@ -159,7 +160,7 @@ def eliminar_variante(variante_id: str):
         return {"error": str(e)}
 
 @router.post("/{variante_id}/eliminar")
-def eliminar_variante_post(variante_id: str):
+def eliminar_variante_post(variante_id: str, _staff=Depends(require_staff)):
     try:
         resultado = supabase_patch(f"variantes?id=eq.{variante_id}", {"activa": False})
         cache_invalidate_prefix(_CK)

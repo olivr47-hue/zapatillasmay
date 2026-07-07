@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_STOCK
+from security import require_staff
 
 router = APIRouter(prefix="/inventario", tags=["Inventario"])
 
@@ -71,7 +72,7 @@ def inventario_por_producto(producto_id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/")
-def agregar_inventario(datos: dict):
+def agregar_inventario(datos: dict, _staff=Depends(require_staff)):
     try:
         resultado = supabase_post("inventario", datos)
         cache_invalidate_prefix(_CK)
@@ -80,7 +81,7 @@ def agregar_inventario(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/actualizar")
-def actualizar_inventario(datos: dict):
+def actualizar_inventario(datos: dict, _staff=Depends(require_staff)):
     try:
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")

@@ -1,19 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
-from security import hash_password
+from security import hash_password, require_staff
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 @router.get("/")
-def listar_clientes():
+def listar_clientes(_staff=Depends(require_staff)):
     try:
         return supabase_get_all("clientes?activo=eq.true&order=nombre.asc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/referidos")
-def listar_referidos():
+def listar_referidos(_staff=Depends(require_staff)):
     try:
         return supabase_get_all("clientes?tipo=eq.menudeo&activo=eq.true&order=credito_disponible.desc&select=id,nombre,email,telefono,codigo_referido,referido_por,credito_disponible")
     except Exception as e:
@@ -41,16 +41,19 @@ def actualizar_cliente(id: str, cliente: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/{id}/desactivar")
-def desactivar_cliente(id: str):
+def desactivar_cliente(id: str, _staff=Depends(require_staff)):
     try:
         return supabase_patch(f"clientes?id=eq.{id}", {"activo": False})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/dar-acceso")
-def dar_acceso_portal(id: str):
+def dar_acceso_portal(id: str, _staff=Depends(require_staff)):
     """Crea (o resetea) el acceso al portal mayorista de un cliente.
-    Contraseña = últimos 4 dígitos de su teléfono. Login por teléfono o email."""
+    Genera una contraseña ALEATORIA (antes eran los últimos 4 dígitos del teléfono,
+    predecibles: cualquiera con el teléfono público entraba). Se devuelve al admin
+    autenticado para que la comparta; el cliente también puede entrar por OTP."""
+    import secrets as _secrets
     try:
         clientes = supabase_get(f"clientes?id=eq.{id}")
         if not clientes:
@@ -61,10 +64,12 @@ def dar_acceso_portal(id: str):
             return JSONResponse(status_code=400, content={"error": "Solo clientes de tipo mayoreo/zapatería pueden tener acceso al portal"})
 
         telefono = "".join(ch for ch in (c.get("telefono") or "") if ch.isdigit())
-        if len(telefono) < 4:
-            return JSONResponse(status_code=400, content={"error": "El cliente necesita un teléfono válido (mín. 4 dígitos) para generar su contraseña"})
+        if not telefono and not c.get("email"):
+            return JSONResponse(status_code=400, content={"error": "El cliente necesita teléfono o email para crear su acceso"})
 
-        password = telefono[-4:]
+        # Contraseña aleatoria legible (sin caracteres ambiguos como 0/O, 1/l/I).
+        _alfabeto = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+        password = "".join(_secrets.choice(_alfabeto) for _ in range(8))
         password_hash = hash_password(password)
 
         email_usuario = c.get("email") or f"tel{telefono}@portal.zapatillasmay.com"

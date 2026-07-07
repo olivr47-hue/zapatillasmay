@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from security import limiter
@@ -37,14 +38,23 @@ try:
 except ImportError:
     pass
 
+# Los orígenes de PRODUCCIÓN siempre están presentes (nunca se quitan → cero riesgo
+# para el sitio real). Los de localhost solo se agregan fuera de producción: Railway
+# define RAILWAY_ENVIRONMENT, así que allí no se incluyen. Forzar con ALLOW_LOCALHOST_CORS=1.
 ALLOWED_ORIGINS = [
     "https://zapatillasmay.mx",
     "https://www.zapatillasmay.mx",
     "https://zapatillasmay-panel.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:4173",
-    "http://localhost:3000",
 ]
+_EN_PROD = os.getenv("RAILWAY_ENVIRONMENT", "") != ""
+if not _EN_PROD or os.getenv("ALLOW_LOCALHOST_CORS") == "1":
+    ALLOWED_ORIGINS += [
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "http://localhost:3000",
+        "http://localhost:5179",
+        "http://localhost:5180",
+    ]
 
 app.add_middleware(
     CORSMiddleware,

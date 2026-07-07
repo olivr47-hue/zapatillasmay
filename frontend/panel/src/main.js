@@ -3,6 +3,44 @@ document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;wi
 import { renderPanel } from './panel.js'
 import { renderPortalCliente } from './portal-cliente.js'
 
+// ── Interceptor global de fetch ─────────────────────────────────────────────
+// Adjunta el JWT (erp_token) a TODA llamada a /api sin tener que tocar las ~325
+// llamadas del panel una por una, y maneja 401 en un solo lugar (sesión expirada
+// → limpiar y volver al login). Solo afecta a esta app (panel), no a la tienda.
+;(() => {
+  const _fetch = window.fetch.bind(window)
+  let _redirigiendo = false
+  window.fetch = async (input, init) => {
+    init = init || {}
+    const url = typeof input === 'string' ? input : (input && input.url) || ''
+    const esApi = url.startsWith('/api') || url.startsWith(location.origin + '/api')
+    if (esApi) {
+      const token = localStorage.getItem('erp_token')
+      if (token) {
+        // Merge de Authorization respetando headers existentes (NO tocar Content-Type:
+        // los uploads con FormData necesitan que el navegador ponga su propio boundary).
+        const headers = new Headers(
+          init.headers || (typeof input !== 'string' && input.headers) || {}
+        )
+        if (!headers.has('Authorization')) headers.set('Authorization', 'Bearer ' + token)
+        init = { ...init, headers }
+      }
+    }
+    const res = await _fetch(input, init)
+    if (esApi && res.status === 401 && !_redirigiendo) {
+      _redirigiendo = true
+      try {
+        localStorage.removeItem('erp_token')
+        localStorage.removeItem('erp_empleado')
+        localStorage.removeItem('pc_sesion')
+      } catch (e) {}
+      alert('Tu sesión expiró. Inicia sesión de nuevo.')
+      location.reload()
+    }
+    return res
+  }
+})()
+
 const SESSION_KEY    = 'erp_empleado'
 const PC_SESSION_KEY = 'pc_sesion'
 

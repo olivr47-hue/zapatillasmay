@@ -229,10 +229,14 @@ let carrito = []
 })()
 let cfgEnvio = { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }  // defaults
 let inventario = []  // { variante_id, cantidad }
+let inventarioCargado = false  // true solo cuando el inventario se descargó bien
 
 function stockDisponible(variante_id) {
   const inv = inventario.find(i => i.variante_id === variante_id)
-  return inv ? (inv.cantidad ?? 0) : 999  // si no cargó inventario, sin límite
+  if (inv) return inv.cantidad ?? 0
+  // Si el inventario SÍ cargó y la variante no aparece, está agotada/no rastreada → 0.
+  // Si NO cargó (endpoint caído), no bloqueamos la venta; el backend valida stock al pagar.
+  return inventarioCargado ? 0 : 999
 }
 
 // ── LEER CARRITO ─────────────────────────────────────────────────
@@ -286,8 +290,16 @@ function render() {
     hint.style.background = 'linear-gradient(135deg,rgba(200,150,122,0.12),rgba(181,104,122,0.08))'
     hint.style.border = '1px solid rgba(200,150,122,0.3)'
     const falta = 3 - total
-    const ahorroTotal = 110 * (total + falta)
-    hintText.innerHTML = `🛍️ Agrega <strong>${falta} par${falta > 1 ? 'es' : ''} más</strong> y baja el precio de todos — ahorras <strong style="color:#b5687a">$${ahorroTotal} MXN</strong> en total. <a href="/" style="color:var(--tan);font-weight:700;text-decoration:none;white-space:nowrap">+ Ver modelos →</a>`
+    // Ahorro real al llegar a 3 pares (precio de mayoreo): diferencia de precio
+    // unitario entre la cantidad actual y el tramo de 3, por el número de pares.
+    const ahorroTotal = carrito.reduce((s, item) => {
+      const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
+      const precioActual = calcularPrecioUnitario(item, total)
+      const precioCon3   = calcularPrecioUnitario(item, 3)
+      return s + Math.max(0, precioActual - precioCon3) * pares
+    }, 0)
+    const ahorroStr = ahorroTotal > 0 ? ` — ahorras <strong style="color:#b5687a">$${Math.round(ahorroTotal)} MXN</strong>` : ''
+    hintText.innerHTML = `🛍️ Agrega <strong>${falta} par${falta > 1 ? 'es' : ''} más</strong> y baja el precio de todos${ahorroStr}. <a href="/" style="color:var(--tan);font-weight:700;text-decoration:none;white-space:nowrap">+ Ver modelos →</a>`
   } else if (total === 5) {
     // Caso especial: a 1 par de desbloquear el mejor precio — mostrar ahorro real
     const ahorroExtra = carrito.reduce((s, item) => {
@@ -538,7 +550,10 @@ async function init() {
       fetch(`${API}/inventario/slim`).catch(() => null)
     ])
     if (rEnvio?.ok) cfgEnvio = await rEnvio.json()
-    if (rInv?.ok) inventario = await rInv.json()
+    if (rInv?.ok) {
+      const inv = await rInv.json()
+      if (Array.isArray(inv)) { inventario = inv; inventarioCargado = true }
+    }
   } catch(e) { /* usa defaults */ }
   render()
 

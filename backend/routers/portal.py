@@ -107,7 +107,8 @@ async def login(request: Request, datos: dict):
 
 # ── LOGIN: Google (verifica id_token con Google, igual que el sitio) ───────────
 @router.post("/login/google")
-def login_google(datos: dict):
+@limiter.limit("10/minute")
+async def login_google(request: Request, datos: dict):
     id_token = (datos.get("id_token") or "").strip()
     if not id_token:
         return JSONResponse(status_code=400, content={"error": "Token requerido"})
@@ -190,6 +191,40 @@ def _enviar_email_codigo(email: str, nombre: str, codigo: str) -> bool:
         return True
     except Exception as e:
         print(f"[portal otp email] {e}")
+        return False
+
+
+def _enviar_wa_codigo(tel10: str, codigo: str) -> bool:
+    """Envía el código OTP por WhatsApp (Meta Cloud API) reutilizando el sender del chatbot.
+
+    Los mensajes iniciados por el negocio requieren una plantilla aprobada cuando el cliente
+    no tiene abierta una ventana de servicio de 24 h. Si hay una plantilla de autenticación
+    configurada en `WA_OTP_TEMPLATE` se usa; si no, se intenta texto plano como respaldo
+    (que Meta solo entrega dentro de la ventana de 24 h).
+    """
+    try:
+        # Import diferido: evita ciclos y efectos de carga del router del chatbot.
+        from routers.chatbot import enviar_whatsapp_texto, enviar_whatsapp_plantilla
+    except Exception as e:
+        print(f"[portal otp wa] no se pudo importar el sender de WhatsApp: {e}")
+        return False
+
+    # Número en formato internacional MX (52 + 10 dígitos); Meta normaliza el prefijo móvil.
+    destino = tel10 if tel10.startswith("52") else f"52{tel10}"
+    plantilla = os.getenv("WA_OTP_TEMPLATE", "").strip()
+    idioma = os.getenv("WA_OTP_TEMPLATE_LANG", "es_MX").strip() or "es_MX"
+    try:
+        if plantilla:
+            wamid = enviar_whatsapp_plantilla(destino, plantilla, idioma, [codigo])
+            if wamid:
+                return True
+        texto = (
+            f"Tu código para entrar al portal de mayoreo Zapatillas May es: {codigo}\n"
+            f"Vence en {OTP_EXP_MIN} minutos. Si no fuiste tú, ignóralo."
+        )
+        return bool(enviar_whatsapp_texto(destino, texto))
+    except Exception as e:
+        print(f"[portal otp wa] {e}")
         return False
 
 
