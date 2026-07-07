@@ -279,10 +279,34 @@ async def crear_pedido(pedido: dict, request: Request):
         # persisten como columnas, para que el webhook de pago —que relee el pedido
         # desde la BD— pueda reenviarlos en el Purchase server-side (Meta CAPI + GA4 MP)
         # y recuperar la fuente original de la conversión.
-        canal = pedido.get("canal", "")
+        canal = pedido.get("canal") or ""
         # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
         if not items and canal not in ("sucursal", "whatsapp"):
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene productos"})
+
+        # Validar stock real ANTES de crear el pedido — solo para el checkout web
+        # (autoservicio, nadie revisa antes de confirmar). El inventario no se
+        # descuenta hasta que el pago quede aprobado (ver pagos.py), así que sin
+        # este chequeo se podía comprar una variante agotada días atrás sin que
+        # nada lo impidiera (pasó con un pedido real: item sin existencia desde
+        # 4 días antes de la compra).
+        if canal in ("web", "") and items:
+            faltantes = []
+            for item in items:
+                variante_id = item.get("variante_id")
+                if not variante_id:
+                    continue
+                cantidad_pedida = item.get("cantidad", 1) or 1
+                inv_rows = supabase_get(f"inventario?variante_id=eq.{variante_id}&select=cantidad") or []
+                disponible = sum(r.get("cantidad", 0) or 0 for r in inv_rows)
+                if cantidad_pedida > disponible:
+                    etiqueta = f"{item.get('nombre','Producto')} {item.get('color') or ''} talla {item.get('talla') or ''}".strip()
+                    faltantes.append(f"{etiqueta} (disponibles: {disponible})")
+            if faltantes:
+                return JSONResponse(status_code=409, content={
+                    "error": "Uno o más productos ya no tienen existencia suficiente: " + "; ".join(faltantes)
+                })
+
         # Upsert cliente web: si no viene cliente_id pero sí email, buscar o crear en clientes
         if not pedido.get("cliente_id") and pedido.get("email_cliente"):
             try:
