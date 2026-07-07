@@ -459,8 +459,8 @@ def _producto_ssr_inner(sku: str):
 
 # ── #3 — Títulos/descripciones únicos por categoría y páginas fijas (SSR) ──────
 _HOME_TITLE = "Calzado de Dama Mayoreo y Menudeo en León | Zapatillas May"
-_HOME_DESC = ("Calzado de dama de moda hecho en León, Gto. Mayoreo automático desde 3 pares "
-              "(sin registro) y menudeo. Tacones, sandalias y botas. Envíos a todo México.")
+_HOME_DESC = ("Calzado de dama con estilo, hecho en León, Gto. Pensado para sentirte bien, "
+              "no solo lucir bien. Mayoreo automático desde 3 pares, sin registro. Envíos a todo México.")
 
 # H1 SEO visibles para crawlers por categoría (el hero genérico no tiene keywords de categoría)
 _PAGINAS_H1 = {

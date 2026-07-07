@@ -175,7 +175,7 @@ def email_pedido_confirmado(pedido: dict):
         Ver más modelos →
       </a>"""
 
-    subject = f"✅ Pedido confirmado #{pedido_id} — Zapatillas May"
+    subject = f"Tu pedido #{pedido_id} está confirmado — Zapatillas May"
     return subject, _base_html(contenido)
 
 
