@@ -340,6 +340,23 @@ async def crear_pedido(pedido: dict, request: Request):
             for item in items:
                 item["pedido_id"] = pedido_id
                 supabase_post("pedido_items", item)
+            # Aviso push al panel. Los pedidos web (checkout) siempre nacen como
+            # "borrador" hasta que el pago se confirma (eso avisa pagos.py); aquí
+            # solo interesan los que YA llegan confirmados (mostrador/WhatsApp/
+            # mayoreo manual), para no alertar por cada carrito sin pagar.
+            status_creado = resultado[0].get("status")
+            if status_creado not in ("borrador", "checkout_iniciado"):
+                try:
+                    from routers.push import enviar_push
+                    nombre_cli = resultado[0].get("nombre_cliente") or "Cliente"
+                    enviar_push(
+                        titulo="🛍️ Nuevo pedido",
+                        cuerpo=f"{nombre_cli} — ${float(resultado[0].get('total') or 0):.0f} MXN",
+                        url="/?modulo=pedidos",
+                        sitio="panel",
+                    )
+                except Exception as e_push:
+                    print(f"[push] Error avisando pedido nuevo: {e_push}")
             return resultado[0]
         return JSONResponse(status_code=500, content={"error": "Error creando pedido"})
     except Exception as e:

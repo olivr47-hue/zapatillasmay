@@ -41,6 +41,75 @@ import { renderPortalCliente } from './portal-cliente.js'
   }
 })()
 
+// ── Notificaciones push del panel (pedidos nuevos, pagos, WhatsApp) ─────────
+// Reutiliza la misma infraestructura Web Push de tienda/portal (backend/routers/push.py),
+// solo que aquí el suscriptor se marca con sitio:'panel' para poder targetear
+// avisos internos sin mezclarlos con las notificaciones de clientes. Se define
+// ANTES de la restauración de sesión de abajo, que puede llamarla de inmediato.
+;(() => {
+  const DISMISS_KEY = 'zm_push_panel_dismissed'
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+    const raw = atob(base64)
+    const output = new Uint8Array(raw.length)
+    for (let i = 0; i < raw.length; ++i) output[i] = raw.charCodeAt(i)
+    return output
+  }
+
+  function mostrarBannerPush(onAceptar) {
+    if (document.getElementById('zm-push-panel-banner')) return
+    const el = document.createElement('div')
+    el.id = 'zm-push-panel-banner'
+    el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;max-width:380px;margin:0 auto;z-index:9997;background:#161625;border:1.5px solid #E91E8C;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 28px rgba(0,0,0,0.45);font-family:DM Sans,sans-serif'
+    el.innerHTML = `
+      <span style="font-size:1.6rem;flex-shrink:0">🔔</span>
+      <div style="flex:1;min-width:0">
+        <p style="margin:0 0 2px;font-size:0.85rem;font-weight:700;color:white">Activa avisos del panel</p>
+        <p style="margin:0;font-size:0.75rem;color:#a0a0c0">Entérate al instante de pedidos nuevos, pagos y mensajes de WhatsApp.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button id="zm-push-panel-si" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">Activar</button>
+        <button id="zm-push-panel-no" style="background:transparent;color:#5a5a7a;border:none;font-size:0.72rem;cursor:pointer;padding:2px">Ahora no</button>
+      </div>`
+    document.body.appendChild(el)
+    document.getElementById('zm-push-panel-si').onclick = () => { el.remove(); onAceptar() }
+    document.getElementById('zm-push-panel-no').onclick = () => {
+      el.remove()
+      try { localStorage.setItem(DISMISS_KEY, '1') } catch (e) {}
+    }
+  }
+
+  async function suscribirPush() {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw-push.js')
+      const permiso = await Notification.requestPermission()
+      if (permiso !== 'granted') return
+      const res = await fetch('/api/push/public-key')
+      const { publicKey, configurado } = await res.json()
+      if (!configurado) return
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      })
+      await fetch('/api/push/suscribir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), sitio: 'panel', user_agent: navigator.userAgent }),
+      })
+    } catch (e) { /* silencioso: navegador sin soporte, permiso bloqueado, etc. */ }
+  }
+
+  window._initPushPanel = function () {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    if (Notification.permission === 'granted') { suscribirPush(); return }
+    if (Notification.permission === 'denied') return
+    try { if (localStorage.getItem(DISMISS_KEY)) return } catch (e) {}
+    setTimeout(() => mostrarBannerPush(suscribirPush), 3000)
+  }
+})()
+
 const SESSION_KEY    = 'erp_empleado'
 const PC_SESSION_KEY = 'pc_sesion'
 
@@ -213,6 +282,7 @@ function renderLogin() {
         if (data.token) localStorage.setItem('erp_token', data.token)
         window._empleadoActual = data
         renderPanel()
+        window._initPushPanel()
         return
       }
     } catch(e) {}
@@ -428,6 +498,7 @@ if (sesion) {
   try {
     window._empleadoActual = JSON.parse(sesion)
     renderPanel()
+    window._initPushPanel()
   } catch(e) {
     renderLogin()
   }

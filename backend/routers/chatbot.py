@@ -701,6 +701,22 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
         cache_invalidate("chats_lista")  # forzar refresh en próximo poll
     except Exception as e:
         print(f"ERROR guardando: {str(e)}")
+        return
+    # Aviso push al panel — todo lo que pasa por aquí es un mensaje ENTRANTE del
+    # cliente (las respuestas manuales del asesor se guardan aparte, sin pasar por
+    # esta función), así que siempre vale la pena avisar. Nunca debe tumbar el
+    # guardado del mensaje si falla.
+    try:
+        from routers.push import enviar_push
+        preview = (mensaje or "")[:100]
+        enviar_push(
+            titulo=f"💬 {nombre or telefono}",
+            cuerpo=preview,
+            url="/?modulo=conversaciones",
+            sitio="panel",
+        )
+    except Exception as e_push:
+        print(f"[push] Error avisando mensaje WA entrante: {e_push}")
 
 def enviar_whatsapp(from_number, respuesta):
     enviar_whatsapp_texto(from_number, respuesta)

@@ -708,6 +708,17 @@ async def webhook_mercadopago(request: Request):
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma}
                             )
+                            try:
+                                from routers.push import enviar_push
+                                nombre_cli = p.get("nombre_cliente") or "Cliente"
+                                enviar_push(
+                                    titulo="💰 Pago confirmado",
+                                    cuerpo=f"{nombre_cli} — ${float(p.get('total') or 0):.0f} MXN",
+                                    url="/?modulo=pedidos",
+                                    sitio="panel",
+                                )
+                            except Exception as e_push:
+                                print(f"[push] Error avisando pago confirmado: {e_push}")
                             enviar_evento_meta("Purchase", p, payment)
                             enviar_ga4_purchase(p, payment)
                             try:
