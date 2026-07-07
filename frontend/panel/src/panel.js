@@ -11855,24 +11855,26 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
     content.innerHTML = `
+  <div class="wa-topbar">
+    <div>
+      <p class="wa-topbar-eyebrow">WhatsApp</p>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="wa-topbar-title">Conversaciones</span>
+        ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos}</span>` : ''}
+      </div>
+    </div>
+    <div class="wa-topbar-tabs">
+      <button id="tab-chats" class="wa-tab-btn activo" onclick="mostrarTabWA('chats')">Chat</button>
+      <button id="tab-pipeline" class="wa-tab-btn" onclick="mostrarTabWA('pipeline')">Embudo</button>
+      <button id="tab-flujos" class="wa-tab-btn" onclick="mostrarTabWA('flujos')">Flujos</button>
+      <button id="tab-broadcasts" class="wa-tab-btn" onclick="mostrarTabWA('broadcasts')">Broadcasts</button>
+      <button id="tab-config" class="wa-tab-btn" onclick="mostrarTabWA('config')">Config</button>
+    </div>
+  </div>
   <div id="wa-tab-content">
     <div id="wa-container">
       <div id="wa-sidebar">
         <div class="wa-sidebar-header">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div>
-              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp</p>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span style="font-weight:700;color:var(--text-1);font-size:0.95rem;letter-spacing:-0.01em">Conversaciones</span>
-                ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos}</span>` : ''}
-              </div>
-            </div>
-            <div style="display:flex;gap:4px">
-              <button id="tab-chats" onclick="mostrarTabWA('chats')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid #E91E8C;background:#E91E8C;color:white;font-family:inherit">Chat</button>
-              <button id="tab-pipeline" onclick="mostrarTabWA('pipeline')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Embudo</button>
-              <button id="tab-config" onclick="mostrarTabWA('config')" style="padding:4px 10px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-family:inherit">Config</button>
-            </div>
-          </div>
           <div class="wa-search-wrap">
             <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
             <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
@@ -11921,20 +11923,19 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
 
 
 window.mostrarTabWA = async (tab) => {
-  const setActive = (id, active) => {
-    const b = document.getElementById(id)
-    if (!b) return
-    b.style.background = active ? '#E91E8C' : 'var(--surface)'
-    b.style.color = active ? 'white' : 'var(--text-2)'
-    b.style.borderColor = active ? '#E91E8C' : 'var(--border)'
-  }
-  setActive('tab-chats', tab === 'chats')
-  setActive('tab-pipeline', tab === 'pipeline')
-  setActive('tab-config', tab === 'config')
+  // La barra de pestañas (.wa-topbar) es fija y NO se vuelve a dibujar al cambiar
+  // de vista (antes vivía dentro del área que cada pestaña reemplazaba, así que
+  // al entrar a Embudo/Config los botones desaparecían y no había forma de volver).
+  document.querySelectorAll('.wa-tab-btn').forEach(b => b.classList.remove('activo'))
+  document.getElementById('tab-' + (tab === 'chats' ? 'chats' : tab === 'pipeline' ? 'pipeline' : tab === 'flujos' ? 'flujos' : tab === 'broadcasts' ? 'broadcasts' : 'config'))?.classList.add('activo')
   if (tab === 'chats') {
     await window.cargarConversaciones()
   } else if (tab === 'pipeline') {
     await window.mostrarPipelineWA()
+  } else if (tab === 'flujos') {
+    await window.mostrarFlujosTabWA()
+  } else if (tab === 'broadcasts') {
+    await window.mostrarBroadcastsTabWA()
   } else {
     await mostrarConfigWA()
   }
@@ -11954,8 +11955,13 @@ window._WA_ETAPAS = [
 ]
 
 window.mostrarPipelineWA = async function() {
-  const content = document.getElementById('content')
-  if (content) content.innerHTML = '<p style="padding:2rem;color:#888">Cargando embudo...</p>'
+  // OJO: el "cargando" debe escribirse en #wa-tab-content, NO en #content entero —
+  // #content también contiene la .wa-topbar (barra de pestañas), que es persistente.
+  // Antes esto la borraba, y el fallback de más abajo ya no encontraba
+  // #wa-tab-content (recién borrado) y terminaba escribiendo el Kanban sobre TODO
+  // #content, destruyendo las pestañas Chat/Embudo/Flujos/Broadcasts/Config.
+  const loadingTarget = document.getElementById('wa-tab-content') || document.getElementById('content')
+  if (loadingTarget) loadingTarget.innerHTML = '<p style="padding:2rem;color:#888">Cargando embudo...</p>'
   let chats = []
   try {
     const raw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
@@ -12006,7 +12012,7 @@ window.mostrarPipelineWA = async function() {
       </div>`
   }).join('')
 
-  const tab = document.getElementById('wa-tab-content') || content
+  const tab = document.getElementById('wa-tab-content') || document.getElementById('content')
   tab.innerHTML = `
     <div class="wa-kb-wrap">
       <div class="wa-kb-header">
@@ -12085,6 +12091,112 @@ window.cambiarEstadoChat = async (telefono, estado) => {
     await window._recargarChats()
     abrirChat(telefono)
   } catch(e) { alert('Error: ' + e.message) }
+}
+
+// ── Pestaña Flujos (antes vivía enterrada al fondo de Config) ──────────────
+window.mostrarFlujosTabWA = async function() {
+  const tab = document.getElementById('wa-tab-content') || document.getElementById('content')
+  tab.innerHTML = `
+    <div style="padding:0 4px;max-width:900px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">Automatización</p>
+          <h2 style="font-weight:800;font-size:1.15rem;color:#0f172a;margin:0">🤖 Flujos por palabra clave</h2>
+          <p style="font-size:0.8rem;color:#94a3b8;margin:4px 0 0;max-width:520px">Cuando un cliente escribe una palabra clave, el bot responde al instante sin gastar IA. Solo actúa si el chat no lo lleva un asesor.</p>
+        </div>
+        <button onclick="nuevoFlujoWA()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">+ Nuevo flujo</button>
+      </div>
+      <div id="flujos-lista"><p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:24px">Cargando flujos...</p></div>
+    </div>
+  `
+  await window.cargarFlujosWA()
+}
+
+// ── Pestaña Broadcasts: formulario + historial con métricas de entrega/lectura ──
+window.mostrarBroadcastsTabWA = async function() {
+  const tab = document.getElementById('wa-tab-content') || document.getElementById('content')
+  tab.innerHTML = `
+    <div style="padding:0 4px;max-width:1040px">
+      <div style="margin-bottom:16px">
+        <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">Automatización</p>
+        <h2 style="font-weight:800;font-size:1.15rem;color:#0f172a;margin:0">📢 Campañas masivas</h2>
+        <p style="font-size:0.8rem;color:#94a3b8;margin:4px 0 0">Envía una plantilla aprobada a tus contactos y da seguimiento a la entrega.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start">
+        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:18px">
+          <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:0.9rem">Nueva campaña</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <label style="font-size:0.75rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Plantilla</label>
+              <select id="broadcast-template" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="">Cargando plantillas...</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.75rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Parámetro 1 (si la plantilla lo requiere)</label>
+              <input id="broadcast-param1" placeholder="ej: nombre del cliente" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;box-sizing:border-box;font-family:inherit">
+            </div>
+            <div>
+              <label style="font-size:0.75rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Destinatarios</label>
+              <select id="broadcast-dest" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
+                <option value="todos">Todos los contactos de WhatsApp</option>
+                <option value="compradores">Solo compradores</option>
+                <option value="posibles">Posibles compradores</option>
+              </select>
+            </div>
+            <button onclick="ejecutarBroadcast()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:10px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit">Enviar campaña →</button>
+            <div id="broadcast-resultado" style="font-size:0.78rem;color:#64748b;text-align:center"></div>
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:18px;min-width:0">
+          <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:0.9rem">Historial y métricas</p>
+          <div id="broadcasts-historial"><p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando...</p></div>
+        </div>
+      </div>
+    </div>
+  `
+  fetch(API + '/chatbot/templates').then(r => r.json()).then(data => {
+    const sel = document.getElementById('broadcast-template')
+    if (!sel) return
+    const aprobadas = (data.data || []).filter(t => t.status === 'APPROVED')
+    sel.innerHTML = aprobadas.length
+      ? aprobadas.map(t => `<option value="${t.name}">${t.name}</option>`).join('')
+      : '<option value="">Sin plantillas aprobadas</option>'
+  }).catch(() => {})
+  await window.cargarHistorialBroadcasts()
+}
+
+window.cargarHistorialBroadcasts = async () => {
+  const el = document.getElementById('broadcasts-historial')
+  if (!el) return
+  try {
+    const data = await fetch(API + '/chatbot/broadcasts').then(r => r.json()).catch(() => [])
+    const lista = Array.isArray(data) ? data : []
+    if (!lista.length) {
+      el.innerHTML = '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Aún no has enviado ninguna campaña.</p>'
+      return
+    }
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    el.innerHTML = lista.map(b => {
+      const fecha = b.created_at ? new Date(b.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}) : ''
+      const metricas = [
+        { label: 'Enviados',   val: b.enviados||0,   color:'#0f172a' },
+        { label: 'Entregados', val: b.entregados||0, color:'#0284c7' },
+        { label: 'Leídos',     val: b.leidos||0,     color:'#16a34a' },
+        { label: 'Fallidos',   val: b.fallidos||0,   color:'#dc2626' },
+      ]
+      return `
+        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px">
+          <p style="font-weight:700;font-size:0.86rem;color:#0f172a;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.nombre||b.plantilla||'Campaña')}</p>
+          <p style="font-size:0.7rem;color:#94a3b8;margin:2px 0 8px">${fecha} · ${b.total||0} destinatarios</p>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            ${metricas.map(m => `<div><span style="font-weight:700;color:${m.color};font-size:0.85rem">${m.val}</span> <span style="font-size:0.7rem;color:#94a3b8">${m.label}</span></div>`).join('')}
+          </div>
+        </div>`
+    }).join('')
+  } catch(e) {
+    el.innerHTML = '<p style="font-size:0.8rem;color:#ef4444;text-align:center;padding:20px">Error cargando historial</p>'
+  }
 }
 
 
@@ -12179,67 +12291,10 @@ window.mostrarConfigWA = async () => {
             <p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando plantillas...</p>
           </div>
         </div>
-
-        <!-- ── Broadcast / Campaña masiva ── -->
-        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:20px;margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <div>
-              <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem">📢 Campaña masiva</p>
-              <p style="margin:2px 0 0;font-size:0.75rem;color:#94a3b8">Envía una plantilla aprobada a todos tus contactos de WhatsApp</p>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div>
-              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Plantilla</label>
-              <select id="broadcast-template" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
-                <option value="">Cargando plantillas...</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Parámetro 1 (si la plantilla lo requiere)</label>
-              <input id="broadcast-param1" placeholder="ej: nombre del cliente (se usará igual para todos)" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;box-sizing:border-box;font-family:inherit">
-            </div>
-            <div>
-              <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:4px">Destinatarios</label>
-              <select id="broadcast-dest" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;font-family:inherit">
-                <option value="todos">Todos los contactos de WhatsApp</option>
-                <option value="compradores">Solo compradores</option>
-                <option value="posibles">Posibles compradores</option>
-              </select>
-            </div>
-            <button onclick="ejecutarBroadcast()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">
-              Enviar campaña →
-            </button>
-            <div id="broadcast-resultado" style="font-size:0.8rem;color:#64748b;text-align:center"></div>
-          </div>
-        </div>
-
-        <!-- ── Flujos de automatización (respuestas por palabra clave, estilo ManyChat) ── -->
-        <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:20px;margin-top:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <div>
-              <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">Automatización</p>
-              <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.95rem">🤖 Flujos por palabra clave</p>
-              <p style="margin:2px 0 0;font-size:0.75rem;color:#94a3b8">Cuando un cliente escribe una palabra clave, el bot responde al instante sin gastar IA. Solo actúa si el chat no lo lleva un asesor.</p>
-            </div>
-            <button onclick="nuevoFlujoWA()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit">+ Nuevo flujo</button>
-          </div>
-          <div id="flujos-lista"><p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:16px">Cargando flujos...</p></div>
-        </div>
       </div>
     `
 
     cargarPlantillas()
-    cargarFlujosWA()
-    // Poblar select de broadcast con plantillas aprobadas
-    fetch(API + '/chatbot/templates').then(r => r.json()).then(data => {
-      const sel = document.getElementById('broadcast-template')
-      if (!sel) return
-      const aprobadas = (data.data || []).filter(t => t.status === 'APPROVED')
-      sel.innerHTML = aprobadas.length
-        ? aprobadas.map(t => `<option value="${t.name}">${t.name}</option>`).join('')
-        : '<option value="">Sin plantillas aprobadas</option>'
-    }).catch(() => {})
 
   } catch(e) {
     console.error(e)
@@ -12555,6 +12610,24 @@ window._recargarChats = async () => {
   } catch(_) { return [] }
 }
 
+// Paleta de colores por contacto (estilo Kommo/Telegram: cada contacto tiene un
+// color estable, no el mismo degradado repetido — así la lista se escanea rápido).
+window._WA_AVATAR_PALETTE = ['#E91E8C','#7c3aed','#0891b2','#16a34a','#ea580c','#0284c7','#c026d3','#65a30d','#dc2626','#4338ca','#0d9488','#b45309']
+window._colorAvatarWA = (seed) => {
+  const s = seed || ''
+  let hash = 0
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0
+  return window._WA_AVATAR_PALETTE[hash % window._WA_AVATAR_PALETTE.length]
+}
+// Primer caracter "seguro" para el avatar: .charAt(0) rompe con nombres que empiezan
+// con emoji (son pares de surrogates en JS) y muestra un "�". El spread [...str]
+// itera por code point real y evita ese glitch.
+window._letraAvatarWA = (nombreOTelefono) => {
+  const str = nombreOTelefono || ''
+  const primero = [...str][0] || '#'
+  return primero.toUpperCase()
+}
+
 // HTML de los items de la lista de chats (usado por cargarConversaciones y el auto-refresco)
 window._htmlChatItems = (chats) => {
   if (!chats || chats.length === 0) {
@@ -12563,15 +12636,15 @@ window._htmlChatItems = (chats) => {
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
               <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
                    onclick="abrirChat('${c.telefono}')">
-                <div class="wa-avatar">
-                  ${(c.nombre||c.telefono).charAt(0).toUpperCase()}
+                <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)}">
+                  ${window._letraAvatarWA(c.nombre || c.telefono)}
                   ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
                 </div>
                 <div class="wa-chat-info">
                   <div class="wa-chat-name">${c.nombre || c.telefono}
-                    ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-badge ${c.estado}">${c.estado==='espera'?'En espera':'Cerrado'}</span>` : ''}
+                    ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-dot-inline ${c.estado}" title="${c.estado==='espera'?'En espera':'Cerrado'}"></span>` : ''}
                   </div>
-                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.substring(0,40)+'…' })()}</div>
+                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.length > 40 ? mm.substring(0,40)+'…' : (mm || 'Sin mensajes') })()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>

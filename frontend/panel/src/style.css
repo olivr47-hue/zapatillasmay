@@ -755,7 +755,10 @@ select.form-input   { cursor:pointer; }
   #stock-inicial-container { overflow-x:auto !important; }
   .talla-label { flex-shrink:0; }
   div[style*="flex-wrap:wrap"] { overflow-x:auto; flex-wrap:nowrap !important; padding-bottom:8px; -webkit-overflow-scrolling:touch; }
-  #wa-container { grid-template-columns:1fr !important; height:calc(100dvh - 92px) !important; }
+  #wa-container { grid-template-columns:1fr !important; height:calc(100dvh - 205px) !important; }
+  .wa-topbar { margin-bottom:8px; }
+  .wa-topbar-tabs { padding:2px; }
+  .wa-tab-btn { padding:6px 10px; font-size:0.72rem; }
   .wa-nt-grid { grid-template-columns:1fr !important; }
 
   /* Header del chat en móvil: el nombre se aplastaba a 0px (se partía en vertical).
@@ -862,7 +865,7 @@ select.form-input   { cursor:pointer; }
   display: grid;
   grid-template-columns: 310px 1fr;
   width: 100%;
-  height: calc(100vh - 160px);
+  height: calc(100vh - 215px);
   min-height: 0;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -1342,10 +1345,42 @@ html, body { height:100%; overflow-y:auto !important; }
    cascada reemplace el estilo anterior sin tocar el HTML generado en JS.
    ════════════════════════════════════════════════════════════════════ */
 
+/* Barra superior FIJA del módulo: título + pestañas (Chat/Embudo/Flujos/
+   Broadcasts/Config). Vive fuera de #wa-tab-content a propósito — antes las
+   pestañas estaban dentro del área que cada vista reemplazaba, así que al
+   entrar a Config o Embudo los botones desaparecían sin forma de volver. */
+.wa-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.wa-topbar-eyebrow {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; color: #E91E8C;
+  text-transform: uppercase; margin: 0 0 2px;
+}
+.wa-topbar-title { font-weight: 700; color: var(--text-1); font-size: 1rem; letter-spacing: -0.01em; }
+.wa-topbar-tabs {
+  display: flex; gap: 2px; background: #f1f2f5; border-radius: 10px; padding: 3px;
+}
+.wa-tab-btn {
+  border: none; border-radius: 8px; background: transparent; color: #667085;
+  font-size: 0.78rem; font-weight: 600; padding: 7px 14px; cursor: pointer;
+  font-family: inherit; transition: background 0.15s, color 0.15s; white-space: nowrap;
+}
+.wa-tab-btn:hover:not(.activo) { background: rgba(255,255,255,0.6); color: #344054; }
+.wa-tab-btn.activo { background: #fff; color: #E91E8C; box-shadow: 0 1px 3px rgba(16,24,40,0.12); }
+@media (max-width: 900px) {
+  .wa-topbar-tabs { width: 100%; overflow-x: auto; }
+  .wa-tab-btn { flex-shrink: 0; }
+}
+
 /* Contenedor: más aire y elevación de tarjeta */
 #wa-container {
   grid-template-columns: 340px 1fr;
-  height: calc(100vh - 140px);
+  height: calc(100vh - 195px);
   border-radius: 18px;
   border: 1px solid #e4e7ec;
   box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 12px 32px -12px rgba(16,24,40,0.08);
@@ -1487,7 +1522,7 @@ html, body { height:100%; overflow-y:auto !important; }
 
 /* Móvil: conservar los ajustes responsivos previos que este bloque pisaría */
 @media (max-width:900px) {
-  #wa-container { height: calc(100dvh - 92px) !important; border-radius: 12px; }
+  #wa-container { height: calc(100dvh - 205px) !important; border-radius: 12px; }
   #mensajes-area { padding: 14px 12px; }
   .wa-msg-row-inner { max-width: 82%; }
   .wa-btn { padding:7px 12px; font-size:0.72rem; min-height:34px; flex-shrink:0; }
@@ -1496,7 +1531,7 @@ html, body { height:100%; overflow-y:auto !important; }
 }
 
 /* ── EMBUDO / PIPELINE KANBAN (estilo Kommo) ─────────────────────────── */
-.wa-kb-wrap { display:flex; flex-direction:column; height:calc(100vh - 150px); min-height:0; }
+.wa-kb-wrap { display:flex; flex-direction:column; height:calc(100vh - 205px); min-height:0; }
 .wa-kb-header { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
 .wa-kb-board {
   flex:1; display:flex; gap:12px; overflow-x:auto; overflow-y:hidden;
@@ -1528,7 +1563,7 @@ html, body { height:100%; overflow-y:auto !important; }
 .wa-kb-fecha { font-size:0.66rem; color:#98a2b3; margin-top:5px; font-weight:500; }
 .wa-kb-empty { font-size:0.74rem; color:#98a2b3; text-align:center; padding:14px 0; }
 @media (max-width:900px) {
-  .wa-kb-wrap { height:calc(100dvh - 120px); }
+  .wa-kb-wrap { height:calc(100dvh - 230px); }
   .wa-kb-col { flex-basis:200px; }
 }
 
@@ -1536,6 +1571,11 @@ html, body { height:100%; overflow-y:auto !important; }
 .wa-estado-badge { display:inline-block; font-size:0.62rem; font-weight:700; padding:1px 6px; border-radius:10px; margin-left:4px; vertical-align:middle; }
 .wa-estado-badge.espera  { background:rgba(245,158,11,0.12); color:#d97706; }
 .wa-estado-badge.cerrado { background:rgba(100,116,139,0.12); color:#64748b; }
+/* Punto de estado junto al nombre en la lista (más discreto que el badge de texto,
+   el estado completo ya se ve en las pestañas Abierto/Espera/Cerrado de arriba) */
+.wa-estado-dot-inline { display:inline-block; width:7px; height:7px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+.wa-estado-dot-inline.espera  { background:#f59e0b; }
+.wa-estado-dot-inline.cerrado { background:#94a3b8; }
 
 /* ── PILL FILTERS (pedidos / análisis) ── */
 .pill-filter {
