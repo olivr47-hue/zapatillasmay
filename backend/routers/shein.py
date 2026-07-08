@@ -521,23 +521,122 @@ def ver_log_sync():
 
 
 # ─── Publicar productos ──────────────────────────────────────────────────────
-# NOTA: category_id y los atributos obligatorios de calzado dependen de la
-# categoria exacta de SHEIN (consultar /shein/category-tree y
-# /shein/attribute-template/{category_id} primero, igual que se hizo con
-# MercadoLibre — ahi tambien las categorias/atributos se descubrieron
-# iterando con la API real antes de fijarlos en el codigo).
+# Esquema real confirmado contra la documentacion oficial de SHEIN (Postman
+# collection oficial) + contra un producto real ya publicado en esta tienda
+# (via /shein/producto/{spu_name}). Puntos clave:
+#   - site_list (no "publish_site"): [{"main_site":"shein","sub_site_list":["shein-mx"]}]
+#   - SKC.image_info = {"image_info_list":[{"image_sort","image_type"(1/2/5/6),"image_url"}]}
+#   - SKC.sale_attribute (objeto) = color; SKU.sale_attribute_list (lista) = talla
+#   - SKU.supplier_sku = nuestro SKU del ERP; SKU.sku_code se deja "" (lo asigna SHEIN)
+#   - product_attribute_list puede ir vacio: attribute_status=3 es lo obligatorio,
+#     todo lo visto en /shein/attribute-template para tacones era status=2 (opcional)
+
+SITE_ABBR = "shein-mx"
+MONEDA    = "MXN"
+
+# categoria ERP -> (category_id, product_type_id) de SHEIN, descubiertos en
+# /shein/category-tree (arbol real de esta tienda, "Zapatos de Mujer")
+_CATEGORY_SHEIN = {
+    "tacones":     (1750, 1690),  # Zapatos de tacón de mujer
+    "sandalias":   (1751, 76),    # Sandalias de tacón para mujer
+    "botas":       (1748, 77),    # Botas y Botines de Mujer
+    "botines":     (1748, 77),    # Botas y Botines de Mujer
+    "flats":       (1881, 83),    # Bailarinas de mujer
+    "plataformas": (1749, 1689),  # Cuñas & plataformas de mujer
+    "tenis":       (2863, 798),   # Zapatillas de deporte para mujer
+}
+_CATEGORY_SHEIN_DEFAULT = _CATEGORY_SHEIN["tacones"]
+
+# attribute_id fijos de SHEIN para calzado (confirmados iguales en varias
+# categorias de "Zapatos de Mujer"): 27=Color (SKC), 87=Talla (SKU)
+_ATTR_COLOR = 27
+_ATTR_TALLA = 87
+
+
+def _default_language_cached(category_id: int) -> str:
+    """
+    Idioma por defecto de la tienda para esta categoria -- el titulo/descripcion
+    multi-idioma DEBEN incluir una entrada en este idioma o SHEIN rechaza el
+    publish con "el titulo no puede estar vacio", aunque se haya mandado texto
+    en otro idioma (confirmado empiricamente contra el sandbox).
+    """
+    key = f"shein_default_lang_{category_id}"
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    try:
+        resp = shein_post("/open-api/goods/query-publish-fill-in-standard", {"category_id": category_id})
+        idioma = (resp.get("info") or {}).get("default_language") or "es"
+    except Exception:
+        idioma = "es"
+    cache_set(key, idioma, ttl=3600)
+    return idioma
+
+
+def _attribute_template_cached(product_type_id: int) -> list:
+    """Plantilla de atributos de una categoria, cacheada 1h (cambia poco)."""
+    key = f"shein_attrtpl_{product_type_id}"
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
+    resp = shein_post("/open-api/goods/query-attribute-template", {"product_type_id_list": [product_type_id]})
+    data = (resp.get("info") or {}).get("data") or []
+    infos = data[0].get("attribute_infos", []) if data else []
+    cache_set(key, infos, ttl=3600)
+    return infos
+
+
+def _buscar_attribute_value_id(product_type_id: int, attribute_id: int, texto: str) -> int | None:
+    """Busca el attribute_value_id cuyo texto coincide (exacto o parcial) con `texto`."""
+    if not texto:
+        return None
+    texto_norm = texto.strip().lower()
+    infos = _attribute_template_cached(product_type_id)
+    for a in infos:
+        if a.get("attribute_id") != attribute_id:
+            continue
+        valores = a.get("attribute_value_info_list") or []
+        # 1) coincidencia exacta
+        for v in valores:
+            if (v.get("attribute_value") or "").strip().lower() == texto_norm:
+                return v.get("attribute_value_id")
+        # 2) coincidencia parcial (por si el texto del ERP trae variaciones)
+        for v in valores:
+            val = (v.get("attribute_value") or "").strip().lower()
+            if val and (val in texto_norm or texto_norm in val):
+                return v.get("attribute_value_id")
+    return None
+
+
+def _talla_a_attribute_value_id(product_type_id: int, talla: str) -> int | None:
+    """SHEIN espera la talla como 'MX{numero}', ej. talla '22.5' -> 'MX22.5'."""
+    talla_limpia = (talla or "").replace("_", ".").strip()
+    if not talla_limpia:
+        return None
+    return _buscar_attribute_value_id(product_type_id, _ATTR_TALLA, f"MX{talla_limpia}")
+
+
+def _color_a_attribute_value_id(product_type_id: int, color: str) -> int | None:
+    return _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, color)
+
 
 def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
-                        category_id: int, attributes: list = None) -> dict:
+                        category_id: int, product_type_id: int) -> dict:
     """
-    Construye el payload de POST /open-api/goods/product/publishOrEdit.
+    Construye el payload real de POST /open-api/goods/product/publishOrEdit.
     SPU = modelo, SKC = color, SKU = color+talla (analogo a producto/variante del ERP).
     """
     nombre = (producto.get("nombre") or "").strip()
-    descripcion = (producto.get("descripcion") or "").strip()[:4000]
-    precio = float(producto.get("precio_menudeo") or 0)
+    descripcion = (producto.get("descripcion") or "").strip() or nombre
+    # Precio mayoreo variado 6+ pares (NO precio_corrida, que es el de corrida
+    # completa) -- indicado explicitamente por el usuario para SHEIN.
+    precio = float(producto.get("precio_mayoreo6") or producto.get("precio_menudeo") or 0)
+    sku_modelo = (producto.get("sku_interno") or "").strip()
 
-    # Agrupar variantes por color -> un SKC por color, un SKU por talla dentro del SKC
+    # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
+    # no captura esto por modelo; son valores tipicos de caja de zapatos.
+    DIM_DEFAULT = {"length": "30.50", "width": "18.00", "height": "10.00", "weight": "400"}
+
     por_color: dict = {}
     for v in variantes:
         color = (v.get("color") or "Unico").strip()
@@ -548,51 +647,89 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         fotos = []
         for v in vs:
             fotos.extend(v.get("imagenes") or ([v["foto_url"]] if v.get("foto_url") else []))
-        fotos_shein = [_subir_imagen(u) for u in dict.fromkeys(fotos) if u][:12]
+        fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
+
+        # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5)
+        image_info_list = []
+        tipos_minimos = [1, 5]
+        for i, tipo in enumerate(tipos_minimos):
+            if i < len(fotos_unicas):
+                url_shein = _subir_imagen(fotos_unicas[i], image_type=tipo)
+                if url_shein:
+                    image_info_list.append({"image_sort": i + 1, "image_type": tipo, "image_url": url_shein})
+        # Fotos adicionales como "detalle" (type=2)
+        for j, url in enumerate(fotos_unicas[2:11]):
+            url_shein = _subir_imagen(url, image_type=2)
+            if url_shein:
+                image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
+
+        color_value_id = _color_a_attribute_value_id(product_type_id, color)
 
         sku_list = []
         for v in vs:
-            talla = str(v.get("talla") or "").replace("_", ".")
+            talla = str(v.get("talla") or "")
+            talla_value_id = _talla_a_attribute_value_id(product_type_id, talla)
             sku_list.append({
-                "skuCode":      v.get("sku", ""),
-                "size":         talla,
-                "inventoryNum": stock_map.get(v["id"], 0),
-                "price":        precio,
+                "sku_code":            "",
+                "supplier_sku":        v.get("sku", ""),
+                "mall_state":          1,
+                "stop_purchase":       1,
+                "sale_attribute_list": [{"attribute_id": _ATTR_TALLA, "attribute_value_id": talla_value_id}] if talla_value_id else [],
+                "price_info_list":     [{"base_price": precio, "currency": MONEDA, "sub_site": SITE_ABBR}],
+                "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
+                "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
+                "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
+                "image_info":          None,
             })
 
-        skc_list.append({
-            "color":    color,
-            "pictures": fotos_shein,
-            "skuList":  sku_list,
-        })
+        skc_entry = {
+            "sale_attribute":    {"attribute_id": _ATTR_COLOR, "attribute_value_id": color_value_id} if color_value_id else None,
+            "skc_title":         None,
+            "sku_list":          sku_list,
+            "shelf_require":     "0",
+            "shelf_way":         "1",
+            "hope_on_sale_date": None,
+            "supplier_code":     sku_modelo,
+        }
+        if image_info_list:
+            skc_entry["image_info"] = {"image_info_list": image_info_list}
+        skc_list.append(skc_entry)
 
-    payload = {
-        "productName":   nombre[:100],
-        "categoryId":    category_id,
-        "description":   descripcion,
-        "brandCode":     "",  # completar con /shein/brand-list si SHEIN lo exige
-        "attributeList": attributes or [],
-        "skcList":       skc_list,
+    idioma = _default_language_cached(category_id)
+    return {
+        "spu_name":                 "",
+        "spu_code":                 None,
+        "brand_code":               "",
+        "category_id":              category_id,
+        "product_type_id":          product_type_id,
+        "multi_language_name_list": [{"language": idioma, "name": nombre[:100]}],
+        "multi_language_desc_list": [{"language": idioma, "name": descripcion[:4000]}],
+        "product_attribute_list":   [],
+        "site_list":                [{"main_site": "shein", "sub_site_list": [SITE_ABBR]}],
+        "size_attribute_list":      [],
+        "sale_attribute_sort_list": [],
+        "source_system":            "openapi",
+        "suit_flag":                0,
+        "supplier_code":            "",
+        "image_info":               None,
+        "is_spu_pic":               False,
+        "sample_info":              None,
+        "skc_list":                 skc_list,
     }
-    return payload
 
 
 @router.post("/publicar")
 def publicar_producto(body: dict):
     """
-    Body: { "producto_id": "uuid", "category_id": 12345, "attributes": [...], "solo_preview": true }
-    category_id y attributes se obtienen de /shein/category-tree y /shein/attribute-template.
+    Body: { "producto_id": "uuid" } o { "sku_interno": "..." }, opcional "solo_preview": true.
+    category_id/product_type_id se resuelven solos desde la categoria del ERP (_CATEGORY_SHEIN).
     """
     producto_id  = (body.get("producto_id") or "").strip()
     sku_interno  = (body.get("sku_interno") or "").strip().upper()
-    category_id  = body.get("category_id")
-    attributes   = body.get("attributes") or []
     solo_preview = bool(body.get("solo_preview", False))
 
     if not producto_id and not sku_interno:
         raise HTTPException(400, "Se requiere producto_id o sku_interno")
-    if not category_id:
-        raise HTTPException(400, "Se requiere category_id (consulta /shein/category-tree)")
 
     if producto_id:
         prods = supabase_get_all(f"productos?id=eq.{producto_id}&select=*&limit=1")
@@ -602,6 +739,9 @@ def publicar_producto(body: dict):
         raise HTTPException(404, f"Producto no encontrado (sku={sku_interno or producto_id})")
     producto = prods[0]
     producto_id = producto_id or producto.get("id", "")
+
+    cat_key = (producto.get("categoria") or "").lower().strip()
+    category_id, product_type_id = _CATEGORY_SHEIN.get(cat_key, _CATEGORY_SHEIN_DEFAULT)
 
     variantes = supabase_get_all(f"variantes?producto_id=eq.{producto_id}&activa=eq.true&select=*")
     if not variantes:
@@ -617,13 +757,14 @@ def publicar_producto(body: dict):
 
     if solo_preview:
         # En preview no subimos imagenes de verdad (evita gastar cuota de transform-pic).
-        payload_preview = {
-            "productName": producto.get("nombre"),
-            "categoryId":  category_id,
-            "variaciones": len(variantes),
-            "colores":     list({(v.get("color") or "Unico") for v in variantes}),
+        return {
+            "producto":         producto.get("nombre"),
+            "categoria":        cat_key,
+            "category_id":      category_id,
+            "product_type_id":  product_type_id,
+            "variaciones":      len(variantes),
+            "colores":          list({(v.get("color") or "Unico") for v in variantes}),
         }
-        return {"preview": payload_preview}
 
-    payload = _build_spu_payload(producto, variantes, stock_map, category_id, attributes)
+    payload = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id)
     return shein_post("/open-api/goods/product/publishOrEdit", payload)
