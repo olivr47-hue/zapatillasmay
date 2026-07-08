@@ -112,6 +112,7 @@ def _headers(path: str, usar_appid: bool = False) -> dict:
             "x-lt-timestamp": ts,
             "x-lt-signature": firma,
             "Content-Type":   "application/json;charset=UTF-8",
+            "language":       "es",
         }
     open_key_id = _open_key_id()
     secret_key  = _secret_key()
@@ -122,6 +123,9 @@ def _headers(path: str, usar_appid: bool = False) -> dict:
         "x-lt-timestamp": ts,
         "x-lt-signature": firma,
         "Content-Type":   "application/json;charset=UTF-8",
+        # Requerido por algunos endpoints de goods (category-tree, brand-list);
+        # el resto lo ignora sin problema.
+        "language":       "es",
     }
 
 
@@ -269,20 +273,28 @@ def ping():
 # ─── Endpoints de diagnóstico (necesarios antes de poder publicar bien) ─────
 
 @router.get("/category-tree")
-def category_tree(parent_id: int = 0):
-    """Árbol de categorías de SHEIN — necesario para saber a qué category_id publicar.
-    Endpoint POST con body (como get-by-token/change-inventory), no GET+query."""
+def category_tree():
+    """
+    Categorías finales (leaf) habilitadas para esta tienda -- la API no acepta
+    parent_id, siempre regresa el árbol completo de categorías del vendedor.
+    Ruta real confirmada en el SDK oficial (sin "/category/" de por medio,
+    ese segmento de mas es lo que rompia la firma).
+    """
     try:
-        return shein_post("/open-api/goods/category/query-category-tree", {"categoryId": parent_id})
+        return shein_post("/open-api/goods/query-category-tree", {})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
 
-@router.get("/attribute-template/{category_id}")
-def attribute_template(category_id: int):
-    """Plantilla de atributos requeridos/opcionales para una categoría."""
+@router.get("/attribute-template/{product_type_id}")
+def attribute_template(product_type_id: int):
+    """
+    Plantilla de atributos requeridos/opcionales para un product_type_id
+    (se obtiene del árbol de categorías, /shein/category-tree). Hasta 10
+    ids por llamada -- aqui solo se expone uno para simplificar.
+    """
     try:
-        return shein_post("/open-api/goods/category/query-attribute-template", {"categoryId": category_id})
+        return shein_post("/open-api/goods/query-attribute-template", {"product_type_id_list": [product_type_id]})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -290,7 +302,7 @@ def attribute_template(category_id: int):
 @router.get("/brand-list")
 def brand_list():
     try:
-        return shein_post("/open-api/goods/brand/query-brand-list", {})
+        return shein_post("/open-api/goods/query-brand-list", {})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -298,7 +310,7 @@ def brand_list():
 @router.get("/site-list")
 def site_list():
     try:
-        return shein_post("/open-api/goods/site/query-site-list", {})
+        return shein_post("/open-api/goods/query-site-list", {})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -337,11 +349,15 @@ def _default_warehouse_code() -> str:
 
 # ─── Imágenes: SHEIN exige alojarlas en su propio CDN (transform-pic) ───────
 
-def _subir_imagen(url_imagen: str) -> str:
-    """Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN."""
-    resp = shein_post("/open-api/goods/pic/transform-pic", {"picUrl": url_imagen})
+def _subir_imagen(url_imagen: str, image_type: int = 1) -> str:
+    """
+    Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN.
+    image_type: 1=principal, 2=detalle, 5=cuadro, 6=color, 7=detalle largo.
+    Ruta y nombres de campo confirmados en el SDK oficial (no "picUrl").
+    """
+    resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
     info = resp.get("info", {}) or {}
-    return info.get("picUrl") or info.get("pic_url") or ""
+    return info.get("url") or info.get("picUrl") or info.get("pic_url") or ""
 
 
 # ─── Stock del ERP (mismo patrón que mercadolibre.py) ───────────────────────
@@ -385,19 +401,20 @@ def _skus_shein() -> list:
     page = 1
     while True:
         try:
-            resp = shein_post("/open-api/goods/product/query", {"page": page, "pageSize": 100})
+            # Ruta y nombres de parametro (camelCase) confirmados en el SDK oficial --
+            # este endpoint vive en el modulo "openapi-business-backend", no en "goods".
+            resp = shein_post("/open-api/openapi-business-backend/product/query", {"pageNum": page, "pageSize": 100})
         except HTTPException:
             break
         info = resp.get("info", {}) or {}
-        items = info.get("list") or info.get("productList") or []
+        # Forma real confirmada contra el sandbox: info.data = [{"skcName","skuCodeList","spuName"}, ...]
+        items = info.get("data") or []
         if not items:
             break
         for prod in items:
-            for skc in prod.get("skcList", []) or []:
-                for sku in skc.get("skuList", []) or []:
-                    sku_code = sku.get("skuCode") or sku.get("sku_code")
-                    if sku_code:
-                        resultado.append({"skuCode": sku_code, "estado": prod.get("status") or prod.get("auditStatus")})
+            for sku_code in prod.get("skuCodeList", []) or []:
+                if sku_code:
+                    resultado.append({"skuCode": sku_code, "skcName": prod.get("skcName"), "spuName": prod.get("spuName")})
         if len(items) < 100:
             break
         page += 1
