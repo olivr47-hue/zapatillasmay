@@ -371,11 +371,27 @@ def mis_productos(page: int = 1):
 
 @router.get("/producto/{spu_name}")
 def detalle_producto(spu_name: str, language: str = "es"):
-    """Detalle completo (spu/skc/sku + atributos) de un producto ya publicado, por su spuName."""
-    try:
-        return shein_post("/open-api/goods/spu-info", {"language_list": [language], "spu_name": spu_name})
-    except HTTPException as e:
-        return {"ok": False, "error": e.detail}
+    """
+    Detalle completo (spu/skc/sku + atributos) de un producto ya publicado, por su spuName.
+    Prueba snake_case y camelCase para los nombres de campo -- la API de SHEIN no es
+    consistente entre endpoints (unos usan pageNum, otros product_type_id_list).
+    """
+    variantes = [
+        {"language_list": [language], "spu_name": spu_name},
+        {"languageList": [language], "spuName": spu_name},
+        {"language_list": [language], "spuName": spu_name},
+        {"languageList": [language], "spu_name": spu_name},
+    ]
+    resultados = []
+    for v in variantes:
+        try:
+            resp = shein_post("/open-api/goods/spu-info", v)
+        except HTTPException as e:
+            resp = {"error": e.detail}
+        resultados.append({"body_enviado": v, "respuesta": resp})
+        if resp.get("code") in (0, "0"):
+            return {"variante_exitosa": v, "respuesta": resp}
+    return {"ok": False, "ninguna_variante_funciono": True, "intentos": resultados}
 
 
 # ─── Stock del ERP (mismo patrón que mercadolibre.py) ───────────────────────
