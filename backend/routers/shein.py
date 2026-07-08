@@ -369,6 +369,22 @@ def _subir_imagen(url_imagen: str, image_type: int = 1) -> str:
     return info.get("transformed") or info.get("url") or ""
 
 
+def _cloudinary_recorte_80x80(url_imagen: str) -> str:
+    """
+    La imagen de bloque de color (type=6) exige un tamaño EXACTO de 80x80px
+    (confirmado contra la API real) -- transform-pic no la genera desde una
+    foto normal. En vez de procesar la imagen nosotros mismos (Pillow no se
+    instala de forma confiable en Railway para este proyecto -- mismo
+    problema historico que cryptography/PyJWT, confirmado con un
+    ModuleNotFoundError en produccion), se le pide el recorte directamente
+    a Cloudinary via parametros en la URL (ya alojamos ahi las fotos).
+    """
+    marcador = "/image/upload/"
+    if marcador not in url_imagen:
+        return url_imagen
+    return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_80,h_80/", 1)
+
+
 @router.get("/mis-productos")
 def mis_productos(page: int = 1):
     """Productos ya publicados en esta tienda (para ver como quedo configurado un modelo real)."""
@@ -663,7 +679,9 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
     # no captura esto por modelo; son valores tipicos de caja de zapatos.
-    DIM_DEFAULT = {"length": "30.50", "width": "18.00", "height": "10.00", "weight": "400"}
+    # length/width/height son string (cm); weight es numerico (double, gramos)
+    # -- confirmado en la documentacion oficial de publishOrEdit.
+    DIM_DEFAULT = {"length": "30.50", "width": "18.00", "height": "10.00", "weight": 400}
 
     por_color: dict = {}
     for v in variantes:
@@ -689,10 +707,15 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         image_info_list = []
         foto_principal = fotos_unicas[0] if fotos_unicas else None
         if foto_principal:
-            for tipo in ([1, 5, 6] if multi_skc else [1, 5]):
+            for tipo in [1, 5]:
                 url_shein = _subir_imagen(foto_principal, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
+            if multi_skc:
+                # Recorte 80x80 via Cloudinary (no procesamiento local) + transform-pic normal
+                url_swatch = _subir_imagen(_cloudinary_recorte_80x80(foto_principal), image_type=6)
+                if url_swatch:
+                    image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 6, "image_url": url_swatch})
         # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
         for url in fotos_unicas[1:10]:
             url_shein = _subir_imagen(url, image_type=2)
@@ -721,10 +744,9 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 "sale_attribute_list": [{"attribute_id": _ATTR_TALLA, "attribute_value_id": talla_value_id}] if talla_value_id else [],
                 "price_info_list":     [{"base_price": precio, "currency": MONEDA, "sub_site": SITE_ABBR}],
                 "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
-                # Se manda en MXN y CNY -- un producto real ya publicado en esta
-                # tienda trae costInfoList con ambas monedas a la vez.
-                "cost_info_list":      [{"currency": MONEDA, "cost_price": costo},
-                                         {"currency": "CNY", "cost_price": round(costo / 2.6, 2)}],
+                # cost_info es un OBJETO singular (no lista) -- confirmado en la
+                # documentacion oficial de publishOrEdit. cost_price es string.
+                "cost_info":           {"currency": MONEDA, "cost_price": f"{costo:.2f}"},
                 "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
                 "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
                 "image_info":          None,
