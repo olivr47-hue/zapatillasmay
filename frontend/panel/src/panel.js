@@ -83,6 +83,7 @@ const modulos = [
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
+  { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
@@ -365,6 +366,7 @@ async function cargarModulo(id) {
     case 'conversaciones': await cargarConversaciones(); break;
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
+    case 'shein': await cargarShein(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
     case 'orden-home':     await cargarOrdenHome(); break;
@@ -18362,6 +18364,380 @@ async function _mlRenderPublicarTab() {
       btn.style.cursor = 'pointer'
     }
   }
+}
+
+// ─── SHEIN ────────────────────────────────────────────────────────────────────
+const _SHEIN_ACCENT = '#f43f5e'
+
+const _sheinBtn = (icon, label, onclick, variant = 'primary', id = '') => {
+  const variants = {
+    primary:   { bg: _SHEIN_ACCENT, fg: '#fff' },
+    warning:   { bg: '#fff', fg: '#b45309', border: '1px solid #fcd34d' },
+    success:   { bg: '#fff', fg: '#166534', border: '1px solid #86efac' },
+    secondary: { bg: '#fff', fg: '#444', border: '1px solid #ddd' },
+  }
+  const v = variants[variant] || variants.primary
+  const border = v.border ? `border:${v.border}` : 'border:none'
+  return `<button ${id ? `id="${id}"` : ''} onclick="${onclick}"
+    style="display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:${v.bg};color:${v.fg};${border};border-radius:8px;cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit;transition:filter 0.15s"
+    onmouseover="this.style.filter='brightness(0.96)'" onmouseout="this.style.filter='none'">
+    ${_mlIcon(icon, 15)}<span id="${id}-label">${label}</span>
+  </button>`
+}
+
+const _SHEIN_TABS = [
+  { id: 'publicaciones', label: 'Publicaciones', icon: 'list' },
+  { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
+]
+
+async function cargarShein() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:1.5rem 2rem;max-width:1150px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${_mlIcon('cart', 18, '#fff')}
+        </div>
+        <h2 style="margin:0;font-size:1.25rem">SHEIN</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.1rem 42px">
+        Publicaciones, inventario y conexión de tu tienda semi-managed.
+      </p>
+      <div id="shein-conexion" style="margin:0 0 1.25rem;padding:0.8rem 1rem;border-radius:10px;background:#f8f8f8;font-size:0.84rem;display:flex;align-items:center;gap:8px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0"></span>
+        Verificando conexión con SHEIN...
+      </div>
+      <div id="shein-tabs" style="display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #e5e5e5;margin-bottom:1.5rem">
+        ${_SHEIN_TABS.map(t => `
+          <button class="shein-tab-btn" data-tab="${t.id}" onclick="window._sheinSwitchTab('${t.id}')"
+                  onmouseover="if(this.dataset.tab!==window._sheinTabActivo)this.style.color='${_SHEIN_ACCENT}'"
+                  onmouseout="if(this.dataset.tab!==window._sheinTabActivo)this.style.color='#666'"
+                  style="display:flex;align-items:center;gap:7px;padding:0.7rem 1.1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:2px solid transparent;color:#666;font-weight:600;transition:color 0.15s,border-color 0.15s;font-family:inherit">
+            ${_mlIcon(t.icon, 16)}${t.label}
+          </button>`).join('')}
+      </div>
+      <div id="shein-tab-body"></div>
+    </div>
+  `
+  _sheinCheckConexion()
+  window._sheinSwitchTab('publicaciones')
+}
+
+async function _sheinCheckConexion() {
+  const box = document.getElementById('shein-conexion')
+  if (!box) return
+  try {
+    const r = await fetch(`${API}/shein/ping`)
+    const d = await r.json()
+    if (d.ok) {
+      const almacen = d.respuesta?.info?.list?.[0]?.warehouseName || d.respuesta?.info?.list?.[0]?.warehouseCode || ''
+      box.style.background = '#f0fdf4'
+      box.style.color = '#166534'
+      box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+        Conectado${almacen ? ` — almacén: <b>${almacen}</b>` : ''}`
+    } else {
+      box.style.background = '#fef2f2'
+      box.style.color = '#991b1b'
+      const msg = typeof d.error === 'string' ? d.error : (d.error?.msg || 'sin credenciales')
+      box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0"></span>
+        No conectado (${msg}) — <a href="${API}/shein/auth" target="_blank" style="color:${_SHEIN_ACCENT};font-weight:700;text-decoration:none">Conectar SHEIN →</a>`
+    }
+  } catch(e) {
+    box.style.background = '#fef2f2'
+    box.style.color = '#991b1b'
+    box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0"></span> Error de conexión: ${e.message}`
+  }
+}
+
+window._sheinSwitchTab = async (tab) => {
+  window._sheinTabActivo = tab
+  document.querySelectorAll('#shein-tabs .shein-tab-btn').forEach(b => {
+    const activo = b.dataset.tab === tab
+    b.style.borderBottom = activo ? `2px solid ${_SHEIN_ACCENT}` : '2px solid transparent'
+    b.style.color = activo ? _SHEIN_ACCENT : '#666'
+    b.querySelectorAll('svg').forEach(s => s.setAttribute('stroke', activo ? _SHEIN_ACCENT : '#666'))
+  })
+  const body = document.getElementById('shein-tab-body')
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:2.5rem;color:#aaa;font-size:0.85rem">
+    <span style="width:16px;height:16px;border:2px solid #ddd;border-top-color:${_SHEIN_ACCENT};border-radius:50%;display:inline-block;animation:mlspin 0.7s linear infinite"></span>
+    Cargando...
+  </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
+  if (tab === 'publicaciones')   await _sheinRenderPublicacionesTab()
+  else if (tab === 'publicar')   await _sheinRenderPublicarTab()
+}
+
+// ─── Pestaña: Publicaciones (SHEIN) ─────────────────────────────────────────
+async function _sheinRenderPublicacionesTab() {
+  const body = document.getElementById('shein-tab-body')
+  body.innerHTML = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:9px;background:#fdf2f4;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('list', 17, _SHEIN_ACCENT)}</div>
+          <div>
+            <h3 style="margin:0 0 2px;font-size:1rem">Publicaciones y stock</h3>
+            <p style="font-size:0.82rem;color:#888;margin:0">Productos ya publicados en SHEIN y sincronización de inventario.</p>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_sheinBtn('refresh', 'Cargar publicaciones', 'sheinCargarPublicaciones(this)', 'primary')}
+          ${_sheinBtn('refresh', 'Sincronizar stock', 'sheinSincronizar(this)', 'success')}
+          ${_sheinBtn('clipboard', 'Último resultado', 'sheinVerLog(this)', 'secondary')}
+        </div>
+      </div>
+      <div id="shein-resultado" style="display:none;margin-bottom:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.8rem;max-height:320px;overflow-y:auto;white-space:pre-wrap;font-family:monospace"></div>
+      <div id="shein-pubs-wrap">
+        <p style="color:#aaa;font-size:0.85rem;margin:0">Haz clic en "Cargar publicaciones" para ver tus productos activos en SHEIN.</p>
+      </div>
+    </div>
+  `
+}
+
+window.sheinCargarPublicaciones = async (btn) => {
+  const wrap = document.getElementById('shein-pubs-wrap')
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Cargando...'
+  btn.disabled = true
+  wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Consultando SHEIN...</p>'
+  try {
+    const res  = await fetch(`${API}/shein/mis-productos`)
+    const data = await res.json()
+    if (!res.ok || data.ok === false) { wrap.innerHTML = `<p style="color:red">Error: ${data.error?.msg || data.detail || JSON.stringify(data)}</p>`; return }
+
+    const items = data.info?.data || []
+    if (!items.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
+
+    const filas = items.map(it => `
+      <tr data-search="${(it.spuName + ' ' + it.skcName + ' ' + (it.skuCodeList||[]).join(' ')).toLowerCase().replace(/"/g,'')}" style="border-bottom:1px solid var(--border)">
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};white-space:nowrap">${it.spuName}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${it.skcName}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${(it.skuCodeList||[]).length} SKU(s)</td>
+      </tr>`).join('')
+
+    wrap.innerHTML = `
+      <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+        <span style="font-size:0.82rem;color:#555">Total SKC: <b>${items.length}</b></span>
+      </div>
+      <input id="shein-pubs-buscar" oninput="sheinFiltrarPubs(this.value)" placeholder="🔍 Buscar por SPU, SKC o SKU..."
+             style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
+      <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--bg-secondary);position:sticky;top:0">
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SPU</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKC (color)</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKUs</th>
+            </tr>
+          </thead>
+          <tbody>${filas}</tbody>
+        </table>
+      </div>`
+  } catch(e) {
+    wrap.innerHTML = `<p style="color:red">Error de conexión: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = orig
+    btn.disabled = false
+  }
+}
+
+window.sheinFiltrarPubs = (q) => {
+  q = (q || '').toLowerCase().trim()
+  document.querySelectorAll('#shein-pubs-wrap tbody tr').forEach(tr => {
+    tr.style.display = !q || (tr.dataset.search || '').includes(q) ? '' : 'none'
+  })
+}
+
+window.sheinSincronizar = async function(btn) {
+  if (!confirm('¿Sincronizar el stock de todos tus productos publicados en SHEIN con el ERP?')) return
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Sincronizando...'
+  btn.disabled = true
+  const box = document.getElementById('shein-resultado')
+  try {
+    const r = await fetch(API + '/shein/sync', { method: 'POST' })
+    const d = await r.json()
+    box.style.display = 'block'
+    box.textContent = '🔄 ' + (d.message || 'Sincronización iniciada') + '\n\nEspera unos segundos y haz clic en "Último resultado".'
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
+}
+
+window.sheinVerLog = async function(btn) {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Cargando...'
+  btn.disabled = true
+  const box = document.getElementById('shein-resultado')
+  try {
+    const r = await fetch(API + '/shein/sync/log')
+    const d = await r.json()
+    box.style.display = 'block'
+    if (d.error) {
+      box.textContent = '❌ Error: ' + d.error
+    } else if (d.message) {
+      box.textContent = d.message
+    } else {
+      const fecha = d.ts ? new Date(d.ts * 1000).toLocaleString('es-MX') : ''
+      box.textContent = `Última sync: ${fecha}\n\n✅ Actualizados: ${d.actualizados}\n❓ Sin match:    ${d.sin_match}\n❌ Errores:      ${d.errores}` +
+        (d.detalle_errores?.length ? '\n\nERRORES:\n' + d.detalle_errores.map(x => `  ${JSON.stringify(x)}`).join('\n') : '') +
+        (d.detalle_sin_match?.length ? '\n\nSIN MATCH (primeros 20):\n' + d.detalle_sin_match.map(x => `  ${x.skuCode}`).join('\n') : '')
+    }
+  } catch(e) {
+    box.style.display = 'block'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
+}
+
+// ─── Pestaña: Publicar nuevo (SHEIN) ─────────────────────────────────────────
+async function _sheinRenderPublicarTab() {
+  const body = document.getElementById('shein-tab-body')
+  body.innerHTML = `
+    <div style="max-width:820px">
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.1rem">
+          <div style="width:34px;height:34px;border-radius:9px;background:#fdf2f4;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('plusCircle', 17, _SHEIN_ACCENT)}</div>
+          <div>
+            <h3 style="margin:0 0 2px;font-size:1rem">¿Qué modelo quieres publicar?</h3>
+            <p style="font-size:0.8rem;color:#888;margin:0">Busca por nombre o SKU. La categoría, atributos, colores y tallas se resuelven solos.</p>
+          </div>
+        </div>
+
+        <div style="position:relative;margin-bottom:1.1rem">
+          <input id="shein-sku" type="text" placeholder="Ej: Sandalia RU6406, o el SKU R-TAC-0115" autocomplete="off"
+                 style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.95rem;box-sizing:border-box">
+          <div id="shein-sku-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_sheinBtn('search', 'Ver preview', 'sheinGenerarPreview()', 'primary', 'shein-btn-preview')}
+          ${_sheinBtn('cart', 'Publicar en SHEIN', 'sheinPublicarReal()', 'success', 'shein-btn-publicar')}
+        </div>
+      </div>
+
+      <div id="shein-resultado-publicar" style="display:none;margin-top:1.25rem;background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <h3 id="shein-resultado-titulo" style="margin:0 0 0.75rem;font-size:1rem">Resultado</h3>
+        <div id="shein-resultado-body" style="font-size:0.82rem;white-space:pre-wrap;font-family:monospace;max-height:420px;overflow-y:auto"></div>
+      </div>
+    </div>
+  `
+
+  // Autocompletado del SKU: mismo patron que MercadoLibre
+  let _sheinProductos = []
+  fetch(`${API}/productos/?select=id,sku_interno,nombre,activo`)
+    .then(r => r.json())
+    .then(d => { _sheinProductos = (Array.isArray(d) ? d : []).filter(p => p.activo !== false) })
+    .catch(() => {})
+  const _skuInput = document.getElementById('shein-sku')
+  const _skuSug   = document.getElementById('shein-sku-sug')
+  const _renderSug = (q) => {
+    q = (q || '').toLowerCase().trim()
+    if (!q || !_sheinProductos.length) { _skuSug.style.display = 'none'; return }
+    const matches = _sheinProductos.filter(p =>
+      (p.nombre || '').toLowerCase().includes(q) || (p.sku_interno || '').toLowerCase().includes(q)
+    ).slice(0, 12)
+    if (!matches.length) { _skuSug.style.display = 'none'; return }
+    _skuSug.innerHTML = matches.map(p => `
+      <div onclick="window._sheinElegirSku('${(p.sku_interno || '').replace(/'/g,"\\'")}')"
+           style="padding:0.5rem 0.75rem;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.85rem"
+           onmouseover="this.style.background='#fdf2f4'" onmouseout="this.style.background='#fff'">
+        <span style="font-weight:600">${p.nombre || ''}</span>
+        <span style="color:#888;font-size:0.75rem;margin-left:6px">${p.sku_interno || ''}</span>
+      </div>`).join('')
+    _skuSug.style.display = 'block'
+  }
+  window._sheinElegirSku = (sku) => { _skuInput.value = sku; _skuSug.style.display = 'none' }
+  window._sheinResolverSku = (texto) => {
+    const t = (texto || '').trim()
+    if (!t || !_sheinProductos.length) return t.toUpperCase()
+    const exact = _sheinProductos.find(p => (p.sku_interno || '').toUpperCase() === t.toUpperCase())
+    if (exact) return exact.sku_interno.toUpperCase()
+    const byName = _sheinProductos.filter(p => (p.nombre || '').toLowerCase().includes(t.toLowerCase()))
+    if (byName.length === 1) return byName[0].sku_interno.toUpperCase()
+    if (byName.length > 1) return '__AMBIGUO__'
+    return t.toUpperCase()
+  }
+  _skuInput.addEventListener('input', () => _renderSug(_skuInput.value))
+  _skuInput.addEventListener('focus', () => _renderSug(_skuInput.value))
+  document.addEventListener('click', (e) => {
+    if (_skuSug && !_skuSug.contains(e.target) && e.target !== _skuInput) _skuSug.style.display = 'none'
+  })
+}
+
+async function _sheinPublicar(solo_preview) {
+  const skuTexto = document.getElementById('shein-sku').value.trim()
+  if (!skuTexto) { alert('Ingresa el SKU o modelo del producto'); return }
+  const sku = window._sheinResolverSku(skuTexto)
+  if (sku === '__AMBIGUO__') { alert('Hay varios productos que coinciden con "' + skuTexto + '". Elige uno de la lista que aparece al escribir.'); return }
+
+  const btnId = solo_preview ? 'shein-btn-preview' : 'shein-btn-publicar'
+  const btn = document.getElementById(btnId)
+  const label = document.getElementById(btnId + '-label')
+  const origLabel = label.textContent
+  label.textContent = solo_preview ? 'Generando...' : 'Publicando...'
+  btn.disabled = true
+  btn.style.opacity = '0.7'
+
+  const resBox   = document.getElementById('shein-resultado-publicar')
+  const resTitulo = document.getElementById('shein-resultado-titulo')
+  const resBody  = document.getElementById('shein-resultado-body')
+
+  try {
+    const r = await fetch(`${API}/shein/publicar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku_interno: sku, solo_preview })
+    })
+    const d = await r.json()
+    resBox.style.display = 'block'
+
+    if (!r.ok || d.detail) {
+      resTitulo.textContent = '❌ Error'
+      resBody.textContent = typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d, null, 2)
+      return
+    }
+
+    if (solo_preview) {
+      resTitulo.textContent = `Preview — ${d.producto}`
+      resBody.textContent = `Categoría:       ${d.categoria}\ncategory_id:     ${d.category_id}\nproduct_type_id: ${d.product_type_id}\nVariaciones:     ${d.variaciones}\nColores:         ${(d.colores || []).join(', ')}`
+    } else {
+      const ok = d.info?.success === true
+      resTitulo.textContent = ok ? '✅ Publicado' : '⚠️ SHEIN rechazó la publicación'
+      if (ok) {
+        const skcs = d.info?.skc_list || []
+        let txt = `SPU: ${d.info.spu_name}\n\n`
+        skcs.forEach(s => {
+          txt += `SKC ${s.skc_name}:\n`
+          ;(s.sku_list || []).forEach(sk => { txt += `  ${sk.supplier_sku} → ${sk.sku_code}\n` })
+          txt += '\n'
+        })
+        resBody.textContent = txt
+      } else {
+        const errores = d.info?.pre_valid_result || []
+        resBody.textContent = errores.length
+          ? errores.map(e => `[${e.form_name}] ${(e.messages || []).join(' | ')}`).join('\n')
+          : JSON.stringify(d, null, 2)
+      }
+    }
+  } catch(e) {
+    resBox.style.display = 'block'
+    resTitulo.textContent = 'Error'
+    resBody.textContent = 'Error inesperado: ' + e.message
+  } finally {
+    label.textContent = origLabel
+    btn.disabled = false
+    btn.style.opacity = '1'
+  }
+}
+
+window.sheinGenerarPreview = () => _sheinPublicar(true)
+window.sheinPublicarReal   = () => {
+  if (!confirm('¿Publicar este producto en SHEIN? Se creará un producto nuevo pendiente de revisión.')) return
+  _sheinPublicar(false)
 }
 
 // ─── NOTIFICACIONES PUSH ──────────────────────────────────────────────────────
