@@ -679,20 +679,22 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
             fotos.extend(v.get("imagenes") or ([v["foto_url"]] if v.get("foto_url") else []))
         fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
 
-        # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5).
-        # Si hay mas de un color (SKC), tambien exige 1 imagen de bloque de
-        # color (type=6) -- se reutiliza la primera foto disponible para eso,
-        # ya que el ERP no tiene una foto dedicada de "swatch" por color.
+        # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5),
+        # ambas generadas de la MISMA foto principal (confirmado que type=5
+        # convierte bien desde una foto normal de producto). Si hay mas de un
+        # color (SKC), tambien exige 1 imagen de bloque de color (type=6) --
+        # esa SI requiere una foto ya cuadrada/aislada (80x80), asi que se
+        # intenta pero se omite en silencio si SHEIN la rechaza (fallo
+        # conocido, pendiente de generar un recorte cuadrado real).
         image_info_list = []
-        tipos_requeridos = [1, 5, 6] if multi_skc else [1, 5]
-        for i, tipo in enumerate(tipos_requeridos):
-            foto_fuente = fotos_unicas[i] if i < len(fotos_unicas) else (fotos_unicas[0] if fotos_unicas else None)
-            if foto_fuente:
-                url_shein = _subir_imagen(foto_fuente, image_type=tipo)
+        foto_principal = fotos_unicas[0] if fotos_unicas else None
+        if foto_principal:
+            for tipo in ([1, 5, 6] if multi_skc else [1, 5]):
+                url_shein = _subir_imagen(foto_principal, image_type=tipo)
                 if url_shein:
-                    image_info_list.append({"image_sort": i + 1, "image_type": tipo, "image_url": url_shein})
-        # Fotos adicionales como "detalle" (type=2)
-        for j, url in enumerate(fotos_unicas[len(tipos_requeridos):11]):
+                    image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
+        # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
+        for url in fotos_unicas[1:10]:
             url_shein = _subir_imagen(url, image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
@@ -719,7 +721,10 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 "sale_attribute_list": [{"attribute_id": _ATTR_TALLA, "attribute_value_id": talla_value_id}] if talla_value_id else [],
                 "price_info_list":     [{"base_price": precio, "currency": MONEDA, "sub_site": SITE_ABBR}],
                 "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
-                "cost_info_list":      [{"currency": MONEDA, "cost_price": costo}],
+                # Se manda en MXN y CNY -- un producto real ya publicado en esta
+                # tienda trae costInfoList con ambas monedas a la vez.
+                "cost_info_list":      [{"currency": MONEDA, "cost_price": costo},
+                                         {"currency": "CNY", "cost_price": round(costo / 2.6, 2)}],
                 "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
                 "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
                 "image_info":          None,
