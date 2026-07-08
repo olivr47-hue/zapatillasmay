@@ -45,4 +45,3 @@ PyJWT==2.10.1
 slowapi==0.1.9
 pywebpush==2.3.0
 py-vapid==1.9.4
-Pillow==11.0.0
