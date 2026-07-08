@@ -616,7 +616,25 @@ def _talla_a_attribute_value_id(product_type_id: int, talla: str) -> int | None:
     return _buscar_attribute_value_id(product_type_id, _ATTR_TALLA, f"MX{talla_limpia}")
 
 
+# Sinónimos: el ERP usa terminos coloquiales que SHEIN no siempre tiene
+# igual (ej. "Oro"/"Plata" -- SHEIN usa "Dorado"/"Plateado"). Se prueban
+# ANTES de la coincidencia parcial generica para evitar falsos positivos
+# (ej. "Oro" -> "Oro rosa" por coincidencia de substring, un color distinto).
+_COLOR_SINONIMOS = {
+    "oro": "Dorado", "dorado": "Dorado",
+    "plata": "Plateado", "plateado": "Plateado",
+    "cafe": "Marrón", "café": "Marrón", "marron": "Marrón",
+    "vino": "Burdeos", "guinda": "Burdeos",
+    "hueso": "Beis", "nude": "Beis",
+}
+
+
 def _color_a_attribute_value_id(product_type_id: int, color: str) -> int | None:
+    color_norm = (color or "").strip().lower()
+    if color_norm in _COLOR_SINONIMOS:
+        encontrado = _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, _COLOR_SINONIMOS[color_norm])
+        if encontrado:
+            return encontrado
     return _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, color)
 
 
@@ -664,11 +682,19 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
 
         color_value_id = _color_a_attribute_value_id(product_type_id, color)
+        if not color_value_id:
+            raise HTTPException(422, f"No se encontro un color de SHEIN equivalente a '{color}' "
+                                      f"para esta categoria. Revisa /shein/attribute-template/{product_type_id} "
+                                      f"(attribute_id={_ATTR_COLOR}) y agrega un sinonimo en _COLOR_SINONIMOS.")
 
         sku_list = []
         for v in vs:
             talla = str(v.get("talla") or "")
             talla_value_id = _talla_a_attribute_value_id(product_type_id, talla)
+            if not talla_value_id:
+                raise HTTPException(422, f"No se encontro la talla 'MX{talla}' en SHEIN para esta categoria "
+                                          f"(color {color}). Revisa /shein/attribute-template/{product_type_id} "
+                                          f"(attribute_id={_ATTR_TALLA}).")
             sku_list.append({
                 "sku_code":            "",
                 "supplier_sku":        v.get("sku", ""),
