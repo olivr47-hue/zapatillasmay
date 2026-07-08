@@ -145,7 +145,10 @@ def shein_get(path: str, params: dict = None) -> dict:
     qs = f"?{urllib.parse.urlencode(params)}" if params else ""
     full_path = f"{path}{qs}"
     url = f"{SHEIN_API_BASE}{full_path}"
-    req = urllib.request.Request(url, headers=_headers(path), method="GET")
+    # La firma debe calcularse sobre el path completo, incluyendo el query
+    # string, si lo hay -- de lo contrario SHEIN responde "openapi00007"
+    # (verificacion de firma fallida) en cualquier GET con parametros.
+    req = urllib.request.Request(url, headers=_headers(full_path), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
             return json.loads(r.read())
