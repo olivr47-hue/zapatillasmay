@@ -299,6 +299,15 @@ def attribute_template(product_type_id: int):
         return {"ok": False, "error": e.detail}
 
 
+@router.get("/publish-standard/{category_id}")
+def publish_standard(category_id: int):
+    """Requisitos de publicacion (idioma, moneda de costo, campos obligatorios) para una categoria."""
+    try:
+        return shein_post("/open-api/goods/query-publish-fill-in-standard", {"category_id": category_id})
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+
 @router.get("/brand-list")
 def brand_list():
     try:
@@ -660,6 +669,8 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         color = (v.get("color") or "Unico").strip()
         por_color.setdefault(color, []).append(v)
 
+    multi_skc = len(por_color) > 1
+
     skc_list = []
     for color, vs in por_color.items():
         fotos = []
@@ -667,16 +678,20 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
             fotos.extend(v.get("imagenes") or ([v["foto_url"]] if v.get("foto_url") else []))
         fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
 
-        # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5)
+        # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5).
+        # Si hay mas de un color (SKC), tambien exige 1 imagen de bloque de
+        # color (type=6) -- se reutiliza la primera foto disponible para eso,
+        # ya que el ERP no tiene una foto dedicada de "swatch" por color.
         image_info_list = []
-        tipos_minimos = [1, 5]
-        for i, tipo in enumerate(tipos_minimos):
-            if i < len(fotos_unicas):
-                url_shein = _subir_imagen(fotos_unicas[i], image_type=tipo)
+        tipos_requeridos = [1, 5, 6] if multi_skc else [1, 5]
+        for i, tipo in enumerate(tipos_requeridos):
+            foto_fuente = fotos_unicas[i] if i < len(fotos_unicas) else (fotos_unicas[0] if fotos_unicas else None)
+            if foto_fuente:
+                url_shein = _subir_imagen(foto_fuente, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": i + 1, "image_type": tipo, "image_url": url_shein})
         # Fotos adicionales como "detalle" (type=2)
-        for j, url in enumerate(fotos_unicas[2:11]):
+        for j, url in enumerate(fotos_unicas[len(tipos_requeridos):11]):
             url_shein = _subir_imagen(url, image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
