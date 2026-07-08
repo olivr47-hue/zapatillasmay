@@ -270,9 +270,10 @@ def ping():
 
 @router.get("/category-tree")
 def category_tree(parent_id: int = 0):
-    """Árbol de categorías de SHEIN — necesario para saber a qué category_id publicar."""
+    """Árbol de categorías de SHEIN — necesario para saber a qué category_id publicar.
+    Endpoint POST con body (como get-by-token/change-inventory), no GET+query."""
     try:
-        return shein_get("/open-api/goods/category/query-category-tree", {"categoryId": parent_id})
+        return shein_post("/open-api/goods/category/query-category-tree", {"categoryId": parent_id})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -281,7 +282,7 @@ def category_tree(parent_id: int = 0):
 def attribute_template(category_id: int):
     """Plantilla de atributos requeridos/opcionales para una categoría."""
     try:
-        return shein_get("/open-api/goods/category/query-attribute-template", {"categoryId": category_id})
+        return shein_post("/open-api/goods/category/query-attribute-template", {"categoryId": category_id})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -289,7 +290,7 @@ def attribute_template(category_id: int):
 @router.get("/brand-list")
 def brand_list():
     try:
-        return shein_get("/open-api/goods/brand/query-brand-list")
+        return shein_post("/open-api/goods/brand/query-brand-list", {})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -297,7 +298,7 @@ def brand_list():
 @router.get("/site-list")
 def site_list():
     try:
-        return shein_get("/open-api/goods/site/query-site-list")
+        return shein_post("/open-api/goods/site/query-site-list", {})
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
 
@@ -384,7 +385,7 @@ def _skus_shein() -> list:
     page = 1
     while True:
         try:
-            resp = shein_get("/open-api/goods/product/query", {"page": page, "pageSize": 100})
+            resp = shein_post("/open-api/goods/product/query", {"page": page, "pageSize": 100})
         except HTTPException:
             break
         info = resp.get("info", {}) or {}
