@@ -353,11 +353,29 @@ def _subir_imagen(url_imagen: str, image_type: int = 1) -> str:
     """
     Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN.
     image_type: 1=principal, 2=detalle, 5=cuadro, 6=color, 7=detalle largo.
-    Ruta y nombres de campo confirmados en el SDK oficial (no "picUrl").
+    Ruta y campo de respuesta ("transformed") confirmados contra el sandbox real.
     """
     resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
     info = resp.get("info", {}) or {}
-    return info.get("url") or info.get("picUrl") or info.get("pic_url") or ""
+    return info.get("transformed") or info.get("url") or ""
+
+
+@router.get("/mis-productos")
+def mis_productos(page: int = 1):
+    """Productos ya publicados en esta tienda (para ver como quedo configurado un modelo real)."""
+    try:
+        return shein_post("/open-api/openapi-business-backend/product/query", {"pageNum": page, "pageSize": 50})
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+
+@router.get("/producto/{spu_name}")
+def detalle_producto(spu_name: str, language: str = "es"):
+    """Detalle completo (spu/skc/sku + atributos) de un producto ya publicado, por su spuName."""
+    try:
+        return shein_post("/open-api/goods/spu-info", {"language_list": [language], "spu_name": spu_name})
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
 
 
 # ─── Stock del ERP (mismo patrón que mercadolibre.py) ───────────────────────
