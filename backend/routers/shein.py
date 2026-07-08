@@ -671,10 +671,15 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
     """
     nombre = (producto.get("nombre") or "").strip()
     descripcion = (producto.get("descripcion") or "").strip() or nombre
-    # Precio mayoreo variado 6+ pares (NO precio_corrida, que es el de corrida
-    # completa) -- indicado explicitamente por el usuario para SHEIN.
-    precio = float(producto.get("precio_mayoreo6") or producto.get("precio_menudeo") or 0)
-    costo = float(producto.get("costo") or 0) or round(precio * 0.5, 2)
+    # SHEIN semi-managed: el vendedor solo declara UN precio (lo que SHEIN le
+    # paga); SHEIN le pone su propio margen al cliente final. Ese precio es
+    # el de mayoreo variado 6+ pares (NO precio_corrida, ni el "costo" del
+    # ERP -- ese es el costo de compra al proveedor, no debe mandarse a
+    # SHEIN). Si el modelo no tiene precio_mayoreo6 capturado, se calcula
+    # como precio_menudeo - $70 (formula indicada por el usuario).
+    precio_menudeo = float(producto.get("precio_menudeo") or 0)
+    precio_mayoreo6 = producto.get("precio_mayoreo6")
+    precio = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
     sku_modelo = (producto.get("sku_interno") or "").strip()
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
@@ -746,7 +751,10 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
                 # cost_info es un OBJETO singular (no lista) -- confirmado en la
                 # documentacion oficial de publishOrEdit. cost_price es string.
-                "cost_info":           {"currency": MONEDA, "cost_price": f"{costo:.2f}"},
+                # Mismo "precio" que price_info_list -- es lo que SHEIN le paga
+                # al vendedor en el modelo semi-managed, NO el costo de compra
+                # al proveedor (ese es interno del ERP y no se manda a SHEIN).
+                "cost_info":           {"currency": MONEDA, "cost_price": f"{precio:.2f}"},
                 "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
                 "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
                 "image_info":          None,
@@ -827,6 +835,9 @@ def publicar_producto(body: dict):
 
     if solo_preview:
         # En preview no subimos imagenes de verdad (evita gastar cuota de transform-pic).
+        precio_menudeo = float(producto.get("precio_menudeo") or 0)
+        precio_mayoreo6 = producto.get("precio_mayoreo6")
+        precio_shein = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
         return {
             "producto":         producto.get("nombre"),
             "categoria":        cat_key,
@@ -834,6 +845,9 @@ def publicar_producto(body: dict):
             "product_type_id":  product_type_id,
             "variaciones":      len(variantes),
             "colores":          list({(v.get("color") or "Unico") for v in variantes}),
+            "precio_menudeo":   precio_menudeo,
+            "precio_mayoreo6_capturado": bool(precio_mayoreo6),
+            "precio_enviado_a_shein": precio_shein,
         }
 
     payload = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id)

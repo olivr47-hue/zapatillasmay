@@ -18703,7 +18703,10 @@ async function _sheinPublicar(solo_preview) {
 
     if (solo_preview) {
       resTitulo.textContent = `Preview — ${d.producto}`
-      resBody.textContent = `Categoría:       ${d.categoria}\ncategory_id:     ${d.category_id}\nproduct_type_id: ${d.product_type_id}\nVariaciones:     ${d.variaciones}\nColores:         ${(d.colores || []).join(', ')}`
+      const precioLinea = d.precio_mayoreo6_capturado
+        ? `Precio a SHEIN:  $${d.precio_enviado_a_shein} (mayoreo x6 capturado)`
+        : `Precio a SHEIN:  $${d.precio_enviado_a_shein} ⚠️ SIN mayoreo x6 capturado — calculado como menudeo ($${d.precio_menudeo}) − $70`
+      resBody.textContent = `Categoría:       ${d.categoria}\ncategory_id:     ${d.category_id}\nproduct_type_id: ${d.product_type_id}\nVariaciones:     ${d.variaciones}\nColores:         ${(d.colores || []).join(', ')}\n${precioLinea}`
     } else {
       const ok = d.info?.success === true
       resTitulo.textContent = ok ? '✅ Publicado' : '⚠️ SHEIN rechazó la publicación'
