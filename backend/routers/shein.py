@@ -658,6 +658,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
     # Precio mayoreo variado 6+ pares (NO precio_corrida, que es el de corrida
     # completa) -- indicado explicitamente por el usuario para SHEIN.
     precio = float(producto.get("precio_mayoreo6") or producto.get("precio_menudeo") or 0)
+    costo = float(producto.get("costo") or 0) or round(precio * 0.5, 2)
     sku_modelo = (producto.get("sku_interno") or "").strip()
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
@@ -718,6 +719,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 "sale_attribute_list": [{"attribute_id": _ATTR_TALLA, "attribute_value_id": talla_value_id}] if talla_value_id else [],
                 "price_info_list":     [{"base_price": precio, "currency": MONEDA, "sub_site": SITE_ABBR}],
                 "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
+                "cost_info_list":      [{"currency": MONEDA, "cost_price": costo}],
                 "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
                 "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
                 "image_info":          None,
