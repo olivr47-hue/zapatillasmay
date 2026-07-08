@@ -23,8 +23,10 @@ Firma de cada request (headers x-lt-*):
 Verificado contra 3 SDKs independientes (PHP oficial, Java oficial, Python comunitario).
 """
 
-import os, json, time, random, string, hmac, hashlib, base64, secrets
+import os, json, time, random, string, hmac, hashlib, base64, secrets, io
 import urllib.request, urllib.error, urllib.parse
+import requests
+from PIL import Image
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import HTMLResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
@@ -369,6 +371,48 @@ def _subir_imagen(url_imagen: str, image_type: int = 1) -> str:
     return info.get("transformed") or info.get("url") or ""
 
 
+def _subir_swatch_color(url_imagen: str) -> str:
+    """
+    Genera y sube la imagen de "bloque de color" (image_type=6), que a
+    diferencia de las demas SI exige un tamaño exacto (80x80 px) -- transform-pic
+    (URL) la rechaza aunque la fuente ya sea cuadrada, asi que se recorta al
+    centro y se redimensiona a 80x80 localmente (Pillow), y se sube como
+    archivo via /open-api/goods/upload-pic (multipart), confirmado contra
+    la tienda real.
+    """
+    try:
+        data = requests.get(url_imagen, timeout=15).content
+        im = Image.open(io.BytesIO(data)).convert("RGB")
+        lado = min(im.size)
+        left = (im.width - lado) // 2
+        top = (im.height - lado) // 2
+        recorte = im.crop((left, top, left + lado, top + lado)).resize((80, 80))
+        buf = io.BytesIO()
+        recorte.save(buf, format="JPEG", quality=90)
+        archivo = buf.getvalue()
+    except Exception:
+        return ""
+
+    path = "/open-api/goods/upload-pic"
+    boundary = secrets.token_hex(16)
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"image_type\"\r\n\r\n6\r\n"
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"swatch.jpg\"\r\n"
+        f"Content-Type: image/jpeg\r\n\r\n"
+    ).encode() + archivo + f"\r\n--{boundary}--\r\n".encode()
+
+    headers = _headers(path)
+    headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
+    req = urllib.request.Request(f"{SHEIN_API_BASE}{path}", data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError:
+        return ""
+    info = resp.get("info", {}) or {}
+    return info.get("image_url") or ""
+
+
 @router.get("/mis-productos")
 def mis_productos(page: int = 1):
     """Productos ya publicados en esta tienda (para ver como quedo configurado un modelo real)."""
@@ -663,7 +707,9 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
     # no captura esto por modelo; son valores tipicos de caja de zapatos.
-    DIM_DEFAULT = {"length": "30.50", "width": "18.00", "height": "10.00", "weight": "400"}
+    # length/width/height son string (cm); weight es numerico (double, gramos)
+    # -- confirmado en la documentacion oficial de publishOrEdit.
+    DIM_DEFAULT = {"length": "30.50", "width": "18.00", "height": "10.00", "weight": 400}
 
     por_color: dict = {}
     for v in variantes:
@@ -680,19 +726,22 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
 
         # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5),
-        # ambas generadas de la MISMA foto principal (confirmado que type=5
-        # convierte bien desde una foto normal de producto). Si hay mas de un
-        # color (SKC), tambien exige 1 imagen de bloque de color (type=6) --
-        # esa SI requiere una foto ya cuadrada/aislada (80x80), asi que se
-        # intenta pero se omite en silencio si SHEIN la rechaza (fallo
-        # conocido, pendiente de generar un recorte cuadrado real).
+        # ambas generadas de la MISMA foto principal via transform-pic. Si hay
+        # mas de un color (SKC), tambien exige 1 imagen de bloque de color
+        # (type=6) -- esa exige un tamaño EXACTO de 80x80px (confirmado),
+        # que transform-pic no genera desde una foto normal; se recorta y
+        # redimensiona localmente y se sube como archivo (_subir_swatch_color).
         image_info_list = []
         foto_principal = fotos_unicas[0] if fotos_unicas else None
         if foto_principal:
-            for tipo in ([1, 5, 6] if multi_skc else [1, 5]):
+            for tipo in [1, 5]:
                 url_shein = _subir_imagen(foto_principal, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
+            if multi_skc:
+                url_swatch = _subir_swatch_color(foto_principal)
+                if url_swatch:
+                    image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 6, "image_url": url_swatch})
         # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
         for url in fotos_unicas[1:10]:
             url_shein = _subir_imagen(url, image_type=2)
@@ -721,10 +770,9 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 "sale_attribute_list": [{"attribute_id": _ATTR_TALLA, "attribute_value_id": talla_value_id}] if talla_value_id else [],
                 "price_info_list":     [{"base_price": precio, "currency": MONEDA, "sub_site": SITE_ABBR}],
                 "stock_info_list":     [{"inventory_num": stock_map.get(v["id"], 0)}],
-                # Se manda en MXN y CNY -- un producto real ya publicado en esta
-                # tienda trae costInfoList con ambas monedas a la vez.
-                "cost_info_list":      [{"currency": MONEDA, "cost_price": costo},
-                                         {"currency": "CNY", "cost_price": round(costo / 2.6, 2)}],
+                # cost_info es un OBJETO singular (no lista) -- confirmado en la
+                # documentacion oficial de publishOrEdit. cost_price es string.
+                "cost_info":           {"currency": MONEDA, "cost_price": f"{costo:.2f}"},
                 "length": DIM_DEFAULT["length"], "width": DIM_DEFAULT["width"],
                 "height": DIM_DEFAULT["height"], "weight": DIM_DEFAULT["weight"],
                 "image_info":          None,
