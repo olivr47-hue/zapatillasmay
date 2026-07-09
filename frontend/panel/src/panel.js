@@ -4713,10 +4713,14 @@ window.buscarVariante = (texto, prefijo) => {
   }
 
   const esPedido = prefijo === 'ped-prod'
+  const esLinkPago = prefijo === 'lp-prod'
+  const modoCarrito = esPedido || esLinkPago
+  const fnAgregar = esPedido ? 'agregarItemPedido' : 'agregarItemLinkPago'
+  const buscarInputId = esPedido ? 'ped-buscar-prod' : (esLinkPago ? 'lp-buscar-prod' : prefijo + '-buscar')
 
-  // En pedidos: agrupar por producto + color y mostrar chips de talla tocables
-  // (agregar varias tallas de un mismo modelo de un toque, estilo POS)
-  if (esPedido) {
+  // En pedidos/link de pago: agrupar por producto + color y mostrar chips de talla
+  // tocables (agregar varias tallas de un mismo modelo de un toque, estilo POS)
+  if (modoCarrito) {
     const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
     const grupos = {}
     todasFiltradas.forEach(v => {
@@ -4730,7 +4734,7 @@ window.buscarVariante = (texto, prefijo) => {
         .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
         .map(v => {
           const nombreCompleto = (g.nombre + ' - ' + g.color + ' - T' + v.talla).replace(/'/g, '')
-          return `<button onclick="agregarItemPedido('${v.id}', '${nombreCompleto}');this.style.background='#E91E8C';this.style.color='#fff';this.style.borderColor='#E91E8C'"
+          return `<button onclick="${fnAgregar}('${v.id}', '${nombreCompleto}');this.style.background='#E91E8C';this.style.color='#fff';this.style.borderColor='#E91E8C'"
                           style="min-width:46px;min-height:42px;padding:6px 12px;border:1.5px solid #ddd;border-radius:9px;background:#fff;color:#333;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">T${v.talla}</button>`
         }).join('')
       return `
@@ -4750,11 +4754,11 @@ window.buscarVariante = (texto, prefijo) => {
 
   resultadosDiv.innerHTML = filtradas.map(v => {
     const nombreCompleto = (v.productos ? v.productos.nombre || '' : '') + ' - ' + v.color + ' - T' + v.talla
-    const accion = esPedido
-      ? `agregarItemPedido('${v.id}', '${nombreCompleto.replace(/'/g, '')}')`
+    const accion = modoCarrito
+      ? `${fnAgregar}('${v.id}', '${nombreCompleto.replace(/'/g, '')}')`
       : `seleccionarVariante('${v.id}', '${nombreCompleto.replace(/'/g, '')}', '${prefijo}')`
     return `
-      <div onclick="${accion}; document.getElementById('${prefijo}-resultados').style.display='none'; document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}') && (document.getElementById('${esPedido ? 'ped-buscar-prod' : prefijo + '-buscar'}').value='')"
+      <div onclick="${accion}; document.getElementById('${prefijo}-resultados').style.display='none'; document.getElementById('${buscarInputId}') && (document.getElementById('${buscarInputId}').value='')"
            style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem;display:flex;align-items:center;gap:8px"
            onmouseover="this.style.background='#f5f5f5'"
            onmouseout="this.style.background='white'">
@@ -11732,28 +11736,41 @@ window.pedirResena = (telefono, nombre, sku) => {
 }
 
 // ── Crear link de pago manual (precio personalizado) ──────────────────────
-window.mostrarFormLinkPago = (prefill) => {
+window.mostrarFormLinkPago = async (prefill) => {
   prefill = prefill || {}
   const _volver = prefill.volver === 'chat' ? 'cargarConversaciones()' : 'cargarPedidos()'
   const content = document.getElementById('content')
-  content.innerHTML = `
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
+
+  try {
+    if (!window._variantesCache || !window._productosCache) {
+      const [resProductos, resVariantes] = await Promise.all([
+        fetch(API + '/productos/'), fetch(API + '/variantes/')
+      ])
+      window._productosCache = await resProductos.json()
+      window._variantesCache = await resVariantes.json()
+    }
+    window._lpItems = []
+
+    content.innerHTML = `
     <div class="table-card" style="padding:2rem;max-width:560px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
         <button class="btn btn-secondary" onclick="${_volver}">← Volver</button>
         <h3 style="margin:0">💳 Crear link de pago</h3>
       </div>
-      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Crea el pedido + link de MercadoPago. Al pagar, se detecta en Meta y GA.</p>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1.25rem">Para ventas con precio especial (ej. cotizado por WhatsApp). Elige el/los modelo(s) reales del inventario: al pagar, el stock se descuenta solo.</p>
+
+      <p style="font-weight:600;margin-bottom:0.5rem;color:#333;font-size:0.9rem">Modelo(s) que compró el cliente</p>
+      <input class="form-input" id="lp-buscar-prod" placeholder="Buscar producto por nombre, color o talla..." oninput="buscarVariante(this.value, 'lp-prod')" autocomplete="off">
+      <div id="lp-prod-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:220px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
+
+      <div id="lp-items-lista" style="margin-top:1rem">
+        <p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Busca y agrega el modelo que compró el cliente</p>
+      </div>
+      <p id="lp-total" style="text-align:right;font-size:0.9rem;color:#333;margin-top:0.25rem"></p>
+
+      <hr style="border:none;border-top:1px solid #eee;margin:1rem 0">
       <div style="display:grid;gap:0.9rem">
-        <div><label class="form-label">Modelo / descripción *</label><input class="form-input" id="lp-modelo" placeholder="Ej: MA1400 Tacones para fiesta"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-          <div><label class="form-label">Color</label><input class="form-input" id="lp-color" placeholder="Neutro"></div>
-          <div><label class="form-label">Talla</label><input class="form-input" id="lp-talla" placeholder="24"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
-          <div><label class="form-label">Precio producto (sin envío) *</label><input class="form-input" id="lp-precio" type="number" min="1" placeholder="390"></div>
-          <div><label class="form-label">Pares</label><input class="form-input" id="lp-pares" type="number" min="1" value="1"></div>
-        </div>
-        <hr style="border:none;border-top:1px solid #eee;margin:0.25rem 0">
         <div><label class="form-label">Nombre del cliente *</label><input class="form-input" id="lp-nombre" placeholder="Nombre completo"></div>
         <div><label class="form-label">WhatsApp del cliente *</label><input class="form-input" id="lp-tel" inputmode="tel" placeholder="2711476093"></div>
         <div><label class="form-label">Dirección de envío</label><textarea class="form-input" id="lp-dir" rows="2" placeholder="Calle y número, colonia, CP, ciudad, estado"></textarea></div>
@@ -11762,28 +11779,114 @@ window.mostrarFormLinkPago = (prefill) => {
       <button class="btn btn-primary" id="lp-btn" onclick="generarLinkPago()" style="margin-top:1rem;width:100%">Generar link de pago</button>
       <div id="lp-resultado" style="margin-top:1.25rem"></div>
     </div>`
-  if (prefill.telefono) { const e = document.getElementById('lp-tel'); if (e) e.value = prefill.telefono.replace(/\D/g, '') }
-  if (prefill.nombre) { const e = document.getElementById('lp-nombre'); if (e) e.value = prefill.nombre }
+    if (prefill.telefono) { const e = document.getElementById('lp-tel'); if (e) e.value = prefill.telefono.replace(/\D/g, '') }
+    if (prefill.nombre) { const e = document.getElementById('lp-nombre'); if (e) e.value = prefill.nombre }
+    window.recalcularTotalLinkPago()
+  } catch (e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando formulario de link de pago</p>'
+  }
 }
 window.linkPagoDesdeChat = (telefono, nombre) => {
   mostrarFormLinkPago({ telefono, nombre, volver: 'chat' })
 }
+
+window.agregarItemLinkPago = (varianteId, nombre) => {
+  const variantes = window._variantesCache || []
+  const productos = window._productosCache || []
+  const variante = variantes.find(v => v.id === varianteId)
+  if (!variante) return
+  const existente = window._lpItems.find(i => i.variante_id === varianteId)
+  if (existente) { existente.cantidad++; renderItemsLinkPago(); return }
+  const producto = productos.find(p => p.id === variante.producto_id) || {}
+  const precioBase = parseFloat(producto.precio_menudeo) || 0
+  window._lpItems.push({
+    variante_id: varianteId,
+    nombre: (producto.nombre || '') + ' - ' + (variante.color || '') + ' - T' + (variante.talla || ''),
+    cantidad: 1,
+    precio_unitario: precioBase,
+    foto_url: variante.foto_url || producto.imagen_principal || null
+  })
+  renderItemsLinkPago()
+}
+
+window.renderItemsLinkPago = () => {
+  const lista = document.getElementById('lp-items-lista')
+  if (!lista) return
+  const items = window._lpItems || []
+  if (items.length === 0) {
+    lista.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:1rem">Busca y agrega el modelo que compró el cliente</p>'
+    window.recalcularTotalLinkPago()
+    return
+  }
+  lista.innerHTML = items.map((item, idx) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee">
+      ${item.foto_url ? '<img src="' + item.foto_url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">' : '<div style="width:48px;height:48px;background:#eee;border-radius:6px;flex-shrink:0"></div>'}
+      <div style="flex:1">
+        <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">${item.nombre}</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="cambiarCantidadItemLinkPago(${idx}, -1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">−</button>
+            <span style="font-weight:700;min-width:26px;text-align:center">${item.cantidad}</span>
+            <button onclick="cambiarCantidadItemLinkPago(${idx}, 1)" style="background:#eee;border:none;border-radius:7px;width:34px;height:34px;cursor:pointer;font-size:1.2rem;font-weight:700;touch-action:manipulation">+</button>
+          </div>
+          <span style="color:#888;font-size:0.8rem">$ precio especial:</span>
+          <input type="number" min="0" step="1" value="${item.precio_unitario}" oninput="cambiarPrecioItemLinkPago(${idx}, this.value)" style="width:80px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+          <strong style="color:#E91E8C">= $${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
+        </div>
+      </div>
+      <button onclick="eliminarItemLinkPago(${idx})" style="background:none;border:none;color:#E91E8C;cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+  `).join('')
+  window.recalcularTotalLinkPago()
+}
+
+window.cambiarCantidadItemLinkPago = (idx, delta) => {
+  window._lpItems[idx].cantidad = Math.max(1, window._lpItems[idx].cantidad + delta)
+  renderItemsLinkPago()
+}
+window.cambiarPrecioItemLinkPago = (idx, value) => {
+  window._lpItems[idx].precio_unitario = Math.max(0, parseFloat(value) || 0)
+  window.recalcularTotalLinkPago()
+}
+window.eliminarItemLinkPago = (idx) => {
+  window._lpItems.splice(idx, 1)
+  renderItemsLinkPago()
+}
+
+window.recalcularTotalLinkPago = () => {
+  const items = window._lpItems || []
+  const subtotal = items.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
+  const pares = items.reduce((s, i) => s + i.cantidad, 0)
+  let envio = 99
+  if (subtotal >= 1299) envio = 0
+  else if (pares >= 3) envio = 199
+  else if (pares >= 2) envio = 150
+  const total = subtotal + envio
+  const el = document.getElementById('lp-total')
+  if (el) el.innerHTML = items.length ? `Subtotal $${subtotal.toFixed(2)} + envío $${envio.toFixed(2)} = <strong style="color:#E91E8C">$${total.toFixed(2)}</strong>` : ''
+}
+
 window.generarLinkPago = async () => {
   const v = id => (document.getElementById(id).value || '').trim()
-  const modelo = v('lp-modelo'), precio = parseFloat(v('lp-precio')), pares = parseInt(v('lp-pares') || '1'), nombre = v('lp-nombre'), tel = v('lp-tel')
-  if (!modelo || !nombre || !tel || !v('lp-precio')) { alert('Completa modelo, precio, nombre y WhatsApp'); return }
-  if (isNaN(precio) || precio <= 0) { alert('El precio debe ser mayor a 0'); return }
+  const nombre = v('lp-nombre'), tel = v('lp-tel')
+  const items = window._lpItems || []
+  if (!nombre || !tel) { alert('Completa nombre y WhatsApp del cliente'); return }
+  if (items.length === 0) { alert('Agrega al menos un modelo que esté comprando el cliente'); return }
   const btn = document.getElementById('lp-btn'); btn.textContent = 'Generando...'; btn.disabled = true
   const out = document.getElementById('lp-resultado'); out.innerHTML = ''
   try {
     const res = await fetch(API + '/chatbot/link-pago-manual', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telefono: tel, nombre, direccion: v('lp-dir'), modelo, color: v('lp-color'), talla: v('lp-talla'), precio, pares: pares || 1 })
+      body: JSON.stringify({
+        telefono: tel, nombre, direccion: v('lp-dir'),
+        items: items.map(i => ({ variante_id: i.variante_id, nombre: i.nombre, cantidad: i.cantidad, precio_unitario: i.precio_unitario }))
+      })
     })
     const data = await res.json()
     if (!data.ok || !data.link) { out.innerHTML = `<p style="color:#c62828">Error: ${data.error || 'no se pudo generar'}</p>`; return }
     let telWa = tel.replace(/\D/g, ''); if (telWa.length === 10) telWa = '52' + telWa
-    const msg = `¡Hola ${nombre.split(' ')[0]}! 🥰 Aquí está tu link de pago de ${modelo}:\n💳 Total: $${data.total} MXN (incluye envío)\n👉 ${data.link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`
+    const resumenModelos = items.map(i => i.nombre).join(', ')
+    const msg = `¡Hola ${nombre.split(' ')[0]}! 🥰 Aquí está tu link de pago de ${resumenModelos}:\n💳 Total: $${data.total} MXN (incluye envío)\n👉 ${data.link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu envío 📦✨`
     out.innerHTML = `
       <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:1rem">
         <p style="font-weight:700;color:#16a34a;margin:0 0 8px">✅ Link generado — Total $${data.total} MXN</p>
@@ -18615,9 +18718,10 @@ async function _sheinRenderPublicarTab() {
 
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${_sheinBtn('search', 'Ver preview', 'sheinGenerarPreview()', 'primary', 'shein-btn-preview')}
-          ${_sheinBtn('cart', 'Publicar en SHEIN', 'sheinPublicarReal()', 'success', 'shein-btn-publicar')}
         </div>
       </div>
+
+      <div id="shein-revision" style="display:none"></div>
 
       <div id="shein-resultado-publicar" style="display:none;margin-top:1.25rem;background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
         <h3 id="shein-resultado-titulo" style="margin:0 0 0.75rem;font-size:1rem">Resultado</h3>
@@ -18668,17 +18772,133 @@ async function _sheinRenderPublicarTab() {
   })
 }
 
-async function _sheinPublicar(solo_preview) {
+async function _sheinGenerarPreview() {
   const skuTexto = document.getElementById('shein-sku').value.trim()
   if (!skuTexto) { alert('Ingresa el SKU o modelo del producto'); return }
   const sku = window._sheinResolverSku(skuTexto)
   if (sku === '__AMBIGUO__') { alert('Hay varios productos que coinciden con "' + skuTexto + '". Elige uno de la lista que aparece al escribir.'); return }
 
-  const btnId = solo_preview ? 'shein-btn-preview' : 'shein-btn-publicar'
-  const btn = document.getElementById(btnId)
-  const label = document.getElementById(btnId + '-label')
+  const btn = document.getElementById('shein-btn-preview')
+  const label = document.getElementById('shein-btn-preview-label')
   const origLabel = label.textContent
-  label.textContent = solo_preview ? 'Generando...' : 'Publicando...'
+  label.textContent = 'Generando...'
+  btn.disabled = true
+  btn.style.opacity = '0.7'
+
+  document.getElementById('shein-resultado-publicar').style.display = 'none'
+  document.getElementById('shein-revision').style.display = 'none'
+
+  try {
+    const r = await fetch(`${API}/shein/publicar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku_interno: sku, solo_preview: true })
+    })
+    const d = await r.json()
+    if (!r.ok || d.detail) {
+      alert('Error: ' + (typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d)))
+      return
+    }
+    window._sheinSkuActual = sku
+    _sheinRenderRevision(d)
+  } catch(e) {
+    alert('Error de conexión: ' + e.message)
+  } finally {
+    label.textContent = origLabel
+    btn.disabled = false
+    btn.style.opacity = '1'
+  }
+}
+
+function _sheinRenderRevision(d) {
+  window._sheinFotosExcluidas = new Set()
+  const wrap = document.getElementById('shein-revision')
+
+  const precioLabel = d.precio_mayoreo6_capturado
+    ? 'Precio a SHEIN (mayoreo x6 capturado)'
+    : 'Precio a SHEIN ⚠️ sin mayoreo x6 — calculado como menudeo − $70'
+
+  wrap.innerHTML = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;margin-top:1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+      <h3 style="margin:0 0 0.3rem;font-size:1rem">Revisa antes de publicar</h3>
+      <p style="font-size:0.78rem;color:#888;margin:0 0 1.1rem">
+        Categoría: ${d.categoria} · ${d.variaciones} variaciones · Toca una foto para excluirla.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 200px;gap:12px;margin-bottom:1rem">
+        <div>
+          <label style="font-size:0.75rem;font-weight:700;color:#666;display:block;margin-bottom:3px">Nombre</label>
+          <input id="shein-rev-nombre" value="${(d.producto || '').replace(/"/g, '&quot;')}"
+                 style="width:100%;padding:0.55rem 0.7rem;border:1px solid #ddd;border-radius:7px;font-size:0.88rem;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:0.75rem;font-weight:700;color:#666;display:block;margin-bottom:3px">${precioLabel}</label>
+          <div style="position:relative">
+            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:0.82rem;color:#888">$</span>
+            <input id="shein-rev-precio" type="number" min="1" value="${d.precio_enviado_a_shein}"
+                   style="width:100%;padding:0.55rem 0.7rem 0.55rem 20px;border:1px solid #ddd;border-radius:7px;font-size:0.88rem;box-sizing:border-box">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.1rem">
+        <label style="font-size:0.75rem;font-weight:700;color:#666;display:block;margin-bottom:3px">Descripción</label>
+        <textarea id="shein-rev-desc" rows="3"
+                  style="width:100%;padding:0.55rem 0.7rem;border:1px solid #ddd;border-radius:7px;font-size:0.85rem;box-sizing:border-box;resize:vertical;font-family:inherit">${d.descripcion || ''}</textarea>
+      </div>
+
+      <div id="shein-rev-colores"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:1.1rem;padding-top:1rem;border-top:1px solid #eee">
+        ${_sheinBtn('cart', 'Confirmar y publicar en SHEIN', '_sheinConfirmarPublicar()', 'success', 'shein-btn-publicar')}
+      </div>
+    </div>
+  `
+
+  const coloresWrap = document.getElementById('shein-rev-colores')
+  coloresWrap.innerHTML = (d.colores_info || []).map(c => {
+    const totalStock = (c.tallas || []).reduce((s, t) => s + (t.stock || 0), 0)
+    const tallasTxt = (c.tallas || []).map(t => `${t.talla}(${t.stock})`).join(', ')
+    return `
+      <div style="margin-bottom:1rem">
+        <p style="font-size:0.82rem;font-weight:700;color:#333;margin:0 0 4px">
+          ${c.color} <span style="font-weight:400;color:#888;font-size:0.74rem">— ${totalStock} pares · tallas: ${tallasTxt}</span>
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${(c.fotos || []).map(url => `
+            <div onclick="window._sheinToggleFoto(this,'${url.replace(/'/g, "\\'")}')"
+                 style="cursor:pointer;border:3px solid #ddd;border-radius:8px;overflow:hidden;width:70px;height:70px;position:relative;flex-shrink:0">
+              <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+              <div class="shein-foto-x" style="display:none;position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#e74c3c;color:#fff;font-size:0.7rem;line-height:1;align-items:center;justify-content:center;font-weight:700">✕</div>
+            </div>`).join('')}
+        </div>
+      </div>`
+  }).join('')
+
+  wrap.style.display = 'block'
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+window._sheinToggleFoto = (el, url) => {
+  const excluida = window._sheinFotosExcluidas.has(url)
+  if (excluida) window._sheinFotosExcluidas.delete(url)
+  else window._sheinFotosExcluidas.add(url)
+  const ahoraExcluida = !excluida
+  el.style.opacity = ahoraExcluida ? '0.35' : '1'
+  el.style.borderColor = ahoraExcluida ? '#ddd' : _SHEIN_ACCENT
+  const x = el.querySelector('.shein-foto-x')
+  if (x) x.style.display = ahoraExcluida ? 'flex' : 'none'
+}
+
+async function _sheinConfirmarPublicar() {
+  const sku = window._sheinSkuActual
+  if (!sku) return
+  if (!confirm('¿Publicar este producto en SHEIN? Se creará un producto nuevo pendiente de revisión.')) return
+
+  const btn = document.getElementById('shein-btn-publicar')
+  const label = document.getElementById('shein-btn-publicar-label')
+  const origLabel = label.textContent
+  label.textContent = 'Publicando...'
   btn.disabled = true
   btn.style.opacity = '0.7'
 
@@ -18686,11 +18906,21 @@ async function _sheinPublicar(solo_preview) {
   const resTitulo = document.getElementById('shein-resultado-titulo')
   const resBody  = document.getElementById('shein-resultado-body')
 
+  const nombre      = document.getElementById('shein-rev-nombre').value.trim()
+  const precioRaw   = document.getElementById('shein-rev-precio').value.trim()
+  const precio      = precioRaw ? parseFloat(precioRaw) : null
+  const descripcion = document.getElementById('shein-rev-desc').value.trim()
+
   try {
     const r = await fetch(`${API}/shein/publicar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku_interno: sku, solo_preview })
+      body: JSON.stringify({
+        sku_interno: sku,
+        solo_preview: false,
+        nombre, precio, descripcion,
+        fotos_excluidas: [...(window._sheinFotosExcluidas || [])]
+      })
     })
     const d = await r.json()
     resBox.style.display = 'block'
@@ -18698,41 +18928,35 @@ async function _sheinPublicar(solo_preview) {
     if (!r.ok || d.detail) {
       resTitulo.textContent = '❌ Error'
       resBody.textContent = typeof d.detail === 'string' ? d.detail : JSON.stringify(d.detail || d, null, 2)
+      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
 
-    if (solo_preview) {
-      resTitulo.textContent = `Preview — ${d.producto}`
-      const precioLinea = d.precio_mayoreo6_capturado
-        ? `Precio a SHEIN:  $${d.precio_enviado_a_shein} (mayoreo x6 capturado)`
-        : `Precio a SHEIN:  $${d.precio_enviado_a_shein} ⚠️ SIN mayoreo x6 capturado — calculado como menudeo ($${d.precio_menudeo}) − $70`
-      resBody.textContent = `Categoría:       ${d.categoria}\ncategory_id:     ${d.category_id}\nproduct_type_id: ${d.product_type_id}\nVariaciones:     ${d.variaciones}\nColores:         ${(d.colores || []).join(', ')}\n${precioLinea}`
-    } else {
-      const ok = d.info?.success === true
-      const advertenciasFotos = d._advertencias_fotos || []
-      resTitulo.textContent = ok
-        ? (advertenciasFotos.length ? '⚠️ Publicado con fotos faltantes' : '✅ Publicado')
-        : '⚠️ SHEIN rechazó la publicación'
-      if (ok) {
-        const skcs = d.info?.skc_list || []
-        let txt = `SPU: ${d.info.spu_name}\n\n`
-        skcs.forEach(s => {
-          txt += `SKC ${s.skc_name}:\n`
-          ;(s.sku_list || []).forEach(sk => { txt += `  ${sk.supplier_sku} → ${sk.sku_code}\n` })
-          txt += '\n'
-        })
-        if (advertenciasFotos.length) {
-          txt += `⚠️ ${advertenciasFotos.length} foto(s) NO se pudieron subir a SHEIN:\n`
-          advertenciasFotos.forEach(a => { txt += `  - ${a}\n` })
-        }
-        resBody.textContent = txt
-      } else {
-        const errores = d.info?.pre_valid_result || []
-        resBody.textContent = errores.length
-          ? errores.map(e => `[${e.form_name}] ${(e.messages || []).join(' | ')}`).join('\n')
-          : JSON.stringify(d, null, 2)
+    const ok = d.info?.success === true
+    const advertenciasFotos = d._advertencias_fotos || []
+    resTitulo.textContent = ok
+      ? (advertenciasFotos.length ? '⚠️ Publicado con fotos faltantes' : '✅ Publicado')
+      : '⚠️ SHEIN rechazó la publicación'
+    if (ok) {
+      const skcs = d.info?.skc_list || []
+      let txt = `SPU: ${d.info.spu_name}\n\n`
+      skcs.forEach(s => {
+        txt += `SKC ${s.skc_name}:\n`
+        ;(s.sku_list || []).forEach(sk => { txt += `  ${sk.supplier_sku} → ${sk.sku_code}\n` })
+        txt += '\n'
+      })
+      if (advertenciasFotos.length) {
+        txt += `⚠️ ${advertenciasFotos.length} foto(s) NO se pudieron subir a SHEIN:\n`
+        advertenciasFotos.forEach(a => { txt += `  - ${a}\n` })
       }
+      resBody.textContent = txt
+    } else {
+      const errores = d.info?.pre_valid_result || []
+      resBody.textContent = errores.length
+        ? errores.map(e => `[${e.form_name}] ${(e.messages || []).join(' | ')}`).join('\n')
+        : JSON.stringify(d, null, 2)
     }
+    resBox.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch(e) {
     resBox.style.display = 'block'
     resTitulo.textContent = 'Error'
@@ -18744,11 +18968,8 @@ async function _sheinPublicar(solo_preview) {
   }
 }
 
-window.sheinGenerarPreview = () => _sheinPublicar(true)
-window.sheinPublicarReal   = () => {
-  if (!confirm('¿Publicar este producto en SHEIN? Se creará un producto nuevo pendiente de revisión.')) return
-  _sheinPublicar(false)
-}
+window.sheinGenerarPreview     = _sheinGenerarPreview
+window._sheinConfirmarPublicar = _sheinConfirmarPublicar
 
 // ─── NOTIFICACIONES PUSH ──────────────────────────────────────────────────────
 

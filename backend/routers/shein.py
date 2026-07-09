@@ -683,26 +683,36 @@ def _color_a_attribute_value_id(product_type_id: int, color: str) -> int | None:
 
 
 def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
-                        category_id: int, product_type_id: int) -> tuple[dict, list]:
+                        category_id: int, product_type_id: int, overrides: dict = None) -> tuple[dict, list]:
     """
     Construye el payload real de POST /open-api/goods/product/publishOrEdit.
     SPU = modelo, SKC = color, SKU = color+talla (analogo a producto/variante del ERP).
     Devuelve (payload, advertencias) -- advertencias lista las fotos que no se
     pudieron subir a SHEIN tras reintentar, para que el usuario lo sepa en vez
     de que el producto quede incompleto en silencio.
+
+    overrides (opcional, valores editados por el usuario en el panel antes de
+    publicar): {"nombre", "descripcion", "precio", "fotos_excluidas": [urls]}.
     """
+    overrides = overrides or {}
     advertencias: list = []
-    nombre = (producto.get("nombre") or "").strip()
-    descripcion = (producto.get("descripcion") or "").strip() or nombre
+    nombre = (overrides.get("nombre") or producto.get("nombre") or "").strip()
+    descripcion = (overrides.get("descripcion") or producto.get("descripcion") or "").strip() or nombre
+    fotos_excluidas = set(overrides.get("fotos_excluidas") or [])
     # SHEIN semi-managed: el vendedor solo declara UN precio (lo que SHEIN le
     # paga); SHEIN le pone su propio margen al cliente final. Ese precio es
     # el de mayoreo variado 6+ pares (NO precio_corrida, ni el "costo" del
     # ERP -- ese es el costo de compra al proveedor, no debe mandarse a
     # SHEIN). Si el modelo no tiene precio_mayoreo6 capturado, se calcula
-    # como precio_menudeo - $70 (formula indicada por el usuario).
-    precio_menudeo = float(producto.get("precio_menudeo") or 0)
-    precio_mayoreo6 = producto.get("precio_mayoreo6")
-    precio = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
+    # como precio_menudeo - $70 (formula indicada por el usuario). El usuario
+    # puede sobreescribir este calculo desde el panel antes de publicar.
+    precio_override = overrides.get("precio")
+    if precio_override:
+        precio = float(precio_override)
+    else:
+        precio_menudeo = float(producto.get("precio_menudeo") or 0)
+        precio_mayoreo6 = producto.get("precio_mayoreo6")
+        precio = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
     sku_modelo = (producto.get("sku_interno") or "").strip()
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
@@ -723,7 +733,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         fotos = []
         for v in vs:
             fotos.extend(v.get("imagenes") or ([v["foto_url"]] if v.get("foto_url") else []))
-        fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
+        fotos_unicas = [u for u in dict.fromkeys(fotos) if u and u not in fotos_excluidas]
 
         # Minimo exigido por SKC: 1 imagen principal (type=1) + 1 cuadrada (type=5),
         # ambas generadas de la MISMA foto principal (confirmado que type=5
@@ -864,23 +874,51 @@ def publicar_producto(body: dict):
             stock_map[vid] = stock_map.get(vid, 0) + (row.get("cantidad") or 0)
 
     if solo_preview:
-        # En preview no subimos imagenes de verdad (evita gastar cuota de transform-pic).
+        # En preview no subimos imagenes de verdad (evita gastar cuota de transform-pic);
+        # solo se listan las URLs ya alojadas en Cloudinary para que el panel las muestre
+        # como miniaturas y el usuario pueda excluir las que no quiera mandar.
         precio_menudeo = float(producto.get("precio_menudeo") or 0)
         precio_mayoreo6 = producto.get("precio_mayoreo6")
         precio_shein = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
+
+        por_color: dict = {}
+        for v in variantes:
+            color = (v.get("color") or "Unico").strip()
+            por_color.setdefault(color, []).append(v)
+
+        colores_info = []
+        for color, vs in por_color.items():
+            fotos = []
+            for v in vs:
+                fotos.extend(v.get("imagenes") or ([v["foto_url"]] if v.get("foto_url") else []))
+            fotos_unicas = [u for u in dict.fromkeys(fotos) if u]
+            tallas_info = [
+                {"talla": v.get("talla"), "sku": v.get("sku"), "stock": stock_map.get(v["id"], 0)}
+                for v in vs
+            ]
+            colores_info.append({"color": color, "fotos": fotos_unicas, "tallas": tallas_info})
+
         return {
             "producto":         producto.get("nombre"),
+            "descripcion":      producto.get("descripcion") or producto.get("nombre"),
             "categoria":        cat_key,
             "category_id":      category_id,
             "product_type_id":  product_type_id,
             "variaciones":      len(variantes),
             "colores":          list({(v.get("color") or "Unico") for v in variantes}),
+            "colores_info":     colores_info,
             "precio_menudeo":   precio_menudeo,
             "precio_mayoreo6_capturado": bool(precio_mayoreo6),
             "precio_enviado_a_shein": precio_shein,
         }
 
-    payload, advertencias = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id)
+    overrides = {
+        "nombre":          (body.get("nombre") or "").strip() or None,
+        "descripcion":     (body.get("descripcion") or "").strip() or None,
+        "precio":          body.get("precio") or None,
+        "fotos_excluidas": body.get("fotos_excluidas") or [],
+    }
+    payload, advertencias = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id, overrides)
     resultado = shein_post("/open-api/goods/product/publishOrEdit", payload)
     if advertencias:
         resultado["_advertencias_fotos"] = advertencias
