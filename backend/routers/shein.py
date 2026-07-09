@@ -634,6 +634,155 @@ def _skus_shein() -> list:
     return resultado
 
 
+def _skus_shein_cached() -> list:
+    """_skus_shein() tarda varios minutos (spu-info por cada SPU historico) --
+    se cachea para que el listado de "productos sin publicar" y el sync de
+    inventario no tengan que recorrer todo de nuevo en cada llamada."""
+    cached = cache_get("shein_skus_publicados")
+    if cached is not None:
+        return cached
+    resultado = _skus_shein()
+    cache_set("shein_skus_publicados", resultado, ttl=1200)
+    return resultado
+
+
+# ─── Publicación masiva (mismo patron que /ml/publicar-catalogo) ───────────
+
+def _productos_sin_publicar_shein() -> list:
+    """Productos activos del ERP cuyo SKU no aparece en ningun supplierSku ya
+    publicado en SHEIN todavia (mismo criterio que _productos_sin_publicar en
+    mercadolibre.py: el sku_interno es el SKU completo menos color y talla)."""
+    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria")
+    publicados_norm = set()
+    for item in _skus_shein_cached():
+        sku = _norm_sku(item.get("supplierSku") or "")
+        partes = sku.split("-")
+        if len(partes) >= 3:
+            publicados_norm.add("-".join(partes[:-2]))
+
+    sin_publicar = []
+    for p in productos:
+        sku_interno = (p.get("sku_interno") or "").strip()
+        if not sku_interno:
+            continue
+        if _norm_sku(sku_interno) in publicados_norm:
+            continue
+        sin_publicar.append(p)
+    return sin_publicar
+
+
+@router.get("/catalogo-sin-publicar")
+def catalogo_sin_publicar_shein():
+    """Lista de productos del ERP sin publicar en SHEIN, con el conteo de fotos
+    por color (SHEIN exige al menos foto principal+cuadrada, usamos 1 como
+    minimo de referencia -- a diferencia de ML no requerimos 3)."""
+    productos = _productos_sin_publicar_shein()
+    if not productos:
+        return {"total": 0, "productos": []}
+
+    ids_str   = ",".join(p["id"] for p in productos)
+    variantes = supabase_get_all(f"variantes?producto_id=in.({ids_str})&activa=eq.true&select=producto_id,color,imagenes,foto_url")
+
+    fotos_por_color: dict = {}
+    for v in variantes:
+        pid = v.get("producto_id")
+        if not pid:
+            continue
+        color = v.get("color") or "Sin color"
+        fotos = list(v.get("imagenes") or [])
+        if not fotos and v.get("foto_url"):
+            fotos = [v["foto_url"]]
+        key = (pid, color)
+        fotos_por_color.setdefault(key, set()).update(u for u in fotos if u)
+
+    conteos_por_producto: dict = {}
+    for (pid, color), fotos in fotos_por_color.items():
+        conteos_por_producto.setdefault(pid, []).append(len(fotos))
+
+    resultado = []
+    for p in productos:
+        conteos = conteos_por_producto.get(p["id"], [0])
+        min_fotos = min(conteos) if conteos else 0
+        resultado.append({
+            "id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
+            "categoria": p.get("categoria"), "num_colores": len(conteos),
+            "num_fotos": min_fotos, "listo": min_fotos >= 1,
+        })
+    resultado.sort(key=lambda p: (not p["listo"], -p["num_fotos"]))
+
+    return {
+        "total": len(resultado),
+        "listos": sum(1 for p in resultado if p["listo"]),
+        "productos": resultado,
+    }
+
+
+def _hacer_publicar_catalogo_shein(producto_ids: list, ajuste_tipo: str = None, ajuste_valor: float = None):
+    pendientes = _productos_sin_publicar_shein()
+    if producto_ids:
+        ids_set = set(producto_ids)
+        productos = [p for p in pendientes if p["id"] in ids_set]
+    else:
+        productos = pendientes
+
+    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
+    for p in productos:
+        try:
+            res = publicar_producto({
+                "producto_id":  p["id"],
+                "solo_preview": False,
+                "precio_ajuste_tipo":  ajuste_tipo,
+                "precio_ajuste_valor": ajuste_valor,
+            })
+            ok = res.get("info", {}).get("success") is True
+            if ok:
+                resumen["publicados"] += 1
+            else:
+                resumen["con_error"] += 1
+            resumen["detalle"].append({
+                "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
+                "exito": ok, "advertencias_fotos": res.get("_advertencias_fotos") or [],
+            })
+        except HTTPException as e:
+            resumen["con_error"] += 1
+            resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": e.detail})
+        except Exception as e:
+            resumen["con_error"] += 1
+            resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": str(e)})
+        # Pausa entre modelos -- cada uno ya sube varias fotos con su propio
+        # pacing, esto solo evita encimar el arranque de un modelo con el cierre
+        # de subida de imagenes del anterior.
+        time.sleep(1.5)
+    cache_set("shein_publicar_catalogo_log", resumen, ttl=3600)
+    cache_set("shein_skus_publicados", None, ttl=1)  # invalidar cache: hay productos nuevos publicados
+
+
+@router.post("/publicar-catalogo")
+def publicar_catalogo_shein(body: dict, background_tasks: BackgroundTasks):
+    """
+    Publica en SHEIN todos los productos activos del ERP que todavia no tienen
+    ninguna publicacion. Se ejecuta en background (una publicacion completa por
+    producto, con varias subidas de foto cada una).
+    Body: { "producto_ids": ["uuid", ...] (opcional, si no se manda son todos los pendientes),
+            "precio_ajuste_tipo": "fijo"|"porcentaje" (opcional), "precio_ajuste_valor": 150 (opcional) }
+    """
+    producto_ids = body.get("producto_ids") or None
+    ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
+    ajuste_valor = body.get("precio_ajuste_valor") or None
+    pendientes   = len(_productos_sin_publicar_shein())
+    total = len(producto_ids) if producto_ids else pendientes
+    background_tasks.add_task(_hacer_publicar_catalogo_shein, producto_ids, ajuste_tipo, ajuste_valor)
+    return {"message": f"Publicacion masiva iniciada para {total} producto(s). Consulta /shein/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
+
+
+@router.get("/publicar-catalogo/log")
+def publicar_catalogo_log_shein():
+    log = cache_get("shein_publicar_catalogo_log")
+    if not log:
+        return {"message": "Todavia no hay resultados. ¿Ya iniciaste la publicacion masiva?"}
+    return log
+
+
 # ─── Sincronización de inventario (change-inventory, modelo semi-managed) ──
 
 @router.post("/sync")
@@ -670,12 +819,19 @@ def _hacer_sync():
                 sin_match.append({"skuCode": sku_code, "supplierSku": item["supplierSku"]})
                 continue
             cantidad = stock_erp[sku_norm]
+            # updateSkuInventoryQuantityRequests debe ser una LISTA (no un objeto
+            # suelto) -- confirmado con el error real de SHEIN: "Cannot deserialize
+            # ArrayList... from Object value (token START_OBJECT)". El SDK de
+            # referencia (Python) lo manda como objeto suelto, pero eso no es lo
+            # que el backend de SHEIN acepta en la practica.
             payload = {
-                "updateSkuInventoryQuantityRequests": {
-                    "skuCodeList":       sku_code,
-                    "warehouseCodeList": warehouse_code,
-                    "saleInventory":     cantidad,
-                }
+                "updateSkuInventoryQuantityRequests": [
+                    {
+                        "skuCodeList":       [sku_code],
+                        "warehouseCodeList": [warehouse_code] if warehouse_code else [],
+                        "saleInventory":     cantidad,
+                    }
+                ]
             }
             try:
                 resp = shein_post("/open-api/gsp/goods/change-inventory", payload)
@@ -898,6 +1054,14 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         precio_menudeo = float(producto.get("precio_menudeo") or 0)
         precio_mayoreo6 = producto.get("precio_mayoreo6")
         precio = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
+    # Ajuste opcional (publicacion masiva): igual que en ML, por si se quiere
+    # sumar/aumentar el precio declarado a SHEIN de todo un lote de un jalon.
+    ajuste_tipo = overrides.get("ajuste_tipo")
+    ajuste_valor = overrides.get("ajuste_valor")
+    if ajuste_tipo == "fijo" and ajuste_valor:
+        precio = round(precio + float(ajuste_valor), 2)
+    elif ajuste_tipo == "porcentaje" and ajuste_valor:
+        precio = round(precio * (1 + float(ajuste_valor) / 100), 2)
     sku_modelo = (producto.get("sku_interno") or "").strip()
 
     # Dimensiones/peso de paquete por defecto para calzado (cm/gramos) -- el ERP
@@ -1115,6 +1279,8 @@ def publicar_producto(body: dict):
         "precio":          body.get("precio") or None,
         "fotos_excluidas": body.get("fotos_excluidas") or [],
         "color_overrides": body.get("color_overrides") or {},
+        "ajuste_tipo":     (body.get("precio_ajuste_tipo") or "").strip() or None,
+        "ajuste_valor":    body.get("precio_ajuste_valor") or None,
     }
     payload, advertencias = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id, overrides)
     resultado = shein_post("/open-api/goods/product/publishOrEdit", payload)

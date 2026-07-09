@@ -896,11 +896,17 @@ def _talla_to_row(talla, grid_id: str = "487994") -> str | None:
 
 
 def _build_item(producto: dict, variante: dict, qty: int,
-                category_id: str, listing_type: str) -> dict:
+                category_id: str, listing_type: str,
+                ajuste_tipo: str = None, ajuste_valor: float = None) -> dict:
     """
     Construye el payload de POST /items para ML.
     Título: "{Tipo} {nombre del producto} Marca May"  (máx 60 chars)
     Marca:  siempre "May"
+
+    ajuste_tipo/ajuste_valor (opcional): ajuste de precio sobre precio_menudeo
+    para cubrir flete/comision de ML (el vendedor paga estos costos en ML, a
+    diferencia de la tienda propia). "fijo" = se suma un monto en pesos;
+    "porcentaje" = se multiplica por (1 + valor/100).
     """
     cat    = (producto.get("categoria") or "sandalia").lower().strip()
     tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
@@ -1000,6 +1006,10 @@ def _build_item(producto: dict, variante: dict, qty: int,
         attrs.append({"id": "MODEL", "value_name": nombre})
 
     precio = float(producto.get("precio_menudeo") or 0)
+    if ajuste_tipo == "fijo" and ajuste_valor:
+        precio = round(precio + float(ajuste_valor), 2)
+    elif ajuste_tipo == "porcentaje" and ajuste_valor:
+        precio = round(precio * (1 + float(ajuste_valor) / 100), 2)
 
     return {
         "family_name":        title,
@@ -1593,6 +1603,10 @@ def publicar_producto(body: dict):
     variante_ids = body.get("variante_ids") or []
     listing_type = body.get("listing_type") or "gold_special"
     solo_preview = bool(body.get("solo_preview", False))
+    # Ajuste de precio para cubrir flete/comision de ML (el vendedor los paga
+    # en ML, a diferencia de la tienda propia) -- ver _build_item.
+    ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
+    ajuste_valor = body.get("precio_ajuste_valor") or None
 
     if not producto_id and not sku_interno:
         raise HTTPException(400, "Se requiere producto_id o sku_interno")
@@ -1652,7 +1666,7 @@ def publicar_producto(body: dict):
     resultados = []
     for idx_v, variante in enumerate(variantes):
         qty     = stock_map.get(variante["id"], 0)
-        payload = _build_item(producto, variante, qty, category_id, listing_type)
+        payload = _build_item(producto, variante, qty, category_id, listing_type, ajuste_tipo, ajuste_valor)
 
         if not solo_preview and _norm_sku(variante.get("sku") or "") in skus_ya_publicados:
             resultados.append({
@@ -1820,7 +1834,8 @@ def catalogo_sin_publicar():
     }
 
 
-def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list = None):
+def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list = None,
+                              ajuste_tipo: str = None, ajuste_valor: float = None):
     pendientes = _productos_sin_publicar()
     if producto_ids:
         ids_set = set(producto_ids)
@@ -1848,6 +1863,8 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
                 "producto_id":  p["id"],
                 "listing_type": listing_type,
                 "solo_preview": False,
+                "precio_ajuste_tipo":  ajuste_tipo,
+                "precio_ajuste_valor": ajuste_valor,
             })
             pub = res.get("publicados", 0)
             err = res.get("errores", 0)
@@ -1875,15 +1892,20 @@ def publicar_catalogo(body: dict, background_tasks: BackgroundTasks):
     Publica en MercadoLibre todos los productos activos del ERP que todavía
     no tienen ninguna publicación. Se ejecuta en background por el volumen
     de llamadas a la API de ML (una por producto).
-    Body: { "listing_type": "gold_special", "limite": 20, "producto_ids": ["uuid", ...] (opcional) }
+    Body: { "listing_type": "gold_special", "limite": 20, "producto_ids": ["uuid", ...] (opcional),
+            "precio_ajuste_tipo": "fijo"|"porcentaje" (opcional), "precio_ajuste_valor": 150 (opcional) }
     Si se manda producto_ids, solo se publican esos (filtrados igual contra
     los pendientes reales); si no, se publican los primeros "limite" pendientes.
+    El ajuste de precio (opcional) se suma/aplica sobre precio_menudeo de cada
+    producto, para cubrir flete/comision de ML -- ver _build_item.
     """
     listing_type = body.get("listing_type") or "gold_special"
     limite       = int(body.get("limite") or 20)
     producto_ids = body.get("producto_ids") or None
+    ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
+    ajuste_valor = body.get("precio_ajuste_valor") or None
     pendientes   = len(_productos_sin_publicar())
-    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite, producto_ids)
+    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite, producto_ids, ajuste_tipo, ajuste_valor)
     return {"message": f"Publicación masiva iniciada para hasta {min(limite, pendientes)} producto(s). Consulta /ml/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
 
 

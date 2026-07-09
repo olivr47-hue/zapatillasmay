@@ -17641,6 +17641,15 @@ window._mlCargarResumenCatalogo = async () => {
         <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen 3+ fotos y están marcados por default. Desmarca/marca lo que quieras cambiar.</p>
         ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
       </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0.75rem 0.9rem;background:#f8f8f8;border-radius:10px;margin-bottom:0.75rem">
+        <span style="font-size:0.8rem;color:#555;font-weight:600">Ajuste de precio (flete/comisión de ML):</span>
+        <select id="ml-ajuste-tipo" style="padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem" onchange="document.getElementById('ml-ajuste-valor').style.display=this.value?'inline-block':'none'">
+          <option value="">Ninguno (precio del panel tal cual)</option>
+          <option value="fijo">Sumar monto fijo ($)</option>
+          <option value="porcentaje">Aumentar porcentaje (%)</option>
+        </select>
+        <input id="ml-ajuste-valor" type="number" step="0.01" min="0" placeholder="Ej. 150" style="display:none;width:100px;padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
+      </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(true)">Seleccionar todos</label>
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(false)">Ninguno</label>
@@ -17694,12 +17703,20 @@ window._mlSelSoloListos = () => {
 window._mlAbrirConfirmMasivo = () => {
   const total = (window._mlCatalogoSeleccion || new Set()).size
   if (!total) { alert('No seleccionaste ningún modelo para publicar.'); return }
-  const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión).\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
+  const ajusteTipo  = document.getElementById('ml-ajuste-tipo')?.value || ''
+  const ajusteValor = parseFloat(document.getElementById('ml-ajuste-valor')?.value || '')
+  let lineaAjuste = 'Sin ajuste de precio (se manda el precio del panel tal cual).'
+  if (ajusteTipo && ajusteValor > 0) {
+    lineaAjuste = ajusteTipo === 'fijo'
+      ? `Se sumará $${ajusteValor} al precio de cada producto.`
+      : `Se aumentará ${ajusteValor}% al precio de cada producto.`
+  }
+  const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión).\n${lineaAjuste}\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
   if (!confirm(msg)) return
-  window._mlEjecutarPublicacionMasiva()
+  window._mlEjecutarPublicacionMasiva(ajusteTipo, ajusteValor)
 }
 
-window._mlEjecutarPublicacionMasiva = async () => {
+window._mlEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
   const btn = document.getElementById('ml-btn-catalogo-masivo')
   const label = document.getElementById('ml-btn-catalogo-masivo-label')
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6' }
@@ -17712,7 +17729,11 @@ window._mlEjecutarPublicacionMasiva = async () => {
     await fetch(`${API}/ml/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_type: 'gold_special', producto_ids })
+      body: JSON.stringify({
+        listing_type: 'gold_special', producto_ids,
+        precio_ajuste_tipo: ajusteTipo || null,
+        precio_ajuste_valor: (ajusteValor > 0) ? ajusteValor : null,
+      })
     })
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_mlBtn('refresh', 'Actualizar progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}`
@@ -18579,6 +18600,19 @@ window._sheinSwitchTab = async (tab) => {
 async function _sheinRenderPublicacionesTab() {
   const body = document.getElementById('shein-tab-body')
   body.innerHTML = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.9rem">
+        <div style="width:34px;height:34px;border-radius:9px;background:#fdf2f4;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('cart', 17, _SHEIN_ACCENT)}</div>
+        <div>
+          <h3 style="margin:0 0 2px;font-size:1rem">Publicar catálogo completo</h3>
+          <p style="font-size:0.82rem;color:#888;margin:0">Publica de un jalón todos los modelos del ERP que todavía no tienes en SHEIN.</p>
+        </div>
+      </div>
+      <div id="shein-catalogo-resumen">
+        <p style="color:#aaa;font-size:0.85rem;margin:0">Buscando modelos sin publicar (puede tardar un momento)...</p>
+      </div>
+    </div>
+
     <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
         <div style="display:flex;align-items:center;gap:10px">
@@ -18600,6 +18634,164 @@ async function _sheinRenderPublicacionesTab() {
       </div>
     </div>
   `
+  window._sheinCargarResumenCatalogo()
+}
+
+window._sheinCargarResumenCatalogo = async () => {
+  const box = document.getElementById('shein-catalogo-resumen')
+  if (!box) return
+  try {
+    const res = await fetch(`${API}/shein/catalogo-sin-publicar`)
+    const d = await res.json()
+    if (!d.total) {
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+          Ya tienes todo tu catálogo activo publicado en SHEIN.
+        </div>`
+      return
+    }
+    window._sheinCatalogoPendiente = d.productos
+    window._sheinCatalogoSeleccion = new Set(d.productos.filter(p => p.listo).map(p => p.id))
+    const fotoBadge = (p) => {
+      const color = p.listo ? '#166534' : '#b45309'
+      const bg = p.listo ? '#f0fdf4' : '#fffbeb'
+      const titulo = p.num_colores > 1 ? `Mínimo entre sus ${p.num_colores} colores` : 'Ese color'
+      return `<span title="${titulo}" style="background:${bg};color:${color};font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">${p.num_fotos} foto${p.num_fotos===1?'':'s'}/color</span>`
+    }
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fdf2f4;border-radius:10px;margin-bottom:0.75rem">
+        <p style="margin:0;font-size:0.88rem;color:#9d174d"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen foto y están marcados por default.</p>
+        ${_sheinBtn('cart', `Publicar seleccionados`, 'window._sheinAbrirConfirmMasivo()', 'primary', 'shein-btn-catalogo-masivo')}
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0.75rem 0.9rem;background:#f8f8f8;border-radius:10px;margin-bottom:0.75rem">
+        <span style="font-size:0.8rem;color:#555;font-weight:600">Ajuste de precio (opcional):</span>
+        <select id="shein-ajuste-tipo" style="padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem" onchange="document.getElementById('shein-ajuste-valor').style.display=this.value?'inline-block':'none'">
+          <option value="">Ninguno (precio calculado normal)</option>
+          <option value="fijo">Sumar monto fijo ($)</option>
+          <option value="porcentaje">Aumentar porcentaje (%)</option>
+        </select>
+        <input id="shein-ajuste-valor" type="number" step="0.01" min="0" placeholder="Ej. 20" style="display:none;width:100px;padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
+      </div>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
+        <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelTodosCatalogo(true)">Seleccionar todos</label>
+        <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelTodosCatalogo(false)">Ninguno</label>
+        <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelSoloListos()">Solo con foto</label>
+        <span id="shein-catalogo-contador" style="color:#888;margin-left:auto">${window._sheinCatalogoSeleccion.size} de ${d.total} seleccionados</span>
+      </div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+        ${d.productos.map(p => `
+          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;cursor:pointer">
+            <input type="checkbox" ${p.listo ? 'checked' : ''} data-shein-catprod="${p.id}" onchange="window._sheinToggleCatProd('${p.id}',this.checked)"
+                   style="width:15px;height:15px;cursor:pointer;accent-color:${_SHEIN_ACCENT};flex-shrink:0">
+            <span style="flex:1">${p.nombre}</span>
+            ${fotoBadge(p)}
+            <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
+          </label>`).join('')}
+      </div>
+      <div id="shein-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
+    `
+  } catch(e) {
+    box.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
+}
+
+window._sheinToggleCatProd = (id, marcado) => {
+  if (!window._sheinCatalogoSeleccion) return
+  if (marcado) window._sheinCatalogoSeleccion.add(id)
+  else window._sheinCatalogoSeleccion.delete(id)
+  const contador = document.getElementById('shein-catalogo-contador')
+  const total = (window._sheinCatalogoPendiente || []).length
+  if (contador) contador.textContent = `${window._sheinCatalogoSeleccion.size} de ${total} seleccionados`
+}
+
+window._sheinSelTodosCatalogo = (todos) => {
+  const total = window._sheinCatalogoPendiente || []
+  window._sheinCatalogoSeleccion = todos ? new Set(total.map(p => p.id)) : new Set()
+  document.querySelectorAll('[data-shein-catprod]').forEach(chk => { chk.checked = todos })
+  const contador = document.getElementById('shein-catalogo-contador')
+  if (contador) contador.textContent = `${window._sheinCatalogoSeleccion.size} de ${total.length} seleccionados`
+}
+
+window._sheinSelSoloListos = () => {
+  const total = window._sheinCatalogoPendiente || []
+  window._sheinCatalogoSeleccion = new Set(total.filter(p => p.listo).map(p => p.id))
+  document.querySelectorAll('[data-shein-catprod]').forEach(chk => {
+    chk.checked = window._sheinCatalogoSeleccion.has(chk.dataset.sheinCatprod)
+  })
+  const contador = document.getElementById('shein-catalogo-contador')
+  if (contador) contador.textContent = `${window._sheinCatalogoSeleccion.size} de ${total.length} seleccionados`
+}
+
+window._sheinAbrirConfirmMasivo = () => {
+  const total = (window._sheinCatalogoSeleccion || new Set()).size
+  if (!total) { alert('No seleccionaste ningún modelo para publicar.'); return }
+  const ajusteTipo  = document.getElementById('shein-ajuste-tipo')?.value || ''
+  const ajusteValor = parseFloat(document.getElementById('shein-ajuste-valor')?.value || '')
+  let lineaAjuste = 'Sin ajuste de precio (se manda el cálculo normal: mayoreo x6 o menudeo − $70).'
+  if (ajusteTipo && ajusteValor > 0) {
+    lineaAjuste = ajusteTipo === 'fijo'
+      ? `Se sumará $${ajusteValor} al precio de cada producto.`
+      : `Se aumentará ${ajusteValor}% al precio de cada producto.`
+  }
+  const msg = `Vas a publicar ${total} modelo(s) nuevos en SHEIN.\n${lineaAjuste}\n\nColores nunca antes vistos pueden fallar (necesitan el editor de color manual) -- se reportarán como error sin detener el resto. Se hace en segundo plano y puede tardar varios minutos (cada modelo sube varias fotos). ¿Confirmar?`
+  if (!confirm(msg)) return
+  window._sheinEjecutarPublicacionMasiva(ajusteTipo, ajusteValor)
+}
+
+window._sheinEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
+  const btn = document.getElementById('shein-btn-catalogo-masivo')
+  const label = document.getElementById('shein-btn-catalogo-masivo-label')
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6' }
+  if (label) label.textContent = 'Publicando en segundo plano...'
+  const log = document.getElementById('shein-catalogo-masivo-log')
+  log.style.display = 'block'
+  log.innerHTML = '<p style="margin:0;color:#888">Iniciando...</p>'
+  try {
+    const producto_ids = Array.from(window._sheinCatalogoSeleccion || [])
+    await fetch(`${API_DIRECTO}/shein/publicar-catalogo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        producto_ids,
+        precio_ajuste_tipo: ajusteTipo || null,
+        precio_ajuste_valor: (ajusteValor > 0) ? ajusteValor : null,
+      })
+    })
+    log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
+      `${_sheinBtn('refresh', 'Actualizar progreso', 'window._sheinVerLogCatalogoMasivo()', 'secondary')}`
+  } catch(e) {
+    log.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
+}
+
+window._sheinVerLogCatalogoMasivo = async () => {
+  const log = document.getElementById('shein-catalogo-masivo-log')
+  try {
+    const res = await fetch(`${API}/shein/publicar-catalogo/log`)
+    const d = await res.json()
+    if (!d.detalle) {
+      log.innerHTML = `<p style="margin:0;color:#888">${d.message || 'Sin resultados todavía.'}</p>`
+      return
+    }
+    log.innerHTML = `
+      <p style="margin:0 0 8px;font-weight:700">${d.publicados} publicado(s) · ${d.con_error} con error · de ${d.total_productos}</p>
+      <div style="max-height:260px;overflow-y:auto">
+        ${d.detalle.map(x => `
+          <div style="padding:4px 0;border-bottom:1px solid #eee;font-size:0.78rem">
+            <div style="display:flex;justify-content:space-between">
+              <span>${x.nombre || x.sku_interno}</span>
+              <span style="color:${x.error ? '#dc2626' : (x.exito ? '#16a34a' : '#dc2626')}">${x.error ? 'Error' : (x.exito ? 'Publicado' : 'Rechazado')}</span>
+            </div>
+            ${x.error ? `<div style="color:#dc2626;font-size:0.72rem">${typeof x.error === 'string' ? x.error : JSON.stringify(x.error)}</div>` : ''}
+            ${(x.advertencias_fotos||[]).length ? `<div style="color:#b45309;font-size:0.72rem">⚠️ ${x.advertencias_fotos.length} foto(s) faltante(s)</div>` : ''}
+          </div>`).join('')}
+      </div>
+      ${_sheinBtn('refresh', 'Ver catálogo sin publicar', 'window._sheinCargarResumenCatalogo()', 'secondary')}
+    `
+  } catch(e) {
+    log.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
+  }
 }
 
 window.sheinCargarPublicaciones = async (btn) => {
