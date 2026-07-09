@@ -457,6 +457,19 @@ def _cloudinary_recorte_80x80(url_imagen: str) -> str:
     return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_80,h_80/", 1)
 
 
+def _cloudinary_ajustar_900x900(url_imagen: str) -> str:
+    """
+    Las fotos de detalle (type=2) SHEIN las espera en 900x900px (confirmado con
+    la guia oficial de imagenes de SHEIN, y con logs reales: una foto de
+    480x480 -- muy chica -- Y otras de 4000x4000 -- muy grandes -- fallaron
+    ambas con el mismo rechazo "no cumple los requisitos", code=1001002).
+    """
+    marcador = "/image/upload/"
+    if marcador not in url_imagen:
+        return url_imagen
+    return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_900,h_900/", 1)
+
+
 @router.get("/mis-productos")
 def mis_productos(page: int = 1):
     """Productos ya publicados en esta tienda (para ver como quedo configurado un modelo real)."""
@@ -859,7 +872,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                     advertencias.append(f"{color}: no se pudo subir la imagen de color (swatch 80x80) -- {error}")
         # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
         for i, url in enumerate(fotos_unicas[1:10], start=2):
-            url_shein, error = _subir_imagen(url, image_type=2)
+            url_shein, error = _subir_imagen(_cloudinary_ajustar_900x900(url), image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
             else:
