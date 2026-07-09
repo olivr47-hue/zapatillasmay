@@ -550,13 +550,35 @@ def _stock_erp() -> dict:
 
 
 # ─── SKUs ya publicados en SHEIN ────────────────────────────────────────────
-# Igual que en mercadolibre.py: no se guarda ninguna columna nueva en el ERP.
-# Al publicar mandamos skuCode = sku del ERP (igual que SELLER_SKU en ML), y
-# para sincronizar despues simplemente consultamos que SKUs tiene SHEIN vivos.
+# Al publicar mandamos supplier_sku = nuestro SKU del ERP (sku_code lo asigna
+# SHEIN). /product/query es rapido pero SOLO devuelve el skuCode opaco de
+# SHEIN (ej. "I845m8bpegk8") -- NO trae supplierSku, asi que nunca podia
+# emparejar contra el SKU del ERP (bug real, confirmado inspeccionando la
+# respuesta cruda). El unico endpoint que expone el mapeo supplierSku<->skuCode
+# es /goods/spu-info, y SOLO funciona para SPUs ya APROBADOS por SHEIN (para
+# los "pendientes de revision" da error "unable to obtain skc information") --
+# tambien confirmado: la documentacion de change-inventory dice explicitamente
+# que solo se puede modificar inventario de SKUs aprobados. Por eso hay que
+# consultar spu-info por cada SPU unico antes de poder sincronizar.
+
+def _spu_info(spu_name: str) -> dict | None:
+    """Detalle completo de un SPU (solo funciona si ya fue aprobado por SHEIN).
+    Body confirmado contra la API real: languageList/spuName (camelCase)."""
+    try:
+        resp = shein_post("/open-api/goods/spu-info", {"languageList": ["es"], "spuName": spu_name})
+    except HTTPException:
+        return None
+    if resp.get("code") not in (0, "0"):
+        return None
+    return resp.get("info") or {}
+
 
 def _skus_shein() -> list:
-    """Devuelve [{"skuCode": ..., "estado": ...}] de todos los SKUs publicados en SHEIN."""
-    resultado = []
+    """Devuelve [{"skuCode","supplierSku","skcName","spuName"}] de todos los
+    SKUs publicados en SHEIN, consultando spu-info por cada SPU unico (con
+    pacing para no saturar el limite de velocidad, mismo motivo que en la
+    subida de imagenes)."""
+    spu_names = set()
     page = 1
     while True:
         try:
@@ -571,14 +593,30 @@ def _skus_shein() -> list:
         if not items:
             break
         for prod in items:
-            for sku_code in prod.get("skuCodeList", []) or []:
-                if sku_code:
-                    resultado.append({"skuCode": sku_code, "skcName": prod.get("skcName"), "spuName": prod.get("spuName")})
+            nombre_spu = prod.get("spuName")
+            if nombre_spu:
+                spu_names.add(nombre_spu)
         if len(items) < 100:
             break
         page += 1
         if page > 50:  # tope de seguridad
             break
+
+    resultado = []
+    for spu_name in spu_names:
+        detalle = _spu_info(spu_name)
+        time.sleep(0.5)
+        if not detalle:
+            continue
+        for skc in detalle.get("skcInfoList") or []:
+            for sku in skc.get("skuInfoList") or []:
+                supplier_sku = sku.get("supplierSku") or ""
+                sku_code = sku.get("skuCode") or ""
+                if supplier_sku and sku_code:
+                    resultado.append({
+                        "skuCode": sku_code, "supplierSku": supplier_sku,
+                        "skcName": skc.get("skcName"), "spuName": spu_name,
+                    })
     return resultado
 
 
@@ -605,9 +643,9 @@ def _hacer_sync():
         cambios = []
         for item in publicadas:
             sku_code = item["skuCode"]
-            sku_norm = _norm_sku(sku_code)
+            sku_norm = _norm_sku(item["supplierSku"])
             if sku_norm not in stock_erp:
-                sin_match.append({"skuCode": sku_code})
+                sin_match.append({"skuCode": sku_code, "supplierSku": item["supplierSku"]})
                 continue
             cambios.append({
                 "skuCode":        sku_code,
