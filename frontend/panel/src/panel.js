@@ -19009,9 +19009,14 @@ async function _sheinConfirmarPublicar() {
       resBody.textContent = txt
     } else {
       const errores = d.info?.pre_valid_result || []
-      resBody.textContent = errores.length
+      let txt = errores.length
         ? errores.map(e => `[${e.form_name}] ${(e.messages || []).join(' | ')}`).join('\n')
         : JSON.stringify(d, null, 2)
+      if (advertenciasFotos.length) {
+        txt += `\n\n⚠️ Ademas, ${advertenciasFotos.length} foto(s) NO se pudieron subir a SHEIN (probable causa del rechazo):\n`
+        advertenciasFotos.forEach(a => { txt += `  - ${a}\n` })
+      }
+      resBody.textContent = txt
     }
     resBox.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } catch(e) {

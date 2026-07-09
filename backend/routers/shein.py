@@ -808,7 +808,12 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
                 else:
-                    advertencias.append(f"{color}: no se pudo subir la foto principal (type={tipo}) tras varios intentos")
+                    # type=1 y type=5 son obligatorios -- SHEIN rechaza el SKC completo sin ellos
+                    # ("SKC debe tener solo una imagen cuadrada" es su mensaje tanto para 0 como para >1).
+                    # Mejor fallar aqui con un motivo claro que mandar un payload que se sabe invalido.
+                    raise HTTPException(502, f"No se pudo subir la foto principal de '{color}' a SHEIN "
+                                              f"(type={tipo}) despues de varios intentos -- probablemente "
+                                              f"limite de velocidad de su API. Intenta de nuevo en un minuto.")
             if multi_skc:
                 # Recorte 80x80 via Cloudinary (no procesamiento local) + transform-pic normal
                 url_swatch = _subir_imagen(_cloudinary_recorte_80x80(foto_principal), image_type=6)
