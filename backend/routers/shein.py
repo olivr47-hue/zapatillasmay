@@ -395,6 +395,7 @@ def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> tu
     de inmediato y se reporta el motivo real.
     """
     ultimo_error = "error desconocido"
+    url_imagen = _cloudinary_optimizar(url_imagen)
     for intento in range(intentos):
         try:
             resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
@@ -403,12 +404,18 @@ def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> tu
             if url:
                 time.sleep(0.6)  # pacing: evita saturar el limite de velocidad en la siguiente llamada
                 return url, ""
+            # SHEIN a veces devuelve code="0"/msg="OK" (nivel superior "exitoso") pero
+            # con info.transformed vacio y el motivo real en info.failure_reason -- ej.
+            # "Descarga de imagen anormal" cuando el archivo es muy pesado (>3MB, PNG sin
+            # comprimir de una foto de 2048x2048). Sin esto el usuario solo veia "OK (code=0)".
+            razon = info.get("failure_reason") or ""
             codigo = resp.get("code")
             msg = resp.get("msg") or "sin detalle"
-            ultimo_error = f"{msg} (code={codigo})"
-            if codigo not in (None, "0", 0):
-                # Rechazo explicito de SHEIN (ej. la foto no cumple sus requisitos) --
-                # no es transitorio, reintentar con la misma imagen no cambia el resultado.
+            ultimo_error = f"{razon or msg} (code={codigo})"
+            if razon or codigo not in (None, "0", 0):
+                # Rechazo explicito de SHEIN (ej. la foto no cumple sus requisitos, o el
+                # archivo no se pudo descargar/procesar) -- no es transitorio, reintentar
+                # con la misma imagen no cambia el resultado.
                 print(f"[SHEIN] transform-pic rechazado (type={image_type}): {ultimo_error}")
                 return "", ultimo_error
             print(f"[SHEIN] transform-pic sin url util (intento {intento + 1}/{intentos}, type={image_type}): {resp}")
@@ -417,6 +424,21 @@ def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> tu
             print(f"[SHEIN] transform-pic error (intento {intento + 1}/{intentos}, type={image_type}): {e.detail}")
         time.sleep(1.2 * (intento + 1))
     return "", ultimo_error
+
+
+def _cloudinary_optimizar(url_imagen: str) -> str:
+    """
+    Convierte a JPEG y comprime automaticamente via Cloudinary antes de mandar la
+    imagen a SHEIN. Confirmado (log real) que SHEIN rechaza archivos pesados con
+    "Descarga de imagen anormal" -- una foto de 2048x2048 en PNG sin comprimir pesaba
+    3.27MB, arriba del limite de SHEIN (~3MB). f_jpg tambien aplana transparencia
+    sobre fondo blanco (los PNG del catalogo no deberian tener transparencia real,
+    pero por si acaso). q_auto reduce el peso sin tocar la resolucion.
+    """
+    marcador = "/image/upload/"
+    if marcador not in url_imagen:
+        return url_imagen
+    return url_imagen.replace(marcador, f"{marcador}f_jpg,q_auto/", 1)
 
 
 def _cloudinary_recorte_80x80(url_imagen: str) -> str:
