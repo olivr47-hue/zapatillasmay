@@ -358,15 +358,34 @@ def _default_warehouse_code() -> str:
 
 # ─── Imágenes: SHEIN exige alojarlas en su propio CDN (transform-pic) ───────
 
-def _subir_imagen(url_imagen: str, image_type: int = 1) -> str:
+def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> str:
     """
-    Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN.
+    Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN
+    o "" si fallaron todos los intentos.
     image_type: 1=principal, 2=detalle, 5=cuadro, 6=color, 7=detalle largo.
     Ruta y campo de respuesta ("transformed") confirmados contra el sandbox real.
+
+    transform-pic tiene limite de velocidad estricto: llamadas seguidas sin pausa
+    empiezan a fallar EN SILENCIO (respuesta 200 sin "info", no HTTPException) a
+    partir de la ~5a-7a llamada dentro del mismo request -- bug real detectado:
+    un modelo con 5 fotos x 3 colores dispara 21 llamadas seguidas y solo la
+    primera pasaba, el resto se descartaba sin avisar (fotos faltantes en SHEIN,
+    producto quedaba incompleto en borrador). Por eso reintenta con backoff y
+    espacia cada llamada exitosa.
     """
-    resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
-    info = resp.get("info", {}) or {}
-    return info.get("transformed") or info.get("url") or ""
+    for intento in range(intentos):
+        try:
+            resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
+            info = resp.get("info", {}) or {}
+            url = info.get("transformed") or info.get("url") or ""
+            if url:
+                time.sleep(0.6)  # pacing: evita saturar el limite de velocidad en la siguiente llamada
+                return url
+            print(f"[SHEIN] transform-pic sin url util (intento {intento + 1}/{intentos}, type={image_type}): {resp}")
+        except HTTPException as e:
+            print(f"[SHEIN] transform-pic error (intento {intento + 1}/{intentos}, type={image_type}): {e.detail}")
+        time.sleep(1.2 * (intento + 1))
+    return ""
 
 
 def _cloudinary_recorte_80x80(url_imagen: str) -> str:
@@ -664,11 +683,15 @@ def _color_a_attribute_value_id(product_type_id: int, color: str) -> int | None:
 
 
 def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
-                        category_id: int, product_type_id: int) -> dict:
+                        category_id: int, product_type_id: int) -> tuple[dict, list]:
     """
     Construye el payload real de POST /open-api/goods/product/publishOrEdit.
     SPU = modelo, SKC = color, SKU = color+talla (analogo a producto/variante del ERP).
+    Devuelve (payload, advertencias) -- advertencias lista las fotos que no se
+    pudieron subir a SHEIN tras reintentar, para que el usuario lo sepa en vez
+    de que el producto quede incompleto en silencio.
     """
+    advertencias: list = []
     nombre = (producto.get("nombre") or "").strip()
     descripcion = (producto.get("descripcion") or "").strip() or nombre
     # SHEIN semi-managed: el vendedor solo declara UN precio (lo que SHEIN le
@@ -716,16 +739,22 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                 url_shein = _subir_imagen(foto_principal, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
+                else:
+                    advertencias.append(f"{color}: no se pudo subir la foto principal (type={tipo}) tras varios intentos")
             if multi_skc:
                 # Recorte 80x80 via Cloudinary (no procesamiento local) + transform-pic normal
                 url_swatch = _subir_imagen(_cloudinary_recorte_80x80(foto_principal), image_type=6)
                 if url_swatch:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 6, "image_url": url_swatch})
+                else:
+                    advertencias.append(f"{color}: no se pudo subir la imagen de color (swatch 80x80)")
         # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
-        for url in fotos_unicas[1:10]:
+        for i, url in enumerate(fotos_unicas[1:10], start=2):
             url_shein = _subir_imagen(url, image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
+            else:
+                advertencias.append(f"{color}: no se pudo subir la foto #{i} de {len(fotos_unicas)}")
 
         color_value_id = _color_a_attribute_value_id(product_type_id, color)
         if not color_value_id:
@@ -774,7 +803,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         skc_list.append(skc_entry)
 
     idioma = _default_language_cached(category_id)
-    return {
+    payload = {
         "spu_name":                 "",
         "spu_code":                 None,
         "brand_code":               "",
@@ -794,6 +823,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         "sample_info":              None,
         "skc_list":                 skc_list,
     }
+    return payload, advertencias
 
 
 @router.post("/publicar")
@@ -850,5 +880,8 @@ def publicar_producto(body: dict):
             "precio_enviado_a_shein": precio_shein,
         }
 
-    payload = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id)
-    return shein_post("/open-api/goods/product/publishOrEdit", payload)
+    payload, advertencias = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id)
+    resultado = shein_post("/open-api/goods/product/publishOrEdit", payload)
+    if advertencias:
+        resultado["_advertencias_fotos"] = advertencias
+    return resultado

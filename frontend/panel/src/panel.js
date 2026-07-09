@@ -18709,7 +18709,10 @@ async function _sheinPublicar(solo_preview) {
       resBody.textContent = `Categoría:       ${d.categoria}\ncategory_id:     ${d.category_id}\nproduct_type_id: ${d.product_type_id}\nVariaciones:     ${d.variaciones}\nColores:         ${(d.colores || []).join(', ')}\n${precioLinea}`
     } else {
       const ok = d.info?.success === true
-      resTitulo.textContent = ok ? '✅ Publicado' : '⚠️ SHEIN rechazó la publicación'
+      const advertenciasFotos = d._advertencias_fotos || []
+      resTitulo.textContent = ok
+        ? (advertenciasFotos.length ? '⚠️ Publicado con fotos faltantes' : '✅ Publicado')
+        : '⚠️ SHEIN rechazó la publicación'
       if (ok) {
         const skcs = d.info?.skc_list || []
         let txt = `SPU: ${d.info.spu_name}\n\n`
@@ -18718,6 +18721,10 @@ async function _sheinPublicar(solo_preview) {
           ;(s.sku_list || []).forEach(sk => { txt += `  ${sk.supplier_sku} → ${sk.sku_code}\n` })
           txt += '\n'
         })
+        if (advertenciasFotos.length) {
+          txt += `⚠️ ${advertenciasFotos.length} foto(s) NO se pudieron subir a SHEIN:\n`
+          advertenciasFotos.forEach(a => { txt += `  - ${a}\n` })
+        }
         resBody.textContent = txt
       } else {
         const errores = d.info?.pre_valid_result || []
