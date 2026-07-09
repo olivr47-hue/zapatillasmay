@@ -18800,7 +18800,7 @@ async function _sheinGenerarPreview() {
       return
     }
     window._sheinSkuActual = sku
-    _sheinRenderRevision(d)
+    await _sheinRenderRevision(d)
   } catch(e) {
     alert('Error de conexión: ' + e.message)
   } finally {
@@ -18810,8 +18810,9 @@ async function _sheinGenerarPreview() {
   }
 }
 
-function _sheinRenderRevision(d) {
+async function _sheinRenderRevision(d) {
   window._sheinFotosExcluidas = new Set()
+  window._sheinColorOverrides = {}
   const wrap = document.getElementById('shein-revision')
 
   const precioLabel = d.precio_mayoreo6_capturado
@@ -18855,15 +18856,36 @@ function _sheinRenderRevision(d) {
     </div>
   `
 
+  // Colores validos de SHEIN para esta categoria (para el selector de "color SHEIN")
+  let coloresShein = []
+  try {
+    const rc = await fetch(`${API}/shein/colores/${d.product_type_id}`)
+    const dc = await rc.json()
+    coloresShein = dc.colores || []
+  } catch (e) {}
+
   const coloresWrap = document.getElementById('shein-rev-colores')
   coloresWrap.innerHTML = (d.colores_info || []).map(c => {
     const totalStock = (c.tallas || []).reduce((s, t) => s + (t.stock || 0), 0)
     const tallasTxt = (c.tallas || []).map(t => `${t.talla}(${t.stock})`).join(', ')
+    const colorKey = c.color.replace(/'/g, "\\'")
+    const selectId = 'shein-color-sel-' + c.color.replace(/[^a-zA-Z0-9]/g, '_')
+    const sinMatch = !c.color_shein_id
+    window._sheinColorOverrides[c.color] = c.color_shein_id || null
     return `
       <div style="margin-bottom:1rem">
-        <p style="font-size:0.82rem;font-weight:700;color:#333;margin:0 0 4px">
-          ${c.color} <span style="font-weight:400;color:#888;font-size:0.74rem">— ${totalStock} pares · tallas: ${tallasTxt}</span>
-        </p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <p style="font-size:0.82rem;font-weight:700;color:#333;margin:0">
+            ${c.color} <span style="font-weight:400;color:#888;font-size:0.74rem">— ${totalStock} pares · tallas: ${tallasTxt}</span>
+          </p>
+          <label style="font-size:0.72rem;color:#888">Color SHEIN:</label>
+          <select id="${selectId}" onchange="window._sheinSetColorOverride('${colorKey}', this.value)"
+                  style="padding:0.3rem 0.5rem;border:1px solid ${sinMatch ? '#f59e0b' : '#ddd'};border-radius:6px;font-size:0.78rem;background:${sinMatch ? '#fffbeb' : '#fff'}">
+            <option value="">-- selecciona --</option>
+            ${coloresShein.map(opt => `<option value="${opt.id}" ${String(opt.id) === String(c.color_shein_id) ? 'selected' : ''}>${opt.nombre}</option>`).join('')}
+          </select>
+          ${sinMatch ? '<span style="font-size:0.72rem;color:#b45309;font-weight:600">⚠️ sin match automático — elige uno</span>' : ''}
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${(c.fotos || []).map(url => `
             <div onclick="window._sheinToggleFoto(this,'${url.replace(/'/g, "\\'")}')"
@@ -18877,6 +18899,17 @@ function _sheinRenderRevision(d) {
 
   wrap.style.display = 'block'
   wrap.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+window._sheinSetColorOverride = (color, value) => {
+  window._sheinColorOverrides[color] = value ? parseInt(value) : null
+  const selectId = 'shein-color-sel-' + color.replace(/[^a-zA-Z0-9]/g, '_')
+  const sel = document.getElementById(selectId)
+  if (sel) {
+    const ok = !!value
+    sel.style.borderColor = ok ? '#ddd' : '#f59e0b'
+    sel.style.background = ok ? '#fff' : '#fffbeb'
+  }
 }
 
 window._sheinToggleFoto = (el, url) => {
@@ -18893,6 +18926,13 @@ window._sheinToggleFoto = (el, url) => {
 async function _sheinConfirmarPublicar() {
   const sku = window._sheinSkuActual
   if (!sku) return
+
+  const overrides = window._sheinColorOverrides || {}
+  const sinColor = Object.entries(overrides).filter(([, id]) => !id).map(([color]) => color)
+  if (sinColor.length) {
+    alert('Falta elegir el "Color SHEIN" para: ' + sinColor.join(', '))
+    return
+  }
   if (!confirm('¿Publicar este producto en SHEIN? Se creará un producto nuevo pendiente de revisión.')) return
 
   const btn = document.getElementById('shein-btn-publicar')
@@ -18919,7 +18959,8 @@ async function _sheinConfirmarPublicar() {
         sku_interno: sku,
         solo_preview: false,
         nombre, precio, descripcion,
-        fotos_excluidas: [...(window._sheinFotosExcluidas || [])]
+        fotos_excluidas: [...(window._sheinFotosExcluidas || [])],
+        color_overrides: overrides
       })
     })
     const d = await r.json()

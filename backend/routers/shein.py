@@ -299,6 +299,22 @@ def attribute_template(product_type_id: int):
         return {"ok": False, "error": e.detail}
 
 
+@router.get("/colores/{product_type_id}")
+def colores_disponibles(product_type_id: int):
+    """
+    Colores validos de SHEIN (attribute_id=27) para esta categoria -- para el
+    selector de "revisar/cambiar color" del panel antes de publicar.
+    """
+    infos = _attribute_template_cached(product_type_id)
+    for a in infos:
+        if a.get("attribute_id") == _ATTR_COLOR:
+            valores = a.get("attribute_value_info_list") or []
+            colores = [{"id": v.get("attribute_value_id"), "nombre": v.get("attribute_value")} for v in valores]
+            colores.sort(key=lambda c: c["nombre"] or "")
+            return {"colores": colores}
+    return {"colores": []}
+
+
 @router.get("/publish-standard/{category_id}")
 def publish_standard(category_id: int):
     """Requisitos de publicacion (idioma, moneda de costo, campos obligatorios) para una categoria."""
@@ -674,8 +690,46 @@ _COLOR_SINONIMOS = {
 }
 
 
-def _color_a_attribute_value_id(product_type_id: int, color: str) -> int | None:
+# Sinónimos "aprendidos": los que el usuario confirma/cambia desde el editor
+# de colores del panel antes de publicar se guardan en Supabase (tabla
+# configuracion, clave shein_color_sinonimos) y tienen PRIORIDAD sobre
+# _COLOR_SINONIMOS y la coincidencia parcial -- asi no hay que volver a
+# preguntar por el mismo color de la misma categoria. Clave = "{product_type_id}:{color en minusculas}".
+
+def _load_color_sinonimos_aprendidos() -> dict:
+    try:
+        rows = supabase_get("configuracion?clave=eq.shein_color_sinonimos&select=valor")
+        if rows and rows[0].get("valor"):
+            return json.loads(rows[0]["valor"])
+    except Exception:
+        pass
+    return {}
+
+
+def _guardar_color_sinonimo_aprendido(product_type_id: int, color_erp: str, attribute_value_id: int):
+    color_norm = (color_erp or "").strip().lower()
+    if not color_norm or not attribute_value_id:
+        return
+    clave = f"{product_type_id}:{color_norm}"
+    try:
+        actuales = _load_color_sinonimos_aprendidos()
+        actuales[clave] = attribute_value_id
+        valor = json.dumps(actuales)
+        existing = supabase_get("configuracion?clave=eq.shein_color_sinonimos")
+        if existing:
+            supabase_patch("configuracion?clave=eq.shein_color_sinonimos", {"valor": valor})
+        else:
+            supabase_post("configuracion", {"clave": "shein_color_sinonimos", "valor": valor})
+    except Exception as e:
+        print(f"[SHEIN] Error guardando sinonimo de color aprendido: {e}")
+
+
+def _color_a_attribute_value_id(product_type_id: int, color: str, aprendidos: dict = None) -> int | None:
     color_norm = (color or "").strip().lower()
+    aprendidos = _load_color_sinonimos_aprendidos() if aprendidos is None else aprendidos
+    clave = f"{product_type_id}:{color_norm}"
+    if clave in aprendidos:
+        return aprendidos[clave]
     if color_norm in _COLOR_SINONIMOS:
         encontrado = _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, _COLOR_SINONIMOS[color_norm])
         if encontrado:
@@ -693,13 +747,16 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
     de que el producto quede incompleto en silencio.
 
     overrides (opcional, valores editados por el usuario en el panel antes de
-    publicar): {"nombre", "descripcion", "precio", "fotos_excluidas": [urls]}.
+    publicar): {"nombre", "descripcion", "precio", "fotos_excluidas": [urls],
+    "color_overrides": {"COLOR_ERP": attribute_value_id}}.
     """
     overrides = overrides or {}
     advertencias: list = []
     nombre = (overrides.get("nombre") or producto.get("nombre") or "").strip()
     descripcion = (overrides.get("descripcion") or producto.get("descripcion") or "").strip() or nombre
     fotos_excluidas = set(overrides.get("fotos_excluidas") or [])
+    color_overrides = overrides.get("color_overrides") or {}
+    aprendidos = _load_color_sinonimos_aprendidos()
     # SHEIN semi-managed: el vendedor solo declara UN precio (lo que SHEIN le
     # paga); SHEIN le pone su propio margen al cliente final. Ese precio es
     # el de mayoreo variado 6+ pares (NO precio_corrida, ni el "costo" del
@@ -767,11 +824,13 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
             else:
                 advertencias.append(f"{color}: no se pudo subir la foto #{i} de {len(fotos_unicas)}")
 
-        color_value_id = _color_a_attribute_value_id(product_type_id, color)
+        color_value_id = color_overrides.get(color) or _color_a_attribute_value_id(product_type_id, color, aprendidos)
         if not color_value_id:
             raise HTTPException(422, f"No se encontro un color de SHEIN equivalente a '{color}' "
-                                      f"para esta categoria. Revisa /shein/attribute-template/{product_type_id} "
-                                      f"(attribute_id={_ATTR_COLOR}) y agrega un sinonimo en _COLOR_SINONIMOS.")
+                                      f"para esta categoria. Usa el editor de colores en el panel antes de publicar, "
+                                      f"o revisa /shein/colores/{product_type_id}.")
+        # Se guarda como aprendido (el usuario ya lo confirmo o lo detecto el auto-match) para no volver a preguntar.
+        _guardar_color_sinonimo_aprendido(product_type_id, color, color_value_id)
 
         sku_list = []
         for v in vs:
@@ -887,6 +946,7 @@ def publicar_producto(body: dict):
             color = (v.get("color") or "Unico").strip()
             por_color.setdefault(color, []).append(v)
 
+        aprendidos = _load_color_sinonimos_aprendidos()
         colores_info = []
         for color, vs in por_color.items():
             fotos = []
@@ -897,7 +957,8 @@ def publicar_producto(body: dict):
                 {"talla": v.get("talla"), "sku": v.get("sku"), "stock": stock_map.get(v["id"], 0)}
                 for v in vs
             ]
-            colores_info.append({"color": color, "fotos": fotos_unicas, "tallas": tallas_info})
+            color_shein_id = _color_a_attribute_value_id(product_type_id, color, aprendidos)
+            colores_info.append({"color": color, "fotos": fotos_unicas, "tallas": tallas_info, "color_shein_id": color_shein_id})
 
         return {
             "producto":         producto.get("nombre"),
@@ -918,6 +979,7 @@ def publicar_producto(body: dict):
         "descripcion":     (body.get("descripcion") or "").strip() or None,
         "precio":          body.get("precio") or None,
         "fotos_excluidas": body.get("fotos_excluidas") or [],
+        "color_overrides": body.get("color_overrides") or {},
     }
     payload, advertencias = _build_spu_payload(producto, variantes, stock_map, category_id, product_type_id, overrides)
     resultado = shein_post("/open-api/goods/product/publishOrEdit", payload)
