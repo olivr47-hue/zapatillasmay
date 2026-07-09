@@ -669,7 +669,8 @@ _COLOR_SINONIMOS = {
     "plata": "Plateado", "plateado": "Plateado",
     "cafe": "Marrón", "café": "Marrón", "marron": "Marrón",
     "vino": "Burdeos", "guinda": "Burdeos",
-    "hueso": "Beis", "nude": "Beis",
+    "hueso": "Beis", "nude": "Beis", "capuchino": "Beis",
+    "mezclilla": "Azul Índigo", "denim": "Azul Índigo", "jean": "Azul Índigo",
 }
 
 
