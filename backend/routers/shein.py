@@ -46,6 +46,20 @@ REDIRECT_URI = f"{RAILWAY_URL}/shein/callback"
 
 _pkce_store: dict = {}  # state -> True (solo para validar que el callback corresponde a un /auth nuestro)
 
+# ─── Proxy de IP fija (Railway cambia de IP constantemente, SHEIN exige IP
+# fija en whitelist) -- VM propia (Google Cloud Free Tier) corriendo tinyproxy
+# con IP externa estatica reservada. Si SHEIN_PROXY_URL no esta configurada,
+# las llamadas salen directo (sin proxy) para no romper nada en dev/local.
+SHEIN_PROXY_URL = os.getenv("SHEIN_PROXY_URL", "")
+
+
+def _shein_opener() -> urllib.request.OpenerDirector:
+    if SHEIN_PROXY_URL:
+        return urllib.request.build_opener(urllib.request.ProxyHandler({
+            "http": SHEIN_PROXY_URL, "https": SHEIN_PROXY_URL,
+        }))
+    return urllib.request.build_opener()
+
 
 # ─── Almacén del openKeyId/secretKey (tabla configuracion, igual que TikTok) ──
 
@@ -134,7 +148,7 @@ def _shein_request(method: str, path: str, body: dict = None, usar_appid: bool =
     data = json.dumps(body or {}).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers=_headers(path, usar_appid), method=method)
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with _shein_opener().open(req, timeout=20) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
         raw = e.read()
@@ -154,7 +168,7 @@ def shein_get(path: str, params: dict = None) -> dict:
     # (verificacion de firma fallida) en cualquier GET con parametros.
     req = urllib.request.Request(url, headers=_headers(full_path), method="GET")
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with _shein_opener().open(req, timeout=20) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
         raw = e.read()
