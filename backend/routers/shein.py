@@ -374,10 +374,12 @@ def _default_warehouse_code() -> str:
 
 # ─── Imágenes: SHEIN exige alojarlas en su propio CDN (transform-pic) ───────
 
-def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> str:
+def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> tuple[str, str]:
     """
-    Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve la URL de SHEIN
-    o "" si fallaron todos los intentos.
+    Sube una imagen (URL de Cloudinary) al CDN de SHEIN. Devuelve (url_shein, error).
+    Si todo sale bien, error es "". Si fallan todos los intentos, url_shein es ""
+    y error trae el motivo real que dio SHEIN (para no adivinar "rate limit" cuando
+    en realidad es, por ejemplo, que la foto no cumple sus requisitos de contenido).
     image_type: 1=principal, 2=detalle, 5=cuadro, 6=color, 7=detalle largo.
     Ruta y campo de respuesta ("transformed") confirmados contra el sandbox real.
 
@@ -387,8 +389,12 @@ def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> st
     un modelo con 5 fotos x 3 colores dispara 21 llamadas seguidas y solo la
     primera pasaba, el resto se descartaba sin avisar (fotos faltantes en SHEIN,
     producto quedaba incompleto en borrador). Por eso reintenta con backoff y
-    espacia cada llamada exitosa.
+    espacia cada llamada exitosa -- PERO si SHEIN responde con un "code" de
+    rechazo explicito (ej. 1001001 "la foto no cumple los requisitos"), no tiene
+    caso reintentar la MISMA imagen: siempre va a fallar igual, asi que se corta
+    de inmediato y se reporta el motivo real.
     """
+    ultimo_error = "error desconocido"
     for intento in range(intentos):
         try:
             resp = shein_post("/open-api/goods/transform-pic", {"image_type": image_type, "original_url": url_imagen})
@@ -396,12 +402,21 @@ def _subir_imagen(url_imagen: str, image_type: int = 1, intentos: int = 4) -> st
             url = info.get("transformed") or info.get("url") or ""
             if url:
                 time.sleep(0.6)  # pacing: evita saturar el limite de velocidad en la siguiente llamada
-                return url
+                return url, ""
+            codigo = resp.get("code")
+            msg = resp.get("msg") or "sin detalle"
+            ultimo_error = f"{msg} (code={codigo})"
+            if codigo not in (None, "0", 0):
+                # Rechazo explicito de SHEIN (ej. la foto no cumple sus requisitos) --
+                # no es transitorio, reintentar con la misma imagen no cambia el resultado.
+                print(f"[SHEIN] transform-pic rechazado (type={image_type}): {ultimo_error}")
+                return "", ultimo_error
             print(f"[SHEIN] transform-pic sin url util (intento {intento + 1}/{intentos}, type={image_type}): {resp}")
         except HTTPException as e:
+            ultimo_error = f"HTTP {e.status_code}: {e.detail}"
             print(f"[SHEIN] transform-pic error (intento {intento + 1}/{intentos}, type={image_type}): {e.detail}")
         time.sleep(1.2 * (intento + 1))
-    return ""
+    return "", ultimo_error
 
 
 def _cloudinary_recorte_80x80(url_imagen: str) -> str:
@@ -804,30 +819,29 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         foto_principal = fotos_unicas[0] if fotos_unicas else None
         if foto_principal:
             for tipo in [1, 5]:
-                url_shein = _subir_imagen(foto_principal, image_type=tipo)
+                url_shein, error = _subir_imagen(foto_principal, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
                 else:
                     # type=1 y type=5 son obligatorios -- SHEIN rechaza el SKC completo sin ellos
                     # ("SKC debe tener solo una imagen cuadrada" es su mensaje tanto para 0 como para >1).
-                    # Mejor fallar aqui con un motivo claro que mandar un payload que se sabe invalido.
+                    # Mejor fallar aqui con el motivo REAL de SHEIN que mandar un payload que se sabe invalido.
                     raise HTTPException(502, f"No se pudo subir la foto principal de '{color}' a SHEIN "
-                                              f"(type={tipo}) despues de varios intentos -- probablemente "
-                                              f"limite de velocidad de su API. Intenta de nuevo en un minuto.")
+                                              f"(type={tipo}): {error}")
             if multi_skc:
                 # Recorte 80x80 via Cloudinary (no procesamiento local) + transform-pic normal
-                url_swatch = _subir_imagen(_cloudinary_recorte_80x80(foto_principal), image_type=6)
+                url_swatch, error = _subir_imagen(_cloudinary_recorte_80x80(foto_principal), image_type=6)
                 if url_swatch:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 6, "image_url": url_swatch})
                 else:
-                    advertencias.append(f"{color}: no se pudo subir la imagen de color (swatch 80x80)")
+                    advertencias.append(f"{color}: no se pudo subir la imagen de color (swatch 80x80) -- {error}")
         # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
         for i, url in enumerate(fotos_unicas[1:10], start=2):
-            url_shein = _subir_imagen(url, image_type=2)
+            url_shein, error = _subir_imagen(url, image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
             else:
-                advertencias.append(f"{color}: no se pudo subir la foto #{i} de {len(fotos_unicas)}")
+                advertencias.append(f"{color}: no se pudo subir la foto #{i} de {len(fotos_unicas)} -- {error}")
 
         color_value_id = color_overrides.get(color) or _color_a_attribute_value_id(product_type_id, color, aprendidos)
         if not color_value_id:
