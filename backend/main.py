@@ -46,6 +46,7 @@ ALLOWED_ORIGINS = [
     "https://zapatillasmay.mx",
     "https://www.zapatillasmay.mx",
     "https://zapatillasmay-panel.vercel.app",
+    "https://portal.zapatillasmay.mx",
 ]
 _EN_PROD = os.getenv("RAILWAY_ENVIRONMENT", "") != ""
 if not _EN_PROD or os.getenv("ALLOW_LOCALHOST_CORS") == "1":

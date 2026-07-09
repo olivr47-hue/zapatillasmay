@@ -1,4 +1,10 @@
 const API = '/api'
+// SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
+// tardar bastante -- el rewrite de Vercel (/api -> Railway) tiene su propio
+// limite de tiempo y corta la respuesta con un error de texto plano (no JSON)
+// antes de que Railway termine. Para esa llamada especifica se pega directo
+// a Railway (CORS ya permite portal.zapatillasmay.mx), evitando el proxy.
+const API_DIRECTO = 'https://zapatillasmay-production.up.railway.app'
 
 const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
@@ -18952,7 +18958,7 @@ async function _sheinConfirmarPublicar() {
   const descripcion = document.getElementById('shein-rev-desc').value.trim()
 
   try {
-    const r = await fetch(`${API}/shein/publicar`, {
+    const r = await fetch(`${API_DIRECTO}/shein/publicar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -18963,7 +18969,17 @@ async function _sheinConfirmarPublicar() {
         color_overrides: overrides
       })
     })
-    const d = await r.json()
+    const rawTxt = await r.text()
+    let d
+    try {
+      d = JSON.parse(rawTxt)
+    } catch (e) {
+      resBox.style.display = 'block'
+      resTitulo.textContent = '❌ Error'
+      resBody.textContent = `El servidor respondió algo que no es JSON (status ${r.status}). Puede que la publicación haya tardado demasiado o Railway esté caído. Revisa "Publicaciones" en unos minutos por si sí se creó.\n\n${rawTxt.slice(0, 500)}`
+      resBox.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
     resBox.style.display = 'block'
 
     if (!r.ok || d.detail) {
