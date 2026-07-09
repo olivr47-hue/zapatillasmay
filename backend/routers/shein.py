@@ -457,17 +457,32 @@ def _cloudinary_recorte_80x80(url_imagen: str) -> str:
     return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_80,h_80/", 1)
 
 
-def _cloudinary_ajustar_900x900(url_imagen: str) -> str:
-    """
-    Las fotos de detalle (type=2) SHEIN las espera en 900x900px (confirmado con
-    la guia oficial de imagenes de SHEIN, y con logs reales: una foto de
-    480x480 -- muy chica -- Y otras de 4000x4000 -- muy grandes -- fallaron
-    ambas con el mismo rechazo "no cumple los requisitos", code=1001002).
-    """
+# Requisitos OFICIALES confirmados directo del portal de SHEIN (texto exacto visto
+# en la pantalla de edicion de un producto real):
+#   "Imagenes de detalles hasta 11, proporcion entre 3:4 y 1:1, con un tamano de
+#    pixeles de 900px-2200px; la imagen cuadrada debe ser de 900px*900px a
+#    2200px*2200px; la imagen de bloques de color debe ser de 80px*80px."
+# La "imagen principal" (type=1) es en realidad el primer slot de la MISMA columna
+# "Imagenes de detalles" -- comparte el mismo requisito 900-2200px, no es un
+# requisito aparte (el numero 1340x1785 encontrado antes en una guia externa
+# NO aplicaba). Se usa c_fit (no recorta, solo ajusta tamano preservando
+# proporcion) para type=1/2, y c_fill (fuerza cuadrado) solo para type=5.
+
+def _cloudinary_ajustar_detalle(url_imagen: str) -> str:
+    """Imagen principal (type=1) y de detalle (type=2): ajusta a 1500px (dentro
+    del rango 900-2200px oficial) sin recortar, preservando la proporcion original."""
     marcador = "/image/upload/"
     if marcador not in url_imagen:
         return url_imagen
-    return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_900,h_900/", 1)
+    return url_imagen.replace(marcador, f"{marcador}c_fit,w_1500,h_1500/", 1)
+
+
+def _cloudinary_ajustar_cuadrada(url_imagen: str) -> str:
+    """Imagen cuadrada (type=5): SHEIN exige que sea cuadrada, 900x900 a 2200x2200px."""
+    marcador = "/image/upload/"
+    if marcador not in url_imagen:
+        return url_imagen
+    return url_imagen.replace(marcador, f"{marcador}c_fill,g_auto,w_1500,h_1500/", 1)
 
 
 @router.get("/mis-productos")
@@ -854,7 +869,11 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         foto_principal = fotos_unicas[0] if fotos_unicas else None
         if foto_principal:
             for tipo in [1, 5]:
-                url_shein, error = _subir_imagen(foto_principal, image_type=tipo)
+                # type=1 (principal): 900-2200px, respeta proporcion. type=5 (cuadrada):
+                # 900x900 a 2200x2200px, debe ser CUADRADA -- confirmado en el texto
+                # oficial del portal de SHEIN.
+                foto_ajustada = _cloudinary_ajustar_cuadrada(foto_principal) if tipo == 5 else _cloudinary_ajustar_detalle(foto_principal)
+                url_shein, error = _subir_imagen(foto_ajustada, image_type=tipo)
                 if url_shein:
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": tipo, "image_url": url_shein})
                 else:
@@ -870,9 +889,9 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                     image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 6, "image_url": url_swatch})
                 else:
                     advertencias.append(f"{color}: no se pudo subir la imagen de color (swatch 80x80) -- {error}")
-        # Fotos adicionales (distintas a la principal) como "detalle" (type=2)
+        # Fotos adicionales (distintas a la principal) como "detalle" (type=2): 900-2200px
         for i, url in enumerate(fotos_unicas[1:10], start=2):
-            url_shein, error = _subir_imagen(_cloudinary_ajustar_900x900(url), image_type=2)
+            url_shein, error = _subir_imagen(_cloudinary_ajustar_detalle(url), image_type=2)
             if url_shein:
                 image_info_list.append({"image_sort": len(image_info_list) + 1, "image_type": 2, "image_url": url_shein})
             else:
