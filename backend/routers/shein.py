@@ -638,30 +638,40 @@ def _hacer_sync():
 
         stock_erp = _stock_erp()
         warehouse_code = _default_warehouse_code()
-        sin_match, errores = [], []
+        sin_match, errores, actualizados = [], [], []
 
-        cambios = []
+        # change-inventory es UNA actualizacion por llamada (no batch): el
+        # cuerpo real es {"updateSkuInventoryQuantityRequests": {"skuCodeList":
+        # <sku_code>, "warehouseCodeList": <warehouse_code>, "saleInventory":
+        # <cantidad>}} -- confirmado contra el SDK oficial (Python). El campo
+        # "saleInventory" (cantidad absoluta a dejar) y "changeInventoryQuantity"
+        # (delta) son mutuamente excluyentes, se usa solo saleInventory.
+        # La estructura anterior ("skuStockList" como lista) no existe en la
+        # API real -- por eso SHEIN respondia "inventory data cannot be empty"
+        # (no encontraba el campo que realmente espera).
         for item in publicadas:
             sku_code = item["skuCode"]
             sku_norm = _norm_sku(item["supplierSku"])
             if sku_norm not in stock_erp:
                 sin_match.append({"skuCode": sku_code, "supplierSku": item["supplierSku"]})
                 continue
-            cambios.append({
-                "skuCode":        sku_code,
-                "inventoryNum":   stock_erp[sku_norm],
-                "warehouseCode":  warehouse_code,
-            })
-        actualizados = []
-
-        # SHEIN acepta un batch de cambios de inventario por request.
-        for i in range(0, len(cambios), 50):
-            lote = cambios[i:i + 50]
-            resp = shein_post("/open-api/gsp/goods/change-inventory", {"skuStockList": lote})
-            if resp.get("code") in (0, "0"):
-                actualizados.extend(lote)
-            else:
-                errores.append({"lote": lote, "error": resp})
+            cantidad = stock_erp[sku_norm]
+            payload = {
+                "updateSkuInventoryQuantityRequests": {
+                    "skuCodeList":       sku_code,
+                    "warehouseCodeList": warehouse_code,
+                    "saleInventory":     cantidad,
+                }
+            }
+            try:
+                resp = shein_post("/open-api/gsp/goods/change-inventory", payload)
+                if resp.get("code") in (0, "0"):
+                    actualizados.append({"skuCode": sku_code, "inventoryNum": cantidad})
+                else:
+                    errores.append({"skuCode": sku_code, "error": resp})
+            except HTTPException as e:
+                errores.append({"skuCode": sku_code, "error": e.detail})
+            time.sleep(0.4)  # pacing -- mismo motivo que en la subida de imagenes
 
         cache_set("shein_sync_log", {
             "ts":           time.time(),
