@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 email_utils.py
-Envío de emails vía SMTP (Zoho de dominio propio; también sirve con Gmail).
-Ya NO hay Resend -- se retiró por completo: los flujos que lo usaban directo
-(recuperar password, OTP del portal, carrito abandonado, etc.) no pasaban por
-aquí y por eso, aunque se configurara Zoho, esos correos seguían saliendo por
-Resend sin que se notara (no aparecían ni en Resend ni en el buzón de Zoho).
+Envío de emails vía ZeptoMail (API HTTP de Zoho para correo transaccional
+desde tu propio dominio). Ya NO hay Resend -- se retiró por completo: los
+flujos que lo usaban directo (recuperar password, OTP del portal, carrito
+abandonado, etc.) no pasaban por aquí y por eso, aunque se configurara Zoho,
+esos correos seguían saliendo por Resend sin que se notara.
 
-Variables de entorno para SMTP (se acepta más de un nombre por si Zoho quedó
-configurado con otra convención en Railway):
-  GMAIL_USER / SMTP_USER / ZOHO_USER             = contacto@zapatillasmay.mx
-  GMAIL_APP_PASSWORD / SMTP_PASSWORD / ZOHO_PASSWORD = contraseña de aplicación
-  SMTP_HOST          = smtp.zoho.com  (default: smtp.gmail.com si no se define)
-  SMTP_PORT          = 465            (default: 465)
+Tampoco se usa SMTP (Zoho/Gmail): Railway bloquea las conexiones SMTP
+salientes por completo (confirmado con un envío real: tanto el puerto 465
+como el 587 daban timeout aunque las credenciales fueran correctas) -- por
+eso el proyecto usaba Resend desde el inicio, y por eso ahora se usa
+ZeptoMail, que es HTTP (no SMTP) y sí atraviesa ese bloqueo.
+
+Variables de entorno:
+  ZEPTOMAIL_TOKEN = el "Send Mail Token" del Agent en zeptomail.zoho.com
+                     (pestaña API, dentro de SMTP/API del Mail Agent)
+  GMAIL_USER / SMTP_USER / ZOHO_USER / ZEPTOMAIL_FROM
+                  = correo remitente verificado en ZeptoMail, ej.
+                    contacto@zapatillasmay.mx (se reusa el mismo nombre de
+                    variable que ya se usaba para Zoho, por si ya está puesta)
 
 Cada intento de envío (exitoso o no) se guarda en la tabla `emails_enviados`
 para poder verlos desde el panel — antes no había forma de confirmar qué se
@@ -20,19 +27,19 @@ mandó ni por dónde.
 """
 
 import os
-import socket
-import smtplib
-import ssl
-from contextlib import contextmanager
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import json
+import urllib.request
+import urllib.error
 
-SMTP_USER      = os.getenv("GMAIL_USER") or os.getenv("SMTP_USER") or os.getenv("ZOHO_USER", "")
-SMTP_PASSWORD  = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("SMTP_PASSWORD") or os.getenv("ZOHO_PASSWORD", "")
-SMTP_HOST      = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT      = int(os.getenv("SMTP_PORT", "465"))
+ZEPTOMAIL_TOKEN = os.getenv("ZEPTOMAIL_TOKEN", "").strip()
+REMITENTE_EMAIL = (
+    os.getenv("GMAIL_USER") or os.getenv("SMTP_USER") or os.getenv("ZOHO_USER")
+    or os.getenv("ZEPTOMAIL_FROM") or ""
+).strip()
 NEGOCIO_EMAIL  = os.getenv("NOTIF_EMAIL", "contacto@zapatillasmay.mx")
 FROM_DISPLAY   = "Zapatillas May"
+
+_ZEPTOMAIL_URL = "https://api.zeptomail.com/v1.1/email"
 
 
 def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: str, bcc: str, tipo: str):
@@ -44,7 +51,7 @@ def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: 
             "html":         html,
             "exito":        exito,
             "error":        error,
-            "proveedor":    "smtp",
+            "proveedor":    "zeptomail",
             "tipo":         tipo or None,
             "bcc":          bcc,
         })
@@ -53,91 +60,63 @@ def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: 
 
 
 def diagnostico_smtp() -> dict:
-    """Estado de la config SMTP, sin exponer la contraseña."""
+    """Estado de la config de ZeptoMail, sin exponer el token."""
     return {
-        "configurado": bool(SMTP_USER and SMTP_PASSWORD),
-        "usuario": SMTP_USER or None,
-        "host": SMTP_HOST,
-        "port": SMTP_PORT,
+        "configurado": bool(ZEPTOMAIL_TOKEN and REMITENTE_EMAIL),
+        "usuario": REMITENTE_EMAIL or None,
+        "proveedor": "zeptomail",
     }
 
 
 def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = "") -> bool:
     """
-    Envía un email HTML por SMTP (Zoho/Gmail). Retorna True si tuvo éxito.
+    Envía un email HTML vía ZeptoMail. Retorna True si tuvo éxito.
     Registra el intento en `emails_enviados` sin importar el resultado.
     `tipo` es una etiqueta libre (ej. "recuperar_password", "carrito_abandonado")
     para poder filtrar el historial en el panel.
     """
-    if not (SMTP_USER and SMTP_PASSWORD):
-        print(f"[email] SMTP no configurado — no se envió a {to}")
-        _guardar_log(to, subject, html, False, "SMTP no configurado (faltan variables en Railway)", bcc, tipo)
+    if not (ZEPTOMAIL_TOKEN and REMITENTE_EMAIL):
+        print(f"[email] ZeptoMail no configurado — no se envió a {to}")
+        _guardar_log(to, subject, html, False, "ZeptoMail no configurado (falta ZEPTOMAIL_TOKEN o el remitente en Railway)", bcc, tipo)
         return False
 
     try:
-        _enviar_smtp(to, subject, html, bcc)
+        _enviar_zeptomail(to, subject, html, bcc)
         _guardar_log(to, subject, html, True, None, bcc, tipo)
         return True
     except Exception as e:
-        print(f"[email] SMTP falló: {e}")
+        print(f"[email] ZeptoMail falló: {e}")
         _guardar_log(to, subject, html, False, str(e), bcc, tipo)
         return False
 
 
-@contextmanager
-def _forzar_ipv4():
-    """Railway no tiene ruta de salida IPv6: si el DNS del host SMTP resuelve a
-    AAAA, smtplib intenta conectar por ahi y truena con "Network is
-    unreachable" antes de siquiera intentar el login. Se fuerza IPv4
-    temporalmente solo durante la conexion (el hostname real se sigue usando
-    para la verificacion del certificado TLS, eso no cambia)."""
-    orig = socket.getaddrinfo
-    def _solo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
-        return orig(host, port, socket.AF_INET, type, proto, flags)
-    socket.getaddrinfo = _solo_ipv4
-    try:
-        yield
-    finally:
-        socket.getaddrinfo = orig
-
-
-def _enviar_smtp(to: str, subject: str, html: str, bcc: str = None):
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"{FROM_DISPLAY} <{SMTP_USER}>"
-    msg["To"]      = to
+def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None):
+    body = {
+        "from": {"address": REMITENTE_EMAIL, "name": FROM_DISPLAY},
+        "to": [{"email_address": {"address": to}}],
+        "subject": subject,
+        "htmlbody": html,
+    }
     if bcc:
-        msg["Bcc"] = bcc
-    msg.attach(MIMEText(html, "html", "utf-8"))
-    recipients = [to] + ([bcc] if bcc else [])
+        body["bcc"] = [{"email_address": {"address": bcc}}]
 
-    # Puerto 465 (SSL implícito) primero -- si Railway lo bloquea (comun en
-    # hosting en la nube) se reintenta por 587 (STARTTLS), que casi siempre
-    # queda abierto porque es el puerto pensado para clientes autenticados.
-    errores = []
-    intentos = [(SMTP_PORT, "ssl")]
-    if SMTP_PORT != 587:
-        intentos.append((587, "starttls"))
-
-    for puerto, modo in intentos:
-        try:
-            with _forzar_ipv4():
-                if modo == "ssl":
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(SMTP_HOST, puerto, context=context, timeout=8) as server:
-                        server.login(SMTP_USER, SMTP_PASSWORD)
-                        server.sendmail(SMTP_USER, recipients, msg.as_string())
-                else:
-                    with smtplib.SMTP(SMTP_HOST, puerto, timeout=8) as server:
-                        server.starttls(context=ssl.create_default_context())
-                        server.login(SMTP_USER, SMTP_PASSWORD)
-                        server.sendmail(SMTP_USER, recipients, msg.as_string())
-            print(f"[email] SMTP ({SMTP_HOST}:{puerto} {modo}) → {to} ✓")
-            return
-        except Exception as e:
-            errores.append(f"{puerto}/{modo}: {e}")
-
-    raise Exception(" | ".join(errores))
+    req = urllib.request.Request(
+        _ZEPTOMAIL_URL,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Zoho-enczapikey {ZEPTOMAIL_TOKEN}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+        print(f"[email] ZeptoMail → {to} ✓")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace")
+        raise Exception(f"ZeptoMail HTTP {e.code}: {raw[:400]}")
 
 
 # ── Plantillas ────────────────────────────────────────────────────

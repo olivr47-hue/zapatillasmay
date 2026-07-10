@@ -19546,11 +19546,11 @@ window._correoRecargar = async () => {
   if (diagDiv) {
     diagDiv.innerHTML = diag.configurado
       ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:0.8rem 1rem;font-size:0.83rem;color:#166534;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-          <span>✅ SMTP configurado — enviando como <strong>${diag.usuario}</strong> (${diag.host}:${diag.port})</span>
+          <span>✅ ZeptoMail configurado — enviando como <strong>${diag.usuario}</strong></span>
           <button class="btn btn-secondary" onclick="window._correoEnviarPrueba()" style="font-size:0.78rem;padding:0.4rem 0.8rem">Enviar prueba</button>
         </div>`
       : `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:0.8rem 1rem;font-size:0.83rem;color:#991b1b">
-          ⚠️ SMTP sin configurar — faltan las variables de Zoho en Railway. Ningún correo se está enviando en este momento.
+          ⚠️ ZeptoMail sin configurar — falta <code>ZEPTOMAIL_TOKEN</code> o el remitente en Railway. Ningún correo se está enviando en este momento.
         </div>`
   }
 

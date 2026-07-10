@@ -2,7 +2,7 @@
 """
 routers/carrito_abandonado.py
 Carrito abandonado: captura el carrito en el checkout, y un proceso en segundo
-plano envía un recordatorio por email (SMTP, vía email_utils) si el cliente no
+plano envía un recordatorio por email (ZeptoMail, vía email_utils) si el cliente no
 completa la compra.
 
 Tabla requerida en Supabase:
@@ -115,7 +115,7 @@ def marcar_convertido(email: str):
 # ── 4. EMAIL DE RECORDATORIO ──────────────────────────────────────
 def _enviar_recordatorio(carrito: dict) -> bool:
     # Sanear: algunos clientes teclean el correo con espacios o un punto final
-    # (typo/autocorrección) y el SMTP rechaza el envío con ese formato.
+    # (typo/autocorrección) y ZeptoMail rechaza el envío con ese formato.
     email = (carrito["email"] or "").strip().rstrip(".")
     if "@" not in email:
         print(f"[carrito-abandonado] Email inválido, se omite recordatorio: {carrito.get('email')!r}")
@@ -237,7 +237,7 @@ def listar():
 # ── 7. PRUEBA: enviar un recordatorio de ejemplo ahora mismo ──────
 @router.post("/test")
 def test_envio(datos: dict):
-    """Envía un recordatorio de prueba al email indicado (o al del negocio) para verificar el SMTP."""
+    """Envía un recordatorio de prueba al email indicado (o al del negocio) para verificar ZeptoMail."""
     from email_utils import diagnostico_smtp
     email = (datos.get("email") or _NOTIF_EMAIL).strip().lower()
     carrito_demo = {

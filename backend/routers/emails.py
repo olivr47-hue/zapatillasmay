@@ -2,8 +2,8 @@
 """
 Router de correo corporativo.
 
-Todo el envío de emails del ERP pasa por email_utils.enviar_email() (SMTP vía
-Zoho/Gmail — ya no hay Resend). Ese mismo módulo guarda un registro de cada
+Todo el envío de emails del ERP pasa por email_utils.enviar_email() (ZeptoMail,
+API HTTP de Zoho — ya no hay Resend ni SMTP). Ese mismo módulo guarda un registro de cada
 intento en la tabla `emails_enviados`; este router solo expone esa tabla al
 panel para que se puedan ver los correos enviados (algo que antes no se podía
 verificar ni en el proveedor ni en el panel).
@@ -18,8 +18,8 @@ router = APIRouter(prefix="/emails", tags=["Correo corporativo"])
 
 @router.post("/prueba")
 def enviar_prueba(body: dict):
-    """Manda un correo de prueba desde el panel, para confirmar que el SMTP
-    (Zoho) de verdad está funcionando sin tener que esperar un flujo real."""
+    """Manda un correo de prueba desde el panel, para confirmar que ZeptoMail
+    de verdad está funcionando sin tener que esperar un flujo real."""
     destino = (body.get("destino") or "").strip()
     if not destino or "@" not in destino:
         return JSONResponse(status_code=400, content={"error": "Correo inválido"})
@@ -72,6 +72,6 @@ def detalle(email_id: str):
 
 @router.get("/diagnostico/estado")
 def diagnostico():
-    """Estado de la configuración SMTP (Zoho/Gmail) — para saber sin adivinar
+    """Estado de la configuración de ZeptoMail — para saber sin adivinar
     si el correo corporativo está listo o le faltan variables en Railway."""
     return diagnostico_smtp()
