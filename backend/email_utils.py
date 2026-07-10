@@ -20,6 +20,7 @@ mandó ni por dónde.
 """
 
 import os
+import socket
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -93,10 +94,22 @@ def _enviar_smtp(to: str, subject: str, html: str, bcc: str = None):
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=8) as server:
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        recipients = [to] + ([bcc] if bcc else [])
-        server.sendmail(SMTP_USER, recipients, msg.as_string())
+    # Railway no tiene ruta de salida IPv6: si el DNS del host SMTP resuelve a
+    # AAAA, smtplib intenta conectar por ahi y truena con "Network is
+    # unreachable" antes de siquiera intentar el login. Se fuerza IPv4
+    # temporalmente solo durante esta conexion (el hostname real se sigue
+    # usando para la verificacion del certificado TLS, eso no cambia).
+    _orig_getaddrinfo = socket.getaddrinfo
+    def _solo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+        return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+    socket.getaddrinfo = _solo_ipv4
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=8) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            recipients = [to] + ([bcc] if bcc else [])
+            server.sendmail(SMTP_USER, recipients, msg.as_string())
+    finally:
+        socket.getaddrinfo = _orig_getaddrinfo
 
     print(f"[email] SMTP ({SMTP_HOST}) → {to} ✓")
 
