@@ -1029,13 +1029,17 @@ def _talla_a_attribute_value_id(product_type_id: int, talla: str) -> int | None:
 # ANTES de la coincidencia parcial generica para evitar falsos positivos
 # (ej. "Oro" -> "Oro rosa" por coincidencia de substring, un color distinto).
 _COLOR_SINONIMOS = {
-    "oro": "Dorado", "dorado": "Dorado",
+    "oro": "Dorado", "dorado": "Dorado", "oro metalico": "Dorado",
     "plata": "Plateado", "plateado": "Plateado",
     "cafe": "Marrón", "café": "Marrón", "marron": "Marrón", "moka": "Marrón",
-    "vino": "Burdeos", "guinda": "Burdeos",
+    "madera": "Marrón", "cafe charol": "Marrón", "cafe serpiente": "Marrón",
+    "vino": "Burdeos", "guinda": "Burdeos", "vino charol": "Burdeos",
     "hueso": "Beis", "nude": "Beis", "capuchino": "Beis",
     "latte": "Beis", "miga": "Beis", "beige": "Beis",
-    "tang": "Camel",
+    "tang": "Camel", "tan": "Camel", "cognac": "Camel", "cogñac": "Camel",
+    "maquillaje": "Caqui", "natural": "Caqui",
+    "inox": "Gris",
+    "azul marino": "Azul Marino", "aul marino": "Azul Marino",
     "mezclilla": "Azul Índigo", "denim": "Azul Índigo", "jean": "Azul Índigo",
 }
 
