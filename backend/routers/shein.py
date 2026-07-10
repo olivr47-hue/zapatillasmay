@@ -663,7 +663,15 @@ def _hacer_escaneo_skus_shein():
 def _productos_sin_publicar_shein() -> list:
     """Productos activos del ERP cuyo SKU no aparece en ningun supplierSku ya
     publicado en SHEIN todavia (mismo criterio que _productos_sin_publicar en
-    mercadolibre.py: el sku_interno es el SKU completo menos color y talla)."""
+    mercadolibre.py: el sku_interno es el SKU completo menos color y talla).
+
+    OJO: la API de SHEIN solo permite ver productos ya APROBADOS (nada
+    "pendiente de revision" -- confirmado con SHEIN, no es un bug nuestro).
+    Por eso, ademas del escaneo de SKUs aprobados, se excluye tambien
+    cualquier producto con un registro exitoso en `shein_publicaciones`
+    (nuestro propio historial local) -- si no, cada corrida de "publicar
+    catalogo completo" volveria a mandar duplicados de todo lo que sigue
+    en cola de revision desde la corrida anterior."""
     productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo,precio_mayoreo6")
     publicados_norm = set()
     for item in _skus_shein_cached():
@@ -672,12 +680,18 @@ def _productos_sin_publicar_shein() -> list:
         if len(partes) >= 3:
             publicados_norm.add("-".join(partes[:-2]))
 
+    ya_enviados_ids = {
+        r["producto_id"] for r in supabase_get_all("shein_publicaciones?exito=eq.true&select=producto_id")
+    }
+
     sin_publicar = []
     for p in productos:
         sku_interno = (p.get("sku_interno") or "").strip()
         if not sku_interno:
             continue
         if _norm_sku(sku_interno) in publicados_norm:
+            continue
+        if p["id"] in ya_enviados_ids:
             continue
         sin_publicar.append(p)
     return sin_publicar
@@ -772,6 +786,7 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict 
                 "solo_preview": False,
                 "precio":       over.get("precio") or None,
                 "nombre":       over.get("titulo") or None,
+                "_origen":      "masiva",
             })
             ok = res.get("info", {}).get("success") is True
             if ok:
@@ -1336,4 +1351,23 @@ def publicar_producto(body: dict):
     resultado = shein_post("/open-api/goods/product/publishOrEdit", payload)
     if advertencias:
         resultado["_advertencias_fotos"] = advertencias
+
+    # Registro PERSISTENTE de que este producto ya se mando a SHEIN. Es indispensable
+    # porque la API de SHEIN no expone ningun endpoint para consultar productos
+    # "pendientes de revision" (solo aprobados) -- sin este registro propio no hay
+    # forma de saber, tras un reinicio o dias despues, que un producto ya se publico
+    # y evitar volver a mandarlo duplicado mientras sigue en cola de revision.
+    try:
+        exito = resultado.get("info", {}).get("success") is True
+        supabase_post("shein_publicaciones", {
+            "producto_id": producto_id,
+            "sku_interno": producto.get("sku_interno"),
+            "exito": exito,
+            "error": None if exito else json.dumps(resultado)[:2000],
+            "spu_name": (payload.get("spu_name") or None),
+            "origen": body.get("_origen") or "individual",
+        })
+    except Exception as e:
+        print(f"[shein] No se pudo guardar registro de publicacion (no critico): {e}")
+
     return resultado
