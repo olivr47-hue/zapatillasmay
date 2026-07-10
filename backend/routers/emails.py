@@ -12,6 +12,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all
 from email_utils import diagnostico_smtp, enviar_email
+import zoho_mail
 
 router = APIRouter(prefix="/emails", tags=["Correo corporativo"])
 
@@ -75,3 +76,35 @@ def diagnostico():
     """Estado de la configuración de ZeptoMail — para saber sin adivinar
     si el correo corporativo está listo o le faltan variables en Railway."""
     return diagnostico_smtp()
+
+
+# ─── Buzón real (Zoho Mail API) — recibidos y enviados ────────────────────
+
+@router.get("/buzon/diagnostico")
+def buzon_diagnostico():
+    return zoho_mail.diagnostico()
+
+
+@router.get("/buzon/inbox")
+def buzon_inbox(limit: int = 30, start: int = 1):
+    try:
+        return {"mensajes": zoho_mail.listar_mensajes("Inbox", limit, start)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/buzon/enviados")
+def buzon_enviados(limit: int = 30, start: int = 1):
+    try:
+        return {"mensajes": zoho_mail.listar_mensajes("Sent", limit, start)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/buzon/mensaje/{folder_id}/{message_id}")
+def buzon_mensaje(folder_id: str, message_id: str):
+    try:
+        html = zoho_mail.obtener_contenido(message_id, folder_id)
+        return {"html": html}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

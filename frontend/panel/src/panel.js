@@ -19507,6 +19507,8 @@ async function _pushRenderHistorialTab() {
 
 // ─── CORREO CORPORATIVO ───────────────────────────────────────────────────────
 
+window._correoTab = 'inbox'
+
 async function cargarCorreoCorporativo() {
   const content = document.getElementById('content')
   content.innerHTML = `
@@ -19518,8 +19520,33 @@ async function cargarCorreoCorporativo() {
         <h2 style="margin:0;font-size:1.25rem">Correo corporativo</h2>
       </div>
       <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
-        Todo lo que manda el ERP por correo (recuperar contraseña, pedidos, carritos abandonados, portal, etc.).
+        contacto@zapatillasmay.mx — bandeja real y registro de correos del sistema.
       </p>
+      <div style="display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:1px solid #eee">
+        <button class="correo-tab-btn" data-tab="inbox" onclick="window._correoCambiarTab('inbox')"
+          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📥 Bandeja de entrada</button>
+        <button class="correo-tab-btn" data-tab="enviados-zoho" onclick="window._correoCambiarTab('enviados-zoho')"
+          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📤 Enviados</button>
+        <button class="correo-tab-btn" data-tab="sistema" onclick="window._correoCambiarTab('sistema')"
+          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">⚙️ Registro del sistema</button>
+      </div>
+      <div id="correo-panel-contenido"></div>
+    </div>
+  `
+  await window._correoCambiarTab('inbox')
+}
+
+window._correoCambiarTab = async (tab) => {
+  window._correoTab = tab
+  document.querySelectorAll('.correo-tab-btn').forEach(b => {
+    const activo = b.dataset.tab === tab
+    b.style.color = activo ? '#0d9488' : '#888'
+    b.style.borderBottomColor = activo ? '#0d9488' : 'transparent'
+  })
+  const cont = document.getElementById('correo-panel-contenido')
+  if (!cont) return
+  if (tab === 'sistema') {
+    cont.innerHTML = `
       <div id="correo-diagnostico" style="margin-bottom:1rem"></div>
       <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
         <input id="correo-buscar" placeholder="Buscar por destinatario o asunto..." oninput="window._correoFiltrar()" autocomplete="off"
@@ -19529,10 +19556,95 @@ async function cargarCorreoCorporativo() {
         </select>
         <button class="btn btn-secondary" onclick="window._correoRecargar()">↻ Actualizar</button>
       </div>
-      <div id="correo-tabla" style="background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)"></div>
-    </div>
-  `
-  await window._correoRecargar()
+      <div id="correo-tabla" style="background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)"></div>`
+    await window._correoRecargar()
+  } else {
+    cont.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:0.75rem">
+        <button class="btn btn-secondary" onclick="window._buzonCargar('${tab}')">↻ Actualizar</button>
+      </div>
+      <div id="buzon-lista" style="background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        <p style="padding:2rem;text-align:center;color:#aaa;font-size:0.85rem">Cargando...</p>
+      </div>`
+    await window._buzonCargar(tab)
+  }
+}
+
+window._buzonCargar = async (tab) => {
+  const lista = document.getElementById('buzon-lista')
+  if (!lista) return
+  const endpoint = tab === 'inbox' ? 'inbox' : 'enviados'
+  let data = null
+  try {
+    const res = await fetch(`${API}/emails/buzon/${endpoint}?limit=50`)
+    data = await res.json()
+  } catch (e) {}
+
+  if (!data || data.error) {
+    lista.innerHTML = `<div style="padding:1.5rem;text-align:center;color:#991b1b;font-size:0.85rem">
+      ⚠️ ${data && data.error ? data.error : 'No se pudo conectar con Zoho Mail'}
+      <br><span style="color:#aaa;font-size:0.78rem">Revisa que ZOHO_MAIL_CLIENT_ID / SECRET / REFRESH_TOKEN estén en Railway.</span>
+    </div>`
+    return
+  }
+  const mensajes = data.mensajes || []
+  if (!mensajes.length) {
+    lista.innerHTML = '<p style="padding:2rem;text-align:center;color:#aaa;font-size:0.85rem">Sin mensajes.</p>'
+    return
+  }
+  lista.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+      <thead>
+        <tr style="background:#fafafa;border-bottom:1px solid #eee">
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">${tab === 'inbox' ? 'De' : 'Para'}</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Asunto</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Resumen</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${mensajes.map(m => `
+          <tr onclick="window._buzonVerDetalle('${m.folderId}','${m.messageId}',${JSON.stringify(m.asunto).replace(/"/g,'&quot;')},${JSON.stringify(tab === 'inbox' ? m.de : m.para).replace(/"/g,'&quot;')})"
+              style="border-bottom:1px solid #f5f5f5;cursor:pointer;${m.leido ? '' : 'font-weight:700'}" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <td style="padding:10px 14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tab === 'inbox' ? (m.de || '—') : (m.para || '—')}</td>
+            <td style="padding:10px 14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.asunto}${m.tiene_adjunto ? ' 📎' : ''}</td>
+            <td style="padding:10px 14px;color:#888;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.resumen || ''}</td>
+            <td style="padding:10px 14px;color:#888;white-space:nowrap">${m.fecha_ms ? new Date(m.fecha_ms).toLocaleString('es-MX') : '—'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`
+}
+
+window._buzonVerDetalle = async (folderId, messageId, asunto, contacto) => {
+  const anterior = document.getElementById('modal-buzon-detalle')
+  if (anterior) anterior.remove()
+  const ov = document.createElement('div')
+  ov.id = 'modal-buzon-detalle'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px'
+  ov.onclick = (ev) => { if (ev.target === ov) ov.remove() }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
+        <div style="min-width:0">
+          <p style="margin:0;font-weight:700;font-size:0.95rem">${asunto || '—'}</p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">${contacto || ''}</p>
+        </div>
+        <button onclick="document.getElementById('modal-buzon-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
+      </div>
+      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden">
+        <iframe id="buzon-iframe-${messageId}" style="width:100%;height:420px;border:none"></iframe>
+      </div>
+    </div>`
+  document.body.appendChild(ov)
+  try {
+    const res = await fetch(`${API}/emails/buzon/mensaje/${folderId}/${messageId}`)
+    const data = await res.json()
+    const iframe = document.getElementById(`buzon-iframe-${messageId}`)
+    if (iframe) iframe.srcdoc = data.html || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
+  } catch (e) {
+    const iframe = document.getElementById(`buzon-iframe-${messageId}`)
+    if (iframe) iframe.srcdoc = '<p style="font-family:sans-serif;color:#888;padding:1rem">Error de conexión.</p>'
+  }
 }
 
 window._correoRecargar = async () => {
