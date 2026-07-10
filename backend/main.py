@@ -12,6 +12,7 @@ from routers import tiktok
 from routers import catalogos
 from routers import mercadolibre
 from routers import shein
+from routers import walmart
 from routers import analytics
 from routers import searchconsole
 from routers import merchant
@@ -106,6 +107,7 @@ app.include_router(tiktok.router)
 app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)
 app.include_router(shein.router)
+app.include_router(walmart.router)
 app.include_router(analytics.router)
 app.include_router(searchconsole.router)
 app.include_router(merchant.router)
