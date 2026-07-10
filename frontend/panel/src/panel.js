@@ -18633,6 +18633,15 @@ window._sheinCargarResumenCatalogo = async () => {
   try {
     const res = await fetch(`${API_DIRECTO}/shein/catalogo-sin-publicar`)
     const d = await res.json()
+    if (d.escaneando) {
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#eff6ff;border-radius:10px;color:#1e40af;font-size:0.86rem">
+          <span style="width:14px;height:14px;border:2px solid #bfdbfe;border-top-color:#1e40af;border-radius:50%;display:inline-block;flex-shrink:0;animation:mlspin 0.8s linear infinite"></span>
+          Actualizando catálogo de SHEIN (primera vez puede tardar varios minutos). Puedes seguir usando el panel mientras tanto; esto se actualiza solo.
+        </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
+      setTimeout(() => { if (document.getElementById('shein-catalogo-resumen')) window._sheinCargarResumenCatalogo() }, 10000)
+      return
+    }
     if (!d.total) {
       box.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">

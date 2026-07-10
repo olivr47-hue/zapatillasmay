@@ -646,6 +646,18 @@ def _skus_shein_cached() -> list:
     return resultado
 
 
+def _hacer_escaneo_skus_shein():
+    """Corre _skus_shein() (varios minutos) en background: GET /catalogo-sin-publicar
+    no puede esperarlo directamente porque excede el limite de gateway de Railway (5 min,
+    confirmado con un 502 real). Se marca "escaneando" mientras corre para no lanzar
+    el mismo escaneo dos veces si el panel pregunta de nuevo antes de que termine."""
+    try:
+        resultado = _skus_shein()
+        cache_set("shein_skus_publicados", resultado, ttl=1200)
+    finally:
+        cache_set("shein_skus_escaneando", None, ttl=1)
+
+
 # ─── Publicación masiva (mismo patron que /ml/publicar-catalogo) ───────────
 
 def _productos_sin_publicar_shein() -> list:
@@ -672,10 +684,20 @@ def _productos_sin_publicar_shein() -> list:
 
 
 @router.get("/catalogo-sin-publicar")
-def catalogo_sin_publicar_shein():
+def catalogo_sin_publicar_shein(background_tasks: BackgroundTasks):
     """Lista de productos del ERP sin publicar en SHEIN, con el conteo de fotos
     por color (SHEIN exige al menos foto principal+cuadrada, usamos 1 como
-    minimo de referencia -- a diferencia de ML no requerimos 3)."""
+    minimo de referencia -- a diferencia de ML no requerimos 3).
+    Si la cache de SKUs publicados esta fria (recien desplegado o expiro el TTL),
+    dispara el escaneo en background y responde de inmediato con "escaneando":true
+    en vez de bloquear la request -- el escaneo completo puede tardar varios
+    minutos y Railway corta las requests a los 5 min."""
+    if cache_get("shein_skus_publicados") is None:
+        if not cache_get("shein_skus_escaneando"):
+            cache_set("shein_skus_escaneando", True, ttl=600)
+            background_tasks.add_task(_hacer_escaneo_skus_shein)
+        return {"escaneando": True, "total": 0, "listos": 0, "productos": []}
+
     productos = _productos_sin_publicar_shein()
     if not productos:
         return {"total": 0, "productos": []}
