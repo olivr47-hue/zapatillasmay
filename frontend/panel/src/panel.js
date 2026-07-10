@@ -17630,6 +17630,8 @@ window._mlCargarResumenCatalogo = async () => {
     window._mlCatalogoPendiente = d.productos
     // Por default solo se marcan los que ya tienen 3+ fotos (listos para ML).
     window._mlCatalogoSeleccion = new Set(d.productos.filter(p => p.listo).map(p => p.id))
+    window._mlCatalogoOverrides = {}
+    d.productos.forEach(p => { window._mlCatalogoOverrides[p.id] = { precio: p.precio_sugerido, titulo: p.nombre } })
     const fotoBadge = (p) => {
       const color = p.listo ? '#166534' : '#b45309'
       const bg = p.listo ? '#f0fdf4' : '#fffbeb'
@@ -17638,17 +17640,8 @@ window._mlCargarResumenCatalogo = async () => {
     }
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
-        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen 3+ fotos y están marcados por default. Desmarca/marca lo que quieras cambiar.</p>
+        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen 3+ fotos y están marcados por default. Ajusta precio/título de cada uno (recuerda sumar flete/comisión de ML) y desmarca/marca lo que quieras cambiar.</p>
         ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0.75rem 0.9rem;background:#f8f8f8;border-radius:10px;margin-bottom:0.75rem">
-        <span style="font-size:0.8rem;color:#555;font-weight:600">Ajuste de precio (flete/comisión de ML):</span>
-        <select id="ml-ajuste-tipo" style="padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem" onchange="document.getElementById('ml-ajuste-valor').style.display=this.value?'inline-block':'none'">
-          <option value="">Ninguno (precio del panel tal cual)</option>
-          <option value="fijo">Sumar monto fijo ($)</option>
-          <option value="porcentaje">Aumentar porcentaje (%)</option>
-        </select>
-        <input id="ml-ajuste-valor" type="number" step="0.01" min="0" placeholder="Ej. 150" style="display:none;width:100px;padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(true)">Seleccionar todos</label>
@@ -17656,15 +17649,19 @@ window._mlCargarResumenCatalogo = async () => {
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelSoloListos()">Solo con 3+ fotos</label>
         <span id="ml-catalogo-contador" style="color:#888;margin-left:auto">${window._mlCatalogoSeleccion.size} de ${d.total} seleccionados</span>
       </div>
-      <div style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+      <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
-          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;cursor:pointer">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-ml-catprod="${p.id}" onchange="window._mlToggleCatProd('${p.id}',this.checked)"
                    style="width:15px;height:15px;cursor:pointer;accent-color:#3483fa;flex-shrink:0">
-            <span style="flex:1">${p.nombre}</span>
+            <input type="text" value="${(p.nombre || '').replace(/"/g, '&quot;')}" data-ml-titulo="${p.id}" oninput="window._mlCatalogoOverrides['${p.id}'].titulo=this.value"
+                   style="flex:1;min-width:140px;padding:5px 7px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
+            <span style="color:#888">$</span>
+            <input type="number" step="0.01" min="0" value="${p.precio_sugerido || 0}" data-ml-precio="${p.id}" oninput="window._mlCatalogoOverrides['${p.id}'].precio=parseFloat(this.value)||0"
+                   style="width:90px;padding:5px 7px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
             ${fotoBadge(p)}
             <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
-          </label>`).join('')}
+          </div>`).join('')}
       </div>
       <div id="ml-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
     `
@@ -17703,20 +17700,12 @@ window._mlSelSoloListos = () => {
 window._mlAbrirConfirmMasivo = () => {
   const total = (window._mlCatalogoSeleccion || new Set()).size
   if (!total) { alert('No seleccionaste ningún modelo para publicar.'); return }
-  const ajusteTipo  = document.getElementById('ml-ajuste-tipo')?.value || ''
-  const ajusteValor = parseFloat(document.getElementById('ml-ajuste-valor')?.value || '')
-  let lineaAjuste = 'Sin ajuste de precio (se manda el precio del panel tal cual).'
-  if (ajusteTipo && ajusteValor > 0) {
-    lineaAjuste = ajusteTipo === 'fijo'
-      ? `Se sumará $${ajusteValor} al precio de cada producto.`
-      : `Se aumentará ${ajusteValor}% al precio de cada producto.`
-  }
-  const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión).\n${lineaAjuste}\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
+  const msg = `Vas a publicar ${total} modelo(s) nuevos en MercadoLibre como "Oro Especial" (12% de comisión), con el precio y título que capturaste en cada fila.\n\nSe hace en segundo plano y puede tardar varios minutos (uno por modelo). Puedes revisar el progreso en esta misma pantalla.\n\n¿Confirmar?`
   if (!confirm(msg)) return
-  window._mlEjecutarPublicacionMasiva(ajusteTipo, ajusteValor)
+  window._mlEjecutarPublicacionMasiva()
 }
 
-window._mlEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
+window._mlEjecutarPublicacionMasiva = async () => {
   const btn = document.getElementById('ml-btn-catalogo-masivo')
   const label = document.getElementById('ml-btn-catalogo-masivo-label')
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6' }
@@ -17726,14 +17715,15 @@ window._mlEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
   log.innerHTML = '<p style="margin:0;color:#888">Iniciando...</p>'
   try {
     const producto_ids = Array.from(window._mlCatalogoSeleccion || [])
+    const producto_overrides = {}
+    producto_ids.forEach(id => {
+      const over = (window._mlCatalogoOverrides || {})[id]
+      if (over) producto_overrides[id] = { precio: over.precio || null, titulo: (over.titulo || '').trim() || null }
+    })
     await fetch(`${API}/ml/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        listing_type: 'gold_special', producto_ids,
-        precio_ajuste_tipo: ajusteTipo || null,
-        precio_ajuste_valor: (ajusteValor > 0) ? ajusteValor : null,
-      })
+      body: JSON.stringify({ listing_type: 'gold_special', producto_ids, producto_overrides })
     })
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_mlBtn('refresh', 'Actualizar progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}`
@@ -18641,7 +18631,7 @@ window._sheinCargarResumenCatalogo = async () => {
   const box = document.getElementById('shein-catalogo-resumen')
   if (!box) return
   try {
-    const res = await fetch(`${API}/shein/catalogo-sin-publicar`)
+    const res = await fetch(`${API_DIRECTO}/shein/catalogo-sin-publicar`)
     const d = await res.json()
     if (!d.total) {
       box.innerHTML = `
@@ -18653,6 +18643,8 @@ window._sheinCargarResumenCatalogo = async () => {
     }
     window._sheinCatalogoPendiente = d.productos
     window._sheinCatalogoSeleccion = new Set(d.productos.filter(p => p.listo).map(p => p.id))
+    window._sheinCatalogoOverrides = {}
+    d.productos.forEach(p => { window._sheinCatalogoOverrides[p.id] = { precio: p.precio_sugerido, titulo: p.nombre } })
     const fotoBadge = (p) => {
       const color = p.listo ? '#166534' : '#b45309'
       const bg = p.listo ? '#f0fdf4' : '#fffbeb'
@@ -18661,17 +18653,8 @@ window._sheinCargarResumenCatalogo = async () => {
     }
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fdf2f4;border-radius:10px;margin-bottom:0.75rem">
-        <p style="margin:0;font-size:0.88rem;color:#9d174d"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen foto y están marcados por default.</p>
+        <p style="margin:0;font-size:0.88rem;color:#9d174d"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen foto y están marcados por default. Ajusta precio/título de cada uno y desmarca/marca lo que quieras cambiar.</p>
         ${_sheinBtn('cart', `Publicar seleccionados`, 'window._sheinAbrirConfirmMasivo()', 'primary', 'shein-btn-catalogo-masivo')}
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0.75rem 0.9rem;background:#f8f8f8;border-radius:10px;margin-bottom:0.75rem">
-        <span style="font-size:0.8rem;color:#555;font-weight:600">Ajuste de precio (opcional):</span>
-        <select id="shein-ajuste-tipo" style="padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem" onchange="document.getElementById('shein-ajuste-valor').style.display=this.value?'inline-block':'none'">
-          <option value="">Ninguno (precio calculado normal)</option>
-          <option value="fijo">Sumar monto fijo ($)</option>
-          <option value="porcentaje">Aumentar porcentaje (%)</option>
-        </select>
-        <input id="shein-ajuste-valor" type="number" step="0.01" min="0" placeholder="Ej. 20" style="display:none;width:100px;padding:0.35rem 0.5rem;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelTodosCatalogo(true)">Seleccionar todos</label>
@@ -18679,15 +18662,19 @@ window._sheinCargarResumenCatalogo = async () => {
         <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelSoloListos()">Solo con foto</label>
         <span id="shein-catalogo-contador" style="color:#888;margin-left:auto">${window._sheinCatalogoSeleccion.size} de ${d.total} seleccionados</span>
       </div>
-      <div style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+      <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
-          <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;cursor:pointer">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-shein-catprod="${p.id}" onchange="window._sheinToggleCatProd('${p.id}',this.checked)"
                    style="width:15px;height:15px;cursor:pointer;accent-color:${_SHEIN_ACCENT};flex-shrink:0">
-            <span style="flex:1">${p.nombre}</span>
+            <input type="text" value="${(p.nombre || '').replace(/"/g, '&quot;')}" data-shein-titulo="${p.id}" oninput="window._sheinCatalogoOverrides['${p.id}'].titulo=this.value"
+                   style="flex:1;min-width:140px;padding:5px 7px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
+            <span style="color:#888">$</span>
+            <input type="number" step="0.01" min="0" value="${p.precio_sugerido || 0}" data-shein-precio="${p.id}" oninput="window._sheinCatalogoOverrides['${p.id}'].precio=parseFloat(this.value)||0"
+                   style="width:90px;padding:5px 7px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
             ${fotoBadge(p)}
             <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
-          </label>`).join('')}
+          </div>`).join('')}
       </div>
       <div id="shein-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
     `
@@ -18726,20 +18713,12 @@ window._sheinSelSoloListos = () => {
 window._sheinAbrirConfirmMasivo = () => {
   const total = (window._sheinCatalogoSeleccion || new Set()).size
   if (!total) { alert('No seleccionaste ningún modelo para publicar.'); return }
-  const ajusteTipo  = document.getElementById('shein-ajuste-tipo')?.value || ''
-  const ajusteValor = parseFloat(document.getElementById('shein-ajuste-valor')?.value || '')
-  let lineaAjuste = 'Sin ajuste de precio (se manda el cálculo normal: mayoreo x6 o menudeo − $70).'
-  if (ajusteTipo && ajusteValor > 0) {
-    lineaAjuste = ajusteTipo === 'fijo'
-      ? `Se sumará $${ajusteValor} al precio de cada producto.`
-      : `Se aumentará ${ajusteValor}% al precio de cada producto.`
-  }
-  const msg = `Vas a publicar ${total} modelo(s) nuevos en SHEIN.\n${lineaAjuste}\n\nColores nunca antes vistos pueden fallar (necesitan el editor de color manual) -- se reportarán como error sin detener el resto. Se hace en segundo plano y puede tardar varios minutos (cada modelo sube varias fotos). ¿Confirmar?`
+  const msg = `Vas a publicar ${total} modelo(s) nuevos en SHEIN, con el precio y título que capturaste en cada fila.\n\nColores nunca antes vistos pueden fallar (necesitan el editor de color manual) -- se reportarán como error sin detener el resto. Se hace en segundo plano y puede tardar varios minutos (cada modelo sube varias fotos). ¿Confirmar?`
   if (!confirm(msg)) return
-  window._sheinEjecutarPublicacionMasiva(ajusteTipo, ajusteValor)
+  window._sheinEjecutarPublicacionMasiva()
 }
 
-window._sheinEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
+window._sheinEjecutarPublicacionMasiva = async () => {
   const btn = document.getElementById('shein-btn-catalogo-masivo')
   const label = document.getElementById('shein-btn-catalogo-masivo-label')
   if (btn) { btn.disabled = true; btn.style.opacity = '0.6' }
@@ -18749,14 +18728,15 @@ window._sheinEjecutarPublicacionMasiva = async (ajusteTipo, ajusteValor) => {
   log.innerHTML = '<p style="margin:0;color:#888">Iniciando...</p>'
   try {
     const producto_ids = Array.from(window._sheinCatalogoSeleccion || [])
+    const producto_overrides = {}
+    producto_ids.forEach(id => {
+      const over = (window._sheinCatalogoOverrides || {})[id]
+      if (over) producto_overrides[id] = { precio: over.precio || null, titulo: (over.titulo || '').trim() || null }
+    })
     await fetch(`${API_DIRECTO}/shein/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        producto_ids,
-        precio_ajuste_tipo: ajusteTipo || null,
-        precio_ajuste_valor: (ajusteValor > 0) ? ajusteValor : null,
-      })
+      body: JSON.stringify({ producto_ids, producto_overrides })
     })
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_sheinBtn('refresh', 'Actualizar progreso', 'window._sheinVerLogCatalogoMasivo()', 'secondary')}`

@@ -652,7 +652,7 @@ def _productos_sin_publicar_shein() -> list:
     """Productos activos del ERP cuyo SKU no aparece en ningun supplierSku ya
     publicado en SHEIN todavia (mismo criterio que _productos_sin_publicar en
     mercadolibre.py: el sku_interno es el SKU completo menos color y talla)."""
-    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria")
+    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo,precio_mayoreo6")
     publicados_norm = set()
     for item in _skus_shein_cached():
         sku = _norm_sku(item.get("supplierSku") or "")
@@ -703,10 +703,14 @@ def catalogo_sin_publicar_shein():
     for p in productos:
         conteos = conteos_por_producto.get(p["id"], [0])
         min_fotos = min(conteos) if conteos else 0
+        precio_menudeo = float(p.get("precio_menudeo") or 0)
+        precio_mayoreo6 = p.get("precio_mayoreo6")
+        precio_sugerido = float(precio_mayoreo6) if precio_mayoreo6 else round(precio_menudeo - 70, 2)
         resultado.append({
             "id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
             "categoria": p.get("categoria"), "num_colores": len(conteos),
             "num_fotos": min_fotos, "listo": min_fotos >= 1,
+            "precio_sugerido": precio_sugerido,
         })
     resultado.sort(key=lambda p: (not p["listo"], -p["num_fotos"]))
 
@@ -717,7 +721,10 @@ def catalogo_sin_publicar_shein():
     }
 
 
-def _hacer_publicar_catalogo_shein(producto_ids: list, ajuste_tipo: str = None, ajuste_valor: float = None):
+def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict = None):
+    """producto_overrides (opcional): {producto_id: {"precio": 220, "titulo": "..."}}
+    -- precio/titulo editados a mano por producto en el panel antes de publicar."""
+    producto_overrides = producto_overrides or {}
     pendientes = _productos_sin_publicar_shein()
     if producto_ids:
         ids_set = set(producto_ids)
@@ -727,12 +734,13 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, ajuste_tipo: str = None, 
 
     resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
     for p in productos:
+        over = producto_overrides.get(p["id"]) or {}
         try:
             res = publicar_producto({
                 "producto_id":  p["id"],
                 "solo_preview": False,
-                "precio_ajuste_tipo":  ajuste_tipo,
-                "precio_ajuste_valor": ajuste_valor,
+                "precio":       over.get("precio") or None,
+                "nombre":       over.get("titulo") or None,
             })
             ok = res.get("info", {}).get("success") is True
             if ok:
@@ -764,14 +772,14 @@ def publicar_catalogo_shein(body: dict, background_tasks: BackgroundTasks):
     ninguna publicacion. Se ejecuta en background (una publicacion completa por
     producto, con varias subidas de foto cada una).
     Body: { "producto_ids": ["uuid", ...] (opcional, si no se manda son todos los pendientes),
-            "precio_ajuste_tipo": "fijo"|"porcentaje" (opcional), "precio_ajuste_valor": 150 (opcional) }
+            "producto_overrides": {"uuid": {"precio": 220, "titulo": "..."}} (opcional,
+            precio/titulo editados a mano por producto) }
     """
-    producto_ids = body.get("producto_ids") or None
-    ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
-    ajuste_valor = body.get("precio_ajuste_valor") or None
+    producto_ids       = body.get("producto_ids") or None
+    producto_overrides = body.get("producto_overrides") or {}
     pendientes   = len(_productos_sin_publicar_shein())
     total = len(producto_ids) if producto_ids else pendientes
-    background_tasks.add_task(_hacer_publicar_catalogo_shein, producto_ids, ajuste_tipo, ajuste_valor)
+    background_tasks.add_task(_hacer_publicar_catalogo_shein, producto_ids, producto_overrides)
     return {"message": f"Publicacion masiva iniciada para {total} producto(s). Consulta /shein/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
 
 

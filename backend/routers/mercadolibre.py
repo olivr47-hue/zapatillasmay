@@ -897,7 +897,8 @@ def _talla_to_row(talla, grid_id: str = "487994") -> str | None:
 
 def _build_item(producto: dict, variante: dict, qty: int,
                 category_id: str, listing_type: str,
-                ajuste_tipo: str = None, ajuste_valor: float = None) -> dict:
+                ajuste_tipo: str = None, ajuste_valor: float = None,
+                precio_override: float = None, titulo_override: str = None) -> dict:
     """
     Construye el payload de POST /items para ML.
     Título: "{Tipo} {nombre del producto} Marca May"  (máx 60 chars)
@@ -907,6 +908,10 @@ def _build_item(producto: dict, variante: dict, qty: int,
     para cubrir flete/comision de ML (el vendedor paga estos costos en ML, a
     diferencia de la tienda propia). "fijo" = se suma un monto en pesos;
     "porcentaje" = se multiplica por (1 + valor/100).
+
+    precio_override/titulo_override (opcional): precio y titulo editados a
+    mano por el usuario para ESTE producto en la publicacion masiva -- tienen
+    prioridad sobre precio_menudeo/ajuste y sobre el titulo autogenerado.
     """
     cat    = (producto.get("categoria") or "sandalia").lower().strip()
     tipo   = _TIPO_CALZADO.get(cat, "Sandalia")
@@ -923,8 +928,11 @@ def _build_item(producto: dict, variante: dict, qty: int,
     # ── Título ML (máx 60 chars, sin color ni talla — ML los agrega solo) ──
     # Usar el nombre del producto para que ML lo asocie al catálogo correcto.
     # Ej: "Sandalia De Tacón Con Plataforma Para Fiesta Marca May"
-    title_raw   = f"{tipo} {nombre} Marca May".strip() if nombre else f"{tipo} Marca May"
-    title       = title_raw[:60].strip()
+    if titulo_override and titulo_override.strip():
+        title = titulo_override.strip()[:60]
+    else:
+        title_raw = f"{tipo} {nombre} Marca May".strip() if nombre else f"{tipo} Marca May"
+        title     = title_raw[:60].strip()
     family_name = title
 
     # ── Imágenes (Cloudinary) ──
@@ -1005,11 +1013,14 @@ def _build_item(producto: dict, variante: dict, qty: int,
     if nombre:
         attrs.append({"id": "MODEL", "value_name": nombre})
 
-    precio = float(producto.get("precio_menudeo") or 0)
-    if ajuste_tipo == "fijo" and ajuste_valor:
-        precio = round(precio + float(ajuste_valor), 2)
-    elif ajuste_tipo == "porcentaje" and ajuste_valor:
-        precio = round(precio * (1 + float(ajuste_valor) / 100), 2)
+    if precio_override:
+        precio = float(precio_override)
+    else:
+        precio = float(producto.get("precio_menudeo") or 0)
+        if ajuste_tipo == "fijo" and ajuste_valor:
+            precio = round(precio + float(ajuste_valor), 2)
+        elif ajuste_tipo == "porcentaje" and ajuste_valor:
+            precio = round(precio * (1 + float(ajuste_valor) / 100), 2)
 
     return {
         "family_name":        title,
@@ -1607,6 +1618,10 @@ def publicar_producto(body: dict):
     # en ML, a diferencia de la tienda propia) -- ver _build_item.
     ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
     ajuste_valor = body.get("precio_ajuste_valor") or None
+    # Precio/titulo editados a mano para ESTE producto (publicacion masiva
+    # con edicion por producto) -- tienen prioridad sobre ajuste_tipo/valor.
+    precio_override = body.get("precio") or None
+    titulo_override  = (body.get("titulo") or "").strip() or None
 
     if not producto_id and not sku_interno:
         raise HTTPException(400, "Se requiere producto_id o sku_interno")
@@ -1666,7 +1681,7 @@ def publicar_producto(body: dict):
     resultados = []
     for idx_v, variante in enumerate(variantes):
         qty     = stock_map.get(variante["id"], 0)
-        payload = _build_item(producto, variante, qty, category_id, listing_type, ajuste_tipo, ajuste_valor)
+        payload = _build_item(producto, variante, qty, category_id, listing_type, ajuste_tipo, ajuste_valor, precio_override, titulo_override)
 
         if not solo_preview and _norm_sku(variante.get("sku") or "") in skus_ya_publicados:
             resultados.append({
@@ -1759,7 +1774,7 @@ def publicar_producto(body: dict):
 def _productos_sin_publicar() -> list:
     """Productos activos del ERP cuyo SKU no aparece en ninguna publicación
     activa de MercadoLibre todavía."""
-    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria")
+    productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo")
     all_ids   = _get_all_item_ids()
     items     = _get_items_with_sku(all_ids)
     publicados_norm = set()
@@ -1822,6 +1837,7 @@ def catalogo_sin_publicar():
             "id": p["id"], "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
             "categoria": p.get("categoria"), "num_colores": len(conteos),
             "num_fotos": min_fotos, "listo": min_fotos >= 3,
+            "precio_sugerido": float(p.get("precio_menudeo") or 0),
         })
 
     # Los que ya tienen suficientes fotos primero, para verlos de un vistazo.
@@ -1835,7 +1851,12 @@ def catalogo_sin_publicar():
 
 
 def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list = None,
-                              ajuste_tipo: str = None, ajuste_valor: float = None):
+                              ajuste_tipo: str = None, ajuste_valor: float = None,
+                              producto_overrides: dict = None):
+    """producto_overrides (opcional): {producto_id: {"precio": 550, "titulo": "..."}}
+    -- precio/titulo editados a mano por producto en el panel antes de publicar;
+    tienen prioridad sobre ajuste_tipo/ajuste_valor para ese producto."""
+    producto_overrides = producto_overrides or {}
     pendientes = _productos_sin_publicar()
     if producto_ids:
         ids_set = set(producto_ids)
@@ -1858,6 +1879,7 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
         if pendientes_ahora is not None and sku_interno not in pendientes_ahora:
             resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "omitido": "ya estaba publicado"})
             continue
+        over = producto_overrides.get(p["id"]) or {}
         try:
             res = publicar_producto({
                 "producto_id":  p["id"],
@@ -1865,6 +1887,8 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
                 "solo_preview": False,
                 "precio_ajuste_tipo":  ajuste_tipo,
                 "precio_ajuste_valor": ajuste_valor,
+                "precio":  over.get("precio") or None,
+                "titulo":  over.get("titulo") or None,
             })
             pub = res.get("publicados", 0)
             err = res.get("errores", 0)
@@ -1904,8 +1928,9 @@ def publicar_catalogo(body: dict, background_tasks: BackgroundTasks):
     producto_ids = body.get("producto_ids") or None
     ajuste_tipo  = (body.get("precio_ajuste_tipo") or "").strip() or None
     ajuste_valor = body.get("precio_ajuste_valor") or None
+    producto_overrides = body.get("producto_overrides") or {}
     pendientes   = len(_productos_sin_publicar())
-    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite, producto_ids, ajuste_tipo, ajuste_valor)
+    background_tasks.add_task(_hacer_publicar_catalogo, listing_type, limite, producto_ids, ajuste_tipo, ajuste_valor, producto_overrides)
     return {"message": f"Publicación masiva iniciada para hasta {min(limite, pendientes)} producto(s). Consulta /ml/publicar-catalogo/log en unos minutos.", "pendientes": pendientes}
 
 
