@@ -31,7 +31,18 @@ import json
 import urllib.request
 import urllib.error
 
-ZEPTOMAIL_TOKEN = os.getenv("ZEPTOMAIL_TOKEN", "").strip()
+def _limpiar_token_zeptomail(valor: str) -> str:
+    """El dashboard de ZeptoMail muestra/copia el valor completo del header
+    ("Zoho-enczapikey <token>"), no solo el token -- si se pega tal cual en
+    Railway, hay que quitarle el prefijo aquí para no duplicarlo al armar el
+    header de autorización."""
+    valor = (valor or "").strip()
+    if valor.lower().startswith("zoho-enczapikey"):
+        valor = valor[len("zoho-enczapikey"):].strip()
+    return valor
+
+
+ZEPTOMAIL_TOKEN = _limpiar_token_zeptomail(os.getenv("ZEPTOMAIL_TOKEN", ""))
 REMITENTE_EMAIL = (
     os.getenv("GMAIL_USER") or os.getenv("SMTP_USER") or os.getenv("ZOHO_USER")
     or os.getenv("ZEPTOMAIL_FROM") or ""
