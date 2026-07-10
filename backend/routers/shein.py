@@ -754,7 +754,12 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict 
     else:
         productos = pendientes
 
-    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
+    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": [], "en_progreso": True}
+    # Guardar el resumen DESPUES DE CADA PRODUCTO (no solo al final): si el proceso
+    # se cae a la mitad (redeploy de Railway, reinicio, etc.) el log en cache ya
+    # tiene registrado hasta donde se alcanzo a publicar -- antes se perdia TODO
+    # el avance porque el cache_set solo corria una vez, al terminar el for.
+    cache_set("shein_publicar_catalogo_log", resumen, ttl=3600)
     for p in productos:
         over = producto_overrides.get(p["id"]) or {}
         try:
@@ -779,10 +784,12 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict 
         except Exception as e:
             resumen["con_error"] += 1
             resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": str(e)})
+        cache_set("shein_publicar_catalogo_log", resumen, ttl=3600)
         # Pausa entre modelos -- cada uno ya sube varias fotos con su propio
         # pacing, esto solo evita encimar el arranque de un modelo con el cierre
         # de subida de imagenes del anterior.
         time.sleep(1.5)
+    resumen["en_progreso"] = False
     cache_set("shein_publicar_catalogo_log", resumen, ttl=3600)
     cache_set("shein_skus_publicados", None, ttl=1)  # invalidar cache: hay productos nuevos publicados
 
