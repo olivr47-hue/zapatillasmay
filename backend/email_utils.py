@@ -23,6 +23,7 @@ import os
 import socket
 import smtplib
 import ssl
+from contextlib import contextmanager
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -83,6 +84,23 @@ def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = 
         return False
 
 
+@contextmanager
+def _forzar_ipv4():
+    """Railway no tiene ruta de salida IPv6: si el DNS del host SMTP resuelve a
+    AAAA, smtplib intenta conectar por ahi y truena con "Network is
+    unreachable" antes de siquiera intentar el login. Se fuerza IPv4
+    temporalmente solo durante la conexion (el hostname real se sigue usando
+    para la verificacion del certificado TLS, eso no cambia)."""
+    orig = socket.getaddrinfo
+    def _solo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+        return orig(host, port, socket.AF_INET, type, proto, flags)
+    socket.getaddrinfo = _solo_ipv4
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = orig
+
+
 def _enviar_smtp(to: str, subject: str, html: str, bcc: str = None):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -90,28 +108,36 @@ def _enviar_smtp(to: str, subject: str, html: str, bcc: str = None):
     msg["To"]      = to
     if bcc:
         msg["Bcc"] = bcc
-
     msg.attach(MIMEText(html, "html", "utf-8"))
+    recipients = [to] + ([bcc] if bcc else [])
 
-    context = ssl.create_default_context()
-    # Railway no tiene ruta de salida IPv6: si el DNS del host SMTP resuelve a
-    # AAAA, smtplib intenta conectar por ahi y truena con "Network is
-    # unreachable" antes de siquiera intentar el login. Se fuerza IPv4
-    # temporalmente solo durante esta conexion (el hostname real se sigue
-    # usando para la verificacion del certificado TLS, eso no cambia).
-    _orig_getaddrinfo = socket.getaddrinfo
-    def _solo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
-        return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
-    socket.getaddrinfo = _solo_ipv4
-    try:
-        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=8) as server:
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            recipients = [to] + ([bcc] if bcc else [])
-            server.sendmail(SMTP_USER, recipients, msg.as_string())
-    finally:
-        socket.getaddrinfo = _orig_getaddrinfo
+    # Puerto 465 (SSL implícito) primero -- si Railway lo bloquea (comun en
+    # hosting en la nube) se reintenta por 587 (STARTTLS), que casi siempre
+    # queda abierto porque es el puerto pensado para clientes autenticados.
+    errores = []
+    intentos = [(SMTP_PORT, "ssl")]
+    if SMTP_PORT != 587:
+        intentos.append((587, "starttls"))
 
-    print(f"[email] SMTP ({SMTP_HOST}) → {to} ✓")
+    for puerto, modo in intentos:
+        try:
+            with _forzar_ipv4():
+                if modo == "ssl":
+                    context = ssl.create_default_context()
+                    with smtplib.SMTP_SSL(SMTP_HOST, puerto, context=context, timeout=8) as server:
+                        server.login(SMTP_USER, SMTP_PASSWORD)
+                        server.sendmail(SMTP_USER, recipients, msg.as_string())
+                else:
+                    with smtplib.SMTP(SMTP_HOST, puerto, timeout=8) as server:
+                        server.starttls(context=ssl.create_default_context())
+                        server.login(SMTP_USER, SMTP_PASSWORD)
+                        server.sendmail(SMTP_USER, recipients, msg.as_string())
+            print(f"[email] SMTP ({SMTP_HOST}:{puerto} {modo}) → {to} ✓")
+            return
+        except Exception as e:
+            errores.append(f"{puerto}/{modo}: {e}")
+
+    raise Exception(" | ".join(errores))
 
 
 # ── Plantillas ────────────────────────────────────────────────────
