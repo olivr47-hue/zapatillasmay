@@ -322,6 +322,10 @@ def recordatorio_push(id: str):
         total = c.get("total") or 0
         cliente_id = c.get("cliente_id")
         email = c.get("email", "")
+        # Sin cliente_id no hay a quién dirigir el recordatorio: enviar_push() cae a
+        # mandarlo a TODOS los suscriptores activos si no se le pasa cliente_id ni sitio.
+        if not cliente_id:
+            return JSONResponse(status_code=400, content={"error": "Este carrito no tiene cliente_id; no se puede dirigir el push a un suscriptor especifico"})
 
         from routers.push import enviar_push
         resultado = enviar_push(

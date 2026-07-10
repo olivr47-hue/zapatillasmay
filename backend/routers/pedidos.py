@@ -525,13 +525,19 @@ def confirmar_pedido(id: str, datos: dict):
         _enviar_confirmacion_wa(pedido[0], items)
 
         try:
-            from routers.push import enviar_push
-            enviar_push(
-                "Tu pedido fue confirmado",
-                f"Ya estamos preparando tu pedido #{str(id)[:8]}.",
-                url="/portal" if pedido[0].get("cliente_id") else "/",
-                cliente_id=pedido[0].get("cliente_id"),
-            )
+            cliente_id_push = pedido[0].get("cliente_id")
+            # Sin cliente_id no hay a quién dirigir el push: enviar_push() cae a
+            # mandarlo a TODOS los suscriptores activos (tienda+portal+panel) si no
+            # se le pasa cliente_id ni sitio — pasó con pedidos de invitado/manuales
+            # y el "pedido confirmado" de un desconocido le llegó a todo mundo.
+            if cliente_id_push:
+                from routers.push import enviar_push
+                enviar_push(
+                    "Tu pedido fue confirmado",
+                    f"Ya estamos preparando tu pedido #{str(id)[:8]}.",
+                    url="/portal",
+                    cliente_id=cliente_id_push,
+                )
         except Exception as e:
             print(f"[pedidos] Error push confirmacion: {e}")
 
@@ -584,13 +590,17 @@ def marcar_enviado(id: str, datos: dict):
                 print(f"[pedidos] Error email tracking: {e}")
 
         try:
-            from routers.push import enviar_push
-            enviar_push(
-                "Tu pedido va en camino",
-                f"Envío con {paqueteria}, guía {numero_guia}.",
-                url=tracking_url or "/",
-                cliente_id=p.get("cliente_id"),
-            )
+            cliente_id_push = p.get("cliente_id")
+            # Sin cliente_id, enviar_push() cae a mandarlo a TODOS los suscriptores
+            # activos (ver comentario igual en confirmar_pedido más arriba).
+            if cliente_id_push:
+                from routers.push import enviar_push
+                enviar_push(
+                    "Tu pedido va en camino",
+                    f"Envío con {paqueteria}, guía {numero_guia}.",
+                    url=tracking_url or "/",
+                    cliente_id=cliente_id_push,
+                )
         except Exception as e:
             print(f"[pedidos] Error push envio: {e}")
 
