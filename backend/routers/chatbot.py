@@ -381,15 +381,48 @@ def mark_as_read_wa(message_id: str):
         pass
 
 def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
-    """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id)."""
+    """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id).
+
+    Acepta dos formatos de producto:
+    - `items`: [{variante_id, nombre, cantidad, precio_unitario}, ...] — variantes reales
+      del inventario (panel admin). Se guardan como `pedido_items` para que el webhook de
+      pago descuente el stock automáticamente, igual que cualquier otro pedido.
+    - `modelo`/`color`/`talla`/`precio`/`pares` sueltos (bot de WhatsApp, sin variante_id
+      conocida): solo queda como texto en las notas, sin descuento automático de stock.
+    """
     try:
         nombre     = datos_pedido.get("nombre", "Cliente")
         direccion  = datos_pedido.get("direccion", "")
-        modelo     = datos_pedido.get("modelo", "Calzado")
-        color      = datos_pedido.get("color", "")
-        talla      = datos_pedido.get("talla", "")
-        precio     = float(datos_pedido.get("precio", 0))
-        pares      = int(datos_pedido.get("pares", 1))
+        email_cliente = datos_pedido.get("email", "").strip() or "cliente@zapatillasmay.mx"
+        items_entrada = datos_pedido.get("items") or []
+
+        pedido_items_db = []
+        if items_entrada:
+            pares = 0
+            precio = 0.0  # subtotal (sin envío), para el cálculo de envío de abajo
+            descripciones = []
+            for it in items_entrada:
+                cantidad = int(it.get("cantidad") or 1)
+                precio_u = float(it.get("precio_unitario") or 0)
+                nombre_item = it.get("nombre") or "Producto"
+                pedido_items_db.append({
+                    "variante_id": it.get("variante_id"),
+                    "cantidad": cantidad,
+                    "precio_unitario": precio_u,
+                    "subtotal": cantidad * precio_u,
+                })
+                pares += cantidad
+                precio += cantidad * precio_u
+                descripciones.append(f"{nombre_item} x{cantidad}")
+            descripcion = ", ".join(descripciones)
+        else:
+            modelo = datos_pedido.get("modelo", "Calzado")
+            color  = datos_pedido.get("color", "")
+            talla  = datos_pedido.get("talla", "")
+            precio = float(datos_pedido.get("precio", 0))
+            pares  = int(datos_pedido.get("pares", 1))
+            descripcion = f"{modelo} — {color} talla {talla}"
+
         # Cálculo de envío igual que el sitio web
         if precio >= 1299:
             envio = 0.0
@@ -400,11 +433,9 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         else:
             envio = 99.0
         total      = precio + envio
-        descripcion = f"{modelo} — {color} talla {talla}"
         notas       = f"Pedido WhatsApp | {descripcion} | Envío a: {direccion}"
 
         # 1. Crear pedido en Supabase
-        email_cliente = datos_pedido.get("email", "").strip() or "cliente@zapatillasmay.mx"
         try:
             pedido_db = supabase_post("pedidos", {
                 "nombre_cliente":   nombre,
@@ -425,6 +456,15 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
             print(f"[link-pago] Pedido creado sin id. Respuesta: {pedido_db}")
             return None, total, None
 
+        # 1b. Guardar las variantes reales del inventario (si vinieron) como pedido_items,
+        # para que el webhook de pago descuente stock automáticamente al aprobarse.
+        for item in pedido_items_db:
+            try:
+                item_row = dict(item, pedido_id=pedido_id)
+                supabase_post("pedido_items", item_row)
+            except Exception as e:
+                print(f"[link-pago] No se pudo guardar pedido_item (no crítico): {e}")
+
         # 2. Crear preferencia Mercado Pago
         mp_token = os.environ.get("MP_ACCESS_TOKEN", "")
         if not mp_token:
@@ -432,11 +472,17 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
             return None, total, pedido_id
         try:
             sdk = mercadopago.SDK(mp_token)
+            if items_entrada:
+                mp_items = [
+                    {"title": (it.get("nombre") or "Producto")[:255], "quantity": int(it.get("cantidad") or 1),
+                     "unit_price": float(it.get("precio_unitario") or 0), "currency_id": "MXN"}
+                    for it in items_entrada
+                ]
+            else:
+                mp_items = [{"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"}]
+            mp_items.append({"title": "Envío", "quantity": 1, "unit_price": envio, "currency_id": "MXN"})
             pref_data = {
-                "items": [
-                    {"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"},
-                    {"title": "Envío",           "quantity": 1, "unit_price": envio,  "currency_id": "MXN"},
-                ],
+                "items": mp_items,
                 "payer":              {"name": nombre, "email": email_cliente},
                 "external_reference": str(pedido_id),
                 "back_urls": {
@@ -838,7 +884,8 @@ async def link_pago_manual(datos: dict):
     """Genera un pedido manual + link de Mercado Pago con precio personalizado
     (ventas del admin, ej. cuando se cotizó un precio especial). El pago dispara
     Purchase a Meta/GA igual que cualquier pedido. Espera:
-    {telefono, nombre, direccion, modelo, color, talla, precio (subtotal sin envío), pares}"""
+    {telefono, nombre, direccion, items: [{variante_id, nombre, cantidad, precio_unitario}, ...]}
+    (o, si no se conoce la variante exacta: modelo, color, talla, precio, pares)."""
     try:
         telefono = (datos.get("telefono") or "").strip()
         if not telefono:
