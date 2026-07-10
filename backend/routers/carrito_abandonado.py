@@ -2,7 +2,8 @@
 """
 routers/carrito_abandonado.py
 Carrito abandonado: captura el carrito en el checkout, y un proceso en segundo
-plano envía un recordatorio por email (Resend) si el cliente no completa la compra.
+plano envía un recordatorio por email (SMTP, vía email_utils) si el cliente no
+completa la compra.
 
 Tabla requerida en Supabase:
   carritos_abandonados(
@@ -27,19 +28,12 @@ import urllib.parse
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
-
-try:
-    import resend
-    resend.api_key = os.getenv("RESEND_API_KEY")
-    _RESEND_OK = True
-except ImportError:
-    _RESEND_OK = False
+from email_utils import enviar_email
 
 router = APIRouter(prefix="/carrito-abandonado", tags=["Carrito Abandonado"])
 
 _SECRET        = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
 _NOTIF_EMAIL   = os.getenv("NOTIF_EMAIL", "olivr47@gmail.com")
-_FROM          = "Zapatillas May <noreply@zapatillasmay.mx>"
 _HORAS_ESPERA  = float(os.getenv("CARRITO_HORAS_ESPERA", "1"))   # esperar 1h de inactividad
 _SITE          = "https://zapatillasmay.mx"
 
@@ -120,10 +114,8 @@ def marcar_convertido(email: str):
 
 # ── 4. EMAIL DE RECORDATORIO ──────────────────────────────────────
 def _enviar_recordatorio(carrito: dict) -> bool:
-    if not _RESEND_OK or not resend.api_key:
-        return False
     # Sanear: algunos clientes teclean el correo con espacios o un punto final
-    # (typo/autocorrección) y Resend rechaza el envío con ese formato.
+    # (typo/autocorrección) y el SMTP rechaza el envío con ese formato.
     email = (carrito["email"] or "").strip().rstrip(".")
     if "@" not in email:
         print(f"[carrito-abandonado] Email inválido, se omite recordatorio: {carrito.get('email')!r}")
@@ -179,18 +171,13 @@ def _enviar_recordatorio(carrito: dict) -> bool:
       </div>
     </div>"""
 
-    try:
-        resend.Emails.send({
-            "from": _FROM,
-            "to": email,
-            "bcc": _NOTIF_EMAIL,  # copia al negocio = prueba de que se envió
-            "subject": f"{nombre}, tu carrito te espera 👠 — Zapatillas May",
-            "html": html,
-        })
-        return True
-    except Exception as e:
-        print(f"[carrito-abandonado] Error enviando recordatorio a {email}: {e}")
-        return False
+    return enviar_email(
+        email,
+        f"{nombre}, tu carrito te espera 👠 — Zapatillas May",
+        html,
+        bcc=_NOTIF_EMAIL,  # copia al negocio = prueba de que se envió
+        tipo="carrito_abandonado",
+    )
 
 
 # ── 5. PROCESAR (envía recordatorios pendientes) ──────────────────
@@ -250,7 +237,8 @@ def listar():
 # ── 7. PRUEBA: enviar un recordatorio de ejemplo ahora mismo ──────
 @router.post("/test")
 def test_envio(datos: dict):
-    """Envía un recordatorio de prueba al email indicado (o al del negocio) para verificar Resend."""
+    """Envía un recordatorio de prueba al email indicado (o al del negocio) para verificar el SMTP."""
+    from email_utils import diagnostico_smtp
     email = (datos.get("email") or _NOTIF_EMAIL).strip().lower()
     carrito_demo = {
         "id": "demo",
@@ -265,7 +253,7 @@ def test_envio(datos: dict):
         ],
     }
     ok = _enviar_recordatorio(carrito_demo)
-    return {"ok": ok, "enviado_a": email, "resend_configurado": bool(_RESEND_OK and resend.api_key)}
+    return {"ok": ok, "enviado_a": email, "smtp": diagnostico_smtp()}
 
 
 # ── 8. WA API: enviar recordatorio por WhatsApp al cliente ──────────

@@ -91,6 +91,7 @@ const modulos = [
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
+  { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Integraciones', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
   { id: 'carritos-abandonados', icon: '🛒', label: 'Carritos abandonados', section: 'Ventas', soloAdmin: true },
@@ -374,6 +375,7 @@ async function cargarModulo(id) {
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'shein': await cargarShein(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
+    case 'correo': await cargarCorreoCorporativo(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
     case 'orden-home':     await cargarOrdenHome(); break;
     case 'generar-nombres': await cargarGenerarNombres(); break;
@@ -17494,6 +17496,7 @@ const _mlIcon = (name, size = 18, color = 'currentColor') => {
     users:      '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     send:       '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
     checkCircle:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    mail:       '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>',
   }
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;vertical-align:-3px">${paths[name] || ''}</svg>`
 }
@@ -19272,7 +19275,23 @@ window._pushSwitchTab = async (tab) => {
 async function _pushRenderEnviarTab() {
   const body = document.getElementById('push-tab-body')
   let diag = { pywebpush_instalado: false, vapid_configurado: false }
-  try { diag = await (await fetch(`${API}/push/diagnostico`)).json() } catch (e) {}
+  let subsRaw = [], clientes = []
+  try {
+    const [resDiag, resSubs, resClientes] = await Promise.all([
+      fetch(`${API}/push/diagnostico`), fetch(`${API}/push/lista`), fetch(`${API}/clientes/`)
+    ])
+    diag = await resDiag.json()
+    subsRaw = await resSubs.json()
+    clientes = await resClientes.json()
+  } catch (e) {}
+
+  const clientesPorId = {}
+  ;(Array.isArray(clientes) ? clientes : []).forEach(c => { clientesPorId[c.id] = c })
+  window._pushSubsCache = (Array.isArray(subsRaw) ? subsRaw : []).map(s => {
+    const c = s.cliente_id ? clientesPorId[s.cliente_id] : null
+    return { ...s, nombre: c ? c.nombre : null, telefono: c ? c.telefono : null }
+  })
+  window._pushNoSeleccionados = new Set()
 
   const avisoConfig = (diag.pywebpush_instalado && diag.vapid_configurado) ? '' : `
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;gap:10px;align-items:flex-start">
@@ -19290,13 +19309,13 @@ async function _pushRenderEnviarTab() {
         <div style="width:34px;height:34px;border-radius:9px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('send', 17, '#7c3aed')}</div>
         <div>
           <h3 style="margin:0 0 2px;font-size:1rem">Enviar notificación</h3>
-          <p style="font-size:0.82rem;color:#888;margin:0">Manda un aviso manual a todos los suscriptores (promoción, aviso general, etc.)</p>
+          <p style="font-size:0.82rem;color:#888;margin:0">Elige a quién sí y a quién no le llega — vienen todos seleccionados por defecto.</p>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:0.9rem;max-width:520px">
+      <div style="display:flex;flex-direction:column;gap:0.9rem;max-width:560px">
         <div>
           <label style="display:block;font-size:0.8rem;font-weight:600;color:#444;margin-bottom:4px">Sitio</label>
-          <select id="push-sitio" style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+          <select id="push-sitio" onchange="window._pushFiltrarChecklist()" style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
             <option value="">Ambos (tienda + portal)</option>
             <option value="tienda">Solo tienda</option>
             <option value="portal">Solo portal mayorista</option>
@@ -19317,6 +19336,17 @@ async function _pushRenderEnviarTab() {
           <input id="push-url" type="text" placeholder="/producto/C-TAC-0060"
                  style="width:100%;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
         </div>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+            <label style="font-size:0.8rem;font-weight:600;color:#444">Destinatarios</label>
+            <span id="push-check-contador" style="font-size:0.76rem;color:#888"></span>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:6px">
+            <button type="button" onclick="window._pushSeleccionarTodos(true)" style="background:none;border:none;color:#7c3aed;font-size:0.78rem;cursor:pointer;padding:0;font-family:inherit">Seleccionar todos</button>
+            <button type="button" onclick="window._pushSeleccionarTodos(false)" style="background:none;border:none;color:#888;font-size:0.78rem;cursor:pointer;padding:0;font-family:inherit">Deseleccionar todos</button>
+          </div>
+          <div id="push-checklist" style="border:1px solid #eee;border-radius:8px;max-height:260px;overflow-y:auto"></div>
+        </div>
         <div id="push-enviar-resultado" style="display:none;font-size:0.82rem;padding:0.7rem 0.9rem;border-radius:8px"></div>
         <div>
           ${_mlBtn('send', 'Enviar notificación', 'window._pushEnviar(this)', 'primary')}
@@ -19324,19 +19354,74 @@ async function _pushRenderEnviarTab() {
       </div>
     </div>
   `
+  window._pushFiltrarChecklist()
+}
+
+window._pushFiltrarChecklist = () => {
+  const sitioSel = document.getElementById('push-sitio')
+  const sitio = sitioSel ? sitioSel.value : ''
+  const subs = (window._pushSubsCache || []).filter(s => !sitio || s.sitio === sitio)
+  window._pushVisibles = subs.map(s => s.id)
+  const cont = document.getElementById('push-checklist')
+  if (cont) {
+    if (!subs.length) {
+      cont.innerHTML = '<p style="padding:1rem;color:#aaa;font-size:0.82rem;text-align:center">No hay suscriptores activos con este filtro.</p>'
+    } else {
+      const SITIO_TAG = { tienda: 'Tienda', portal: 'Portal', panel: 'Panel' }
+      cont.innerHTML = subs.map(s => {
+        const marcado = !window._pushNoSeleccionados.has(s.id)
+        const etiqueta = s.nombre || 'Suscriptor anónimo'
+        return `
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f5f5f5;font-size:0.83rem;cursor:pointer">
+            <input type="checkbox" data-sub-id="${s.id}" ${marcado ? 'checked' : ''} onchange="window._pushToggleSub('${s.id}', this.checked)">
+            <span style="flex:1">${etiqueta}${s.telefono ? ' · ' + s.telefono : ''}</span>
+            <span style="font-size:0.72rem;color:#aaa;background:#f5f5f5;padding:2px 7px;border-radius:6px">${SITIO_TAG[s.sitio] || s.sitio}</span>
+          </label>`
+      }).join('')
+    }
+  }
+  window._pushActualizarContador()
+}
+
+window._pushToggleSub = (id, marcado) => {
+  if (marcado) window._pushNoSeleccionados.delete(id)
+  else window._pushNoSeleccionados.add(id)
+  window._pushActualizarContador()
+}
+
+window._pushSeleccionarTodos = (marcar) => {
+  const visibles = window._pushVisibles || []
+  visibles.forEach(id => marcar ? window._pushNoSeleccionados.delete(id) : window._pushNoSeleccionados.add(id))
+  window._pushFiltrarChecklist()
+}
+
+window._pushActualizarContador = () => {
+  const el = document.getElementById('push-check-contador')
+  if (!el) return
+  const visibles = window._pushVisibles || []
+  const seleccionados = visibles.filter(id => !window._pushNoSeleccionados.has(id)).length
+  el.textContent = `${seleccionados} de ${visibles.length} seleccionados`
 }
 
 window._pushEnviar = async (btn) => {
   const titulo = document.getElementById('push-titulo').value.trim()
   const cuerpo = document.getElementById('push-cuerpo').value.trim()
   const url = document.getElementById('push-url').value.trim() || '/'
-  const sitio = document.getElementById('push-sitio').value || null
   const resultado = document.getElementById('push-enviar-resultado')
   if (!titulo || !cuerpo) {
     resultado.style.display = 'block'
     resultado.style.background = '#fef2f2'
     resultado.style.color = '#991b1b'
     resultado.textContent = 'Escribe un título y un mensaje.'
+    return
+  }
+  const visibles = window._pushVisibles || []
+  const ids = visibles.filter(id => !window._pushNoSeleccionados.has(id))
+  if (!ids.length) {
+    resultado.style.display = 'block'
+    resultado.style.background = '#fef2f2'
+    resultado.style.color = '#991b1b'
+    resultado.textContent = 'Selecciona al menos un destinatario.'
     return
   }
   btn.disabled = true
@@ -19346,7 +19431,7 @@ window._pushEnviar = async (btn) => {
     const res = await fetch(`${API}/push/enviar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titulo, cuerpo, url, sitio }),
+      body: JSON.stringify({ titulo, cuerpo, url, ids }),
     })
     const data = await res.json()
     resultado.style.display = 'block'
@@ -19418,6 +19503,148 @@ async function _pushRenderHistorialTab() {
       `).join('')}
     </div>
   `
+}
+
+// ─── CORREO CORPORATIVO ───────────────────────────────────────────────────────
+
+async function cargarCorreoCorporativo() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="padding:1.5rem 2rem;max-width:1150px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:#0d9488;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${_mlIcon('mail', 18, '#fff')}
+        </div>
+        <h2 style="margin:0;font-size:1.25rem">Correo corporativo</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
+        Todo lo que manda el ERP por correo (recuperar contraseña, pedidos, carritos abandonados, portal, etc.).
+      </p>
+      <div id="correo-diagnostico" style="margin-bottom:1rem"></div>
+      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <input id="correo-buscar" placeholder="Buscar por destinatario o asunto..." oninput="window._correoFiltrar()" autocomplete="off"
+               style="flex:1;min-width:220px;padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        <select id="correo-tipo" onchange="window._correoFiltrar()" style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+          <option value="">Todos los tipos</option>
+        </select>
+        <button class="btn btn-secondary" onclick="window._correoRecargar()">↻ Actualizar</button>
+      </div>
+      <div id="correo-tabla" style="background:#fff;border:1px solid #eee;border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,0.03)"></div>
+    </div>
+  `
+  await window._correoRecargar()
+}
+
+window._correoRecargar = async () => {
+  let diag = { configurado: false }
+  let lista = []
+  try { diag = await (await fetch(`${API}/emails/diagnostico/estado`)).json() } catch(e) {}
+  try { lista = await (await fetch(`${API}/emails/historial?limit=300`)).json() } catch(e) {}
+  window._correoLista = Array.isArray(lista) ? lista : []
+
+  const diagDiv = document.getElementById('correo-diagnostico')
+  if (diagDiv) {
+    diagDiv.innerHTML = diag.configurado
+      ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:0.8rem 1rem;font-size:0.83rem;color:#166534;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>✅ SMTP configurado — enviando como <strong>${diag.usuario}</strong> (${diag.host}:${diag.port})</span>
+          <button class="btn btn-secondary" onclick="window._correoEnviarPrueba()" style="font-size:0.78rem;padding:0.4rem 0.8rem">Enviar prueba</button>
+        </div>`
+      : `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:0.8rem 1rem;font-size:0.83rem;color:#991b1b">
+          ⚠️ SMTP sin configurar — faltan las variables de Zoho en Railway. Ningún correo se está enviando en este momento.
+        </div>`
+  }
+
+  const tipos = [...new Set(window._correoLista.map(e => e.tipo).filter(Boolean))].sort()
+  const sel = document.getElementById('correo-tipo')
+  if (sel) {
+    const actual = sel.value
+    sel.innerHTML = '<option value="">Todos los tipos</option>' + tipos.map(t => `<option value="${t}">${t}</option>`).join('')
+    sel.value = actual
+  }
+
+  window._correoFiltrar()
+}
+
+window._correoFiltrar = () => {
+  const q = (document.getElementById('correo-buscar').value || '').toLowerCase()
+  const tipo = document.getElementById('correo-tipo').value
+  const filtrados = (window._correoLista || []).filter(e => {
+    if (tipo && e.tipo !== tipo) return false
+    if (q && !((e.destinatario||'').toLowerCase().includes(q) || (e.asunto||'').toLowerCase().includes(q))) return false
+    return true
+  })
+  const tabla = document.getElementById('correo-tabla')
+  if (!tabla) return
+  if (!filtrados.length) {
+    tabla.innerHTML = '<p style="padding:2rem;text-align:center;color:#aaa;font-size:0.85rem">No hay correos que coincidan.</p>'
+    return
+  }
+  tabla.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+      <thead>
+        <tr style="background:#fafafa;border-bottom:1px solid #eee">
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Destinatario</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Asunto</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Tipo</th>
+          <th style="padding:10px 14px;text-align:left;color:#888;font-weight:600">Fecha</th>
+          <th style="padding:10px 14px;text-align:center;color:#888;font-weight:600">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtrados.map(e => `
+          <tr onclick="window._correoVerDetalle('${e.id}')" style="border-bottom:1px solid #f5f5f5;cursor:pointer" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <td style="padding:10px 14px">${e.destinatario || '—'}</td>
+            <td style="padding:10px 14px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.asunto || '—'}</td>
+            <td style="padding:10px 14px;color:#888">${e.tipo || '—'}</td>
+            <td style="padding:10px 14px;color:#888;white-space:nowrap">${e.created_at ? new Date(e.created_at).toLocaleString('es-MX') : '—'}</td>
+            <td style="padding:10px 14px;text-align:center">${e.exito ? '<span style="color:#16a34a">✓</span>' : `<span style="color:#dc2626" title="${(e.error||'').replace(/"/g,'')}">✗</span>`}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`
+}
+
+window._correoVerDetalle = async (id) => {
+  let e = null
+  try { e = await (await fetch(`${API}/emails/${id}`)).json() } catch(err) {}
+  if (!e || !e.id) { alert('No se pudo cargar el correo'); return }
+  const anterior = document.getElementById('modal-correo-detalle')
+  if (anterior) anterior.remove()
+  const ov = document.createElement('div')
+  ov.id = 'modal-correo-detalle'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px'
+  ov.onclick = (ev) => { if (ev.target === ov) ov.remove() }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
+        <div style="min-width:0">
+          <p style="margin:0;font-weight:700;font-size:0.95rem">${e.asunto || '—'}</p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">Para: ${e.destinatario}${e.bcc ? ' · CC: ' + e.bcc : ''}</p>
+          <p style="margin:2px 0 0;font-size:0.78rem;color:#aaa">${e.created_at ? new Date(e.created_at).toLocaleString('es-MX') : ''} · ${e.tipo || 'sin tipo'} · ${e.exito ? '✅ Enviado' : '❌ Falló'}</p>
+          ${!e.exito && e.error ? `<p style="margin:6px 0 0;font-size:0.78rem;color:#dc2626">${e.error}</p>` : ''}
+        </div>
+        <button onclick="document.getElementById('modal-correo-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
+      </div>
+      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden">
+        <iframe srcdoc="${(e.html||'').replace(/"/g,'&quot;')}" style="width:100%;height:420px;border:none"></iframe>
+      </div>
+    </div>`
+  document.body.appendChild(ov)
+}
+
+window._correoEnviarPrueba = async () => {
+  const destino = prompt('¿A qué correo mando la prueba?', '')
+  if (!destino) return
+  try {
+    const res = await fetch(`${API}/emails/prueba`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ destino })
+    })
+    const data = await res.json()
+    alert(data.ok ? '✅ Enviado — revisa el historial de abajo' : '❌ Error: ' + (data.error || 'no se pudo enviar'))
+    window._correoRecargar()
+  } catch (e) {
+    alert('Error de conexión')
+  }
 }
 
 // ─── GOOGLE ANALYTICS ─────────────────────────────────────────────────────────

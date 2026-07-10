@@ -2,15 +2,13 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 from security import hash_password, verify_password, create_token, limiter
+from email_utils import enviar_email
 import os
 import secrets
 import json
 import urllib.request
-import resend
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
-
-resend.api_key = os.getenv("RESEND_API_KEY")
 
 
 @router.post("/registro")
@@ -294,11 +292,10 @@ async def recuperar_password(request: Request, datos: dict):
 
         reset_url = f"https://zapatillasmay.mx/restablecer?token={reset_token}&uid={u['id']}"
 
-        resend.Emails.send({
-            "from": "Zapatillas May <noreply@zapatillasmay.mx>",
-            "to": email,
-            "subject": "Restablecer contraseña — Zapatillas May",
-            "html": f"""
+        enviar_email(
+            email,
+            "Restablecer contraseña — Zapatillas May",
+            f"""
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff">
                 <div style="text-align:center;margin-bottom:24px">
                     <h1 style="font-size:1.4rem;color:#0A0A0A">Zapatillas <span style="color:#E91E8C">May</span></h1>
@@ -320,8 +317,9 @@ async def recuperar_password(request: Request, datos: dict):
                     León, Guanajuato · zapatillasmay.mx
                 </p>
             </div>
-            """
-        })
+            """,
+            tipo="recuperar_password",
+        )
 
         return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
 
@@ -362,7 +360,7 @@ def cambiar_password(datos: dict):
 
 @router.post("/newsletter/subscribe")
 def newsletter_subscribe(datos: dict):
-    """Suscribe un email al newsletter y envía email de bienvenida via Resend."""
+    """Suscribe un email al newsletter y envía email de bienvenida."""
     email  = (datos.get("email") or "").strip().lower()
     nombre = (datos.get("nombre") or "").strip()
 
@@ -383,14 +381,13 @@ def newsletter_subscribe(datos: dict):
             "activo": True
         })
 
-        # Email de bienvenida via Resend
+        # Email de bienvenida
         nombre_display = nombre.split()[0].capitalize() if nombre else "Hola"
         try:
-            resend.Emails.send({
-                "from": "Zapatillas May <noreply@zapatillasmay.mx>",
-                "to": email,
-                "subject": f"¡Bienvenida, {nombre_display}! 👠 Ya eres parte de Zapatillas May",
-                "html": f"""
+            enviar_email(
+                email,
+                f"¡Bienvenida, {nombre_display}! 👠 Ya eres parte de Zapatillas May",
+                f"""
                 <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff">
                   <div style="background:linear-gradient(135deg,#b5687a,#c8967a);padding:36px 32px;text-align:center">
                     <h1 style="color:white;font-size:1.5rem;font-weight:300;margin:0;letter-spacing:1px">
@@ -424,8 +421,9 @@ def newsletter_subscribe(datos: dict):
                       <a href="https://zapatillasmay.mx" style="color:#c8967a">Cancelar suscripción</a>
                     </p>
                   </div>
-                </div>"""
-            })
+                </div>""",
+                tipo="newsletter_bienvenida",
+            )
         except Exception as email_err:
             print(f"[newsletter] Error enviando email de bienvenida: {email_err}")
             # No falla si el email no se envía — la suscripción ya se guardó
@@ -469,11 +467,10 @@ def mayorista_registro(datos: dict):
     # Notificar al negocio
     try:
         tel_limpio = telefono.replace(' ', '').replace('-', '').lstrip('+')
-        resend.Emails.send({
-            "from": "Zapatillas May <noreply@zapatillasmay.mx>",
-            "to": _NOTIF_EMAIL,
-            "subject": f"🛍️ Nueva revendedora interesada: {nombre}",
-            "html": f"""
+        enviar_email(
+            _NOTIF_EMAIL,
+            f"🛍️ Nueva revendedora interesada: {nombre}",
+            f"""
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
               <h2 style="color:#0A0A0A">Nueva solicitud de revendedora</h2>
               <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
@@ -487,8 +484,9 @@ def mayorista_registro(datos: dict):
                  style="display:inline-block;margin-top:16px;background:#25D366;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
                 Contactar por WhatsApp
               </a>
-            </div>"""
-        })
+            </div>""",
+            tipo="mayorista_aviso_negocio",
+        )
     except Exception as e:
         print(f"[mayorista] Error notificando: {e}")
 
@@ -496,11 +494,10 @@ def mayorista_registro(datos: dict):
     if email and "@" in email:
         try:
             primer_nombre = nombre.split()[0] if nombre else "Hola"
-            resend.Emails.send({
-                "from": "Zapatillas May <noreply@zapatillasmay.mx>",
-                "to": email,
-                "subject": "¡Gracias por tu interés en ser revendedora! 👠",
-                "html": f"""
+            enviar_email(
+                email,
+                "¡Gracias por tu interés en ser revendedora! 👠",
+                f"""
                 <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
                   <h2 style="color:#0A0A0A">¡Hola, {primer_nombre}! 👋</h2>
                   <p style="color:#555;line-height:1.7;font-size:0.92rem">
@@ -512,8 +509,9 @@ def mayorista_registro(datos: dict):
                      style="display:inline-block;margin-top:8px;background:linear-gradient(135deg,#b5687a,#c8967a);color:white;padding:12px 24px;border-radius:50px;text-decoration:none;font-weight:600">
                     Ver catálogo →
                   </a>
-                </div>"""
-            })
+                </div>""",
+                tipo="mayorista_bienvenida",
+            )
         except Exception as e:
             print(f"[mayorista] Error email bienvenida: {e}")
 

@@ -13,18 +13,13 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
 from security import verify_password, hash_password, create_token, verify_token, limiter
+from email_utils import enviar_email
 import os
 import re
 import json
 import secrets
 import urllib.request
 from datetime import datetime, timedelta, timezone
-
-try:
-    import resend
-    resend.api_key = os.getenv("RESEND_API_KEY")
-except Exception:
-    resend = None
 
 router = APIRouter(prefix="/portal", tags=["Portal Cliente"])
 _bearer = HTTPBearer(auto_error=False)
@@ -173,25 +168,18 @@ def _enviar_sms_codigo(tel10: str, codigo: str) -> bool:
 
 
 def _enviar_email_codigo(email: str, nombre: str, codigo: str) -> bool:
-    if not resend:
-        return False
-    try:
-        resend.Emails.send({
-            "from": "Zapatillas May <noreply@zapatillasmay.mx>",
-            "to": email,
-            "subject": f"Tu código de acceso: {codigo}",
-            "html": f"""
-            <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:28px">
-              <h2 style="color:#0A0A0A">Hola {nombre or ''} 👋</h2>
-              <p style="color:#555">Tu código para entrar al portal de mayoreo:</p>
-              <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:18px 0">{codigo}</p>
-              <p style="color:#aaa;font-size:.8rem">Vence en {OTP_EXP_MIN} minutos. Si no fuiste tú, ignora este correo.</p>
-            </div>"""
-        })
-        return True
-    except Exception as e:
-        print(f"[portal otp email] {e}")
-        return False
+    return enviar_email(
+        email,
+        f"Tu código de acceso: {codigo}",
+        f"""
+        <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:28px">
+          <h2 style="color:#0A0A0A">Hola {nombre or ''} 👋</h2>
+          <p style="color:#555">Tu código para entrar al portal de mayoreo:</p>
+          <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:18px 0">{codigo}</p>
+          <p style="color:#aaa;font-size:.8rem">Vence en {OTP_EXP_MIN} minutos. Si no fuiste tú, ignora este correo.</p>
+        </div>""",
+        tipo="otp_portal",
+    )
 
 
 def _enviar_wa_codigo(tel10: str, codigo: str) -> bool:

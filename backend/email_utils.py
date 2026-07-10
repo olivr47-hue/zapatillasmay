@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """
 email_utils.py
-Envío de emails: intenta Gmail SMTP primero (si está configurado),
-hace fallback a Resend si no.
+Envío de emails vía SMTP (Zoho de dominio propio; también sirve con Gmail).
+Ya NO hay Resend -- se retiró por completo: los flujos que lo usaban directo
+(recuperar password, OTP del portal, carrito abandonado, etc.) no pasaban por
+aquí y por eso, aunque se configurara Zoho, esos correos seguían saliendo por
+Resend sin que se notara (no aparecían ni en Resend ni en el buzón de Zoho).
 
-Variables de entorno necesarias para Gmail:
-  GMAIL_USER         = zapateriasmay@gmail.com
-  GMAIL_APP_PASSWORD = (contraseña de aplicación de 16 chars de Google)
+Variables de entorno para SMTP (se acepta más de un nombre por si Zoho quedó
+configurado con otra convención en Railway):
+  GMAIL_USER / SMTP_USER / ZOHO_USER             = contacto@zapatillasmay.mx
+  GMAIL_APP_PASSWORD / SMTP_PASSWORD / ZOHO_PASSWORD = contraseña de aplicación
+  SMTP_HOST          = smtp.zoho.com  (default: smtp.gmail.com si no se define)
+  SMTP_PORT          = 465            (default: 465)
 
-Variables para Resend (ya existente como fallback):
-  RESEND_API_KEY
+Cada intento de envío (exitoso o no) se guarda en la tabla `emails_enviados`
+para poder verlos desde el panel — antes no había forma de confirmar qué se
+mandó ni por dónde.
 """
 
 import os
@@ -18,44 +25,67 @@ import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-GMAIL_USER     = os.getenv("GMAIL_USER", "")
-GMAIL_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
-NEGOCIO_EMAIL  = os.getenv("NOTIF_EMAIL", "zapateriasmay@gmail.com")
+SMTP_USER      = os.getenv("GMAIL_USER") or os.getenv("SMTP_USER") or os.getenv("ZOHO_USER", "")
+SMTP_PASSWORD  = os.getenv("GMAIL_APP_PASSWORD") or os.getenv("SMTP_PASSWORD") or os.getenv("ZOHO_PASSWORD", "")
+SMTP_HOST      = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT      = int(os.getenv("SMTP_PORT", "465"))
+NEGOCIO_EMAIL  = os.getenv("NOTIF_EMAIL", "contacto@zapatillasmay.mx")
 FROM_DISPLAY   = "Zapatillas May"
 
-try:
-    import resend
-    resend.api_key = os.getenv("RESEND_API_KEY", "")
-    _RESEND_OK = bool(resend.api_key)
-except ImportError:
-    _RESEND_OK = False
+
+def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: str, bcc: str, tipo: str):
+    try:
+        from database import supabase_post
+        supabase_post("emails_enviados", {
+            "destinatario": destinatario,
+            "asunto":       asunto,
+            "html":         html,
+            "exito":        exito,
+            "error":        error,
+            "proveedor":    "smtp",
+            "tipo":         tipo or None,
+            "bcc":          bcc,
+        })
+    except Exception as e:
+        print(f"[email] No se pudo guardar el log del correo (no crítico): {e}")
 
 
-def enviar_email(to: str, subject: str, html: str, bcc: str = None) -> bool:
+def diagnostico_smtp() -> dict:
+    """Estado de la config SMTP, sin exponer la contraseña."""
+    return {
+        "configurado": bool(SMTP_USER and SMTP_PASSWORD),
+        "usuario": SMTP_USER or None,
+        "host": SMTP_HOST,
+        "port": SMTP_PORT,
+    }
+
+
+def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = "") -> bool:
     """
-    Envía un email HTML. Retorna True si tuvo éxito.
-    Intenta Gmail SMTP primero; si falla usa Resend.
+    Envía un email HTML por SMTP (Zoho/Gmail). Retorna True si tuvo éxito.
+    Registra el intento en `emails_enviados` sin importar el resultado.
+    `tipo` es una etiqueta libre (ej. "recuperar_password", "carrito_abandonado")
+    para poder filtrar el historial en el panel.
     """
-    if GMAIL_USER and GMAIL_PASSWORD:
-        try:
-            return _enviar_gmail(to, subject, html, bcc)
-        except Exception as e:
-            print(f"[email] Gmail SMTP falló, intentando Resend: {e}")
+    if not (SMTP_USER and SMTP_PASSWORD):
+        print(f"[email] SMTP no configurado — no se envió a {to}")
+        _guardar_log(to, subject, html, False, "SMTP no configurado (faltan variables en Railway)", bcc, tipo)
+        return False
 
-    if _RESEND_OK:
-        try:
-            return _enviar_resend(to, subject, html, bcc)
-        except Exception as e:
-            print(f"[email] Resend falló: {e}")
+    try:
+        _enviar_smtp(to, subject, html, bcc)
+        _guardar_log(to, subject, html, True, None, bcc, tipo)
+        return True
+    except Exception as e:
+        print(f"[email] SMTP falló: {e}")
+        _guardar_log(to, subject, html, False, str(e), bcc, tipo)
+        return False
 
-    print(f"[email] Sin proveedor configurado — no se envió a {to}")
-    return False
 
-
-def _enviar_gmail(to: str, subject: str, html: str, bcc: str = None) -> bool:
+def _enviar_smtp(to: str, subject: str, html: str, bcc: str = None):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"]    = f"{FROM_DISPLAY} <{GMAIL_USER}>"
+    msg["From"]    = f"{FROM_DISPLAY} <{SMTP_USER}>"
     msg["To"]      = to
     if bcc:
         msg["Bcc"] = bcc
@@ -63,28 +93,12 @@ def _enviar_gmail(to: str, subject: str, html: str, bcc: str = None) -> bool:
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context, timeout=6) as server:
-        server.login(GMAIL_USER, GMAIL_PASSWORD)
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=8) as server:
+        server.login(SMTP_USER, SMTP_PASSWORD)
         recipients = [to] + ([bcc] if bcc else [])
-        server.sendmail(GMAIL_USER, recipients, msg.as_string())
+        server.sendmail(SMTP_USER, recipients, msg.as_string())
 
-    print(f"[email] Gmail SMTP → {to} ✓")
-    return True
-
-
-def _enviar_resend(to: str, subject: str, html: str, bcc: str = None) -> bool:
-    params = {
-        "from": f"{FROM_DISPLAY} <noreply@zapatillasmay.mx>",
-        "reply_to": NEGOCIO_EMAIL,
-        "to": to,
-        "subject": subject,
-        "html": html,
-    }
-    if bcc:
-        params["bcc"] = bcc
-    resend.Emails.send(params)
-    print(f"[email] Resend → {to} ✓")
-    return True
+    print(f"[email] SMTP ({SMTP_HOST}) → {to} ✓")
 
 
 # ── Plantillas ────────────────────────────────────────────────────

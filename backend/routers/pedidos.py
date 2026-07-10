@@ -181,7 +181,7 @@ def recordatorio_email(id: str, datos: dict = {}):
         else:
             subj, html = email_pedido_pendiente_spei(p)
 
-        enviar_email(email_cliente, subj, html)
+        enviar_email(email_cliente, subj, html, tipo="recordatorio_pago")
         _marcar_recordatorio(id)
         return {"ok": True, "enviado_a": email_cliente}
     except Exception as e:
@@ -240,7 +240,7 @@ def enviar_recordatorio_pago(id: str):
         if email_cliente:
             try:
                 subj, html = email_pedido_pendiente_spei(p)
-                enviar_email(email_cliente, subj, html)
+                enviar_email(email_cliente, subj, html, tipo="pedido_pendiente_spei")
             except Exception as e:
                 print(f"[pedidos] Error email: {e}")
         _marcar_recordatorio(id)
@@ -585,7 +585,7 @@ def marcar_enviado(id: str, datos: dict):
             try:
                 from email_utils import enviar_email, email_envio_realizado
                 subj, html = email_envio_realizado(p, paqueteria, numero_guia, tracking_url)
-                enviar_email(email_cliente, subj, html)
+                enviar_email(email_cliente, subj, html, tipo="pedido_enviado")
             except Exception as e:
                 print(f"[pedidos] Error email tracking: {e}")
 

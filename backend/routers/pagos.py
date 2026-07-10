@@ -731,12 +731,12 @@ async def webhook_mercadopago(request: Request):
                             if email_cliente:
                                 try:
                                     subj, html = email_pedido_confirmado(p)
-                                    enviar_email(email_cliente, subj, html)
+                                    enviar_email(email_cliente, subj, html, tipo="pedido_confirmado")
                                 except Exception as e:
                                     print(f"[pagos] Error email confirmación cliente: {e}")
                             try:
                                 subj_neg, html_neg = email_nuevo_pedido_negocio(p)
-                                enviar_email(NEGOCIO_EMAIL, subj_neg, html_neg)
+                                enviar_email(NEGOCIO_EMAIL, subj_neg, html_neg, tipo="aviso_negocio")
                             except Exception as e:
                                 print(f"[pagos] Error email negocio: {e}")
                             try:
@@ -764,7 +764,7 @@ async def webhook_mercadopago(request: Request):
                             if email_cliente:
                                 try:
                                     subj, html = email_pedido_pendiente_spei(p)
-                                    enviar_email(email_cliente, subj, html)
+                                    enviar_email(email_cliente, subj, html, tipo="pedido_pendiente_spei")
                                 except Exception as e:
                                     print(f"[pagos] Error email SPEI/OXXO pendiente: {e}")
 
