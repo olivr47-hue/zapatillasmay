@@ -1031,9 +1031,11 @@ def _talla_a_attribute_value_id(product_type_id: int, talla: str) -> int | None:
 _COLOR_SINONIMOS = {
     "oro": "Dorado", "dorado": "Dorado",
     "plata": "Plateado", "plateado": "Plateado",
-    "cafe": "Marrón", "café": "Marrón", "marron": "Marrón",
+    "cafe": "Marrón", "café": "Marrón", "marron": "Marrón", "moka": "Marrón",
     "vino": "Burdeos", "guinda": "Burdeos",
     "hueso": "Beis", "nude": "Beis", "capuchino": "Beis",
+    "latte": "Beis", "miga": "Beis", "beige": "Beis",
+    "tang": "Camel",
     "mezclilla": "Azul Índigo", "denim": "Azul Índigo", "jean": "Azul Índigo",
 }
 
