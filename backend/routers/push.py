@@ -8,6 +8,7 @@ usando el estandar Web Push (VAPID + cifrado aes128gcm), sin depender de
 ningun servicio de terceros de pago.
 """
 import os
+import re
 import json
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -101,23 +102,35 @@ def _enviar_a_suscripcion(sub: dict, titulo: str, cuerpo: str, url: str) -> bool
         return False
 
 
-def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cliente_id: str = None) -> dict:
+def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cliente_id: str = None, ids: list = None) -> dict:
     """
     Funcion interna reusable — la llaman otros routers (pedidos, carrito
     abandonado) para mandar una notificacion real a un cliente especifico,
     o de forma masiva a todos los suscriptores de un sitio.
+
+    `ids`: lista opcional de IDs de push_subscriptions puntuales (el panel la usa
+    para el checklist de "a quien si / a quien no" del envio manual). Si viene,
+    manda SOLO a esos IDs e ignora sitio/cliente_id.
     """
     if not _PYWEBPUSH_OK:
         return {"enviadas": 0, "fallidas": 0, "error": f"pywebpush no disponible: {_import_error}"}
     if not VAPID_PRIVATE_KEY:
         return {"enviadas": 0, "fallidas": 0, "error": "Faltan las llaves VAPID en Railway"}
 
-    filtro = "activa=eq.true"
-    if sitio:
-        filtro += f"&sitio=eq.{sitio}"
-    if cliente_id:
-        filtro += f"&cliente_id=eq.{cliente_id}"
-    subs = supabase_get_all(f"push_subscriptions?{filtro}&select=*")
+    if ids is not None:
+        # Validar formato UUID antes de interpolar en la URL de PostgREST (evita
+        # que un id malformado rompa el query o inyecte filtros no deseados).
+        ids_validos = [i for i in ids if re.match(r'^[0-9a-fA-F-]{8,36}$', str(i))]
+        if not ids_validos:
+            return {"enviadas": 0, "fallidas": 0, "error": "Ningun id de suscriptor valido"}
+        subs = supabase_get_all(f"push_subscriptions?activa=eq.true&id=in.({','.join(ids_validos)})&select=*")
+    else:
+        filtro = "activa=eq.true"
+        if sitio:
+            filtro += f"&sitio=eq.{sitio}"
+        if cliente_id:
+            filtro += f"&cliente_id=eq.{cliente_id}"
+        subs = supabase_get_all(f"push_subscriptions?{filtro}&select=*")
 
     enviadas, fallidas = 0, 0
     for sub in subs:
@@ -138,13 +151,16 @@ def enviar_push(titulo: str, cuerpo: str, url: str = "/", sitio: str = None, cli
 def enviar_notificacion(body: dict):
     """
     Envio manual desde el panel.
-    Body: { "titulo": "...", "cuerpo": "...", "url": "/ofertas", "sitio": "tienda"|"portal"|null (todos) }
+    Body: { "titulo": "...", "cuerpo": "...", "url": "/ofertas", "sitio": "tienda"|"portal"|null (todos),
+             "ids": [...] opcional — lista puntual de suscriptores (checklist del panel);
+             si viene, manda solo a esos y se ignora "sitio". }
     """
     titulo = (body.get("titulo") or "").strip()
     cuerpo = (body.get("cuerpo") or "").strip()
     if not titulo or not cuerpo:
         return JSONResponse(status_code=400, content={"error": "titulo y cuerpo son requeridos"})
-    return enviar_push(titulo, cuerpo, body.get("url") or "/", body.get("sitio") or None)
+    ids = body.get("ids") or None
+    return enviar_push(titulo, cuerpo, body.get("url") or "/", body.get("sitio") or None, ids=ids)
 
 
 @router.get("/suscriptores")
@@ -154,6 +170,15 @@ def listar_suscriptores():
     for s in subs:
         por_sitio[s["sitio"]] = por_sitio.get(s["sitio"], 0) + 1
     return {"total": len(subs), "por_sitio": por_sitio}
+
+
+@router.get("/lista")
+def listar_suscripciones_individuales():
+    """Lista cada suscripcion activa (no solo el conteo) para el checklist de
+    "a quien si / a quien no" del envio manual en el panel."""
+    return supabase_get_all(
+        "push_subscriptions?activa=eq.true&select=id,sitio,cliente_id,created_at,ultimo_envio_at&order=created_at.desc"
+    )
 
 
 @router.get("/historial")
