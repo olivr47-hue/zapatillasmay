@@ -760,7 +760,11 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict 
     # tiene registrado hasta donde se alcanzo a publicar -- antes se perdia TODO
     # el avance porque el cache_set solo corria una vez, al terminar el for.
     cache_set("shein_publicar_catalogo_log", resumen, ttl=3600)
+    cache_set("shein_publicar_catalogo_cancelar", False, ttl=21600)  # limpiar cancelacion de una corrida anterior
     for p in productos:
+        if cache_get("shein_publicar_catalogo_cancelar"):
+            resumen["detalle"].append({"cancelado": True, "nota": "Publicacion masiva cancelada por el usuario"})
+            break
         over = producto_overrides.get(p["id"]) or {}
         try:
             res = publicar_producto({
@@ -818,6 +822,15 @@ def publicar_catalogo_log_shein():
     if not log:
         return {"message": "Todavia no hay resultados. ¿Ya iniciaste la publicacion masiva?"}
     return log
+
+
+@router.post("/publicar-catalogo/cancelar")
+def cancelar_publicar_catalogo_shein():
+    """Detiene la publicacion masiva en curso antes del siguiente producto (no
+    interrumpe a medias una publicacion ya en marcha, para no dejar un producto
+    a medio subir). Antes la unica forma de detenerla era forzar un redeploy."""
+    cache_set("shein_publicar_catalogo_cancelar", True, ttl=21600)
+    return {"ok": True, "message": "Se cancelara antes de procesar el siguiente producto pendiente."}
 
 
 # ─── Sincronización de inventario (change-inventory, modelo semi-managed) ──
