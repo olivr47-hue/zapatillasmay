@@ -181,7 +181,9 @@ def recordatorio_email(id: str, datos: dict = {}):
         else:
             subj, html = email_pedido_pendiente_spei(p)
 
-        enviar_email(email_cliente, subj, html, tipo="recordatorio_pago")
+        ok = enviar_email(email_cliente, subj, html, tipo="recordatorio_pago")
+        if not ok:
+            return JSONResponse(status_code=502, content={"error": "El correo no se pudo enviar — revisa el registro de correo en el panel."})
         _marcar_recordatorio(id)
         return {"ok": True, "enviado_a": email_cliente}
     except Exception as e:
@@ -237,12 +239,12 @@ def enviar_recordatorio_pago(id: str):
         p, err = _get_pedido_pendiente(id)
         if err: return err
         email_cliente = p.get("email_cliente", "")
-        if email_cliente:
-            try:
-                subj, html = email_pedido_pendiente_spei(p)
-                enviar_email(email_cliente, subj, html, tipo="pedido_pendiente_spei")
-            except Exception as e:
-                print(f"[pedidos] Error email: {e}")
+        if not email_cliente:
+            return JSONResponse(status_code=400, content={"error": "El pedido no tiene email"})
+        subj, html = email_pedido_pendiente_spei(p)
+        ok = enviar_email(email_cliente, subj, html, tipo="pedido_pendiente_spei")
+        if not ok:
+            return JSONResponse(status_code=502, content={"error": "El correo no se pudo enviar — revisa el registro de correo en el panel."})
         _marcar_recordatorio(id)
         return {"ok": True, "email": email_cliente}
     except Exception as e:
