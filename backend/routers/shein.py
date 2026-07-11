@@ -793,10 +793,16 @@ def _hacer_publicar_catalogo_shein(producto_ids: list, producto_overrides: dict 
                 resumen["publicados"] += 1
             else:
                 resumen["con_error"] += 1
-            resumen["detalle"].append({
+            item_detalle = {
                 "sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"),
                 "exito": ok, "advertencias_fotos": res.get("_advertencias_fotos") or [],
-            })
+            }
+            if not ok:
+                # SHEIN respondio sin exito pero sin lanzar excepcion (distinto a
+                # HTTPException de abajo) -- antes esto se guardaba sin motivo,
+                # dejando el fallo sin explicacion en el log.
+                item_detalle["error"] = res.get("msg") or res.get("info") or "SHEIN respondio sin exito, sin detalle adicional"
+            resumen["detalle"].append(item_detalle)
         except HTTPException as e:
             resumen["con_error"] += 1
             resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": e.detail})
@@ -1078,6 +1084,18 @@ def _guardar_color_sinonimo_aprendido(product_type_id: int, color_erp: str, attr
         print(f"[SHEIN] Error guardando sinonimo de color aprendido: {e}")
 
 
+# Palabras clave que SIEMPRE mapean al color de SHEIN indicado sin importar
+# el resto del nombre (ej. "ORO MEDUSA GRABADO" o "Maquillaje charol" -- cada
+# producto trae su propio nombre de color compuesto/unico, a diferencia de
+# _COLOR_SINONIMOS que solo matchea el nombre completo exacto). Se compara
+# por PALABRA completa (no substring), asi "dorado" no coincide con "doradoso"
+# por accidente.
+_COLOR_PALABRA_CLAVE = {
+    "oro": "Dorado",
+    "maquillaje": "Caqui",
+}
+
+
 def _color_a_attribute_value_id(product_type_id: int, color: str, aprendidos: dict = None) -> int | None:
     color_norm = (color or "").strip().lower()
     aprendidos = _load_color_sinonimos_aprendidos() if aprendidos is None else aprendidos
@@ -1088,6 +1106,12 @@ def _color_a_attribute_value_id(product_type_id: int, color: str, aprendidos: di
         encontrado = _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, _COLOR_SINONIMOS[color_norm])
         if encontrado:
             return encontrado
+    palabras = color_norm.split()
+    for palabra, shein_color in _COLOR_PALABRA_CLAVE.items():
+        if palabra in palabras:
+            encontrado = _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, shein_color)
+            if encontrado:
+                return encontrado
     return _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, color)
 
 
