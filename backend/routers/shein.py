@@ -23,7 +23,7 @@ Firma de cada request (headers x-lt-*):
 Verificado contra 3 SDKs independientes (PHP oficial, Java oficial, Python comunitario).
 """
 
-import os, json, time, random, string, hmac, hashlib, base64, secrets
+import os, json, time, random, string, hmac, hashlib, base64, secrets, re
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import HTMLResponse
@@ -1115,6 +1115,26 @@ def _color_a_attribute_value_id(product_type_id: int, color: str, aprendidos: di
     return _buscar_attribute_value_id(product_type_id, _ATTR_COLOR, color)
 
 
+# Nuestras descripciones (para la tienda) suelen traer emojis -- SHEIN los
+# rechaza de plano en titulo/descripcion ("No se pueden ingresar emoticones").
+# Se quitan solo para el payload de SHEIN, el texto original de la tienda no
+# se toca.
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001FAFF"  # simbolos/pictogramas, emoticones, transporte, suplementarios
+    "\U00002600-\U000027BF"  # simbolos varios y dingbats
+    "\U0001F1E6-\U0001F1FF"  # banderas (pares de indicadores regionales)
+    "\U00002190-\U000021FF"  # flechas
+    "\U0000FE0F"             # variation selector (emoji presentation)
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _quitar_emojis(texto: str) -> str:
+    return _EMOJI_RE.sub("", texto or "").strip()
+
+
 def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
                         category_id: int, product_type_id: int, overrides: dict = None) -> tuple[dict, list]:
     """
@@ -1130,8 +1150,8 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
     """
     overrides = overrides or {}
     advertencias: list = []
-    nombre = (overrides.get("nombre") or producto.get("nombre") or "").strip()
-    descripcion = (overrides.get("descripcion") or producto.get("descripcion") or "").strip() or nombre
+    nombre = _quitar_emojis((overrides.get("nombre") or producto.get("nombre") or "").strip())
+    descripcion = _quitar_emojis((overrides.get("descripcion") or producto.get("descripcion") or "").strip()) or nombre
     fotos_excluidas = set(overrides.get("fotos_excluidas") or [])
     color_overrides = overrides.get("color_overrides") or {}
     aprendidos = _load_color_sinonimos_aprendidos()
