@@ -25,6 +25,30 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
         if not telefono.startswith("52") and len(telefono) == 10:
             telefono = "52" + telefono
 
+        # Plantilla primero (categoria UTILITY, sin restriccion de ventana de 24h) --
+        # el texto libre de mas abajo SOLO se entrega si el cliente escribio en las
+        # ultimas 24h, y no hay forma de saberlo de antemano (Meta lo acepta con 200
+        # OK al momento y lo rechaza DESPUES via webhook async: error 131047
+        # "Re-engagement message" cuando ya paso la ventana). Si no hay plantilla
+        # configurada (o Meta aun no la aprueba), sigue igual que antes.
+        plantilla = os.environ.get("WA_PEDIDO_CONFIRMADO_TEMPLATE", "").strip()
+        if plantilla:
+            try:
+                from routers.chatbot import enviar_whatsapp_plantilla
+                idioma_plantilla = os.environ.get("WA_PEDIDO_CONFIRMADO_TEMPLATE_LANG", "es_MX").strip() or "es_MX"
+                nombre_corto_tpl = nombre.split()[0] if nombre else "Cliente"
+                pedido_id_corto = str(pedido_data.get("id", ""))[:8].upper()
+                total_tpl = pedido_data.get("total", 0)
+                wamid = enviar_whatsapp_plantilla(
+                    telefono, plantilla, idioma_plantilla,
+                    [nombre_corto_tpl, pedido_id_corto, f"{total_tpl:,.0f}"]
+                )
+                if wamid:
+                    print(f"WA confirmacion (plantilla) enviada a {telefono} ({nombre})")
+                    return
+            except Exception as e:
+                print(f"WA confirmacion: fallo plantilla, se intenta texto libre: {e}")
+
         lineas = []
         for item in items_data:
             nombre_prod = ""

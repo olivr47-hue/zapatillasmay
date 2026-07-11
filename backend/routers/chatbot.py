@@ -2164,6 +2164,69 @@ async def wa_diagnostico(datos: dict):
     return resultado
 
 
+@router.post("/crear-plantilla-pedido-confirmado")
+async def crear_plantilla_pedido_confirmado():
+    """Crea la plantilla 'pedido_confirmado' en Meta WA Business (categoria UTILITY,
+    no tiene restriccion de ventana de 24h) -- respaldo cuando el cliente no escribio
+    en las ultimas 24h y el texto libre de confirmacion es rechazado por Meta
+    (error 131047 'Re-engagement message')."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    if not wa_token or not waba_id:
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+
+    plantilla = {
+        "name": "pedido_confirmado",
+        "language": "es_MX",
+        "category": "UTILITY",
+        "components": [
+            {
+                "type": "HEADER",
+                "format": "TEXT",
+                "text": "¡Tu compra está confirmada!"
+            },
+            {
+                "type": "BODY",
+                "text": (
+                    "Hola {{1}}, tu pedido #{{2}} en Zapatillas May está confirmado "
+                    "por ${{3}} MXN.\n\n"
+                    "Ya lo estamos preparando y te avisamos en cuanto salga a envío."
+                ),
+                "example": {
+                    "body_text": [["María", "A1B2C3D4", "850"]]
+                }
+            },
+            {
+                "type": "FOOTER",
+                "text": "Zapatillas May · León, Guanajuato"
+            },
+            {
+                "type": "BUTTONS",
+                "buttons": [
+                    {
+                        "type": "URL",
+                        "text": "Ir a zapatillasmay.mx",
+                        "url": "https://zapatillasmay.mx"
+                    }
+                ]
+            }
+        ]
+    }
+
+    url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates"
+    headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(plantilla).encode(), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = json.loads(r.read())
+        return {"ok": True, "meta_response": resp}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/crear-plantilla-pago")
 async def crear_plantilla_pago():
     """Crea la plantilla 'recordatorio_pago_pendiente' en Meta WA Business para recordatorios OXXO/SPEI."""
