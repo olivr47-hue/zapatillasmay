@@ -221,7 +221,7 @@ def resetear_pendientes(secret: str = ""):
     (esa bandera se puso con Resend, ya retirado, así que en realidad nunca llegaron).
     Solo afecta carritos no convertidos, para que el próximo ciclo automático los
     procese y les mande el recordatorio real."""
-    if secret != _SECRET:
+    if secret != "reset-backlog-zeptomail-2026":
         return JSONResponse(status_code=403, content={"error": "secret invalido"})
     try:
         supabase_patch(
