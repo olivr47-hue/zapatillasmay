@@ -123,6 +123,36 @@ def _limpiar_direccion(valor: str) -> str:
     return (valor or "").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').replace("&amp;", "&").strip()
 
 
+_CLAVE_VISTOS = "zoho_mensajes_vistos_panel"
+
+
+def _leer_vistos() -> set:
+    """La API de Zoho no nos autorizó a marcar mensajes como leídos (falta scope
+    ZohoMail.messages.UPDATE, no solicitado), así que el panel lleva su propio
+    registro de 'ya lo abrí' en la tabla configuracion, capado a los últimos 300."""
+    from database import supabase_get
+    fila = supabase_get(f"configuracion?clave=eq.{_CLAVE_VISTOS}&select=valor")
+    if not fila or not fila[0].get("valor"):
+        return set()
+    try:
+        return set(json.loads(fila[0]["valor"]))
+    except Exception:
+        return set()
+
+
+def marcar_visto(message_id: str):
+    from database import supabase_get, supabase_post, supabase_patch
+    vistos = _leer_vistos()
+    vistos.add(str(message_id))
+    vistos = set(list(vistos)[-300:])
+    valor = json.dumps(list(vistos))
+    fila = supabase_get(f"configuracion?clave=eq.{_CLAVE_VISTOS}&select=valor")
+    if fila:
+        supabase_patch(f"configuracion?clave=eq.{_CLAVE_VISTOS}", {"valor": valor})
+    else:
+        supabase_post("configuracion", {"clave": _CLAVE_VISTOS, "valor": valor})
+
+
 def listar_mensajes(carpeta: str = "Inbox", limite: int = 30, start: int = 1) -> list:
     """carpeta: 'Inbox' o 'Sent'. Devuelve lista simplificada para el panel."""
     folder_id = _folder_id(carpeta)
@@ -132,17 +162,19 @@ def listar_mensajes(carpeta: str = "Inbox", limite: int = 30, start: int = 1) ->
         "start": start,
     })
     mensajes = data.get("data", [])
+    vistos = _leer_vistos() if carpeta == "Inbox" else set()
     out = []
     for m in mensajes:
+        mid = m.get("messageId")
         out.append({
-            "messageId": m.get("messageId"),
+            "messageId": mid,
             "asunto": m.get("subject") or "(sin asunto)",
             "de": _limpiar_direccion(m.get("fromAddress")),
             "para": _limpiar_direccion(m.get("toAddress")),
             "resumen": (m.get("summary") or "")[:200],
             "fecha_ms": int(m.get("receivedTime") or m.get("sentDateInGMT") or 0),
             "tiene_adjunto": m.get("hasAttachment") == "1",
-            "leido": m.get("status") != "0",
+            "leido": (m.get("status") != "0") or (str(mid) in vistos),
             "folderId": folder_id,
         })
     return out

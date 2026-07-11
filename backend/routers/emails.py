@@ -113,6 +113,10 @@ def buzon_enviados(limit: int = 30, start: int = 1):
 def buzon_mensaje(folder_id: str, message_id: str):
     try:
         html = zoho_mail.obtener_contenido(message_id, folder_id)
+        try:
+            zoho_mail.marcar_visto(message_id)
+        except Exception:
+            pass  # que un fallo aquí no impida ver el correo
         return {"html": html}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
