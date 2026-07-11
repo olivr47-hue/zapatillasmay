@@ -91,7 +91,7 @@ const modulos = [
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
-  { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Integraciones', soloAdmin: true },
+  { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
   { id: 'referidos', icon: '🎁', label: 'Referidos', section: 'Ventas', soloAdmin: true },
   { id: 'carritos-abandonados', icon: '🛒', label: 'Carritos abandonados', section: 'Ventas', soloAdmin: true },
@@ -12035,6 +12035,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
       <button id="tab-chats" class="wa-tab-btn activo" onclick="mostrarTabWA('chats')">Chat</button>
       <button id="tab-pipeline" class="wa-tab-btn" onclick="mostrarTabWA('pipeline')">Embudo</button>
       <button id="tab-flujos" class="wa-tab-btn" onclick="mostrarTabWA('flujos')">Flujos</button>
+      <button id="tab-secuencias" class="wa-tab-btn" onclick="mostrarTabWA('secuencias')">Secuencias</button>
       <button id="tab-broadcasts" class="wa-tab-btn" onclick="mostrarTabWA('broadcasts')">Broadcasts</button>
       <button id="tab-config" class="wa-tab-btn" onclick="mostrarTabWA('config')">Config</button>
     </div>
@@ -12095,13 +12096,15 @@ window.mostrarTabWA = async (tab) => {
   // de vista (antes vivía dentro del área que cada pestaña reemplazaba, así que
   // al entrar a Embudo/Config los botones desaparecían y no había forma de volver).
   document.querySelectorAll('.wa-tab-btn').forEach(b => b.classList.remove('activo'))
-  document.getElementById('tab-' + (tab === 'chats' ? 'chats' : tab === 'pipeline' ? 'pipeline' : tab === 'flujos' ? 'flujos' : tab === 'broadcasts' ? 'broadcasts' : 'config'))?.classList.add('activo')
+  document.getElementById('tab-' + (tab === 'chats' ? 'chats' : tab === 'pipeline' ? 'pipeline' : tab === 'flujos' ? 'flujos' : tab === 'secuencias' ? 'secuencias' : tab === 'broadcasts' ? 'broadcasts' : 'config'))?.classList.add('activo')
   if (tab === 'chats') {
     await window.cargarConversaciones()
   } else if (tab === 'pipeline') {
     await window.mostrarPipelineWA()
   } else if (tab === 'flujos') {
     await window.mostrarFlujosTabWA()
+  } else if (tab === 'secuencias') {
+    await window.mostrarSecuenciasTabWA()
   } else if (tab === 'broadcasts') {
     await window.mostrarBroadcastsTabWA()
   } else {
@@ -12310,6 +12313,7 @@ window.mostrarBroadcastsTabWA = async function() {
                 <option value="todos">Todos los contactos de WhatsApp</option>
                 <option value="compradores">Solo compradores</option>
                 <option value="posibles">Posibles compradores</option>
+                <optgroup label="Mis segmentos" id="broadcast-dest-segmentos"></optgroup>
               </select>
             </div>
             <button onclick="ejecutarBroadcast()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:10px;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit">Enviar campaña →</button>
@@ -12320,6 +12324,14 @@ window.mostrarBroadcastsTabWA = async function() {
           <p style="margin:0 0 12px;font-weight:700;color:#0f172a;font-size:0.9rem">Historial y métricas</p>
           <div id="broadcasts-historial"><p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:20px">Cargando...</p></div>
         </div>
+      </div>
+      <div style="background:#fff;border-radius:12px;border:1px solid #f1f5f9;padding:18px;margin-top:16px;max-width:320px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <p style="margin:0;font-weight:700;color:#0f172a;font-size:0.9rem">Segmentos guardados</p>
+          <button onclick="window._modalSegmentoWA()" style="background:#f1f5f9;color:#475569;border:none;border-radius:6px;padding:5px 10px;font-size:0.75rem;font-weight:700;cursor:pointer">+ Nuevo</button>
+        </div>
+        <p style="font-size:0.74rem;color:#94a3b8;margin:0 0 10px">Combina etapa del embudo + estado del chat para armar un grupo reusable de destinatarios.</p>
+        <div id="segmentos-lista"><p style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:8px">Cargando...</p></div>
       </div>
     </div>
   `
@@ -12332,6 +12344,95 @@ window.mostrarBroadcastsTabWA = async function() {
       : '<option value="">Sin plantillas aprobadas</option>'
   }).catch(() => {})
   await window.cargarHistorialBroadcasts()
+  await window.cargarSegmentosWA()
+}
+
+// ── Segmentos guardados (filtros reusables para elegir destinatarios) ──────
+window._segmentosData = []
+window.cargarSegmentosWA = async () => {
+  const el = document.getElementById('segmentos-lista')
+  const sel = document.getElementById('broadcast-dest-segmentos')
+  try {
+    const segs = await fetch(API + '/chatbot/segmentos').then(r => r.json()).catch(() => [])
+    window._segmentosData = Array.isArray(segs) ? segs : []
+    if (sel) {
+      sel.innerHTML = window._segmentosData.map(s => `<option value="seg:${s.id}">${String(s.nombre).replace(/</g,'&lt;')}</option>`).join('')
+    }
+    if (!el) return
+    if (!window._segmentosData.length) {
+      el.innerHTML = '<p style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:8px">Sin segmentos aún.</p>'
+      return
+    }
+    const etapaNombre = (id) => (window._WA_ETAPAS || []).find(e => e.id === id)?.nombre || id
+    const estadoNombre = { abierto: 'Abierto', espera: 'Espera', cerrado: 'Cerrado' }
+    el.innerHTML = window._segmentosData.map(s => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="min-width:0">
+          <p style="font-weight:700;font-size:0.8rem;color:#0f172a;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${String(s.nombre).replace(/</g,'&lt;')}</p>
+          <p style="font-size:0.68rem;color:#94a3b8;margin:2px 0 0">${[s.filtro_etiqueta ? etapaNombre(s.filtro_etiqueta) : null, s.filtro_estado ? estadoNombre[s.filtro_estado] : null].filter(Boolean).join(' · ') || 'Sin filtro (todos)'}</p>
+        </div>
+        <button onclick="eliminarSegmentoWA('${s.id}')" style="background:#fce4ec;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;cursor:pointer;color:#c62828;flex-shrink:0">🗑️</button>
+      </div>
+    `).join('')
+  } catch(e) {
+    if (el) el.innerHTML = '<p style="font-size:0.78rem;color:#ef4444;text-align:center;padding:8px">Error cargando segmentos</p>'
+  }
+}
+
+window._modalSegmentoWA = () => {
+  const etapas = window._WA_ETAPAS || []
+  const prev = document.getElementById('modal-segmento-wa'); if (prev) prev.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-segmento-wa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:22px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit">
+      <h3 style="font-weight:700;font-size:1.05rem;margin:0 0 16px">Nuevo segmento</h3>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Nombre</label>
+      <input id="seg-nombre" placeholder="ej: Mayoristas frecuentes abiertos" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;outline:none">
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Etapa del embudo (opcional)</label>
+      <select id="seg-etapa" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;background:#fff">
+        <option value="">Cualquiera</option>
+        ${etapas.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('')}
+      </select>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Estado del chat (opcional)</label>
+      <select id="seg-estado" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:18px;font-family:inherit;background:#fff">
+        <option value="">Cualquiera</option>
+        <option value="abierto">Abierto</option>
+        <option value="espera">Espera</option>
+        <option value="cerrado">Cerrado</option>
+      </select>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-segmento-wa').remove()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b;font-family:inherit">Cancelar</button>
+        <button onclick="window._guardarSegmentoWA()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;font-family:inherit">Guardar</button>
+      </div>
+    </div>`
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+  setTimeout(() => document.getElementById('seg-nombre')?.focus(), 50)
+}
+
+window._guardarSegmentoWA = async () => {
+  const nombre = document.getElementById('seg-nombre')?.value.trim() || ''
+  if (!nombre) { alert('Ponle un nombre al segmento'); return }
+  const body = {
+    nombre,
+    filtro_etiqueta: document.getElementById('seg-etapa')?.value || null,
+    filtro_estado: document.getElementById('seg-estado')?.value || null,
+  }
+  try {
+    await fetch(API + '/chatbot/segmentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    document.getElementById('modal-segmento-wa')?.remove()
+    await window.cargarSegmentosWA()
+  } catch(e) { alert('Error guardando el segmento') }
+}
+
+window.eliminarSegmentoWA = async (id) => {
+  if (!confirm('¿Eliminar este segmento?')) return
+  try {
+    await fetch(API + '/chatbot/segmentos/' + id, { method: 'DELETE' })
+    await window.cargarSegmentosWA()
+  } catch(e) { alert('Error eliminando') }
 }
 
 window.cargarHistorialBroadcasts = async () => {
@@ -12478,15 +12579,36 @@ window.ejecutarBroadcast = async () => {
 
   if (!template) { alert('Selecciona una plantilla'); return }
 
+  // Si aún no se cargaron los chats en esta sesión del panel (se llega directo a
+  // Broadcasts sin pasar por Chat/Embudo), traerlos ahora para poder filtrar.
+  if (!window._chatsData || !Object.keys(window._chatsData).length) {
+    try {
+      const raw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
+      window._chatsData = {}
+      ;(Array.isArray(raw) ? raw : []).forEach(c => { window._chatsData[c.telefono] = c })
+    } catch (e) {}
+  }
+
   // Obtener teléfonos según filtro
   const chats = Object.values(window._chatsData || {})
   let telefonos = []
+  let filtro_etiqueta = null
   if (destOpt === 'todos') {
     telefonos = chats.map(c => c.telefono)
   } else if (destOpt === 'compradores') {
+    filtro_etiqueta = 'comprador'
     telefonos = chats.filter(c => c.etiqueta === 'comprador' || c.etiqueta === 'frecuente').map(c => c.telefono)
   } else if (destOpt === 'posibles') {
+    filtro_etiqueta = 'posible_comprador'
     telefonos = chats.filter(c => c.etiqueta === 'posible_comprador').map(c => c.telefono)
+  } else if (destOpt.startsWith('seg:')) {
+    const seg = (window._segmentosData || []).find(s => 'seg:' + s.id === destOpt)
+    if (!seg) { alert('Ese segmento ya no existe, recarga la pestaña'); return }
+    filtro_etiqueta = seg.filtro_etiqueta || null
+    telefonos = chats
+      .filter(c => !seg.filtro_etiqueta || c.etiqueta === seg.filtro_etiqueta)
+      .filter(c => !seg.filtro_estado || (c.estado || 'abierto') === seg.filtro_estado)
+      .map(c => c.telefono)
   }
 
   if (!telefonos.length) { alert('No hay contactos en ese grupo'); return }
@@ -12497,7 +12619,6 @@ window.ejecutarBroadcast = async () => {
   if (resEl) resEl.textContent = 'Enviando...'
   try {
     const params = param1 ? [param1] : []
-    const filtro_etiqueta = destOpt === 'compradores' ? 'comprador' : (destOpt === 'posibles' ? 'posible_comprador' : null)
     const r = await fetch(API + '/chatbot/broadcast', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template, params, telefonos, nombre: template, filtro_etiqueta })
@@ -12621,6 +12742,162 @@ window.eliminarFlujoWA = async (id) => {
   try {
     await fetch(API + '/chatbot/flujos/' + id, { method: 'DELETE' })
     await window.cargarFlujosWA()
+  } catch(e) { alert('Error eliminando') }
+}
+
+// ── Pestaña Secuencias (drip: varios mensajes espaciados en días, disparados
+// al mover una tarjeta del Embudo a cierta etapa) ───────────────────────────
+window.mostrarSecuenciasTabWA = async function() {
+  const tab = document.getElementById('wa-tab-content') || document.getElementById('content')
+  tab.innerHTML = `
+    <div style="padding:0 4px;max-width:900px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <div>
+          <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">Automatización</p>
+          <h2 style="font-weight:800;font-size:1.15rem;color:#0f172a;margin:0">⏱️ Secuencias</h2>
+          <p style="font-size:0.8rem;color:#94a3b8;margin:4px 0 0;max-width:560px">Varios mensajes espaciados en días, disparados solos cuando arrastras una tarjeta del Embudo a cierta etapa (ej: 3 días después de marcarlo "Posible", recordarle; 7 días después, ofrecer descuento).</p>
+        </div>
+        <button onclick="nuevaSecuenciaWA()" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:0.85rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">+ Nueva secuencia</button>
+      </div>
+      <div id="secuencias-lista"><p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:24px">Cargando secuencias...</p></div>
+    </div>
+  `
+  await window.cargarSecuenciasWA()
+}
+
+window._secuenciasData = []
+window.cargarSecuenciasWA = async () => {
+  const el = document.getElementById('secuencias-lista')
+  if (!el) return
+  try {
+    const secs = await fetch(API + '/chatbot/secuencias').then(r => r.json()).catch(() => [])
+    window._secuenciasData = Array.isArray(secs) ? secs : []
+    if (!window._secuenciasData.length) {
+      el.innerHTML = `<p style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:16px">Aún no tienes secuencias. Ejemplo: al mover a "Posible" → día 0 "¿Aún te interesan?", día 3 "Sigo aquí por si tienes dudas 😊".</p>`
+      return
+    }
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    const etapaInfo = (id) => (window._WA_ETAPAS || []).find(e => e.id === id) || { nombre: id, color: '#94a3b8' }
+    el.innerHTML = window._secuenciasData.map(s => {
+      const et = etapaInfo(s.etiqueta_disparadora)
+      const pasos = s.pasos || []
+      return `
+      <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;${s.activo ? '' : 'opacity:0.55'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0">
+            <span style="font-weight:700;font-size:0.86rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.nombre)}</span>
+            ${s.veces_disparado ? `<span style="font-size:0.64rem;color:#64748b;background:#f1f5f9;border-radius:100px;padding:1px 8px;white-space:nowrap">${s.veces_disparado}× enviados</span>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="toggleSecuenciaWA('${s.id}', ${s.activo ? 'false' : 'true'})" title="${s.activo ? 'Desactivar' : 'Activar'}" style="background:${s.activo ? '#dcfce7' : '#f1f5f9'};color:${s.activo ? '#16a34a' : '#94a3b8'};border:none;border-radius:6px;padding:4px 10px;font-size:0.72rem;font-weight:700;cursor:pointer">${s.activo ? 'ON' : 'OFF'}</button>
+            <button onclick="editarSecuenciaWA('${s.id}')" style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer">✏️</button>
+            <button onclick="eliminarSecuenciaWA('${s.id}')" style="background:#fce4ec;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#c62828">🗑️</button>
+          </div>
+        </div>
+        <div style="margin-bottom:6px">
+          <span style="font-size:0.7rem;background:#f1f5f9;color:${et.color};border-radius:100px;padding:2px 9px">Al mover a: ${esc(et.nombre)}</span>
+        </div>
+        ${pasos.map((p,i) => `<p style="font-size:0.78rem;color:#475569;line-height:1.5;margin:2px 0"><b>Día ${p.dias_espera}:</b> ${esc((p.mensaje||'').substring(0,100))}${(p.mensaje||'').length>100?'…':''}</p>`).join('') || '<p style="font-size:0.78rem;color:#c62828;margin:2px 0">Sin pasos</p>'}
+      </div>`
+    }).join('')
+  } catch(e) {
+    el.innerHTML = `<p style="font-size:0.8rem;color:#ef4444;text-align:center;padding:16px">Error cargando secuencias</p>`
+  }
+}
+
+window.nuevaSecuenciaWA = () => window._modalSecuenciaWA(null)
+window.editarSecuenciaWA = (id) => window._modalSecuenciaWA(window._secuenciasData.find(s => s.id === id) || null)
+
+window._secPasoFila = (dias, mensaje) => {
+  const esc = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;')
+  const div = document.createElement('div')
+  div.className = 'sec-paso-row'
+  div.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:flex-start'
+  div.innerHTML = `
+    <input type="number" min="0" class="sec-paso-dias" value="${dias ?? 0}" title="Días de espera" style="width:64px;border:1px solid #e2e8f0;border-radius:8px;padding:9px 8px;font-size:0.85rem;box-sizing:border-box;font-family:inherit;outline:none;flex-shrink:0">
+    <textarea class="sec-paso-msg" rows="2" placeholder="Mensaje de este paso" style="flex:1;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;font-family:inherit;resize:none;outline:none">${esc(mensaje || '')}</textarea>
+    <button onclick="this.parentElement.remove()" style="background:#fce4ec;border:none;border-radius:6px;width:30px;height:30px;flex-shrink:0;cursor:pointer;color:#c62828;font-size:0.85rem">✕</button>
+  `
+  return div
+}
+window._secAgregarPaso = () => {
+  document.getElementById('sec-pasos')?.appendChild(window._secPasoFila(0, ''))
+}
+
+window._modalSecuenciaWA = (secuencia) => {
+  const esEdit = !!secuencia
+  const s = secuencia || { nombre: '', etiqueta_disparadora: 'posible_comprador', solo_si_bot: true, activo: true, pasos: [{ dias_espera: 0, mensaje: '' }] }
+  const esc = (s2) => String(s2 == null ? '' : s2).replace(/"/g, '&quot;')
+  const etapas = window._WA_ETAPAS || []
+  const prev = document.getElementById('modal-secuencia-wa'); if (prev) prev.remove()
+  const modal = document.createElement('div')
+  modal.id = 'modal-secuencia-wa'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto'
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:22px;max-width:480px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);font-family:inherit;max-height:90vh;overflow-y:auto">
+      <h3 style="font-weight:700;font-size:1.05rem;margin:0 0 4px">${esEdit ? 'Editar secuencia' : 'Nueva secuencia'}</h3>
+      <p style="font-size:0.76rem;color:#94a3b8;margin:0 0 16px">Se dispara cuando arrastras un chat del Embudo a la etapa elegida.</p>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Nombre</label>
+      <input id="sec-nombre" value="${esc(s.nombre)}" placeholder="ej: Seguimiento posibles compradores" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;outline:none">
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Se dispara al mover a</label>
+      <select id="sec-etapa" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-bottom:12px;font-family:inherit;background:#fff">
+        ${etapas.map(e => `<option value="${e.id}" ${s.etiqueta_disparadora===e.id?'selected':''}>${esc(e.nombre)}</option>`).join('')}
+      </select>
+      <label style="display:block;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;margin-bottom:5px">Pasos (día de espera + mensaje)</label>
+      <div id="sec-pasos" style="margin-bottom:8px"></div>
+      <button type="button" onclick="window._secAgregarPaso()" style="background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:7px 12px;font-size:0.78rem;font-weight:600;cursor:pointer;margin-bottom:14px">+ Agregar paso</button>
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.82rem;color:#475569;margin-bottom:18px;cursor:pointer">
+        <input type="checkbox" id="sec-solobot" ${s.solo_si_bot?'checked':''} style="width:16px;height:16px;cursor:pointer">
+        No enviar si el chat lo lleva un asesor manual en ese momento
+      </label>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-secuencia-wa').remove()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b;font-family:inherit">Cancelar</button>
+        <button onclick="window._guardarSecuenciaWA(${esEdit ? `'${s.id}'` : 'null'})" style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600;font-family:inherit">Guardar</button>
+      </div>
+    </div>`
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+  const pasosCont = document.getElementById('sec-pasos')
+  const pasosIniciales = (s.pasos && s.pasos.length) ? s.pasos : [{ dias_espera: 0, mensaje: '' }]
+  pasosIniciales.forEach(p => pasosCont.appendChild(window._secPasoFila(p.dias_espera, p.mensaje)))
+  setTimeout(() => document.getElementById('sec-nombre')?.focus(), 50)
+}
+
+window._guardarSecuenciaWA = async (id) => {
+  const pasos = Array.from(document.querySelectorAll('#sec-pasos .sec-paso-row')).map(row => ({
+    dias_espera: parseInt(row.querySelector('.sec-paso-dias')?.value || '0', 10) || 0,
+    mensaje: row.querySelector('.sec-paso-msg')?.value.trim() || '',
+  })).filter(p => p.mensaje)
+  const body = {
+    nombre: document.getElementById('sec-nombre')?.value.trim() || '',
+    etiqueta_disparadora: document.getElementById('sec-etapa')?.value || 'posible_comprador',
+    solo_si_bot: !!document.getElementById('sec-solobot')?.checked,
+    pasos,
+  }
+  if (!body.nombre || !pasos.length) { alert('Ponle nombre y al menos un paso con mensaje'); return }
+  try {
+    if (id) {
+      await fetch(API + '/chatbot/secuencias/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    } else {
+      await fetch(API + '/chatbot/secuencias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    }
+    document.getElementById('modal-secuencia-wa')?.remove()
+    await window.cargarSecuenciasWA()
+  } catch(e) { alert('Error guardando la secuencia') }
+}
+
+window.toggleSecuenciaWA = async (id, activar) => {
+  try {
+    await fetch(API + '/chatbot/secuencias/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ activo: activar }) })
+    await window.cargarSecuenciasWA()
+  } catch(e) { alert('Error') }
+}
+
+window.eliminarSecuenciaWA = async (id) => {
+  if (!confirm('¿Eliminar esta secuencia? Los contactos ya inscritos dejarán de recibir sus mensajes.')) return
+  try {
+    await fetch(API + '/chatbot/secuencias/' + id, { method: 'DELETE' })
+    await window.cargarSecuenciasWA()
   } catch(e) { alert('Error eliminando') }
 }
 
