@@ -32,7 +32,7 @@ from email_utils import enviar_email
 
 router = APIRouter(prefix="/carrito-abandonado", tags=["Carrito Abandonado"])
 
-_SECRET        = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
+_SECRET        = os.environ["SECRET_KEY"]
 _NOTIF_EMAIL   = os.getenv("NOTIF_EMAIL", "olivr47@gmail.com")
 _HORAS_ESPERA  = float(os.getenv("CARRITO_HORAS_ESPERA", "1"))   # esperar 1h de inactividad
 _SITE          = "https://zapatillasmay.mx"

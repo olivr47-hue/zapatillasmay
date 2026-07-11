@@ -9,7 +9,7 @@ import base64
 import json
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
+SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 12
 

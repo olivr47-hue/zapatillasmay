@@ -197,7 +197,7 @@ def _no_credenciales():
 
 _RAILWAY_URL  = "https://zapatillasmay-production.up.railway.app"
 _CALLBACK_URI = f"{_RAILWAY_URL}/analytics/setup/callback"
-_SECRET_KEY   = os.getenv("SECRET_KEY", "zapatillasmay2024erp")
+_SECRET_KEY   = os.environ["SECRET_KEY"]
 
 
 @router.get("/setup", include_in_schema=False)
