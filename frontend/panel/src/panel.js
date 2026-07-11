@@ -12338,7 +12338,7 @@ window.mostrarBroadcastsTabWA = async function() {
   fetch(API + '/chatbot/templates').then(r => r.json()).then(data => {
     const sel = document.getElementById('broadcast-template')
     if (!sel) return
-    const aprobadas = (data.data || []).filter(t => t.status === 'APPROVED')
+    const aprobadas = (data.templates || []).filter(t => t.status === 'APPROVED')
     sel.innerHTML = aprobadas.length
       ? aprobadas.map(t => `<option value="${t.name}">${t.name}</option>`).join('')
       : '<option value="">Sin plantillas aprobadas</option>'
