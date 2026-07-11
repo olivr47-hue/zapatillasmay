@@ -305,6 +305,46 @@ _arrancarPollPedidos()
 if (window._pedidosInterval) clearInterval(window._pedidosInterval)
 window._pedidosInterval = setInterval(_pollPedidosPorEnviar, 30000)
 
+// ── Polling: correo entrante no leído ──────────────────────────────
+const _CORREO_BADGE_KEY = 'zm_badge_correo'
+let _ultimoConteoCorreo = null
+
+async function _pollCorreoNoLeido() {
+  if (window._correoPollEnVuelo) return
+  window._correoPollEnVuelo = true
+  try {
+    const res = await fetch(API + '/emails/buzon/no-leidos')
+    if (!res.ok) return
+    const data = await res.json()
+    const count = data.count || 0
+    localStorage.setItem(_CORREO_BADGE_KEY, count)
+    const badge = document.getElementById('badge-correo-nuevo')
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none' }
+
+    if (_ultimoConteoCorreo !== null && count > _ultimoConteoCorreo) {
+      _mostrarNotifPedido(`📧 Tienes correo nuevo en la bandeja de entrada`)
+    }
+    _ultimoConteoCorreo = count
+  } catch (e) {}
+  finally { window._correoPollEnVuelo = false }
+}
+
+function _arrancarPollCorreo() {
+  if (document.getElementById('badge-correo-nuevo')) {
+    const cached = parseInt(localStorage.getItem(_CORREO_BADGE_KEY) || '0', 10)
+    if (cached > 0) {
+      const badge = document.getElementById('badge-correo-nuevo')
+      if (badge) { badge.textContent = cached; badge.style.display = 'inline' }
+    }
+    _pollCorreoNoLeido()
+  } else {
+    setTimeout(_arrancarPollCorreo, 400)
+  }
+}
+_arrancarPollCorreo()
+if (window._correoInterval) clearInterval(window._correoInterval)
+window._correoInterval = setInterval(_pollCorreoNoLeido, 45000)
+
  window.navegarA = (id, _fromBack) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
@@ -343,6 +383,7 @@ function renderNav() {
         <span class="nav-icon">${m.icon}</span>
         ${m.label}
         ${m.id === 'pedidos' ? '<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'correo' ? '<span id="badge-correo-nuevo" style="display:none;background:#0d9488;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
       </div>
     `).join('')}
   `).join('')}
@@ -19531,12 +19572,75 @@ async function cargarCorreoCorporativo() {
           <button class="correo-tab-btn" data-tab="sistema" onclick="window._correoCambiarTab('sistema')"
             style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">⚙️ Registro del sistema</button>
         </div>
-        <button class="btn btn-primary" onclick="window._buzonRedactar()" style="margin-bottom:8px">✏️ Redactar</button>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn btn-secondary" id="btn-correo-notif" onclick="window._correoActivarNotif()">🔔 Activar notificaciones</button>
+          <button class="btn btn-primary" onclick="window._buzonRedactar()">✏️ Redactar</button>
+        </div>
       </div>
       <div id="correo-panel-contenido"></div>
     </div>
   `
+  window._correoActualizarBotonNotif()
   await window._correoCambiarTab('inbox')
+}
+
+window._correoActualizarBotonNotif = async () => {
+  const btn = document.getElementById('btn-correo-notif')
+  if (!btn || !('serviceWorker' in navigator) || !('PushManager' in window)) return
+  try {
+    const reg = await navigator.serviceWorker.getRegistration('/sw-push.js')
+    const sub = reg ? await reg.pushManager.getSubscription() : null
+    if (sub) { btn.textContent = '🔔 Notificaciones activas'; btn.disabled = true }
+  } catch (e) {}
+}
+
+window._correoActivarNotif = async () => {
+  const btn = document.getElementById('btn-correo-notif')
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    alert('Tu navegador no soporta notificaciones push.')
+    return
+  }
+  btn.disabled = true
+  btn.textContent = 'Activando...'
+  try {
+    const permiso = await Notification.requestPermission()
+    if (permiso !== 'granted') {
+      alert('No se otorgó permiso de notificaciones.')
+      btn.disabled = false
+      btn.textContent = '🔔 Activar notificaciones'
+      return
+    }
+    const reg = await navigator.serviceWorker.register('/sw-push.js')
+    await navigator.serviceWorker.ready
+    const keyRes = await fetch(`${API}/push/public-key`)
+    const { publicKey, configurado } = await keyRes.json()
+    if (!configurado) {
+      alert('El servidor no tiene configurado el envío de notificaciones push.')
+      btn.disabled = false
+      btn.textContent = '🔔 Activar notificaciones'
+      return
+    }
+    const urlBase64ToUint8Array = (base64) => {
+      const padding = '='.repeat((4 - base64.length % 4) % 4)
+      const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')
+      const raw = atob(base64Safe)
+      return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+    }
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    })
+    await fetch(`${API}/push/suscribir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, sitio: 'panel', user_agent: navigator.userAgent })
+    })
+    btn.textContent = '🔔 Notificaciones activas'
+  } catch (e) {
+    alert('No se pudo activar: ' + e.message)
+    btn.disabled = false
+    btn.textContent = '🔔 Activar notificaciones'
+  }
 }
 
 window._correoCambiarTab = async (tab) => {

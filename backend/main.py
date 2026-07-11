@@ -167,6 +167,29 @@ def _loop_tiktok_sync():
             print(f"[tiktok-sync] Error en loop: {e}")
         _time.sleep(30 * 60)  # cada 30 minutos
 
+def _loop_correo_nuevo():
+    """Revisa el Inbox de Zoho Mail cada 5 minutos y manda push a los admins
+    suscritos (sitio='panel') cuando llega correo nuevo."""
+    _time.sleep(90)  # espera inicial
+    while True:
+        try:
+            import zoho_mail
+            from routers.push import enviar_push
+            if zoho_mail.configurado():
+                nuevos = zoho_mail.verificar_correo_nuevo()
+                for m in nuevos:
+                    enviar_push(
+                        f"📧 Correo nuevo de {m['de']}",
+                        m["asunto"],
+                        url="/",
+                        sitio="panel",
+                    )
+                if nuevos:
+                    print(f"[correo-nuevo] Push enviado por {len(nuevos)} correo(s) nuevo(s)")
+        except Exception as e:
+            print(f"[correo-nuevo] Error en loop: {e}")
+        _time.sleep(5 * 60)  # cada 5 minutos
+
 @app.on_event("startup")
 def _iniciar_hilos():
     # Carrito abandonado
@@ -181,6 +204,10 @@ def _iniciar_hilos():
     t3 = threading.Thread(target=_loop_ml_ventas, daemon=True)
     t3.start()
     print("[ml-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
+    # Correo entrante: avisar a admins del panel
+    t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
+    t4.start()
+    print("[correo-nuevo] Hilo de aviso de correo entrante iniciado (cada 5 min)")
 
 @app.get("/")
 def inicio():

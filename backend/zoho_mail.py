@@ -172,6 +172,45 @@ def enviar_correo(para: str, asunto: str, html: str, cc: str = "", responder_a_m
     return _request_post(f"/accounts/{_account_id()}/messages", payload)
 
 
+def contar_no_leidos(limite: int = 50) -> int:
+    """Cuenta mensajes no leídos en Inbox (para el badge del panel)."""
+    return sum(1 for m in listar_mensajes("Inbox", limite) if not m["leido"])
+
+
+_CLAVE_ULTIMO_ID = "zoho_ultimo_email_id"
+
+
+def verificar_correo_nuevo() -> list:
+    """Compara el mensaje más reciente del Inbox contra el último visto
+    (guardado en la tabla `configuracion`). Devuelve los mensajes nuevos
+    (para disparar notificaciones push) y actualiza el marcador.
+    En la primera corrida (sin marcador previo) no notifica nada — solo
+    establece el punto de partida, para no disparar un aluvión de avisos
+    con correo viejo."""
+    from database import supabase_get, supabase_post, supabase_patch
+
+    mensajes = listar_mensajes("Inbox", 20)
+    if not mensajes:
+        return []
+
+    fila = supabase_get(f"configuracion?clave=eq.{_CLAVE_ULTIMO_ID}&select=valor")
+    ultimo_visto = int(fila[0]["valor"]) if fila and fila[0].get("valor") else None
+
+    nuevo_top = max(int(m["messageId"]) for m in mensajes)
+
+    if ultimo_visto is None:
+        if fila:
+            supabase_patch(f"configuracion?clave=eq.{_CLAVE_ULTIMO_ID}", {"valor": str(nuevo_top)})
+        else:
+            supabase_post("configuracion", {"clave": _CLAVE_ULTIMO_ID, "valor": str(nuevo_top)})
+        return []
+
+    nuevos = [m for m in mensajes if int(m["messageId"]) > ultimo_visto]
+    if nuevos:
+        supabase_patch(f"configuracion?clave=eq.{_CLAVE_ULTIMO_ID}", {"valor": str(nuevo_top)})
+    return nuevos
+
+
 def diagnostico() -> dict:
     if not configurado():
         return {"configurado": False}

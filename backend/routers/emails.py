@@ -93,6 +93,14 @@ def buzon_inbox(limit: int = 30, start: int = 1):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/buzon/no-leidos")
+def buzon_no_leidos():
+    try:
+        return {"count": zoho_mail.contar_no_leidos()}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/buzon/enviados")
 def buzon_enviados(limit: int = 30, start: int = 1):
     try:
