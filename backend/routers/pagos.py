@@ -636,23 +636,30 @@ async def webhook_mercadopago(request: Request):
         raw_body = await request.body()
         query = request.query_params
 
-        # Mercado Pago manda dos formatos al mismo webhook:
-        # 1) el nuevo, firmado (body JSON con type/data.id + header x-signature).
-        # 2) el IPN legado (?id=...&topic=payment), que NUNCA trae x-signature —
-        #    no es un fallo, así lo diseñó MP. Sin este bypass, rechazamos siempre
-        #    ese formato con 400 y el pago nunca se marca como pagado.
-        # Es seguro aceptarlo sin firma porque la verdad real no viene del webhook:
-        # más abajo volvemos a preguntarle a la API de MP (con NUESTRO access token)
-        # el estado del pago antes de tocar cualquier dato.
-        es_formato_legado = not request.headers.get("x-signature") and query.get("topic") and query.get("id")
-
-        if not es_formato_legado and not _validar_firma_mp(raw_body, dict(request.headers)):
-            return JSONResponse(status_code=400, content={"error": "Firma invalida"})
-
         try:
             body = json.loads(raw_body) if raw_body else {}
         except Exception:
             body = {}
+
+        # Mercado Pago manda dos formatos al mismo webhook:
+        # 1) el nuevo, firmado (body JSON con type/data.id + header x-signature).
+        # 2) el IPN legado (?id=...&topic=payment o topic=merchant_order), sin
+        #    body util (o sin body del todo) — la firma no se puede validar
+        #    porque _validar_firma_mp necesita "data.id" del body para armar el
+        #    manifest. Confirmado en produccion: MP a veces SI manda el header
+        #    x-signature en estas notificaciones (rompiendo la heuristica
+        #    original de "legado = sin x-signature"), pero igual sin data.id en
+        #    el body, asi que la validacion siempre fallaba con 400 -- el pago
+        #    nunca se marcaba como pagado para topic=payment/merchant_order.
+        # Es seguro aceptarlo sin firma porque la verdad real no viene del webhook:
+        # más abajo volvemos a preguntarle a la API de MP (con NUESTRO access token)
+        # el estado del pago antes de tocar cualquier dato.
+        tiene_data_id = bool(body.get("data", {}).get("id"))
+        es_formato_legado = not tiene_data_id and query.get("topic") and query.get("id")
+
+        if not es_formato_legado and not _validar_firma_mp(raw_body, dict(request.headers)):
+            return JSONResponse(status_code=400, content={"error": "Firma invalida"})
+
         tipo = body.get("type") or query.get("topic")
 
         if tipo == "payment":
