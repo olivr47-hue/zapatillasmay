@@ -1561,6 +1561,7 @@ async def cambiar_etiqueta(telefono: str, datos: dict):
             supabase_patch(f"chats_control?telefono=eq.{telefono}", {"etiqueta": etiqueta})
         else:
             supabase_post("chats_control", {"telefono": telefono, "etiqueta": etiqueta})
+        _inscribir_en_secuencias(telefono, etiqueta)
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -1707,6 +1708,177 @@ def _buscar_flujo(texto: str, en_control: bool):
                     pass
                 return f.get("respuesta") or None
     return None
+
+
+# ── SECUENCIAS DE MENSAJES (drip, disparadas por etapa del embudo) ──────────
+@router.get("/secuencias")
+async def listar_secuencias():
+    try:
+        return supabase_get("wa_secuencias?order=created_at.asc") or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/secuencias")
+async def crear_secuencia(datos: dict):
+    try:
+        from database import supabase_post
+        pasos = datos.get("pasos") or []
+        pasos = [{"dias_espera": int(p.get("dias_espera") or 0), "mensaje": (p.get("mensaje") or "").strip()}
+                 for p in pasos if (p.get("mensaje") or "").strip()]
+        return supabase_post("wa_secuencias", {
+            "nombre": (datos.get("nombre") or "").strip() or "Secuencia sin nombre",
+            "activo": bool(datos.get("activo", True)),
+            "etiqueta_disparadora": datos.get("etiqueta_disparadora") or "posible_comprador",
+            "solo_si_bot": bool(datos.get("solo_si_bot", True)),
+            "pasos": pasos,
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/secuencias/{id}")
+async def actualizar_secuencia(id: str, datos: dict):
+    try:
+        from database import supabase_patch
+        upd = {}
+        if "nombre" in datos: upd["nombre"] = (datos.get("nombre") or "").strip() or "Secuencia sin nombre"
+        if "activo" in datos: upd["activo"] = bool(datos.get("activo"))
+        if "etiqueta_disparadora" in datos: upd["etiqueta_disparadora"] = datos.get("etiqueta_disparadora")
+        if "solo_si_bot" in datos: upd["solo_si_bot"] = bool(datos.get("solo_si_bot"))
+        if "pasos" in datos:
+            pasos = datos.get("pasos") or []
+            upd["pasos"] = [{"dias_espera": int(p.get("dias_espera") or 0), "mensaje": (p.get("mensaje") or "").strip()}
+                             for p in pasos if (p.get("mensaje") or "").strip()]
+        supabase_patch(f"wa_secuencias?id=eq.{id}", upd)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/secuencias/{id}")
+async def eliminar_secuencia(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"wa_secuencias?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _inscribir_en_secuencias(telefono: str, etiqueta: str):
+    """Al cambiar la etapa de un chat en el embudo, inscribe el telefono en toda
+    secuencia activa disparada por esa etapa (si no tiene ya una inscripción activa
+    en esa misma secuencia)."""
+    try:
+        from database import supabase_post
+        import datetime as _dt
+        secuencias = supabase_get(f"wa_secuencias?activo=eq.true&etiqueta_disparadora=eq.{etiqueta}") or []
+        for s in secuencias:
+            pasos = s.get("pasos") or []
+            if not pasos:
+                continue
+            ya = supabase_get(f"wa_secuencia_envios?secuencia_id=eq.{s['id']}&telefono=eq.{telefono}&estado=eq.activa") or []
+            if ya:
+                continue
+            dias = int(pasos[0].get("dias_espera") or 0)
+            proximo = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(days=dias)).isoformat()
+            supabase_post("wa_secuencia_envios", {
+                "secuencia_id": s["id"], "telefono": telefono,
+                "paso_actual": 0, "proximo_envio_at": proximo, "estado": "activa",
+            })
+    except Exception as e:
+        print(f"[secuencias-wa] error al inscribir {telefono}: {e}")
+
+
+def procesar_secuencias_wa() -> dict:
+    """Envía el paso que le toque a cada inscripción activa cuya hora ya llegó.
+    Pensado para llamarse desde un hilo periódico (ver main.py)."""
+    import datetime as _dt
+    from database import supabase_patch
+    ahora = _dt.datetime.now(_dt.timezone.utc)
+    enviados, saltados, errores = 0, 0, 0
+    try:
+        pendientes = supabase_get(
+            f"wa_secuencia_envios?estado=eq.activa&proximo_envio_at=lte.{ahora.isoformat()}"
+        ) or []
+    except Exception as e:
+        return {"error": str(e)}
+
+    for envio in pendientes:
+        try:
+            tel = envio["telefono"]
+            secu = supabase_get(f"wa_secuencias?id=eq.{envio['secuencia_id']}")
+            if not secu:
+                supabase_patch(f"wa_secuencia_envios?id=eq.{envio['id']}", {"estado": "cancelada"})
+                continue
+            secu = secu[0]
+            if not secu.get("activo"):
+                supabase_patch(f"wa_secuencia_envios?id=eq.{envio['id']}", {"estado": "cancelada"})
+                continue
+            if secu.get("solo_si_bot", True):
+                control = supabase_get(f"chats_control?telefono=eq.{tel}&en_control=eq.true")
+                if control:
+                    saltados += 1
+                    continue  # asesor manual activo: reintenta en el próximo ciclo
+
+            pasos = secu.get("pasos") or []
+            paso_i = envio.get("paso_actual", 0)
+            if paso_i >= len(pasos):
+                supabase_patch(f"wa_secuencia_envios?id=eq.{envio['id']}", {"estado": "completada"})
+                continue
+
+            mensaje = pasos[paso_i].get("mensaje", "")
+            if mensaje:
+                enviar_whatsapp_texto(tel, mensaje)
+                try:
+                    supabase_post("conversaciones_whatsapp", {
+                        "telefono": tel, "mensaje": f"[Secuencia]: {mensaje}",
+                        "tipo": "secuencia_saliente", "leido": True,
+                    })
+                except Exception:
+                    pass
+                supabase_patch(f"wa_secuencias?id=eq.{secu['id']}", {"veces_disparado": (secu.get("veces_disparado") or 0) + 1})
+                enviados += 1
+
+            if paso_i + 1 < len(pasos):
+                dias = int(pasos[paso_i + 1].get("dias_espera") or 0)
+                proximo = (ahora + _dt.timedelta(days=dias)).isoformat()
+                supabase_patch(f"wa_secuencia_envios?id=eq.{envio['id']}", {"paso_actual": paso_i + 1, "proximo_envio_at": proximo})
+            else:
+                supabase_patch(f"wa_secuencia_envios?id=eq.{envio['id']}", {"paso_actual": paso_i + 1, "estado": "completada"})
+        except Exception as e:
+            errores += 1
+            print(f"[secuencias-wa] error procesando envio {envio.get('id')}: {e}")
+
+    return {"revisados": len(pendientes), "enviados": enviados, "saltados": saltados, "errores": errores}
+
+
+# ── SEGMENTOS (filtros guardados para targetear broadcasts) ─────────────────
+@router.get("/segmentos")
+async def listar_segmentos():
+    try:
+        return supabase_get("wa_segmentos?order=created_at.asc") or []
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/segmentos")
+async def crear_segmento(datos: dict):
+    try:
+        from database import supabase_post
+        return supabase_post("wa_segmentos", {
+            "nombre": (datos.get("nombre") or "").strip() or "Segmento sin nombre",
+            "filtro_etiqueta": datos.get("filtro_etiqueta") or None,
+            "filtro_estado": datos.get("filtro_estado") or None,
+        })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.delete("/segmentos/{id}")
+async def eliminar_segmento(id: str):
+    try:
+        from database import supabase_delete
+        supabase_delete(f"wa_segmentos?id=eq.{id}")
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 def _actualizar_metrica_broadcast(wamid: str, status_type: str):

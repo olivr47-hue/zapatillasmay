@@ -167,6 +167,20 @@ def _loop_tiktok_sync():
             print(f"[tiktok-sync] Error en loop: {e}")
         _time.sleep(30 * 60)  # cada 30 minutos
 
+def _loop_secuencias_wa():
+    """Revisa cada 15 minutos si hay pasos de secuencias de WhatsApp (drip) que
+    ya les toca enviarse y los manda."""
+    _time.sleep(120)  # espera inicial
+    while True:
+        try:
+            from routers.chatbot import procesar_secuencias_wa
+            res = procesar_secuencias_wa()
+            if res.get("enviados"):
+                print(f"[secuencias-wa] Enviados: {res['enviados']} de {res.get('revisados', 0)} revisados")
+        except Exception as e:
+            print(f"[secuencias-wa] Error en loop: {e}")
+        _time.sleep(15 * 60)  # cada 15 minutos
+
 def _loop_correo_nuevo():
     """Revisa el Inbox de Zoho Mail cada 5 minutos y manda push a los admins
     suscritos (sitio='panel') cuando llega correo nuevo."""
@@ -208,6 +222,10 @@ def _iniciar_hilos():
     t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
     t4.start()
     print("[correo-nuevo] Hilo de aviso de correo entrante iniciado (cada 5 min)")
+    # Secuencias de WhatsApp (drip)
+    t5 = threading.Thread(target=_loop_secuencias_wa, daemon=True)
+    t5.start()
+    print("[secuencias-wa] Hilo de secuencias de WhatsApp iniciado (cada 15 min)")
 
 @app.get("/")
 def inicio():
