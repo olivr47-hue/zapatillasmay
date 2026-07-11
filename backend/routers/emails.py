@@ -108,3 +108,23 @@ def buzon_mensaje(folder_id: str, message_id: str):
         return {"html": html}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/buzon/enviar")
+def buzon_enviar(body: dict):
+    """Redacta y manda un correo real desde contacto@zapatillasmay.mx (o responde
+    un mensaje del inbox si se pasa responder_a)."""
+    para = (body.get("para") or "").strip()
+    asunto = (body.get("asunto") or "(sin asunto)").strip()
+    html = body.get("html") or ""
+    cc = (body.get("cc") or "").strip()
+    responder_a = (body.get("responder_a") or "").strip()
+    if not para or "@" not in para:
+        return JSONResponse(status_code=400, content={"error": "Destinatario inválido"})
+    if not html.strip():
+        return JSONResponse(status_code=400, content={"error": "El cuerpo del correo está vacío"})
+    try:
+        resultado = zoho_mail.enviar_correo(para, asunto, html, cc, responder_a)
+        return {"ok": True, "resultado": resultado}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

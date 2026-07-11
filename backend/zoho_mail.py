@@ -75,6 +75,20 @@ def _request(path: str, params: dict = None) -> dict:
         raise RuntimeError(f"Zoho Mail API {e.code}: {e.read().decode()}")
 
 
+def _request_post(path: str, payload: dict) -> dict:
+    token = _get_access_token()
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{_API_BASE}{path}", data=body, method="POST",
+        headers={"Authorization": f"Zoho-oauthtoken {token}", "Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"Zoho Mail API {e.code}: {e.read().decode('utf-8', errors='replace')}")
+
+
 def _account_id() -> str:
     if _cache["account_id"]:
         return _cache["account_id"]
@@ -138,6 +152,24 @@ def obtener_contenido(message_id: str, folder_id: str) -> str:
     """HTML completo de un mensaje (los metadatos ya vienen del listado)."""
     data = _request(f"/accounts/{_account_id()}/folders/{folder_id}/messages/{message_id}/content")
     return data.get("data", {}).get("content") or ""
+
+
+def enviar_correo(para: str, asunto: str, html: str, cc: str = "", responder_a_message_id: str = "") -> dict:
+    """Manda un correo real desde contacto@zapatillasmay.mx vía Zoho Mail API
+    (aparece en la carpeta Sent del buzón real y permite responder hilos)."""
+    payload = {
+        "fromAddress": "contacto@zapatillasmay.mx",
+        "toAddress": para,
+        "subject": asunto,
+        "content": html,
+        "mailFormat": "html",
+    }
+    if cc:
+        payload["ccAddress"] = cc
+    if responder_a_message_id:
+        payload["refMessageId"] = responder_a_message_id
+        payload["mode"] = "reply"
+    return _request_post(f"/accounts/{_account_id()}/messages", payload)
 
 
 def diagnostico() -> dict:

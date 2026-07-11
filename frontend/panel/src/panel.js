@@ -19522,13 +19522,16 @@ async function cargarCorreoCorporativo() {
       <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
         contacto@zapatillasmay.mx — bandeja real y registro de correos del sistema.
       </p>
-      <div style="display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:1px solid #eee">
-        <button class="correo-tab-btn" data-tab="inbox" onclick="window._correoCambiarTab('inbox')"
-          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📥 Bandeja de entrada</button>
-        <button class="correo-tab-btn" data-tab="enviados-zoho" onclick="window._correoCambiarTab('enviados-zoho')"
-          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📤 Enviados</button>
-        <button class="correo-tab-btn" data-tab="sistema" onclick="window._correoCambiarTab('sistema')"
-          style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">⚙️ Registro del sistema</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;border-bottom:1px solid #eee;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:6px">
+          <button class="correo-tab-btn" data-tab="inbox" onclick="window._correoCambiarTab('inbox')"
+            style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📥 Bandeja de entrada</button>
+          <button class="correo-tab-btn" data-tab="enviados-zoho" onclick="window._correoCambiarTab('enviados-zoho')"
+            style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">📤 Enviados</button>
+          <button class="correo-tab-btn" data-tab="sistema" onclick="window._correoCambiarTab('sistema')"
+            style="padding:0.6rem 1rem;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:600;border-bottom:2px solid transparent">⚙️ Registro del sistema</button>
+        </div>
+        <button class="btn btn-primary" onclick="window._buzonRedactar()" style="margin-bottom:8px">✏️ Redactar</button>
       </div>
       <div id="correo-panel-contenido"></div>
     </div>
@@ -19604,7 +19607,7 @@ window._buzonCargar = async (tab) => {
       </thead>
       <tbody>
         ${mensajes.map(m => `
-          <tr onclick="window._buzonVerDetalle('${m.folderId}','${m.messageId}',${JSON.stringify(m.asunto).replace(/"/g,'&quot;')},${JSON.stringify(tab === 'inbox' ? m.de : m.para).replace(/"/g,'&quot;')})"
+          <tr onclick="window._buzonVerDetalle('${m.folderId}','${m.messageId}',${JSON.stringify(m.asunto).replace(/"/g,'&quot;')},${JSON.stringify(tab === 'inbox' ? m.de : m.para).replace(/"/g,'&quot;')},'${tab}')"
               style="border-bottom:1px solid #f5f5f5;cursor:pointer;${m.leido ? '' : 'font-weight:700'}" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
             <td style="padding:10px 14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tab === 'inbox' ? (m.de || '—') : (m.para || '—')}</td>
             <td style="padding:10px 14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.asunto}${m.tiene_adjunto ? ' 📎' : ''}</td>
@@ -19615,13 +19618,14 @@ window._buzonCargar = async (tab) => {
     </table>`
 }
 
-window._buzonVerDetalle = async (folderId, messageId, asunto, contacto) => {
+window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => {
   const anterior = document.getElementById('modal-buzon-detalle')
   if (anterior) anterior.remove()
   const ov = document.createElement('div')
   ov.id = 'modal-buzon-detalle'
   ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px'
   ov.onclick = (ev) => { if (ev.target === ov) ov.remove() }
+  const puedeResponder = tab === 'inbox'
   ov.innerHTML = `
     <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
@@ -19631,9 +19635,10 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto) => {
         </div>
         <button onclick="document.getElementById('modal-buzon-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
       </div>
-      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden">
+      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:${puedeResponder ? '1rem' : '0'}">
         <iframe id="buzon-iframe-${messageId}" style="width:100%;height:420px;border:none"></iframe>
       </div>
+      ${puedeResponder ? `<button class="btn btn-primary" onclick="window._buzonRedactar(${JSON.stringify(contacto).replace(/"/g,'&quot;')}, ${JSON.stringify('Re: ' + (asunto||'')).replace(/"/g,'&quot;')}, '${messageId}')">↩️ Responder</button>` : ''}
     </div>`
   document.body.appendChild(ov)
   try {
@@ -19644,6 +19649,91 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto) => {
   } catch (e) {
     const iframe = document.getElementById(`buzon-iframe-${messageId}`)
     if (iframe) iframe.srcdoc = '<p style="font-family:sans-serif;color:#888;padding:1rem">Error de conexión.</p>'
+  }
+}
+
+window._buzonRedactar = (paraPrefill = '', asuntoPrefill = '', responderA = '') => {
+  const modalAnterior = document.getElementById('modal-buzon-detalle')
+  if (modalAnterior) modalAnterior.remove()
+  const anterior = document.getElementById('modal-buzon-redactar')
+  if (anterior) anterior.remove()
+
+  const emailMatch = (paraPrefill || '').match(/[\w.+-]+@[\w-]+\.[\w.-]+/)
+  const paraLimpio = emailMatch ? emailMatch[0] : paraPrefill
+
+  const ov = document.createElement('div')
+  ov.id = 'modal-buzon-redactar'
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px'
+  ov.onclick = (ev) => { if (ev.target === ov) ov.remove() }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <p style="margin:0;font-weight:700;font-size:1rem">${responderA ? 'Responder' : 'Redactar correo'}</p>
+        <button onclick="document.getElementById('modal-buzon-redactar').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input id="rz-para" type="email" placeholder="Para: correo@ejemplo.com" value="${paraLimpio}"
+               style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        <input id="rz-cc" type="email" placeholder="CC (opcional)"
+               style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        <input id="rz-asunto" placeholder="Asunto" value="${(asuntoPrefill || '').replace(/"/g,'&quot;')}"
+               style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
+        <textarea id="rz-cuerpo" placeholder="Escribe tu mensaje..." rows="10"
+                  style="padding:0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.88rem;font-family:inherit;resize:vertical"></textarea>
+        <div id="rz-error" style="display:none;color:#dc2626;font-size:0.8rem"></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          <button class="btn btn-secondary" onclick="document.getElementById('modal-buzon-redactar').remove()">Cancelar</button>
+          <button class="btn btn-primary" id="rz-enviar-btn" onclick="window._buzonEnviar('${responderA}')">Enviar</button>
+        </div>
+      </div>
+    </div>`
+  document.body.appendChild(ov)
+  document.getElementById(responderA ? 'rz-cuerpo' : 'rz-para').focus()
+}
+
+window._buzonEnviar = async (responderA) => {
+  const para = document.getElementById('rz-para').value.trim()
+  const cc = document.getElementById('rz-cc').value.trim()
+  const asunto = document.getElementById('rz-asunto').value.trim()
+  const cuerpo = document.getElementById('rz-cuerpo').value.trim()
+  const errDiv = document.getElementById('rz-error')
+  errDiv.style.display = 'none'
+
+  if (!para || !para.includes('@')) {
+    errDiv.textContent = 'Escribe un destinatario válido.'
+    errDiv.style.display = 'block'
+    return
+  }
+  if (!cuerpo) {
+    errDiv.textContent = 'El mensaje no puede estar vacío.'
+    errDiv.style.display = 'block'
+    return
+  }
+  const btn = document.getElementById('rz-enviar-btn')
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  const htmlBody = cuerpo.split('\n').map(l => `<p style="margin:0 0 10px">${l}</p>`).join('')
+  try {
+    const res = await fetch(`${API}/emails/buzon/enviar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ para, cc, asunto, html: htmlBody, responder_a: responderA || '' })
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      errDiv.textContent = data.error || 'No se pudo enviar el correo.'
+      errDiv.style.display = 'block'
+      btn.disabled = false
+      btn.textContent = 'Enviar'
+      return
+    }
+    document.getElementById('modal-buzon-redactar').remove()
+    if (window._correoTab === 'enviados-zoho') window._buzonCargar('enviados-zoho')
+  } catch (e) {
+    errDiv.textContent = 'Error de conexión.'
+    errDiv.style.display = 'block'
+    btn.disabled = false
+    btn.textContent = 'Enviar'
   }
 }
 
