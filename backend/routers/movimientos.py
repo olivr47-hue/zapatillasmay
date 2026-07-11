@@ -7,7 +7,7 @@ from security import require_staff
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
 @router.get("/")
-def listar_movimientos():
+def listar_movimientos(_staff=Depends(require_staff)):
     try:
         return supabase_get_all("movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)")
     except Exception as e:

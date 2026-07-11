@@ -1,9 +1,10 @@
 import os
 import json
 import urllib.request
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+from security import require_staff
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
@@ -96,7 +97,7 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
 
 
 @router.get("/")
-def listar_pedidos(status: str = None):
+def listar_pedidos(status: str = None, _staff=Depends(require_staff)):
     try:
         filtro = f"&status=eq.{status}" if status else ""
         return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*)")
@@ -104,7 +105,7 @@ def listar_pedidos(status: str = None):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/apartados")
-def listar_apartados():
+def listar_apartados(_staff=Depends(require_staff)):
     try:
         return supabase_get("pedidos?status=eq.apartado&order=created_at.desc&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
     except Exception as e:
