@@ -215,24 +215,6 @@ def procesar_endpoint(secret: str = ""):
     return procesar_recordatorios()
 
 
-@router.get("/resetear-pendientes")
-def resetear_pendientes(secret: str = ""):
-    """Reactiva carritos marcados como 'recordatorio_enviado' de antes de ZeptoMail
-    (esa bandera se puso con Resend, ya retirado, así que en realidad nunca llegaron).
-    Solo afecta carritos no convertidos, para que el próximo ciclo automático los
-    procese y les mande el recordatorio real."""
-    if secret != "reset-backlog-zeptomail-2026":
-        return JSONResponse(status_code=403, content={"error": "secret invalido"})
-    try:
-        supabase_patch(
-            "carritos_abandonados?convertido=eq.false&recordatorio_enviado=eq.true",
-            {"recordatorio_enviado": False, "recordatorio_enviado_at": None}
-        )
-        return {"ok": True}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
 # ── 6. PANEL: listar + stats ──────────────────────────────────────
 @router.get("/listar")
 def listar():
