@@ -398,6 +398,27 @@ function renderInicio(el) {
         </button>`).join('')}
     </div>
 
+    <!-- Estado de cuenta (línea de crédito formal, distinta del crédito de referidos) -->
+    ${(() => {
+      const limite = parseFloat(pc.clienteData?.limite_credito || 0)
+      if (!(limite > 0)) return ''
+      const dias = parseInt(pc.clienteData?.dias_credito || 0)
+      return `<div class="pc-card" style="margin-bottom:20px">
+        <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Estado de cuenta</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
+          <div>
+            <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 4px">Línea de crédito</p>
+            <p style="font-size:1.1rem;font-weight:700;color:#e2e2f0;margin:0">${money(limite)}</p>
+          </div>
+          ${dias > 0 ? `<div>
+            <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 4px">Plazo de pago</p>
+            <p style="font-size:1.1rem;font-weight:700;color:#e2e2f0;margin:0">${dias} días</p>
+          </div>` : ''}
+        </div>
+        <p style="font-size:0.75rem;color:#5a5a7a;margin:12px 0 0">Consulta con tu asesora el saldo usado de tu línea.</p>
+      </div>`
+    })()}
+
     <!-- Últimos pedidos -->
     ${ultimosPedidos.length ? `
     <div class="pc-card">
@@ -657,6 +678,26 @@ window.pcCardColor = function(prodId, fotoUrl, swatchEl) {
   swatchEl.style.borderColor = '#E91E8C'
 }
 
+window.pcToggleCompartir = function(prodId) {
+  const row = document.getElementById('pc-compartir-' + prodId)
+  if (!row) return
+  row.style.display = row.style.display === 'none' ? 'flex' : 'none'
+}
+
+window.pcCompartirProducto = function(prodId, medio) {
+  const p = pc.productos.find(x => x.id === prodId)
+  if (!p) return
+  const link = `https://zapatillasmay.mx/producto/${encodeURIComponent(p.sku_interno || p.id)}`
+  const mensaje = `¡Mira este modelo! ${p.nombre} 👠\n${link}`
+  if (medio === 'whatsapp') {
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
+  } else if (medio === 'facebook') {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`, '_blank')
+  } else if (medio === 'copiar') {
+    navigator.clipboard?.writeText(link).then(() => pcMostrarExito('🔗 Link copiado')).catch(() => pcMostrarExito(link))
+  }
+}
+
 // ── Modal de producto: port del POS (misma lógica, datos de pc.*) ──────────────
 window.pcAbrirProducto = function(prodId) {
   if (window._zmPushBack) window._zmPushBack(() => document.getElementById('pc-modal')?.remove())
@@ -696,7 +737,15 @@ window.pcAbrirProducto = function(prodId) {
             <p style="font-weight:700;font-size:0.95rem;line-height:1.25;color:#e2e2f0;margin:0">${esc(p.nombre)}</p>
             <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${fmtP(parseFloat(p.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:#5a5a7a">menudeo</span></p>
           </div>
-          <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#5a5a7a;flex-shrink:0;line-height:1">✕</button>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+            <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#5a5a7a;line-height:1">✕</button>
+            <button onclick="pcToggleCompartir('${prodId}')" title="Compartir con tus clientes" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#5a5a7a;line-height:1;padding:2px">↗️</button>
+          </div>
+        </div>
+        <div id="pc-compartir-${prodId}" style="display:none;gap:8px;margin-top:8px;padding:8px 0 2px;border-top:1px solid #2a2a40">
+          <button onclick="pcCompartirProducto('${prodId}','whatsapp')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#25D366;color:white;border:none;border-radius:8px;padding:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit">💬 WhatsApp</button>
+          <button onclick="pcCompartirProducto('${prodId}','facebook')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#1877F2;color:white;border:none;border-radius:8px;padding:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit">👍 Facebook</button>
+          <button onclick="pcCompartirProducto('${prodId}','copiar')" style="flex:0 0 auto;background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;padding:8px 12px;font-size:0.78rem;cursor:pointer;font-family:inherit">🔗</button>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px">
           <div style="flex:1;background:#0f0f1c;border:1px solid #2a2a40;border-radius:9px;padding:6px 4px;text-align:center">
@@ -1796,7 +1845,46 @@ function pcPedidoDetalle(p) {
             <p style="font-weight:700;color:#e2e2f0;margin:0;flex-shrink:0">${money((i.precio_unitario||0)*i.cantidad)}</p>
           </div>`).join('')}
       </div>` : ''}
+      ${items.length > 0 ? `
+      <button onclick="pcReordenar('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:14px;font-size:0.82rem">🔁 Pedir de nuevo</button>` : ''}
     </div>`
+}
+
+window.pcReordenar = function(pedidoId) {
+  const p = (pc.pedidos || []).find(x => x.id === pedidoId)
+  if (!p) return
+  const items = p.pedido_items || []
+  let agregados = 0
+  const avisos = []
+  items.forEach(i => {
+    const v = i.variantes
+    if (!v || !v.id) return
+    const stockReal = pc.inventario.filter(x => x.variante_id === v.id).reduce((s,x) => s + (x.cantidad||0), 0)
+    const nombreProd = v.productos?.nombre || 'Producto'
+    const etiqueta = `${nombreProd} T${v.talla||''}`
+    const cantidad = Math.min(i.cantidad, stockReal)
+    if (cantidad <= 0) { avisos.push(`${etiqueta}: sin existencia`); return }
+    if (cantidad < i.cantidad) avisos.push(`${etiqueta}: solo ${cantidad} de ${i.cantidad}`)
+    const existente = pc.carrito.find(c => c.variante_id === v.id && !c.es_corrida)
+    if (existente) {
+      existente.cantidad += cantidad
+    } else {
+      const prod = pc.productos.find(x => x.id === v.producto_id)
+      pc.carrito.push({
+        producto_id: v.producto_id, variante_id: v.id, nombre: nombreProd,
+        sku: prod?.sku_interno || null, imagen: v.productos?.imagen_principal || null,
+        talla: v.talla, color: v.color, cantidad, precio_unitario: i.precio_unitario || 0, es_corrida: false,
+      })
+    }
+    agregados++
+  })
+  pcGuardarCarrito()
+  if (agregados === 0) {
+    pcMostrarExito('Ninguno de esos productos tiene existencia ahora mismo 😔')
+    return
+  }
+  pcMostrarExito(avisos.length ? `Agregado al carrito — revisa: ${avisos.join(', ')}` : '✅ Pedido agregado a tu carrito')
+  pcIrA('carrito')
 }
 
 // ── SUGERENCIAS ──────────────────────────────────────────────
