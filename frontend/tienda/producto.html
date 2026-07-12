@@ -289,7 +289,11 @@
         border-bottom: 1px solid rgba(200,150,122,0.12);
       }
 
-      /* Gallery: full-height fixed left, below promo+header */
+      /* Gallery: full-height fixed left, below promo+header. La foto se centra
+         en 1:1 (las fotos se suben cuadradas) en vez de estirarse a todo el
+         panel -- forzar aspect-ratio:unset aqui la recortaba/deformaba mal en
+         varios modelos. El panel fijo se queda igual, solo cambia cómo se ve
+         la imagen dentro (cuadrada y completa, no un rectángulo recortado). */
       .gallery {
         position: fixed;
         top: 108px; left: 0;
@@ -297,13 +301,17 @@
         height: calc(100vh - 108px);
         overflow: hidden;
         background: #f5f0eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .gallery-main {
         width: 100% !important;
-        height: 100vh !important;
+        height: auto !important;
+        max-height: 100% !important;
         max-width: none !important;
-        aspect-ratio: unset !important;
+        aspect-ratio: 1/1 !important;
         object-fit: cover !important;
         margin: 0 !important;
         transition: transform 0.7s cubic-bezier(0.23,1,0.32,1);
