@@ -10780,7 +10780,7 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
       <div class="center">
         <p class="logo">Zapatillas May</p>
         <p style="font-size:10px">Leon, Guanajuato</p>
-        <p style="font-size:10px">Tel: 477 247 2285</p>
+        <p style="font-size:10px">Tel: +52 1 479 224 4560</p>
       </div>
       <div class="divider"></div>
       <div class="row">
