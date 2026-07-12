@@ -60,7 +60,7 @@ def listar_inventario(fresh: bool = False):
 @router.get("/sucursal/{sucursal_id}")
 def inventario_por_sucursal(sucursal_id: str):
     try:
-        return supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}&select=*,variantes(*,productos(nombre,sku_interno))")
+        return supabase_get_all(f"inventario?sucursal_id=eq.{sucursal_id}&select=*,variantes(*,productos(nombre,sku_interno))")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
