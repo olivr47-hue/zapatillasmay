@@ -8858,7 +8858,7 @@ window.renderDrawerPOS = () => {
       return `
         <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
   <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
-    ${item.imagen ? `<img src="${item.imagen}" object-fit:contain;border-radius:8px;flex-shrink:0;background:#f5f5f5>` : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
+    ${item.imagen ? `<img src="${item.imagen}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5">` : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
     <div style="flex:1">
       <p style="font-size:0.9rem;font-weight:600">${item.nombre}</p>
       <p style="font-size:0.78rem;color:#888">${item.color} · T${item.talla}</p>
