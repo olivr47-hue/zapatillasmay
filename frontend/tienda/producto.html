@@ -128,7 +128,11 @@
 
     /* ── GALLERY ── */
     .gallery { background: white; position: relative; overflow: hidden; }
-    .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: #f5f0eb; cursor: zoom-in; transition: transform 0.6s cubic-bezier(0.23,1,0.32,1); }
+    /* height:auto es necesario -- el <img> trae width="500" height="500" en el
+       HTML (para evitar layout shift) y ese atributo height gana sobre
+       aspect-ratio si no hay un height explícito que lo compense, dejando la
+       imagen en 500px de alto real en vez de cuadrada al ancho del viewport. */
+    .gallery-main { width: 100%; height: auto; aspect-ratio: 1/1; object-fit: cover; display: block; background: #f5f0eb; cursor: zoom-in; transition: transform 0.6s cubic-bezier(0.23,1,0.32,1); }
     .gallery-main:hover { transform: scale(1.03); }
     .gallery-thumbs { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; scrollbar-width: none; background: white; border-bottom: 1px solid var(--border); }
     .gallery-thumbs::-webkit-scrollbar { display: none; }
