@@ -365,8 +365,9 @@ window._correoInterval = setInterval(_pollCorreoNoLeido, 45000)
       overlay.classList.remove('active')
     }
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
-    document.querySelector('[data-modulo="' + id + '"]').classList.add('active')
-    document.getElementById('topbar-title').textContent = modulos.find(m => m.id === id).label
+    document.querySelector('[data-modulo="' + id + '"]')?.classList.add('active')
+    const _tt = document.getElementById('topbar-title')
+    if (_tt) _tt.textContent = modulos.find(m => m.id === id)?.label || ''
     cargarModulo(id)
   }
 }
@@ -1054,7 +1055,7 @@ function renderDashboardHTML() {
             <button onclick="navegarA('pedidos')" style="background:var(--pink);border:none;color:white;padding:8px 18px;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer">Ver pedidos →</button>
           </div>
           <div style="position:relative;z-index:1;flex-shrink:0">
-            <div style="width:96px;height:96px;background:rgba(200,150,122,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:1px solid rgba(200,150,122,0.20)">👠</div>
+            <div style="width:96px;height:96px;background:rgba(233,30,140,0.08);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;border:1px solid rgba(233,30,140,0.18)">👠</div>
           </div>
         </div>
 
@@ -4174,7 +4175,7 @@ async function cargarSucursales() {
       <div class="table-card">
         <div class="table-header">
           <h3>Sucursales (${data.length})</h3>
-          <button class="btn btn-primary">+ Nueva sucursal</button>
+          <button class="btn btn-primary" onclick="mostrarFormSucursal()">+ Nueva sucursal</button>
         </div>
         <table>
           <thead>
@@ -11219,7 +11220,7 @@ async function cargarHistorial() {
           </thead>
           <tbody id="hist-tbody">
             ${data.length === 0
-              ? '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
+              ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
               : data.map(m => {
                   const tipo = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
                   const cantidad = m.cantidad || 0
@@ -11399,7 +11400,7 @@ async function cargarDashboard() {
       if (el) { el.textContent = val; if (color) el.style.color = color }
       if (subEl && sub) subEl.textContent = sub
     }
-    setKpi('kpi-ventas-hoy',   '$'+ventasHoy.toLocaleString('es-MX',{maximumFractionDigits:0}), hoyP.length+' pedidos', '#C8967A')
+    setKpi('kpi-ventas-hoy',   '$'+ventasHoy.toLocaleString('es-MX',{maximumFractionDigits:0}), hoyP.length+' pedidos', '#E91E8C')
     setKpi('kpi-pedidos-hoy',  hoyP.length, 'confirmados')
     setKpi('kpi-ventas-7d',    '$'+ventas7.toLocaleString('es-MX',{maximumFractionDigits:0}), s7P.length+' pedidos')
     setKpi('kpi-ventas-30d',   '$'+ventas30.toLocaleString('es-MX',{maximumFractionDigits:0}), hace30P.length+' pedidos')
@@ -11414,9 +11415,9 @@ async function cargarDashboard() {
         ? '<p style="color:var(--text-muted);font-size:0.85rem">Sin datos aun</p>'
         : topClientes.map(([nombre, total], i) => `
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <span style="width:22px;height:22px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;flex-shrink:0">${i+1}</span>
+            <span style="width:22px;height:22px;background:linear-gradient(135deg,#E91E8C,#b5687a);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;flex-shrink:0">${i+1}</span>
             <span style="flex:1;font-size:0.86rem;color:var(--text-1)">${nombre}</span>
-            <strong style="color:#C8967A;font-family:'DM Mono',monospace;font-size:0.88rem">$${total.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong>
+            <strong style="color:#E91E8C;font-family:'DM Mono',monospace;font-size:0.88rem">$${total.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong>
           </div>`).join('')
     }
 
@@ -16341,10 +16342,10 @@ async function cargarCatalogos() {
           <p style="font-size:0.78rem;color:#A07860;margin-bottom:12px">Genera un PDF con todos los productos activos de esa categoría. Se actualiza automáticamente.</p>
           <div style="display:flex;flex-wrap:wrap;gap:8px" id="cat-pdf-btns">
             ${[['tacones','👠 Tacones'],['sandalias','👡 Sandalias'],['botas','🥾 Botas'],['botines','👢 Botines'],['flats','🥿 Flats'],['plataformas','⬆️ Plataformas'],['tenis','👟 Tenis'],['nina','🎀 Niña'],['accesorios','👜 Accesorios']].map(([id,label]) =>
-              `<button onclick="descargarCatalogoPorCategoria('${id}','${label}')" style="background:white;border:1.5px solid #C8967A;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;color:#7c3a1a;cursor:pointer">${label}</button>`
+              `<button onclick="descargarCatalogoPorCategoria('${id}','${label}')" style="background:white;border:1.5px solid #E91E8C;border-radius:8px;padding:6px 14px;font-size:0.78rem;font-weight:600;color:#7c3a1a;cursor:pointer">${label}</button>`
             ).join('')}
           </div>
-          <p id="cat-pdf-msg" style="font-size:0.78rem;color:#C8967A;margin-top:10px;display:none"></p>
+          <p id="cat-pdf-msg" style="font-size:0.78rem;color:#E91E8C;margin-top:10px;display:none"></p>
         </div>
         ${catalogos.length === 0 ? `
           <div style="padding:3rem;text-align:center;color:#888">
@@ -16358,7 +16359,7 @@ async function cargarCatalogos() {
                 ? `<img src="${c.portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">`
                 : `<div style="width:100%;aspect-ratio:3/4;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:3rem">📖</div>`}
               <div style="padding:14px">
-                ${c.temporada ? `<p style="font-size:0.68rem;letter-spacing:2px;color:#C8967A;text-transform:uppercase;margin-bottom:4px">${c.temporada}</p>` : ''}
+                ${c.temporada ? `<p style="font-size:0.68rem;letter-spacing:2px;color:#E91E8C;text-transform:uppercase;margin-bottom:4px">${c.temporada}</p>` : ''}
                 <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${c.nombre}</p>
                 <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${c.activo ? '✅ Visible' : '🔴 Oculto'}</p>
                 <div style="display:flex;flex-direction:column;gap:6px">
@@ -16502,7 +16503,7 @@ window.gestionarPaginas = async function(catalogoId, nombre) {
 }
 
 function _tabStyle(activa, id) {
-  return `padding:9px 18px;font-size:0.83rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid ${activa===id?'#C8967A':'transparent'};background:none;color:${activa===id?'#C8967A':'#6b7280'};transition:all 0.2s;font-family:inherit`
+  return `padding:9px 18px;font-size:0.83rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid ${activa===id?'#E91E8C':'transparent'};background:none;color:${activa===id?'#E91E8C':'#6b7280'};transition:all 0.2s;font-family:inherit`
 }
 
 function renderGestionPaginas() {
@@ -16531,7 +16532,7 @@ function renderGestionPaginas() {
       <div id="tab-subir" style="display:${tabActiva==='subir'?'block':'none'}">
         <div style="border:2px dashed #e5e7eb;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.2s"
              onclick="document.getElementById('cat-pag-files').click()"
-             ondragover="event.preventDefault();this.style.borderColor='#C8967A'"
+             ondragover="event.preventDefault();this.style.borderColor='#E91E8C'"
              ondragleave="this.style.borderColor='#e5e7eb'"
              ondrop="event.preventDefault();this.style.borderColor='#e5e7eb';subirPaginasCatalogo({files:event.dataTransfer.files},'${catalogoId}')">
           <div style="font-size:2.5rem;margin-bottom:10px">🖼️</div>
@@ -16567,16 +16568,16 @@ function renderGestionPaginas() {
         ${(portada_url || paginas.length > 0) ? `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <h4 style="font-size:0.85rem;font-weight:700;color:#374151;margin:0;text-transform:uppercase;letter-spacing:1px">Páginas del catálogo</h4>
-          <button onclick="descargarCatalogoPDF()" style="background:#C8967A;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <button onclick="descargarCatalogoPDF()" style="background:#E91E8C;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
             📥 Descargar PDF
           </button>
         </div>
         <div id="paginas-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px">
           ${portada_url ? `
-            <div style="background:white;border:2px solid #C8967A;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+            <div style="background:white;border:2px solid #E91E8C;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
               <img src="${portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
               <div style="padding:6px 8px;background:#fff8f5">
-                <div style="font-size:0.7rem;font-weight:700;color:#C8967A;margin-bottom:2px">🖼 Portada</div>
+                <div style="font-size:0.7rem;font-weight:700;color:#E91E8C;margin-bottom:2px">🖼 Portada</div>
                 <div style="font-size:0.65rem;color:#888">Primera página</div>
               </div>
             </div>` : ''}
@@ -16613,8 +16614,8 @@ window.switchTabCat = function(tab) {
   // Actualizar estilos de botones
   document.querySelectorAll('[onclick^="switchTabCat"]').forEach(btn => {
     const t = btn.getAttribute('onclick').match(/'(\w+)'/)?.[1]
-    btn.style.borderBottomColor = t === tab ? '#C8967A' : 'transparent'
-    btn.style.color = t === tab ? '#C8967A' : '#6b7280'
+    btn.style.borderBottomColor = t === tab ? '#E91E8C' : 'transparent'
+    btn.style.color = t === tab ? '#E91E8C' : '#6b7280'
   })
   if (tab === 'seleccionar') _cargarSelectorTienda(catalogoId)
   if (tab === 'generar') _cargarGenerador(catalogoId)
@@ -16734,7 +16735,7 @@ async function _cargarSelectorTienda(catalogoId) {
       <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <p style="font-size:0.83rem;color:#374151">${unicas.length} fotos disponibles — haz click para seleccionar</p>
         <div style="display:flex;gap:8px">
-          <span id="sel-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionadas</span>
+          <span id="sel-count" style="font-size:0.83rem;color:#E91E8C;font-weight:600">0 seleccionadas</span>
           <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="agregarSeleccionadas('${catalogoId}')">✅ Agregar seleccionadas</button>
         </div>
       </div>
@@ -16748,7 +16749,7 @@ async function _cargarSelectorTienda(catalogoId) {
               <p style="font-size:0.62rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nombre}</p>
               ${f.color ? `<p style="font-size:0.6rem;color:#888">${f.color}</p>` : ''}
             </div>
-            <div id="foto-check-${i}" style="display:none;position:absolute;top:4px;right:4px;background:#C8967A;color:white;border-radius:50%;width:20px;height:20px;font-size:0.7rem;display:none;align-items:center;justify-content:center;font-weight:700">✓</div>
+            <div id="foto-check-${i}" style="display:none;position:absolute;top:4px;right:4px;background:#E91E8C;color:white;border-radius:50%;width:20px;height:20px;font-size:0.7rem;display:none;align-items:center;justify-content:center;font-weight:700">✓</div>
           </div>`).join('')}
       </div>`
   } catch(e) {
@@ -16766,7 +16767,7 @@ window._toggleFoto = function(idx) {
     check.style.display = 'none'
   } else {
     seleccionadas.add(idx)
-    item.style.borderColor = '#C8967A'
+    item.style.borderColor = '#E91E8C'
     check.style.display = 'flex'
   }
   document.getElementById('sel-count').textContent = seleccionadas.size + ' seleccionadas'
@@ -16838,7 +16839,7 @@ async function _cargarGenerador(catalogoId) {
           </select>
         </div>
         <div style="display:flex;gap:8px;align-items:center">
-          <span id="gen-count" style="font-size:0.83rem;color:#C8967A;font-weight:600">0 seleccionados</span>
+          <span id="gen-count" style="font-size:0.83rem;color:#E91E8C;font-weight:600">0 seleccionados</span>
           <button class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="_selTodosGenerador()">Todos</button>
           <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" id="btn-generar" onclick="generarPaginasCanvas('${catalogoId}')">✨ Generar páginas</button>
         </div>
@@ -16859,7 +16860,7 @@ async function _cargarGenerador(catalogoId) {
                        title="${c.color}"
                        onclick="event.stopPropagation();_toggleColorGen(${i},${ci})"
                        data-sel="1"
-                       style="width:13px;height:13px;border-radius:50%;background:${c.hex};border:2px solid #C8967A;cursor:pointer;flex-shrink:0;box-sizing:border-box;transition:opacity 0.15s,border-color 0.15s">
+                       style="width:13px;height:13px;border-radius:50%;background:${c.hex};border:2px solid #E91E8C;cursor:pointer;flex-shrink:0;box-sizing:border-box;transition:opacity 0.15s,border-color 0.15s">
                   </div>`).join('')}
                </div>`
             : ''
@@ -16869,7 +16870,7 @@ async function _cargarGenerador(catalogoId) {
             <img src="${p.imagen_principal}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
             <div style="padding:5px 7px 7px">
               <p style="font-size:0.62rem;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre}</p>
-              <p style="font-size:0.6rem;color:#C8967A;font-weight:600">$${precio || '—'}</p>
+              <p style="font-size:0.6rem;color:#E91E8C;font-weight:600">$${precio || '—'}</p>
               ${swatches}
             </div>
           </div>`
@@ -16890,7 +16891,7 @@ window._toggleGenProd = function(idx) {
     if (colDiv) { colDiv.style.opacity = '0.35'; colDiv.style.pointerEvents = 'none' }
   } else {
     seleccionados.add(idx)
-    item.style.borderColor = '#C8967A'
+    item.style.borderColor = '#E91E8C'
     if (colDiv) { colDiv.style.opacity = '1'; colDiv.style.pointerEvents = 'auto' }
   }
   document.getElementById('gen-count').textContent = seleccionados.size + ' seleccionados'
@@ -16901,7 +16902,7 @@ window._toggleColorGen = function(prodIdx, colorIdx) {
   if (!swatch) return
   const esSel = swatch.dataset.sel === '1'
   swatch.dataset.sel = esSel ? '0' : '1'
-  swatch.style.borderColor = esSel ? '#ccc' : '#C8967A'
+  swatch.style.borderColor = esSel ? '#ccc' : '#E91E8C'
   swatch.style.opacity = esSel ? '0.3' : '1'
   swatch.title = (window._generadorData.coloresPorProd[prodIdx]?.[colorIdx]?.color || '') + (esSel ? ' (excluido)' : '')
 }
@@ -16912,7 +16913,7 @@ window._selTodosGenerador = function() {
   seleccionados.clear()
   productos.forEach((_, i) => {
     const item = document.getElementById('gen-item-' + i)
-    if (!todos) { seleccionados.add(i); if (item) item.style.borderColor = '#C8967A' }
+    if (!todos) { seleccionados.add(i); if (item) item.style.borderColor = '#E91E8C' }
     else { if (item) item.style.borderColor = 'transparent' }
   })
   document.getElementById('gen-count').textContent = seleccionados.size + ' seleccionados'
@@ -21230,7 +21231,7 @@ function renderCarritoAbierto(p) {
         <div id="c-panel-par">
           <div style="position:relative">
             <input class="form-input" id="c-buscar-prod" placeholder="🔍 Busca el modelo (nombre o SKU)…" oninput="buscarProductoCarrito(this.value)" autocomplete="off"
-              onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="setTimeout(()=>{const el=document.getElementById('c-prod-resultados');if(el)el.style.display='none'},250)">
+              onfocus="posicionarDropdownCarrito('c-prod-resultados','c-buscar-prod')" onblur="ocultarDropdownCarritoBlur('c-prod-resultados')">
             <div id="c-prod-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:340px;overflow-y:auto;min-width:300px"></div>
           </div>
           <p style="font-size:0.76rem;color:#888;margin:7px 0 0;line-height:1.4">Busca el modelo y <strong>toca una talla</strong> para agregar 1 par. El precio se ajusta solo (menudeo · mayoreo). Ajusta cantidades en la lista de abajo.</p>
@@ -21243,7 +21244,7 @@ function renderCarritoAbierto(p) {
             <div style="flex:2;min-width:200px;position:relative">
               <label style="font-size:0.75rem;color:#888;display:block;margin-bottom:4px">Modelo (busca sin talla)</label>
               <input class="form-input" id="c-buscar-corrida" placeholder="Ej: M-TAC-0033 o nombre..." oninput="buscarModeloCarrito(this.value)" autocomplete="off" style="font-size:0.9rem"
-                onfocus="posicionarDropdownCarrito('c-corrida-resultados','c-buscar-corrida')" onblur="setTimeout(()=>{const el=document.getElementById('c-corrida-resultados');if(el)el.style.display='none'},200)">
+                onfocus="posicionarDropdownCarrito('c-corrida-resultados','c-buscar-corrida')" onblur="ocultarDropdownCarritoBlur('c-corrida-resultados')">
               <div id="c-corrida-resultados" style="display:none;position:fixed;z-index:9999;background:white;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;min-width:320px"></div>
             </div>
             <div style="width:90px">
@@ -21418,10 +21419,39 @@ window.posicionarDropdownCarrito = (dropId, inputId) => {
   const input = document.getElementById(inputId)
   const drop = document.getElementById(dropId)
   if (!input || !drop) return
+  // Móvil: el dropdown fijo queda debajo del teclado y al reabrirse sin foco no
+  // había forma de cerrarlo. En pantallas chicas se muestra EN FLUJO (debajo del
+  // input, empuja el contenido) — el CSS de style.css lo vuelve position:static.
+  if (window.innerWidth <= 900) {
+    drop.style.top = ''
+    drop.style.left = ''
+    drop.style.width = ''
+    return
+  }
   const rect = input.getBoundingClientRect()
   drop.style.top = (rect.bottom + 4) + 'px'
   drop.style.left = rect.left + 'px'
   drop.style.width = Math.max(rect.width, 320) + 'px'
+}
+
+// Cierra los dropdowns de búsqueda del carrito al tocar fuera (funciona con el
+// dropdown reabierto sin foco, que el blur del input nunca cerraba).
+window.ocultarDropdownCarritoBlur = (dropId) => {
+  if (window.innerWidth <= 900) return // en móvil se cierra tocando fuera, no por blur
+  setTimeout(() => { const el = document.getElementById(dropId); if (el) el.style.display = 'none' }, 250)
+}
+if (!window._carritoOutsideCloser) {
+  window._carritoOutsideCloser = true
+  document.addEventListener('pointerdown', (ev) => {
+    ;['c-prod-resultados', 'c-corrida-resultados'].forEach(dropId => {
+      const drop = document.getElementById(dropId)
+      if (!drop || drop.style.display === 'none') return
+      const inputId = dropId === 'c-prod-resultados' ? 'c-buscar-prod' : 'c-buscar-corrida'
+      const input = document.getElementById(inputId)
+      if (drop.contains(ev.target) || (input && input.contains(ev.target))) return
+      drop.style.display = 'none'
+    })
+  })
 }
 
 window.buscarProductoCarrito = (texto) => {
