@@ -706,11 +706,23 @@ async def webhook_mercadopago(request: Request):
                                     inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&order=cantidad.desc&limit=1")
                                 if inv:
                                     inv_suc = inv[0].get("sucursal_id")
-                                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
+                                    cantidad_anterior = inv[0]["cantidad"]
+                                    nueva_cantidad = max(0, cantidad_anterior - cantidad)
                                     supabase_patch(
                                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{inv_suc}",
                                         {"cantidad": nueva_cantidad}
                                     )
+                                    try:
+                                        supabase_post("movimientos_inventario", {
+                                            "tipo": "venta",
+                                            "variante_id": variante_id,
+                                            "sucursal_id": inv_suc,
+                                            "cantidad": -cantidad,
+                                            "cantidad_anterior": cantidad_anterior,
+                                            "motivo": f"Pago MercadoPago {payment_id} — pedido {pedido_id}",
+                                        })
+                                    except Exception as e_mov:
+                                        print(f"[webhook MP] Error registrando movimiento de venta: {e_mov}")
                             supabase_patch(
                                 f"pedidos?id=eq.{pedido_id}",
                                 {"status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma}
