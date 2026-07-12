@@ -3820,6 +3820,21 @@ cargarConfigSEO()
         _cacheSave({ productos, variantes, inventario }, serverVersion)
       }
       // inventario/slim solo tiene variante_id + cantidad, sin datos anidados
+      // Ocultar del catálogo los modelos totalmente agotados (todas sus variantes en 0):
+      // se seguían mostrando en listados/categorías/búsqueda aunque nadie pudiera comprarlos.
+      // Un producto SIN variantes no se toca (no hay forma de saber su stock desde aquí).
+      {
+        const _invStockMap = {}
+        inventario.forEach(i => { _invStockMap[i.variante_id] = (_invStockMap[i.variante_id] || 0) + (i.cantidad || 0) })
+        const _idsConVariantes = new Set()
+        const _idsConStock = new Set()
+        variantes.forEach(v => {
+          if (v.activa === false) return
+          _idsConVariantes.add(v.producto_id)
+          if ((_invStockMap[v.id] || 0) > 0) _idsConStock.add(v.producto_id)
+        })
+        productos = productos.filter(p => !_idsConVariantes.has(p.id) || _idsConStock.has(p.id))
+      }
       _construirIndicesFiltro()
       renderCategorias()
 

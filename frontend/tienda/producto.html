@@ -850,8 +850,11 @@ function renderProducto() {
     return s + (inv ? (inv.cantidad || 0) : 0)
   }, 0)
   // Oculta colores sin stock en ninguna talla (evita que un color de portada agotado
-  // sea lo primero que ve el cliente sin poder comprar nada).
+  // sea lo primero que ve el cliente sin poder comprar nada). Si NINGÚN color tiene
+  // stock, el producto está totalmente agotado: se sigue mostrando (por si llegó un
+  // link viejo de un anuncio) pero con aviso claro en vez de dejarlo parecer comprable.
   const _coloresConStock = _coloresTodos.filter(c => _stockDeColor(c) > 0)
+  const _totalmenteAgotado = _coloresTodos.length > 0 && _coloresConStock.length === 0
   const colores = _coloresConStock.length ? _coloresConStock : _coloresTodos
 
   // SEO dinámico
@@ -1027,6 +1030,14 @@ function renderProducto() {
     <p class="product-price-main">${precioHTML}</p>
     ${mayoreoHTML}
     ${envioGratisNote}
+    ${_totalmenteAgotado ? `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;margin-top:10px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:1.2rem;flex-shrink:0">😔</span>
+      <div>
+        <p style="font-size:0.85rem;font-weight:700;color:#991b1b;margin:0">Modelo agotado por ahora</p>
+        <p style="font-size:0.76rem;color:#b91c1c;margin:2px 0 0">Escríbenos por WhatsApp y te avisamos apenas vuelva a haber stock.</p>
+      </div>
+    </div>` : ''}
 
     ${colores.length ? `
     <p class="section-label">
