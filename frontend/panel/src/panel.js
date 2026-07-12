@@ -10811,6 +10811,24 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   `)
   ticket.document.close()
 }
+// Los items de un pedido/carrito venían en el orden en que se fueron agregando
+// (par por par), lo que en el PDF salía brincando entre modelos y confundía a
+// los clientes. Se ordenan por modelo y luego por color antes de imprimirlos.
+function _ordenarItemsPedido(items) {
+  return [...items].sort((a, b) => {
+    const nombreA = (a.variantes?.productos?.nombre || a.nombre_producto || a.nombre || '').toLowerCase()
+    const nombreB = (b.variantes?.productos?.nombre || b.nombre_producto || b.nombre || '').toLowerCase()
+    if (nombreA !== nombreB) return nombreA.localeCompare(nombreB, 'es')
+    const colorA = (a.variantes?.color || a.color || '').toLowerCase()
+    const colorB = (b.variantes?.color || b.color || '').toLowerCase()
+    if (colorA !== colorB) return colorA.localeCompare(colorB, 'es')
+    const tallaA = parseFloat(a.variantes?.talla ?? a.talla)
+    const tallaB = parseFloat(b.variantes?.talla ?? b.talla)
+    if (!isNaN(tallaA) && !isNaN(tallaB)) return tallaA - tallaB
+    return 0
+  })
+}
+
 window.generarPDFPedido = async (pedidoId) => {
   const res = await fetch(API + '/pedidos/' + pedidoId)
   const data = await res.json()
@@ -10939,7 +10957,7 @@ window.generarPDFPedido = async (pedidoId) => {
           </tr>
         </thead>
         <tbody>
-          ${items.map(item => {
+          ${_ordenarItemsPedido(items).map(item => {
             const variante = item.variantes || {}
             const producto = variante.productos || {}
             const fotoUrl = variante.foto_url || ''
@@ -11120,7 +11138,7 @@ window.generarCotizacionCarrito = async (pedidoId) => {
           </tr>
         </thead>
         <tbody>
-          ${items.map(item => {
+          ${_ordenarItemsPedido(items).map(item => {
             const variante = item.variantes || {}
             const producto = variante.productos || {}
             const fotoUrl = variante.foto_url || ''
