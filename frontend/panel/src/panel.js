@@ -13354,6 +13354,19 @@ window.abrirChat = async (telefono) => {
     const container = document.getElementById('wa-container')
     if (sidebar) sidebar.style.display = 'none'
     if (container) container.style.gridTemplateColumns = '1fr'
+    // La barra de pestañas (Chat/Embudo/Flujos/Secuencias/Broadcasts/Config) mide
+    // ~95px y no aporta nada mientras estás dentro de una conversación en el
+    // teléfono -- se ocultaba dejando solo ~36% de la pantalla para los mensajes.
+    // Se recupera al volver a la lista (ver volverChats).
+    const topbar = document.querySelector('.wa-topbar')
+    if (topbar) topbar.style.display = 'none'
+    const contentEl = document.getElementById('content')
+    if (contentEl) contentEl.style.paddingTop = '0'
+    // El alto de #wa-container está pensado para cuando la barra de pestañas SÍ
+    // se ve (calc(100dvh - 205px)) -- si solo se oculta la barra sin agrandar el
+    // contenedor, el hueco vacío simplemente se mueve de arriba hacia abajo y los
+    // mensajes no ganan espacio real. Se agranda al ocultar la barra.
+    if (container) container.style.setProperty('height', 'calc(100dvh - 90px)', 'important')
   }
 
    const area = document.getElementById('chat-area')
@@ -13538,7 +13551,11 @@ window.volverChats = () => {
   const sidebar = document.getElementById('wa-sidebar')
   const container = document.getElementById('wa-container')
   if (sidebar) sidebar.style.display = ''
-  if (container) container.style.gridTemplateColumns = ''
+  if (container) { container.style.gridTemplateColumns = ''; container.style.height = '' }
+  const topbar = document.querySelector('.wa-topbar')
+  if (topbar) topbar.style.display = ''
+  const contentEl = document.getElementById('content')
+  if (contentEl) contentEl.style.paddingTop = ''
   document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
   const chatArea = document.getElementById('chat-area')
   // En móvil, ocultar el área de chat para que la lista use toda la altura (maestro-detalle)

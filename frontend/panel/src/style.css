@@ -1701,3 +1701,13 @@ td:last-child,  th:last-child  { padding-right:18px; }
   .carrito-del-btn { width:40px !important; }
   .carrito-precio-input { min-height:38px; font-size:16px !important; }
 }
+
+/* ── Conversaciones (móvil): topbar de pestañas oculta al abrir un chat
+   (ver window.abrirChat/volverChats en panel.js) para no comerse ~40% de
+   la pantalla con navegación que no aplica dentro de una conversación. ── */
+@media (max-width:900px) {
+  /* El select de estado/etiqueta no encogía por debajo del texto de su opción
+     más larga ("🟡 En espera") y se salía de la pantalla -- flex:1 no alcanza,
+     hace falta min-width:0 para que el flex item SÍ pueda achicarse. */
+  .wa-subheader .wa-label-select-sm { min-width:0; text-overflow:ellipsis; white-space:nowrap; overflow:hidden; }
+}
