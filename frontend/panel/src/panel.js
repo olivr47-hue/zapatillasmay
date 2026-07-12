@@ -17895,7 +17895,7 @@ const _ML_TABS = [
 async function cargarMercadoLibre() {
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:1.5rem 2rem;max-width:1150px">
+    <div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:1150px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
         <div style="width:32px;height:32px;border-radius:8px;background:#3483fa;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           ${_mlIcon('cart', 18, '#fff')}
@@ -17966,7 +17966,7 @@ async function _mlRenderPublicacionesTab() {
             <p style="font-size:0.82rem;color:#888;margin:0">Compara y sincroniza el inventario del ERP con MercadoLibre.</p>
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="mkt-btn-row" style="display:flex;gap:8px;flex-wrap:wrap">
           ${_mlBtn('refresh', 'Cargar publicaciones', 'mlCargarPublicaciones(this)', 'primary')}
           ${_mlBtn('search', 'Ver diferencias', 'mlVerStock(this)', 'warning')}
           ${_mlBtn('refresh', 'Sincronizar stock', 'mlSincronizar(this)', 'success')}
@@ -18020,7 +18020,7 @@ window._mlCargarResumenCatalogo = async () => {
       </div>
       <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
-          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+          <div class="mkt-cat-row" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-ml-catprod="${p.id}" onchange="window._mlToggleCatProd('${p.id}',this.checked)"
                    style="width:15px;height:15px;cursor:pointer;accent-color:#3483fa;flex-shrink:0">
             <input type="text" value="${(p.nombre || '').replace(/"/g, '&quot;')}" data-ml-titulo="${p.id}" oninput="window._mlCatalogoOverrides['${p.id}'].titulo=this.value"
@@ -18882,7 +18882,7 @@ const _SHEIN_TABS = [
 async function cargarShein() {
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div style="padding:1.5rem 2rem;max-width:1150px">
+    <div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:1150px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
         <div style="width:32px;height:32px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           ${_mlIcon('cart', 18, '#fff')}
@@ -18981,7 +18981,7 @@ async function _sheinRenderPublicacionesTab() {
             <p style="font-size:0.82rem;color:#888;margin:0">Productos ya publicados en SHEIN y sincronización de inventario.</p>
           </div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="mkt-btn-row" style="display:flex;gap:8px;flex-wrap:wrap">
           ${_sheinBtn('refresh', 'Cargar publicaciones', 'sheinCargarPublicaciones(this)', 'primary')}
           ${_sheinBtn('refresh', 'Sincronizar stock', 'sheinSincronizar(this)', 'success')}
           ${_sheinBtn('clipboard', 'Último resultado', 'sheinVerLog(this)', 'secondary')}
@@ -19042,7 +19042,7 @@ window._sheinCargarResumenCatalogo = async () => {
       </div>
       <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
-          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+          <div class="mkt-cat-row" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-shein-catprod="${p.id}" onchange="window._sheinToggleCatProd('${p.id}',this.checked)"
                    style="width:15px;height:15px;cursor:pointer;accent-color:${_SHEIN_ACCENT};flex-shrink:0">
             <input type="text" value="${(p.nombre || '').replace(/"/g, '&quot;')}" data-shein-titulo="${p.id}" oninput="window._sheinCatalogoOverrides['${p.id}'].titulo=this.value"

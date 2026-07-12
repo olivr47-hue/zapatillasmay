@@ -1711,3 +1711,33 @@ td:last-child,  th:last-child  { padding-right:18px; }
      hace falta min-width:0 para que el flex item SÍ pueda achicarse. */
   .wa-subheader .wa-label-select-sm { min-width:0; text-overflow:ellipsis; white-space:nowrap; overflow:hidden; }
 }
+
+/* ── MercadoLibre / SHEIN (mismo patrón de layout compartido) en móvil ──
+   Esta sección era puro layout de escritorio: padding de 2rem, filas de
+   botones que caían en el modo "scroll horizontal genérico" (poco
+   descubrible) porque sus botones no usan la clase .btn, y una fila de
+   catálogo (checkbox+título+precio+foto+SKU) de 6 elementos en una sola
+   línea que se salía ~400px de la pantalla. */
+@media (max-width:900px) {
+  .mkt-page-wrap { padding:1rem 0.75rem !important; }
+
+  /* Los botones de acción SÍ tenían flex-wrap:wrap en su estilo, pero la
+     regla genérica de móvil los convertía en scroll horizontal porque no
+     tienen la clase .btn. Se fuerza el wrap real aquí (mayor especificidad
+     que la regla genérica + !important, igual que ella). */
+  .content .mkt-btn-row { flex-wrap:wrap !important; overflow-x:visible !important; padding-bottom:0 !important; }
+  .mkt-btn-row button { flex:1 1 auto; min-width:44%; justify-content:center; }
+
+  /* Fila de catálogo: pasa de 1 línea de 6 elementos a 2 líneas
+     (checkbox+título / precio+foto+SKU) forzando el salto justo antes
+     del signo "$" (3er hijo de la fila). */
+  .mkt-cat-row { flex-wrap:wrap; row-gap:6px; }
+  .mkt-cat-row input[type="text"] { min-width:0 !important; }
+  .mkt-cat-row > span:nth-child(3) { flex-basis:100%; }
+  .mkt-cat-row input[type="number"] { width:70px !important; }
+
+  /* Barra de pestañas superior (Publicaciones/Ventas/Mensajes/...): mismo
+     problema -- flex-wrap:wrap en el estilo pero sin clase .btn, así que
+     la regla genérica la mandaba a scroll horizontal en vez de envolver. */
+  .content #ml-tabs, .content #shein-tabs { flex-wrap:wrap !important; overflow-x:visible !important; padding-bottom:0 !important; }
+}
