@@ -1230,6 +1230,11 @@ function seleccionarColor(color) {
     renderThumbs()
   }
 
+  // Badge de sucursal: ya con solo elegir color (no hace falta esperar a que
+  // elijan talla) -- si el color no tiene stock en ninguna talla, se oculta.
+  const stockColor = varsProd.filter(vv => vv.color === color).reduce((s, vv) => s + (inventario.find(i => i.variante_id === vv.id)?.cantidad || 0), 0)
+  actualizarSucursalBadge(stockColor)
+
   // Renderizar tallas para este color
   renderTallas(color, varsProd)
   // El widget de ajuste de talla depende del color (disponibilidad real por variante)
