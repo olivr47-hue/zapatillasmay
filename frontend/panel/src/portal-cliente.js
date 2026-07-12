@@ -6,6 +6,9 @@
 const PC_API        = '/api'
 const PC_SESION_KEY = 'pc_sesion'
 const PC_CARRITO_KEY = 'pc_carrito'
+// Marca el pedido-borrador que respalda el carrito activo en el servidor, para
+// distinguirlo de un pedido real sin importar su status (incluso ya cancelado).
+const PC_BORRADOR_MARCA = '[carrito-respaldo]'
 const TALLAS_ORDEN  = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
 const money = (n) => '$' + Math.round(parseFloat(n) || 0).toLocaleString('es-MX')
@@ -33,6 +36,7 @@ const pc = {
   filtrosExpandido: false,
   datosCargados: false,
   borradores: [],
+  _borradorServerId: null, // id del pedido status=borrador que respalda el carrito activo en el servidor
 }
 
 function pcAuthHeaders() {
@@ -238,7 +242,7 @@ function renderPC() {
   window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
   window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
-  window.pcVaciarCarrito = () => { pc.carrito = []; try { localStorage.removeItem(PC_CARRITO_KEY) } catch {} renderCarrito() }
+  window.pcVaciarCarrito = () => { pc.carrito = []; pcGuardarCarrito(); renderCarrito() }
 
   // Reemplazar spinner de inmediato
   const _initContent = document.getElementById('pc-content')
@@ -335,8 +339,13 @@ async function cargarDatosPC() {
   if (Array.isArray(prod)) pc.productos = prod.filter(p => p.activo !== false)
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
-  if (ped) pc.pedidos = ped
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
+  if (Array.isArray(ped)) {
+    // El borrador que respalda el carrito activo no debe verse como "pedido" --
+    // se usa aparte para restaurar el carrito, nunca en Mis pedidos / Inicio.
+    try { await pcRestaurarCarritoDeServidor(ped) } catch {}
+    pc.pedidos = ped.filter(p => p.notas !== PC_BORRADOR_MARCA)
+  }
 
   pc.datosCargados = true
   // Re-renderizar la pestaña activa con datos
@@ -1309,6 +1318,88 @@ window.abrirLightboxPC = function(src, fotos) {
 
 function pcGuardarCarrito() {
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+  pcSincronizarCarritoServidorDebounced()
+}
+
+// ── Carrito persistente en servidor: el carrito activo se respalda como un
+// pedido status=borrador (canal portal_mayoreo) ligado al cliente, para que no
+// se pierda si cambia de dispositivo o borra el navegador. Se filtra de "Mis
+// pedidos" (ver cargarDatosPC) para que no se confunda con un pedido real.
+let _pcSyncTimer = null
+function pcSincronizarCarritoServidorDebounced() {
+  clearTimeout(_pcSyncTimer)
+  _pcSyncTimer = setTimeout(() => { pcSincronizarCarritoServidor().catch(() => {}) }, 1500)
+}
+
+async function pcSincronizarCarritoServidor() {
+  if (!pc.sesion?.cliente_id) return
+  if (!pc.carrito.length) {
+    // Carrito vacío: cancelar el borrador del servidor si había uno, para no
+    // dejar un borrador viejo con items que ya no están.
+    if (pc._borradorServerId) {
+      const idViejo = pc._borradorServerId
+      pc._borradorServerId = null
+      fetch(`${PC_API}/pedidos/${idViejo}/cancelar`, { method: 'POST' }).catch(() => {})
+    }
+    return
+  }
+  let pedidoId = pc._borradorServerId
+  if (!pedidoId) {
+    const res = await fetch(`${PC_API}/pedidos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cliente_id: pc.sesion.cliente_id, status: 'borrador', canal: 'portal_mayoreo', total: 0, notas: PC_BORRADOR_MARCA })
+    })
+    if (!res.ok) return
+    const d = await res.json()
+    pedidoId = Array.isArray(d) ? d[0]?.id : d?.id
+    if (!pedidoId) return
+    pc._borradorServerId = pedidoId
+  }
+  try {
+    const actuales = await fetch(`${PC_API}/pedidos/${pedidoId}/items`).then(r => r.ok ? r.json() : [])
+    for (const it of (Array.isArray(actuales) ? actuales : [])) {
+      await fetch(`${PC_API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE' }).catch(() => {})
+    }
+    for (const item of pc.carrito) {
+      await fetch(`${PC_API}/pedidos/${pedidoId}/items`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          variante_id: item.variante_id, cantidad: item.cantidad, precio_unitario: item.precio_unitario,
+          subtotal: item.cantidad * item.precio_unitario, nombre: item.nombre, color: item.color,
+          talla: item.talla, es_corrida: !!item.es_corrida,
+        })
+      }).catch(() => {})
+    }
+    const total = pc.carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
+    await fetch(`${PC_API}/pedidos/${pedidoId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total })
+    }).catch(() => {})
+  } catch (e) { /* silencioso -- el carrito local sigue funcionando aunque falle el respaldo */ }
+}
+
+// Restaura el carrito desde el borrador del servidor cuando el local está
+// vacío (ej. sesión nueva en otro dispositivo). `pedidosCrudos` es la
+// respuesta SIN filtrar de /auth/pedidos/{cliente_id} (incluye borradores).
+async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
+  const borrador = (Array.isArray(pedidosCrudos) ? pedidosCrudos : [])
+    .find(p => p.notas === PC_BORRADOR_MARCA)
+  if (!borrador) return
+  pc._borradorServerId = borrador.id
+  if (pc.carrito.length) return // ya hay carrito local, no lo pisamos
+  const items = borrador.pedido_items || []
+  if (!items.length) return
+  items.forEach(i => {
+    const v = i.variantes
+    if (!v || !v.id) return
+    const prod = pc.productos.find(x => x.id === v.producto_id)
+    pc.carrito.push({
+      producto_id: v.producto_id, variante_id: v.id, nombre: v.productos?.nombre || i.nombre || 'Producto',
+      sku: prod?.sku_interno || null, imagen: v.productos?.imagen_principal || null,
+      talla: v.talla || i.talla, color: v.color || i.color, cantidad: i.cantidad,
+      precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
+    })
+  })
+  try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
 }
 
 // ── CARRITO / HACER PEDIDO ───────────────────────────────────
@@ -1728,10 +1819,13 @@ window.pcHacerPedido = async function() {
     if (res.ok) {
       pc.carrito = []
       pcGuardarCarrito()
-      // Recargar pedidos
+      // Recargar pedidos (filtrando el borrador que respaldaba el carrito)
       if (pc.sesion?.cliente_id) {
         const rp = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`)
-        if (rp.ok) pc.pedidos = await rp.json()
+        if (rp.ok) {
+          const todos = await rp.json()
+          pc.pedidos = Array.isArray(todos) ? todos.filter(p => p.notas !== PC_BORRADOR_MARCA) : todos
+        }
       }
       pcMostrarExito('¡Pedido enviado! Te contactaremos para coordinar el pago y envío.')
       pcIrA('pedidos')
