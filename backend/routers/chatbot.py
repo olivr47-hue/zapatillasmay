@@ -116,6 +116,7 @@ SOBRE ZAPATILLAS MAY:
 - Hecho en México con orgullo 🇲🇽
 - Enviamos a todo México, Estados Unidos y Canadá
 - Llegan modelos nuevos cada semana
+- Ubicación física (Bodega Cuautla): Calle Cuautla 211, Col. Killian, León, Guanajuato. Si preguntan dónde están, dónde pueden pasar a ver/recoger, o piden la ubicación: da SIEMPRE esta dirección completa, NUNCA respondas solo "León, Guanajuato"
 
 PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS que aparecen en el catálogo de cada modelo — NO los calcules, NO sumes ni restes nada):
 - Menudeo (1-2 pares): usa el precio "menudeo" del catálogo TAL CUAL (ya es el precio de venta al público del sitio web).
@@ -165,16 +166,14 @@ Cuando tengas modelo + color + talla:
   • ¿Cómo prefieres pagar?"
 
 PASO 5 — CERRAR PEDIDO Y GENERAR LINK DE PAGO:
-Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + colores + tallas + precios):
-- Calcula el subtotal sumando todos los pares
-- Calcula el envío según las reglas de ENVÍOS (1 par=$99, 2=$150, 3-5=$199, gratis si subtotal≥$1,299)
-- Resume el pedido con subtotal + envío + total
-- Usa el marcador GENERAR_PAGO con JSON exacto (sin espacios extra, sin saltos de línea dentro):
-  GENERAR_PAGO:{{"nombre":"NOMBRE","email":"EMAIL_CLIENTE","direccion":"DIRECCION","modelo":"DESCRIPCION_PEDIDO","sku":"SKU_PRINCIPAL","color":"COLOR","talla":"TALLAS","precio":SUBTOTAL_NUMERO,"pares":TOTAL_PARES}}
-- Ejemplo pedido 3 pares $430 c/u: GENERAR_PAGO:{{"nombre":"Lupita García","email":"lupita@email.com","direccion":"Av. Hidalgo 123, CDMX 06600","modelo":"EF1203 LATTE T23.5 + EF1203 NEGRO T23.5 + CR3385 ORO T23","sku":"EF1203","color":"varios","talla":"varios","precio":1290,"pares":3}}
-- El sistema calculará el envío correcto y mandará el link de Mercado Pago automáticamente
+Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + colores + tallas):
+- Usa el marcador GENERAR_PAGO con un JSON que incluya un arreglo "items" — UN objeto por cada combinación distinta de modelo+color+talla (si el cliente pide el mismo modelo en 2 tallas o colores distintos, van 2 items separados):
+  GENERAR_PAGO:{{"nombre":"NOMBRE","email":"EMAIL_CLIENTE","direccion":"DIRECCION","items":[{{"sku":"SKU_EXACTO_DEL_CATALOGO","color":"COLOR_EXACTO","talla":"TALLA","cantidad":N}}]}}
+- Usa el SKU EXACTO tal como aparece en el catálogo (ej. si ves "[SKU:MA302]" entonces "sku":"MA302"). NUNCA inventes ni combines SKUs de distintos modelos en un solo item.
+- NO calcules tú el precio ni el envío, y NO los menciones en el mensaje de cierre — el sistema los calcula automáticamente Y VERIFICA LA EXISTENCIA REAL en inventario en ese momento antes de generar el link. Si algún item ya no tiene existencia, el sistema te lo va a decir en el siguiente turno para que se lo informes al cliente y le ofrezcas otro color/talla — NUNCA le digas al cliente "ya está listo tu pago" antes de que el sistema confirme.
+- Ejemplo 3 pares distintos: GENERAR_PAGO:{{"nombre":"Lupita García","email":"lupita@email.com","direccion":"Av. Hidalgo 123, CDMX 06600","items":[{{"sku":"EF1203","color":"Latte","talla":"23.5","cantidad":1}},{{"sku":"EF1203","color":"Negro","talla":"23.5","cantidad":1}},{{"sku":"CR3385","color":"Oro","talla":"23","cantidad":1}}]}}
 - NO pongas LINK_PAGO, usa GENERAR_PAGO con el JSON
-- Si el cliente quiere AGREGAR más pares a un pedido ya en proceso, incluye TODOS los productos (los anteriores + los nuevos) en UN SOLO GENERAR_PAGO con el subtotal acumulado
+- Si el cliente quiere AGREGAR más pares a un pedido ya en proceso, incluye TODOS los items (los anteriores + los nuevos) en UN SOLO GENERAR_PAGO
 
 === REGLAS IMPORTANTES ===
 - Habla como vendedora mexicana amigable y natural (amiga, no robot)
@@ -380,15 +379,102 @@ def mark_as_read_wa(message_id: str):
     except Exception:
         pass
 
-def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
-    """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id).
+def _resolver_items_wa(items_entrada: list) -> tuple:
+    """Resuelve items {sku, color, talla, cantidad} de Maya contra productos/variantes/
+    inventario REALES. Devuelve (pedido_items_db, faltantes, pares, subtotal).
 
-    Acepta dos formatos de producto:
-    - `items`: [{variante_id, nombre, cantidad, precio_unitario}, ...] — variantes reales
-      del inventario (panel admin). Se guardan como `pedido_items` para que el webhook de
-      pago descuente el stock automáticamente, igual que cualquier otro pedido.
-    - `modelo`/`color`/`talla`/`precio`/`pares` sueltos (bot de WhatsApp, sin variante_id
-      conocida): solo queda como texto en las notas, sin descuento automático de stock.
+    `faltantes` es una lista de strings legibles ("MA302 Negro T24") para los items sin
+    existencia suficiente o que no se pudieron encontrar — si no está vacía, NO se debe
+    generar ningún link de pago."""
+    faltantes = []
+    pedido_items_db = []
+    pares = 0
+    subtotal = 0.0
+
+    skus = list({(it.get("sku") or "").strip() for it in items_entrada if it.get("sku")})
+    if not skus:
+        return [], ["(sin SKU válido)"], 0, 0.0
+    filtro_sku = ",".join(skus)
+    productos = supabase_get(f"productos?sku_interno=in.({filtro_sku})&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,es_oferta") or []
+    prod_por_sku = {p["sku_interno"]: p for p in productos}
+    prod_ids = [p["id"] for p in productos]
+
+    variantes = []
+    inv_map: dict = {}
+    if prod_ids:
+        filtro_pid = ",".join(prod_ids)
+        variantes = supabase_get(f"variantes?producto_id=in.({filtro_pid})&activa=eq.true&select=id,producto_id,color,talla") or []
+        var_ids = [v["id"] for v in variantes]
+        if var_ids:
+            filtro_vid = ",".join(var_ids)
+            inventario = supabase_get(f"inventario?variante_id=in.({filtro_vid})&select=variante_id,cantidad") or []
+            for i in inventario:
+                vid = i.get("variante_id")
+                inv_map[vid] = inv_map.get(vid, 0) + (i.get("cantidad") or 0)
+
+    # Total de pares (para el nivel de precio menudeo/mayoreo) se necesita ANTES de fijar
+    # el precio unitario de cada item, así que primero se resuelven cantidades y variantes.
+    resueltos = []
+    for it in items_entrada:
+        sku    = (it.get("sku") or "").strip()
+        color  = (it.get("color") or "").strip().lower()
+        talla  = str(it.get("talla") or "").strip().lower()
+        cantidad = int(it.get("cantidad") or 1)
+        etiqueta = f"{sku} {it.get('color','')} T{it.get('talla','')}".strip()
+
+        producto = prod_por_sku.get(sku)
+        if not producto:
+            faltantes.append(f"{etiqueta} (modelo no encontrado)")
+            continue
+        variante = next((v for v in variantes
+                          if v["producto_id"] == producto["id"]
+                          and (v.get("color") or "").strip().lower() == color
+                          and str(v.get("talla") or "").strip().lower() == talla), None)
+        if not variante:
+            faltantes.append(f"{etiqueta} (color/talla no encontrado)")
+            continue
+        stock = inv_map.get(variante["id"], 0)
+        if stock < cantidad:
+            faltantes.append(f"{etiqueta} (disponibles: {stock})")
+            continue
+        pares += cantidad
+        resueltos.append((producto, variante, cantidad, etiqueta))
+
+    if faltantes:
+        return [], faltantes, pares, 0.0
+
+    # Nivel de precio según el total de pares del pedido completo (igual que el sitio web)
+    for producto, variante, cantidad, etiqueta in resueltos:
+        pm = float(producto.get("precio_menudeo") or 0)
+        menudeo_real = pm if producto.get("es_oferta") else round(pm + 80)
+        if pares >= 6 and producto.get("precio_mayoreo6"):
+            precio_u = float(producto["precio_mayoreo6"])
+        elif pares >= 3 and producto.get("precio_mayoreo3"):
+            precio_u = float(producto["precio_mayoreo3"])
+        else:
+            precio_u = menudeo_real
+        pedido_items_db.append({
+            "variante_id": variante["id"],
+            "cantidad": cantidad,
+            "precio_unitario": precio_u,
+            "subtotal": cantidad * precio_u,
+            "nombre": producto.get("nombre"),
+        })
+        subtotal += cantidad * precio_u
+
+    return pedido_items_db, [], pares, subtotal
+
+
+def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
+    """Crea el pedido en ERP + preferencia Mercado Pago. Devuelve (link, total, pedido_id, faltantes).
+
+    Acepta dos formatos de producto en `items`:
+    - {variante_id, nombre, cantidad, precio_unitario} — variantes reales ya resueltas
+      (panel admin / carrito del sitio). Se confía en el precio recibido.
+    - {sku, color, talla, cantidad} — formato de Maya (WhatsApp): se resuelve contra
+      productos/variantes/inventario REALES y se verifica existencia antes de cotizar.
+      Si algo no tiene stock suficiente, se aborta sin crear pedido ni link — se devuelve
+      la lista de `faltantes` para que se le informe al cliente.
     """
     try:
         nombre     = datos_pedido.get("nombre", "Cliente")
@@ -397,7 +483,13 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         items_entrada = datos_pedido.get("items") or []
 
         pedido_items_db = []
-        if items_entrada:
+        if items_entrada and items_entrada[0].get("sku") and not items_entrada[0].get("variante_id"):
+            # Formato de Maya: verificar existencia real antes de cotizar nada.
+            pedido_items_db, faltantes, pares, precio = _resolver_items_wa(items_entrada)
+            if faltantes:
+                return None, 0, None, faltantes
+            descripcion = ", ".join(f"{it['nombre']} x{it['cantidad']}" for it in pedido_items_db)
+        elif items_entrada:
             pares = 0
             precio = 0.0  # subtotal (sin envío), para el cálculo de envío de abajo
             descripciones = []
@@ -410,6 +502,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
                     "cantidad": cantidad,
                     "precio_unitario": precio_u,
                     "subtotal": cantidad * precio_u,
+                    "nombre": nombre_item,
                 })
                 pares += cantidad
                 precio += cantidad * precio_u
@@ -449,12 +542,12 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
             })
         except Exception as e:
             print(f"[link-pago] FALLO al crear pedido en Supabase: {e}")
-            return None, 0, None
+            return None, 0, None, []
         # supabase_post puede devolver lista o dict
         pedido_id = (pedido_db[0] if isinstance(pedido_db, list) else pedido_db).get("id")
         if not pedido_id:
             print(f"[link-pago] Pedido creado sin id. Respuesta: {pedido_db}")
-            return None, total, None
+            return None, total, None, []
 
         # 1b. Guardar las variantes reales del inventario (si vinieron) como pedido_items,
         # para que el webhook de pago descuente stock automáticamente al aprobarse.
@@ -469,14 +562,14 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         mp_token = os.environ.get("MP_ACCESS_TOKEN", "")
         if not mp_token:
             print("[link-pago] FALTA MP_ACCESS_TOKEN en variables de entorno")
-            return None, total, pedido_id
+            return None, total, pedido_id, []
         try:
             sdk = mercadopago.SDK(mp_token)
-            if items_entrada:
+            if pedido_items_db:
                 mp_items = [
                     {"title": (it.get("nombre") or "Producto")[:255], "quantity": int(it.get("cantidad") or 1),
                      "unit_price": float(it.get("precio_unitario") or 0), "currency_id": "MXN"}
-                    for it in items_entrada
+                    for it in pedido_items_db
                 ]
             else:
                 mp_items = [{"title": descripcion[:255], "quantity": 1, "unit_price": precio, "currency_id": "MXN"}]
@@ -565,21 +658,54 @@ def obtener_info_pago():
         pass
     return "Escríbenos para darte los datos de pago 💳"
 
+def _extraer_generar_pago(texto: str):
+    """Extrae el JSON de GENERAR_PAGO:{...} contando llaves (el JSON trae un arreglo
+    "items" con objetos propios anidados — una regex simple \\{[^}]+\\} se corta en la
+    primera llave de cierre y trunca el JSON). Devuelve (json_str_o_None, texto_sin_marcador)."""
+    idx = texto.find("GENERAR_PAGO:")
+    if idx == -1:
+        return None, texto
+    start = texto.find("{", idx)
+    if start == -1:
+        return None, texto
+    depth = 0
+    end = None
+    for i in range(start, len(texto)):
+        if texto[i] == "{":
+            depth += 1
+        elif texto[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end is None:
+        return None, texto
+    json_str = texto[start:end + 1]
+    texto_limpio = (texto[:idx] + texto[end + 1:]).strip()
+    return json_str, texto_limpio
+
 def procesar_y_enviar_respuesta(from_number, respuesta_claude):
     """Procesa marcadores en la respuesta de Maya y ejecuta las acciones correspondientes."""
 
     # ── GENERAR_PAGO:{json} ──────────────────────────────────────────────────
-    match_pago = re.search(r'GENERAR_PAGO:(\{[^}]+\})', respuesta_claude)
-    if match_pago:
-        texto = re.sub(r'GENERAR_PAGO:\{[^}]+\}', '', respuesta_claude).strip()
+    json_pago, texto = _extraer_generar_pago(respuesta_claude)
+    if json_pago:
         msg_enviado = texto  # lo que finalmente se guarda como respuesta
         if texto:
             enviar_whatsapp_texto(from_number, texto)
         try:
-            datos = json.loads(match_pago.group(1))
-            link, total, pedido_id = generar_link_pago_wa(from_number, datos)
+            datos = json.loads(json_pago)
+            link, total, pedido_id, faltantes = generar_link_pago_wa(from_number, datos)
             time.sleep(1)
-            if link:
+            if faltantes:
+                msg_sin_stock = (
+                    "Uy, justo se me acaba de agotar 😔 esto ya no tiene existencia:\n"
+                    + "\n".join(f"• {f}" for f in faltantes)
+                    + "\n\n¿Le damos otra talla/color o le muestro otra opción? 💕"
+                )
+                enviar_whatsapp_texto(from_number, msg_sin_stock)
+                msg_enviado = (texto + "\n\n" + msg_sin_stock).strip() if texto else msg_sin_stock
+            elif link:
                 msg_link = (
                     f"💳 *Link de pago — ${total:.0f} MXN*\n\n{link}\n\n"
                     f"_Acepta tarjeta, transferencia, OXXO y más. "
@@ -683,7 +809,8 @@ def obtener_historial(telefono, limite=10):
                 resp_limpia = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', resp)
                 resp_limpia = re.sub(r'ENVIAR_FOTO:\S+', '', resp_limpia)
                 resp_limpia = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', resp_limpia)
-                resp_limpia = re.sub(r'GENERAR_PAGO:\{[^}]+\}', '', resp_limpia).strip()
+                _, resp_limpia = _extraer_generar_pago(resp_limpia)
+                resp_limpia = resp_limpia.strip()
                 if resp_limpia:
                     mensajes.append({"role": "assistant", "content": resp_limpia})
         return mensajes
@@ -890,9 +1017,11 @@ async def link_pago_manual(datos: dict):
         telefono = (datos.get("telefono") or "").strip()
         if not telefono:
             return JSONResponse(status_code=400, content={"ok": False, "error": "Falta el teléfono del cliente"})
-        link, total, pedido_id = generar_link_pago_wa(telefono, datos)
+        link, total, pedido_id, faltantes = generar_link_pago_wa(telefono, datos)
         if link:
             return {"ok": True, "link": link, "total": total, "pedido_id": pedido_id}
+        if faltantes:
+            return JSONResponse(status_code=409, content={"ok": False, "error": "Sin existencia suficiente", "faltantes": faltantes})
         return JSONResponse(status_code=500, content={"ok": False, "error": "No se pudo generar el link (revisa MP_ACCESS_TOKEN)"})
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
