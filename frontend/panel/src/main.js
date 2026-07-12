@@ -34,7 +34,8 @@ import { renderPortalCliente } from './portal-cliente.js'
         localStorage.removeItem('erp_empleado')
         localStorage.removeItem('pc_sesion')
       } catch (e) {}
-      console.warn('[DIAG] 401 suprimido temporalmente para pruebas')
+      alert('Tu sesión expiró. Inicia sesión de nuevo.')
+      location.reload()
     }
     return res
   }
