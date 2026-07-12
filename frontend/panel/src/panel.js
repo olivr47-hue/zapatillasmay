@@ -11460,10 +11460,15 @@ async function cargarDashboard() {
         scales: { x: axisStyle, y: axisStyle }
       }
 
+      // Instancias guardadas para poder re-dimensionarlas al cambiar de pestaña
+      // (Meses/Pagos se crean con su contenedor en display:none — Chart.js las
+      // deja con tamaño 0 para siempre si nadie llama a .resize() al mostrarlas).
+      window._dashCharts = {}
+
       // Gráfica tendencia 7 días (área)
       const elTend = document.getElementById('chart-tendencia')
       if (elTend && window.Chart) {
-        new Chart(elTend, {
+        window._dashCharts.tendencia = new Chart(elTend, {
           type: 'line',
           data: {
             labels: ultimos7.map(d => d.label),
@@ -11492,7 +11497,7 @@ async function cargarDashboard() {
 
       // Barras: días de semana
       const elDias = document.getElementById('chart-dias')
-      if (elDias && window.Chart) new Chart(elDias, {
+      if (elDias && window.Chart) window._dashCharts.dias = new Chart(elDias, {
         type: 'bar',
         data: { labels: diasNombre, datasets: [{ data: diasNombre.map(d => porDia[d]||0), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 1.5, borderRadius: 6 }] },
         options: { ...chartOpts, plugins: { legend: { display: false } } }
@@ -11503,7 +11508,7 @@ async function cargarDashboard() {
       const canalesLabels = Object.keys(porCanal)
       const canalesVals = Object.values(porCanal)
       if (elCanales && window.Chart && canalesLabels.length > 0) {
-        new Chart(elCanales, {
+        window._dashCharts.canales = new Chart(elCanales, {
           type: 'doughnut',
           data: { labels: canalesLabels, datasets: [{ data: canalesVals, backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
           options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: $${ctx.parsed.toLocaleString('es-MX',{maximumFractionDigits:0})}` } } } }
@@ -11519,27 +11524,37 @@ async function cargarDashboard() {
           </div>`).join('')
       }
 
-      // Línea: meses
+      // Línea: meses. Se guarda tambien la config (window._dashChartConfigs) porque
+      // Chart.js no puede re-medir con .resize() una grafica creada mientras su
+      // pestaña estaba oculta (queda en 0x0 para siempre, probado a mano); la unica
+      // forma confiable es destruirla y recrearla cuando la pestaña se muestra.
+      window._dashChartConfigs = window._dashChartConfigs || {}
       const elMeses = document.getElementById('chart-meses')
       if (elMeses && window.Chart) {
         const md = Object.entries(porMes).slice(-6)
-        new Chart(elMeses, {
+        const cfgMeses = {
           type: 'line',
           data: { labels: md.map(([m])=>m), datasets: [{ data: md.map(([,v])=>v), borderColor: COLOR2, backgroundColor: 'rgba(124,58,237,0.07)', borderWidth: 2, pointBackgroundColor: COLOR2, pointBorderColor: 'white', pointBorderWidth: 2, pointRadius: 4, fill: true, tension: 0.4 }] },
           options: { ...chartOpts, plugins: { legend: { display: false } } }
-        })
+        }
+        window._dashChartConfigs.meses = cfgMeses
+        window._dashCharts.meses = new Chart(elMeses, cfgMeses)
       }
 
       // Dona: pagos
       const elPagos = document.getElementById('chart-pagos')
-      if (elPagos && window.Chart && Object.keys(porPago).length > 0) new Chart(elPagos, {
-        type: 'doughnut',
-        data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
-      })
+      if (elPagos && window.Chart && Object.keys(porPago).length > 0) {
+        const cfgPagos = {
+          type: 'doughnut',
+          data: { labels: Object.keys(porPago), datasets: [{ data: Object.values(porPago), backgroundColor: PALETTE, borderColor: BORDERS, borderWidth: 2 }] },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}` } } } }
+        }
+        window._dashChartConfigs.pagos = cfgPagos
+        window._dashCharts.pagos = new Chart(elPagos, cfgPagos)
+      }
     }, 300)
 
-    // Tab switcher para estadísticas
+    // Tab switcher para estadísticas.
     window.dashSwitchTab = (tab, btn) => {
       ['dias','meses','pagos'].forEach(t => {
         const el = document.getElementById('dash-tab-' + t)
@@ -11547,6 +11562,21 @@ async function cargarDashboard() {
       })
       document.querySelectorAll('.dash-tab-btn').forEach(b => b.classList.remove('active'))
       if (btn) btn.classList.add('active')
+      // Meses/Pagos arrancan con su pestaña oculta -> Chart.js las deja en 0x0 para
+      // siempre. La primera vez que se muestran, se destruye y se recrea la gráfica
+      // ya con el contenedor visible (confirmado: .resize() no lo arregla, ni
+      // pasándole ancho/alto explícitos).
+      if (tab === 'meses' || tab === 'pagos') {
+        const chart = window._dashCharts && window._dashCharts[tab]
+        const cfg = window._dashChartConfigs && window._dashChartConfigs[tab]
+        const canvas = document.getElementById('chart-' + tab)
+        if (chart && cfg && canvas && !chart._reparada) {
+          chart.destroy()
+          const nuevo = new Chart(canvas, cfg)
+          nuevo._reparada = true
+          window._dashCharts[tab] = nuevo
+        }
+      }
     }
 
     // Tareas pendientes hoy
@@ -21304,14 +21334,14 @@ function renderCarritoAbierto(p) {
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
-                      <button onclick="cambiarCantidadCarrito(${item._idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
+                      <button class="carrito-mini-btn" onclick="cambiarCantidadCarrito(${item._idx},-1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">−</button>
                       <span style="font-weight:700;min-width:24px;text-align:center">${item.cantidad}</span>
-                      <button onclick="cambiarCantidadCarrito(${item._idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
+                      <button class="carrito-mini-btn" onclick="cambiarCantidadCarrito(${item._idx},1)" style="background:#eee;border:none;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:1rem">+</button>
                     </div>
-                    <input type="number" value="${item.precio_unitario}" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
+                    <input type="number" value="${item.precio_unitario}" class="carrito-precio-input" style="width:80px;padding:5px;border:1px solid #ddd;border-radius:6px;text-align:center;font-size:0.85rem"
                       onchange="actualizarPrecioCarrito(${item._idx}, this.value)">
                     <strong style="color:#E91E8C;min-width:70px;text-align:right">$${(item.cantidad * item.precio_unitario).toFixed(2)}</strong>
-                    <button onclick="eliminarDeCarrito('${item.id}',${item._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                    <button class="carrito-mini-btn carrito-del-btn" onclick="eliminarDeCarrito('${item.id}',${item._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
                   </div>`
               } else {
                 // Corrida agrupada
@@ -21334,7 +21364,7 @@ function renderCarritoAbierto(p) {
                           }).join('')}
                         </div>
                       </div>
-                      <button onclick="eliminarCorridaCarrito('${ids}')" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
+                      <button class="carrito-mini-btn carrito-del-btn" onclick="eliminarCorridaCarrito('${ids}')" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding:4px">🗑</button>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                       <span id="corrida-header-${ids.replace(/,/g,'_').substring(0,20)}" style="font-size:0.85rem;color:#888">${totalParesCorrida} pares · <strong style="color:#6a1b9a">$${subtotalCorrida.toFixed(2)}</strong></span>
@@ -21358,12 +21388,12 @@ function renderCarritoAbierto(p) {
                           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"
                                data-item-id="${i.id}" data-item-idx="${i._idx}" data-stock="${stockMax}" data-precio="${i.precio_unitario}">
                             <span style="background:#f3e5f5;border-radius:100px;padding:3px 10px;font-size:0.8rem;font-weight:700;color:#6a1b9a;min-width:44px;text-align:center">T${talla}</span>
-                            <button onclick="cambiarCantCorridaDOM(this.parentElement,-1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">−</button>
+                            <button class="carrito-mini-btn" onclick="cambiarCantCorridaDOM(this.parentElement,-1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">−</button>
                             <span class="ccd-cant" style="font-weight:700;min-width:20px;text-align:center;font-size:0.9rem">${i.cantidad}</span>
-                            <button onclick="cambiarCantCorridaDOM(this.parentElement,1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">+</button>
+                            <button class="carrito-mini-btn" onclick="cambiarCantCorridaDOM(this.parentElement,1)" style="background:#eee;border:none;border-radius:4px;width:24px;height:24px;cursor:pointer;font-size:0.9rem">+</button>
                             <span style="font-size:0.8rem;color:#888;flex:1">× $${i.precio_unitario}</span>
                             <strong class="ccd-sub" style="color:#6a1b9a;font-size:0.82rem">$${(i.cantidad*i.precio_unitario).toFixed(2)}</strong>
-                            <button onclick="eliminarDeCarrito('${i.id}',${i._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem;padding:2px">🗑</button>
+                            <button class="carrito-mini-btn carrito-del-btn" onclick="eliminarDeCarrito('${i.id}',${i._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem;padding:2px">🗑</button>
                           </div>`
                       }).join('')}
                     </div>
@@ -21378,7 +21408,7 @@ function renderCarritoAbierto(p) {
         </div>
 
         ${items.length > 0 ? `
-          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
+          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
             <div style="display:flex;align-items:center;gap:8px">
               <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
               <select id="c-forma-pago" class="form-input" style="width:140px">
@@ -21389,7 +21419,7 @@ function renderCarritoAbierto(p) {
                 <option value="credito">Crédito</option>
               </select>
             </div>
-            <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
+            <button class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
               ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
             </button>
           </div>
