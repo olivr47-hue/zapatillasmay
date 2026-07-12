@@ -104,6 +104,11 @@
     .mobile-search-bar .msb-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray-400);pointer-events:none}
     /* Bottom nav */
     #zm-bottomnav{display:none !important}
+    /* El promo-banner + header (+ mobile-search-bar en <768px) son fixed y se
+       superponen al contenido si <main> no deja un hueco del mismo alto --
+       sin esto la galería y el nombre/precio quedaban tapados debajo del
+       header en todos los tamaños de pantalla. */
+    main#contenido-principal{margin-top:144px}
     @media(max-width:767px){
       header{top:36px}
       .mobile-search-bar{display:block}
@@ -118,6 +123,7 @@
       .nav-cats{display:flex}
       .header-search{display:block}
       .header-inner{padding:0 40px;height:72px}
+      main#contenido-principal{margin-top:108px}
     }
 
     /* ── GALLERY ── */
