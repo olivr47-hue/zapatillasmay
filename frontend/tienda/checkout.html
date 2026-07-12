@@ -282,21 +282,45 @@ if (!window.fbq){
       </div>
 
       <div class="card" id="step-direccion" style="display:none">
-        <p class="card-title">Dirección de <em>envío</em></p>
-        <div class="field field-row">
-          <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
-          <div>
-            <label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label>
-            <div id="colonia-wrapper">
-              <input id="co-colonia" autocomplete="address-line2" placeholder="Centro">
+        <p class="card-title">¿Cómo quieres <em>recibir tu pedido</em>?</p>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <button type="button" id="entrega-btn-domicilio" onclick="seleccionarEntrega('domicilio')"
+                  style="flex:1;padding:12px 10px;border-radius:10px;border:2px solid var(--mauve);background:rgba(181,104,122,0.08);cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600;color:var(--black);text-align:center">
+            🚚 Envío a domicilio
+          </button>
+          <button type="button" id="entrega-btn-recoger" onclick="seleccionarEntrega('recoger')"
+                  style="flex:1;padding:12px 10px;border-radius:10px;border:2px solid var(--border);background:white;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600;color:var(--gray);text-align:center">
+            🏪 Recoger en tienda
+          </button>
+        </div>
+
+        <div id="direccion-campos">
+          <p class="card-title" style="font-size:0.95rem">Dirección de <em>envío</em></p>
+          <div class="field field-row">
+            <div><label>Código postal *</label><input id="co-cp" autocomplete="postal-code" inputmode="numeric" placeholder="37000"></div>
+            <div>
+              <label>Colonia <span style="font-weight:400;color:var(--gray-light)">(opcional)</span></label>
+              <div id="colonia-wrapper">
+                <input id="co-colonia" autocomplete="address-line2" placeholder="Centro">
+              </div>
             </div>
           </div>
+          <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
+          <div class="field field-row">
+            <div><label>Ciudad *</label><input id="co-ciudad" autocomplete="address-level2" placeholder="León"></div>
+            <div><label>Estado *</label><input id="co-estado" autocomplete="address-level1" placeholder="Guanajuato"></div>
+          </div>
         </div>
-        <div class="field"><label>Calle y número *</label><input id="co-calle" autocomplete="address-line1" placeholder="Av. Principal 123"></div>
-        <div class="field field-row">
-          <div><label>Ciudad *</label><input id="co-ciudad" autocomplete="address-level2" placeholder="León"></div>
-          <div><label>Estado *</label><input id="co-estado" autocomplete="address-level1" placeholder="Guanajuato"></div>
+
+        <div id="recoger-info" style="display:none;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+          <span style="font-size:1.2rem;flex-shrink:0">📍</span>
+          <div>
+            <p style="font-size:0.85rem;font-weight:700;color:#166534;margin:0" id="recoger-nombre">Recoger en tienda</p>
+            <p style="font-size:0.76rem;color:#15803d;margin:2px 0 0" id="recoger-direccion"></p>
+            <p style="font-size:0.72rem;color:#15803d;margin:4px 0 0">Te avisamos por WhatsApp cuando tu pedido esté listo para recoger — sin costo de envío.</p>
+          </div>
         </div>
+
         <div class="field"><label>Notas (opcional)</label><textarea id="co-notas" placeholder="Referencias, indicaciones de entrega..." rows="2"></textarea></div>
         <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:flex-start">
           <button type="button" onclick="window.history.back()" style="background:none;border:none;color:var(--gray);text-decoration:underline;font-size:0.8rem;cursor:pointer;font-family:inherit">← Editar datos de contacto</button>
@@ -360,6 +384,26 @@ const API = 'https://zapatillasmay-production.up.railway.app'
 let carrito = []
 let cfgEnvio = { tier1: 99, tier2: 150, tier3: 199, gratis_desde: 1299 }
 let usuarioActual = null   // cliente logueado (de localStorage)
+let sucursalPickup = null  // sucursal para "recoger en tienda"
+window._entregaTipo = 'domicilio'
+
+function _pintarBotonEntrega(btn, activo) {
+  if (!btn) return
+  btn.style.borderColor = activo ? 'var(--mauve)' : 'var(--border)'
+  btn.style.background = activo ? 'rgba(181,104,122,0.08)' : 'white'
+  btn.style.color = activo ? 'var(--black)' : 'var(--gray)'
+}
+
+function seleccionarEntrega(tipo) {
+  window._entregaTipo = tipo
+  _pintarBotonEntrega(document.getElementById('entrega-btn-domicilio'), tipo === 'domicilio')
+  _pintarBotonEntrega(document.getElementById('entrega-btn-recoger'), tipo === 'recoger')
+  const campos = document.getElementById('direccion-campos')
+  const info = document.getElementById('recoger-info')
+  if (campos) campos.style.display = tipo === 'domicilio' ? 'block' : 'none'
+  if (info) info.style.display = tipo === 'recoger' ? 'flex' : 'none'
+  render()
+}
 
 function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } }
 
@@ -419,19 +463,24 @@ function render() {
     return s + item.precio_menudeo * pares
   }, 0)
   const ahorro = subtotalSinDesc - subtotalProductos
-  const costoEnvio = calcularEnvio(total, subtotalProductos)
+  const esRecoger = window._entregaTipo === 'recoger'
+  const costoEnvio = esRecoger ? 0 : calcularEnvio(total, subtotalProductos)
   const totalFinal = subtotalProductos + costoEnvio
 
   let tipoDesc = total >= 6 ? 'Mayoreo (6+ pares)' : total >= 3 ? 'Mayoreo (3-5 pares)' : ''
   let h = `<div class="resumen-row"><span>Subtotal (${total} ${total===1?'par':'pares'})</span><span>$${subtotalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   if (ahorro > 0) h += `<div class="resumen-row" style="color:var(--mauve)"><span>${tipoDesc}</span><span>−$${ahorro.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
-  if (costoEnvio === 0) {
+  if (esRecoger) {
+    h += `<div class="resumen-row" style="color:#22c55e"><span>🏪 Recoger en tienda</span><span style="font-weight:700">GRATIS</span></div>`
+  } else if (costoEnvio === 0) {
     h += `<div class="resumen-row" style="color:#22c55e"><span>Envío 🚚</span><span style="font-weight:700">¡GRATIS!</span></div>`
   } else {
     h += `<div class="resumen-row"><span>Envío 🚚</span><span>$${costoEnvio.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   }
   h += `<div class="resumen-row total"><span>Total</span><span class="val">$${totalFinal.toLocaleString('es-MX',{maximumFractionDigits:0})} MXN</span></div>`
-  h += `<div style="margin-top:10px;padding:9px 12px;background:rgba(200,150,122,0.07);border-radius:10px;font-size:0.73rem;color:var(--gray);display:flex;align-items:center;gap:7px"><span>📦</span><span>Entrega estimada <strong style="color:var(--black)">1-3 días hábiles</strong> a todo México</span></div>`
+  h += esRecoger
+    ? `<div style="margin-top:10px;padding:9px 12px;background:rgba(200,150,122,0.07);border-radius:10px;font-size:0.73rem;color:var(--gray);display:flex;align-items:center;gap:7px"><span>📍</span><span>Te avisamos por WhatsApp cuando esté <strong style="color:var(--black)">listo para recoger</strong></span></div>`
+    : `<div style="margin-top:10px;padding:9px 12px;background:rgba(200,150,122,0.07);border-radius:10px;font-size:0.73rem;color:var(--gray);display:flex;align-items:center;gap:7px"><span>📦</span><span>Entrega estimada <strong style="color:var(--black)">1-3 días hábiles</strong> a todo México</span></div>`
   document.getElementById('resumen-totales').innerHTML = h
 
   window._totalFinal = totalFinal
@@ -528,18 +577,21 @@ function irAPaso2() {
 
 async function procesarPago() {
   const v = id => document.getElementById(id).value.trim()
+  const esRecoger = window._entregaTipo === 'recoger'
   const nombre=v('co-nombre'), email=v('co-email'), telefono=v('co-telefono'),
         calle=v('co-calle'), colonia=v('co-colonia'), cp=v('co-cp'),
         ciudad=v('co-ciudad'), estado=v('co-estado'), notas=v('co-notas')
-  // Validación con highlight de campo específico
+  // Validación con highlight de campo específico (la dirección solo aplica si es envío a domicilio)
   const requeridos = [
     ['co-nombre', nombre, 'Nombre completo'],
     ['co-email', email, 'Email'],
     ['co-telefono', telefono, 'Teléfono'],
-    ['co-calle', calle, 'Calle y número'],
-    ['co-cp', cp, 'Código postal'],
-    ['co-ciudad', ciudad, 'Ciudad'],
-    ['co-estado', estado, 'Estado'],
+    ...(esRecoger ? [] : [
+      ['co-calle', calle, 'Calle y número'],
+      ['co-cp', cp, 'Código postal'],
+      ['co-ciudad', ciudad, 'Ciudad'],
+      ['co-estado', estado, 'Estado'],
+    ]),
   ]
   let primerVacio = null
   requeridos.forEach(([id, val, label]) => {
@@ -572,7 +624,7 @@ async function procesarPago() {
     el?.focus()
     return
   }
-  if (cp.replace(/\D/g,'').length !== 5) {
+  if (!esRecoger && cp.replace(/\D/g,'').length !== 5) {
     const el = document.getElementById('co-cp')
     if (el) el.style.borderColor = '#e74c3c'
     mostrarToast('Código postal debe tener exactamente 5 dígitos')
@@ -588,6 +640,10 @@ async function procesarPago() {
     const pTotal = totalPares(carrito)
     const totalFinal = window._totalFinal || 0
     const costoEnvio = window._costoEnvio || 0
+    const direccionEnvio = esRecoger
+      ? `RECOGER EN TIENDA — ${sucursalPickup?.nombre || 'Sucursal'}, ${sucursalPickup?.direccion || ''}`
+      : `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`
+    const notasFinal = esRecoger ? `[Recoge en tienda] ${notas}`.trim() : notas
     const resPedido = await fetch(`${API}/pedidos/`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -595,8 +651,8 @@ async function procesarPago() {
         items: carrito.map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
         total: totalFinal, status:'borrador',
         nombre_cliente:nombre, email_cliente:email, telefono_cliente:telefono,
-        ciudad_cliente: ciudad, estado_cliente: estado, cp_cliente: cp,
-        direccion_envio: `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`, notas,
+        ciudad_cliente: esRecoger ? 'León' : ciudad, estado_cliente: esRecoger ? 'Guanajuato' : estado, cp_cliente: cp,
+        direccion_envio: direccionEnvio, notas: notasFinal,
         fbc: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbc='))?.split('=').slice(1).join('=') || '',
         fbp: document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('_fbp='))?.split('=').slice(1).join('=') || '',
         client_user_agent: navigator.userAgent || '',
@@ -835,6 +891,7 @@ async function pagarConBrick(pedidoId, total, email) {
     const ciudad = document.getElementById('co-ciudad')?.value.trim() || ''
     const estado = document.getElementById('co-estado')?.value.trim() || ''
     const notas = document.getElementById('co-notas')?.value.trim() || ''
+    const esRecogerBrick = window._entregaTipo === 'recoger'
 
     let summaryHTML = `
       <div id="checkout-summary-review" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;font-size:0.85rem;line-height:1.45;box-shadow:0 2px 8px rgba(90,40,10,0.03);box-sizing:border-box;width:100%">
@@ -848,8 +905,8 @@ async function pagarConBrick(pedidoId, total, email) {
             <p style="margin:2px 0 0 0;font-size:0.85rem">${nombre} · ${telefono} · ${emailVal}</p>
           </div>
           <div style="margin-top:4px">
-            <p style="margin:0;font-weight:700;color:var(--black);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px">📍 Dirección de Entrega</p>
-            <p style="margin:2px 0 0 0;font-size:0.85rem">${calle}, ${colonia ? 'Col. ' + colonia : ''}, CP ${cp}, ${ciudad}, ${estado}</p>
+            <p style="margin:0;font-weight:700;color:var(--black);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.5px">${esRecogerBrick ? '🏪 Recoger en tienda' : '📍 Dirección de Entrega'}</p>
+            <p style="margin:2px 0 0 0;font-size:0.85rem">${esRecogerBrick ? `${sucursalPickup?.nombre || 'Sucursal'} — ${sucursalPickup?.direccion || ''}` : `${calle}, ${colonia ? 'Col. ' + colonia : ''}, CP ${cp}, ${ciudad}, ${estado}`}</p>
             ${notas ? `<p style="margin:4px 0 0 0;font-style:italic;font-size:0.8rem;background:rgba(200,150,122,0.06);padding:6px 10px;border-radius:6px">Nota: ${notas}</p>` : ''}
           </div>
         </div>
@@ -1123,6 +1180,22 @@ async function init() {
   }
   // Config de envío
   try { const r = await fetch(`${API}/config/envio`); if (r.ok) cfgEnvio = await r.json() } catch(e){}
+  // Sucursal para "recoger en tienda"
+  try {
+    const rs = await fetch(`${API}/sucursales/`)
+    if (rs.ok) {
+      const data = await rs.json()
+      sucursalPickup = Array.isArray(data) ? data.find(s => s.activa !== false) : null
+      if (sucursalPickup) {
+        const nEl = document.getElementById('recoger-nombre')
+        const dEl = document.getElementById('recoger-direccion')
+        if (nEl) nEl.textContent = `Recoger en ${sucursalPickup.nombre}`
+        if (dEl) dEl.textContent = sucursalPickup.direccion || ''
+      } else {
+        document.getElementById('entrega-btn-recoger')?.remove()
+      }
+    }
+  } catch(e) {}
   render()
 
   if (!carrito.length) return
