@@ -1407,11 +1407,25 @@ function renderCarrito(el) {
           <span style="font-weight:700;color:#e2e2f0">Total</span>
           <span style="font-weight:700;color:#E91E8C">${money(total)}</span>
         </div>`}
+        ${(() => {
+          const dir = (pc.clienteData?.direccion || '').trim()
+          if (dir) {
+            return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px">
+              <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;margin:0 0 4px">📍 Se envía a</p>
+              <p style="font-size:0.8rem;color:#c0c0e0;margin:0">${esc(dir)}${pc.clienteData?.codigo_postal ? ', CP '+esc(pc.clienteData.codigo_postal) : ''}${pc.clienteData?.ciudad ? ', '+esc(pc.clienteData.ciudad) : ''}</p>
+              <button onclick="pcIrA('cuenta')" style="background:none;border:none;color:#5a5a7a;font-size:0.72rem;cursor:pointer;padding:4px 0 0;text-decoration:underline">Cambiar dirección</button>
+            </div>`
+          }
+          return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px">
+            <p style="font-size:0.8rem;color:#f87171;font-weight:600;margin:0 0 4px">⚠️ Falta tu dirección de envío</p>
+            <button onclick="pcIrA('cuenta')" class="pc-btn pc-btn-secondary" style="font-size:0.78rem;padding:6px 12px">Agregar dirección</button>
+          </div>`
+        })()}
         <div style="margin-bottom:12px">
           <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:6px">Notas del pedido</label>
           <textarea id="pc-notas" class="pc-input" style="height:70px;resize:none" placeholder="Color específico, urgencia, instrucciones..."></textarea>
         </div>
-        <button onclick="pcHacerPedido()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px">
+        <button onclick="pcHacerPedido()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
           Enviar pedido →
         </button>
         <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="width:100%;font-size:0.78rem">
@@ -1628,6 +1642,12 @@ window.pcHacerPedido = async function() {
   const errEl = document.getElementById('pc-pedido-err')
   if (pc.carrito.length === 0) return
   if (!pc.sesion?.cliente_id) { if (errEl) { errEl.textContent = 'Sin sesión activa'; errEl.style.display = 'block' } return }
+  const direccion = (pc.clienteData?.direccion || '').trim()
+  if (!direccion) {
+    if (errEl) { errEl.textContent = 'Agrega tu dirección de envío en Mi cuenta antes de enviar el pedido'; errEl.style.display = 'block' }
+    return
+  }
+  const direccionEnvio = `${direccion}${pc.clienteData?.codigo_postal ? ', CP '+pc.clienteData.codigo_postal : ''}${pc.clienteData?.ciudad ? ', '+pc.clienteData.ciudad : ''}${pc.clienteData?.estado ? ', '+pc.clienteData.estado : ''}`
 
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const descripcion = pc.carrito.map(i => `${i.sku} T${i.talla}${i.color ? ' '+i.color : ''} x${i.cantidad}`).join(', ')
@@ -1646,6 +1666,7 @@ window.pcHacerPedido = async function() {
         canal: 'portal_mayoreo',
         descripcion,
         notas_cliente: notas,
+        direccion_envio: direccionEnvio,
         items: pc.carrito.map(i => ({
           producto_id: i.producto_id,
           talla: i.talla,
@@ -1881,6 +1902,23 @@ function renderMiCuenta(el) {
       <p id="mc-msg" style="font-size:0.78rem;margin-top:8px;display:none"></p>
     </div>
 
+    <div class="pc-card" style="margin-bottom:14px">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">Dirección de envío</p>
+      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Se usa para armar tus pedidos del portal — sin esto el negocio no sabe a dónde enviar.</p>
+      <div style="display:grid;gap:12px">
+        <div>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Calle, número y colonia</label>
+          <textarea id="mc-direccion" class="pc-input" style="height:60px;resize:none" placeholder="Ej. Av. Hidalgo 123, Col. Centro">${esc(c.direccion||'')}</textarea>
+        </div>
+        <div>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Código postal</label>
+          <input id="mc-cp" class="pc-input" inputmode="numeric" maxlength="5" value="${esc(c.codigo_postal||'')}">
+        </div>
+      </div>
+      <button onclick="pcGuardarDireccion()" class="pc-btn pc-btn-primary" style="margin-top:16px">Guardar dirección</button>
+      <p id="mc-dir-msg" style="font-size:0.78rem;margin-top:8px;display:none"></p>
+    </div>
+
     <div class="pc-card">
       <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Cambiar contraseña</p>
       <div style="display:grid;gap:12px">
@@ -1900,6 +1938,21 @@ function renderMiCuenta(el) {
       const res = await fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(datos) })
       msg.textContent = res.ok ? '✅ Guardado correctamente' : '❌ Error al guardar'
       msg.style.color = res.ok ? '#10b981' : '#ef4444'
+      if (res.ok) pc.clienteData = Object.assign(pc.clienteData || {}, datos)
+    } catch { msg.textContent = 'Error de conexión'; msg.style.color = '#ef4444' }
+    msg.style.display = 'block'
+  }
+  window.pcGuardarDireccion = async function() {
+    const msg = document.getElementById('mc-dir-msg')
+    const datos = {
+      direccion: document.getElementById('mc-direccion').value.trim(),
+      codigo_postal: document.getElementById('mc-cp').value.trim(),
+    }
+    try {
+      const res = await fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(datos) })
+      msg.textContent = res.ok ? '✅ Dirección guardada' : '❌ Error al guardar'
+      msg.style.color = res.ok ? '#10b981' : '#ef4444'
+      if (res.ok) pc.clienteData = Object.assign(pc.clienteData || {}, datos)
     } catch { msg.textContent = 'Error de conexión'; msg.style.color = '#ef4444' }
     msg.style.display = 'block'
   }

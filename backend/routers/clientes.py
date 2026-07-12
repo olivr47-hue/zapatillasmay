@@ -10,7 +10,7 @@ router = APIRouter(prefix="/clientes", tags=["Clientes"])
 # tipo ni activo -- eso solo lo toca personal via require_staff en otras rutas).
 _CAMPOS_CLIENTE_AUTOEDITABLES = {
     "nombre", "telefono", "email", "ciudad", "estado",
-    "direccion", "colonia", "cp", "referencias_envio",
+    "direccion", "codigo_postal",
 }
 
 @router.get("/")
