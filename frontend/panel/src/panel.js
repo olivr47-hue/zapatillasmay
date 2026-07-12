@@ -9271,20 +9271,73 @@ if (modalAnterior) modalAnterior.remove()
   if (colores.length) posSeleccionarColor(productoId, colores[0])
 }
 
-// ── Lightbox para ver foto del producto en grande ──
+// ── Lightbox para ver fotos del producto en grande, con swipe entre todas las
+// fotos de la variante/color seleccionado (mismo patrón que abrirLightboxPC
+// en portal-cliente.js, con nombres propios para no chocar con esas funciones
+// globales — ambos archivos comparten bundle) ──
 window.abrirLightboxPOS = (src) => {
   if (!src) return
+  let fotos = [src]
+  try {
+    const sel = window._posSeleccion
+    if (sel && sel.productoId && sel.color && window._posData) {
+      const varsColor = window._posData.variantes.filter(v => v.producto_id === sel.productoId && v.color === sel.color)
+      const set = []
+      varsColor.forEach(v => {
+        const imgs = Array.isArray(v.imagenes) && v.imagenes.length ? v.imagenes : (v.foto_url ? [v.foto_url] : [])
+        imgs.forEach(u => { if (u && !set.includes(u)) set.push(u) })
+      })
+      if (set.length) fotos = set
+    }
+  } catch(e) {}
+  if (!fotos.includes(src)) fotos = [src, ...fotos]
+
   const prev = document.getElementById('pos-lightbox')
   if (prev) prev.remove()
   const lb = document.createElement('div')
   lb.id = 'pos-lightbox'
-  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2000;display:flex;align-items:center;justify-content:center;cursor:zoom-out'
-  lb.innerHTML = `
-    <button onclick="document.getElementById('pos-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
-    <img src="${src}" style="max-width:92vw;max-height:88vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6)">
-  `
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none'
+
+  let idx = fotos.indexOf(src)
+  if (idx < 0) idx = 0
+
+  const render = () => {
+    const total = fotos.length
+    lb.innerHTML = `
+      <button onclick="document.getElementById('pos-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+      ${total > 1 ? `<button onclick="posLbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.35:1}">‹</button>` : ''}
+      <img id="pos-lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6);user-select:none;-webkit-user-drag:none">
+      ${total > 1 ? `<button onclick="posLbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.35:1}">›</button>` : ''}
+      ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px">${fotos.map((_,i)=>`<div onclick="posLbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.35)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
+    `
+  }
+
+  window.posLbNav = (dir) => { idx = Math.max(0, Math.min(fotos.length - 1, idx + dir)); render(); addSwipe() }
+  window.posLbGoto = (i) => { idx = i; render(); addSwipe() }
+
+  const addSwipe = () => {
+    const img = document.getElementById('pos-lb-img')
+    if (!img) return
+    let startX = 0
+    img.addEventListener('touchstart', e => { startX = e.touches[0].clientX }, { passive: true })
+    img.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX
+      if (Math.abs(dx) > 50) window.posLbNav(dx < 0 ? 1 : -1)
+    }, { passive: true })
+  }
+
   lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+
+  const onKey = (e) => {
+    if (e.key === 'ArrowRight') window.posLbNav(1)
+    else if (e.key === 'ArrowLeft') window.posLbNav(-1)
+    else if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', onKey) }
+  }
+  document.addEventListener('keydown', onKey)
+
+  render()
   document.body.appendChild(lb)
+  addSwipe()
 }
 
 // ── POS modal: selección de color compartida entre los dos modos ──
@@ -9301,6 +9354,9 @@ window.posSeleccionarColor = (productoId, color) => {
     window._corridaColorActivo = color
     window._posSeleccion.color = color
     window._posHighlightColor(color, '#6a1b9a', '#f3e5f5')
+    const fotoColor = window._posData.variantes.find(v => v.producto_id === productoId && v.color === color)?.foto_url
+    const modalImg = document.getElementById('pos-modal-img')
+    if (modalImg && fotoColor) modalImg.src = fotoColor
     renderCorridaTallas(productoId, color)
   } else {
     // modo variado: seleccionarColorModalPOS hace su propio resaltado (rosa) y pinta las tallas
