@@ -1093,11 +1093,16 @@ function renderProducto() {
       <span>🔒 Pago seguro</span>
     </div>
 
-    <div id="sucursal-badge" style="display:none;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;margin-top:10px">
-      <span style="font-size:1.1rem;flex-shrink:0">📍</span>
-      <div>
-        <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0" id="sucursal-badge-nombre"></p>
-        <p style="font-size:0.72rem;color:#15803d;margin:2px 0 0" id="sucursal-badge-direccion"></p>
+    <div id="sucursal-badge" style="display:none;margin-top:10px">
+      <button type="button" onclick="toggleSucursalInfo()" style="display:flex;align-items:center;gap:6px;background:none;border:none;padding:6px 0;font-family:inherit;font-size:0.76rem;color:#8B6A54;cursor:pointer;text-decoration:underline;text-underline-offset:2px">
+        <span>📍</span><span>También disponible en tienda física — ver ubicación</span>
+      </button>
+      <div id="sucursal-badge-info" style="display:none;align-items:center;gap:10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;margin-top:6px">
+        <span style="font-size:1.1rem;flex-shrink:0">📍</span>
+        <div>
+          <p style="font-size:0.8rem;font-weight:700;color:#166534;margin:0" id="sucursal-badge-nombre"></p>
+          <p style="font-size:0.72rem;color:#15803d;margin:2px 0 0" id="sucursal-badge-direccion"></p>
+        </div>
       </div>
     </div>
 
@@ -1252,9 +1257,15 @@ function actualizarSucursalBadge(stock) {
   if (!badge) return
   const suc = sucursales.find(s => s.activa !== false)
   if (!suc || !(stock > 0)) { badge.style.display = 'none'; return }
-  document.getElementById('sucursal-badge-nombre').textContent = `Disponible para ver/recoger en ${suc.nombre}`
+  document.getElementById('sucursal-badge-nombre').textContent = suc.nombre
   document.getElementById('sucursal-badge-direccion').textContent = suc.direccion || ''
-  badge.style.display = 'flex'
+  badge.style.display = 'block'
+}
+
+function toggleSucursalInfo() {
+  const info = document.getElementById('sucursal-badge-info')
+  if (!info) return
+  info.style.display = info.style.display === 'flex' ? 'none' : 'flex'
 }
 
 function seleccionarTalla(talla) {
