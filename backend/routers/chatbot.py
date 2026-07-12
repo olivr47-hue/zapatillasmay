@@ -2821,6 +2821,18 @@ def _get_waba_id() -> str:
             return val
     return ""
 
+@router.get("/templates/debug-numero")
+async def debug_numero_real():
+    """Diagnóstico temporal: consulta a Meta el número real registrado en el WHATSAPP_PHONE_ID actual (solo lectura, no envía nada)."""
+    try:
+        phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
+        if not phone_id:
+            return JSONResponse(status_code=400, content={"error": "WHATSAPP_PHONE_ID no configurado"})
+        data = _wa_graph(f"{phone_id}?fields=display_phone_number,verified_name,quality_rating")
+        return data
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.get("/templates/debug-env")
 async def debug_env():
     """Diagnóstico: qué variables WA están configuradas (sin mostrar valores sensibles)."""
