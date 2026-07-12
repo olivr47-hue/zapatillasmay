@@ -4,7 +4,7 @@ import urllib.request
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch, supabase_delete
-from security import require_staff
+from security import require_staff, verify_token
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
@@ -292,6 +292,19 @@ def obtener_pedido(id: str):
 @router.post("/")
 async def crear_pedido(pedido: dict, request: Request):
     try:
+        # Si viene un token de cliente válido (portal mayorista logueado), el
+        # cliente_id SIEMPRE se toma del token, nunca de lo que mande el body --
+        # si no, un cliente logueado podría armar un pedido a nombre de otro
+        # cliente_id con solo cambiar el JSON. El checkout anónimo de la tienda
+        # (menudeo, sin login) sigue igual: sin token, se respeta el body tal cual.
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            try:
+                token_payload = verify_token(auth_header[7:])
+                if token_payload.get("cliente_id"):
+                    pedido["cliente_id"] = token_payload["cliente_id"]
+            except Exception:
+                pass  # token inválido/expirado -> se trata como anónimo, no se bloquea el checkout
         items = pedido.pop("items", [])
         # Capturar IP real del cliente para CAPI de Meta
         ip = (

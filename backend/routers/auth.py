@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
-from security import hash_password, verify_password, create_token, limiter
+from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado
 from email_utils import enviar_email
 import os
 import secrets
@@ -131,7 +132,7 @@ async def login(request: Request, datos: dict):
                 cliente_id = clientes_email[0]["id"]
                 supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
 
-        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"]})
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": cliente_id})
         return {
             "token": token,
             "id": u["id"],
@@ -145,7 +146,9 @@ async def login(request: Request, datos: dict):
 
 
 @router.get("/perfil/{usuario_id}")
-def perfil(usuario_id: str):
+def perfil(usuario_id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    if not usuario_autorizado(usuario_id, credentials):
+        raise HTTPException(status_code=403, detail="No autorizado")
     try:
         usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&select=id,nombre,email,tipo,cliente_id,clientes(*)")
         if not usuarios:
@@ -181,7 +184,9 @@ def perfil(usuario_id: str):
 
 
 @router.get("/pedidos/{cliente_id}")
-def pedidos_cliente(cliente_id: str):
+def pedidos_cliente(cliente_id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    if not cliente_autorizado(cliente_id, credentials):
+        raise HTTPException(status_code=403, detail="No autorizado")
     try:
         return supabase_get(f"pedidos?cliente_id=eq.{cliente_id}&order=created_at.desc&select=*,pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
     except Exception as e:
@@ -246,7 +251,7 @@ async def google_login(request: Request, datos: dict):
                     supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
                     u["cliente_id"] = cliente_id
 
-        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"]})
+        token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": u.get("cliente_id")})
         return {
             "token": token,
             "id": u["id"],

@@ -133,6 +133,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 _bearer = HTTPBearer(auto_error=False)
+bearer_opcional = _bearer  # alias público para usar Depends(bearer_opcional) en otros routers
 
 
 def require_admin(
@@ -174,3 +175,32 @@ def require_staff(
     if not payload.get("rol"):
         raise HTTPException(status_code=403, detail="Se requiere acceso de personal")
     return payload
+
+
+def cliente_autorizado(cliente_id: str, credentials: HTTPAuthorizationCredentials) -> bool:
+    """True si el token es de personal (rol), o de ese mismo cliente_id.
+    Usar en endpoints del portal mayorista que reciben un cliente_id en la ruta
+    (/clientes/{id}, /auth/pedidos/{cliente_id}) para que un cliente logueado no
+    pueda leer/editar los datos de otro cambiando el id en la URL."""
+    if not credentials:
+        return False
+    try:
+        payload = verify_token(credentials.credentials)
+    except HTTPException:
+        return False
+    if payload.get("rol"):
+        return True
+    return payload.get("cliente_id") == cliente_id
+
+
+def usuario_autorizado(usuario_id: str, credentials: HTTPAuthorizationCredentials) -> bool:
+    """True si el token es de personal (rol), o de ese mismo usuario_id (sub)."""
+    if not credentials:
+        return False
+    try:
+        payload = verify_token(credentials.credentials)
+    except HTTPException:
+        return False
+    if payload.get("rol"):
+        return True
+    return payload.get("sub") == usuario_id

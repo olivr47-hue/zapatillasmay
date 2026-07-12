@@ -1,9 +1,17 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
-from security import hash_password, require_staff
+from security import hash_password, require_staff, bearer_opcional, cliente_autorizado, verify_token
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
+
+# Campos que un cliente puede autoeditar desde el portal (nunca crédito, límite,
+# tipo ni activo -- eso solo lo toca personal via require_staff en otras rutas).
+_CAMPOS_CLIENTE_AUTOEDITABLES = {
+    "nombre", "telefono", "email", "ciudad", "estado",
+    "direccion", "colonia", "cp", "referencias_envio",
+}
 
 @router.get("/")
 def listar_clientes(_staff=Depends(require_staff)):
@@ -20,7 +28,9 @@ def listar_referidos(_staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/{id}")
-def obtener_cliente(id: str):
+def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    if not cliente_autorizado(id, credentials):
+        raise HTTPException(status_code=403, detail="No autorizado")
     try:
         return supabase_get(f"clientes?id=eq.{id}")
     except Exception as e:
@@ -34,8 +44,15 @@ def crear_cliente(cliente: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/{id}")
-def actualizar_cliente(id: str, cliente: dict):
+def actualizar_cliente(id: str, cliente: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    if not cliente_autorizado(id, credentials):
+        raise HTTPException(status_code=403, detail="No autorizado")
     try:
+        es_staff = bool(credentials) and bool(verify_token(credentials.credentials).get("rol"))
+        if not es_staff:
+            # El cliente autoeditando su propia cuenta desde el portal solo puede
+            # tocar datos de contacto/envío -- nunca crédito, límite, tipo ni activo.
+            cliente = {k: v for k, v in cliente.items() if k in _CAMPOS_CLIENTE_AUTOEDITABLES}
         return supabase_patch(f"clientes?id=eq.{id}", cliente)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
