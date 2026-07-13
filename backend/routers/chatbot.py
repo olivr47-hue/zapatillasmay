@@ -2742,7 +2742,8 @@ async def envio_productos(datos: dict):
             })
 
         # Si hay un solo SKU usar tipo "product", si hay varios usar "product_list"
-        total_skus = sum(len(s["product_items"]) for s in sections)
+        todos_retailer_ids = [item["product_retailer_id"] for s in sections for item in s["product_items"]]
+        total_skus = len(todos_retailer_ids)
 
         wa_url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
         headers_req = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
@@ -2766,7 +2767,7 @@ async def envio_productos(datos: dict):
                     "footer": {"text": pie},
                     "action": {
                         "catalog_id": catalog_id,
-                        "product_retailer_id": skus[0]
+                        "product_retailer_id": todos_retailer_ids[0]
                     }
                 }
             else:
