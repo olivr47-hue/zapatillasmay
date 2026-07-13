@@ -2663,6 +2663,74 @@ async def editar_boton_plantilla(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/crear-plantilla-portal-nuevos-modelos")
+async def crear_plantilla_portal_nuevos_modelos():
+    """
+    Crea 'portal_nuevos_modelos' — igual que catalogo_completo pero con el
+    botón apuntando al portal mayorista en vez de la home de la tienda.
+    catalogo_completo no se puede editar (Meta lo rechaza en esta cuenta:
+    "Solo puedes eliminar o añadir plantillas"), así que en vez de tocarla
+    se crea esta como reemplazo.
+    """
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    if not wa_token or not waba_id:
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+
+    plantilla = {
+        "name": "portal_nuevos_modelos",
+        "language": "es_MX",
+        "category": "MARKETING",
+        "components": [
+            {
+                "type": "HEADER",
+                "format": "IMAGE",
+                "example": {
+                    "header_handle": [
+                        "https://scontent.whatsapp.net/v/t61.29466-34/626468084_1684570936222748_165771943744172740_n.jpg?ccb=1-7&_nc_sid=8b1bef"
+                    ]
+                }
+            },
+            {
+                "type": "BODY",
+                "text": "Hola {{customer_name}}, \ntenemos nuevos modelos de calzado 👠 \nVisítanos en zapatillasmay.mx",
+                "example": {
+                    "body_text_named_params": [
+                        {"param_name": "customer_name", "example": "María"}
+                    ]
+                }
+            },
+            {
+                "type": "FOOTER",
+                "text": "Escribe stop para dejar de recibir mensajes"
+            },
+            {
+                "type": "BUTTONS",
+                "buttons": [
+                    {
+                        "type": "URL",
+                        "text": "ver nuevos modelos",
+                        "url": "https://portal.zapatillasmay.mx"
+                    }
+                ]
+            }
+        ]
+    }
+
+    url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates"
+    headers_req = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(plantilla).encode(), headers=headers_req, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = json.loads(r.read())
+        return {"ok": True, "meta_response": resp}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/crear-plantilla-catalogo")
 async def crear_plantilla_catalogo():
     """
