@@ -590,19 +590,20 @@ function renderCatalogo(el) {
   const hayFiltrosActivos = pc.filtroTallas.length > 0 || pc.filtroColores.length > 0
 
   el.innerHTML = `
-    <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Productos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${prods.length} de ${pc.productos.length} modelos</p>
+    <div style="margin-bottom:20px">
+      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0">Productos</h1>
     </div>
 
-    <!-- Buscador + categorías -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-      <input class="pc-input" style="max-width:260px" placeholder="🔍 Buscar modelo o SKU..."
+    <!-- Categorías -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
+      ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
+    </div>
+
+    <!-- Buscador -->
+    <div style="margin-bottom:14px">
+      <input class="pc-input" style="width:100%" placeholder="🔍 Buscar modelo o SKU..."
         value="${esc(pc.busqueda)}" oninput="pcBuscar(this.value)">
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
-        ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
-      </div>
     </div>
 
     <!-- Filtros: talla y color (colapsable) -->

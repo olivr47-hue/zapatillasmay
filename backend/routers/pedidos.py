@@ -12,9 +12,10 @@ router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 @router.get("/pares-vendidos-total")
 def pares_vendidos_total():
-    """Total de pares vendidos en pedidos reales (sin cancelados/borradores/
-    checkout_iniciado) -- usado para el contador de confianza del sitio
-    público ("+X pedidos enviados"). Cacheado 1h."""
+    """Total de pedidos reales (sin cancelados/borradores/checkout_iniciado)
+    -- usado para el contador de confianza del sitio público ("+X pedidos").
+    Se cuenta por pedido y no por par: un solo pedido de mayoreo puede traer
+    decenas de pares y dispararía el número de forma poco realista. Cacheado 1h."""
     cache_key = "pedidos_pares_vendidos_total"
     cached = cache_get(cache_key)
     if cached is not None:
@@ -23,14 +24,7 @@ def pares_vendidos_total():
         pedidos = supabase_get_all(
             "pedidos?status=not.in.(cancelado,borrador,checkout_iniciado)&select=id"
         )
-        pedido_ids = [p["id"] for p in pedidos]
-        total = 0
-        CHUNK = 200  # trocear el filtro in.() para no armar URLs gigantes
-        for i in range(0, len(pedido_ids), CHUNK):
-            bloque = pedido_ids[i:i + CHUNK]
-            items = supabase_get_all(f"pedido_items?pedido_id=in.({','.join(bloque)})&select=cantidad")
-            total += sum((it.get("cantidad") or 0) for it in items)
-        resultado = {"total_pares": total}
+        resultado = {"total_pedidos": len(pedidos)}
         cache_set(cache_key, resultado, ttl=TTL_FEEDS)
         return resultado
     except Exception as e:
