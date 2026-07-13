@@ -407,27 +407,6 @@ function renderInicio(el) {
         </button>`).join('')}
     </div>
 
-    <!-- Estado de cuenta (línea de crédito formal, distinta del crédito de referidos) -->
-    ${(() => {
-      const limite = parseFloat(pc.clienteData?.limite_credito || 0)
-      if (!(limite > 0)) return ''
-      const dias = parseInt(pc.clienteData?.dias_credito || 0)
-      return `<div class="pc-card" style="margin-bottom:20px">
-        <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Estado de cuenta</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px">
-          <div>
-            <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 4px">Línea de crédito</p>
-            <p style="font-size:1.1rem;font-weight:700;color:#e2e2f0;margin:0">${money(limite)}</p>
-          </div>
-          ${dias > 0 ? `<div>
-            <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 4px">Plazo de pago</p>
-            <p style="font-size:1.1rem;font-weight:700;color:#e2e2f0;margin:0">${dias} días</p>
-          </div>` : ''}
-        </div>
-        <p style="font-size:0.75rem;color:#5a5a7a;margin:12px 0 0">Consulta con tu asesora el saldo usado de tu línea.</p>
-      </div>`
-    })()}
-
     <!-- Últimos pedidos -->
     ${ultimosPedidos.length ? `
     <div class="pc-card">
