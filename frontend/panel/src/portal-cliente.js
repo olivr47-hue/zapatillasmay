@@ -464,7 +464,7 @@ function renderInicio(el) {
       <p style="font-size:0.8rem;font-weight:700;color:#e2e2f0;margin:0 0 10px">🔥 Sugerencias para ti</p>
       <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin">
         ${pc.modelosSugeridos.map(p => `
-          <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;cursor:pointer">
+          <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;min-width:0;cursor:pointer">
             <div style="position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#161625;margin-bottom:6px">
               <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
               ${p._tag ? `<span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${esc(p._tag)}</span>` : ''}
