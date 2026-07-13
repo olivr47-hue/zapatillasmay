@@ -14348,13 +14348,16 @@ window.switchTipoEnvio = function(tipo, btn) {
   tabs.forEach(t => {
     const b = document.getElementById(`tab-envio-${t}`)
     const p = document.getElementById(`panel-envio-${t}`)
+    const envBtn = document.getElementById(`envio-btn-${t}`)
     if (!b || !p) return
     if (t === tipo) {
       b.style.background = '#E91E8C'; b.style.color = '#fff'; b.style.borderColor = '#E91E8C'
       p.style.display = 'block'
+      if (envBtn) envBtn.style.display = 'block'
     } else {
       b.style.background = '#fff'; b.style.color = '#374151'; b.style.borderColor = '#e5e7eb'
       p.style.display = 'none'
+      if (envBtn) envBtn.style.display = 'none'
     }
   })
 }
@@ -14490,7 +14493,7 @@ window.cargarEnviosMasivos = async function() {
 
             <!-- Imagen: selector de modelo + variante -->
             <div id="envio-seccion-foto" style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">2 · Foto del modelo <span style="font-weight:400;color:#cbd5e1;text-transform:none;letter-spacing:0">(solo plantillas con imagen)</span></p>
+              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px">2 · Foto del modelo <span style="font-weight:700;color:#dc2626;text-transform:none;letter-spacing:0">(obligatoria — sin ella Meta rechaza el envío)</span></p>
 
               <!-- Búsqueda de modelo -->
               <input type="text" id="envio-modelo-buscar" placeholder="🔍 Buscar modelo por nombre..."
@@ -14518,14 +14521,7 @@ window.cargarEnviosMasivos = async function() {
               <input type="hidden" id="envio-imagen">
             </div>
 
-            <!-- Botón enviar -->
-            <div id="envio-resultado" style="display:none;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7;background:#e8f5e9"></div>
-            <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%;padding:12px">
-              📣 Enviar campaña
-            </button>
-            <p style="font-size:0.72rem;color:#aaa;text-align:center;margin-top:8px">Solo plantillas aprobadas por Meta. No arriesga el número de teléfono.</p>
-
-            <div style="margin-top:1rem;padding-top:1rem;border-top:1px dashed #eee">
+            <div style="padding-top:1rem;border-top:1px dashed #eee">
               <p style="font-size:0.75rem;font-weight:700;color:#888;margin-bottom:6px">🔧 Diagnóstico</p>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
                 <input type="text" id="diag-tel" class="form-input" placeholder="Tu teléfono (52...)" style="flex:1;min-width:140px;font-size:0.8rem">
@@ -14552,12 +14548,8 @@ window.cargarEnviosMasivos = async function() {
             <div id="envio-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
               <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando modelos...</p>
             </div>
-            <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0 0 10px"></p>
+            <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0"></p>
           </div>
-          <button onclick="iniciarEnvioInteractivo()" class="btn btn-primary" style="width:100%;padding:12px">
-            🛍️ Enviar catálogo
-          </button>
-          <p style="font-size:0.72rem;color:#c2410c;text-align:center;margin-top:8px">⚠️ Solo llega a quien te escribió en las últimas 24h.</p>
           </div><!-- fin panel-envio-catalogo -->
 
           <!-- Envío de fotos de variantes (24 h) -->
@@ -14588,17 +14580,11 @@ window.cargarEnviosMasivos = async function() {
               <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Fotos seleccionadas</p>
               <div id="fotos-seleccionadas-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
             </div>
+            <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:10px 0 0"></p>
           </div>
 
-          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#92400e">
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;font-size:0.76rem;color:#92400e">
             ⚠️ <strong>Requiere que el cliente te haya escrito en las últimas 24 horas.</strong> Si no, el mensaje no llega (error 131047).
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
-            <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
-              style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
-              Enviar fotos · solo 24 h
-            </button>
           </div>
           </div><!-- fin panel-envio-fotos -->
 
@@ -14627,8 +14613,27 @@ window.cargarEnviosMasivos = async function() {
               </label>
             </div>
             <p style="font-size:0.7rem;color:#aaa;margin:0 0 8px">Desmarca "Todos" y elige a mano si solo quieres mandarle a algunos.</p>
-            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;margin-bottom:1rem">
               ${renderContactos(window._envioContactos)}
+            </div>
+
+            <!-- Botón de enviar — cambia según la pestaña activa -->
+            <div id="envio-btn-campana" style="display:none;padding-top:1rem;border-top:1px solid #f0f0f0">
+              <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%;padding:12px">
+                📣 Enviar campaña
+              </button>
+              <p style="font-size:0.72rem;color:#aaa;text-align:center;margin-top:8px">Solo plantillas aprobadas por Meta. No arriesga el número de teléfono.</p>
+            </div>
+            <div id="envio-btn-catalogo" style="display:none;padding-top:1rem;border-top:1px solid #f0f0f0">
+              <button onclick="iniciarEnvioInteractivo()" class="btn btn-primary" style="width:100%;padding:12px">
+                🛍️ Enviar catálogo
+              </button>
+              <p style="font-size:0.72rem;color:#c2410c;text-align:center;margin-top:8px">⚠️ Solo llega a quien te escribió en las últimas 24h.</p>
+            </div>
+            <div id="envio-btn-fotos" style="display:none;padding-top:1rem;border-top:1px solid #f0f0f0">
+              <button onclick="iniciarEnvioFotos()" class="btn btn-secondary" style="width:100%;padding:12px;border-color:#e65100;color:#e65100">
+                Enviar fotos · solo 24 h
+              </button>
             </div>
           </div>
           </div><!-- fin columna derecha -->
@@ -14737,23 +14742,20 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
 
   window._envioActualizarPreview()
 
-  // Actualizar etiqueta de la sección foto según tipo
+  // Mostrar/ocultar selector de foto según si el header admite imagen, y
+  // dejar clarísimo que es OBLIGATORIA (sin ella Meta rechaza el envío: error 132000)
   const secFoto = document.getElementById('envio-seccion-foto')
   if (secFoto) {
-    secFoto.style.display = 'block'
+    secFoto.style.display = window._envioHeaderTipo === 'IMAGE' ? 'block' : 'none'
     const lbl = secFoto.querySelector('p')
     if (lbl) lbl.innerHTML = esMPM
-      ? '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto de portada del catálogo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(imagen principal que verá el cliente)</span>'
-      : '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto del modelo</span> <span style="font-weight:400;color:#aaa;font-size:0.78rem">(opcional — para plantillas con imagen)</span>'
+      ? '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto de portada del catálogo</span> <span style="font-weight:700;color:#dc2626;font-size:0.78rem">(obligatoria)</span>'
+      : '<span style="font-weight:700;font-size:0.9rem">2️⃣ Foto del modelo</span> <span style="font-weight:700;color:#dc2626;font-size:0.78rem">(obligatoria — sin ella Meta rechaza el envío)</span>'
   }
 
   // Mostrar aviso MPM en el catálogo
   const mpmAviso = document.getElementById('envio-mpm-aviso')
   if (mpmAviso) mpmAviso.style.display = esMPM ? 'block' : 'none'
-
-  // Mostrar/ocultar selector de foto según si el header admite imagen
-  const secFotoEl = document.getElementById('envio-seccion-foto')
-  if (secFotoEl) secFotoEl.style.display = window._envioHeaderTipo === 'IMAGE' ? 'block' : 'none'
 
   // resaltar el label seleccionado
   document.querySelectorAll('input[name="envio-plantilla-radio"]').forEach(r => {
@@ -14885,6 +14887,11 @@ window.iniciarEnvioMasivo = async () => {
 
   if (esMPM && skusMPM.length === 0) {
     alert('Esta plantilla es de catálogo — selecciona al menos un producto en la sección de abajo')
+    return
+  }
+
+  if (window._envioHeaderTipo === 'IMAGE' && !imagenUrl) {
+    alert('Esta plantilla requiere una foto en el encabezado — elígela en "2 · Foto del modelo" antes de enviar. Sin ella, Meta rechaza el envío (error 132000).')
     return
   }
 
