@@ -2664,6 +2664,25 @@ async def editar_boton_plantilla(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/plantilla-estado/{template_id}")
+async def plantilla_estado(template_id: str):
+    """Diagnóstico de solo lectura: consulta el estado y motivo de rechazo
+    (si aplica) de una plantilla puntual por su ID."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    if not wa_token:
+        return JSONResponse(status_code=500, content={"error": "Falta WHATSAPP_TOKEN en Railway"})
+    url = f"https://graph.facebook.com/v25.0/{template_id}?fields=name,status,category,rejected_reason,quality_score"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {wa_token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 def _subir_media_handle_meta(wa_token: str, app_id: str, contenido: bytes, mime: str) -> str:
     """Sube un archivo a la API de subida reanudable de Meta y devuelve el
     'header_handle' que se usa como muestra al crear una plantilla con
