@@ -1,12 +1,65 @@
 from fastapi import APIRouter, Body, Depends
+from fastapi.responses import JSONResponse
 from typing import List
-from database import supabase_get, supabase_post, supabase_patch, obtener_consecutivo
-from cache import cache_get, cache_set, cache_invalidate_prefix
+import datetime
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, obtener_consecutivo
+from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_FEEDS
 from security import require_staff
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
 _CK = "productos"  # prefijo de caché
+
+@router.get("/mas-vendidos")
+def productos_mas_vendidos(dias: int = 30, limit: int = 12):
+    """Modelos más vendidos en los últimos N días (pedidos reales, sin cancelados
+    ni borradores) -- usado como "Tendencia" en el catálogo del portal mayoreo."""
+    cache_key = f"{_CK}_mas_vendidos_{dias}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached[:limit]
+    try:
+        fecha_inicio = (datetime.datetime.utcnow() - datetime.timedelta(days=dias)).isoformat()
+        pedidos = supabase_get_all(
+            f"pedidos?created_at=gte.{fecha_inicio}"
+            f"&status=not.in.(cancelado,borrador,checkout_iniciado)&select=id"
+        )
+        pedido_ids = [p["id"] for p in pedidos]
+        if not pedido_ids:
+            cache_set(cache_key, [], ttl=TTL_FEEDS)
+            return []
+
+        conteo: dict = {}
+        CHUNK = 200  # trocear el filtro in.() para no armar URLs gigantes
+        for i in range(0, len(pedido_ids), CHUNK):
+            bloque = pedido_ids[i:i + CHUNK]
+            items = supabase_get_all(f"pedido_items?pedido_id=in.({','.join(bloque)})&select=variante_id,cantidad")
+            var_ids = list({it["variante_id"] for it in items if it.get("variante_id")})
+            if not var_ids:
+                continue
+            variantes = supabase_get_all(f"variantes?id=in.({','.join(var_ids)})&select=id,producto_id")
+            var_a_prod = {v["id"]: v["producto_id"] for v in variantes}
+            for it in items:
+                pid = var_a_prod.get(it.get("variante_id"))
+                if pid:
+                    conteo[pid] = conteo.get(pid, 0) + (it.get("cantidad") or 0)
+
+        ranking = sorted(conteo.items(), key=lambda x: x[1], reverse=True)[:max(limit, 20)]
+        prod_ids = [pid for pid, _ in ranking]
+        if not prod_ids:
+            cache_set(cache_key, [], ttl=TTL_FEEDS)
+            return []
+
+        productos = supabase_get(
+            f"productos?id=in.({','.join(prod_ids)})&activo=eq.true"
+            f"&select=id,nombre,sku_interno,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,imagen_principal,categoria"
+        )
+        prod_map = {p["id"]: p for p in productos}
+        resultado = [dict(prod_map[pid], pares_vendidos=cant) for pid, cant in ranking if pid in prod_map]
+        cache_set(cache_key, resultado, ttl=TTL_FEEDS)
+        return resultado[:limit]
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/siguiente-sku/{categoria}/{proveedor}")
 def siguiente_sku(categoria: str, proveedor: str):

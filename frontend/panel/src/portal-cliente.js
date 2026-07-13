@@ -36,6 +36,7 @@ const pc = {
   filtrosExpandido: false,
   datosCargados: false,
   borradores: [],
+  masVendidos: [],
   _borradorServerId: null, // id del pedido status=borrador que respalda el carrito activo en el servidor
 }
 
@@ -334,18 +335,30 @@ async function cargarDatosPC() {
     }
   }
 
-  const [prod, vari, inv, ped, cli] = await Promise.all([
+  const [prod, vari, inv, ped, cli, masVend] = await Promise.all([
     _safeFetch(`${PC_API}/productos/`),
     _safeFetch(`${PC_API}/variantes/?activa=eq.true`),
     _safeFetch(`${PC_API}/inventario/`),
     cid ? _safeFetch(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
     cid ? _safeFetch(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
+    _safeFetch(`${PC_API}/productos/mas-vendidos`),
   ])
 
-  if (Array.isArray(prod)) pc.productos = prod.filter(p => p.activo !== false)
+  if (Array.isArray(prod)) {
+    // Orden aleatorio (fijo por sesión, se re-baraja la próxima vez que entre):
+    // el catálogo siempre venía ordenado igual (orden_home/fecha), así que los
+    // mismos modelos de siempre eran los únicos que el cliente veía arriba.
+    const activos = prod.filter(p => p.activo !== false)
+    for (let i = activos.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[activos[i], activos[j]] = [activos[j], activos[i]]
+    }
+    pc.productos = activos
+  }
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
+  if (Array.isArray(masVend)) pc.masVendidos = masVend
   if (Array.isArray(ped)) {
     // El borrador que respalda el carrito activo no debe verse como "pedido" --
     // se usa aparte para restaurar el carrito, nunca en Mis pedidos / Inicio.
@@ -554,6 +567,22 @@ function renderCatalogo(el) {
       <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Productos</h1>
       <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${prods.length} de ${pc.productos.length} modelos</p>
     </div>
+
+    <!-- Tendencia: más vendidos este mes -->
+    ${(!pc.filtroCat && !pc.busqueda && pc.masVendidos.length) ? `
+    <div style="margin-bottom:24px">
+      <p style="font-size:0.8rem;font-weight:700;color:#e2e2f0;margin:0 0 10px;display:flex;align-items:center;gap:6px">🔥 Tendencia — más vendidos este mes</p>
+      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin">
+        ${pc.masVendidos.map(p => `
+          <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;cursor:pointer">
+            <div style="position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#0c0c17;margin-bottom:6px">
+              <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+              <span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${p.pares_vendidos} vendidos</span>
+            </div>
+            <p style="font-size:0.75rem;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
 
     <!-- Buscador + categorías -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
