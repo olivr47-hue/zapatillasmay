@@ -2664,6 +2664,34 @@ async def editar_boton_plantilla(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+def _subir_media_handle_meta(wa_token: str, app_id: str, contenido: bytes, mime: str) -> str:
+    """Sube un archivo a la API de subida reanudable de Meta y devuelve el
+    'header_handle' que se usa como muestra al crear una plantilla con
+    encabezado IMAGE/VIDEO/DOCUMENT. Requiere el App ID de Facebook (público,
+    no es un secreto) — WHATSAPP_APP_ID en Railway."""
+    # 1) Iniciar sesión de subida
+    init_url = f"https://graph.facebook.com/v20.0/{app_id}/uploads?file_length={len(contenido)}&file_type={mime}&access_token={wa_token}"
+    req = urllib.request.Request(init_url, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as r:
+        sesion = json.loads(r.read())
+    upload_id = sesion.get("id", "")
+    if not upload_id:
+        raise RuntimeError(f"Meta no devolvió upload session id: {sesion}")
+
+    # 2) Subir el archivo completo a esa sesión
+    up_url = f"https://graph.facebook.com/v20.0/{upload_id}"
+    req2 = urllib.request.Request(
+        up_url, data=contenido, method="POST",
+        headers={"Authorization": f"OAuth {wa_token}", "file_offset": "0"}
+    )
+    with urllib.request.urlopen(req2, timeout=30) as r2:
+        resultado = json.loads(r2.read())
+    handle = resultado.get("h", "")
+    if not handle:
+        raise RuntimeError(f"Meta no devolvió el header_handle: {resultado}")
+    return handle
+
+
 @router.post("/crear-plantilla-portal-nuevos-modelos")
 async def crear_plantilla_portal_nuevos_modelos():
     """
@@ -2671,12 +2699,31 @@ async def crear_plantilla_portal_nuevos_modelos():
     botón apuntando al portal mayorista en vez de la home de la tienda.
     catalogo_completo no se puede editar (Meta lo rechaza en esta cuenta:
     "Solo puedes eliminar o añadir plantillas"), así que en vez de tocarla
-    se crea esta como reemplazo.
+    se crea esta como reemplazo. La imagen de muestra se toma del producto
+    activo más reciente y se sube de nuevo a Meta (la URL de ejemplo de la
+    plantilla vieja ya expiró — Meta no acepta URLs externas como muestra,
+    solo un header_handle de su propia API de subida).
     """
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    app_id = os.environ.get("WHATSAPP_APP_ID", "")
     if not wa_token or not waba_id:
         return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+    if not app_id:
+        return JSONResponse(status_code=500, content={"error": "Falta WHATSAPP_APP_ID en Railway"})
+
+    try:
+        productos = supabase_get("productos?activo=eq.true&select=imagen_principal&order=created_at.desc&limit=1")
+        imagen_url = productos[0].get("imagen_principal") if productos else None
+        if not imagen_url:
+            return JSONResponse(status_code=500, content={"error": "No se encontró una imagen de producto activo para usar de muestra"})
+        img_req = urllib.request.Request(imagen_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(img_req, timeout=15) as r:
+            imagen_bytes = r.read()
+            content_type = r.headers.get("Content-Type", "image/jpeg")
+        header_handle = _subir_media_handle_meta(wa_token, app_id, imagen_bytes, content_type)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"No se pudo subir la imagen de muestra: {e}"})
 
     plantilla = {
         "name": "portal_nuevos_modelos",
@@ -2687,9 +2734,7 @@ async def crear_plantilla_portal_nuevos_modelos():
                 "type": "HEADER",
                 "format": "IMAGE",
                 "example": {
-                    "header_handle": [
-                        "https://scontent.whatsapp.net/v/t61.29466-34/626468084_1684570936222748_165771943744172740_n.jpg?ccb=1-7&_nc_sid=8b1bef"
-                    ]
+                    "header_handle": [header_handle]
                 }
             },
             {
