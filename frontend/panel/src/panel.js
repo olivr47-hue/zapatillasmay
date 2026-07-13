@@ -14464,13 +14464,19 @@ window.cargarEnviosMasivos = async function() {
                   }).join('')
               }
 
+              <!-- Variables del cuerpo de la plantilla -->
+              <div id="plantilla-vars-box" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">
+                <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px">Variables del mensaje</p>
+                <div id="plantilla-vars-lista" style="display:flex;flex-direction:column;gap:8px"></div>
+                <p style="font-size:0.7rem;color:#aaa;margin-top:6px">Escribe <code>{{NOMBRE}}</code> en cualquier variable para que se reemplace con el nombre de cada contacto.</p>
+              </div>
+
               <!-- Vista previa de la plantilla seleccionada -->
               <div id="plantilla-preview-box" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0f0">
-                <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px">Vista previa del mensaje</p>
+                <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:8px">Vista previa del mensaje (con "Juan" de ejemplo)</p>
                 <div style="background:#e5ddd5;border-radius:10px;padding:10px;min-height:60px">
                   <div id="plantilla-preview-burbuja" style="background:white;border-radius:8px 8px 8px 2px;padding:10px 12px;max-width:85%;font-size:0.82rem;line-height:1.55;color:#333;box-shadow:0 1px 2px rgba(0,0,0,0.1);white-space:pre-wrap"></div>
                 </div>
-                <p style="font-size:0.7rem;color:#aaa;margin-top:6px">Las variables como <code>{{1}}</code> se reemplazan con el nombre del cliente al enviar.</p>
               </div>
             </div>
 
@@ -14695,20 +14701,47 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   const burbuja = document.getElementById('plantilla-preview-burbuja')
   if (!box || !burbuja || !p) return
 
-  const partes = []
   const header = (p.components || []).find(c => c.type === 'HEADER')
   const body = (p.components || []).find(c => c.type === 'BODY')
   const footer = (p.components || []).find(c => c.type === 'FOOTER')
   const buttons = (p.components || []).find(c => c.type === 'BUTTONS')
   const esMPM = (buttons?.buttons || []).some(b => b.sub_type === 'MPM' || b.type === 'MPM' || (p.sub_category === 'MULTI_PRODUCT_MESSAGE'))
 
-  if (header?.format === 'IMAGE') partes.push('🖼️ [Imagen del producto]')
-  if (header?.text) partes.push(`*${header.text}*`)
-  if (body?.text) partes.push(body.text)
-  if (footer?.text) partes.push(`_${footer.text}_`)
-  if (esMPM) partes.push('🛍️ [Catálogo de productos — selecciona abajo]')
-  burbuja.textContent = partes.join('\n\n') || '(sin contenido)'
-  box.style.display = 'block'
+  window._envioEsMPM = esMPM
+  // Tipo de header: IMAGE | TEXT | NONE
+  window._envioHeaderTipo = header?.format || (header?.text ? 'TEXT' : 'NONE')
+  // Contar variables {{N}} o {{}} en el body — Meta a veces omite el número
+  const bodyText = body?.text || ''
+  const bodyVars = bodyText.match(/\{\{[\d]*\}\}/g) || []
+  window._envioBodyVarsCount = bodyVars.length || (bodyText.includes('{{') ? 1 : 0)
+  window._envioBodyText = bodyText
+  window._envioHeaderText = header?.text || ''
+  window._envioFooterText = footer?.text || ''
+  window._envioEsMPMFlag = esMPM
+
+  // Generar inputs editables para cada variable del body (la #1 se autollena con {{NOMBRE}})
+  const varsBox = document.getElementById('plantilla-vars-box')
+  const varsLista = document.getElementById('plantilla-vars-lista')
+  if (varsBox && varsLista) {
+    if (window._envioBodyVarsCount > 0) {
+      const previos = window._envioVarsValores || []
+      const valores = []
+      for (let i = 0; i < window._envioBodyVarsCount; i++) valores.push(previos[i] ?? (i === 0 ? '{{NOMBRE}}' : ''))
+      window._envioVarsValores = valores
+      varsLista.innerHTML = valores.map((v, i) => `
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.75rem;color:#94a3b8;width:60px;flex-shrink:0">Var {{${i+1}}}</span>
+          <input type="text" value="${String(v).replace(/"/g,'&quot;')}" oninput="window._envioActualizarVar(${i}, this.value)"
+                 style="flex:1;padding:6px 8px;border:1px solid #eee;border-radius:6px;font-size:0.82rem;font-family:inherit">
+        </div>`).join('')
+      varsBox.style.display = 'block'
+    } else {
+      window._envioVarsValores = []
+      varsBox.style.display = 'none'
+    }
+  }
+
+  window._envioActualizarPreview()
 
   // Actualizar etiqueta de la sección foto según tipo
   const secFoto = document.getElementById('envio-seccion-foto')
@@ -14724,14 +14757,6 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   const mpmAviso = document.getElementById('envio-mpm-aviso')
   if (mpmAviso) mpmAviso.style.display = esMPM ? 'block' : 'none'
 
-  window._envioEsMPM = esMPM
-  // Tipo de header: IMAGE | TEXT | NONE
-  window._envioHeaderTipo = header?.format || (header?.text ? 'TEXT' : 'NONE')
-  // Contar variables {{N}} o {{}} en el body — Meta a veces omite el número
-  const bodyText = body?.text || ''
-  const bodyVars = bodyText.match(/\{\{[\d]*\}\}/g) || []
-  window._envioBodyVarsCount = bodyVars.length || (bodyText.includes('{{') ? 1 : 0)
-
   // Mostrar/ocultar selector de foto según si el header admite imagen
   const secFotoEl = document.getElementById('envio-seccion-foto')
   if (secFotoEl) secFotoEl.style.display = window._envioHeaderTipo === 'IMAGE' ? 'block' : 'none'
@@ -14743,6 +14768,35 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
     lbl.style.borderColor = r.value === nombre ? '#E91E8C' : '#eee'
     lbl.style.background = r.value === nombre ? '#fff0f8' : ''
   })
+}
+
+window._envioActualizarVar = (i, valor) => {
+  if (!window._envioVarsValores) window._envioVarsValores = []
+  window._envioVarsValores[i] = valor
+  window._envioActualizarPreview()
+}
+
+window._envioActualizarPreview = () => {
+  const burbuja = document.getElementById('plantilla-preview-burbuja')
+  const box = document.getElementById('plantilla-preview-box')
+  if (!burbuja || !box) return
+  const valores = window._envioVarsValores || []
+  const sustituir = (texto) => {
+    let out = texto || ''
+    valores.forEach((v, i) => {
+      const val = String(v ?? '').replace(/\{\{NOMBRE\}\}/gi, 'Juan') || `{{${i+1}}}`
+      out = out.replace(new RegExp(`\\{\\{${i+1}\\}\\}`, 'g'), val)
+    })
+    return out
+  }
+  const partes = []
+  if (window._envioHeaderTipo === 'IMAGE') partes.push('🖼️ [Imagen del producto]')
+  if (window._envioHeaderText) partes.push(`*${sustituir(window._envioHeaderText)}*`)
+  if (window._envioBodyText) partes.push(sustituir(window._envioBodyText))
+  if (window._envioFooterText) partes.push(`_${window._envioFooterText}_`)
+  if (window._envioEsMPMFlag) partes.push('🛍️ [Catálogo de productos — selecciona abajo]')
+  burbuja.textContent = partes.join('\n\n') || '(sin contenido)'
+  box.style.display = 'block'
 }
 
 const _renderEnvioLista = (lista) => {
@@ -14866,7 +14920,11 @@ window.iniciarEnvioMasivo = async () => {
     const res = await fetch(API + '/chatbot/envio-masivo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM, body_vars_count: window._envioBodyVarsCount || 0, header_tipo: window._envioHeaderTipo || 'NONE' })
+      body: JSON.stringify({
+        plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM,
+        body_vars_count: window._envioBodyVarsCount || 0, header_tipo: window._envioHeaderTipo || 'NONE',
+        variables_body: (window._envioVarsValores || []).map(v => ({ text: v }))
+      })
     })
     const data = await res.json()
 

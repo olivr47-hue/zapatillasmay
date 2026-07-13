@@ -2192,7 +2192,13 @@ async def envio_masivo(datos: dict):
             tiene_vars = body_vars_count > 0 or (nombre and nombre != "Cliente")
             if tiene_vars:
                 if variables_body:
-                    body_params = [{"type": "text", "text": v.get("text", "")} for v in variables_body]
+                    # {{NOMBRE}} en cualquier variable se reemplaza por el nombre real del
+                    # contacto — así el admin puede editar libremente el resto de variables
+                    # (precio, código, etc.) y seguir personalizando con el nombre donde quiera.
+                    body_params = [
+                        {"type": "text", "text": str(v.get("text", "")).replace("{{NOMBRE}}", nombre).replace("{{nombre}}", nombre)}
+                        for v in variables_body
+                    ]
                 elif nombre:
                     body_params = [{"type": "text", "text": nombre}]
             if body_params:
