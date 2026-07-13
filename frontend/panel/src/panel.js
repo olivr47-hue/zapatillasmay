@@ -14428,10 +14428,11 @@ window.cargarEnviosMasivos = async function() {
           </button>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:1.5rem;align-items:start">
 
-          <!-- COLUMNA IZQUIERDA: configuración -->
+          <!-- COLUMNA IZQUIERDA: qué vas a mandar (varía según pestaña) -->
           <div>
+            <p style="font-size:0.75rem;font-weight:700;color:#0f172a;margin:0 0 10px">📝 Qué vas a mandar</p>
             <!-- Panel campaña -->
             <div id="panel-envio-campana">
             <!-- Plantilla -->
@@ -14517,17 +14518,6 @@ window.cargarEnviosMasivos = async function() {
               <input type="hidden" id="envio-imagen">
             </div>
 
-            <!-- Audiencia -->
-            <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-              <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">3 · Audiencia</p>
-              <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()">
-                <option value="todos">Todos los clientes</option>
-                <option value="mayoreo">Solo Mayoreo</option>
-                <option value="zapateria">Solo Zapaterías</option>
-                <option value="menudeo">Solo Menudeo</option>
-              </select>
-            </div>
-
             <!-- Botón enviar -->
             <div id="envio-resultado" style="display:none;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #a5d6a7;background:#e8f5e9"></div>
             <button id="btn-enviar-masivo" onclick="iniciarEnvioMasivo()" class="btn btn-primary" style="width:100%;padding:12px">
@@ -14544,77 +14534,42 @@ window.cargarEnviosMasivos = async function() {
               </div>
               <div id="diag-resultado" style="display:none;margin-top:8px;padding:10px;background:#f9f9f9;border-radius:8px;font-size:0.75rem;font-family:monospace;white-space:pre-wrap;color:#333;max-height:260px;overflow-y:auto"></div>
             </div>
-          </div>
           </div><!-- fin panel-envio-campana -->
-
-          <!-- COLUMNA DERECHA: destinatarios -->
-          <div>
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-              <h3 style="font-size:0.95rem;font-weight:700">👥 Destinatarios</h3>
-              <span id="envio-count" style="background:#E91E8C;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${clientes.length} seleccionados</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <input type="text" id="envio-buscador" placeholder="🔍 Buscar..." oninput="buscarContactosEnvio(this.value)"
-                style="flex:1;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
-              <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0">
-                <input type="checkbox" id="envio-sel-todos" checked onchange="toggleSelTodosEnvio(this.checked)" style="accent-color:#E91E8C;width:14px;height:14px">
-                Todos
-              </label>
-            </div>
-            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
-              ${renderContactos(window._envioContactos)}
-            </div>
-          </div>
 
           <!-- Catálogo interactivo -->
           <div id="panel-envio-catalogo" style="display:none">
-          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <p style="font-weight:700;font-size:0.95rem;margin:0">🛍️ Catálogo de productos</p>
-              <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:2px 8px;font-size:0.7rem;font-weight:600">hasta 30 modelos</span>
-            </div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px">1 · Productos a mostrar <span style="background:#e8f5e9;color:#2e7d32;border-radius:100px;padding:1px 8px;font-size:0.65rem;font-weight:600;text-transform:none;letter-spacing:0">hasta 30 modelos</span></p>
             <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#856404;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-              <span>⚠️ <strong>Tu plantilla de catálogo actual es MARKETING</strong> → solo llega a contactos activos (24h). Para enviar a cualquier cliente crea la versión UTILITY.</span>
+              <span>⚠️ Este método manda el catálogo como <strong>mensaje directo (no plantilla)</strong> → solo llega a contactos que te escribieron en las últimas 24h.</span>
               <button onclick="crearPlantillaCatalogo(this)" style="padding:5px 12px;border-radius:16px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
                 ⚙️ Crear plantilla UTILITY
               </button>
             </div>
-            <p style="font-size:0.78rem;color:#888;margin-bottom:1rem">Selecciona los modelos a mostrar y elige los destinatarios en la columna derecha.</p>
             <input id="envio-prod-buscador" type="text" placeholder="🔍 Buscar modelo..."
               oninput="filtrarProductosEnvioInteractivo(this.value)"
               style="width:100%;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
             <div id="envio-prod-grid" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
               <p style="font-size:0.8rem;color:#aaa;padding:4px">Cargando modelos...</p>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-              <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0"></p>
-              <button onclick="iniciarEnvioInteractivo()" class="btn btn-secondary" style="border-color:#E91E8C;color:#E91E8C;font-size:0.82rem;white-space:nowrap">
-                🛍️ Enviar catálogo
-              </button>
-            </div>
+            <p id="envio-prod-count" style="font-size:0.75rem;color:#E91E8C;font-weight:600;margin:0 0 10px"></p>
           </div>
+          <button onclick="iniciarEnvioInteractivo()" class="btn btn-primary" style="width:100%;padding:12px">
+            🛍️ Enviar catálogo
+          </button>
+          <p style="font-size:0.72rem;color:#c2410c;text-align:center;margin-top:8px">⚠️ Solo llega a quien te escribió en las últimas 24h.</p>
           </div><!-- fin panel-envio-catalogo -->
 
           <!-- Envío de fotos de variantes (24 h) -->
           <div id="panel-envio-fotos" style="display:none">
-          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <p style="font-weight:700;font-size:0.95rem;margin:0">📸 Fotos de variantes</p>
-              <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:100px;padding:2px 9px;font-size:0.7rem;font-weight:700;white-space:nowrap">⚠️ Solo 24 h</span>
-            </div>
-            <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#92400e">
-              ⚠️ <strong>Requiere que el cliente te haya escrito en las últimas 24 horas.</strong> Si no, el mensaje no llega (error 131047).
-            </div>
-            <p style="font-size:0.75rem;color:#888;margin-bottom:10px;line-height:1.4">
-              Envía fotos de los colores/variantes que elijas directamente al chat, igual que en la sección CRM.
-            </p>
+          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#c2410c;margin-bottom:10px">1 · Mensaje de saludo <span style="font-weight:400;color:#cbd5e1;text-transform:none;letter-spacing:0">(opcional)</span></p>
+            <textarea id="fotos-texto" rows="2" placeholder="Usa {{nombre}} para personalizar. Ej: Hola {{nombre}}, llegaron nuevos modelos 🎉"
+              style="width:100%;padding:8px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical"></textarea>
+          </div>
 
-            <!-- Mensaje de saludo -->
-            <textarea id="fotos-texto" rows="2" placeholder="Mensaje de saludo (opcional) — usa {{nombre}} para personalizar. Ej: Hola {{nombre}}, llegaron nuevos modelos 🎉"
-              style="width:100%;padding:8px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;margin-bottom:10px"></textarea>
-
-            <!-- Buscador de modelo -->
+          <div style="background:white;border-radius:12px;border:1.5px solid #fed7aa;padding:1.5rem;margin-bottom:1rem">
+            <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#c2410c;margin-bottom:10px">2 · Elige modelo y fotos</p>
             <input type="text" id="fotos-modelo-buscar" placeholder="🔍 Buscar modelo por nombre o SKU..."
               oninput="filtrarModelosFotos(this.value)"
               style="width:100%;padding:7px 10px;border:1.5px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:6px">
@@ -14629,21 +14584,53 @@ window.cargarEnviosMasivos = async function() {
             </div>
 
             <!-- Fotos seleccionadas -->
-            <div id="fotos-seleccionadas-wrap" style="display:none;margin-bottom:12px">
+            <div id="fotos-seleccionadas-wrap" style="display:none">
               <p style="font-size:0.75rem;font-weight:700;color:#888;text-transform:uppercase;margin-bottom:6px">Fotos seleccionadas</p>
               <div id="fotos-seleccionadas-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
             </div>
+          </div>
 
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-              <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
-              <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
-                style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
-                Enviar fotos · solo 24 h
-              </button>
-            </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.76rem;color:#92400e">
+            ⚠️ <strong>Requiere que el cliente te haya escrito en las últimas 24 horas.</strong> Si no, el mensaje no llega (error 131047).
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <p id="fotos-count" style="font-size:0.75rem;color:#e65100;font-weight:600;margin:0"></p>
+            <button onclick="iniciarEnvioFotos()" class="btn btn-secondary"
+              style="border-color:#e65100;color:#e65100;font-size:0.82rem;white-space:nowrap">
+              Enviar fotos · solo 24 h
+            </button>
           </div>
           </div><!-- fin panel-envio-fotos -->
 
+          </div><!-- fin columna izquierda -->
+
+          <!-- COLUMNA DERECHA: a quién se lo mandas (siempre igual, sin importar la pestaña) -->
+          <div>
+          <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.5rem;position:sticky;top:0">
+            <p style="font-size:0.75rem;font-weight:700;color:#0f172a;margin:0 0 10px">🎯 A quién se lo mandas</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <label style="font-size:0.72rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Filtro rápido</label>
+              <span id="envio-count" style="background:#E91E8C;color:white;border-radius:100px;padding:2px 10px;font-size:0.75rem">${clientes.length} seleccionados</span>
+            </div>
+            <select id="envio-filtro" class="form-input" onchange="filtrarAudienciaEnvio()" style="margin-bottom:10px">
+              <option value="todos">Todos los clientes</option>
+              <option value="mayoreo">Solo Mayoreo</option>
+              <option value="zapateria">Solo Zapaterías</option>
+              <option value="menudeo">Solo Menudeo</option>
+            </select>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <input type="text" id="envio-buscador" placeholder="🔍 Buscar por nombre o teléfono..." oninput="buscarContactosEnvio(this.value)"
+                style="flex:1;padding:7px 10px;border:1px solid #eee;border-radius:8px;font-size:0.82rem;font-family:inherit;outline:none;box-sizing:border-box">
+              <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;color:#555;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                <input type="checkbox" id="envio-sel-todos" checked onchange="toggleSelTodosEnvio(this.checked)" style="accent-color:#E91E8C;width:14px;height:14px">
+                Todos
+              </label>
+            </div>
+            <p style="font-size:0.7rem;color:#aaa;margin:0 0 8px">Desmarca "Todos" y elige a mano si solo quieres mandarle a algunos.</p>
+            <div id="envio-lista" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+              ${renderContactos(window._envioContactos)}
+            </div>
+          </div>
           </div><!-- fin columna derecha -->
         </div>
       </div>
