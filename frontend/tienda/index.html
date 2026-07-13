@@ -6590,13 +6590,13 @@ function zmRechazarCookies() {
       // participe del cálculo de posiciones junto con el resto de triggers
       // de la página -- si se registra tarde (ej. dentro del .then() del
       // fetch) queda con la posición mal calculada y nunca se dispara.
-      // El valor real (metaContador) solo se LEE hasta que el usuario
-      // realmente llega a esa sección (onEnter), momento en el que el fetch
-      // ya casi seguro terminó.
+      // onEnter ESPERA la misma promesa del fetch (aunque ya haya resuelto,
+      // .then() sigue funcionando) para no correr con un scroll rápido que
+      // gane la carrera contra la respuesta del servidor.
       var numEl = document.getElementById('cro-pedidos');
       if (numEl) {
         var metaContador = 2400;
-        fetch(`${API}/pedidos/pares-vendidos-total`)
+        var fetchContador = fetch(`${API}/pedidos/pares-vendidos-total`)
           .then(function(r) { return r.ok ? r.json() : null; })
           .then(function(d) { if (d && d.total_pares) metaContador = d.total_pares * 5; })
           .catch(function() {});
@@ -6606,15 +6606,17 @@ function zmRechazarCookies() {
           start: 'top 85%',
           once: true,
           onEnter: function() {
-            var counter = { val: 0 };
-            gsap.to(counter, {
-              val: metaContador,
-              duration: 1.8,
-              ease: 'power2.out',
-              snap: { val: 1 },
-              onUpdate: function() {
-                numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
-              }
+            fetchContador.then(function() {
+              var counter = { val: 0 };
+              gsap.to(counter, {
+                val: metaContador,
+                duration: 1.8,
+                ease: 'power2.out',
+                snap: { val: 1 },
+                onUpdate: function() {
+                  numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
+                }
+              });
             });
           }
         });
