@@ -2195,10 +2195,16 @@ async def envio_masivo(datos: dict):
                     # {{NOMBRE}} en cualquier variable se reemplaza por el nombre real del
                     # contacto — así el admin puede editar libremente el resto de variables
                     # (precio, código, etc.) y seguir personalizando con el nombre donde quiera.
-                    body_params = [
-                        {"type": "text", "text": str(v.get("text", "")).replace("{{NOMBRE}}", nombre).replace("{{nombre}}", nombre)}
-                        for v in variables_body
-                    ]
+                    # Si la plantilla usa variables CON NOMBRE (ej. {{customer_name}}), Meta
+                    # exige "parameter_name" en cada parámetro — sin él rechaza con error 100
+                    # "Parameter name is missing or empty".
+                    body_params = []
+                    for v in variables_body:
+                        texto = str(v.get("text", "")).replace("{{NOMBRE}}", nombre).replace("{{nombre}}", nombre)
+                        param = {"type": "text", "text": texto}
+                        if v.get("parameter_name"):
+                            param["parameter_name"] = v["parameter_name"]
+                        body_params.append(param)
                 elif nombre:
                     body_params = [{"type": "text", "text": nombre}]
             if body_params:

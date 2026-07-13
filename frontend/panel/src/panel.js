@@ -14709,10 +14709,17 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
   window._envioEsMPM = esMPM
   // Tipo de header: IMAGE | TEXT | NONE
   window._envioHeaderTipo = header?.format || (header?.text ? 'TEXT' : 'NONE')
-  // Contar variables {{N}} o {{}} en el body — Meta a veces omite el número
+  // Contar variables en el body. Meta soporta 2 estilos:
+  //  - Posicionales: {{1}}, {{2}}... (sin nombre)
+  //  - Con nombre: {{customer_name}}... — Meta exige mandar "parameter_name"
+  //    en cada parámetro al enviar, si no lo hace rechaza con error 100
+  //    "Parameter name is missing or empty". body_text_named_params trae
+  //    el nombre real de cada variable en el orden correcto.
   const bodyText = body?.text || ''
-  const bodyVars = bodyText.match(/\{\{[\d]*\}\}/g) || []
-  window._envioBodyVarsCount = bodyVars.length || (bodyText.includes('{{') ? 1 : 0)
+  const nombresParam = (body?.example?.body_text_named_params || []).map(x => x.param_name)
+  const bodyVarsGenerico = bodyText.match(/\{\{[^}]+\}\}/g) || []
+  window._envioBodyVarsCount = nombresParam.length || bodyVarsGenerico.length
+  window._envioParamNames = nombresParam
   window._envioBodyText = bodyText
   window._envioHeaderText = header?.text || ''
   window._envioFooterText = footer?.text || ''
@@ -14729,7 +14736,7 @@ window.onCambiarPlantillaEnvio = (nombre, idioma) => {
       window._envioVarsValores = valores
       varsLista.innerHTML = valores.map((v, i) => `
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.75rem;color:#94a3b8;width:60px;flex-shrink:0">Var {{${i+1}}}</span>
+          <span style="font-size:0.72rem;color:#94a3b8;width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${nombresParam[i] || `Var ${i+1}`}">${nombresParam[i] ? '{{' + nombresParam[i] + '}}' : `Var {{${i+1}}}`}</span>
           <input type="text" value="${String(v).replace(/"/g,'&quot;')}" oninput="window._envioActualizarVar(${i}, this.value)"
                  style="flex:1;padding:6px 8px;border:1px solid #eee;border-radius:6px;font-size:0.82rem;font-family:inherit">
         </div>`).join('')
@@ -14777,13 +14784,17 @@ window._envioActualizarPreview = () => {
   const box = document.getElementById('plantilla-preview-box')
   if (!burbuja || !box) return
   const valores = window._envioVarsValores || []
+  // Sustituye cada placeholder {{...}} por el valor correspondiente EN ORDEN
+  // de aparición — funciona igual para posicionales ({{1}}) o con nombre
+  // ({{customer_name}}), sin asumir que el nombre del placeholder sea un número.
   const sustituir = (texto) => {
-    let out = texto || ''
-    valores.forEach((v, i) => {
-      const val = String(v ?? '').replace(/\{\{NOMBRE\}\}/gi, 'Juan') || `{{${i+1}}}`
-      out = out.replace(new RegExp(`\\{\\{${i+1}\\}\\}`, 'g'), val)
+    if (!texto) return texto
+    let i = 0
+    return texto.replace(/\{\{[^}]+\}\}/g, (match) => {
+      const val = String(valores[i] ?? '').replace(/\{\{NOMBRE\}\}/gi, 'Juan')
+      i++
+      return val || match
     })
-    return out
   }
   const partes = []
   if (window._envioHeaderTipo === 'IMAGE') partes.push('🖼️ [Imagen del producto]')
@@ -14924,7 +14935,10 @@ window.iniciarEnvioMasivo = async () => {
       body: JSON.stringify({
         plantilla, idioma, imagen_url: imagenUrl, contactos, skus_mpm: skusMPM,
         body_vars_count: window._envioBodyVarsCount || 0, header_tipo: window._envioHeaderTipo || 'NONE',
-        variables_body: (window._envioVarsValores || []).map(v => ({ text: v }))
+        variables_body: (window._envioVarsValores || []).map((v, i) => ({
+          text: v,
+          parameter_name: (window._envioParamNames || [])[i] || undefined
+        }))
       })
     })
     const data = await res.json()
