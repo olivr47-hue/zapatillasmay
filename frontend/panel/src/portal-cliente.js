@@ -952,6 +952,7 @@ window.pcSeleccionarColor = (prodId, color) => {
                   <span style="font-size:0.62rem;color:${stock===0?'#3a3a5c':'#4ade80'}">${stock===0?'Agotado':'Stk '+stock}</span>
                   ${v.sku ? `<span style="font-size:0.55rem;color:#5a5a7a;font-family:monospace">${esc(v.sku)}</span>` : ''}
                 </button>
+                ${stock===0 ? `<button onclick="pcAvisameStock('${v.id}',this)" title="Avísame cuando haya stock" style="position:absolute;top:-7px;left:-7px;background:#161625;border:1.5px solid #2a2a40;color:#5a5a7a;border-radius:100px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer;padding:0">🔔</button>` : ''}
                 <span id="pc-chipbadge-${v.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${qty}</span>
                 <button id="pc-chipmenos-${v.id}"
                   onclick="pcTallaMenos('${v.id}','${prodId}','${esc(color)}')"
@@ -972,6 +973,23 @@ window.pcTallaTap = (varId, prodId, color, max) => {
   _pcPintarChipTalla(varId, nueva)
   pcActualizarBadgeColor(prodId, color)
 }
+window.pcAvisameStock = async (varId, btnEl) => {
+  if (!pc.sesion?.cliente_id) return
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳' }
+  try {
+    const res = await fetch(`${PC_API}/inventario/avisame`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variante_id: varId, cliente_id: pc.sesion.cliente_id })
+    })
+    if (btnEl) {
+      if (res.ok) { btnEl.textContent = '✅'; btnEl.title = 'Te avisaremos cuando haya stock' }
+      else { btnEl.textContent = '🔔'; btnEl.disabled = false }
+    }
+  } catch (e) {
+    if (btnEl) { btnEl.textContent = '🔔'; btnEl.disabled = false }
+  }
+}
+
 window.pcTallaMenos = (varId, prodId, color) => {
   const input = document.getElementById('pc-qty-modal-' + varId)
   if (!input) return
