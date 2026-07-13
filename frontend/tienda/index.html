@@ -6586,14 +6586,26 @@ function zmRechazarCookies() {
 
       // Counter animado — real: pares vendidos x5 (fallback 2,400 si el fetch
       // tarda o falla, para no dejar el contador colgado en 0).
+      // OJO: el ScrollTrigger se registra de inmediato (síncrono) para que
+      // participe del cálculo de posiciones junto con el resto de triggers
+      // de la página -- si se registra tarde (ej. dentro del .then() del
+      // fetch) queda con la posición mal calculada y nunca se dispara.
+      // El valor real (metaContador) solo se LEE hasta que el usuario
+      // realmente llega a esa sección (onEnter), momento en el que el fetch
+      // ya casi seguro terminó.
       var numEl = document.getElementById('cro-pedidos');
       if (numEl) {
         var metaContador = 2400;
         fetch(`${API}/pedidos/pares-vendidos-total`)
           .then(function(r) { return r.ok ? r.json() : null; })
           .then(function(d) { if (d && d.total_pares) metaContador = d.total_pares * 5; })
-          .catch(function() {})
-          .then(function() {
+          .catch(function() {});
+
+        ScrollTrigger.create({
+          trigger: trustStrip,
+          start: 'top 85%',
+          once: true,
+          onEnter: function() {
             var counter = { val: 0 };
             gsap.to(counter, {
               val: metaContador,
@@ -6602,10 +6614,10 @@ function zmRechazarCookies() {
               snap: { val: 1 },
               onUpdate: function() {
                 numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
-              },
-              scrollTrigger: { trigger: trustStrip, start: 'top 85%', once: true }
+              }
             });
-          });
+          }
+        });
       }
 
       // Tiers (cajas) entran en stagger desde abajo
