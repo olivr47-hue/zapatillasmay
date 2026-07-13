@@ -6586,13 +6586,9 @@ function zmRechazarCookies() {
 
       // Counter animado — real: pares vendidos x5 (fallback 2,400 si el fetch
       // tarda o falla, para no dejar el contador colgado en 0).
-      // OJO: el ScrollTrigger se registra de inmediato (síncrono) para que
-      // participe del cálculo de posiciones junto con el resto de triggers
-      // de la página -- si se registra tarde (ej. dentro del .then() del
-      // fetch) queda con la posición mal calculada y nunca se dispara.
-      // onEnter ESPERA la misma promesa del fetch (aunque ya haya resuelto,
-      // .then() sigue funcionando) para no correr con un scroll rápido que
-      // gane la carrera contra la respuesta del servidor.
+      // Se dispara con IntersectionObserver (igual que el banner de mayoreo
+      // más abajo) en vez de ScrollTrigger: es más confiable para detectar
+      // "ya es visible" sin depender del ticker de GSAP.
       var numEl = document.getElementById('cro-pedidos');
       if (numEl) {
         var metaContador = 2400;
@@ -6601,25 +6597,24 @@ function zmRechazarCookies() {
           .then(function(d) { if (d && d.total_pares) metaContador = d.total_pares * 5; })
           .catch(function() {});
 
-        ScrollTrigger.create({
-          trigger: trustStrip,
-          start: 'top 85%',
-          once: true,
-          onEnter: function() {
-            fetchContador.then(function() {
-              var counter = { val: 0 };
-              gsap.to(counter, {
-                val: metaContador,
-                duration: 1.8,
-                ease: 'power2.out',
-                snap: { val: 1 },
-                onUpdate: function() {
-                  numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
-                }
-              });
+        var contadorFired = false;
+        new IntersectionObserver(function(entries, obs) {
+          if (!entries[0].isIntersecting || contadorFired) return;
+          contadorFired = true;
+          obs.disconnect();
+          fetchContador.then(function() {
+            var counter = { val: 0 };
+            gsap.to(counter, {
+              val: metaContador,
+              duration: 1.8,
+              ease: 'power2.out',
+              snap: { val: 1 },
+              onUpdate: function() {
+                numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
+              }
             });
-          }
-        });
+          });
+        }, { threshold: 0.15 }).observe(trustStrip);
       }
 
       // Tiers (cajas) entran en stagger desde abajo
