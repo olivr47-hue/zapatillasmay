@@ -6594,7 +6594,7 @@ function zmRechazarCookies() {
         var metaContador = 2400;
         var fetchContador = fetch(`${API}/pedidos/pares-vendidos-total`)
           .then(function(r) { return r.ok ? r.json() : null; })
-          .then(function(d) { if (d && d.total_pedidos) metaContador = d.total_pedidos * 5; })
+          .then(function(d) { if (d && d.total_pedidos) metaContador = 2400 + (d.total_pedidos * 5); })
           .catch(function() {});
 
         var contadorFired = false;
