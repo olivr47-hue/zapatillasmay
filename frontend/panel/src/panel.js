@@ -14444,9 +14444,16 @@ window.cargarEnviosMasivos = async function() {
                     const preview = bodyComp?.text?.substring(0, 55) || ''
                     const cat = (p.category || '').toUpperCase()
                     const isUtility = cat === 'UTILITY' || cat === 'AUTHENTICATION'
+                    const buttonsComp = (p.components || []).find(c => c.type === 'BUTTONS')
+                    const tieneCatalogo = (buttonsComp?.buttons || []).some(b => b.sub_type === 'MPM' || b.type === 'MPM')
+                    // Solo el botón de catálogo (MPM) tiene la restricción real de 24h en Meta —
+                    // una plantilla MARKETING normal (sin ese botón) sí llega a contactos fríos,
+                    // Meta solo la cobra como conversación de marketing.
                     const catBadge = isUtility
                       ? `<span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">UTILITY · sin restricción</span>`
-                      : `<span style="background:#fff3cd;color:#92400e;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">MARKETING · solo 24h</span>`
+                      : tieneCatalogo
+                        ? `<span style="background:#fff3cd;color:#92400e;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">MARKETING + catálogo · solo 24h</span>`
+                        : `<span style="background:#fce7f3;color:#a21caf;border-radius:4px;padding:1px 6px;font-size:0.65rem;font-weight:700">MARKETING · se cobra, sin restricción</span>`
                     return `<label style="display:block;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid #eee;margin-bottom:6px;transition:all 0.15s"
                       onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!document.getElementById('plt-${p.name}').checked)this.style.borderColor='#eee'">
                       <div style="display:flex;align-items:flex-start;gap:8px">
