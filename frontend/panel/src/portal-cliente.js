@@ -362,6 +362,27 @@ function renderInicio(el) {
   const credito = parseFloat(pc.clienteData?.credito_disponible || 0)
   const ultimosPedidos = [...pedidos].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0,3)
 
+  // Historial: gasto de los últimos 6 meses (pedidos no cancelados) y top 5 modelos.
+  const pedidosValidos = pedidos.filter(p => p.status !== 'cancelado')
+  const mesesLbl = []
+  const mesesTotales = []
+  const hoy = new Date()
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+    mesesLbl.push(d.toLocaleDateString('es-MX', { month: 'short' }))
+    const suma = pedidosValidos
+      .filter(p => { const pd = new Date(p.created_at); return pd.getFullYear() === d.getFullYear() && pd.getMonth() === d.getMonth() })
+      .reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    mesesTotales.push(suma)
+  }
+  const conteoModelos = {}
+  pedidosValidos.forEach(p => (p.pedido_items || []).forEach(i => {
+    const nombre = i.variantes?.productos?.nombre || 'Producto'
+    conteoModelos[nombre] = (conteoModelos[nombre] || 0) + (i.cantidad || 0)
+  }))
+  const topModelos = Object.entries(conteoModelos).sort((a,b) => b[1]-a[1]).slice(0,5)
+  const hayHistorial = pedidosValidos.length > 0
+
   el.innerHTML = `
     <div style="margin-bottom:28px">
       <h1 style="font-size:1.5rem;font-weight:800;color:#e2e2f0;margin:0 0 4px;letter-spacing:-0.01em">
@@ -407,6 +428,26 @@ function renderInicio(el) {
         </button>`).join('')}
     </div>
 
+    <!-- Historial de compras -->
+    ${hayHistorial ? `
+    <div class="pc-card" style="margin-bottom:20px">
+      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Tu historial de compras</p>
+      <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start">
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 10px">Gasto por mes</p>
+          <div style="position:relative;height:160px"><canvas id="pc-chart-gasto"></canvas></div>
+        </div>
+        <div>
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 10px">Modelos más comprados</p>
+          ${topModelos.length ? topModelos.map(([nombre, cant], i) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i<topModelos.length-1?'border-bottom:1px solid #1e1e30':''}">
+              <span style="font-size:0.8rem;color:#c0c0e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px">${esc(nombre)}</span>
+              <span style="font-size:0.8rem;font-weight:700;color:#E91E8C;flex-shrink:0">${cant} par${cant!==1?'es':''}</span>
+            </div>`).join('') : `<p style="font-size:0.8rem;color:#5a5a7a">Sin datos aún</p>`}
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- Últimos pedidos -->
     ${ultimosPedidos.length ? `
     <div class="pc-card">
@@ -423,6 +464,35 @@ function renderInicio(el) {
       <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary">Ver catálogo</button>
     </div>`}
   `
+
+  if (hayHistorial) _pcRenderChartGasto(mesesLbl, mesesTotales)
+}
+
+function _pcRenderChartGasto(labels, totales) {
+  const canvas = document.getElementById('pc-chart-gasto')
+  if (!canvas || !window.Chart) return
+  if (canvas._chartInstance) { try { canvas._chartInstance.destroy() } catch {} }
+  canvas._chartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: totales,
+        backgroundColor: 'rgba(233,30,140,0.55)',
+        borderRadius: 4,
+        maxBarThickness: 28,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => money(ctx.parsed.y) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#5a5a7a', font: { size: 11 } } },
+        y: { grid: { color: '#1e1e30' }, ticks: { color: '#5a5a7a', font: { size: 10 }, callback: (v) => money(v) } },
+      },
+    },
+  })
 }
 
 function pcPedidoFila(p) {
