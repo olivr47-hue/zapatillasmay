@@ -6584,20 +6584,28 @@ function zmRechazarCookies() {
         }
       );
 
-      // Counter animado del número +2,400
+      // Counter animado — real: pares vendidos x5 (fallback 2,400 si el fetch
+      // tarda o falla, para no dejar el contador colgado en 0).
       var numEl = document.getElementById('cro-pedidos');
       if (numEl) {
-        var counter = { val: 0 };
-        gsap.to(counter, {
-          val: 2400,
-          duration: 1.8,
-          ease: 'power2.out',
-          snap: { val: 1 },
-          onUpdate: function() {
-            numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
-          },
-          scrollTrigger: { trigger: trustStrip, start: 'top 85%', once: true }
-        });
+        var metaContador = 2400;
+        fetch(`${API}/pedidos/pares-vendidos-total`)
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(d) { if (d && d.total_pares) metaContador = d.total_pares * 5; })
+          .catch(function() {})
+          .then(function() {
+            var counter = { val: 0 };
+            gsap.to(counter, {
+              val: metaContador,
+              duration: 1.8,
+              ease: 'power2.out',
+              snap: { val: 1 },
+              onUpdate: function() {
+                numEl.textContent = '+' + counter.val.toLocaleString('es-MX');
+              },
+              scrollTrigger: { trigger: trustStrip, start: 'top 85%', once: true }
+            });
+          });
       }
 
       // Tiers (cajas) entran en stagger desde abajo

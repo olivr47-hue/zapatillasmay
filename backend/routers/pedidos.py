@@ -3,10 +3,38 @@ import json
 import urllib.request
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from security import require_staff, verify_token
+from cache import cache_get, cache_set, TTL_FEEDS
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+
+@router.get("/pares-vendidos-total")
+def pares_vendidos_total():
+    """Total de pares vendidos en pedidos reales (sin cancelados/borradores/
+    checkout_iniciado) -- usado para el contador de confianza del sitio
+    público ("+X pedidos enviados"). Cacheado 1h."""
+    cache_key = "pedidos_pares_vendidos_total"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        pedidos = supabase_get_all(
+            "pedidos?status=not.in.(cancelado,borrador,checkout_iniciado)&select=id"
+        )
+        pedido_ids = [p["id"] for p in pedidos]
+        total = 0
+        CHUNK = 200  # trocear el filtro in.() para no armar URLs gigantes
+        for i in range(0, len(pedido_ids), CHUNK):
+            bloque = pedido_ids[i:i + CHUNK]
+            items = supabase_get_all(f"pedido_items?pedido_id=in.({','.join(bloque)})&select=cantidad")
+            total += sum((it.get("cantidad") or 0) for it in items)
+        resultado = {"total_pares": total}
+        cache_set(cache_key, resultado, ttl=TTL_FEEDS)
+        return resultado
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 def _enviar_confirmacion_wa(pedido_data, items_data):
