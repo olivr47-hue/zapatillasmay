@@ -37,6 +37,7 @@ const pc = {
   datosCargados: false,
   borradores: [],
   masVendidos: [],
+  modelosSugeridos: [],
   _borradorServerId: null, // id del pedido status=borrador que respalda el carrito activo en el servidor
 }
 
@@ -345,20 +346,30 @@ async function cargarDatosPC() {
   ])
 
   if (Array.isArray(prod)) {
-    // Orden aleatorio (fijo por sesión, se re-baraja la próxima vez que entre):
-    // el catálogo siempre venía ordenado igual (orden_home/fecha), así que los
-    // mismos modelos de siempre eran los únicos que el cliente veía arriba.
-    const activos = prod.filter(p => p.activo !== false)
-    for (let i = activos.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[activos[i], activos[j]] = [activos[j], activos[i]]
-    }
-    pc.productos = activos
+    // El orden del catálogo se queda tal cual viene del panel (orden_home) --
+    // no tocar. La rotación de exposición para modelos menos vistos vive
+    // aparte, en la sugerencia de Inicio (ver pc.modelosSugeridos).
+    pc.productos = prod.filter(p => p.activo !== false)
   }
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
   if (Array.isArray(masVend)) pc.masVendidos = masVend
+  // Sugerencias de Inicio: mezcla de más vendidos + modelos al azar, para que
+  // productos menos vistos también tengan oportunidad de aparecer -- sin
+  // tocar el orden real del catálogo (eso se queda como está en el panel).
+  {
+    const destacadosIds = new Set(pc.masVendidos.slice(0, 4).map(p => p.id))
+    const resto = pc.productos.filter(p => !destacadosIds.has(p.id))
+    for (let i = resto.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[resto[i], resto[j]] = [resto[j], resto[i]]
+    }
+    pc.modelosSugeridos = [
+      ...pc.masVendidos.slice(0, 4).map(p => ({ ...p, _tag: `${p.pares_vendidos} vendidos` })),
+      ...resto.slice(0, 4).map(p => ({ ...p, _tag: null })),
+    ]
+  }
   if (Array.isArray(ped)) {
     // El borrador que respalda el carrito activo no debe verse como "pedido" --
     // se usa aparte para restaurar el carrito, nunca en Mis pedidos / Inicio.
@@ -446,6 +457,22 @@ function renderInicio(el) {
           <span style="font-size:1.5rem">${a.icon}</span>${a.label}
         </button>`).join('')}
     </div>
+
+    <!-- Sugerencias: más vendidos del mes + modelos al azar (rotan cada sesión) -->
+    ${pc.modelosSugeridos.length ? `
+    <div style="margin-bottom:28px">
+      <p style="font-size:0.8rem;font-weight:700;color:#e2e2f0;margin:0 0 10px">🔥 Sugerencias para ti</p>
+      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin">
+        ${pc.modelosSugeridos.map(p => `
+          <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;cursor:pointer">
+            <div style="position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#161625;margin-bottom:6px">
+              <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
+              ${p._tag ? `<span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${esc(p._tag)}</span>` : ''}
+            </div>
+            <p style="font-size:0.75rem;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
 
     <!-- Historial de compras -->
     ${hayHistorial ? `
@@ -567,22 +594,6 @@ function renderCatalogo(el) {
       <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Productos</h1>
       <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Precios para 3-5 pares y 6+ pares · ${prods.length} de ${pc.productos.length} modelos</p>
     </div>
-
-    <!-- Tendencia: más vendidos este mes -->
-    ${(!pc.filtroCat && !pc.busqueda && pc.masVendidos.length) ? `
-    <div style="margin-bottom:24px">
-      <p style="font-size:0.8rem;font-weight:700;color:#e2e2f0;margin:0 0 10px;display:flex;align-items:center;gap:6px">🔥 Tendencia — más vendidos este mes</p>
-      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin">
-        ${pc.masVendidos.map(p => `
-          <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;cursor:pointer">
-            <div style="position:relative;aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:#0c0c17;margin-bottom:6px">
-              <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
-              <span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${p.pares_vendidos} vendidos</span>
-            </div>
-            <p style="font-size:0.75rem;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
-          </div>`).join('')}
-      </div>
-    </div>` : ''}
 
     <!-- Buscador + categorías -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
