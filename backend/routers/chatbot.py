@@ -2607,6 +2607,62 @@ async def crear_plantilla_pago():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/editar-boton-plantilla")
+async def editar_boton_plantilla(datos: dict):
+    """
+    Edita el botón URL de una plantilla ya aprobada (ej. cambiar a dónde apunta
+    "ver nuevos modelos"). Manda TODOS los componentes tal cual están, solo con
+    la URL del botón cambiada — Meta requiere el set completo de componentes,
+    no un parche parcial. Editar una plantilla la regresa a revisión (PENDING),
+    pero cambios de solo-URL normalmente se aprueban rápido.
+    Body: { template_id, nueva_url, boton_texto (opcional, para identificar el botón si hay varios) }
+    """
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    if not wa_token:
+        return JSONResponse(status_code=500, content={"error": "Falta WHATSAPP_TOKEN en Railway"})
+
+    template_id = datos.get("template_id", "")
+    nueva_url = datos.get("nueva_url", "")
+    template_name = datos.get("template_name", "")
+    if not template_id or not nueva_url:
+        return JSONResponse(status_code=400, content={"error": "template_id y nueva_url son requeridos"})
+
+    # Traer los componentes actuales para no perder nada al editar
+    try:
+        plantillas = await listar_plantillas()
+        lista = plantillas if isinstance(plantillas, list) else []
+        actual = next((p for p in lista if p.get("id") == template_id or p.get("name") == template_name), None)
+        if not actual:
+            return JSONResponse(status_code=404, content={"error": "No se encontró la plantilla"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"No se pudo leer la plantilla actual: {e}"})
+
+    componentes = actual.get("components", [])
+    encontrado = False
+    for comp in componentes:
+        if comp.get("type") == "BUTTONS":
+            for btn in comp.get("buttons", []):
+                if btn.get("type") == "URL":
+                    btn["url"] = nueva_url
+                    encontrado = True
+    if not encontrado:
+        return JSONResponse(status_code=400, content={"error": "La plantilla no tiene un botón de tipo URL"})
+
+    url = f"https://graph.facebook.com/v25.0/{template_id}"
+    headers_req = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    body = {"category": actual.get("category"), "components": componentes}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers_req, method="POST")
+        with urllib.request.urlopen(req, timeout=15) as r:
+            resp = json.loads(r.read())
+        return {"ok": True, "meta_response": resp}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode()
+        return JSONResponse(status_code=500, content={"error": f"Meta API HTTP {e.code}: {error_body[:500]}"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/crear-plantilla-catalogo")
 async def crear_plantilla_catalogo():
     """
