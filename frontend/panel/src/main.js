@@ -113,6 +113,23 @@ import { renderPortalCliente } from './portal-cliente.js'
 const SESSION_KEY    = 'erp_empleado'
 const PC_SESSION_KEY = 'pc_sesion'
 
+// ── Deep-link desde notificaciones push (WhatsApp, etc.) ────────────────────
+// El service worker abre el panel con ?modulo=X&telefono=Y (ver sw-push.js).
+// Sin esto la SPA ignora la URL por completo y solo restaura el último módulo
+// guardado en localStorage, dejando al usuario donde se haya quedado.
+async function _manejarDeepLinkNotificacion() {
+  const params = new URLSearchParams(location.search)
+  const modulo = params.get('modulo')
+  const telefono = params.get('telefono')
+  if (!modulo) return
+  history.replaceState(null, '', location.pathname)
+  window.navegarA(modulo)
+  if (modulo === 'conversaciones' && telefono) {
+    await window.cargarConversaciones()
+    window.abrirChat(telefono)
+  }
+}
+
 function renderLogin() {
   document.querySelector('#app').innerHTML = `
     <div style="min-height:100vh;width:100vw;display:flex;font-family:DM Sans,sans-serif">
@@ -499,6 +516,7 @@ if (sesion) {
     window._empleadoActual = JSON.parse(sesion)
     renderPanel()
     window._initPushPanel()
+    _manejarDeepLinkNotificacion()
   } catch(e) {
     renderLogin()
   }

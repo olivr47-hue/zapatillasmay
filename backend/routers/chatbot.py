@@ -881,11 +881,12 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
     # guardado del mensaje si falla.
     try:
         from routers.push import enviar_push
+        from urllib.parse import quote
         preview = (mensaje or "")[:100]
         enviar_push(
             titulo=f"💬 {nombre or telefono}",
             cuerpo=preview,
-            url="/?modulo=conversaciones",
+            url=f"/?modulo=conversaciones&telefono={quote(str(telefono))}",
             sitio="panel",
         )
     except Exception as e_push:
