@@ -507,12 +507,15 @@ def _generar_workbook(items: list) -> bytes:
 
 
 @router.get("/feed/plantilla")
-def feed_plantilla(solo_listos: bool = True):
+def feed_plantilla(solo_listos: bool = True, producto_ids: str = None):
     """Genera y descarga la plantilla oficial de Walmart ya llena con el
     catálogo actual -- para revisarla a mano o subirla manualmente desde
     Seller Center si no se quiere usar la API todavía."""
     items = _variantes_publicables()
-    if solo_listos:
+    if producto_ids:
+        p_ids = set(producto_ids.split(","))
+        items = [it for it in items if str(it["producto"]["id"]) in p_ids]
+    elif solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
         raise HTTPException(400, "No hay variantes listas para incluir en el feed")

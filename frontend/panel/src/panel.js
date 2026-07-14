@@ -22504,6 +22504,33 @@ window._wmDescargarPlantilla = async (btn) => {
   }
 }
 
+window._wmDescargarPlantillaSeleccionados = async (btn) => {
+  const ids = [...window._wmSeleccion]
+  if (!ids.length) { alert('No seleccionaste ningún producto.'); return }
+  const textoOriginal = btn.innerHTML
+  try {
+    btn.innerHTML = '⏳ Generando...'
+    btn.disabled = true
+    const params = new URLSearchParams({ producto_ids: ids.join(',') })
+    const res = await fetch(`${API}/walmart/feed/plantilla?${params.toString()}`)
+    if (!res.ok) { const txt = await res.text(); throw new Error(txt) }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `walmart_zapatos_seleccionados_${Date.now()}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('Error al descargar la plantilla: ' + e.message)
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
+  }
+}
+
 window._wmRenderPendienteTab = async () => {
   const box = document.getElementById('wm-tab-body')
   if (!box) return
@@ -22527,7 +22554,10 @@ window._wmRenderPendienteTab = async () => {
       <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">Modelos que todavía no se han enviado a Walmart. Puedes ajustar título/precio solo para Walmart antes de publicar -- no toca el ERP. Se marcan como enviados en cuanto los publicas, así que la próxima vez solo aparecen los modelos nuevos.</p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
         <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar en Walmart — <b>${d.listos}</b> ya están listos y vienen marcados por default.</p>
-        ${_wmBtn('🚀 Publicar seleccionados', 'window._wmPublicarSeleccionados()', 'primary', 'wm-btn-publicar-sel')}
+        <div style="display:flex;gap:8px">
+          ${_wmBtn('⬇️ Descargar Excel de seleccionados', 'window._wmDescargarPlantillaSeleccionados(this)', 'primary', 'wm-btn-plantilla-sel')}
+          ${_wmBtn('🚀 Publicar seleccionados (Automático)', 'window._wmPublicarSeleccionados()', 'secondary', 'wm-btn-publicar-sel')}
+        </div>
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(true)">Seleccionar todos</label>
