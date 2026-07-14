@@ -349,12 +349,16 @@ async function cargarDatosPC() {
     // El orden del catálogo se queda tal cual viene del panel (orden_home) --
     // no tocar. La rotación de exposición para modelos menos vistos vive
     // aparte, en la sugerencia de Inicio (ver pc.modelosSugeridos).
-    pc.productos = prod.filter(p => p.activo !== false)
+    // Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se
+    // ofrecen a clientes mayoristas, aunque existan en el ERP para otros canales.
+    pc.productos = prod.filter(p => p.activo !== false
+      && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
   }
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
   if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
-  if (Array.isArray(masVend)) pc.masVendidos = masVend
+  if (Array.isArray(masVend)) pc.masVendidos = masVend.filter(p =>
+    !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
   // Sugerencias de Inicio: mezcla de más vendidos + modelos al azar, para que
   // productos menos vistos también tengan oportunidad de aparecer -- sin
   // tocar el orden real del catálogo (eso se queda como está en el panel).
