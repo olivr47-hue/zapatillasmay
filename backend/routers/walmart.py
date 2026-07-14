@@ -444,21 +444,29 @@ def datetime_now_str() -> str:
 
 
 @router.post("/feed/subir")
-def feed_subir(solo_listos: bool = True, confirmar: bool = False):
+def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
-    consultar el estado con GET /walmart/feed/{feed_id}."""
+    consultar el estado con GET /walmart/feed/{feed_id}.
+
+    Pasa sku_interno para limitar la subida a un solo producto (todas sus
+    variantes/colores/tallas) -- útil para probar antes de subir el catálogo
+    completo."""
     if not confirmar:
         raise HTTPException(400, "Pasa confirmar=true para subir el feed de verdad a Walmart (esto publica productos reales)")
     items = _variantes_publicables()
+    if sku_interno:
+        items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
+        if not items:
+            raise HTTPException(404, f"No se encontraron variantes publicables para sku_interno='{sku_interno}'")
     if solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
         raise HTTPException(400, "No hay variantes listas para incluir en el feed")
     contenido = _generar_workbook(items)
     resp = walmart_post_file("/feeds", {"feedType": "item"}, "walmart_zapatos.xlsx", contenido)
-    return {"total_enviado": len(items), "respuesta": resp}
+    return {"total_enviado": len(items), "skus_enviados": [it["variante"]["sku"] for it in items], "respuesta": resp}
 
 
 @router.get("/feed/{feed_id}")
