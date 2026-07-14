@@ -22388,9 +22388,16 @@ async function cargarWalmart() {
         <div id="wm-preview-resultado"><p style="color:#aaa;font-size:0.85rem;margin:0">Sin revisar todavía.</p></div>
       `)}
 
-      ${_wmCard('Publicar catálogo', 'Modelos que todavía no se han enviado a Walmart. Se marcan como enviados en cuanto los publicas, así que la próxima vez solo aparecen los modelos nuevos.', `
-        <div id="wm-catalogo-pendiente"><p style="color:#aaa;font-size:0.85rem;margin:0">Buscando modelos sin publicar...</p></div>
-      `)}
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem;overflow:hidden">
+        <div id="wm-tabs" style="display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid #e5e5e5;padding:0 0.5rem">
+          ${_WM_TABS.map(t => `
+            <button class="wm-tab-btn" data-tab="${t.id}" onclick="window._wmSwitchTab('${t.id}')"
+              style="padding:0.8rem 1rem;border:none;background:transparent;cursor:pointer;font-size:0.86rem;border-bottom:2px solid transparent;color:#666;font-weight:600;transition:color 0.15s,border-color 0.15s;font-family:inherit">
+              ${t.label}
+            </button>`).join('')}
+        </div>
+        <div id="wm-tab-body" style="padding:1.5rem"></div>
+      </div>
 
       ${_wmCard('Sincronizar inventario', 'Actualiza en Walmart la cantidad disponible de los SKUs que ya están publicados ahí. No crea ni modifica publicaciones.', `
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -22401,7 +22408,25 @@ async function cargarWalmart() {
     </div>
   `
   window._wmCargarEstado()
-  window._wmCargarCatalogoPendiente()
+  window._wmSwitchTab('pendiente')
+}
+
+const _WM_TABS = [
+  { id: 'pendiente', label: '📋 Catálogo pendiente' },
+  { id: 'nuevo', label: '➕ Publicar nuevo' },
+]
+
+const _wmEsc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+
+window._wmSwitchTab = (tab) => {
+  window._wmTabActivo = tab
+  document.querySelectorAll('#wm-tabs .wm-tab-btn').forEach(b => {
+    const activo = b.dataset.tab === tab
+    b.style.borderBottom = activo ? `2px solid ${_WM_ACCENT}` : '2px solid transparent'
+    b.style.color = activo ? _WM_ACCENT : '#666'
+  })
+  if (tab === 'pendiente') window._wmRenderPendienteTab()
+  else if (tab === 'nuevo') window._wmRenderNuevoTab()
 }
 
 window._wmCargarEstado = async () => {
@@ -22479,9 +22504,10 @@ window._wmDescargarPlantilla = async (btn) => {
   }
 }
 
-window._wmCargarCatalogoPendiente = async () => {
-  const box = document.getElementById('wm-catalogo-pendiente')
+window._wmRenderPendienteTab = async () => {
+  const box = document.getElementById('wm-tab-body')
   if (!box) return
+  box.innerHTML = `<p style="color:#aaa;font-size:0.85rem;margin:0">Buscando modelos sin publicar...</p>`
   try {
     const res = await fetch(`${API}/walmart/catalogo-sin-publicar`)
     const d = await res.json()
@@ -22498,6 +22524,7 @@ window._wmCargarCatalogoPendiente = async () => {
       return
     }
     box.innerHTML = `
+      <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">Modelos que todavía no se han enviado a Walmart. Puedes ajustar título/precio solo para Walmart antes de publicar -- no toca el ERP. Se marcan como enviados en cuanto los publicas, así que la próxima vez solo aparecen los modelos nuevos.</p>
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
         <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar en Walmart — <b>${d.listos}</b> ya están listos y vienen marcados por default.</p>
         ${_wmBtn('🚀 Publicar seleccionados', 'window._wmPublicarSeleccionados()', 'primary', 'wm-btn-publicar-sel')}
@@ -22508,11 +22535,14 @@ window._wmCargarCatalogoPendiente = async () => {
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelSoloListos()">Solo con 3+ fotos por color</label>
         <span id="wm-catalogo-contador" style="color:#888;margin-left:auto">${window._wmSeleccion.size} de ${d.total} seleccionados</span>
       </div>
-      <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+      <div style="max-height:460px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
         ${d.productos.map(p => `
-          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem;flex-wrap:wrap">
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-wm-prod="${p.id}" onchange="window._wmToggle('${p.id}',this.checked)">
-            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre || '(sin nombre)'} <span style="color:#aaa">· ${p.sku_interno || ''}</span></span>
+            <input type="text" data-wm-titulo="${p.id}" value="${_wmEsc(p.nombre)}" title="Título para Walmart (no cambia el nombre en el ERP)"
+                   style="flex:1;min-width:180px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;font-family:inherit">
+            <input type="number" data-wm-precio="${p.id}" value="${p.precio_menudeo}" min="1" step="1" title="Precio para Walmart (no cambia el precio en el ERP)"
+                   style="width:90px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;font-family:inherit">
             <span style="color:#888;white-space:nowrap">${p.num_variantes} SKU${p.num_variantes===1?'':'s'} · ${p.num_colores} color${p.num_colores===1?'':'es'}</span>
             ${p.listo
               ? `<span style="background:#f0fdf4;color:#166534;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">Listo</span>`
@@ -22557,8 +22587,13 @@ window._wmPublicarSeleccionados = async () => {
   for (const p of productos) {
     const estadoEl = document.getElementById(`wm-estado-prod-${p.id}`)
     if (estadoEl) estadoEl.textContent = '⏳'
+    const inputTitulo = document.querySelector(`[data-wm-titulo="${p.id}"]`)
+    const inputPrecio = document.querySelector(`[data-wm-precio="${p.id}"]`)
+    const params = new URLSearchParams({ confirmar: 'true', sku_interno: p.sku_interno })
+    if (inputTitulo && inputTitulo.value.trim() && inputTitulo.value.trim() !== p.nombre) params.set('titulo', inputTitulo.value.trim())
+    if (inputPrecio && parseFloat(inputPrecio.value) > 0 && parseFloat(inputPrecio.value) !== p.precio_menudeo) params.set('precio', inputPrecio.value)
     try {
-      const res = await fetch(`${API}/walmart/feed/subir?confirmar=true&sku_interno=${encodeURIComponent(p.sku_interno)}`, { method: 'POST' })
+      const res = await fetch(`${API}/walmart/feed/subir?${params.toString()}`, { method: 'POST' })
       const d = await res.json()
       if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
       ok++
@@ -22570,7 +22605,120 @@ window._wmPublicarSeleccionados = async () => {
   }
   if (btn) { btn.innerHTML = textoOriginal; btn.disabled = false }
   alert(`Publicación terminada: ${ok} exitosos, ${err} con error.`)
-  window._wmCargarCatalogoPendiente()
+  window._wmRenderPendienteTab()
+}
+
+// ─── Pestaña: Publicar nuevo (un solo producto, con título/precio a la medida) ──
+window._wmRenderNuevoTab = async () => {
+  const box = document.getElementById('wm-tab-body')
+  if (!box) return
+  box.innerHTML = `
+    <div style="max-width:640px">
+      <div style="position:relative;margin-bottom:1rem">
+        <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:6px;color:#333">¿Qué modelo quieres publicar?</label>
+        <input id="wm-nuevo-buscar" type="text" placeholder="Busca por nombre o SKU, como en el ERP" autocomplete="off"
+               style="width:100%;padding:0.7rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem;box-sizing:border-box;font-family:inherit">
+        <div id="wm-nuevo-sug" style="display:none;position:absolute;z-index:30;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 8px 8px;max-height:240px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,0.12)"></div>
+      </div>
+      <div id="wm-nuevo-detalle"></div>
+    </div>
+  `
+  let productos = []
+  try {
+    const r = await fetch(`${API}/productos/?select=id,sku_interno,nombre,activo,categoria`)
+    const d = await r.json()
+    productos = (Array.isArray(d) ? d : []).filter(p => p.activo !== false && p.categoria !== 'accesorios')
+  } catch (e) {}
+  const input = document.getElementById('wm-nuevo-buscar')
+  const sug = document.getElementById('wm-nuevo-sug')
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase()
+    if (!q || q.length < 2) { sug.style.display = 'none'; return }
+    const encontrados = productos.filter(p =>
+      (p.nombre || '').toLowerCase().includes(q) || (p.sku_interno || '').toLowerCase().includes(q)
+    ).slice(0, 8)
+    if (!encontrados.length) { sug.style.display = 'none'; return }
+    sug.innerHTML = encontrados.map(p => `
+      <div onclick="window._wmElegirProducto('${p.sku_interno}')" style="padding:8px 10px;cursor:pointer;font-size:0.85rem;border-bottom:1px solid #f5f5f5" onmouseover="this.style.background='#f8f8f8'" onmouseout="this.style.background='#fff'">
+        ${_wmEsc(p.nombre)} <span style="color:#aaa">· ${_wmEsc(p.sku_interno)}</span>
+      </div>`).join('')
+    sug.style.display = 'block'
+  })
+}
+
+window._wmElegirProducto = async (skuInterno) => {
+  document.getElementById('wm-nuevo-sug').style.display = 'none'
+  document.getElementById('wm-nuevo-buscar').value = skuInterno
+  const detalle = document.getElementById('wm-nuevo-detalle')
+  detalle.innerHTML = `<p style="color:#aaa;font-size:0.85rem;margin-top:1rem">Cargando...</p>`
+  try {
+    const res = await fetch(`${API}/walmart/producto/${encodeURIComponent(skuInterno)}/preview`)
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
+    window._wmNuevoProducto = d
+    const filasVariantes = d.variantes.map(v => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:0.8rem">
+        <span style="flex:1">${_wmEsc(v.color)} · talla ${_wmEsc(v.talla)}</span>
+        <span style="color:#888">stock ${v.stock}</span>
+        ${v.problemas.length
+          ? `<span title="${v.problemas.join('; ')}" style="background:#fffbeb;color:#92400e;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:100px;cursor:help">${v.problemas.length} pendiente${v.problemas.length===1?'':'s'}</span>`
+          : `<span style="background:#f0fdf4;color:#166534;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:100px">Listo</span>`}
+      </div>`).join('')
+    const listo = d.variantes.every(v => !v.problemas.length)
+    detalle.innerHTML = `
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;margin-top:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+        ${d.ya_publicado ? `<p style="font-size:0.8rem;color:#92400e;background:#fffbeb;padding:8px 10px;border-radius:8px;margin:0 0 1rem">⚠️ Este modelo ya se publicó antes en Walmart -- volver a publicarlo puede generar un duplicado.</p>` : ''}
+        <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Título para Walmart</label>
+            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Solo para esta publicación -- no cambia el nombre en el ERP.</p>
+            <input id="wm-nuevo-titulo" type="text" value="${_wmEsc(d.nombre)}" maxlength="200"
+                   style="width:100%;padding:0.6rem 0.9rem;border:1.5px solid ${_WM_ACCENT};border-radius:8px;font-size:0.9rem;box-sizing:border-box;font-family:inherit">
+          </div>
+          <div>
+            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Precio (MXN)</label>
+            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Opcional</p>
+            <input id="wm-nuevo-precio" type="number" min="1" step="1" value="${d.precio_menudeo}"
+                   style="width:130px;padding:0.6rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem">
+          </div>
+        </div>
+        <p style="font-size:0.82rem;color:#888;margin:0 0 0.5rem"><b>${d.variantes.length}</b> SKU(s) de este modelo:</p>
+        <div style="max-height:260px;overflow-y:auto;border:1px solid #eee;border-radius:8px;margin-bottom:1rem">${filasVariantes}</div>
+        ${_wmBtn('🚀 Publicar en Walmart', 'window._wmPublicarNuevo()', 'primary', 'wm-btn-publicar-nuevo')}
+        <div id="wm-nuevo-resultado" style="margin-top:1rem"></div>
+      </div>
+    `
+  } catch (e) {
+    detalle.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin-top:1rem">Error: ${e.message}</p>`
+  }
+}
+
+window._wmPublicarNuevo = async () => {
+  const d = window._wmNuevoProducto
+  if (!d) return
+  if (!confirm(`Vas a publicar "${document.getElementById('wm-nuevo-titulo').value}" en Walmart (${d.variantes.length} SKUs reales). ¿Confirmas?`)) return
+  const btn = document.getElementById('wm-btn-publicar-nuevo')
+  const textoOriginal = btn.innerHTML
+  const box = document.getElementById('wm-nuevo-resultado')
+  btn.innerHTML = '⏳ Publicando...'; btn.disabled = true
+  try {
+    const titulo = document.getElementById('wm-nuevo-titulo').value.trim()
+    const precio = document.getElementById('wm-nuevo-precio').value
+    const params = new URLSearchParams({ confirmar: 'true', sku_interno: d.sku_interno })
+    if (titulo && titulo !== d.nombre) params.set('titulo', titulo)
+    if (precio && parseFloat(precio) !== d.precio_menudeo) params.set('precio', precio)
+    const res = await fetch(`${API}/walmart/feed/subir?${params.toString()}`, { method: 'POST' })
+    const r = await res.json()
+    if (!res.ok) throw new Error(r.detail || JSON.stringify(r))
+    box.innerHTML = `<div style="padding:0.8rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.84rem;color:#166534">
+      ${r.total_enviado} SKU(s) enviados. Feed ID: <b>${r.respuesta?.feedId || '-'}</b>
+      ${r.respuesta?.feedId ? `<br><a href="${API}/walmart/feed/${r.respuesta.feedId}" target="_blank" style="color:${_WM_ACCENT}">Ver estado del feed</a>` : ''}
+    </div>`
+  } catch (e) {
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = textoOriginal; btn.disabled = false
+  }
 }
 
 window._wmSincronizarInventario = async (btn) => {

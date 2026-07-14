@@ -424,6 +424,7 @@ def catalogo_sin_publicar():
             "id": g["producto"]["id"],
             "sku_interno": g["producto"].get("sku_interno"),
             "nombre": g["producto"].get("nombre"),
+            "precio_menudeo": float(g["producto"].get("precio_menudeo") or 0),
             "categoria": g["producto"].get("categoria"),
             "num_variantes": len(g["items"]),
             "num_colores": len(colores),
@@ -432,6 +433,27 @@ def catalogo_sin_publicar():
         })
     resultado.sort(key=lambda p: (not p["listo"], p["nombre"] or ""))
     return {"total": len(resultado), "listos": sum(1 for p in resultado if p["listo"]), "productos": resultado}
+
+
+@router.get("/producto/{sku_interno}/preview")
+def producto_preview(sku_interno: str):
+    """Detalle de un solo producto (todas sus variantes) para la pestaña
+    "Publicar nuevo" -- precio/nombre actuales para prellenar los campos
+    editables, y el detalle de qué le falta a cada variante antes de publicar."""
+    items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
+    if not items:
+        raise HTTPException(404, "No se encontraron variantes publicables para ese SKU (¿está activo? ¿es categoría 'accesorios'?)")
+    producto = items[0]["producto"]
+    variantes = [{
+        "sku": it["variante"]["sku"], "color": it["variante"].get("color"), "talla": it["variante"].get("talla"),
+        "stock": it["stock"], "problemas": _validar_fila(it),
+    } for it in items]
+    ya_publicado = bool(supabase_get_all(f"walmart_publicaciones?producto_id=eq.{producto['id']}&exito=eq.true&limit=1"))
+    return {
+        "id": producto["id"], "sku_interno": producto.get("sku_interno"), "nombre": producto.get("nombre"),
+        "precio_menudeo": float(producto.get("precio_menudeo") or 0), "categoria": producto.get("categoria"),
+        "ya_publicado": ya_publicado, "variantes": variantes,
+    }
 
 
 @router.get("/feed/preview")
@@ -500,7 +522,8 @@ def datetime_now_str() -> str:
 
 
 @router.post("/feed/subir")
-def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None):
+def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
+                titulo: str = None, precio: float = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -508,7 +531,9 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
 
     Pasa sku_interno para limitar la subida a un solo producto (todas sus
     variantes/colores/tallas) -- útil para probar antes de subir el catálogo
-    completo."""
+    completo. titulo/precio (solo válidos junto con sku_interno) sobreescriben
+    el nombre y precio_menudeo del ERP nada más para esta subida, sin tocar
+    el producto real."""
     if not confirmar:
         raise HTTPException(400, "Pasa confirmar=true para subir el feed de verdad a Walmart (esto publica productos reales)")
     items = _variantes_publicables()
@@ -516,6 +541,14 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
         items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
         if not items:
             raise HTTPException(404, f"No se encontraron variantes publicables para sku_interno='{sku_interno}'")
+        if titulo or precio:
+            producto_override = dict(items[0]["producto"])
+            if titulo:
+                producto_override["nombre"] = titulo
+            if precio:
+                producto_override["precio_menudeo"] = precio
+            for it in items:
+                it["producto"] = producto_override
     if solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
