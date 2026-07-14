@@ -315,6 +315,19 @@ def _buscar_variante_por_seller_sku_shein(seller_sku: str):
     return None
 
 
+def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
+    """Fallback para cuando el pedido no trae sellerSku (confirmado con una venta
+    real: SHEIN a veces regresa "sellerSku": "" en orderGoodsInfoList) -- usa el
+    mismo mapeo skuCode->supplierSku que ya arma _skus_shein_cached() para el
+    catálogo publicado."""
+    if not sku_code:
+        return ""
+    for item in _skus_shein_cached():
+        if item.get("skuCode") == sku_code:
+            return item.get("supplierSku") or ""
+    return ""
+
+
 @router.get("/ordenes/diagnostico")
 def ordenes_diagnostico():
     """Diagnóstico de solo lectura: trae la orden cruda de las últimas 47h para
@@ -388,7 +401,12 @@ def _hacer_sync_ventas_shein() -> dict:
             for g in orden.get("orderGoodsInfoList") or []:
                 seller_sku = (g.get("sellerSku") or "").strip()
                 if not seller_sku:
-                    resultado["sin_match"].append({"orden": order_id, "sku": "(vacío -- revisar goodsSn/skuCode del pedido)"})
+                    # Confirmado con una venta real: SHEIN a veces no manda sellerSku
+                    # en la orden -- se recupera vía el mapeo skuCode->supplierSku
+                    # del catálogo ya publicado (mismo dato, otra vía).
+                    seller_sku = _seller_sku_desde_sku_code_shein(g.get("skuCode") or "")
+                if not seller_sku:
+                    resultado["sin_match"].append({"orden": order_id, "sku": f"(sin sellerSku ni match por skuCode={g.get('skuCode')})"})
                     faltante = True
                     continue
                 variante = _buscar_variante_por_seller_sku_shein(seller_sku)
