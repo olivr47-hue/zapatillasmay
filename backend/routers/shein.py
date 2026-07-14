@@ -357,6 +357,37 @@ def ordenes_diagnostico():
     return {"lista": lista, "detalle": detalle}
 
 
+@router.get("/producto/buscar-skc")
+def buscar_skc_en_listado(skc: str):
+    """Diagnóstico de solo lectura: recorre SOLO el paginado inicial de
+    /product/query (rápido, sin el paso lento de spu-info) buscando un SKC
+    puntual, para saber si el problema está en que /product/query no lo trae
+    (bug de paginación/filtro) o si sí aparece ahí pero falla después en
+    spu-info (ej. "pendiente de revisión")."""
+    encontrados = []
+    page = 1
+    total_items = 0
+    while True:
+        try:
+            resp = shein_post("/open-api/openapi-business-backend/product/query", {"pageNum": page, "pageSize": 100})
+        except HTTPException as e:
+            return {"error": str(e.detail), "paginas_revisadas": page - 1, "total_items": total_items}
+        info = resp.get("info", {}) or {}
+        items = info.get("data") or []
+        if not items:
+            break
+        total_items += len(items)
+        for prod in items:
+            if prod.get("skcName") == skc or skc in (prod.get("skuCodeList") or []):
+                encontrados.append(prod)
+        if len(items) < 100:
+            break
+        page += 1
+        if page > 50:
+            break
+    return {"total_items_revisados": total_items, "paginas": page, "encontrados": encontrados}
+
+
 @router.get("/ordenes/diagnostico-mapeo")
 def ordenes_diagnostico_mapeo(sku_code: str = None, goods_sn: str = None):
     """Diagnóstico de solo lectura: revisa el contenido de la caché
