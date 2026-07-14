@@ -68,6 +68,17 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
                 )
                 if wamid:
                     print(f"WA confirmacion (plantilla) enviada a {telefono} ({nombre})")
+                    try:
+                        supabase_post("conversaciones_whatsapp", {
+                            "telefono": telefono,
+                            "mensaje": f"[Sistema]: Confirmación de pedido #{pedido_id_corto} — plantilla '{plantilla}' (${total_tpl:,.0f})",
+                            "respuesta": None,
+                            "tipo": "plantilla_saliente",
+                            "wa_message_id": wamid,
+                            "leido": True,
+                        })
+                    except Exception as e:
+                        print(f"WA confirmacion: no se pudo guardar en conversaciones_whatsapp (no critico): {e}")
                     return
             except Exception as e:
                 print(f"WA confirmacion: fallo plantilla, se intenta texto libre: {e}")
@@ -112,8 +123,21 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
             "text": {"body": mensaje}
         }).encode("utf-8")
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-        urllib.request.urlopen(req)
+        with urllib.request.urlopen(req) as r:
+            resp = json.loads(r.read())
+        wamid = resp.get("messages", [{}])[0].get("id", "")
         print(f"WA confirmacion enviada a {telefono} ({nombre})")
+        try:
+            supabase_post("conversaciones_whatsapp", {
+                "telefono": telefono,
+                "mensaje": f"[Sistema]: {mensaje}",
+                "respuesta": None,
+                "tipo": "texto_saliente",
+                "wa_message_id": wamid,
+                "leido": True,
+            })
+        except Exception as e:
+            print(f"WA confirmacion: no se pudo guardar en conversaciones_whatsapp (no critico): {e}")
     except Exception as e:
         print(f"WA confirmacion error (no critico): {e}")
 
