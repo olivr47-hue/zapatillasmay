@@ -19263,6 +19263,7 @@ const _sheinBtn = (icon, label, onclick, variant = 'primary', id = '') => {
 const _SHEIN_TABS = [
   { id: 'publicaciones', label: 'Publicaciones', icon: 'list' },
   { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
+  { id: 'ventas',        label: 'Ventas', icon: 'dollar' },
 ]
 
 async function cargarShein() {
@@ -19339,6 +19340,82 @@ window._sheinSwitchTab = async (tab) => {
   </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
   if (tab === 'publicaciones')   await _sheinRenderPublicacionesTab()
   else if (tab === 'publicar')   await _sheinRenderPublicarTab()
+  else if (tab === 'ventas')     await _sheinRenderVentasTab()
+}
+
+async function _sheinRenderVentasTab() {
+  const body = document.getElementById('shein-tab-body')
+  body.innerHTML = '<p style="color:#aaa;font-size:0.85rem;margin:0">Cargando ventas...</p>'
+  try {
+    const res = await fetch(`${API}/shein/ventas`)
+    const ventas = await res.json()
+    const lista = Array.isArray(ventas) ? ventas : []
+    const total = lista.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    body.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+        <p style="margin:0;font-size:0.82rem;color:#888">Se descuenta el inventario automáticamente al detectarse una venta nueva (últimas 47h por corrida).</p>
+        ${_sheinBtn('refresh', 'Sincronizar ahora', 'window._sheinSincronizarVentas(this)', 'primary', 'shein-btn-sync-ventas')}
+      </div>
+      <div id="shein-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:1rem">
+        <div style="background:#f8f8f8;border-radius:10px;padding:0.9rem">
+          <p style="font-size:1.3rem;font-weight:800;color:${_SHEIN_ACCENT};margin:0">${lista.length}</p>
+          <p style="font-size:0.7rem;color:#888;margin:2px 0 0;text-transform:uppercase">Ventas registradas</p>
+        </div>
+        <div style="background:#f8f8f8;border-radius:10px;padding:0.9rem">
+          <p style="font-size:1.3rem;font-weight:800;color:#16a34a;margin:0">$${total.toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.7rem;color:#888;margin:2px 0 0;text-transform:uppercase">Total vendido</p>
+        </div>
+      </div>
+      ${!lista.length ? '<p style="color:#aaa;font-size:0.85rem;margin:0">Todavía no hay ventas de SHEIN registradas en el ERP.</p>' : `
+      <div style="overflow-x:auto;border:1px solid #eee;border-radius:8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f8f8f8">
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Orden SHEIN</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Status</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Fecha</th>
+          </tr></thead>
+          <tbody>
+            ${lista.map(p => `
+              <tr style="border-bottom:1px solid #f5f5f5">
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};font-family:monospace">${p.shein_order_id || '—'}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.8rem">${p.status}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`}
+    `
+  } catch (e) {
+    body.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error cargando ventas: ${e.message}</p>`
+  }
+}
+
+window._sheinSincronizarVentas = async (btn) => {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Sincronizando...'
+  btn.disabled = true
+  const box = document.getElementById('shein-ventas-resultado')
+  try {
+    const res = await fetch(`${API}/shein/sync-ventas`, { method: 'POST' })
+    const d = await res.json()
+    box.style.display = 'block'
+    if (d.procesadas > 0) {
+      box.style.background = '#f0fdf4'; box.style.color = '#166534'
+      box.textContent = `✅ ${d.procesadas} venta(s) nueva(s) procesada(s) de ${d.revisadas} revisadas.`
+      setTimeout(() => _sheinRenderVentasTab(), 1200)
+    } else {
+      box.style.background = '#f8f8f8'; box.style.color = '#555'
+      box.textContent = `Sin ventas nuevas (${d.revisadas} revisadas).` + (d.errores?.length ? ` ⚠️ ${d.errores.length} error(es).` : '')
+    }
+  } catch (e) {
+    box.style.display = 'block'; box.style.background = '#fef2f2'; box.style.color = '#991b1b'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
 }
 
 // ─── Pestaña: Publicaciones (SHEIN) ─────────────────────────────────────────
@@ -22630,6 +22707,7 @@ async function cargarWalmart() {
 const _WM_TABS = [
   { id: 'pendiente', label: '📋 Catálogo pendiente' },
   { id: 'nuevo', label: '➕ Publicar nuevo' },
+  { id: 'ventas', label: '💰 Ventas' },
 ]
 
 const _wmEsc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
@@ -22643,6 +22721,83 @@ window._wmSwitchTab = (tab) => {
   })
   if (tab === 'pendiente') window._wmRenderPendienteTab()
   else if (tab === 'nuevo') window._wmRenderNuevoTab()
+  else if (tab === 'ventas') window._wmRenderVentasTab()
+}
+
+window._wmRenderVentasTab = async () => {
+  const box = document.getElementById('wm-tab-body')
+  if (!box) return
+  box.innerHTML = '<p style="color:#aaa;font-size:0.85rem;margin:0">Cargando ventas...</p>'
+  try {
+    const res = await fetch(`${API}/walmart/ventas`)
+    const ventas = await res.json()
+    const lista = Array.isArray(ventas) ? ventas : []
+    const total = lista.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+        <p style="margin:0;font-size:0.82rem;color:#888">Se descuenta el inventario automáticamente al detectarse una venta nueva.</p>
+        ${_wmBtn('🔄 Sincronizar ahora', 'window._wmSincronizarVentas(this)', 'primary', 'wm-btn-sync-ventas')}
+      </div>
+      <div id="wm-ventas-resultado" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:1rem">
+        <div style="background:#f8f8f8;border-radius:10px;padding:0.9rem">
+          <p style="font-size:1.3rem;font-weight:800;color:${_WM_ACCENT};margin:0">${lista.length}</p>
+          <p style="font-size:0.7rem;color:#888;margin:2px 0 0;text-transform:uppercase">Ventas registradas</p>
+        </div>
+        <div style="background:#f8f8f8;border-radius:10px;padding:0.9rem">
+          <p style="font-size:1.3rem;font-weight:800;color:#16a34a;margin:0">$${total.toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.7rem;color:#888;margin:2px 0 0;text-transform:uppercase">Total vendido</p>
+        </div>
+      </div>
+      ${!lista.length ? '<p style="color:#aaa;font-size:0.85rem;margin:0">Todavía no hay ventas de Walmart registradas en el ERP.</p>' : `
+      <div style="overflow-x:auto;border:1px solid #eee;border-radius:8px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:#f8f8f8">
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Orden Walmart</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Status</th>
+            <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Fecha</th>
+          </tr></thead>
+          <tbody>
+            ${lista.map(p => `
+              <tr style="border-bottom:1px solid #f5f5f5">
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_WM_ACCENT};font-family:monospace">${p.walmart_order_id || '—'}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.8rem">${p.status}</td>
+                <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`}
+    `
+  } catch (e) {
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error cargando ventas: ${e.message}</p>`
+  }
+}
+
+window._wmSincronizarVentas = async (btn) => {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳ Sincronizando...'
+  btn.disabled = true
+  const box = document.getElementById('wm-ventas-resultado')
+  try {
+    const res = await fetch(`${API}/walmart/sync-ventas`, { method: 'POST' })
+    const d = await res.json()
+    box.style.display = 'block'
+    if (d.procesadas > 0) {
+      box.style.background = '#f0fdf4'; box.style.color = '#166534'
+      box.textContent = `✅ ${d.procesadas} venta(s) nueva(s) procesada(s) de ${d.revisadas} revisadas.`
+      setTimeout(() => window._wmRenderVentasTab(), 1200)
+    } else {
+      box.style.background = '#f8f8f8'; box.style.color = '#555'
+      box.textContent = `Sin ventas nuevas (${d.revisadas} revisadas).` + (d.errores?.length ? ` ⚠️ ${d.errores.length} error(es).` : '')
+    }
+  } catch (e) {
+    box.style.display = 'block'; box.style.background = '#fef2f2'; box.style.color = '#991b1b'
+    box.textContent = 'Error: ' + e.message
+  }
+  btn.innerHTML = orig
+  btn.disabled = false
 }
 
 window._wmCargarEstado = async () => {

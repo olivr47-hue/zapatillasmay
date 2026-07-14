@@ -15,7 +15,7 @@ import os, json, time, uuid, base64, io, shutil
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from database import supabase_get_all, supabase_post
+from database import supabase_get_all, supabase_post, supabase_get, supabase_patch
 
 router = APIRouter(prefix="/walmart", tags=["Walmart"])
 
@@ -165,6 +165,136 @@ def walmart_ordenes_test():
         return {"ok": True, "respuesta": resp}
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
+
+
+# ─── Ventas Walmart → descontar inventario en el ERP ──────────────────────────
+# Mismo patrón que _hacer_sync_ventas de mercadolibre.py: buscar órdenes
+# recientes, deduplicar contra pedidos.walmart_order_id, descontar inventario
+# por SKU y crear el registro de pedido. El SKU de Walmart es literalmente
+# variantes.sku (así se armó el feed en _fila_variante), por eso el match es
+# directo por igualdad, sin necesidad de normalizar como en ML/SHEIN.
+
+def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
+    filas = supabase_get_all(f"inventario?variante_id=eq.{variante_id}&select=sucursal_id,cantidad&order=cantidad.desc")
+    if not filas:
+        return False
+    fila = filas[0]
+    nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
+    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
+    supabase_post("movimientos_inventario", {
+        "variante_id": variante_id, "sucursal_id": fila["sucursal_id"],
+        "tipo": "salida", "cantidad": cantidad, "motivo": "Venta Walmart",
+    })
+    return True
+
+
+def _hacer_sync_ventas_walmart() -> dict:
+    resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
+    try:
+        resp = walmart_get("/orders", params={"limit": 200})
+        # La API puede envolver la lista como {"order": [...]} (observado en
+        # /ordenes/test) o como {"list": {"elements": {"order": [...]}}} según
+        # la versión -- se soportan ambas formas por si acaso.
+        ordenes = resp.get("order") or resp.get("list", {}).get("elements", {}).get("order", [])
+    except HTTPException as e:
+        resultado["errores"].append({"error_general": str(e.detail)})
+        return resultado
+
+    for orden in ordenes:
+        resultado["revisadas"] += 1
+        order_id = str(orden.get("purchaseOrderId") or orden.get("customerOrderId") or "")
+        if not order_id:
+            continue
+
+        ya_existe = supabase_get(f"pedidos?walmart_order_id=eq.{order_id}&select=id")
+        if ya_existe:
+            continue
+
+        lineas = (orden.get("orderLines") or {}).get("orderLine", [])
+        items_pedido = []
+        faltante = False
+        for linea in lineas:
+            item_info = linea.get("item") or {}
+            sku = (item_info.get("sku") or "").strip()
+            cantidad = int(float((linea.get("orderLineQuantity") or {}).get("amount") or 0))
+            if not sku or cantidad <= 0:
+                continue
+            variantes = supabase_get_all(f"variantes?sku=eq.{sku}&select=id,sku,color,talla,producto_id")
+            if not variantes:
+                resultado["sin_match"].append({"orden": order_id, "sku": sku})
+                faltante = True
+                continue
+            variante = variantes[0]
+            precio = 0.0
+            for charge in (linea.get("charges") or {}).get("charge", []):
+                if (charge.get("chargeType") or "").upper() == "PRODUCT":
+                    precio = float((charge.get("chargeAmount") or {}).get("amount") or 0)
+                    break
+            items_pedido.append({
+                "variante_id": variante["id"], "cantidad": cantidad, "precio_unitario": precio,
+                "nombre": item_info.get("productName") or "", "color": variante.get("color") or "",
+                "talla": variante.get("talla") or "", "sku": sku,
+            })
+
+        if not items_pedido:
+            continue
+
+        try:
+            for it in items_pedido:
+                _descontar_inventario_variante_walmart(it["variante_id"], it["cantidad"])
+
+            total = sum(it["precio_unitario"] * it["cantidad"] for it in items_pedido)
+            datos_pedido = {
+                "walmart_order_id": order_id, "canal": "walmart", "status": "confirmado",
+                "tipo": "online", "total": total, "subtotal": total, "forma_pago": "walmart",
+                "nombre_cliente": "Comprador Walmart",
+                "notas": f"Pedido generado automáticamente desde Walmart (orden {order_id})" + (" — faltó match de algún SKU" if faltante else ""),
+            }
+            fecha_orden = orden.get("orderDate")
+            if fecha_orden:
+                import datetime as _dt
+                try:
+                    datos_pedido["created_at"] = _dt.datetime.utcfromtimestamp(int(fecha_orden) / 1000).isoformat()
+                except Exception:
+                    pass
+            try:
+                pedido = supabase_post("pedidos", datos_pedido)
+            except Exception as e:
+                if "PGRST204" in str(e) or "schema cache" in str(e):
+                    pedido_min = {k: v for k, v in datos_pedido.items() if k != "walmart_order_id"}
+                    pedido = supabase_post("pedidos", pedido_min)
+                    if pedido:
+                        try:
+                            supabase_patch(f"pedidos?id=eq.{pedido[0]['id']}", {"walmart_order_id": order_id})
+                        except Exception:
+                            pass
+                else:
+                    raise
+            pedido_id = pedido[0]["id"] if pedido else None
+            if pedido_id:
+                for it in items_pedido:
+                    supabase_post("pedido_items", {
+                        "pedido_id": pedido_id, "variante_id": it["variante_id"], "cantidad": it["cantidad"],
+                        "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
+                        "color": it["color"], "talla": it["talla"],
+                    })
+            resultado["procesadas"] += 1
+        except Exception as e:
+            resultado["errores"].append({"orden": order_id, "error": str(e)})
+
+    return resultado
+
+
+@router.post("/sync-ventas")
+def sincronizar_ventas_walmart():
+    """Trigger manual: descuenta inventario de ventas Walmart no procesadas todavía."""
+    return _hacer_sync_ventas_walmart()
+
+
+@router.get("/ventas")
+def listar_ventas_walmart():
+    """Pedidos ya sincronizados desde Walmart, para la pestaña Ventas del panel."""
+    return supabase_get_all("pedidos?canal=eq.walmart&order=created_at.desc&select=*")
 
 
 # ─── Feed "Zapatos" — carga sin UPC (folio Walmart 15476267) ──────────────────

@@ -284,26 +284,160 @@ def ping():
         return {"ok": False, "error": e.detail}
 
 
-@router.get("/ordenes/test")
-def ordenes_test():
-    """Diagnóstico de solo lectura: prueba si existe un módulo de órdenes
-    accesible para este vendedor semi-managed, antes de construir la
-    sincronización real de ventas -- no modifica nada. Prueba varios paths
-    plausibles del Open Platform ya que la doc no es pública sin sesión."""
-    intentos = [
-        "/open-api/order/list",
-        "/open-api/order/get-order-list",
-        "/order-management/order/queryOrderList",
-        "/open-api/order/query",
-    ]
-    resultados = []
-    for path in intentos:
+# ─── Ventas SHEIN → descontar inventario en el ERP ────────────────────────────
+# Confirmado contra la documentación real (no adivinado): POST /open-api/order/order-list
+# (descubre pedidos por rango de fecha, máx 48h, máx 10,000 resultados) +
+# POST /open-api/order/order-detail (detalle completo, hasta 30 pedidos por
+# llamada). "Order" = pedido real del comprador (distinto de "Purchase Order",
+# que es SHEIN comprándonos a nosotros para reabasto -- no aplica aquí).
+# Mismo patrón de dedup/descuento que _hacer_sync_ventas de mercadolibre.py.
+
+def _descontar_inventario_variante_shein(variante_id: str, cantidad: int):
+    filas = supabase_get_all(f"inventario?variante_id=eq.{variante_id}&select=sucursal_id,cantidad&order=cantidad.desc")
+    if not filas:
+        return False
+    fila = filas[0]
+    nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
+    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
+    supabase_post("movimientos_inventario", {
+        "variante_id": variante_id, "sucursal_id": fila["sucursal_id"],
+        "tipo": "salida", "cantidad": cantidad, "motivo": "Venta SHEIN",
+    })
+    return True
+
+
+def _buscar_variante_por_seller_sku_shein(seller_sku: str):
+    sku_norm = _norm_sku(seller_sku)
+    variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id")
+    for v in variantes:
+        if v.get("sku") and _norm_sku(v["sku"]) == sku_norm:
+            return v
+    return None
+
+
+def _hacer_sync_ventas_shein() -> dict:
+    import datetime as _dt
+    resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
+
+    ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)  # SHEIN usa hora de Beijing (UTC+8)
+    inicio = ahora - _dt.timedelta(hours=47)  # margen bajo el límite de 48h
+    fmt = "%Y-%m-%d %H:%M:%S"
+
+    order_nos = []
+    try:
+        page = 1
+        while True:
+            resp = shein_post("/open-api/order/order-list", {
+                "queryType": 1, "startTime": inicio.strftime(fmt), "endTime": ahora.strftime(fmt),
+                "page": page, "pageSize": 30,
+            })
+            info = resp.get("info") or {}
+            lote = info.get("orderList") or []
+            order_nos.extend(o["orderNo"] for o in lote if o.get("orderNo"))
+            if len(lote) < 30 or page >= 10:  # tope: 300 pedidos por corrida
+                break
+            page += 1
+    except HTTPException as e:
+        resultado["errores"].append({"error_general": str(e.detail)})
+        return resultado
+
+    if not order_nos:
+        return resultado
+
+    ya_procesados = {
+        r["shein_order_id"] for r in supabase_get_all(
+            f"pedidos?shein_order_id=in.({','.join(order_nos)})&select=shein_order_id"
+        )
+    }
+    pendientes = [o for o in order_nos if o not in ya_procesados]
+
+    for i in range(0, len(pendientes), 30):
+        lote = pendientes[i:i + 30]
         try:
-            resp = shein_get(path, params={"page": 1, "pageSize": 1})
-            resultados.append({"path": path, "ok": True, "respuesta": resp})
+            resp = shein_post("/open-api/order/order-detail", {"orderNoList": lote})
         except HTTPException as e:
-            resultados.append({"path": path, "ok": False, "error": e.detail})
-    return {"intentos": resultados}
+            resultado["errores"].append({"lote": lote, "error": str(e.detail)})
+            continue
+
+        for orden in resp.get("info") or []:
+            resultado["revisadas"] += 1
+            order_id = orden.get("orderNo")
+            if not order_id:
+                continue
+
+            items_pedido = []
+            faltante = False
+            for g in orden.get("orderGoodsInfoList") or []:
+                seller_sku = (g.get("sellerSku") or "").strip()
+                if not seller_sku:
+                    continue
+                variante = _buscar_variante_por_seller_sku_shein(seller_sku)
+                if not variante:
+                    resultado["sin_match"].append({"orden": order_id, "sku": seller_sku})
+                    faltante = True
+                    continue
+                items_pedido.append({
+                    "variante_id": variante["id"], "cantidad": 1,
+                    "precio_unitario": float(g.get("sellerCurrencyPrice") or g.get("costPrice") or 0),
+                    "nombre": g.get("goodsTitle") or "", "color": variante.get("color") or "",
+                    "talla": variante.get("talla") or "", "sku": seller_sku,
+                })
+
+            if not items_pedido:
+                continue
+
+            try:
+                for it in items_pedido:
+                    _descontar_inventario_variante_shein(it["variante_id"], it["cantidad"])
+
+                total = sum(it["precio_unitario"] * it["cantidad"] for it in items_pedido)
+                datos_pedido = {
+                    "shein_order_id": order_id, "canal": "shein", "status": "confirmado",
+                    "tipo": "online", "total": total, "subtotal": total, "forma_pago": "shein",
+                    "nombre_cliente": "Comprador SHEIN",
+                    "notas": f"Pedido generado automáticamente desde SHEIN (orden {order_id})" + (" — faltó match de algún SKU" if faltante else ""),
+                }
+                fecha_orden = orden.get("orderTime")
+                if fecha_orden:
+                    datos_pedido["created_at"] = fecha_orden
+                try:
+                    pedido = supabase_post("pedidos", datos_pedido)
+                except Exception as e:
+                    if "PGRST204" in str(e) or "schema cache" in str(e):
+                        pedido_min = {k: v for k, v in datos_pedido.items() if k != "shein_order_id"}
+                        pedido = supabase_post("pedidos", pedido_min)
+                        if pedido:
+                            try:
+                                supabase_patch(f"pedidos?id=eq.{pedido[0]['id']}", {"shein_order_id": order_id})
+                            except Exception:
+                                pass
+                    else:
+                        raise
+                pedido_id = pedido[0]["id"] if pedido else None
+                if pedido_id:
+                    for it in items_pedido:
+                        supabase_post("pedido_items", {
+                            "pedido_id": pedido_id, "variante_id": it["variante_id"], "cantidad": it["cantidad"],
+                            "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
+                            "color": it["color"], "talla": it["talla"],
+                        })
+                resultado["procesadas"] += 1
+            except Exception as e:
+                resultado["errores"].append({"orden": order_id, "error": str(e)})
+
+    return resultado
+
+
+@router.post("/sync-ventas")
+def sincronizar_ventas_shein():
+    """Trigger manual: descuenta inventario de ventas SHEIN no procesadas todavía."""
+    return _hacer_sync_ventas_shein()
+
+
+@router.get("/ventas")
+def listar_ventas_shein():
+    """Pedidos ya sincronizados desde SHEIN, para la pestaña Ventas del panel."""
+    return supabase_get_all("pedidos?canal=eq.shein&order=created_at.desc&select=*")
 
 
 # ─── Endpoints de diagnóstico (necesarios antes de poder publicar bien) ─────
