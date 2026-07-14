@@ -90,6 +90,7 @@ const modulos = [
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
+  { id: 'walmart', icon: '🏬', label: 'Walmart', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
@@ -416,6 +417,7 @@ async function cargarModulo(id) {
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'shein': await cargarShein(); break;
+    case 'walmart': await cargarWalmart(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
     case 'correo': await cargarCorreoCorporativo(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
@@ -22311,5 +22313,197 @@ async function cargarGenerarNombres() {
     document.getElementById('gn-btn-aplicar').disabled = false
     // Marcar todos los botones como guardados
     document.querySelectorAll('.gn-input + button').forEach(b => { b.textContent = '✓'; b.style.background = '#94a3b8'; b.disabled = true })
+  }
+}
+
+// ─── WALMART ──────────────────────────────────────────────────────────────────
+// Carga sin UPC (folio Walmart 15476267): productIdType=GTIN / productId=CUSTOM.
+// Flujo: revisar catálogo (preview) -> descargar plantilla o subir por API ->
+// sincronizar inventario. Ver backend/routers/walmart.py para el detalle.
+const _WM_ACCENT = '#0071ce'
+
+const _wmBtn = (label, onclick, variant = 'primary', id = '') => {
+  const variants = {
+    primary:   { bg: _WM_ACCENT, fg: '#fff' },
+    warning:   { bg: '#fff', fg: '#b45309', border: '1px solid #fcd34d' },
+    success:   { bg: '#fff', fg: '#166534', border: '1px solid #86efac' },
+    secondary: { bg: '#fff', fg: '#444', border: '1px solid #ddd' },
+  }
+  const v = variants[variant] || variants.primary
+  const border = v.border ? `border:${v.border}` : 'border:none'
+  return `<button ${id ? `id="${id}"` : ''} onclick="${onclick}"
+    style="display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1rem;background:${v.bg};color:${v.fg};${border};border-radius:8px;cursor:pointer;font-size:0.84rem;font-weight:600;font-family:inherit;transition:filter 0.15s"
+    onmouseover="this.style.filter='brightness(0.96)'" onmouseout="this.style.filter='none'">${label}</button>`
+}
+
+const _wmCard = (titulo, subtitulo, cuerpo) => `
+  <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+    <h3 style="margin:0 0 2px;font-size:1rem">${titulo}</h3>
+    <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">${subtitulo}</p>
+    ${cuerpo}
+  </div>`
+
+async function cargarWalmart() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:1000px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:${_WM_ACCENT};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;font-size:16px">🏬</div>
+        <h2 style="margin:0;font-size:1.25rem">Walmart</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">
+        Carga sin UPC (categoría Zapatos, folio Walmart 15476267) — sincronización de catálogo e inventario.
+      </p>
+      <div id="wm-estado" style="margin-bottom:1rem;padding:0.8rem 1rem;border-radius:10px;background:#f8f8f8;font-size:0.84rem;display:flex;align-items:center;gap:8px">
+        <span style="width:16px;height:16px;border:2px solid #ddd;border-top-color:${_WM_ACCENT};border-radius:50%;display:inline-block;animation:wmspin 0.7s linear infinite"></span>
+        Verificando conexión con Walmart...
+      </div>
+      <style>@keyframes wmspin{to{transform:rotate(360deg)}}</style>
+
+      ${_wmCard('Revisar catálogo', 'Cuenta cuántas variantes están listas para Walmart y cuáles tienen algo pendiente (fotos, precio, talla fuera de rango). No sube nada.', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem">
+          ${_wmBtn('🔍 Revisar catálogo', 'window._wmPreview(this)', 'primary', 'wm-btn-preview')}
+        </div>
+        <div id="wm-preview-resultado"><p style="color:#aaa;font-size:0.85rem;margin:0">Sin revisar todavía.</p></div>
+      `)}
+
+      ${_wmCard('Generar y subir productos', 'Descarga la plantilla oficial ya llena para revisarla/subirla tú mismo, o súbela directo a Walmart por API.', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_wmBtn('⬇️ Descargar plantilla llena', 'window._wmDescargarPlantilla(this)', 'secondary', 'wm-btn-plantilla')}
+          ${_wmBtn('🚀 Subir a Walmart', 'window._wmSubirFeed(this)', 'warning', 'wm-btn-subir')}
+        </div>
+        <div id="wm-subir-resultado" style="margin-top:1rem"></div>
+      `)}
+
+      ${_wmCard('Sincronizar inventario', 'Actualiza en Walmart la cantidad disponible de los SKUs que ya están publicados ahí. No crea ni modifica publicaciones.', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_wmBtn('🔄 Sincronizar inventario', 'window._wmSincronizarInventario(this)', 'success', 'wm-btn-inv')}
+        </div>
+        <div id="wm-inv-resultado" style="margin-top:1rem"></div>
+      `)}
+    </div>
+  `
+  window._wmCargarEstado()
+}
+
+window._wmCargarEstado = async () => {
+  const box = document.getElementById('wm-estado')
+  try {
+    const res = await fetch(`${API}/walmart/ping`)
+    const d = await res.json()
+    if (d.ok) {
+      box.style.background = '#f0fdf4'
+      box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span><span style="color:#166534">Conectado a Walmart Marketplace.</span>`
+    } else if (d.token_ok) {
+      box.style.background = '#f0fdf4'
+      box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span><span style="color:#166534">Credenciales OK (sin items publicados todavía).</span>`
+    } else {
+      box.style.background = '#fef2f2'
+      box.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0"></span><span style="color:#991b1b">Sin conexión: ${d.error || 'revisa WALMART_CLIENT_ID/SECRET en Railway'}</span>`
+    }
+  } catch (e) {
+    box.style.background = '#fef2f2'
+    box.innerHTML = `<span style="color:#991b1b">Error al conectar: ${e.message}</span>`
+  }
+}
+
+window._wmPreview = async (btn) => {
+  const textoOriginal = btn.innerHTML
+  const box = document.getElementById('wm-preview-resultado')
+  try {
+    btn.innerHTML = '⏳ Revisando...'
+    btn.disabled = true
+    const res = await fetch(`${API}/walmart/feed/preview`)
+    if (!res.ok) throw new Error(`Error ${res.status}`)
+    const d = await res.json()
+    window._wmPreviewData = d
+    const filasProblemas = d.items_con_problemas.slice(0, 50).map(it => `
+      <div style="padding:6px 10px;border-bottom:1px solid #f5f5f5;font-size:0.8rem">
+        <b>${it.producto}</b> · ${it.color} · talla ${it.talla} — <span style="color:#b45309">${it.problemas.join('; ')}</span>
+      </div>`).join('')
+    box.innerHTML = `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:0.75rem">
+        <div style="padding:0.6rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.82rem;color:#166534"><b>${d.listos_para_walmart}</b> listos</div>
+        <div style="padding:0.6rem 1rem;background:#fffbeb;border-radius:8px;font-size:0.82rem;color:#92400e"><b>${d.con_problemas}</b> con pendientes</div>
+        <div style="padding:0.6rem 1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem;color:#555"><b>${d.total}</b> variantes en total</div>
+      </div>
+      ${d.con_problemas ? `<div style="max-height:280px;overflow-y:auto;border:1px solid #eee;border-radius:8px">${filasProblemas}</div>` : ''}
+    `
+  } catch (e) {
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
+  }
+}
+
+window._wmDescargarPlantilla = async (btn) => {
+  const textoOriginal = btn.innerHTML
+  try {
+    btn.innerHTML = '⏳ Generando...'
+    btn.disabled = true
+    const res = await fetch(`${API}/walmart/feed/plantilla`)
+    if (!res.ok) { const txt = await res.text(); throw new Error(txt) }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `walmart_zapatos_${Date.now()}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    alert('Error al descargar la plantilla: ' + e.message)
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
+  }
+}
+
+window._wmSubirFeed = async (btn) => {
+  const total = window._wmPreviewData?.listos_para_walmart
+  const aviso = total
+    ? `Vas a subir ${total} variante(s) reales a Walmart (crea publicaciones nuevas). ¿Confirmas?`
+    : `Vas a subir el feed a Walmart (crea publicaciones reales). Te recomendamos revisar el catálogo primero. ¿Confirmas de todas formas?`
+  if (!confirm(aviso)) return
+  const textoOriginal = btn.innerHTML
+  const box = document.getElementById('wm-subir-resultado')
+  try {
+    btn.innerHTML = '⏳ Subiendo...'
+    btn.disabled = true
+    const res = await fetch(`${API}/walmart/feed/subir?confirmar=true`, { method: 'POST' })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
+    const feedId = d.respuesta?.feedId
+    box.innerHTML = `<div style="padding:0.8rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.84rem;color:#166534">
+      ${d.total_enviado} variante(s) enviadas. Feed ID: <b>${feedId || '(sin feedId en la respuesta)'}</b>
+      ${feedId ? `<br><a href="${API}/walmart/feed/${feedId}" target="_blank" style="color:${_WM_ACCENT}">Ver estado del feed</a>` : ''}
+    </div>`
+  } catch (e) {
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
+  }
+}
+
+window._wmSincronizarInventario = async (btn) => {
+  const textoOriginal = btn.innerHTML
+  const box = document.getElementById('wm-inv-resultado')
+  try {
+    btn.innerHTML = '⏳ Sincronizando...'
+    btn.disabled = true
+    const res = await fetch(`${API}/walmart/inventario/sincronizar`, { method: 'POST' })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
+    box.innerHTML = `<div style="padding:0.8rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.84rem;color:#166534">
+      Enviados ${d.enviados} de ${d.total_variantes} SKU(s) a Walmart.
+    </div>`
+  } catch (e) {
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
+  } finally {
+    btn.innerHTML = textoOriginal
+    btn.disabled = false
   }
 }
