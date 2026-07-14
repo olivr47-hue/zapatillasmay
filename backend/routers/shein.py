@@ -315,6 +315,24 @@ def _buscar_variante_por_seller_sku_shein(seller_sku: str):
     return None
 
 
+@router.get("/ordenes/diagnostico")
+def ordenes_diagnostico():
+    """Diagnóstico de solo lectura: trae la orden cruda de las últimas 47h para
+    entender por qué una orden se cuenta como "revisada" pero no se procesa
+    (ej. sellerSku vacío) -- no modifica nada."""
+    import datetime as _dt
+    ahora = _dt.datetime.utcnow() + _dt.timedelta(hours=8)
+    inicio = ahora - _dt.timedelta(hours=47)
+    fmt = "%Y-%m-%d %H:%M:%S"
+    lista = shein_post("/open-api/order/order-list", {
+        "queryType": 1, "startTime": inicio.strftime(fmt), "endTime": ahora.strftime(fmt),
+        "page": 1, "pageSize": 30,
+    })
+    order_nos = [o["orderNo"] for o in (lista.get("info") or {}).get("orderList", []) if o.get("orderNo")]
+    detalle = shein_post("/open-api/order/order-detail", {"orderNoList": order_nos}) if order_nos else None
+    return {"lista": lista, "detalle": detalle}
+
+
 def _hacer_sync_ventas_shein() -> dict:
     import datetime as _dt
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
@@ -370,6 +388,8 @@ def _hacer_sync_ventas_shein() -> dict:
             for g in orden.get("orderGoodsInfoList") or []:
                 seller_sku = (g.get("sellerSku") or "").strip()
                 if not seller_sku:
+                    resultado["sin_match"].append({"orden": order_id, "sku": "(vacío -- revisar goodsSn/skuCode del pedido)"})
+                    faltante = True
                     continue
                 variante = _buscar_variante_por_seller_sku_shein(seller_sku)
                 if not variante:

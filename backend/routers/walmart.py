@@ -191,7 +191,7 @@ def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
 def _hacer_sync_ventas_walmart() -> dict:
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
     try:
-        resp = walmart_get("/orders", params={"limit": 200})
+        resp = walmart_get("/orders", params={"limit": 100})
         # La API puede envolver la lista como {"order": [...]} (observado en
         # /ordenes/test) o como {"list": {"elements": {"order": [...]}}} según
         # la versión -- se soportan ambas formas por si acaso.
