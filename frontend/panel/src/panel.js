@@ -346,6 +346,46 @@ _arrancarPollCorreo()
 if (window._correoInterval) clearInterval(window._correoInterval)
 window._correoInterval = setInterval(_pollCorreoNoLeido, 45000)
 
+// ── Polling: preguntas de MercadoLibre sin responder ─────────────────
+const _ML_PREG_BADGE_KEY = 'zm_badge_preguntas_ml'
+let _ultimoConteoPreguntasML = null
+
+async function _pollPreguntasML() {
+  if (window._preguntasMlPollEnVuelo) return
+  window._preguntasMlPollEnVuelo = true
+  try {
+    const res = await fetch(API + '/ml/preguntas')
+    if (!res.ok) return
+    const data = await res.json()
+    const count = data.total || 0
+    localStorage.setItem(_ML_PREG_BADGE_KEY, count)
+    const badge = document.getElementById('badge-preguntas-ml')
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none' }
+
+    if (_ultimoConteoPreguntasML !== null && count > _ultimoConteoPreguntasML) {
+      _mostrarNotifPedido(`❓ Tienes preguntas nuevas sin responder en MercadoLibre`)
+    }
+    _ultimoConteoPreguntasML = count
+  } catch (e) {}
+  finally { window._preguntasMlPollEnVuelo = false }
+}
+
+function _arrancarPollPreguntasML() {
+  if (document.getElementById('badge-preguntas-ml')) {
+    const cached = parseInt(localStorage.getItem(_ML_PREG_BADGE_KEY) || '0', 10)
+    if (cached > 0) {
+      const badge = document.getElementById('badge-preguntas-ml')
+      if (badge) { badge.textContent = cached; badge.style.display = 'inline' }
+    }
+    _pollPreguntasML()
+  } else {
+    setTimeout(_arrancarPollPreguntasML, 400)
+  }
+}
+_arrancarPollPreguntasML()
+if (window._preguntasMlInterval) clearInterval(window._preguntasMlInterval)
+window._preguntasMlInterval = setInterval(_pollPreguntasML, 60000)
+
  window.navegarA = (id, _fromBack) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
     const modulo = modulos.find(m => m.id === id)
@@ -386,6 +426,7 @@ function renderNav() {
         ${m.label}
         ${m.id === 'pedidos' ? '<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'correo' ? '<span id="badge-correo-nuevo" style="display:none;background:#0d9488;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'mercadolibre' ? '<span id="badge-preguntas-ml" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
       </div>
     `).join('')}
   `).join('')}
@@ -18057,6 +18098,7 @@ const _mlBtn = (icon, label, onclick, variant = 'primary', id = '') => {
 const _ML_TABS = [
   { id: 'publicaciones', label: 'Publicaciones', icon: 'list' },
   { id: 'ventas',        label: 'Ventas',        icon: 'dollar' },
+  { id: 'preguntas',     label: 'Preguntas',     icon: 'message' },
   { id: 'mensajes',      label: 'Mensajes',       icon: 'message' },
   { id: 'reputacion',    label: 'Reputación',     icon: 'star' },
   { id: 'publicar',      label: 'Publicar nuevo', icon: 'plusCircle' },
@@ -18105,6 +18147,7 @@ window._mlSwitchTab = async (tab) => {
   </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
   if (tab === 'publicaciones')   await _mlRenderPublicacionesTab()
   else if (tab === 'ventas')     await _mlRenderVentasTab()
+  else if (tab === 'preguntas')  await _mlRenderPreguntasTab()
   else if (tab === 'mensajes')   await _mlRenderMensajesTab()
   else if (tab === 'reputacion') await _mlRenderReputacionTab()
   else if (tab === 'publicar')   await _mlRenderPublicarTab()
@@ -18345,6 +18388,7 @@ async function _mlRenderVentasTab() {
                 <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:right;color:#888">Total</th>
                 <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Status</th>
                 <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Fecha</th>
+                <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888">Guía</th>
               </tr>
             </thead>
             <tbody>
@@ -18355,6 +18399,7 @@ async function _mlRenderVentasTab() {
                   <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
                   <td style="padding:0.4rem 0.5rem"><span class="badge badge-success" style="font-size:0.72rem">${p.status}</span></td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+                  <td style="padding:0.4rem 0.5rem">${p.ml_order_id ? `<button onclick="window._mlImprimirGuia('${p.ml_order_id}',this)" style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;background:#fff;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-size:0.74rem;color:#444;font-family:inherit">🖨️ Guía</button>` : ''}</td>
                 </tr>`).join('')}
             </tbody>
           </table>
@@ -18388,6 +18433,102 @@ window._mlForzarSyncVentas = async (btn) => {
   }
   btn.innerHTML = orig
   btn.disabled = false
+}
+
+window._mlImprimirGuia = async (orderId, btn) => {
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳'
+  btn.disabled = true
+  try {
+    const res = await fetch(`${API}/ml/guia/${orderId}`)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.detail || `Error ${res.status}`)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
+  } catch (e) {
+    alert('No se pudo obtener la guía: ' + e.message)
+  } finally {
+    btn.innerHTML = orig
+    btn.disabled = false
+  }
+}
+
+// ─── Pestaña: Preguntas ──────────────────────────────────────────────────────
+async function _mlRenderPreguntasTab() {
+  const body = document.getElementById('ml-tab-body')
+  body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando preguntas...</p>'
+  try {
+    const res = await fetch(`${API}/ml/preguntas`)
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || 'no se pudo cargar')
+    window._mlPreguntas = d.preguntas
+    body.innerHTML = `
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.5rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:9px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">${_mlIcon('message', 17, '#3483fa')}</div>
+          <div>
+            <h3 style="margin:0 0 2px;font-size:1rem">Preguntas sin responder</h3>
+            <p style="font-size:0.82rem;color:#888;margin:0">Preguntas de compradores en tus publicaciones, antes de comprar. Se responden directo desde aquí.</p>
+          </div>
+        </div>
+      </div>
+      ${!d.preguntas.length ? `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+          No tienes preguntas pendientes.
+        </div>` : d.preguntas.map(p => `
+        <div id="ml-pregunta-${p.id}" style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem 1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:0.75rem">
+          <div style="display:flex;gap:10px;margin-bottom:0.6rem">
+            ${p.item_imagen ? `<img src="${p.item_imagen}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
+            <div style="min-width:0">
+              <p style="margin:0;font-size:0.78rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.item_titulo || p.item_id || ''}</p>
+              <p style="margin:2px 0 0;font-size:0.92rem;font-weight:600">${p.texto}</p>
+              <p style="margin:2px 0 0;font-size:0.72rem;color:#aaa">${p.fecha ? new Date(p.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input id="ml-resp-${p.id}" type="text" placeholder="Escribe tu respuesta..."
+                   style="flex:1;padding:0.5rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit"
+                   onkeydown="if(event.key==='Enter')window._mlResponderPregunta(${p.id})">
+            ${_mlBtn('send', 'Responder', `window._mlResponderPregunta(${p.id})`, 'primary', `ml-btn-resp-${p.id}`)}
+          </div>
+        </div>`).join('')}
+    `
+  } catch (e) {
+    body.innerHTML = `<p style="padding:2rem;color:red">Error cargando preguntas: ${e.message}</p>`
+  }
+}
+
+window._mlResponderPregunta = async (id) => {
+  const input = document.getElementById(`ml-resp-${id}`)
+  const texto = input.value.trim()
+  if (!texto) { input.focus(); return }
+  const btn = document.getElementById(`ml-btn-resp-${id}`)
+  const orig = btn.innerHTML
+  btn.innerHTML = '⏳'
+  btn.disabled = true
+  input.disabled = true
+  try {
+    const res = await fetch(`${API}/ml/preguntas/${id}/responder`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto })
+    })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || 'error al responder')
+    const card = document.getElementById(`ml-pregunta-${id}`)
+    if (card) { card.style.opacity = '0.5'; card.innerHTML += '<p style="margin:8px 0 0;color:#166534;font-size:0.82rem">✓ Respondida</p>' }
+    setTimeout(() => { if (card) card.remove() }, 1200)
+    _pollPreguntasML()
+  } catch (e) {
+    alert('No se pudo enviar la respuesta: ' + e.message)
+    btn.innerHTML = orig
+    btn.disabled = false
+    input.disabled = false
+  }
 }
 
 // ─── Pestaña: Mensajes ───────────────────────────────────────────────────────

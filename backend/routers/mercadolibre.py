@@ -7,7 +7,7 @@ Gestiona el token, busca publicaciones y sincroniza inventario.
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate
 
@@ -98,6 +98,15 @@ def ml_put(path: str, data: dict):
     except urllib.error.HTTPError as e:
         body_err = json.loads(e.read())
         return {"error": body_err.get("message", str(e)), "cause": body_err.get("cause")}
+
+def ml_post(path: str, data: dict):
+    body = json.dumps(data).encode()
+    req = urllib.request.Request(f"{ML_BASE}{path}", data=body, headers=ml_headers(), method="POST")
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=e.code, detail=json.loads(e.read()).get("message", str(e)))
 
 # ─── OAuth — obtener / renovar token ──────────────────────────────────────────
 
@@ -403,6 +412,69 @@ def detalle_item(item_id: str):
 def detalle_orden(order_id: str):
     """Devuelve el detalle completo de una orden de ML (para debug/backfill)."""
     return ml_get(f"/orders/{order_id}")
+
+
+@router.get("/guia/{order_id}")
+def descargar_guia(order_id: str):
+    """PDF de la guía de envío de una orden -- resuelve el shipment_id desde
+    la orden (orders.shipping.id) y pide el PDF a la Shipment Labels API."""
+    orden = ml_get(f"/orders/{order_id}")
+    shipment_id = (orden.get("shipping") or {}).get("id")
+    if not shipment_id:
+        raise HTTPException(404, "Esta orden no tiene envío de MercadoLibre asociado (¿es acordado o retiro en tienda?)")
+    req = urllib.request.Request(
+        f"{ML_BASE}/shipment_labels?shipment_ids={shipment_id}&response_type=pdf",
+        headers=ml_headers(),
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            pdf_bytes = r.read()
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode(errors="ignore")
+        raise HTTPException(e.code, f"Error al pedir la guía a MercadoLibre: {detalle}")
+    return Response(content=pdf_bytes, media_type="application/pdf",
+                     headers={"Content-Disposition": f'inline; filename="guia_{order_id}.pdf"'})
+
+
+# ─── Preguntas (Q&A pre-venta) ─────────────────────────────────────────────
+
+@router.get("/preguntas")
+def listar_preguntas(estado: str = "UNANSWERED"):
+    """Preguntas de compradores en las publicaciones -- GET /questions/search.
+    Por default solo las que faltan por responder."""
+    data = ml_get(f"/questions/search?seller_id={ML_USER_ID}&status={estado}&sort_fields=date_created&sort_types=DESC&limit=50")
+    preguntas = data.get("questions", [])
+    # Título/imagen del item para dar contexto (multiget en lotes de 20, límite de la API)
+    item_ids = list({p["item_id"] for p in preguntas if p.get("item_id")})
+    info_items: dict = {}
+    for i in range(0, len(item_ids), 20):
+        lote = item_ids[i:i + 20]
+        try:
+            resp = ml_get(f"/items?ids={','.join(lote)}&attributes=id,title,thumbnail")
+            for r in resp:
+                cuerpo = r.get("body") or {}
+                if cuerpo.get("id"):
+                    info_items[cuerpo["id"]] = {"titulo": cuerpo.get("title"), "imagen": cuerpo.get("thumbnail")}
+        except HTTPException:
+            pass
+    resultado = []
+    for p in preguntas:
+        info = info_items.get(p.get("item_id"), {})
+        resultado.append({
+            "id": p["id"], "texto": p.get("text"), "fecha": p.get("date_created"),
+            "item_id": p.get("item_id"), "item_titulo": info.get("titulo"), "item_imagen": info.get("imagen"),
+            "estado": p.get("status"),
+        })
+    return {"total": data.get("total", len(resultado)), "preguntas": resultado}
+
+
+@router.post("/preguntas/{pregunta_id}/responder")
+def responder_pregunta(pregunta_id: int, body: dict):
+    texto = (body.get("texto") or "").strip()
+    if not texto:
+        raise HTTPException(400, "Falta el texto de la respuesta")
+    return ml_post("/answers", {"question_id": pregunta_id, "text": texto})
+
 
 @router.get("/items")
 def listar_items():
