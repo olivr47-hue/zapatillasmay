@@ -317,6 +317,10 @@ def _variantes_publicables() -> list:
         "productos?activo=eq.true&categoria=neq.accesorios"
         "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal"
     )
+    # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
+    # en ningún canal externo, solo existen para uso interno del ERP.
+    productos = [p for p in productos if not _normalizar(p.get("nombre") or "").startswith("oferta")
+                 and not _normalizar(p.get("sku_interno") or "").startswith("oferta")]
     if not productos:
         return []
     ids_str   = ",".join(p["id"] for p in productos)

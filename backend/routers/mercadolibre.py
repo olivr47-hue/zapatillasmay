@@ -1775,6 +1775,10 @@ def _productos_sin_publicar() -> list:
     """Productos activos del ERP cuyo SKU no aparece en ninguna publicación
     activa de MercadoLibre todavía."""
     productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo")
+    # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
+    # en marketplaces externos, solo existen para uso interno del ERP.
+    productos = [p for p in productos if not (p.get("nombre") or "").strip().lower().startswith("oferta")
+                 and not (p.get("sku_interno") or "").strip().lower().startswith("oferta")]
     all_ids   = _get_all_item_ids()
     items     = _get_items_with_sku(all_ids)
     publicados_norm = set()

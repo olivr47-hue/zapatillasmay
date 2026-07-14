@@ -3835,6 +3835,9 @@ cargarConfigSEO()
         })
         productos = productos.filter(p => !_idsConVariantes.has(p.id) || _idsConStock.has(p.id))
       }
+      // Ocultar del sitio los modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc. --
+      // existen en el ERP para otros canales pero no deben verse ni comprarse desde la tienda).
+      productos = productos.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
       _construirIndicesFiltro()
       renderCategorias()
 

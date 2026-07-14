@@ -15,6 +15,15 @@ def _get_api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "")
 
 
+def _sin_oferta_interna(productos: list) -> list:
+    """Filtra del feed los modelos de uso interno (lotes "OFERTA250", "OFERTA200",
+    etc.) -- existen en el ERP para otros canales pero no deben indexarse ni
+    anunciarse en Google/Meta/TikTok/sitemap."""
+    def _es_oferta(p):
+        return re.match(r"^oferta", (p.get("nombre") or ""), re.I) or re.match(r"^oferta", (p.get("sku_interno") or ""), re.I)
+    return [p for p in productos if not _es_oferta(p)]
+
+
 def _img_web(url: str, w: int) -> str:
     """Optimiza imágenes de Cloudinary para la web (ancho específico, auto formato y calidad)."""
     u = (url or "").strip()
@@ -1129,7 +1138,7 @@ def sitemap():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre,meta_titulo,categoria")
+        productos = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,slug,sku_interno,updated_at,imagen_principal,nombre,meta_titulo,categoria"))
         categorias = list(set([p.get('categoria','') for p in supabase_get("productos?activo=eq.true&select=categoria") if p.get('categoria')]))
         # Mapeo de categoría → URL limpia
         _CAT_SLUG = {
@@ -1361,11 +1370,11 @@ def feed_json():
     if cached is not None:
         return Response(content=cached, media_type="application/json; charset=utf-8")
     try:
-        productos = supabase_get(
+        productos = _sin_oferta_interna(supabase_get(
             "productos?activo=eq.true&select=id,nombre,sku_interno,descripcion,categoria,"
             "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,"
             "imagen_principal,material,tallas_disponibles,tipo_tacon,altura_tacon"
-        )
+        ))
 
         # Fetch all active variants + inventory in one call each, group by producto_id
         variantes_raw = supabase_get(
@@ -1540,7 +1549,7 @@ def feed_meta():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        productos = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon"))
         variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
@@ -1816,7 +1825,7 @@ def feed_google():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon")
+        productos = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,slug,material,tipo_tacon,altura_tacon"))
         variantes = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,color_hex,foto_url,talla,imagenes")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
@@ -1967,7 +1976,7 @@ def feed_google_local():
     if cached is not None:
         return Response(content=cached, media_type="application/xml")
     try:
-        productos  = supabase_get("productos?activo=eq.true&select=id,sku_interno,precio_menudeo,es_oferta")
+        productos  = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,sku_interno,precio_menudeo,es_oferta"))
         variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,talla")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 
@@ -2033,7 +2042,7 @@ def feed_google_local():
 @router.get("/feed/tiktok.json")
 def feed_tiktok():
     try:
-        productos  = supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,material,tipo_tacon,altura_tacon")
+        productos  = _sin_oferta_interna(supabase_get("productos?activo=eq.true&select=id,nombre,descripcion,sku_interno,precio_menudeo,es_oferta,categoria,imagen_principal,material,tipo_tacon,altura_tacon"))
         variantes  = supabase_get_all("variantes?activa=eq.true&select=id,producto_id,color,foto_url,talla")
         inventario = supabase_get_all("inventario?select=variante_id,cantidad")
 

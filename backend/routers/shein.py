@@ -673,6 +673,10 @@ def _productos_sin_publicar_shein() -> list:
     catalogo completo" volveria a mandar duplicados de todo lo que sigue
     en cola de revision desde la corrida anterior."""
     productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo,precio_mayoreo6")
+    # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
+    # en marketplaces externos, solo existen para uso interno del ERP.
+    productos = [p for p in productos if not (p.get("nombre") or "").strip().lower().startswith("oferta")
+                 and not (p.get("sku_interno") or "").strip().lower().startswith("oferta")]
     publicados_norm = set()
     for item in _skus_shein_cached():
         sku = _norm_sku(item.get("supplierSku") or "")

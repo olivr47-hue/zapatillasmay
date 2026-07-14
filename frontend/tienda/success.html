@@ -439,6 +439,7 @@ if (!window.fbq){
       const r2 = await fetch(`${API}/productos?activo=eq.true&select=id,nombre,slug,precio_menudeo,imagen_principal&limit=6&order=id.desc`)
       if (r2.ok) prods = await r2.json()
     }
+    prods = prods.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
     if (!prods.length) return
     const grid = document.getElementById('crosssell-grid')
     grid.innerHTML = prods.slice(0,3).map(p => `

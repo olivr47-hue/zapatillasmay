@@ -240,7 +240,11 @@ async function entrar() {
       stockPorVar[i.variante_id] = (stockPorVar[i.variante_id] || 0) + (i.cantidad || 0)
     })
     state.data = {
-      productos: (Array.isArray(productos) ? productos : []).filter(p => p.activo).map(p => normalizarProducto(p)),
+      // Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se ofrecen
+      // a clientes mayoristas, aunque existan en el ERP para otros canales.
+      productos: (Array.isArray(productos) ? productos : [])
+        .filter(p => p.activo && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
+        .map(p => normalizarProducto(p)),
       variantes: Array.isArray(variantes) ? variantes : [],
       stockPorVar,
     }

@@ -851,6 +851,11 @@ async function init() {
       if (!prods || !prods.length) { window.location.href = '/'; return }
       producto = prods[0]
     }
+    // Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no deben verse
+    // en la tienda ni por link directo, aunque el backend sí los devuelva.
+    if (/^oferta/i.test(producto?.nombre || '') || /^oferta/i.test(producto?.sku_interno || '')) {
+      window.location.href = '/'; return
+    }
 
     renderProducto()
     cargarSimilares()
