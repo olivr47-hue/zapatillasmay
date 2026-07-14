@@ -366,6 +366,7 @@ async function _pollPreguntasML() {
       _mostrarNotifPedido(`❓ Tienes preguntas nuevas sin responder en MercadoLibre`)
     }
     _ultimoConteoPreguntasML = count
+    window._mlPreguntasPendientes = count
   } catch (e) {}
   finally { window._preguntasMlPollEnVuelo = false }
 }
@@ -385,6 +386,76 @@ function _arrancarPollPreguntasML() {
 _arrancarPollPreguntasML()
 if (window._preguntasMlInterval) clearInterval(window._preguntasMlInterval)
 window._preguntasMlInterval = setInterval(_pollPreguntasML, 60000)
+
+// ── Polling: catálogo pendiente de publicar en SHEIN ──────────────────
+const _SHEIN_PEND_BADGE_KEY = 'zm_badge_pendientes_shein'
+
+async function _pollPendientesShein() {
+  if (window._pendientesSheinPollEnVuelo) return
+  window._pendientesSheinPollEnVuelo = true
+  try {
+    const res = await fetch(API + '/shein/catalogo-sin-publicar')
+    if (!res.ok) return
+    const data = await res.json()
+    const count = data.escaneando ? 0 : (data.total || 0)
+    localStorage.setItem(_SHEIN_PEND_BADGE_KEY, count)
+    const badge = document.getElementById('badge-pendientes-shein')
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none' }
+    window._sheinPendientes = count
+  } catch (e) {}
+  finally { window._pendientesSheinPollEnVuelo = false }
+}
+
+function _arrancarPollPendientesShein() {
+  if (document.getElementById('badge-pendientes-shein')) {
+    const cached = parseInt(localStorage.getItem(_SHEIN_PEND_BADGE_KEY) || '0', 10)
+    if (cached > 0) {
+      const badge = document.getElementById('badge-pendientes-shein')
+      if (badge) { badge.textContent = cached; badge.style.display = 'inline' }
+    }
+    _pollPendientesShein()
+  } else {
+    setTimeout(_arrancarPollPendientesShein, 400)
+  }
+}
+_arrancarPollPendientesShein()
+if (window._pendientesSheinInterval) clearInterval(window._pendientesSheinInterval)
+window._pendientesSheinInterval = setInterval(_pollPendientesShein, 90000)
+
+// ── Polling: catálogo pendiente de publicar en Walmart ────────────────
+const _WM_PEND_BADGE_KEY = 'zm_badge_pendientes_walmart'
+
+async function _pollPendientesWalmart() {
+  if (window._pendientesWalmartPollEnVuelo) return
+  window._pendientesWalmartPollEnVuelo = true
+  try {
+    const res = await fetch(API + '/walmart/catalogo-sin-publicar')
+    if (!res.ok) return
+    const data = await res.json()
+    const count = data.total || 0
+    localStorage.setItem(_WM_PEND_BADGE_KEY, count)
+    const badge = document.getElementById('badge-pendientes-walmart')
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? 'inline' : 'none' }
+    window._wmPendientesGlobal = count
+  } catch (e) {}
+  finally { window._pendientesWalmartPollEnVuelo = false }
+}
+
+function _arrancarPollPendientesWalmart() {
+  if (document.getElementById('badge-pendientes-walmart')) {
+    const cached = parseInt(localStorage.getItem(_WM_PEND_BADGE_KEY) || '0', 10)
+    if (cached > 0) {
+      const badge = document.getElementById('badge-pendientes-walmart')
+      if (badge) { badge.textContent = cached; badge.style.display = 'inline' }
+    }
+    _pollPendientesWalmart()
+  } else {
+    setTimeout(_arrancarPollPendientesWalmart, 400)
+  }
+}
+_arrancarPollPendientesWalmart()
+if (window._pendientesWalmartInterval) clearInterval(window._pendientesWalmartInterval)
+window._pendientesWalmartInterval = setInterval(_pollPendientesWalmart, 90000)
 
  window.navegarA = (id, _fromBack) => {
     const esAdmin = window._empleadoActual?.rol === 'admin'
@@ -427,6 +498,8 @@ function renderNav() {
         ${m.id === 'pedidos' ? '<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'correo' ? '<span id="badge-correo-nuevo" style="display:none;background:#0d9488;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'mercadolibre' ? '<span id="badge-preguntas-ml" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'shein' ? '<span id="badge-pendientes-shein" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'walmart' ? '<span id="badge-pendientes-walmart" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
       </div>
     `).join('')}
   `).join('')}
@@ -18129,7 +18202,9 @@ async function cargarMercadoLibre() {
       <div id="ml-tab-body"></div>
     </div>
   `
-  window._mlSwitchTab('publicaciones')
+  // Si hay preguntas sin responder, abrir directo esa pestaña en vez de Publicaciones.
+  const pendientes = window._mlPreguntasPendientes ?? parseInt(localStorage.getItem('zm_badge_preguntas_ml') || '0', 10)
+  window._mlSwitchTab(pendientes > 0 ? 'preguntas' : 'publicaciones')
 }
 
 window._mlSwitchTab = async (tab) => {
