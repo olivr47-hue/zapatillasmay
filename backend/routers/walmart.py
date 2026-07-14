@@ -15,7 +15,7 @@ import os, json, time, uuid, base64, io, shutil
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from database import supabase_get_all
+from database import supabase_get_all, supabase_post
 
 router = APIRouter(prefix="/walmart", tags=["Walmart"])
 
@@ -378,6 +378,51 @@ def _validar_fila(item: dict) -> list:
     return problemas
 
 
+def _productos_pendientes_walmart() -> list:
+    """Agrupa _variantes_publicables() por producto y excluye los que ya
+    tienen un registro exitoso en `walmart_publicaciones` -- mismo patrón que
+    _productos_sin_publicar_shein() -- para que "publicar catálogo" solo
+    ofrezca modelos nuevos, no reenvíe todo cada vez."""
+    items = _variantes_publicables()
+    ya_enviados_ids = {
+        r["producto_id"] for r in supabase_get_all("walmart_publicaciones?exito=eq.true&select=producto_id")
+    }
+    por_producto: dict = {}
+    for it in items:
+        pid = it["producto"]["id"]
+        if pid in ya_enviados_ids:
+            continue
+        grupo = por_producto.setdefault(pid, {"producto": it["producto"], "items": []})
+        grupo["items"].append(it)
+    return list(por_producto.values())
+
+
+@router.get("/catalogo-sin-publicar")
+def catalogo_sin_publicar():
+    """Lista de productos del ERP que todavía no se han enviado (con éxito) a
+    Walmart, con el detalle de si están listos o tienen pendientes -- para
+    publicar de a uno o varios desde el panel, igual que en MercadoLibre/SHEIN."""
+    grupos = _productos_pendientes_walmart()
+    resultado = []
+    for g in grupos:
+        problemas_por_item = [_validar_fila(it) for it in g["items"]]
+        listo = all(not p for p in problemas_por_item)
+        problemas_unicos = sorted({p for lista in problemas_por_item for p in lista})
+        colores = sorted({it["variante"].get("color") for it in g["items"] if it["variante"].get("color")})
+        resultado.append({
+            "id": g["producto"]["id"],
+            "sku_interno": g["producto"].get("sku_interno"),
+            "nombre": g["producto"].get("nombre"),
+            "categoria": g["producto"].get("categoria"),
+            "num_variantes": len(g["items"]),
+            "num_colores": len(colores),
+            "listo": listo,
+            "problemas": problemas_unicos,
+        })
+    resultado.sort(key=lambda p: (not p["listo"], p["nombre"] or ""))
+    return {"total": len(resultado), "listos": sum(1 for p in resultado if p["listo"]), "productos": resultado}
+
+
 @router.get("/feed/preview")
 def feed_preview():
     """Dry-run: arma las filas del feed en memoria SIN tocar Walmart, para
@@ -465,8 +510,37 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
     if not items:
         raise HTTPException(400, "No hay variantes listas para incluir en el feed")
     contenido = _generar_workbook(items)
-    resp = walmart_post_file("/feeds", {"feedType": "item"}, "walmart_zapatos.xlsx", contenido)
+    try:
+        resp = walmart_post_file("/feeds", {"feedType": "item"}, "walmart_zapatos.xlsx", contenido)
+    except HTTPException as e:
+        _registrar_publicaciones(items, exito=False, feed_id=None, error=str(e.detail)[:2000])
+        raise
+    feed_id = resp.get("feedId")
+    # Registro PERSISTENTE de que estos productos ya se mandaron a Walmart --
+    # así "publicar catálogo pendiente" no los vuelve a ofrecer la próxima vez
+    # (mismo patrón que shein_publicaciones). "Éxito" aquí es "Walmart aceptó
+    # el feed para procesar", no "ya está aprobado" -- eso se confirma aparte
+    # con GET /walmart/feed/{feed_id}.
+    _registrar_publicaciones(items, exito=True, feed_id=feed_id, error=None)
     return {"total_enviado": len(items), "skus_enviados": [it["variante"]["sku"] for it in items], "respuesta": resp}
+
+
+def _registrar_publicaciones(items: list, exito: bool, feed_id: str, error: str):
+    productos_unicos = {}
+    for it in items:
+        productos_unicos[it["producto"]["id"]] = it["producto"]
+    for pid, producto in productos_unicos.items():
+        try:
+            supabase_post("walmart_publicaciones", {
+                "producto_id": pid,
+                "sku_interno": producto.get("sku_interno"),
+                "exito": exito,
+                "error": error,
+                "feed_id": feed_id,
+                "origen": "individual" if len(productos_unicos) == 1 else "masivo",
+            })
+        except Exception as e:
+            print(f"[walmart] No se pudo guardar registro de publicacion (no critico): {e}")
 
 
 @router.get("/feed/{feed_id}")
