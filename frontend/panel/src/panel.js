@@ -22388,12 +22388,8 @@ async function cargarWalmart() {
         <div id="wm-preview-resultado"><p style="color:#aaa;font-size:0.85rem;margin:0">Sin revisar todavía.</p></div>
       `)}
 
-      ${_wmCard('Generar y subir productos', 'Descarga la plantilla oficial ya llena para revisarla/subirla tú mismo, o súbela directo a Walmart por API.', `
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${_wmBtn('⬇️ Descargar plantilla llena', 'window._wmDescargarPlantilla(this)', 'secondary', 'wm-btn-plantilla')}
-          ${_wmBtn('🚀 Subir a Walmart', 'window._wmSubirFeed(this)', 'warning', 'wm-btn-subir')}
-        </div>
-        <div id="wm-subir-resultado" style="margin-top:1rem"></div>
+      ${_wmCard('Publicar catálogo', 'Modelos que todavía no se han enviado a Walmart. Se marcan como enviados en cuanto los publicas, así que la próxima vez solo aparecen los modelos nuevos.', `
+        <div id="wm-catalogo-pendiente"><p style="color:#aaa;font-size:0.85rem;margin:0">Buscando modelos sin publicar...</p></div>
       `)}
 
       ${_wmCard('Sincronizar inventario', 'Actualiza en Walmart la cantidad disponible de los SKUs que ya están publicados ahí. No crea ni modifica publicaciones.', `
@@ -22405,6 +22401,7 @@ async function cargarWalmart() {
     </div>
   `
   window._wmCargarEstado()
+  window._wmCargarCatalogoPendiente()
 }
 
 window._wmCargarEstado = async () => {
@@ -22482,31 +22479,98 @@ window._wmDescargarPlantilla = async (btn) => {
   }
 }
 
-window._wmSubirFeed = async (btn) => {
-  const total = window._wmPreviewData?.listos_para_walmart
-  const aviso = total
-    ? `Vas a subir ${total} variante(s) reales a Walmart (crea publicaciones nuevas). ¿Confirmas?`
-    : `Vas a subir el feed a Walmart (crea publicaciones reales). Te recomendamos revisar el catálogo primero. ¿Confirmas de todas formas?`
-  if (!confirm(aviso)) return
-  const textoOriginal = btn.innerHTML
-  const box = document.getElementById('wm-subir-resultado')
+window._wmCargarCatalogoPendiente = async () => {
+  const box = document.getElementById('wm-catalogo-pendiente')
+  if (!box) return
   try {
-    btn.innerHTML = '⏳ Subiendo...'
-    btn.disabled = true
-    const res = await fetch(`${API}/walmart/feed/subir?confirmar=true`, { method: 'POST' })
+    const res = await fetch(`${API}/walmart/catalogo-sin-publicar`)
     const d = await res.json()
     if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
-    const feedId = d.respuesta?.feedId
-    box.innerHTML = `<div style="padding:0.8rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.84rem;color:#166534">
-      ${d.total_enviado} variante(s) enviadas. Feed ID: <b>${feedId || '(sin feedId en la respuesta)'}</b>
-      ${feedId ? `<br><a href="${API}/walmart/feed/${feedId}" target="_blank" style="color:${_WM_ACCENT}">Ver estado del feed</a>` : ''}
-    </div>`
+    window._wmPendientes = d.productos
+    window._wmSeleccion = new Set(d.productos.filter(p => p.listo).map(p => p.id))
+    if (!d.total) {
+      box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#f0fdf4;border-radius:10px;color:#166534;font-size:0.86rem">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></span>
+          Ya enviaste todo tu catálogo activo a Walmart.
+        </div>
+        <div style="margin-top:0.75rem">${_wmBtn('⬇️ Descargar plantilla llena (todo el catálogo)', 'window._wmDescargarPlantilla(this)', 'secondary', 'wm-btn-plantilla')}</div>`
+      return
+    }
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
+        <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar en Walmart — <b>${d.listos}</b> ya están listos y vienen marcados por default.</p>
+        ${_wmBtn('🚀 Publicar seleccionados', 'window._wmPublicarSeleccionados()', 'primary', 'wm-btn-publicar-sel')}
+      </div>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
+        <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(true)">Seleccionar todos</label>
+        <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(false)">Ninguno</label>
+        <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelSoloListos()">Solo listos</label>
+        <span id="wm-catalogo-contador" style="color:#888;margin-left:auto">${window._wmSeleccion.size} de ${d.total} seleccionados</span>
+      </div>
+      <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
+        ${d.productos.map(p => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f5f5f5;font-size:0.82rem">
+            <input type="checkbox" ${p.listo ? 'checked' : ''} data-wm-prod="${p.id}" onchange="window._wmToggle('${p.id}',this.checked)">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nombre || '(sin nombre)'} <span style="color:#aaa">· ${p.sku_interno || ''}</span></span>
+            <span style="color:#888;white-space:nowrap">${p.num_variantes} SKU${p.num_variantes===1?'':'s'} · ${p.num_colores} color${p.num_colores===1?'':'es'}</span>
+            ${p.listo
+              ? `<span style="background:#f0fdf4;color:#166534;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap">Listo</span>`
+              : `<span title="${p.problemas.join('; ')}" style="background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:100px;white-space:nowrap;cursor:help">${p.problemas.length} pendiente${p.problemas.length===1?'':'s'}</span>`}
+            <span id="wm-estado-prod-${p.id}"></span>
+          </div>`).join('')}
+      </div>
+      <div style="margin-top:0.75rem">${_wmBtn('⬇️ Descargar plantilla llena (todo el catálogo)', 'window._wmDescargarPlantilla(this)', 'secondary', 'wm-btn-plantilla')}</div>
+    `
   } catch (e) {
-    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
-  } finally {
-    btn.innerHTML = textoOriginal
-    btn.disabled = false
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error al cargar catálogo pendiente: ${e.message}</p>`
   }
+}
+
+window._wmToggle = (id, checked) => {
+  if (checked) window._wmSeleccion.add(id); else window._wmSeleccion.delete(id)
+  const c = document.getElementById('wm-catalogo-contador')
+  if (c) c.textContent = `${window._wmSeleccion.size} de ${window._wmPendientes.length} seleccionados`
+}
+window._wmSelTodos = (val) => {
+  window._wmSeleccion = new Set(val ? window._wmPendientes.map(p => p.id) : [])
+  document.querySelectorAll('[data-wm-prod]').forEach(el => { el.checked = val })
+  const c = document.getElementById('wm-catalogo-contador')
+  if (c) c.textContent = `${window._wmSeleccion.size} de ${window._wmPendientes.length} seleccionados`
+}
+window._wmSelSoloListos = () => {
+  window._wmSeleccion = new Set(window._wmPendientes.filter(p => p.listo).map(p => p.id))
+  document.querySelectorAll('[data-wm-prod]').forEach(el => { el.checked = window._wmSeleccion.has(el.dataset.wmProd) })
+  const c = document.getElementById('wm-catalogo-contador')
+  if (c) c.textContent = `${window._wmSeleccion.size} de ${window._wmPendientes.length} seleccionados`
+}
+
+window._wmPublicarSeleccionados = async () => {
+  const ids = [...window._wmSeleccion]
+  if (!ids.length) { alert('No seleccionaste ningún producto.'); return }
+  const productos = window._wmPendientes.filter(p => ids.includes(p.id))
+  if (!confirm(`Vas a publicar ${productos.length} modelo(s) reales en Walmart. ¿Confirmas?`)) return
+  const btn = document.getElementById('wm-btn-publicar-sel')
+  const textoOriginal = btn ? btn.innerHTML : ''
+  if (btn) { btn.innerHTML = '⏳ Publicando...'; btn.disabled = true }
+  let ok = 0, err = 0
+  for (const p of productos) {
+    const estadoEl = document.getElementById(`wm-estado-prod-${p.id}`)
+    if (estadoEl) estadoEl.textContent = '⏳'
+    try {
+      const res = await fetch(`${API}/walmart/feed/subir?confirmar=true&sku_interno=${encodeURIComponent(p.sku_interno)}`, { method: 'POST' })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.detail || JSON.stringify(d))
+      ok++
+      if (estadoEl) estadoEl.innerHTML = `<span title="Feed ID: ${d.respuesta?.feedId || '-'}" style="color:#16a34a">✓ enviado</span>`
+    } catch (e) {
+      err++
+      if (estadoEl) estadoEl.innerHTML = `<span title="${e.message}" style="color:#dc2626;cursor:help">✗ error</span>`
+    }
+  }
+  if (btn) { btn.innerHTML = textoOriginal; btn.disabled = false }
+  alert(`Publicación terminada: ${ok} exitosos, ${err} con error.`)
+  window._wmCargarCatalogoPendiente()
 }
 
 window._wmSincronizarInventario = async (btn) => {
