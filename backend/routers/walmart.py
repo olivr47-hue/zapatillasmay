@@ -155,6 +155,18 @@ def walmart_ping():
     return {"ok": True, "respuesta": resp}
 
 
+@router.get("/ordenes/test")
+def walmart_ordenes_test():
+    """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
+    habilitado antes de construir la sincronización real de ventas -- no toca
+    nada, solo pide 1 orden reciente."""
+    try:
+        resp = walmart_get("/orders", params={"limit": 1})
+        return {"ok": True, "respuesta": resp}
+    except HTTPException as e:
+        return {"ok": False, "error": e.detail}
+
+
 # ─── Feed "Zapatos" — carga sin UPC (folio Walmart 15476267) ──────────────────
 # Walmart activó la carga sin UPC solo para la categoría/subcategoría Zapatos y
 # confirmó por escrito que "la carga sin UPC se puede realizar únicamente a
