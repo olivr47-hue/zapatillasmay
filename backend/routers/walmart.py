@@ -24,6 +24,14 @@ WALMART_CLIENT_ID     = os.getenv("WALMART_CLIENT_ID", "")
 WALMART_CLIENT_SECRET = os.getenv("WALMART_CLIENT_SECRET", "")
 WALMART_BASE          = "https://marketplace.walmartapis.com/v3"
 WALMART_MARKET        = "mx"
+# Header obligatorio en las APIs V3 (incluye Feeds) que faltaba por completo --
+# sin él, Walmart responde REQUEST_CONTENT_DEPRECATED_VERSION.GMP_GATEWAY_API
+# ("estás en el flujo de integración deprecado"). Para integradores directos
+# (no Solution Provider delegado -- confirmado que esta cuenta es directa,
+# API Keys no muestra un Channel Type propio) Walmart documenta este valor
+# genérico. Si Walmart llega a asignar uno específico a la cuenta, se puede
+# sobreescribir con la env var sin tocar código.
+WALMART_CHANNEL_TYPE  = os.getenv("WALMART_CHANNEL_TYPE", "0f3e4dd4-0514-4346-b39d-af0e00ea066d")
 
 _token_cache = {"token": "", "expires_at": 0.0}
 
@@ -66,11 +74,12 @@ def _walmart_get_token() -> str:
 
 def _walmart_headers(extra: dict = None) -> dict:
     headers = {
-        "WM_SEC.ACCESS_TOKEN":     _walmart_get_token(),
-        "WM_SVC.NAME":             "Walmart Marketplace",
-        "WM_QOS.CORRELATION_ID":   str(uuid.uuid4()),
-        "WM_MARKET":               WALMART_MARKET,
-        "Accept":                  "application/json",
+        "WM_SEC.ACCESS_TOKEN":       _walmart_get_token(),
+        "WM_SVC.NAME":               "Walmart Marketplace",
+        "WM_QOS.CORRELATION_ID":     str(uuid.uuid4()),
+        "WM_MARKET":                 WALMART_MARKET,
+        "WM_CONSUMER.CHANNEL.TYPE":  WALMART_CHANNEL_TYPE,
+        "Accept":                    "application/json",
     }
     if extra:
         headers.update(extra)
