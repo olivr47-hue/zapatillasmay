@@ -343,6 +343,15 @@ def _variantes_publicables() -> list:
         producto = productos_por_id.get(pid)
         if not producto or not producto.get("sku_interno"):
             continue
+        # Fotos únicas del color (mismo criterio que /ml/catalogo-sin-publicar: se
+        # exigen 3+ fotos por color, no solo "alguna" foto).
+        fotos_color: set = set()
+        for v in vs:
+            fotos_color.update(u for u in (v.get("imagenes") or []) if u)
+            if v.get("foto_url"):
+                fotos_color.add(v["foto_url"])
+        if not fotos_color and producto.get("imagen_principal"):
+            fotos_color.add(producto["imagen_principal"])
         vs_ordenadas = sorted(vs, key=lambda v: _talla_display(v.get("talla")))
         for i, v in enumerate(vs_ordenadas):
             resultado.append({
@@ -350,6 +359,7 @@ def _variantes_publicables() -> list:
                 "variante": v,
                 "es_primaria": i == 0,
                 "stock": stock_por_variante.get(v["id"], 0),
+                "num_fotos_color": len(fotos_color),
             })
     return resultado
 
@@ -365,11 +375,12 @@ def _validar_fila(item: dict) -> list:
         problemas.append("variante sin color")
     if not v.get("talla"):
         problemas.append("variante sin talla")
-    fotos = list(v.get("imagenes") or [])
-    if not fotos and v.get("foto_url"):
-        fotos = [v["foto_url"]]
-    if not fotos and not p.get("imagen_principal"):
+    # Mismo mínimo que /ml/catalogo-sin-publicar: 3+ fotos por color, no solo "alguna" foto.
+    num_fotos = item.get("num_fotos_color", 0)
+    if num_fotos == 0:
         problemas.append("sin fotos (ni de la variante ni del producto)")
+    elif num_fotos < 3:
+        problemas.append(f"solo {num_fotos} foto(s) en este color -- Walmart pide 3+")
     if not float(p.get("precio_menudeo") or 0):
         problemas.append("precio_menudeo vacío o 0")
     talla_w = f"{_talla_display(v.get('talla'))} (MX)"

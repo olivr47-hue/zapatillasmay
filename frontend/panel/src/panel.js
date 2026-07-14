@@ -22505,7 +22505,7 @@ window._wmCargarCatalogoPendiente = async () => {
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(true)">Seleccionar todos</label>
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(false)">Ninguno</label>
-        <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelSoloListos()">Solo listos</label>
+        <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelSoloListos()">Solo con 3+ fotos por color</label>
         <span id="wm-catalogo-contador" style="color:#888;margin-left:auto">${window._wmSeleccion.size} de ${d.total} seleccionados</span>
       </div>
       <div style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px">
