@@ -319,10 +319,21 @@ def _seller_sku_desde_sku_code_shein(sku_code: str) -> str:
     """Fallback para cuando el pedido no trae sellerSku (confirmado con una venta
     real: SHEIN a veces regresa "sellerSku": "" en orderGoodsInfoList) -- usa el
     mismo mapeo skuCode->supplierSku que ya arma _skus_shein_cached() para el
-    catálogo publicado."""
+    catálogo publicado. IMPORTANTE: lee solo la caché ya tibia -- nunca dispara
+    el escaneo en frío (_skus_shein() tarda varios minutos y colgaría el sync
+    de ventas, que debe correr rápido y seguido). Si la caché no está lista,
+    se dispara el calentamiento en background y este pedido queda pendiente
+    para la siguiente corrida."""
     if not sku_code:
         return ""
-    for item in _skus_shein_cached():
+    publicados = cache_get("shein_skus_publicados")
+    if publicados is None:
+        if not cache_get("shein_skus_escaneando"):
+            cache_set("shein_skus_escaneando", True, ttl=600)
+            import threading
+            threading.Thread(target=_hacer_escaneo_skus_shein, daemon=True).start()
+        return ""
+    for item in publicados:
         if item.get("skuCode") == sku_code:
             return item.get("supplierSku") or ""
     return ""
