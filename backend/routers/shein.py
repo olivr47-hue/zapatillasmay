@@ -284,6 +284,28 @@ def ping():
         return {"ok": False, "error": e.detail}
 
 
+@router.get("/ordenes/test")
+def ordenes_test():
+    """Diagnóstico de solo lectura: prueba si existe un módulo de órdenes
+    accesible para este vendedor semi-managed, antes de construir la
+    sincronización real de ventas -- no modifica nada. Prueba varios paths
+    plausibles del Open Platform ya que la doc no es pública sin sesión."""
+    intentos = [
+        "/open-api/order/list",
+        "/open-api/order/get-order-list",
+        "/order-management/order/queryOrderList",
+        "/open-api/order/query",
+    ]
+    resultados = []
+    for path in intentos:
+        try:
+            resp = shein_get(path, params={"page": 1, "pageSize": 1})
+            resultados.append({"path": path, "ok": True, "respuesta": resp})
+        except HTTPException as e:
+            resultados.append({"path": path, "ok": False, "error": e.detail})
+    return {"intentos": resultados}
+
+
 # ─── Endpoints de diagnóstico (necesarios antes de poder publicar bien) ─────
 
 @router.get("/category-tree")
