@@ -357,6 +357,22 @@ def ordenes_diagnostico():
     return {"lista": lista, "detalle": detalle}
 
 
+@router.get("/ordenes/diagnostico-mapeo")
+def ordenes_diagnostico_mapeo(sku_code: str = None, goods_sn: str = None):
+    """Diagnóstico de solo lectura: revisa el contenido de la caché
+    skuCode->supplierSku para entender por qué un skuCode de una orden real
+    no hace match contra el catálogo publicado."""
+    publicados = cache_get("shein_skus_publicados")
+    if publicados is None:
+        return {"cache": "fría (None) -- todavía no ha terminado de calentar"}
+    resultado = {"total_en_cache": len(publicados), "muestra": publicados[:5]}
+    if sku_code:
+        resultado["match_sku_code"] = [p for p in publicados if p.get("skuCode") == sku_code]
+    if goods_sn:
+        resultado["match_spu_name_contiene"] = [p for p in publicados if goods_sn.lower() in (p.get("spuName") or "").lower()]
+    return resultado
+
+
 def _hacer_sync_ventas_shein() -> dict:
     import datetime as _dt
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
