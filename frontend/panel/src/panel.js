@@ -5945,14 +5945,18 @@ document.querySelectorAll('.variante-item').forEach(v => {
       if (!pid) console.error('[Variantes] ERROR: pid es null, no se crearán variantes')
       if (variantesData.length === 0) console.error('[Variantes] ERROR: variantesData vacío, no se crearán variantes (¿colores sin nombre?)')
       if (pid && variantesData.length > 0) {
-  const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
+  // Al crear un producto nuevo sin ninguna talla marcada, 'Unica' es un default razonable.
+  // Al EDITAR, si el usuario destildó todo a propósito, hay que respetarlo -- no reintroducir 'Unica'.
+  const tallasGuardar = tallas.length > 0 ? tallas : (window._productoEditandoId ? [] : ['Unica'])
   console.log(`[Variantes] pid=${pid} | colores=${variantesData.length} | tallas=${tallasGuardar.length}:`, tallasGuardar)
 
   // Si estamos editando, obtener variantes existentes
+  let varsExistentesOriginal = []
   let varsExistentes = []
   if (window._productoEditandoId) {
     const resVars = await fetch(API + '/variantes/producto/' + pid)
-    varsExistentes = await resVars.json()
+    varsExistentesOriginal = await resVars.json()
+    varsExistentes = varsExistentesOriginal
     console.log(`[Variantes] Existentes en DB: ${varsExistentes.length}`)
     if (window._coloresEliminados && window._coloresEliminados.length > 0) {
   varsExistentes = varsExistentes.filter(v => !window._coloresEliminados.includes(v.color))
@@ -6006,6 +6010,25 @@ for (const v of variantesData) {
 }
   }
 }
+// Desactivar variantes existentes cuya talla/color ya NO está en la selección actual
+// (antes solo se creaban/actualizaban variantes, nunca se apagaban las que el usuario quitó
+// del checklist -- por eso una talla destildada "reaparecía" al reabrir el producto).
+if (window._productoEditandoId) {
+  const clave = (color, talla) => color.trim().toLowerCase() + '|' + talla
+  const clavesDeseadas = new Set()
+  variantesData.forEach(v => tallasGuardar.forEach(t => clavesDeseadas.add(clave(v.color, t))))
+  for (const ve of varsExistentesOriginal) {
+    if (ve.activa === false) continue
+    if (!clavesDeseadas.has(clave(ve.color, ve.talla))) {
+      console.log(`[Variantes] DESACTIVAR: ${ve.color} T${ve.talla} → ${ve.id}`)
+      promesas.push(fetch(API + '/variantes/' + ve.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activa: false })
+      }))
+    }
+  }
+}
 await Promise.all(promesas)
 if (erroresVariante.length > 0) {
   console.warn('Variantes con error:', erroresVariante)
@@ -6017,7 +6040,7 @@ console.log('Tallas:', tallas)
 const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
 // Verificar si hay cantidades capturadas en la tabla (aunque sea una)
 const hayStockCapturado = colores.some(c =>
-  (tallas.length > 0 ? tallas : ['Unica']).some(t => {
+  (tallas.length > 0 ? tallas : (window._productoEditandoId ? [] : ['Unica'])).some(t => {
     const el = document.getElementById('stock-ini-' + c.id + '-' + t.replace('.','_'))
     return el && parseInt(el.value) > 0
   })
@@ -6030,8 +6053,6 @@ let stockSaltados = []
 if (hayStockCapturado && !sucursalStock) {
   alert('⚠️ Capturaste cantidades de stock pero no hay sucursal seleccionada.\nEl producto se guardó, pero el inventario NO se guardó.\n\nVe a Inventario → Reabastecer para agregar las cantidades.')
 } else if (sucursalStock && pid) {
-  const tallasGuardar = tallas.length > 0 ? tallas : ['Unica']
-
   // Las variantes ya están guardadas (await Promise.all arriba): obtener IDs una sola vez
   const varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
 
