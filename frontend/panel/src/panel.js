@@ -8808,6 +8808,7 @@ async function cargarPOS() {
   </select>
 </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap" id="pos-categorias">
+              <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem;color:#16a34a;border-color:#16a34a" onclick="filtrarPOSNuevos()">✨ Nuevos</button>
               <button class="btn btn-primary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('')">Todos</button>
               ${[...new Set(productos.map(p => p.categoria).filter(Boolean))].map(c => `
                 <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="filtrarPOS('${c}')">${c.charAt(0).toUpperCase() + c.slice(1)}</button>
@@ -9261,6 +9262,18 @@ window.filtrarPOS = (categoria) => {
   const { productos } = window._posData
   const filtrados = categoria ? productos.filter(p => p.categoria === categoria) : productos
   renderProductosPOS(filtrados)
+
+  document.querySelectorAll('#pos-categorias button').forEach(btn => {
+    btn.className = 'btn btn-secondary'
+    btn.style.cssText = 'padding:4px 12px;font-size:0.8rem'
+  })
+  event.target.className = 'btn btn-primary'
+  event.target.style.cssText = 'padding:4px 12px;font-size:0.8rem'
+}
+
+window.filtrarPOSNuevos = () => {
+  const { productos } = window._posData
+  renderProductosPOS(productos.filter(p => p.nuevo))
 
   document.querySelectorAll('#pos-categorias button').forEach(btn => {
     btn.className = 'btn btn-secondary'

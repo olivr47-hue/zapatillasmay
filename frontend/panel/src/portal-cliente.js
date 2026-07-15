@@ -30,6 +30,7 @@ const pc = {
   referido: null,
   clienteData: null,
   filtroCat: '',
+  filtroNuevos: false,
   busqueda: '',
   filtroTallas: [],
   filtroColores: [],
@@ -236,7 +237,8 @@ function renderPC() {
   window.pcCargarBorrador = pcCargarBorrador
   window.pcBorrarBorrador = pcBorrarBorrador
   window.pcHacerPedido = pcHacerPedido
-  window.pcFiltrarCat = (c) => { pc.filtroCat = c; renderCatalogo() }
+  window.pcFiltrarCat = (c) => { pc.filtroCat = c; pc.filtroNuevos = false; renderCatalogo() }
+  window.pcFiltrarNuevos = () => { pc.filtroNuevos = !pc.filtroNuevos; pc.filtroCat = ''; renderCatalogo() }
   window.pcToggleFiltroTalla = (t) => {
     const i = pc.filtroTallas.indexOf(t)
     if (i === -1) pc.filtroTallas.push(t); else pc.filtroTallas.splice(i, 1)
@@ -579,6 +581,7 @@ function renderCatalogo(el) {
   const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
 
   let prods = pc.productos
+  if (pc.filtroNuevos) prods = prods.filter(p => p.nuevo)
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
     const q = pc.busqueda.toLowerCase()
@@ -600,8 +603,9 @@ function renderCatalogo(el) {
 
     <!-- Categorías -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
-      ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
+      <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:#4ade80;border-color:#4ade80'}">✨ Nuevos</button>
+      <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
+      ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
     </div>
 
     <!-- Buscador -->

@@ -2758,6 +2758,7 @@ if (!window.fbq){
 </a>
     <ul class="nav-cats">
       <li><a href="#" onclick="mostrarInicio();return false">Inicio</a></li>
+      <li><a href="#" onclick="mostrarNuevos();return false" style="color:#16a34a;font-weight:600">✨ Nuevos</a></li>
       <li class="nav-dd" id="nav-dd-cat">
         <button class="nav-dd-btn" onclick="toggleNavDD()" aria-expanded="false" aria-haspopup="true">
           Catálogo
@@ -2766,6 +2767,7 @@ if (!window.fbq){
         <div class="nav-mega" role="menu">
           <div class="nav-mega-col">
             <p>Categorías</p>
+            <a href="#" onclick="mostrarNuevos();cerrarNavDD();return false" style="color:#16a34a;font-weight:600">✨ Nuevos</a>
             <a href="#" onclick="filtrarCategoria('tacones');cerrarNavDD();return false">👠 Tacones</a>
             <a href="#" onclick="filtrarCategoria('sandalias');cerrarNavDD();return false">🩴 Sandalias</a>
             <a href="#" onclick="filtrarCategoria('plataformas');cerrarNavDD();return false">👡 Plataformas</a>
@@ -2822,6 +2824,7 @@ if (!window.fbq){
     <!-- Categorías -->
     <div style="padding:16px 12px 8px">
       <p style="font-size:0.65rem;font-weight:700;color:#C8967A;text-transform:uppercase;letter-spacing:0.15em;margin:0 0 8px 4px">Categorías</p>
+      <a href="#" onclick="mostrarNuevos();cerrarMenu()" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:600;text-decoration:none;color:#166534;margin-bottom:4px;background:#f0fdf4">✨ Nuevos</a>
       <a href="/tacones" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8;transition:background 0.15s">👠 Tacones</a>
       <a href="/sandalias" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🩴 Sandalias</a>
       <a href="/botas" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;font-size:0.88rem;font-weight:500;text-decoration:none;color:#0a0a0a;margin-bottom:4px;background:#f8f8f8">🥾 Botas</a>
@@ -2874,6 +2877,7 @@ if (!window.fbq){
 
 <!-- Chips de categoría (solo móvil) -->
 <div id="zm-chips">
+  <button class="zm-chip zm-chip-nuevos" onclick="mostrarNuevos()">✨ Nuevos</button>
   <button class="zm-chip" onclick="filtrarCategoria('tacones')">👠 Tacones</button>
   <button class="zm-chip" onclick="filtrarCategoria('sandalias')">🩴 Sandalias</button>
   <button class="zm-chip" onclick="filtrarCategoria('plataformas')">👡 Plataformas</button>
@@ -2891,6 +2895,7 @@ if (!window.fbq){
   .zm-chip:active { transform: scale(0.96); }
   .zm-chip.active { background: #2A1A0E; color: white; border-color: #2A1A0E; }
   .zm-chip-ofertas { border-color: #E91E8C; color: #E91E8C; background: #fff0f5; }
+  .zm-chip-nuevos { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
   @media (max-width: 768px) {
     #zm-chips { display: flex; }
     #zm-chips:not(.visible) { display: none; }
