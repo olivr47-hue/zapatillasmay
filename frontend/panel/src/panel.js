@@ -22910,25 +22910,56 @@ window._wmDescargarPlantilla = async (btn) => {
   }
 }
 
+// Walmart rechaza cualquier carga (manual o por API) que traiga más de 250
+// filas -- es un tope de la cuenta (nueva/sin historial de ventas), Walmart
+// lo va subiendo solo. Por eso partimos la descarga en lotes de máximo 250
+// filas (colores x tallas, no productos) y cada lote se descarga como un
+// archivo separado, numerado, para subirlos uno por uno a Seller Center.
+const _WM_LIMITE_FILAS_LOTE = 250
+
 window._wmDescargarPlantillaSeleccionados = async (btn) => {
   const ids = [...window._wmSeleccion]
   if (!ids.length) { alert('No seleccionaste ningún producto.'); return }
+  const productos = window._wmPendientes.filter(p => ids.includes(p.id))
+  const lotes = []
+  let loteActual = []
+  let filasLoteActual = 0
+  for (const p of productos) {
+    const filas = p.num_variantes || 1
+    if (loteActual.length && filasLoteActual + filas > _WM_LIMITE_FILAS_LOTE) {
+      lotes.push(loteActual)
+      loteActual = []
+      filasLoteActual = 0
+    }
+    loteActual.push(p)
+    filasLoteActual += filas
+  }
+  if (loteActual.length) lotes.push(loteActual)
+
+  if (lotes.length > 1 && !confirm(
+    `Walmart rechaza cargas de más de ${_WM_LIMITE_FILAS_LOTE} filas (SKUs) por archivo.\n` +
+    `Tu selección se va a descargar en ${lotes.length} archivos separados -- súbelos a Seller Center uno por uno (espera a que termine de procesar cada uno antes de subir el siguiente).\n\n¿Continuar?`
+  )) return
+
   const textoOriginal = btn.innerHTML
   try {
-    btn.innerHTML = '⏳ Generando...'
-    btn.disabled = true
-    const params = new URLSearchParams({ producto_ids: ids.join(',') })
-    const res = await fetch(`${API}/walmart/feed/plantilla?${params.toString()}`)
-    if (!res.ok) { const txt = await res.text(); throw new Error(txt) }
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `walmart_zapatos_seleccionados_${Date.now()}.xlsx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    for (let i = 0; i < lotes.length; i++) {
+      btn.innerHTML = lotes.length > 1 ? `⏳ Generando lote ${i + 1}/${lotes.length}...` : '⏳ Generando...'
+      btn.disabled = true
+      const params = new URLSearchParams({ producto_ids: lotes[i].map(p => p.id).join(',') })
+      const res = await fetch(`${API}/walmart/feed/plantilla?${params.toString()}`)
+      if (!res.ok) { const txt = await res.text(); throw new Error(txt) }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const sufijo = lotes.length > 1 ? `_lote${i + 1}de${lotes.length}` : ''
+      a.download = `walmart_zapatos_seleccionados${sufijo}_${Date.now()}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
   } catch (e) {
     alert('Error al descargar la plantilla: ' + e.message)
   } finally {
