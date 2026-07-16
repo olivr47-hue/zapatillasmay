@@ -56,9 +56,29 @@ function pcAuthHeaders() {
     : { 'Content-Type': 'application/json' }
 }
 
+// ── Tema claro/oscuro ────────────────────────────────────────
+// Las variables --pc-* del bloque <style> cambian con el atributo
+// data-pc-theme del <html>; aquí solo se alterna ese atributo.
+function pcAplicarTema(tema) {
+  document.documentElement.setAttribute('data-pc-theme', tema === 'light' ? 'light' : 'dark')
+}
+function pcIconoTema(tema) {
+  // Muestra el icono del tema al que se CAMBIARÁ (sol si estás en oscuro, luna si estás en claro).
+  return tema === 'light' ? '🌙' : '☀️'
+}
+window.pcToggleTema = () => {
+  const actual = document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark'
+  const nuevo = actual === 'light' ? 'dark' : 'light'
+  pcAplicarTema(nuevo)
+  try { localStorage.setItem('pc_tema', nuevo) } catch {}
+  document.querySelectorAll('[data-pc-tema-icono]').forEach(el => { el.textContent = pcIconoTema(nuevo) })
+}
+
 // ── Entry point ──────────────────────────────────────────────
 export function renderPortalCliente(sesionData) {
   pc.sesion = sesionData
+  // Tema: oscuro por defecto; recuerda la última elección del cliente.
+  try { pcAplicarTema(localStorage.getItem('pc_tema') === 'light' ? 'light' : 'dark') } catch {}
   try { pc.carrito = JSON.parse(localStorage.getItem(PC_CARRITO_KEY) || '[]') } catch { pc.carrito = [] }
   try { pc.borradores = JSON.parse(localStorage.getItem('pc_borradores') || '[]') } catch { pc.borradores = [] }
   try {
@@ -117,16 +137,16 @@ function _pcInitPush() {
   setTimeout(() => {
     const el = document.createElement('div')
     el.id = 'pc-push-banner'
-    el.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:380px;margin:0 auto;background:#161625;border:1px solid #2a2a40;color:#e2e2f0;border-radius:14px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;gap:12px'
+    el.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:380px;margin:0 auto;background:var(--pc-card);border:1px solid var(--pc-border-2);color:var(--pc-text);border-radius:14px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;gap:12px'
     el.innerHTML = `
       <span style="font-size:1.6rem;flex-shrink:0">🔔</span>
       <div style="flex:1;min-width:0">
         <p style="margin:0 0 2px;font-size:0.85rem;font-weight:700">Activa avisos</p>
-        <p style="margin:0;font-size:0.78rem;color:#8a8aa8">Te avisamos de tu pedido y promociones.</p>
+        <p style="margin:0;font-size:0.78rem;color:var(--pc-text-4)">Te avisamos de tu pedido y promociones.</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
         <button id="pc-push-si" style="background:#E91E8C;color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer">Activar</button>
-        <button id="pc-push-no" style="background:transparent;color:#8a8aa8;border:none;font-size:0.72rem;cursor:pointer;padding:2px">No, gracias</button>
+        <button id="pc-push-no" style="background:transparent;color:var(--pc-text-4);border:none;font-size:0.72rem;cursor:pointer;padding:2px">No, gracias</button>
       </div>`
     document.body.appendChild(el)
     document.getElementById('pc-push-si').onclick = () => { el.remove(); _pcSuscribirPush() }
@@ -138,18 +158,18 @@ function _pcInitPush() {
 function renderPC() {
   const app = document.querySelector('#app')
   app.innerHTML = `
-  <div id="pc-root" style="display:flex;min-height:100vh;width:100%;background:#0f0f1c;font-family:'DM Sans',sans-serif;color:#e2e2f0">
+  <div id="pc-root" style="display:flex;min-height:100vh;width:100%;background:var(--pc-bg);font-family:'DM Sans',sans-serif;color:var(--pc-text)">
 
     <!-- Sidebar -->
-    <aside id="pc-sidebar" style="width:220px;flex-shrink:0;background:#0c0c17;border-right:1px solid #1e1e30;display:flex;flex-direction:column;padding:0;transition:width 0.2s">
+    <aside id="pc-sidebar" style="width:220px;flex-shrink:0;background:var(--pc-bg-elev);border-right:1px solid var(--pc-border);display:flex;flex-direction:column;padding:0;transition:width 0.2s">
       <!-- Logo -->
-      <div style="padding:24px 20px 20px;border-bottom:1px solid #1e1e30">
+      <div style="padding:24px 20px 20px;border-bottom:1px solid var(--pc-border)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <span style="width:8px;height:8px;border-radius:50%;background:#E91E8C;flex-shrink:0"></span>
           <span style="font-size:0.65rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#E91E8C">Zapatillas May</span>
         </div>
-        <p style="font-size:0.75rem;font-weight:600;color:#a0a0c0;margin:0">Portal Mayoreo <span style="font-size:0.6rem;color:#3a3a5c">v5</span></p>
-        <p style="font-size:0.72rem;color:#5a5a7a;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pc.sesion?.nombre || '')}</p>
+        <p style="font-size:0.75rem;font-weight:600;color:var(--pc-text-3);margin:0">Portal Mayoreo <span style="font-size:0.6rem;color:var(--pc-muted-2)">v5</span></p>
+        <p style="font-size:0.72rem;color:var(--pc-muted);margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pc.sesion?.nombre || '')}</p>
       </div>
 
       <!-- Nav -->
@@ -163,10 +183,14 @@ function renderPC() {
         ${pcNavItem('cuenta',   '👤', 'Mi cuenta')}
       </nav>
 
-      <!-- Cerrar sesión -->
-      <div style="padding:12px 10px;border-top:1px solid #1e1e30">
-        <button onclick="pcCerrarSesion()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid #2a2a40;border-radius:8px;color:#5a5a7a;font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s"
-          onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='#2a2a40';this.style.color='#5a5a7a'">
+      <!-- Tema + Cerrar sesión -->
+      <div style="padding:12px 10px;border-top:1px solid var(--pc-border);display:flex;flex-direction:column;gap:8px">
+        <button onclick="pcToggleTema()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-text-3);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s;display:flex;align-items:center;gap:8px"
+          onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-text-3)'">
+          <span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span> Cambiar tema
+        </button>
+        <button onclick="pcCerrarSesion()" style="width:100%;padding:8px 12px;background:transparent;border:1px solid var(--pc-border-2);border-radius:8px;color:var(--pc-muted);font-family:inherit;font-size:0.78rem;cursor:pointer;text-align:left;transition:all 0.15s"
+          onmouseover="this.style.borderColor='#E91E8C';this.style.color='#E91E8C'" onmouseout="this.style.borderColor='var(--pc-border-2)';this.style.color='var(--pc-muted)'">
           ← Cerrar sesión
         </button>
       </div>
@@ -175,19 +199,22 @@ function renderPC() {
     <!-- Contenido principal -->
     <main id="pc-main" style="flex:1;overflow-y:auto;min-width:0">
       <!-- Topbar móvil -->
-      <div id="pc-topbar" style="display:none;align-items:center;justify-content:space-between;padding:14px 16px;background:#0c0c17;border-bottom:1px solid #1e1e30;position:sticky;top:0;z-index:50">
+      <div id="pc-topbar" style="display:none;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--pc-bg-elev);border-bottom:1px solid var(--pc-border);position:sticky;top:0;z-index:50">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="width:7px;height:7px;border-radius:50%;background:#E91E8C"></span>
           <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#E91E8C">Portal Mayoreo</span>
         </div>
-        <button onclick="pcToggleSidebar()" style="background:none;border:none;color:#a0a0c0;cursor:pointer;padding:4px">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
+        <div style="display:flex;align-items:center;gap:4px">
+          <button onclick="pcToggleTema()" title="Cambiar tema" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1"><span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span></button>
+          <button onclick="pcToggleSidebar()" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        </div>
       </div>
 
       <!-- Área de contenido -->
       <div id="pc-content" style="padding:28px 32px;max-width:1200px">
-        <div style="text-align:center;padding:60px;color:#3a3a5c">
+        <div style="text-align:center;padding:60px;color:var(--pc-muted-2)">
           <div style="width:32px;height:32px;border:3px solid #E91E8C;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px"></div>
           Cargando...
         </div>
@@ -202,6 +229,21 @@ function renderPC() {
   </a>
 
   <style>
+    /* ── Tema (oscuro por defecto, claro con data-pc-theme="light") ── */
+    :root {
+      --pc-bg: #0f0f1c; --pc-bg-elev: #0c0c17; --pc-card: #161625;
+      --pc-border: #1e1e30; --pc-border-2: #2a2a40; --pc-hover: #161625;
+      --pc-text: #e2e2f0; --pc-text-2: #c0c0e0; --pc-text-3: #a0a0c0;
+      --pc-text-4: #8888aa; --pc-muted: #5a5a7a; --pc-muted-2: #3a3a5c;
+      --pc-purple: #b39ddb; --pc-green: #4ade80;
+    }
+    :root[data-pc-theme="light"] {
+      --pc-bg: #f3f4f9; --pc-bg-elev: #ffffff; --pc-card: #ffffff;
+      --pc-border: #e6e8f0; --pc-border-2: #d4d8e4; --pc-hover: #eef0f6;
+      --pc-text: #1b1b2c; --pc-text-2: #33334a; --pc-text-3: #52526a;
+      --pc-text-4: #6f6f88; --pc-muted: #8a8aa0; --pc-muted-2: #a8a8bc;
+      --pc-purple: #7c3aed; --pc-green: #059669;
+    }
     @keyframes spin { to { transform: rotate(360deg) } }
     @media (max-width: 768px) {
       #pc-sidebar { position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform 0.25s; }
@@ -212,25 +254,25 @@ function renderPC() {
     }
     .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
     .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
-      font-size:0.83rem;font-weight:500;color:#6a6a8a;border:none;background:none;
+      font-size:0.83rem;font-weight:500;color:var(--pc-text-4);border:none;background:none;
       font-family:inherit;width:100%;text-align:left;transition:all 0.15s; }
-    .pc-nav-item:hover { background:#161625;color:#c0c0e0; }
+    .pc-nav-item:hover { background:var(--pc-hover);color:var(--pc-text-2); }
     .pc-nav-item.activo { background:rgba(233,30,140,0.12);color:#E91E8C; }
-    .pc-kpi { background:#161625;border:1px solid #1e1e30;border-radius:12px;padding:20px;min-width:0; }
-    .pc-kpi-val { font-size:1.6rem;font-weight:800;color:#e2e2f0;margin:4px 0 2px;letter-spacing:-0.02em; }
-    .pc-kpi-lbl { font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a; }
-    .pc-kpi-sub { font-size:0.75rem;color:#5a5a7a; }
-    .pc-card { background:#161625;border:1px solid #1e1e30;border-radius:12px;padding:20px; }
-    .pc-prod-card { background:#161625;border:1px solid #1e1e30;border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color 0.15s; }
+    .pc-kpi { background:var(--pc-card);border:1px solid var(--pc-border);border-radius:12px;padding:20px;min-width:0; }
+    .pc-kpi-val { font-size:1.6rem;font-weight:800;color:var(--pc-text);margin:4px 0 2px;letter-spacing:-0.02em; }
+    .pc-kpi-lbl { font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted); }
+    .pc-kpi-sub { font-size:0.75rem;color:var(--pc-muted); }
+    .pc-card { background:var(--pc-card);border:1px solid var(--pc-border);border-radius:12px;padding:20px; }
+    .pc-prod-card { background:var(--pc-card);border:1px solid var(--pc-border);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color 0.15s; }
     .pc-prod-card:hover { border-color:#E91E8C; }
     .pc-badge { display:inline-block;padding:3px 8px;border-radius:100px;font-size:0.65rem;font-weight:700; }
     .pc-btn { padding:10px 20px;border:none;border-radius:8px;font-family:inherit;font-size:0.83rem;font-weight:600;cursor:pointer;transition:all 0.15s; }
     .pc-btn-primary { background:#E91E8C;color:white; }
     .pc-btn-primary:hover { background:#d01a7e; }
-    .pc-btn-secondary { background:#1e1e30;color:#a0a0c0;border:1px solid #2a2a40; }
+    .pc-btn-secondary { background:var(--pc-border);color:var(--pc-text-3);border:1px solid var(--pc-border-2); }
     .pc-btn-secondary:hover { border-color:#E91E8C;color:#E91E8C; }
-    .pc-input { width:100%;padding:10px 14px;background:#0f0f1c;border:1.5px solid #1e1e30;border-radius:8px;
-      color:#e2e2f0;font-family:inherit;font-size:0.85rem;outline:none;box-sizing:border-box;transition:border-color 0.15s; }
+    .pc-input { width:100%;padding:10px 14px;background:var(--pc-bg);border:1.5px solid var(--pc-border);border-radius:8px;
+      color:var(--pc-text);font-family:inherit;font-size:0.85rem;outline:none;box-sizing:border-box;transition:border-color 0.15s; }
     .pc-input:focus { border-color:#E91E8C; }
     .pc-status-chip { display:inline-block;padding:3px 10px;border-radius:100px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em; }
   </style>`
@@ -428,10 +470,10 @@ function renderInicio(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:28px">
-      <h1 style="font-size:1.5rem;font-weight:800;color:#e2e2f0;margin:0 0 4px;letter-spacing:-0.01em">
+      <h1 style="font-size:1.5rem;font-weight:800;color:var(--pc-text);margin:0 0 4px;letter-spacing:-0.01em">
         Hola, ${esc(pc.sesion?.nombre?.split(' ')[0] || 'bienvenida')} 👋
       </h1>
-      <p style="font-size:0.85rem;color:#5a5a7a;margin:0">Resumen de tu cuenta mayoreo</p>
+      <p style="font-size:0.85rem;color:var(--pc-muted);margin:0">Resumen de tu cuenta mayoreo</p>
     </div>
 
     <!-- KPIs -->
@@ -474,15 +516,15 @@ function renderInicio(el) {
     <!-- Sugerencias: más vendidos del mes + modelos al azar (rotan cada sesión) -->
     ${pc.modelosSugeridos.length ? `
     <div style="margin-bottom:28px">
-      <p style="font-size:0.8rem;font-weight:700;color:#e2e2f0;margin:0 0 10px">🔥 Sugerencias para ti</p>
+      <p style="font-size:0.8rem;font-weight:700;color:var(--pc-text);margin:0 0 10px">🔥 Sugerencias para ti</p>
       <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scrollbar-width:thin">
         ${pc.modelosSugeridos.map(p => `
           <div onclick="pcAbrirProducto('${p.id}')" style="flex:0 0 130px;min-width:0;cursor:pointer">
-            <div style="position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#161625;margin-bottom:6px">
+            <div style="position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:var(--pc-card);margin-bottom:6px">
               <img src="${esc(p.imagen_principal||'')}" alt="${esc(p.nombre)}" loading="lazy" style="width:100%;height:100%;object-fit:cover">
               ${p._tag ? `<span style="position:absolute;top:6px;left:6px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:100px">${esc(p._tag)}</span>` : ''}
             </div>
-            <p style="font-size:0.75rem;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
+            <p style="font-size:0.75rem;color:var(--pc-text-2);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.nombre)}</p>
           </div>`).join('')}
       </div>
     </div>` : ''}
@@ -490,19 +532,19 @@ function renderInicio(el) {
     <!-- Historial de compras -->
     ${hayHistorial ? `
     <div class="pc-card" style="margin-bottom:20px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Tu historial de compras</p>
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 16px">Tu historial de compras</p>
       <div style="display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:start">
         <div>
-          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 10px">Gasto por mes</p>
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--pc-muted);margin:0 0 10px">Gasto por mes</p>
           <div style="position:relative;height:160px"><canvas id="pc-chart-gasto"></canvas></div>
         </div>
         <div>
-          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#5a5a7a;margin:0 0 10px">Modelos más comprados</p>
+          <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--pc-muted);margin:0 0 10px">Modelos más comprados</p>
           ${topModelos.length ? topModelos.map(([nombre, cant], i) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i<topModelos.length-1?'border-bottom:1px solid #1e1e30':''}">
-              <span style="font-size:0.8rem;color:#c0c0e0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px">${esc(nombre)}</span>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;${i<topModelos.length-1?'border-bottom:1px solid var(--pc-border)':''}">
+              <span style="font-size:0.8rem;color:var(--pc-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px">${esc(nombre)}</span>
               <span style="font-size:0.8rem;font-weight:700;color:#E91E8C;flex-shrink:0">${cant} par${cant!==1?'es':''}</span>
-            </div>`).join('') : `<p style="font-size:0.8rem;color:#5a5a7a">Sin datos aún</p>`}
+            </div>`).join('') : `<p style="font-size:0.8rem;color:var(--pc-muted)">Sin datos aún</p>`}
         </div>
       </div>
     </div>` : ''}
@@ -511,15 +553,15 @@ function renderInicio(el) {
     ${ultimosPedidos.length ? `
     <div class="pc-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <p style="font-weight:700;color:#e2e2f0;margin:0">Últimos pedidos</p>
+        <p style="font-weight:700;color:var(--pc-text);margin:0">Últimos pedidos</p>
         <button onclick="pcIrA('pedidos')" style="background:none;border:none;color:#E91E8C;font-size:0.78rem;cursor:pointer;font-family:inherit">Ver todos →</button>
       </div>
       ${ultimosPedidos.map(p => pcPedidoFila(p)).join('')}
     </div>` : `
     <div class="pc-card" style="text-align:center;padding:40px">
       <p style="font-size:2rem;margin:0 0 12px">🛍️</p>
-      <p style="color:#a0a0c0;font-weight:600;margin:0 0 8px">Aún no tienes pedidos</p>
-      <p style="color:#5a5a7a;font-size:0.83rem;margin:0 0 20px">Explora el catálogo y haz tu primer pedido mayoreo</p>
+      <p style="color:var(--pc-text-3);font-weight:600;margin:0 0 8px">Aún no tienes pedidos</p>
+      <p style="color:var(--pc-muted);font-size:0.83rem;margin:0 0 20px">Explora el catálogo y haz tu primer pedido mayoreo</p>
       <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary">Ver catálogo</button>
     </div>`}
   `
@@ -547,8 +589,8 @@ function _pcRenderChartGasto(labels, totales) {
       maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => money(ctx.parsed.y) } } },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#5a5a7a', font: { size: 11 } } },
-        y: { grid: { color: '#1e1e30' }, ticks: { color: '#5a5a7a', font: { size: 10 }, callback: (v) => money(v) } },
+        x: { grid: { display: false }, ticks: { color: 'var(--pc-muted)', font: { size: 11 } } },
+        y: { grid: { color: 'var(--pc-border)' }, ticks: { color: 'var(--pc-muted)', font: { size: 10 }, callback: (v) => money(v) } },
       },
     },
   })
@@ -561,13 +603,13 @@ function pcPedidoFila(p) {
   }
   const color = statusColors[p.status] || '#6b7280'
   return `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1e1e30;gap:12px" onclick="pcIrA('pedidos')" style="cursor:pointer">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--pc-border);gap:12px" onclick="pcIrA('pedidos')" style="cursor:pointer">
       <div style="min-width:0">
-        <p style="font-size:0.78rem;font-family:monospace;color:#6a6a8a;margin:0 0 2px">#${(p.id||'').substring(0,8).toUpperCase()}</p>
-        <p style="font-size:0.83rem;color:#a0a0c0;margin:0">${new Date(p.created_at).toLocaleDateString('es-MX')}</p>
+        <p style="font-size:0.78rem;font-family:monospace;color:var(--pc-text-4);margin:0 0 2px">#${(p.id||'').substring(0,8).toUpperCase()}</p>
+        <p style="font-size:0.83rem;color:var(--pc-text-3);margin:0">${new Date(p.created_at).toLocaleDateString('es-MX')}</p>
       </div>
       <span class="pc-status-chip" style="background:${color}20;color:${color};white-space:nowrap">${p.status}</span>
-      <p style="font-weight:700;color:#e2e2f0;margin:0;white-space:nowrap">${money(p.total)}</p>
+      <p style="font-weight:700;color:var(--pc-text);margin:0;white-space:nowrap">${money(p.total)}</p>
     </div>`
 }
 
@@ -605,12 +647,12 @@ function renderCatalogo(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:20px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0">Productos</h1>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">Productos</h1>
     </div>
 
     <!-- Categorías -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-      <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:#4ade80;border-color:#4ade80'}">✨ Nuevos</button>
+      <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:var(--pc-green);border-color:var(--pc-green)'}">✨ Nuevos</button>
       <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
       ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
     </div>
@@ -626,39 +668,39 @@ function renderCatalogo(el) {
     <div class="pc-card" style="margin-bottom:20px;padding:0;overflow:hidden">
       <button onclick="pcToggleFiltrosPanel()" style="width:100%;background:none;border:none;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:inherit">
         <span style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:0.85rem;font-weight:700;color:#e2e2f0">🎛️ Filtrar por talla o color</span>
+          <span style="font-size:0.85rem;font-weight:700;color:var(--pc-text)">🎛️ Filtrar por talla o color</span>
           ${hayFiltrosActivos ? `<span style="background:#E91E8C;color:white;font-size:0.68rem;font-weight:700;border-radius:100px;padding:2px 8px">${pc.filtroTallas.length + pc.filtroColores.length}</span>` : ''}
         </span>
-        <span style="color:#5a5a7a;font-size:0.75rem;display:flex;align-items:center;gap:10px">
+        <span style="color:var(--pc-muted);font-size:0.75rem;display:flex;align-items:center;gap:10px">
           ${hayFiltrosActivos ? `<span onclick="event.stopPropagation();pcLimpiarFiltrosTC()" style="color:#E91E8C;font-weight:600;cursor:pointer">Limpiar</span>` : ''}
           <span style="transition:transform 0.2s;display:inline-block;transform:rotate(${pc.filtrosExpandido ? '180deg' : '0deg'})">▾</span>
         </span>
       </button>
 
       ${pc.filtrosExpandido ? `
-      <div style="padding:4px 20px 18px;border-top:1px solid #1e1e30">
+      <div style="padding:4px 20px 18px;border-top:1px solid var(--pc-border)">
         ${tallasDisponibles.length ? `
         <div style="margin-top:14px;margin-bottom:${coloresDisponibles.length ? '14px' : '0'}">
-          <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Talla</p>
+          <p style="font-size:0.68rem;color:var(--pc-muted);margin:0 0 8px">Talla</p>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
             ${tallasDisponibles.map(t => {
               const sel = pc.filtroTallas.includes(t)
               return `<button onclick="pcToggleFiltroTalla('${esc(t)}')"
-                style="min-width:40px;padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.15)' : '#0f0f1c'};color:${sel ? '#E91E8C' : '#a0a0c0'};font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s">${esc(t)}</button>`
+                style="min-width:40px;padding:6px 10px;border-radius:8px;border:1.5px solid ${sel ? '#E91E8C' : 'var(--pc-border-2)'};background:${sel ? 'rgba(233,30,140,0.15)' : 'var(--pc-bg)'};color:${sel ? '#E91E8C' : 'var(--pc-text-3)'};font-family:inherit;font-size:0.78rem;font-weight:700;cursor:pointer;transition:all 0.15s">${esc(t)}</button>`
             }).join('')}
           </div>
         </div>` : ''}
 
         ${coloresDisponibles.length ? `
         <div style="margin-top:${tallasDisponibles.length ? '0' : '14px'}">
-          <p style="font-size:0.68rem;color:#5a5a7a;margin:0 0 8px">Color</p>
+          <p style="font-size:0.68rem;color:var(--pc-muted);margin:0 0 8px">Color</p>
           <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:160px;overflow-y:auto">
             ${coloresDisponibles.map(([color, hex]) => {
               const sel = pc.filtroColores.includes(color)
               return `<button onclick="pcToggleFiltroColor('${esc(color)}')" title="${esc(color)}"
-                style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid ${sel ? '#E91E8C' : '#2a2a40'};background:${sel ? 'rgba(233,30,140,0.1)' : '#0f0f1c'};cursor:pointer;font-family:inherit;transition:all 0.15s">
+                style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px;border-radius:100px;border:1.5px solid ${sel ? '#E91E8C' : 'var(--pc-border-2)'};background:${sel ? 'rgba(233,30,140,0.1)' : 'var(--pc-bg)'};cursor:pointer;font-family:inherit;transition:all 0.15s">
                 <span style="width:16px;height:16px;border-radius:50%;background:${hex || '#888'};border:1px solid rgba(255,255,255,0.2);flex-shrink:0"></span>
-                <span style="font-size:0.75rem;color:${sel ? '#E91E8C' : '#a0a0c0'};font-weight:${sel ? '700' : '500'};white-space:nowrap">${esc(color)}</span>
+                <span style="font-size:0.75rem;color:${sel ? '#E91E8C' : 'var(--pc-text-3)'};font-weight:${sel ? '700' : '500'};white-space:nowrap">${esc(color)}</span>
               </button>`
             }).join('')}
           </div>
@@ -667,7 +709,7 @@ function renderCatalogo(el) {
     </div>` : ''}
 
     <!-- Grid productos -->
-    ${prods.length === 0 ? `<div style="text-align:center;padding:60px;color:#5a5a7a">Sin resultados para "${esc(pc.busqueda)}"</div>` : `
+    ${prods.length === 0 ? `<div style="text-align:center;padding:60px;color:var(--pc-muted)">Sin resultados para "${esc(pc.busqueda)}"</div>` : `
     <div class="pc-prod-grid">
       ${prods.map(p => pcProductoCard(p)).join('')}
     </div>`}
@@ -678,13 +720,13 @@ function renderCatalogo(el) {
       if (totalPares === 0) return ''
       return `
       <div onclick="pcIrA('carrito')"
-        style="position:fixed;bottom:20px;right:20px;z-index:900;background:#161625;border:1.5px solid #E91E8C;border-radius:100px;padding:10px 18px 10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,0.5);transition:transform 0.15s"
+        style="position:fixed;bottom:20px;right:20px;z-index:900;background:var(--pc-card);border:1.5px solid #E91E8C;border-radius:100px;padding:10px 18px 10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,0.5);transition:transform 0.15s"
         onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
         <div style="position:relative;width:38px;height:38px;background:#E91E8C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛒
           <span style="position:absolute;top:-5px;right:-5px;background:white;color:#E91E8C;font-size:0.62rem;font-weight:800;min-width:18px;height:18px;border-radius:100px;display:flex;align-items:center;justify-content:center;padding:0 4px">${totalPares}</span>
         </div>
         <div style="line-height:1.2">
-          <p style="margin:0;font-size:0.68rem;color:#8888aa;font-weight:600">${totalPares} par${totalPares !== 1 ? 'es' : ''} · Ver carrito</p>
+          <p style="margin:0;font-size:0.68rem;color:var(--pc-text-4);font-weight:600">${totalPares} par${totalPares !== 1 ? 'es' : ''} · Ver carrito</p>
           <p style="margin:0;font-size:0.95rem;font-weight:800;color:#E91E8C">${money(totalMonto)}</p>
         </div>
       </div>`
@@ -711,8 +753,8 @@ function renderCatalogosDescarga(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">📥 Catálogos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">Descarga un PDF con fotos de todos los modelos activos por categoría, listo para compartir con tus clientes.</p>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">📥 Catálogos</h1>
+      <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">Descarga un PDF con fotos de todos los modelos activos por categoría, listo para compartir con tus clientes.</p>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
@@ -720,16 +762,16 @@ function renderCatalogosDescarga(el) {
         const total = pc.productos.filter(p => p.categoria === id && p.activo !== false).length
         return `
         <div id="pc-cat-card-${id}" class="pc-card" style="text-align:center;padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;transition:border-color 0.15s,transform 0.15s"
-          onmouseover="this.style.borderColor='#E91E8C';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#1e1e30';this.style.transform='translateY(0)'">
+          onmouseover="this.style.borderColor='#E91E8C';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='var(--pc-border)';this.style.transform='translateY(0)'">
           <div style="width:56px;height:56px;border-radius:50%;background:rgba(233,30,140,0.1);display:flex;align-items:center;justify-content:center;font-size:1.6rem">${icon}</div>
           <div>
-            <p style="font-weight:700;color:#e2e2f0;margin:0 0 2px;font-size:0.92rem">${label}</p>
-            <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${total} modelo${total !== 1 ? 's' : ''}</p>
+            <p style="font-weight:700;color:var(--pc-text);margin:0 0 2px;font-size:0.92rem">${label}</p>
+            <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${total} modelo${total !== 1 ? 's' : ''}</p>
           </div>
           <button onclick="pcDescargarCatalogoPorCategoria('${id}','${icon} ${label}')" class="pc-btn pc-btn-primary" style="width:100%;padding:9px;font-size:0.8rem;margin-top:4px" ${total === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
             Descargar PDF
           </button>
-          <p class="pc-cat-msg" id="pc-cat-msg-${id}" style="font-size:0.7rem;color:#a0a0c0;margin:0;display:none;min-height:14px"></p>
+          <p class="pc-cat-msg" id="pc-cat-msg-${id}" style="font-size:0.7rem;color:var(--pc-text-3);margin:0;display:none;min-height:14px"></p>
         </div>`
       }).join('')}
     </div>
@@ -752,7 +794,7 @@ function pcProductoCard(p) {
 
   return `
     <div class="pc-prod-card" onclick="pcAbrirProducto('${p.id}')" style="display:flex;flex-direction:column">
-      <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:#0c0c17">
+      <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--pc-bg-elev)">
         <img id="pc-card-img-${p.id}" src="${esc(imgPrincipal)}" alt="${esc(p.nombre)}" loading="lazy"
           style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
         ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
@@ -761,20 +803,20 @@ function pcProductoCard(p) {
       </div>
       <!-- Swatches de color -->
       ${coloresList.length > 0 ? `
-      <div style="display:flex;gap:5px;padding:8px 10px;background:#0c0c17;flex-wrap:wrap" onclick="event.stopPropagation()">
+      <div style="display:flex;gap:5px;padding:8px 10px;background:var(--pc-bg-elev);flex-wrap:wrap" onclick="event.stopPropagation()">
         ${coloresList.slice(0,8).map(([cn, cd]) => `
           <div title="${esc(cn)}" onclick="pcCardColor('${p.id}','${esc(cd.foto||imgPrincipal)}',this)"
-            style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid #2a2a40;cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
-            onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='#2a2a40'">
+            style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid var(--pc-border-2);cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
+            onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='var(--pc-border-2)'">
           </div>`).join('')}
-        ${coloresList.length > 8 ? `<span style="font-size:0.62rem;color:#5a5a7a;align-self:center">+${coloresList.length-8}</span>` : ''}
+        ${coloresList.length > 8 ? `<span style="font-size:0.62rem;color:var(--pc-muted);align-self:center">+${coloresList.length-8}</span>` : ''}
       </div>` : ''}
       <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column">
-        <p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;font-family:monospace">${esc(p.sku_interno||'')}</p>
-        <p style="font-size:0.83rem;font-weight:600;color:#c0c0e0;margin:0 0 8px;line-height:1.3;flex:1">${esc(p.nombre)}</p>
+        <p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;font-family:monospace">${esc(p.sku_interno||'')}</p>
+        <p style="font-size:0.83rem;font-weight:600;color:var(--pc-text-2);margin:0 0 8px;line-height:1.3;flex:1">${esc(p.nombre)}</p>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
-          ${m3 ? `<span style="font-size:0.72rem;color:#a0a0c0">3-5: <strong style="color:#e2e2f0">${money(m3)}</strong></span>` : ''}
-          ${m6 ? `<span style="font-size:0.72rem;color:#a0a0c0">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
+          ${m3 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">3-5: <strong style="color:var(--pc-text)">${money(m3)}</strong></span>` : ''}
+          ${m6 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
         </div>
         <button onclick="event.stopPropagation();pcAbrirProducto('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:7px;font-size:0.78rem">
           ${enCarrito > 0 ? `✓ ${enCarrito} par${enCarrito !== 1 ? 'es' : ''} · Editar` : '+ Seleccionar tallas'}
@@ -792,7 +834,7 @@ window.pcCardColor = function(prodId, fotoUrl, swatchEl) {
   }
   // Marcar swatch activo
   swatchEl.closest('[onclick*="stopPropagation"]')?.querySelectorAll('div[data-sel]').forEach(d => {
-    delete d.dataset.sel; d.style.borderColor = '#2a2a40'
+    delete d.dataset.sel; d.style.borderColor = 'var(--pc-border-2)'
   })
   swatchEl.dataset.sel = '1'
   swatchEl.style.borderColor = '#E91E8C'
@@ -845,41 +887,41 @@ window.pcAbrirProducto = function(prodId) {
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem'
 
   modal.innerHTML = `
-    <div style="background:#161625;border:1px solid #2a2a40;border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="background:var(--pc-card);border:1px solid var(--pc-border-2);border-radius:16px;max-width:640px;width:100%;height:90vh;display:flex;flex-direction:column;overflow:hidden">
 
       <!-- Header: foto + nombre + precios -->
-      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid #2a2a40;flex-shrink:0">
+      <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid var(--pc-border-2);flex-shrink:0">
         <div style="display:flex;align-items:flex-start;gap:12px">
           <img id="pc-modal-img" src="${esc(p.imagen_principal||'')}" onclick="abrirLightboxPC(this.src)"
-            style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in;background:#0c0c17">
+            style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in;background:var(--pc-bg-elev)">
           <div style="flex:1;min-width:0">
-            <p style="font-size:0.65rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${esc(p.sku_interno||'')}</p>
-            <p style="font-weight:700;font-size:0.95rem;line-height:1.25;color:#e2e2f0;margin:0">${esc(p.nombre)}</p>
-            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${fmtP(parseFloat(p.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:#5a5a7a">menudeo</span></p>
+            <p style="font-size:0.65rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(p.sku_interno||'')}</p>
+            <p style="font-weight:700;font-size:0.95rem;line-height:1.25;color:var(--pc-text);margin:0">${esc(p.nombre)}</p>
+            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${fmtP(parseFloat(p.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:var(--pc-muted)">menudeo</span></p>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
-            <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#5a5a7a;line-height:1">✕</button>
-            <button onclick="pcToggleCompartir('${prodId}')" title="Compartir con tus clientes" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#5a5a7a;line-height:1;padding:2px">↗️</button>
+            <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--pc-muted);line-height:1">✕</button>
+            <button onclick="pcToggleCompartir('${prodId}')" title="Compartir con tus clientes" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--pc-muted);line-height:1;padding:2px">↗️</button>
           </div>
         </div>
-        <div id="pc-compartir-${prodId}" style="display:none;gap:8px;margin-top:8px;padding:8px 0 2px;border-top:1px solid #2a2a40">
+        <div id="pc-compartir-${prodId}" style="display:none;gap:8px;margin-top:8px;padding:8px 0 2px;border-top:1px solid var(--pc-border-2)">
           <button onclick="pcCompartirProducto('${prodId}','whatsapp')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#25D366;color:white;border:none;border-radius:8px;padding:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit">💬 WhatsApp</button>
           <button onclick="pcCompartirProducto('${prodId}','facebook')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:#1877F2;color:white;border:none;border-radius:8px;padding:8px;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit">👍 Facebook</button>
-          <button onclick="pcCompartirProducto('${prodId}','copiar')" style="flex:0 0 auto;background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;padding:8px 12px;font-size:0.78rem;cursor:pointer;font-family:inherit">🔗</button>
+          <button onclick="pcCompartirProducto('${prodId}','copiar')" style="flex:0 0 auto;background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;padding:8px 12px;font-size:0.78rem;cursor:pointer;font-family:inherit">🔗</button>
         </div>
         <div style="display:flex;gap:6px;margin-top:10px">
-          <div style="flex:1;background:#0f0f1c;border:1px solid #2a2a40;border-radius:9px;padding:6px 4px;text-align:center">
-            <p style="font-size:0.6rem;color:#5a5a7a;font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 3-5</p>
-            <p style="font-size:0.92rem;font-weight:800;color:#e2e2f0;margin:0">${fmtP(pMay3)}</p>
+          <div style="flex:1;background:var(--pc-bg);border:1px solid var(--pc-border-2);border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:var(--pc-muted);font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 3-5</p>
+            <p style="font-size:0.92rem;font-weight:800;color:var(--pc-text);margin:0">${fmtP(pMay3)}</p>
           </div>
-          <div style="flex:1;background:#0f0f1c;border:1px solid #2a2a40;border-radius:9px;padding:6px 4px;text-align:center">
-            <p style="font-size:0.6rem;color:#5a5a7a;font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 6+</p>
+          <div style="flex:1;background:var(--pc-bg);border:1px solid var(--pc-border-2);border-radius:9px;padding:6px 4px;text-align:center">
+            <p style="font-size:0.6rem;color:var(--pc-muted);font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 6+</p>
             <p style="font-size:0.92rem;font-weight:800;color:#E91E8C;margin:0">${fmtP(pMay6)}</p>
           </div>
           ${p.corrida_activa ? `
           <div style="flex:1;background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:9px;padding:6px 4px;text-align:center">
-            <p style="font-size:0.6rem;color:#b39ddb;font-weight:700;text-transform:uppercase;margin:0 0 2px">Corrida c/u</p>
-            <p style="font-size:0.92rem;font-weight:800;color:#b39ddb;margin:0">${fmtP(pCorr)}</p>
+            <p style="font-size:0.6rem;color:var(--pc-purple);font-weight:700;text-transform:uppercase;margin:0 0 2px">Corrida c/u</p>
+            <p style="font-size:0.92rem;font-weight:800;color:var(--pc-purple);margin:0">${fmtP(pCorr)}</p>
           </div>` : ''}
         </div>
         <!-- Strip de fotos por color -->
@@ -891,22 +933,22 @@ window.pcAbrirProducto = function(prodId) {
 
         ${p.corrida_activa ? `
         <div style="padding:12px 1.5rem 0">
-          <div style="display:flex;gap:4px;background:#0c0c17;border-radius:12px;padding:4px">
+          <div style="display:flex;gap:4px;background:var(--pc-bg-elev);border-radius:12px;padding:4px">
             <button id="pc-modo-variado" onclick="pcCambiarModo('${prodId}','variado')"
               style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:#E91E8C;color:white;transition:all 0.15s">
               🧺 Variado
             </button>
             <button id="pc-modo-corrida" onclick="pcCambiarModo('${prodId}','corrida')"
-              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:transparent;color:#b39ddb;transition:all 0.15s">
+              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:transparent;color:var(--pc-purple);transition:all 0.15s">
               📦 Corrida
             </button>
           </div>
-          <p id="pc-modo-hint" style="font-size:0.72rem;color:#5a5a7a;margin:6px 0 0;line-height:1.4">Elige tallas sueltas — precio ajusta según total de pares en tu pedido.</p>
+          <p id="pc-modo-hint" style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;line-height:1.4">Elige tallas sueltas — precio ajusta según total de pares en tu pedido.</p>
         </div>` : ''}
 
         <!-- Selector de colores -->
-        <div style="padding:1rem 1.5rem;border-bottom:1px solid #1e1e30">
-          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em">Selecciona color</p>
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--pc-border)">
+          <p style="font-size:0.7rem;color:var(--pc-muted);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em">Selecciona color</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${colores.map(color => {
               const varsColor = varsProd.filter(v => v.color === color)
@@ -916,14 +958,14 @@ window.pcAbrirProducto = function(prodId) {
                 return sum + pc.inventario.filter(i => i.variante_id === v.id).reduce((s, i) => s + (i.cantidad || 0), 0)
               }, 0)
               const swatch = fotoColor
-                ? `<img src="${esc(fotoColor)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid #2a2a40">`
-                : `<div style="width:46px;height:46px;border-radius:8px;background:${hex};border:1px solid #2a2a40"></div>`
+                ? `<img src="${esc(fotoColor)}" style="width:46px;height:46px;object-fit:cover;border-radius:8px;border:1px solid var(--pc-border-2)">`
+                : `<div style="width:46px;height:46px;border-radius:8px;background:${hex};border:1px solid var(--pc-border-2)"></div>`
               return `
                 <div onclick="pcSeleccionarColor('${prodId}','${esc(color)}')"
                      id="pc-color-btn-${esc(color.replace(/\s/g,'_'))}"
-                     style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;border:2px solid ${totalStock===0?'#1e1e30':'#2a2a40'};opacity:${totalStock===0?'0.4':'1'};width:74px;transition:border-color 0.15s">
+                     style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:6px;border-radius:10px;border:2px solid ${totalStock===0?'var(--pc-border)':'var(--pc-border-2)'};opacity:${totalStock===0?'0.4':'1'};width:74px;transition:border-color 0.15s">
                   ${swatch}
-                  <span style="font-size:0.6rem;color:#8888aa;text-align:center;line-height:1.1;height:2.2em;overflow:hidden">${esc(color)}</span>
+                  <span style="font-size:0.6rem;color:var(--pc-text-4);text-align:center;line-height:1.1;height:2.2em;overflow:hidden">${esc(color)}</span>
                   <span id="pc-color-badge-${esc(color.replace(/\s/g,'_'))}" style="font-size:0.6rem;color:#E91E8C;font-weight:700;display:none"></span>
                 </div>`
             }).join('')}
@@ -931,38 +973,38 @@ window.pcAbrirProducto = function(prodId) {
         </div>
 
         <!-- Panel de tallas (se rellena al seleccionar color) -->
-        <div id="pc-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid #1e1e30">
-          <p style="color:#5a5a7a;font-size:0.85rem">← Selecciona un color para ver las tallas</p>
+        <div id="pc-tallas-panel" style="padding:1rem 1.5rem;border-bottom:1px solid var(--pc-border)">
+          <p style="color:var(--pc-muted);font-size:0.85rem">← Selecciona un color para ver las tallas</p>
         </div>
 
         ${(p.descripcion || p.material || p.forro || p.tipo_tacon || p.horma) ? `
         <div style="padding:1rem 1.5rem">
           ${p.descripcion ? `
-          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Descripción</p>
-          <p style="font-size:0.85rem;color:#c0c0e0;line-height:1.6;margin:0 0 16px">${esc(p.descripcion)}</p>` : ''}
+          <p style="font-size:0.7rem;color:var(--pc-muted);font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Descripción</p>
+          <p style="font-size:0.85rem;color:var(--pc-text-2);line-height:1.6;margin:0 0 16px">${esc(p.descripcion)}</p>` : ''}
           ${(p.material || p.forro || p.tipo_tacon || p.horma) ? `
-          <p style="font-size:0.7rem;color:#5a5a7a;font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Detalles del producto</p>
+          <p style="font-size:0.7rem;color:var(--pc-muted);font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Detalles del producto</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            ${p.material ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Material</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.material)}</p></div>` : ''}
-            ${p.forro ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Forro</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.forro)}</p></div>` : ''}
-            ${p.tipo_tacon ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Tipo de tacón</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.tipo_tacon)}</p></div>` : ''}
-            ${p.horma ? `<div><p style="font-size:0.65rem;color:#5a5a7a;margin:0 0 2px;text-transform:uppercase">Horma</p><p style="font-size:0.82rem;color:#e2e2f0;margin:0">${esc(p.horma)}</p></div>` : ''}
+            ${p.material ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Material</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.material)}</p></div>` : ''}
+            ${p.forro ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Forro</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.forro)}</p></div>` : ''}
+            ${p.tipo_tacon ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Tipo de tacón</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.tipo_tacon)}</p></div>` : ''}
+            ${p.horma ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Horma</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.horma)}</p></div>` : ''}
           </div>` : ''}
         </div>` : ''}
 
       </div><!-- /scroll -->
 
       <!-- Resumen selección -->
-      <div id="pc-modal-resumen" style="padding:0.75rem 1.5rem;border-bottom:1px solid #1e1e30;display:none;flex-shrink:0"></div>
+      <div id="pc-modal-resumen" style="padding:0.75rem 1.5rem;border-bottom:1px solid var(--pc-border);display:none;flex-shrink:0"></div>
 
       <!-- Footer: botón confirmar -->
-      <div id="pc-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid #2a2a40">
+      <div id="pc-modal-footer" style="padding:1rem 1.5rem;display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:1px solid var(--pc-border-2)">
         <button onclick="pcConfirmarModal('${prodId}')" id="pc-btn-confirmar" disabled
           style="width:100%;padding:14px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
           Selecciona al menos una talla
         </button>
         <button onclick="pcIrA('carrito');document.getElementById('pc-modal').remove()"
-          style="width:100%;padding:10px;background:transparent;color:#5a5a7a;border:1px solid #2a2a40;border-radius:10px;font-family:inherit;font-size:0.82rem;cursor:pointer">
+          style="width:100%;padding:10px;background:transparent;color:var(--pc-muted);border:1px solid var(--pc-border-2);border-radius:10px;font-family:inherit;font-size:0.82rem;cursor:pointer">
           Ver pedido actual →
         </button>
       </div>
@@ -982,8 +1024,8 @@ window.pcCambiarModo = (prodId, modo) => {
   window._pcModo = modo
   const tv = document.getElementById('pc-modo-variado')
   const tc = document.getElementById('pc-modo-corrida')
-  if (tv) { tv.style.background = modo==='variado'?'#E91E8C':'transparent'; tv.style.color = modo==='variado'?'white':'#5a5a7a' }
-  if (tc) { tc.style.background = modo==='corrida'?'#6a1b9a':'transparent'; tc.style.color = modo==='corrida'?'white':'#b39ddb' }
+  if (tv) { tv.style.background = modo==='variado'?'#E91E8C':'transparent'; tv.style.color = modo==='variado'?'white':'var(--pc-muted)' }
+  if (tc) { tc.style.background = modo==='corrida'?'#6a1b9a':'transparent'; tc.style.color = modo==='corrida'?'white':'var(--pc-purple)' }
   const hint = document.getElementById('pc-modo-hint')
   if (hint) hint.textContent = modo === 'corrida'
     ? 'Corrida completa: varias tallas del mismo color a precio de corrida. Usa "Sugerir" para llenarla rápido.'
@@ -997,7 +1039,7 @@ window.pcCambiarModo = (prodId, modo) => {
     if (!window._pcCorridaCantidades) window._pcCorridaCantidades = {}
     if (footer) footer.innerHTML = `
       <button onclick="pcSugerirCorrida('${prodId}', window._pcSeleccion?.color)"
-        style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:rgba(107,27,154,0.15);color:#b39ddb;border:1.5px solid rgba(107,27,154,0.4);border-radius:10px;font-family:inherit">
+        style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:rgba(107,27,154,0.15);color:var(--pc-purple);border:1.5px solid rgba(107,27,154,0.4);border-radius:10px;font-family:inherit">
         ✨ Sugerir corrida (6 pares)
       </button>
       <button onclick="pcConfirmarCorrida('${prodId}')" id="pc-btn-confirmar-corrida" disabled
@@ -1016,7 +1058,7 @@ window.pcCambiarModo = (prodId, modo) => {
 }
 
 function _pcHighlightColor(color, border, bg) {
-  document.querySelectorAll('[id^="pc-color-btn-"]').forEach(el => { el.style.borderColor='#2a2a40'; el.style.background='transparent' })
+  document.querySelectorAll('[id^="pc-color-btn-"]').forEach(el => { el.style.borderColor='var(--pc-border-2)'; el.style.background='transparent' })
   const el = document.getElementById('pc-color-btn-' + color.replace(/\s/g,'_'))
   if (el) { el.style.borderColor = border; el.style.background = bg }
 }
@@ -1067,8 +1109,8 @@ window.pcSeleccionarColor = (prodId, color) => {
     if (panel) {
       panel.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <p style="font-size:0.75rem;color:#5a5a7a;font-weight:600;margin:0;text-transform:uppercase">Tallas — ${esc(color)}</p>
-          <p style="font-size:0.7rem;color:#3a3a5c;margin:0">Toca para agregar</p>
+          <p style="font-size:0.75rem;color:var(--pc-muted);font-weight:600;margin:0;text-transform:uppercase">Tallas — ${esc(color)}</p>
+          <p style="font-size:0.7rem;color:var(--pc-muted-2);margin:0">Toca para agregar</p>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px">
           ${varsColor.map(v => {
@@ -1079,16 +1121,16 @@ window.pcSeleccionarColor = (prodId, color) => {
                 <button id="pc-chip-talla-${v.id}"
                   onclick="pcTallaTap('${v.id}','${prodId}','${esc(color)}',${stock})"
                   ${stock===0?'disabled':''}
-                  style="width:100%;min-height:62px;border:2px solid ${qty>0?'#E91E8C':'#2a2a40'};background:${qty>0?'rgba(233,30,140,0.12)':'#0f0f1c'};border-radius:12px;cursor:${stock===0?'not-allowed':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock===0?'opacity:0.4':''}">
-                  <span style="font-size:1rem;font-weight:800;color:${stock===0?'#3a3a5c':'#e2e2f0'}">${esc(v.talla)}</span>
-                  <span style="font-size:0.62rem;color:${stock===0?'#3a3a5c':'#4ade80'}">${stock===0?'Agotado':'Stk '+stock}</span>
-                  ${v.sku ? `<span style="font-size:0.55rem;color:#5a5a7a;font-family:monospace">${esc(v.sku)}</span>` : ''}
+                  style="width:100%;min-height:62px;border:2px solid ${qty>0?'#E91E8C':'var(--pc-border-2)'};background:${qty>0?'rgba(233,30,140,0.12)':'var(--pc-bg)'};border-radius:12px;cursor:${stock===0?'not-allowed':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock===0?'opacity:0.4':''}">
+                  <span style="font-size:1rem;font-weight:800;color:${stock===0?'var(--pc-muted-2)':'var(--pc-text)'}">${esc(v.talla)}</span>
+                  <span style="font-size:0.62rem;color:${stock===0?'var(--pc-muted-2)':'var(--pc-green)'}">${stock===0?'Agotado':'Stk '+stock}</span>
+                  ${v.sku ? `<span style="font-size:0.55rem;color:var(--pc-muted);font-family:monospace">${esc(v.sku)}</span>` : ''}
                 </button>
-                ${stock===0 ? `<button onclick="pcAvisameStock('${v.id}',this)" title="Avísame cuando haya stock" style="position:absolute;top:-7px;left:-7px;background:#161625;border:1.5px solid #2a2a40;color:#5a5a7a;border-radius:100px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer;padding:0">🔔</button>` : ''}
+                ${stock===0 ? `<button onclick="pcAvisameStock('${v.id}',this)" title="Avísame cuando haya stock" style="position:absolute;top:-7px;left:-7px;background:var(--pc-card);border:1.5px solid var(--pc-border-2);color:var(--pc-muted);border-radius:100px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer;padding:0">🔔</button>` : ''}
                 <span id="pc-chipbadge-${v.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${qty}</span>
                 <button id="pc-chipmenos-${v.id}"
                   onclick="pcTallaMenos('${v.id}','${prodId}','${esc(color)}')"
-                  style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#0f0f1c;border:1.5px solid #E91E8C;color:#E91E8C;border-radius:100px;width:26px;height:26px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;cursor:pointer;line-height:1;touch-action:manipulation">−</button>
+                  style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:var(--pc-bg);border:1.5px solid #E91E8C;color:#E91E8C;border-radius:100px;width:26px;height:26px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;cursor:pointer;line-height:1;touch-action:manipulation">−</button>
                 <input type="hidden" id="pc-qty-modal-${v.id}" value="${qty}">
               </div>`
           }).join('')}
@@ -1132,7 +1174,7 @@ window.pcTallaMenos = (varId, prodId, color) => {
 }
 function _pcPintarChipTalla(varId, val) {
   const chip = document.getElementById('pc-chip-talla-' + varId)
-  if (chip) { chip.style.borderColor = val>0?'#E91E8C':'#2a2a40'; chip.style.background = val>0?'rgba(233,30,140,0.12)':'#0f0f1c' }
+  if (chip) { chip.style.borderColor = val>0?'#E91E8C':'var(--pc-border-2)'; chip.style.background = val>0?'rgba(233,30,140,0.12)':'var(--pc-bg)' }
   const badge = document.getElementById('pc-chipbadge-' + varId)
   if (badge) { badge.textContent = val; badge.style.display = val>0?'flex':'none' }
   const menos = document.getElementById('pc-chipmenos-' + varId)
@@ -1188,9 +1230,9 @@ function pcActualizarResumenModal(prodId) {
   if (totalPares > 0) {
     if (resumen) {
       resumen.style.display = 'block'
-      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:#4ade80;margin-bottom:6px">🛒 ${totalPares} pares seleccionados</p>
+      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:var(--pc-green);margin-bottom:6px">🛒 ${totalPares} pares seleccionados</p>
         <div style="display:flex;flex-wrap:wrap;gap:5px">
-          ${lineas.map(l=>`<span style="background:#0c0c17;border:1px solid #2a2a40;border-radius:100px;padding:2px 10px;font-size:0.78rem;color:#c0c0e0"><strong>${esc(l.color)}</strong> T${l.talla} ×${l.cantidad}</span>`).join('')}
+          ${lineas.map(l=>`<span style="background:var(--pc-bg-elev);border:1px solid var(--pc-border-2);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:var(--pc-text-2)"><strong>${esc(l.color)}</strong> T${l.talla} ×${l.cantidad}</span>`).join('')}
         </div>`
     }
     if (btn) { btn.textContent = `✅ Agregar ${totalPares} pares al pedido`; btn.disabled = false; btn.style.opacity = '1' }
@@ -1239,23 +1281,23 @@ window.pcRenderCorridaTallas = (prodId, color) => {
   if (!window._pcCorridaCantidades) window._pcCorridaCantidades = {}
 
   panel.innerHTML = `
-    <p style="font-size:0.75rem;color:#b39ddb;font-weight:700;margin-bottom:12px">📦 CORRIDA · ${esc(color)} — ajusta cantidades</p>
+    <p style="font-size:0.75rem;color:var(--pc-purple);font-weight:700;margin-bottom:12px">📦 CORRIDA · ${esc(color)} — ajusta cantidades</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${varsProd.map(v => {
         const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,i)=>s+(i.cantidad||0),0)
         const cantidad = window._pcCorridaCantidades[v.id] || 0
         return `
           <div style="display:flex;align-items:center;gap:10px;opacity:${stock===0?'0.4':'1'}">
-            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:#e2e2f0">${esc(v.talla)}</span>
-            <span style="font-size:0.72rem;color:#3a3a5c;min-width:54px">Stock: ${stock}</span>
+            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:var(--pc-text)">${esc(v.talla)}</span>
+            <span style="font-size:0.72rem;color:var(--pc-muted-2);min-width:54px">Stock: ${stock}</span>
             <div style="display:flex;align-items:center;gap:6px">
               <button ${stock===0?'disabled':''} onclick="pcCorridaQty('${v.id}',-1,${stock},'${prodId}')"
-                style="background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
+                style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
               <input type="number" min="0" max="${stock}" value="${cantidad}" id="pc-qty-corrida-${v.id}" ${stock===0?'disabled':''}
-                style="width:56px;height:40px;text-align:center;border:2px solid ${cantidad>0?'#6a1b9a':'#2a2a40'};border-radius:8px;font-size:1rem;font-weight:700;background:#0f0f1c;color:#e2e2f0;font-family:inherit"
-                oninput="window._pcCorridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._pcCorridaCantidades['${v.id}'];this.style.borderColor=window._pcCorridaCantidades['${v.id}']>0?'#6a1b9a':'#2a2a40';pcActualizarBadgesCorrida('${prodId}')">
+                style="width:56px;height:40px;text-align:center;border:2px solid ${cantidad>0?'#6a1b9a':'var(--pc-border-2)'};border-radius:8px;font-size:1rem;font-weight:700;background:var(--pc-bg);color:var(--pc-text);font-family:inherit"
+                oninput="window._pcCorridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._pcCorridaCantidades['${v.id}'];this.style.borderColor=window._pcCorridaCantidades['${v.id}']>0?'#6a1b9a':'var(--pc-border-2)';pcActualizarBadgesCorrida('${prodId}')">
               <button ${stock===0?'disabled':''} onclick="pcCorridaQty('${v.id}',1,${stock},'${prodId}')"
-                style="background:#0f0f1c;border:1px solid #2a2a40;color:#c0c0e0;border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
+                style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
             </div>
             ${stock===0?'<span style="font-size:0.7rem;color:#ef4444;background:rgba(239,68,68,0.1);padding:2px 8px;border-radius:100px">Agotado</span>':''}
           </div>`
@@ -1269,7 +1311,7 @@ window.pcCorridaQty = (varId, delta, stock, prodId) => {
   const val = Math.min(stock, Math.max(0, cur + delta))
   window._pcCorridaCantidades[varId] = val
   const input = document.getElementById('pc-qty-corrida-' + varId)
-  if (input) { input.value = val; input.style.borderColor = val>0?'#6a1b9a':'#2a2a40' }
+  if (input) { input.value = val; input.style.borderColor = val>0?'#6a1b9a':'var(--pc-border-2)' }
   pcActualizarBadgesCorrida(prodId)
 }
 
@@ -1282,7 +1324,7 @@ window.pcActualizarBadgesCorrida = (prodId) => {
     total += sum
     const badge = document.getElementById('pc-color-badge-' + c.replace(/\s/g,'_'))
     if (badge) {
-      if (sum > 0) { badge.textContent = sum + ' par' + (sum>1?'es':''); badge.style.color='#b39ddb'; badge.style.display='block' }
+      if (sum > 0) { badge.textContent = sum + ' par' + (sum>1?'es':''); badge.style.color='var(--pc-purple)'; badge.style.display='block' }
       else badge.style.display = 'none'
     }
   })
@@ -1295,9 +1337,9 @@ window.pcActualizarBadgesCorrida = (prodId) => {
         if (cant > 0) { const v = pc.variantes.find(v => v.id === vid); if (v) lineas.push({color:v.color, talla:v.talla, cantidad:cant}) }
       })
       resumen.style.display = 'block'
-      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:#b39ddb;margin-bottom:6px">📦 CORRIDA — ${total} pares</p>
+      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:var(--pc-purple);margin-bottom:6px">📦 CORRIDA — ${total} pares</p>
         <div style="display:flex;flex-wrap:wrap;gap:5px">
-          ${lineas.map(l=>`<span style="background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:#b39ddb">T${l.talla} ×${l.cantidad}</span>`).join('')}
+          ${lineas.map(l=>`<span style="background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:var(--pc-purple)">T${l.talla} ×${l.cantidad}</span>`).join('')}
         </div>`
     }
     if (btn) { btn.textContent = `✅ Agregar corrida (${total} pares)`; btn.disabled = false; btn.style.opacity = '1' }
@@ -1559,8 +1601,8 @@ function renderCarrito(el) {
     el.innerHTML = `
       <div style="text-align:center;padding:60px 20px">
         <p style="font-size:3rem;margin:0 0 16px">🛒</p>
-        <p style="font-size:1rem;font-weight:700;color:#a0a0c0;margin:0 0 8px">Tu pedido está vacío</p>
-        <p style="color:#5a5a7a;font-size:0.83rem;margin:0 0 24px">Agrega productos desde el catálogo</p>
+        <p style="font-size:1rem;font-weight:700;color:var(--pc-text-3);margin:0 0 8px">Tu pedido está vacío</p>
+        <p style="color:var(--pc-muted);font-size:0.83rem;margin:0 0 24px">Agrega productos desde el catálogo</p>
         <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary">Ver catálogo</button>
       </div>`
     return
@@ -1569,8 +1611,8 @@ function renderCarrito(el) {
   el.innerHTML = `
     <div style="margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
       <div>
-        <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Carrito</h1>
-        <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${totalPares} par${totalPares !== 1 ? 'es' : ''} · ${money(total)}</p>
+        <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">Carrito</h1>
+        <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">${totalPares} par${totalPares !== 1 ? 'es' : ''} · ${money(total)}</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${pc.carrito.length > 0 ? `
@@ -1597,29 +1639,29 @@ function renderCarrito(el) {
           return `<div class="pc-card" style="margin-bottom:16px">
           ${normales.map((item) => {
             const idx = pc.carrito.indexOf(item)
-            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #1e1e30">
-              ${item.imagen ? `<img src="${esc(item.imagen)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:#0c0c17;flex-shrink:0">` : '<div style="width:60px;height:60px;background:#0c0c17;border-radius:8px;flex-shrink:0"></div>'}
+            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border)">
+              ${item.imagen ? `<img src="${esc(item.imagen)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : '<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>'}
               <div style="flex:1;min-width:0">
-                <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${esc(item.sku||'')}</p>
-                <p style="font-size:0.88rem;font-weight:600;color:#c0c0e0;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.nombre)}</p>
-                <p style="font-size:0.78rem;color:#6a6a8a;margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
+                <p style="font-size:0.7rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(item.sku||'')}</p>
+                <p style="font-size:0.88rem;font-weight:600;color:var(--pc-text-2);margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.nombre)}</p>
+                <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
               </div>
               <div style="text-align:right;flex-shrink:0">
-                <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">${money(item.precio_unitario * item.cantidad)}</p>
-                <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${money(item.precio_unitario)} c/u</p>
+                <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">${money(item.precio_unitario * item.cantidad)}</p>
+                <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${money(item.precio_unitario)} c/u</p>
                 <button onclick="pcQuitarDelCarrito(${idx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">✕ quitar</button>
               </div>
             </div>`
           }).join('')}
           ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
-          <div style="padding:12px 0;border-bottom:1px solid #1e1e30;background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px">
+          <div style="padding:12px 0;border-bottom:1px solid var(--pc-border);background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px">
             <div style="display:flex;gap:10px;align-items:flex-start">
-              ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:#0c0c17;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#0c0c17;border-radius:8px;flex-shrink:0"></div>'}
+              ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : '<div style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>'}
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                   <div style="flex:1;min-width:0">
-                    <p style="font-size:0.7rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">${esc(corrida.sku||'')}</p>
-                    <p style="font-size:0.88rem;font-weight:700;color:#c0c0e0;margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(corrida.nombre)}</p>
+                    <p style="font-size:0.7rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(corrida.sku||'')}</p>
+                    <p style="font-size:0.88rem;font-weight:700;color:var(--pc-text-2);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(corrida.nombre)}</p>
                     <p style="font-size:0.75rem;color:#a855f7;font-weight:600;margin:0 0 6px">📦 Corrida · ${esc(corrida.color)}</p>
                     <div style="display:flex;flex-wrap:wrap;gap:4px">
                       ${corrida.tallas.map(t => `<span style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:100px;padding:2px 8px;font-size:0.7rem;color:#a855f7">T${esc(t.talla)} ×${t.cantidad}</span>`).join('')}
@@ -1628,7 +1670,7 @@ function renderCarrito(el) {
                   <button onclick="pcQuitarCorrida('${key}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                  <span style="font-size:0.75rem;color:#6a6a8a">${corrida.tallas.reduce((s,t)=>s+t.cantidad,0)} pares · ${money(corrida.precio_unitario)} c/u</span>
+                  <span style="font-size:0.75rem;color:var(--pc-text-4)">${corrida.tallas.reduce((s,t)=>s+t.cantidad,0)} pares · ${money(corrida.precio_unitario)} c/u</span>
                   <span style="font-weight:700;color:#a855f7">${money(corrida.subtotal)}</span>
                 </div>
               </div>
@@ -1640,16 +1682,16 @@ function renderCarrito(el) {
         <!-- Borradores guardados -->
         ${pc.borradores.length > 0 ? `
         <div class="pc-card">
-          <p style="font-weight:700;color:#a0a0c0;margin:0 0 14px;font-size:0.88rem">📋 Borradores guardados</p>
+          <p style="font-weight:700;color:var(--pc-text-3);margin:0 0 14px;font-size:0.88rem">📋 Borradores guardados</p>
           ${pc.borradores.map((b, idx) => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1e1e30;gap:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--pc-border);gap:12px">
               <div>
-                <p style="font-size:0.83rem;font-weight:600;color:#c0c0e0;margin:0 0 2px">${esc(b.nombre)}</p>
-                <p style="font-size:0.72rem;color:#5a5a7a;margin:0">${b.items?.length || 0} producto${(b.items?.length||0) !== 1 ? 's' : ''} · ${money(b.total)}</p>
+                <p style="font-size:0.83rem;font-weight:600;color:var(--pc-text-2);margin:0 0 2px">${esc(b.nombre)}</p>
+                <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${b.items?.length || 0} producto${(b.items?.length||0) !== 1 ? 's' : ''} · ${money(b.total)}</p>
               </div>
               <div style="display:flex;gap:6px">
                 <button onclick="pcCargarBorrador(${idx})" class="pc-btn pc-btn-secondary" style="padding:6px 12px;font-size:0.75rem">Cargar</button>
-                <button onclick="pcBorrarBorrador(${idx})" style="background:none;border:none;color:#5a5a7a;cursor:pointer;font-size:0.78rem">✕</button>
+                <button onclick="pcBorrarBorrador(${idx})" style="background:none;border:none;color:var(--pc-muted);cursor:pointer;font-size:0.78rem">✕</button>
               </div>
             </div>`).join('')}
         </div>` : ''}
@@ -1658,22 +1700,22 @@ function renderCarrito(el) {
       <!-- Resumen del pedido -->
       ${pc.carrito.length > 0 ? `
       <div class="pc-card" style="min-width:240px;position:sticky;top:20px">
-        <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Resumen</p>
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 16px">Resumen</p>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-          <span style="color:#6a6a8a;font-size:0.83rem">${totalPares} pares</span>
-          <span style="color:#e2e2f0;font-size:0.83rem">${money(total)}</span>
+          <span style="color:var(--pc-text-4);font-size:0.83rem">${totalPares} pares</span>
+          <span style="color:var(--pc-text);font-size:0.83rem">${money(total)}</span>
         </div>
         ${credito > 0 ? `
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="color:#10b981;font-size:0.83rem">Crédito</span>
           <span style="color:#10b981;font-size:0.83rem">-${money(credito)}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid #1e1e30">
-          <span style="font-weight:700;color:#e2e2f0">Total</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid var(--pc-border)">
+          <span style="font-weight:700;color:var(--pc-text)">Total</span>
           <span style="font-weight:700;color:#E91E8C">${money(Math.max(0, total - credito))}</span>
         </div>` : `
-        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid #1e1e30">
-          <span style="font-weight:700;color:#e2e2f0">Total</span>
+        <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding-top:8px;border-top:1px solid var(--pc-border)">
+          <span style="font-weight:700;color:var(--pc-text)">Total</span>
           <span style="font-weight:700;color:#E91E8C">${money(total)}</span>
         </div>`}
         ${(() => {
@@ -1681,8 +1723,8 @@ function renderCarrito(el) {
           if (dir) {
             return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px">
               <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#10b981;margin:0 0 4px">📍 Se envía a</p>
-              <p style="font-size:0.8rem;color:#c0c0e0;margin:0">${esc(dir)}${pc.clienteData?.codigo_postal ? ', CP '+esc(pc.clienteData.codigo_postal) : ''}${pc.clienteData?.ciudad ? ', '+esc(pc.clienteData.ciudad) : ''}</p>
-              <button onclick="pcIrA('cuenta')" style="background:none;border:none;color:#5a5a7a;font-size:0.72rem;cursor:pointer;padding:4px 0 0;text-decoration:underline">Cambiar dirección</button>
+              <p style="font-size:0.8rem;color:var(--pc-text-2);margin:0">${esc(dir)}${pc.clienteData?.codigo_postal ? ', CP '+esc(pc.clienteData.codigo_postal) : ''}${pc.clienteData?.ciudad ? ', '+esc(pc.clienteData.ciudad) : ''}</p>
+              <button onclick="pcIrA('cuenta')" style="background:none;border:none;color:var(--pc-muted);font-size:0.72rem;cursor:pointer;padding:4px 0 0;text-decoration:underline">Cambiar dirección</button>
             </div>`
           }
           return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px">
@@ -1691,7 +1733,7 @@ function renderCarrito(el) {
           </div>`
         })()}
         <div style="margin-bottom:12px">
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:6px">Notas del pedido</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:6px">Notas del pedido</label>
           <textarea id="pc-notas" class="pc-input" style="height:70px;resize:none" placeholder="Color específico, urgencia, instrucciones..."></textarea>
         </div>
         <button onclick="pcHacerPedido()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
@@ -1992,14 +2034,14 @@ function renderMisPedidos(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Mis pedidos</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${pedidos.length} pedido${pedidos.length !== 1 ? 's' : ''} en total</p>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">Mis pedidos</h1>
+      <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">${pedidos.length} pedido${pedidos.length !== 1 ? 's' : ''} en total</p>
     </div>
 
     ${pedidos.length === 0 ? `
-    <div style="text-align:center;padding:60px;color:#5a5a7a">
+    <div style="text-align:center;padding:60px;color:var(--pc-muted)">
       <p style="font-size:2rem;margin:0 0 12px">📦</p>
-      <p style="color:#a0a0c0;font-weight:600;margin:0 0 8px">Sin pedidos aún</p>
+      <p style="color:var(--pc-text-3);font-weight:600;margin:0 0 8px">Sin pedidos aún</p>
       <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-primary" style="margin-top:16px">Ver catálogo</button>
     </div>` : pedidos.map(p => pcPedidoDetalle(p)).join('')}
   `
@@ -2019,12 +2061,12 @@ function pcPedidoDetalle(p) {
     <div class="pc-card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:16px">
         <div>
-          <p style="font-size:0.72rem;font-family:monospace;color:#5a5a7a;margin:0 0 2px">#${(p.id||'').substring(0,8).toUpperCase()}</p>
-          <p style="font-size:0.83rem;color:#6a6a8a;margin:0">${new Date(p.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})}</p>
+          <p style="font-size:0.72rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">#${(p.id||'').substring(0,8).toUpperCase()}</p>
+          <p style="font-size:0.83rem;color:var(--pc-text-4);margin:0">${new Date(p.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})}</p>
         </div>
         <div style="text-align:right">
           <span class="pc-status-chip" style="background:${color}20;color:${color}">${STATUS_ICONS[p.status]||''} ${STATUS_LABELS[p.status]||p.status}</span>
-          <p style="font-size:1.1rem;font-weight:800;color:#e2e2f0;margin:6px 0 0">${money(p.total)}</p>
+          <p style="font-size:1.1rem;font-weight:800;color:var(--pc-text);margin:6px 0 0">${money(p.total)}</p>
         </div>
       </div>
 
@@ -2033,14 +2075,14 @@ function pcPedidoDetalle(p) {
       <div style="display:flex;align-items:center;margin-bottom:20px;overflow-x:auto;padding:4px 0">
         ${STATUS_STEPS.map((s, i) => {
           const done = i <= stepIdx
-          const c = done ? '#E91E8C' : '#2a2a40'
+          const c = done ? '#E91E8C' : 'var(--pc-border-2)'
           return `
             <div style="display:flex;align-items:center;flex-shrink:0">
               <div style="text-align:center;min-width:70px">
-                <div style="width:28px;height:28px;border-radius:50%;background:${done ? 'rgba(233,30,140,0.15)' : '#0f0f1c'};border:2px solid ${c};display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:0.75rem">${done ? '✓' : ''}</div>
-                <p style="font-size:0.6rem;color:${done ? '#E91E8C' : '#3a3a5c'};margin:0;white-space:nowrap">${STATUS_LABELS[s]||s}</p>
+                <div style="width:28px;height:28px;border-radius:50%;background:${done ? 'rgba(233,30,140,0.15)' : 'var(--pc-bg)'};border:2px solid ${c};display:flex;align-items:center;justify-content:center;margin:0 auto 5px;font-size:0.75rem">${done ? '✓' : ''}</div>
+                <p style="font-size:0.6rem;color:${done ? '#E91E8C' : 'var(--pc-muted-2)'};margin:0;white-space:nowrap">${STATUS_LABELS[s]||s}</p>
               </div>
-              ${i < STATUS_STEPS.length - 1 ? `<div style="flex:1;height:2px;background:${i < stepIdx ? '#E91E8C' : '#1e1e30'};min-width:20px;margin:0 2px;margin-bottom:18px"></div>` : ''}
+              ${i < STATUS_STEPS.length - 1 ? `<div style="flex:1;height:2px;background:${i < stepIdx ? '#E91E8C' : 'var(--pc-border)'};min-width:20px;margin:0 2px;margin-bottom:18px"></div>` : ''}
             </div>`
         }).join('')}
       </div>` : ''}
@@ -2050,22 +2092,22 @@ function pcPedidoDetalle(p) {
       <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;padding:12px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div>
           <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#8b5cf6;margin:0 0 2px">${p.paqueteria || 'Paquetería'}</p>
-          <p style="font-size:0.85rem;font-family:monospace;color:#c0c0e0;margin:0">${p.numero_guia || ''}</p>
+          <p style="font-size:0.85rem;font-family:monospace;color:var(--pc-text-2);margin:0">${p.numero_guia || ''}</p>
         </div>
         ${p.tracking_url ? `<a href="${esc(p.tracking_url)}" target="_blank" class="pc-btn pc-btn-primary" style="font-size:0.78rem;padding:8px 16px;text-decoration:none">🔍 Rastrear envío</a>` : ''}
       </div>` : ''}
 
       <!-- Items -->
       ${items.length > 0 ? `
-      <div style="border-top:1px solid #1e1e30;padding-top:12px">
+      <div style="border-top:1px solid var(--pc-border);padding-top:12px">
         ${items.map(i => `
           <div style="display:flex;align-items:center;gap:12px;padding:8px 0">
-            ${i.variantes?.productos?.imagen_principal ? `<img src="${esc(i.variantes.productos.imagen_principal)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:#0c0c17;flex-shrink:0">` : ''}
+            ${i.variantes?.productos?.imagen_principal ? `<img src="${esc(i.variantes.productos.imagen_principal)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--pc-bg-elev);flex-shrink:0">` : ''}
             <div style="flex:1;min-width:0">
-              <p style="font-size:0.83rem;font-weight:500;color:#c0c0e0;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.variantes?.productos?.nombre || 'Producto')}</p>
-              <p style="font-size:0.72rem;color:#5a5a7a;margin:0">Talla ${esc(i.variantes?.talla||'')} · ${i.cantidad} par${i.cantidad !== 1 ? 'es' : ''}</p>
+              <p style="font-size:0.83rem;font-weight:500;color:var(--pc-text-2);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(i.variantes?.productos?.nombre || 'Producto')}</p>
+              <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">Talla ${esc(i.variantes?.talla||'')} · ${i.cantidad} par${i.cantidad !== 1 ? 'es' : ''}</p>
             </div>
-            <p style="font-weight:700;color:#e2e2f0;margin:0;flex-shrink:0">${money((i.precio_unitario||0)*i.cantidad)}</p>
+            <p style="font-weight:700;color:var(--pc-text);margin:0;flex-shrink:0">${money((i.precio_unitario||0)*i.cantidad)}</p>
           </div>`).join('')}
       </div>` : ''}
       ${items.length > 0 ? `
@@ -2117,18 +2159,18 @@ function renderSugerencias(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">💡 Sugerencias</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">¿Te gustaría alguna función nueva, una mejora o tienes alguna recomendación? Cuéntanos.</p>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">💡 Sugerencias</h1>
+      <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">¿Te gustaría alguna función nueva, una mejora o tienes alguna recomendación? Cuéntanos.</p>
     </div>
 
     <div class="pc-card" style="margin-bottom:16px">
-      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Tipo</label>
+      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:8px">Tipo</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="pc-sug-tipos">
         ${[['sugerencia','💡 Sugerencia'],['funcion','✨ Función nueva'],['problema','⚠️ Problema/Error'],['otro','💬 Otro']].map(([v,l], i) => `
           <button type="button" data-tipo="${v}" onclick="pcSeleccionarTipoSugerencia('${v}')" class="pc-btn ${i===0?'pc-btn-primary':'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">${l}</button>
         `).join('')}
       </div>
-      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:8px">Tu mensaje</label>
+      <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:8px">Tu mensaje</label>
       <textarea id="pc-sug-mensaje" class="pc-input" style="height:120px;resize:none" placeholder="Escribe aquí tu idea, recomendación o lo que te gustaría que mejoráramos..."></textarea>
       <button onclick="pcEnviarSugerencia()" id="pc-sug-btn" class="pc-btn pc-btn-primary" style="width:100%;margin-top:14px">Enviar sugerencia</button>
       <p id="pc-sug-msg" style="font-size:0.78rem;margin-top:10px;display:none"></p>
@@ -2189,23 +2231,23 @@ function renderMiCuenta(el) {
 
   el.innerHTML = `
     <div style="margin-bottom:24px">
-      <h1 style="font-size:1.4rem;font-weight:800;color:#e2e2f0;margin:0 0 4px">Mi cuenta</h1>
-      <p style="font-size:0.83rem;color:#5a5a7a;margin:0">${esc(s.email||'')}</p>
+      <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">Mi cuenta</h1>
+      <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">${esc(s.email||'')}</p>
     </div>
 
     <div class="pc-card" style="margin-bottom:14px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Datos de contacto</p>
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 16px">Datos de contacto</p>
       <div style="display:grid;gap:12px">
         <div>
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Nombre</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:5px">Nombre</label>
           <input id="mc-nombre" class="pc-input" value="${esc(s.nombre||c.nombre||'')}">
         </div>
         <div>
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Teléfono</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:5px">Teléfono</label>
           <input id="mc-tel" class="pc-input" type="tel" value="${esc(c.telefono||'')}">
         </div>
         <div>
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Ciudad / Estado</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:5px">Ciudad / Estado</label>
           <input id="mc-ciudad" class="pc-input" placeholder="ej. Guadalajara, Jalisco" value="${esc((c.ciudad||'') + (c.estado ? ', '+c.estado : ''))}">
         </div>
       </div>
@@ -2214,15 +2256,15 @@ function renderMiCuenta(el) {
     </div>
 
     <div class="pc-card" style="margin-bottom:14px">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 4px">Dirección de envío</p>
-      <p style="font-size:0.78rem;color:#5a5a7a;margin:0 0 16px">Se usa para armar tus pedidos del portal — sin esto el negocio no sabe a dónde enviar.</p>
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">Dirección de envío</p>
+      <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 16px">Se usa para armar tus pedidos del portal — sin esto el negocio no sabe a dónde enviar.</p>
       <div style="display:grid;gap:12px">
         <div>
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Calle, número y colonia</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:5px">Calle, número y colonia</label>
           <textarea id="mc-direccion" class="pc-input" style="height:60px;resize:none" placeholder="Ej. Av. Hidalgo 123, Col. Centro">${esc(c.direccion||'')}</textarea>
         </div>
         <div>
-          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#5a5a7a;display:block;margin-bottom:5px">Código postal</label>
+          <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:5px">Código postal</label>
           <input id="mc-cp" class="pc-input" inputmode="numeric" maxlength="5" value="${esc(c.codigo_postal||'')}">
         </div>
       </div>
@@ -2231,7 +2273,7 @@ function renderMiCuenta(el) {
     </div>
 
     <div class="pc-card">
-      <p style="font-weight:700;color:#e2e2f0;margin:0 0 16px">Cambiar contraseña</p>
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 16px">Cambiar contraseña</p>
       <div style="display:grid;gap:12px">
         <input type="password" id="mc-pass-actual" class="pc-input" placeholder="Contraseña actual">
         <input type="password" id="mc-pass-nueva" class="pc-input" placeholder="Nueva contraseña (mín. 6 caracteres)">
