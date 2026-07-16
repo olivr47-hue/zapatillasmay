@@ -3409,6 +3409,15 @@ if (!window.fbq){
     if (url.indexOf('/upload/f_auto') !== -1 || url.indexOf(',f_auto') !== -1) return url // ya optimizada
     return url.replace('/image/upload/', `/image/upload/w_${w},f_auto,q_auto/`)
   }
+  // "Nuevo" se calcula por fecha real de alta (últimos 30 días), no por la
+  // bandera manual `nuevo` -- esa nunca se apagaba sola (productos de hace
+  // meses se quedaban marcados) y tampoco se llenaba en todas las vías de
+  // alta de producto (ej. import masivo), así que modelos genuinamente
+  // recientes no aparecían. `created_at` sí lo pone siempre la base de datos.
+  function esNuevo(p){
+    if (!p || !p.created_at) return false
+    return (Date.now() - new Date(p.created_at).getTime()) < 30*24*60*60*1000
+  }
   let productos = []
   let variantes = []
   let inventario = []
@@ -3935,7 +3944,7 @@ cargarConfigSEO()
           ${p.imagen_principal
             ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
             : `<div class="product-placeholder">👠</div>`}
-          ${(p.nuevo || (p.fecha_creacion && new Date(p.fecha_creacion) > new Date(Date.now() - 21*24*60*60*1000))) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
+          ${esNuevo(p) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
           ${_stockBajo ? `<span class="badge-stock">¡Últimos ${_stockTotal} pares!</span>` : ''}
           <div class="product-actions">
@@ -5103,7 +5112,7 @@ function mostrarNuevos() {
   if (cats) cats.style.display = 'none'
   if (bannerMayoreo) bannerMayoreo.style.display = 'none'
 
-  const nuevos = productos.filter(p => p.activo && p.nuevo)
+  const nuevos = productos.filter(p => p.activo && esNuevo(p))
   document.getElementById('productos-titulo').innerHTML = 'Nuevos <em>modelos</em>'
   const _fb = document.getElementById('filtros-bar'); if (_fb) _fb.classList.remove('visible')
   document.documentElement.classList.remove('ruta-categoria')
@@ -5291,7 +5300,7 @@ function aplicarFiltros() {
   const orden = ordenEl ? ordenEl.value : 'relevancia'
   if (orden==='precio-asc') lista.sort((a,b)=>_precioDe(a)-_precioDe(b))
   else if (orden==='precio-desc') lista.sort((a,b)=>_precioDe(b)-_precioDe(a))
-  else if (orden==='nuevos') lista.sort((a,b)=>(b.nuevo?1:0)-(a.nuevo?1:0))
+  else if (orden==='nuevos') lista.sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))
   const resEl = document.getElementById('filtros-resultado')
   if (resEl) resEl.textContent = `${lista.length} ${lista.length===1?'modelo':'modelos'}`
   _actualizarContador()

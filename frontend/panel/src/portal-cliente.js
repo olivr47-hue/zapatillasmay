@@ -11,6 +11,13 @@ const PC_CARRITO_KEY = 'pc_carrito'
 const PC_BORRADOR_MARCA = '[carrito-respaldo]'
 const TALLAS_ORDEN  = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
+// "Nuevo" se calcula por fecha real de alta (últimos 30 días), no por la
+// bandera manual `nuevo` -- no se apagaba sola con el tiempo ni se llenaba
+// en todas las vías de alta de producto (ej. import masivo), así que
+// modelos genuinamente recientes no aparecían y otros de meses atrás se
+// quedaban marcados para siempre. `created_at` sí lo pone siempre la BD.
+const esNuevo = (p) => p && p.created_at && (Date.now() - new Date(p.created_at).getTime()) < 30*24*60*60*1000
+
 const money = (n) => '$' + Math.round(parseFloat(n) || 0).toLocaleString('es-MX')
 const esc   = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')
 // Calcula precio mayoreo con fallback a precio_menudeo - descuento
@@ -581,7 +588,7 @@ function renderCatalogo(el) {
   const coloresDisponibles = Object.entries(coloresMapa).sort((a, b) => a[0].localeCompare(b[0]))
 
   let prods = pc.productos
-  if (pc.filtroNuevos) prods = prods.filter(p => p.nuevo)
+  if (pc.filtroNuevos) prods = prods.filter(esNuevo)
   if (pc.filtroCat) prods = prods.filter(p => p.categoria === pc.filtroCat)
   if (pc.busqueda) {
     const q = pc.busqueda.toLowerCase()
@@ -749,7 +756,7 @@ function pcProductoCard(p) {
         <img id="pc-card-img-${p.id}" src="${esc(imgPrincipal)}" alt="${esc(p.nombre)}" loading="lazy"
           style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
         ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
-        ${p.nuevo ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
+        ${esNuevo(p) ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
         ${enCarrito > 0 ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${enCarrito} par${enCarrito !== 1 ? 'es' : ''}</span>` : ''}
       </div>
       <!-- Swatches de color -->

@@ -8,6 +8,13 @@ const API_DIRECTO = 'https://zapatillasmay-production.up.railway.app'
 
 const TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
+// "Nuevo" se calcula por fecha real de alta (últimos 30 días), no por la
+// bandera manual `nuevo` -- no se apagaba sola con el tiempo ni se llenaba
+// en todas las vías de alta de producto (ej. import masivo), así que
+// modelos genuinamente recientes no aparecían y otros de meses atrás se
+// quedaban marcados para siempre. `created_at` sí lo pone siempre la BD.
+const esNuevo = (p) => p && p.created_at && (Date.now() - new Date(p.created_at).getTime()) < 30*24*60*60*1000
+
 const COLORES_SUGERIDOS = [
   { nombre: 'Negro', hex: '#000000' },
   { nombre: 'Blanco', hex: '#FFFFFF' },
@@ -9222,7 +9229,7 @@ window.renderProductosPOS = (productos) => {
             : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­👠</div>`}
           ${totalStock === 0 ? '<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>' : ''}
           ${p.es_oferta ? '<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>' : ''}
-          ${p.nuevo ? '<div style="position:absolute;top:8px;left:8px;background:#2e7d32;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Nuevo</div>' : ''}
+          ${esNuevo(p) ? '<div style="position:absolute;top:8px;left:8px;background:#2e7d32;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Nuevo</div>' : ''}
         </div>
         <div style="padding:0.75rem">
           <p style="font-weight:600;font-size:0.85rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nombre}</p>
@@ -9273,7 +9280,7 @@ window.filtrarPOS = (categoria) => {
 
 window.filtrarPOSNuevos = () => {
   const { productos } = window._posData
-  renderProductosPOS(productos.filter(p => p.nuevo))
+  renderProductosPOS(productos.filter(esNuevo))
 
   document.querySelectorAll('#pos-categorias button').forEach(btn => {
     btn.className = 'btn btn-secondary'
