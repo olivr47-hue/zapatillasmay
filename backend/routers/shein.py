@@ -1175,45 +1175,43 @@ def _hacer_sync():
         warehouse_code = _default_warehouse_code()
         sin_match, errores, actualizados = [], [], []
 
-        # change-inventory es UNA actualizacion por llamada (no batch): el
-        # cuerpo real es {"updateSkuInventoryQuantityRequests": {"skuCodeList":
-        # <sku_code>, "warehouseCodeList": <warehouse_code>, "saleInventory":
-        # <cantidad>}} -- confirmado contra el SDK oficial (Python). El campo
-        # "saleInventory" (cantidad absoluta a dejar) y "changeInventoryQuantity"
-        # (delta) son mutuamente excluyentes, se usa solo saleInventory.
-        # La estructura anterior ("skuStockList" como lista) no existe en la
-        # API real -- por eso SHEIN respondia "inventory data cannot be empty"
-        # (no encontraba el campo que realmente espera).
+        # Campos reales confirmados contra la documentacion oficial (Update
+        # merchant inventory API v1, open.sheincorp.com/documents/apidoc/detail/3001692):
+        # "skuCode" (string) y "warehouseCode" (string) -- NO "skuCodeList"/
+        # "warehouseCodeList" (listas). Mandar listas ahi hacia que SHEIN
+        # reportara "SKU cannot be empty" en el 100% de las llamadas, porque
+        # nunca encontraba el campo "skuCode" que en realidad espera.
+        # Tambien confirmado: hasta 100 SKUs por llamada (antes se mandaba
+        # uno por request, 941 llamadas para sincronizar todo el catalogo).
+        requests_pendientes = []
         for item in publicadas:
             sku_code = item["skuCode"]
             sku_norm = _norm_sku(item["supplierSku"])
             if sku_norm not in stock_erp:
                 sin_match.append({"skuCode": sku_code, "supplierSku": item["supplierSku"]})
                 continue
-            cantidad = stock_erp[sku_norm]
-            # updateSkuInventoryQuantityRequests debe ser una LISTA (no un objeto
-            # suelto) -- confirmado con el error real de SHEIN: "Cannot deserialize
-            # ArrayList... from Object value (token START_OBJECT)". El SDK de
-            # referencia (Python) lo manda como objeto suelto, pero eso no es lo
-            # que el backend de SHEIN acepta en la practica.
-            payload = {
-                "updateSkuInventoryQuantityRequests": [
-                    {
-                        "skuCodeList":       [sku_code],
-                        "warehouseCodeList": [warehouse_code] if warehouse_code else [],
-                        "saleInventory":     cantidad,
-                    }
-                ]
-            }
+            req = {"skuCode": sku_code, "saleInventory": stock_erp[sku_norm]}
+            if warehouse_code:
+                req["warehouseCode"] = warehouse_code
+            requests_pendientes.append(req)
+
+        for i in range(0, len(requests_pendientes), 100):
+            lote = requests_pendientes[i:i + 100]
             try:
-                resp = shein_post("/open-api/gsp/goods/change-inventory", payload)
-                if resp.get("code") in (0, "0"):
-                    actualizados.append({"skuCode": sku_code, "inventoryNum": cantidad})
-                else:
-                    errores.append({"skuCode": sku_code, "error": resp})
+                resp = shein_post("/open-api/gsp/goods/change-inventory",
+                                   {"updateSkuInventoryQuantityRequests": lote})
+                info = resp.get("info") or {}
+                fallidos = {f.get("skuCode"): f for f in (info.get("failedList") or [])}
+                for r in lote:
+                    sc = r["skuCode"]
+                    if sc in fallidos:
+                        errores.append({"skuCode": sc, "error": fallidos[sc]})
+                    else:
+                        actualizados.append({"skuCode": sc, "inventoryNum": r["saleInventory"]})
             except HTTPException as e:
-                errores.append({"skuCode": sku_code, "error": e.detail})
-            time.sleep(0.4)  # pacing -- mismo motivo que en la subida de imagenes
+                for r in lote:
+                    errores.append({"skuCode": r["skuCode"], "error": e.detail})
+            time.sleep(0.4)  # pacing entre lotes -- mismo motivo que en la subida de imagenes
 
         cache_set("shein_sync_log", {
             "ts":           time.time(),
