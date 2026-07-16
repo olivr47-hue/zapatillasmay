@@ -429,7 +429,10 @@ async function cargarDatosPC() {
     // El borrador que respalda el carrito activo no debe verse como "pedido" --
     // se usa aparte para restaurar el carrito, nunca en Mis pedidos / Inicio.
     try { await pcRestaurarCarritoDeServidor(ped) } catch {}
-    pc.pedidos = ped.filter(p => p.notas !== PC_BORRADOR_MARCA)
+    // Ocultar de "Mis pedidos" SOLO el borrador que respalda el carrito activo
+    // (status borrador + marca). Si ese carrito se confirma como venta desde el
+    // panel, cambia de status y debe volver a verse como pedido real.
+    pc.pedidos = ped.filter(p => !(p.status === 'borrador' && p.notas === PC_BORRADOR_MARCA))
   }
 
   pc.datosCargados = true
@@ -1556,20 +1559,28 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
     .find(p => p.notas === PC_BORRADOR_MARCA)
   if (!borrador) return
   pc._borradorServerId = borrador.id
-  if (pc.carrito.length) return // ya hay carrito local, no lo pisamos
   const items = borrador.pedido_items || []
+  // El borrador del servidor es la fuente de verdad del carrito: así, si la
+  // asesora arma/edita el carrito del cliente desde el panel de administración,
+  // al cliente le aparece al entrar (y viceversa, porque el portal ya respalda
+  // sus cambios en este mismo borrador). Solo se conserva el carrito local si
+  // el del servidor está vacío -- para no borrar algo que el cliente acaba de
+  // agregar y que aún no se sincronizó.
   if (!items.length) return
+  const delServidor = []
   items.forEach(i => {
     const v = i.variantes
     if (!v || !v.id) return
     const prod = pc.productos.find(x => x.id === v.producto_id)
-    pc.carrito.push({
+    delServidor.push({
       producto_id: v.producto_id, variante_id: v.id, nombre: v.productos?.nombre || i.nombre || 'Producto',
       sku: prod?.sku_interno || null, imagen: v.productos?.imagen_principal || null,
       talla: v.talla || i.talla, color: v.color || i.color, cantidad: i.cantidad,
       precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
     })
   })
+  if (!delServidor.length) return
+  pc.carrito = delServidor
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
 }
 

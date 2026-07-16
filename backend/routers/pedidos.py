@@ -366,8 +366,13 @@ async def crear_pedido(pedido: dict, request: Request):
         # desde la BD— pueda reenviarlos en el Purchase server-side (Meta CAPI + GA4 MP)
         # y recuperar la fuente original de la conversión.
         canal = pedido.get("canal") or ""
-        # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error del cliente
-        if not items and canal not in ("sucursal", "whatsapp"):
+        status_nuevo = pedido.get("status") or ""
+        # Pedidos de tienda online deben traer ítems; si llegan vacíos es un error
+        # del cliente. Excepción: los BORRADORES (carritos) pueden nacer vacíos y
+        # llenarse con /items después -- es justo lo que hace el respaldo del
+        # carrito del portal y el carrito compartido creado desde el panel; sin
+        # esto, esos borradores se rechazaban con 400 y el respaldo fallaba callado.
+        if not items and canal not in ("sucursal", "whatsapp") and status_nuevo != "borrador":
             return JSONResponse(status_code=400, content={"error": "El pedido no tiene productos"})
 
         # Validar stock real ANTES de crear el pedido — solo para el checkout web

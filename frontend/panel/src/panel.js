@@ -21546,9 +21546,14 @@ async function cargarCarritos() {
       fetch(API + '/clientes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json())
     ])
-    // Filtrar solo borradores del canal sucursal o sin canal (mayoreo manual)
+    // Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
+    // en su portal (canal portal_mayoreo con la marca [carrito-respaldo]). Estos
+    // últimos son el MISMO carrito que el cliente ve en su portal: editarlos aquí
+    // se le refleja allá, y lo que él agregue aparece aquí (carrito compartido).
     const borradores = Array.isArray(resBorradores)
-      ? resBorradores.filter(p => p.status === 'borrador' && (!p.canal || p.canal === 'sucursal' || p.canal === 'mayoreo'))
+      ? resBorradores.filter(p => p.status === 'borrador' && (
+          !p.canal || p.canal === 'sucursal' || p.canal === 'mayoreo' ||
+          (p.canal === 'portal_mayoreo' && p.notas === '[carrito-respaldo]')))
       : []
 
     content.innerHTML = `
@@ -21580,7 +21585,7 @@ async function cargarCarritos() {
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
                       <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
-                    </div>
+                      ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;margin-top:5px;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Carrito del portal</span>` : ''}
                     <span style="background:${dias === 0 ? '#f0fdf4' : dias <= 2 ? '#fffbeb' : '#fef2f2'};color:${dias === 0 ? '#065f46' : dias <= 2 ? '#b45309' : '#991b1b'};border:1px solid ${dias === 0 ? '#bbf7d0' : dias <= 2 ? '#fde68a' : '#fecaca'};border-radius:100px;padding:3px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">
                       ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
                     </span>
@@ -21637,6 +21642,13 @@ window.nuevoCarrito = async () => {
           <label class="form-label">Comentario (opcional)</label>
           <input class="form-input" id="nc-comentario" placeholder="Ej: Anticipo $500, entrega el viernes...">
         </div>
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;cursor:pointer">
+          <input type="checkbox" id="nc-compartir-portal" checked style="width:17px;height:17px;margin-top:1px;accent-color:#6d28d9;cursor:pointer">
+          <span style="font-size:0.82rem;color:#5b21b6;line-height:1.45">
+            <strong>Compartir con el portal del cliente</strong><br>
+            <span style="color:#7c3aed;font-size:0.76rem">Lo que agregues le aparece en su portal de mayoreo, y él puede seguir editándolo. Requiere que el cliente tenga cuenta en el portal.</span>
+          </span>
+        </label>
         <button class="btn btn-primary" onclick="crearNuevoCarrito()">Crear carrito</button>
       </div>
     </div>
@@ -21683,20 +21695,50 @@ window.limpiarClienteNuevoCarrito = function() {
   document.getElementById('nc-cliente-buscar').value = ''
 }
 
+// Marca que el portal-cliente usa para reconocer el borrador que respalda el
+// carrito activo del cliente. DEBE coincidir con PC_BORRADOR_MARCA de
+// portal-cliente.js -- si se manda otra cosa en `notas`, el portal no lo
+// reconoce como su carrito y no se comparte.
+const CARRITO_PORTAL_MARCA = '[carrito-respaldo]'
+
 window.crearNuevoCarrito = async () => {
   const clienteId = document.getElementById('nc-cliente').value
   const sucursalId = document.getElementById('nc-sucursal').value
   const comentario = document.getElementById('nc-comentario').value
+  const compartirPortal = document.getElementById('nc-compartir-portal')?.checked
   if (!clienteId) { alert('Selecciona un cliente'); return }
 
   try {
+    if (compartirPortal) {
+      // Reusar el carrito del portal del cliente si ya existe (así no se crean
+      // borradores duplicados que confundirían al portal, que toma el primero).
+      // El endpoint solo filtra por status; el cliente se filtra aquí.
+      const existentes = await fetch(API + `/pedidos/?status=borrador`)
+        .then(r => r.json()).catch(() => [])
+      const yaHay = (Array.isArray(existentes) ? existentes : []).find(
+        p => p.cliente_id === clienteId && p.canal === 'portal_mayoreo' && p.notas === CARRITO_PORTAL_MARCA)
+      if (yaHay) {
+        if (comentario) {
+          await fetch(API + '/pedidos/' + yaHay.id, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comentarios: comentario })
+          }).catch(() => {})
+        }
+        abrirCarrito(yaHay.id)
+        return
+      }
+    }
+
     const res = await fetch(API + '/pedidos/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cliente_id: clienteId,
         sucursal_id: sucursalId,
-        canal: 'sucursal',
+        // Carrito compartido: mismo canal + marca que usa el portal, para que el
+        // cliente lo vea y lo pueda editar desde su portal de mayoreo.
+        canal: compartirPortal ? 'portal_mayoreo' : 'sucursal',
+        notas: compartirPortal ? CARRITO_PORTAL_MARCA : null,
         forma_pago: 'efectivo',
         status: 'borrador',
         total: 0,
