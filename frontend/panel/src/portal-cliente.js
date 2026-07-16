@@ -330,6 +330,9 @@ function pcIrA(tab, _fromBack) {
   })
   const content = document.getElementById('pc-content')
   if (!content) return
+  // El polling en vivo del carrito solo debe correr mientras esa pestaña está
+  // abierta (evita llamadas de más en el resto del portal).
+  if (tab === 'carrito') pcIniciarPollCarrito(); else pcDetenerPollCarrito()
   try {
     switch (tab) {
       case 'inicio':   renderInicio(content); break
@@ -1582,6 +1585,53 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
   if (!delServidor.length) return
   pc.carrito = delServidor
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+}
+
+// ── Carrito en vivo ───────────────────────────────────────────
+// Mismo mecanismo que el lado panel (ver _iniciarPollCarritoActivo en
+// panel.js): sin WebSockets, solo refresca mientras la pestaña "Carrito" está
+// abierta -- cada pocos segundos y al instante si el cliente vuelve a esta
+// pestaña del navegador -- así ve reflejado lo que la asesora le agregue
+// desde el panel de administración.
+function pcDetenerPollCarrito() {
+  if (window._pcCarritoPollInterval) { clearInterval(window._pcCarritoPollInterval); window._pcCarritoPollInterval = null }
+  if (window._pcCarritoPollFocusHandler) { window.removeEventListener('focus', window._pcCarritoPollFocusHandler); window._pcCarritoPollFocusHandler = null }
+}
+
+function pcIniciarPollCarrito() {
+  pcDetenerPollCarrito()
+  const refrescar = () => pcRefrescarCarritoSiCambio()
+  window._pcCarritoPollInterval = setInterval(refrescar, 8000)
+  window._pcCarritoPollFocusHandler = refrescar
+  window.addEventListener('focus', window._pcCarritoPollFocusHandler)
+}
+
+async function pcRefrescarCarritoSiCambio() {
+  if (pc.tab !== 'carrito' || !pc.sesion?.cliente_id) { pcDetenerPollCarrito(); return }
+  // No interrumpir si el cliente está escribiendo/editando algo en la pantalla
+  const activo = document.activeElement
+  if (activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA')) return
+  try {
+    const ped = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() }).then(r => r.ok ? r.json() : null)
+    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA)
+    const itemsServidor = borrador?.pedido_items || []
+    const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario]))
+    const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario]))
+    if (antes === despues) return  // sin cambios, no tocar el DOM
+    pc._borradorServerId = borrador?.id || null
+    pc.carrito = itemsServidor.map(i => {
+      const v = i.variantes
+      const prod = pc.productos.find(x => x.id === v?.producto_id)
+      return {
+        producto_id: v?.producto_id, variante_id: v?.id, nombre: v?.productos?.nombre || i.nombre || 'Producto',
+        sku: prod?.sku_interno || null, imagen: v?.productos?.imagen_principal || null,
+        talla: v?.talla || i.talla, color: v?.color || i.color, cantidad: i.cantidad,
+        precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
+      }
+    })
+    try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+    if (pc.tab === 'carrito') renderCarrito()
+  } catch (e) { /* silencioso -- se reintenta en el siguiente ciclo */ }
 }
 
 // ── CARRITO / HACER PEDIDO ───────────────────────────────────

@@ -512,6 +512,9 @@ function renderNav() {
   `).join('')}
 
 async function cargarModulo(id) {
+  // Detener el polling en vivo del carrito si el admin navega a otra sección
+  // (abrirCarrito lo vuelve a arrancar si entra de nuevo a un carrito).
+  if (id !== 'carritos' && typeof _detenerPollCarritoActivo === 'function') _detenerPollCarritoActivo()
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   switch(id) {
@@ -21538,6 +21541,7 @@ window.ajustarCredito = async function(clienteId, nombre, creditoActual) {
 // ─── CARRITOS MAYOREO ──────────────────────────────────────────────────────────
 
 async function cargarCarritos() {
+  _detenerPollCarritoActivo()
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
@@ -21868,6 +21872,90 @@ function renderCarritoAbierto(p) {
         </div>
 
         <div id="carrito-items-lista">
+          ${_construirListaCarritoHTML(items, inventario, sucursalId)}
+        </div>
+
+        ${items.length > 0 ? `
+          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
+              <select id="c-forma-pago" class="form-input" style="width:140px">
+                <option value="efectivo">Efectivo</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="spei">SPEI</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+            <button class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
+              ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `
+  window._carritoActivo.pedidoData = p
+  window._carritoActivo.varianteSeleccionada = null
+  _iniciarPollCarritoActivo(pedidoId)
+}
+
+// ── Carrito en vivo ──────────────────────────────────────────────────────
+// El carrito de un cliente puede estar editándose desde dos lados a la vez
+// (este panel y el portal de mayoreo del cliente). Para que se vea "en vivo"
+// sin meter WebSockets, se refresca solo: cada pocos segundos mientras la
+// pestaña del carrito sigue abierta, y al instante si el admin vuelve a esta
+// pestaña del navegador después de estar en otra. Solo actualiza la lista de
+// productos y los totales (no todo el HTML), y se salta el refresco si el
+// admin está en medio de escribir un precio o buscar un producto, para no
+// interrumpirlo.
+function _detenerPollCarritoActivo() {
+  if (window._carritoPollInterval) { clearInterval(window._carritoPollInterval); window._carritoPollInterval = null }
+  if (window._carritoPollFocusHandler) { window.removeEventListener('focus', window._carritoPollFocusHandler); window._carritoPollFocusHandler = null }
+}
+
+function _iniciarPollCarritoActivo(pedidoId) {
+  _detenerPollCarritoActivo()
+  const refrescar = () => _refrescarCarritoActivoSiCambio(pedidoId)
+  window._carritoPollInterval = setInterval(refrescar, 8000)
+  window._carritoPollFocusHandler = refrescar
+  window.addEventListener('focus', window._carritoPollFocusHandler)
+}
+
+async function _refrescarCarritoActivoSiCambio(pedidoId) {
+  // Sigue activo este carrito? (el admin pudo haber navegado a otra sección)
+  if (!window._carritoActivo || window._carritoActivo.pedidoId !== pedidoId) { _detenerPollCarritoActivo(); return }
+  if (!document.getElementById('carrito-items-lista')) { _detenerPollCarritoActivo(); return }
+  // No interrumpir si el admin está escribiendo un precio o buscando un producto
+  const activo = document.activeElement
+  if (activo && (activo.id === 'c-buscar-prod' || activo.id === 'c-buscar-corrida' ||
+      activo.classList?.contains('carrito-precio-input'))) return
+  try {
+    const nuevos = await fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json())
+    if (!Array.isArray(nuevos)) return
+    const antes = JSON.stringify((window._carritoActivo.items || []).map(i => [i.id, i.cantidad, i.precio_unitario]))
+    const despues = JSON.stringify(nuevos.map(i => [i.id, i.cantidad, i.precio_unitario]))
+    if (antes === despues) return  // sin cambios, no tocar el DOM
+
+    window._carritoActivo.items = nuevos
+    const { inventario, sucursalId } = window._carritoActivo
+    const lista = document.getElementById('carrito-items-lista')
+    if (lista) lista.innerHTML = _construirListaCarritoHTML(nuevos, inventario, sucursalId)
+    const total = nuevos.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    const totalPares = nuevos.reduce((s, i) => s + i.cantidad, 0)
+    const elPares = document.getElementById('carrito-total-pares'); if (elPares) elPares.textContent = totalPares
+    const elMonto = document.getElementById('carrito-total-monto'); if (elMonto) elMonto.textContent = total.toFixed(2)
+    const elBtn = document.getElementById('carrito-total-btn'); if (elBtn) elBtn.textContent = total.toFixed(2)
+    if (typeof window.mostrarToastPanel === 'function') window.mostrarToastPanel('🔄 El carrito se actualizó')
+  } catch (e) { /* silencioso -- se reintenta en el siguiente ciclo */ }
+}
+
+// Arma el HTML de la lista de productos del carrito -- función aparte para
+// poder reutilizarla desde el polling en vivo (_iniciarPollCarritoActivo) sin
+// reconstruir toda la pantalla (que interrumpiría al admin si está escribiendo
+// en el buscador de "Agregar producto").
+function _construirListaCarritoHTML(items, inventario, sucursalId) {
+  return `
           ${items.length === 0 ? '<p style="color:#aaa;text-align:center;padding:2rem">Carrito vacío — agrega productos arriba</p>' : ''}
           ${(() => {
             // Agrupar: es_corrida viene directo de la BD
@@ -21975,30 +22063,7 @@ function renderCarritoAbierto(p) {
               }
             }).join('')
           })()}
-        </div>
-
-        ${items.length > 0 ? `
-          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
-            <div style="display:flex;align-items:center;gap:8px">
-              <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
-              <select id="c-forma-pago" class="form-input" style="width:140px">
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="spei">SPEI</option>
-                <option value="credito">Crédito</option>
-              </select>
-            </div>
-            <button class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
-              ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
-            </button>
-          </div>
-        ` : ''}
-      </div>
-    </div>
-  `
-  window._carritoActivo.pedidoData = p
-  window._carritoActivo.varianteSeleccionada = null
+        `
 }
 
 window.mostrarToastPanel = (msg) => {

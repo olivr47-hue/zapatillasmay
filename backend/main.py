@@ -182,8 +182,11 @@ def _loop_secuencias_wa():
         _time.sleep(15 * 60)  # cada 15 minutos
 
 def _loop_correo_nuevo():
-    """Revisa el Inbox de Zoho Mail cada 5 minutos y manda push a los admins
-    suscritos (sitio='panel') cuando llega correo nuevo."""
+    """Revisa el Inbox de Zoho Mail cada 15 minutos y manda push a los admins
+    suscritos (sitio='panel') cuando llega correo nuevo.
+    Antes era cada 5 min (8,640 veces/mes) -- se bajó a 15 min (~2,880/mes)
+    para reducir el consumo de Memory/Network en Railway, que es lo que
+    hace que el plan Hobby de $5 casi siempre termine costando más."""
     _time.sleep(90)  # espera inicial
     while True:
         try:
@@ -202,7 +205,7 @@ def _loop_correo_nuevo():
                     print(f"[correo-nuevo] Push enviado por {len(nuevos)} correo(s) nuevo(s)")
         except Exception as e:
             print(f"[correo-nuevo] Error en loop: {e}")
-        _time.sleep(5 * 60)  # cada 5 minutos
+        _time.sleep(15 * 60)  # cada 15 minutos
 
 @app.on_event("startup")
 def _iniciar_hilos():
@@ -221,7 +224,7 @@ def _iniciar_hilos():
     # Correo entrante: avisar a admins del panel
     t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
     t4.start()
-    print("[correo-nuevo] Hilo de aviso de correo entrante iniciado (cada 5 min)")
+    print("[correo-nuevo] Hilo de aviso de correo entrante iniciado (cada 15 min)")
     # Secuencias de WhatsApp (drip)
     t5 = threading.Thread(target=_loop_secuencias_wa, daemon=True)
     t5.start()
