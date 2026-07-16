@@ -22732,6 +22732,21 @@ const _WM_TABS = [
 
 const _wmEsc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
+// Walmart manda el error como "Walmart API error: {...json anidado...}" -- esto
+// saca el campo "description" (el mensaje humano real) en vez de mostrar el
+// JSON crudo completo, que era ilegible en el tooltip.
+const _wmMensajeError = (raw) => {
+  const texto = (raw || '').toString()
+  try {
+    const inicioJson = texto.indexOf('{')
+    if (inicioJson === -1) return texto
+    const data = JSON.parse(texto.slice(inicioJson))
+    const primero = data?.error?.[0]
+    if (primero) return `${primero.description || primero.info || primero.code || texto} (${primero.code || 's/n'})`
+  } catch (e) {}
+  return texto
+}
+
 window._wmSwitchTab = (tab) => {
   window._wmTabActivo = tab
   document.querySelectorAll('#wm-tabs .wm-tab-btn').forEach(b => {
@@ -22950,6 +22965,7 @@ window._wmRenderPendienteTab = async () => {
           ${_wmBtn('🚀 Publicar seleccionados (Automático)', 'window._wmPublicarSeleccionados()', 'secondary', 'wm-btn-publicar-sel')}
         </div>
       </div>
+      <div id="wm-publicar-resultado" style="display:none;margin-bottom:0.75rem"></div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(true)">Seleccionar todos</label>
         <label style="cursor:pointer;color:${_WM_ACCENT}" onclick="window._wmSelTodos(false)">Ninguno</label>
@@ -23004,7 +23020,8 @@ window._wmPublicarSeleccionados = async () => {
   const btn = document.getElementById('wm-btn-publicar-sel')
   const textoOriginal = btn ? btn.innerHTML : ''
   if (btn) { btn.innerHTML = '⏳ Publicando...'; btn.disabled = true }
-  let ok = 0, err = 0
+  let ok = 0
+  const fallas = []
   for (const p of productos) {
     const estadoEl = document.getElementById(`wm-estado-prod-${p.id}`)
     if (estadoEl) estadoEl.textContent = '⏳'
@@ -23020,13 +23037,30 @@ window._wmPublicarSeleccionados = async () => {
       ok++
       if (estadoEl) estadoEl.innerHTML = `<span title="Feed ID: ${d.respuesta?.feedId || '-'}" style="color:#16a34a">✓ enviado</span>`
     } catch (e) {
-      err++
-      if (estadoEl) estadoEl.innerHTML = `<span title="${e.message}" style="color:#dc2626;cursor:help">✗ error</span>`
+      const msg = _wmMensajeError(e.message)
+      fallas.push({ nombre: p.nombre, sku: p.sku_interno, msg })
+      if (estadoEl) estadoEl.innerHTML = `<span style="color:#dc2626">✗ ${_wmEsc(msg)}</span>`
     }
   }
   if (btn) { btn.innerHTML = textoOriginal; btn.disabled = false }
-  alert(`Publicación terminada: ${ok} exitosos, ${err} con error.`)
-  window._wmRenderPendienteTab()
+  const resBox = document.getElementById('wm-publicar-resultado')
+  if (resBox) {
+    resBox.style.display = 'block'
+    if (!fallas.length) {
+      resBox.innerHTML = `<div style="padding:0.75rem 1rem;background:#f0fdf4;border-radius:8px;font-size:0.85rem;color:#166534">✅ ${ok} de ${productos.length} publicados correctamente.</div>`
+    } else {
+      resBox.innerHTML = `
+        <div style="padding:0.75rem 1rem;background:#fef2f2;border-radius:8px;font-size:0.85rem;color:#991b1b;margin-bottom:0.5rem">
+          ${ok} exitoso(s), ${fallas.length} con error:
+        </div>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid #fecaca;border-radius:8px">
+          ${fallas.map(f => `<div style="padding:6px 10px;border-bottom:1px solid #fee2e2;font-size:0.8rem"><b>${_wmEsc(f.nombre)}</b> (${_wmEsc(f.sku)}): ${_wmEsc(f.msg)}</div>`).join('')}
+        </div>`
+    }
+  }
+  // No se re-renderiza la pestaña automáticamente para no tapar este resultado --
+  // los productos publicados con éxito se quitan solos de la lista la próxima
+  // vez que se abra "Catálogo pendiente" (window._wmRenderPendienteTab).
 }
 
 // ─── Pestaña: Publicar nuevo (un solo producto, con título/precio a la medida) ──
@@ -23136,7 +23170,7 @@ window._wmPublicarNuevo = async () => {
       ${r.respuesta?.feedId ? `<br><a href="${API}/walmart/feed/${r.respuesta.feedId}" target="_blank" style="color:${_WM_ACCENT}">Ver estado del feed</a>` : ''}
     </div>`
   } catch (e) {
-    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${e.message}</p>`
+    box.innerHTML = `<p style="color:#dc2626;font-size:0.85rem;margin:0">Error: ${_wmEsc(_wmMensajeError(e.message))}</p>`
   } finally {
     btn.innerHTML = textoOriginal; btn.disabled = false
   }
