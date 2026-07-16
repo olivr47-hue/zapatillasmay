@@ -418,7 +418,14 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     talla_walmart   = f"{talla} (MX)"
 
     fila = {
-        "D": sku, "E": "GTIN", "F": "CUSTOM",
+        # E (Product ID Type) / F (Product ID) se dejan vacíos a propósito --
+        # la cuenta tiene la exención de GTIN aprobada por Walmart (folio
+        # 15476267, "carga sin UPC"). Antes se mandaba E="GTIN" F="CUSTOM" en
+        # TODAS las filas: eso le decía a Walmart "aquí va un GTIN real" con
+        # un valor inválido y repetido 236 veces -- causa confirmada del
+        # rechazo total del feed ("SKU='CUSTOM'" duplicado en el error report
+        # real de Walmart, el SKU real en D nunca se llegó a leer).
+        "D": sku,
         "G": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "H": "May",
         "I": imagen_principal,
