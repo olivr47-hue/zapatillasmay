@@ -379,7 +379,7 @@ function pintarGrid() {
         <div class="tier-row">
           <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
           <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
-          <span class="tier corr">Corr ${money(p.precio_corrida)}</span>
+          ${tieneCorridaDisponibleProducto(p.id) ? `<span class="tier corr">Corr ${money(p.precio_corrida)}</span>` : ''}
         </div>
       </div>
     </div>`).join('')
@@ -389,15 +389,106 @@ function pintarGrid() {
 //  MODAL DE PRODUCTO (elegir color + tallas)
 // ============================================================
 let _modalSel = { productoId: null, color: null, modo: 'variado' }
-let _corridaQty = {}
+let _corridaM = 1
 window.__abrir = abrirProducto
+
+// --- HELPERS DE CORRIDAS ---
+function tieneCorridaDisponibleProducto(productoId) {
+  const vars = state.data.variantes.filter(v => v.producto_id === productoId)
+  const colores = [...new Set(vars.map(v => v.color).filter(Boolean))]
+  if (!colores.length) return false
+  return colores.some(color => esCorridaDisponible(productoId, color))
+}
+
+function esCorridaDisponible(productoId, color) {
+  return maxCorridasDisponibles(productoId, color) >= 1
+}
+
+function maxCorridasDisponibles(productoId, color) {
+  if (!color) return 0
+  const vars = state.data.variantes.filter(v => v.producto_id === productoId && v.color === color)
+  if (!vars.length) return 0
+
+  const tieneMedios = vars.some(v => v.talla && (v.talla.includes('.5') || v.talla.includes('½') || v.talla.includes('/')))
+
+  let maxM = 0
+  for (let M = 1; M <= 6; M++) {
+    if (tieneMedios) {
+      // 1. Try 6 unique sizes with stock >= M
+      const uniqueSizesWithStock = vars.filter(v => (state.data.stockPorVar[v.id] || 0) >= M)
+      if (uniqueSizesWithStock.length >= 6) {
+        maxM = M
+        continue
+      }
+      // 2. Fallback: repeat up to 2*M times per size if we don't have 6 unique sizes
+      let sumEffective = 0
+      vars.forEach(v => {
+        const stock = state.data.stockPorVar[v.id] || 0
+        sumEffective += Math.min(stock, 2 * M)
+      })
+      if (sumEffective >= 6 * M) {
+        maxM = M
+      } else {
+        break
+      }
+    } else {
+      // For only integers: sum of Math.min(stock, 2 * M) must be >= 6 * M
+      let sumEffective = 0
+      vars.forEach(v => {
+        const stock = state.data.stockPorVar[v.id] || 0
+        sumEffective += Math.min(stock, 2 * M)
+      })
+      if (sumEffective >= 6 * M) {
+        maxM = M
+      } else {
+        break
+      }
+    }
+  }
+  return maxM
+}
+
+function resolverItemsCorrida(productoId, color, M) {
+  const vars = state.data.variantes
+    .filter(v => v.producto_id === productoId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+    
+  const tieneMedios = vars.some(v => v.talla && (v.talla.includes('.5') || v.talla.includes('½') || v.talla.includes('/')))
+  const qtyMap = {}
+  
+  if (tieneMedios) {
+    // 1. Check if we have 6 unique sizes with stock >= M
+    const uniqueSizesWithStock = vars.filter(v => (state.data.stockPorVar[v.id] || 0) >= M)
+    if (uniqueSizesWithStock.length >= 6) {
+      // Pick first 6 unique sizes
+      uniqueSizesWithStock.slice(0, 6).forEach(v => {
+        qtyMap[v.id] = M
+      })
+      return qtyMap
+    }
+  }
+  
+  // Fallback (for half-sizes without 6 unique sizes, or for only integers):
+  // Greedily fill up to 6 * M pairs, max 2 * M per size.
+  let totalNeeded = 6 * M
+  for (const v of vars) {
+    const stock = state.data.stockPorVar[v.id] || 0
+    const aTomar = Math.min(stock, 2 * M, totalNeeded)
+    if (aTomar > 0) {
+      qtyMap[v.id] = aTomar
+      totalNeeded -= aTomar
+    }
+    if (totalNeeded <= 0) break
+  }
+  return qtyMap
+}
 function abrirProducto(productoId) {
   const p = state.data.productos.find(x => x.id === productoId)
   if (!p) return
   const vars = state.data.variantes.filter(v => v.producto_id === productoId)
   const colores = [...new Set(vars.map(v => v.color).filter(Boolean))]
   _modalSel = { productoId, color: colores[0] || null, modo: 'variado' }
-  _corridaQty = {}
+  _corridaM = 1
 
   const ov = document.createElement('div')
   ov.className = 'modal-overlay'; ov.id = 'pmodal'
@@ -412,7 +503,7 @@ function abrirProducto(productoId) {
           <div class="tier-row" style="margin-top:5px">
             <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
             <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
-            <span class="tier corr">Corrida ${money(p.precio_corrida)}</span>
+            <span class="tier corr" id="pm-tier-corr">Corrida ${money(p.precio_corrida)}</span>
           </div>
         </div>
         <button onclick="document.getElementById('pmodal').remove()" style="background:none;border:none;font-size:1.5rem;color:#aaa">✕</button>
@@ -443,23 +534,55 @@ function abrirProducto(productoId) {
     </div>`
   document.body.appendChild(ov)
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
-  if (_modalSel.color) pintarTallas()
+  if (_modalSel.color) {
+    actualizarTabsModal()
+    pintarTallas()
+  }
+}
+
+function actualizarTabsModal() {
+  const modeDiv = document.getElementById('pm-mode')
+  if (!modeDiv) return
+  const { productoId, color } = _modalSel
+  const maxM = maxCorridasDisponibles(productoId, color)
+  const disponible = maxM >= 1
+  
+  const tierCorr = document.getElementById('pm-tier-corr')
+  if (tierCorr) {
+    tierCorr.style.display = disponible ? '' : 'none'
+  }
+  
+  if (!disponible) {
+    if (_modalSel.modo === 'corrida') {
+      _modalSel.modo = 'variado'
+    }
+    modeDiv.innerHTML = `
+      <button data-modo="variado" class="on" onclick="window.__modoModal('variado')">🧺 Surtido variado</button>
+    `
+  } else {
+    const modo = _modalSel.modo
+    modeDiv.innerHTML = `
+      <button data-modo="variado" class="${modo === 'variado' ? 'on' : ''}" onclick="window.__modoModal('variado')">🧺 Surtido variado</button>
+      <button data-modo="corrida" class="${modo === 'corrida' ? 'on' : ''}" onclick="window.__modoModal('corrida')">📦 Corrida completa</button>
+    `
+  }
 }
 
 window.__pickColor = (color) => {
   _modalSel.color = color
-  _corridaQty = {}
+  _corridaM = 1
   document.querySelectorAll('#pm-swatches .swatch').forEach(s => s.classList.toggle('active', s.dataset.color === color))
   const vc = state.data.variantes.filter(v => v.producto_id === _modalSel.productoId && v.color === color)
   const foto = vc.map(v => v.foto_url).find(Boolean)
   const img = document.getElementById('pm-img')
   if (img && foto) img.src = foto
+  actualizarTabsModal()
   pintarTallas()
 }
 
 window.__modoModal = (m) => {
   _modalSel.modo = m
-  _corridaQty = {}
+  _corridaM = 1
   document.querySelectorAll('#pm-mode button').forEach(b => b.classList.toggle('on', b.dataset.modo === m))
   pintarTallas()
 }
@@ -480,21 +603,36 @@ function pintarTallas() {
   const label = document.getElementById('pm-tallas-label')
 
   if (modo === 'corrida') {
-    if (label) label.textContent = `Corrida — ${color} · ${money(p.precio_corrida)} x par`
+    const maxM = maxCorridasDisponibles(productoId, color)
+    if (_corridaM > maxM) _corridaM = Math.max(1, maxM)
+    
+    if (label) label.textContent = `Corrida completa — ${color} · ${money(p.precio_corrida)} x par`
+    
+    const resolvedQty = resolverItemsCorrida(productoId, color, _corridaM)
+    
     cont.className = 'corrida-rows'
-    cont.innerHTML = vars.map(v => {
-      const stock = state.data.stockPorVar[v.id] || 0
-      const q = _corridaQty[v.id] || 0
-      return `<div class="crow ${stock <= 0 ? 'off' : ''}">
-        <span class="ct">${v.talla}</span>
-        <span class="cs muted">${stock <= 0 ? 'Agotado' : 'Stock ' + stock}</span>
+    cont.innerHTML = `
+      <div class="crow" style="border-bottom: 2px solid #f1f1f5; padding-bottom: 12px; margin-bottom: 12px;">
+        <span class="ct" style="min-width: 140px; font-weight: 800; font-size: 1.1rem; color: var(--black);">Corridas</span>
+        <span class="cs muted" style="font-size: .8rem;">Máx: ${maxM}</span>
         <div class="cstep">
-          <button ${stock <= 0 ? 'disabled' : ''} onclick="window.__corridaQty('${v.id}',-1)">−</button>
-          <span id="cq-${v.id}">${q}</span>
-          <button ${stock <= 0 ? 'disabled' : ''} onclick="window.__corridaQty('${v.id}',1)">+</button>
+          <button onclick="window.__changeCorridaM(-1)">−</button>
+          <span>${_corridaM}</span>
+          <button onclick="window.__changeCorridaM(1)">+</button>
         </div>
-      </div>`
-    }).join('')
+      </div>
+      ${vars.map(v => {
+        const q = resolvedQty[v.id] || 0
+        const stock = state.data.stockPorVar[v.id] || 0
+        return `<div class="crow ${stock <= 0 ? 'off' : ''}">
+          <span class="ct">Talla ${v.talla}</span>
+          <span class="cs muted">Stock ${stock}</span>
+          <div class="cstep">
+            <span style="font-size: 1rem; color: var(--pink); font-weight: 800;">${q} ${q === 1 ? 'par' : 'pares'}</span>
+          </div>
+        </div>`
+      }).join('')}
+    `
   } else {
     if (label) label.textContent = 'Tallas — ' + color
     cont.className = 'tallas'
@@ -515,35 +653,28 @@ function actualizarFooterModal() {
   const foot = document.getElementById('pm-foot')
   if (!foot) return
   if (_modalSel.modo === 'corrida') {
-    const n = Object.values(_corridaQty).reduce((s, x) => s + x, 0)
     foot.innerHTML = `
-      <button class="btn-mini ghost" style="width:100%;padding:11px;margin-bottom:8px" onclick="window.__sugerirCorrida()">✨ Sugerir corrida (6 pares)</button>
-      <button class="btn-primary" ${n ? '' : 'disabled'} onclick="window.__agregarCorrida()">${n ? 'Agregar corrida (' + n + ' pares)' : 'Elige las tallas de la corrida'}</button>`
+      <button class="btn-primary" onclick="window.__agregarCorrida()">Agregar ${_corridaM} ${_corridaM === 1 ? 'corrida' : 'corridas'} (${_corridaM * 6} pares)</button>
+    `
   } else {
     foot.innerHTML = `<button class="btn-primary" onclick="document.getElementById('pmodal').remove();window.__nav('carrito')">Listo · ver carrito</button>`
   }
 }
 
-window.__corridaQty = (varId, d) => {
-  const stock = state.data.stockPorVar[varId] || 0
-  const val = Math.min(stock, Math.max(0, (_corridaQty[varId] || 0) + d))
-  _corridaQty[varId] = val
-  const el = document.getElementById('cq-' + varId); if (el) el.textContent = val
-  actualizarFooterModal()
-}
-
-window.__sugerirCorrida = () => {
-  _corridaQty = {}
-  const conStock = _varsColorOrden().filter(v => (state.data.stockPorVar[v.id] || 0) > 0)
-  conStock.slice(0, 6).forEach(v => { _corridaQty[v.id] = 1 })
+window.__changeCorridaM = (d) => {
+  const { productoId, color } = _modalSel
+  const maxM = maxCorridasDisponibles(productoId, color)
+  _corridaM = Math.min(maxM, Math.max(1, _corridaM + d))
   pintarTallas()
 }
 
 window.__agregarCorrida = () => {
-  const { productoId } = _modalSel
+  const { productoId, color } = _modalSel
   const p = state.data.productos.find(x => x.id === productoId)
+  const resolvedQty = resolverItemsCorrida(productoId, color, _corridaM)
   let added = 0
-  Object.entries(_corridaQty).forEach(([varId, cant]) => {
+  
+  Object.entries(resolvedQty).forEach(([varId, cant]) => {
     if (cant <= 0) return
     const v = state.data.variantes.find(x => x.id === varId)
     const ex = state.carrito.find(i => i.variante_id === varId && i.es_corrida)
@@ -556,8 +687,9 @@ window.__agregarCorrida = () => {
     })
     added += cant
   })
-  if (!added) { toast('Elige al menos una talla'); return }
-  _corridaQty = {}
+  
+  if (!added) { toast('Elige al menos una corrida'); return }
+  _corridaM = 1
   guardarCarrito()
   const nav = document.querySelector('.bottomnav'); if (nav) nav.outerHTML = renderBottomNav()
   const m = document.getElementById('pmodal'); if (m) m.remove()
@@ -618,26 +750,81 @@ function renderCarrito() {
   }
   const sueltos = paresSueltos()
   const total = totalCarrito()
+
+  // Group corridas by product_id and color
+  const sueltosList = state.carrito.filter(i => !i.es_corrida)
+  const corridasList = state.carrito.filter(i => i.es_corrida)
+  
+  const gruposCorrida = {}
+  corridasList.forEach(i => {
+    const key = `${i.producto_id}-${i.color}`
+    if (!gruposCorrida[key]) {
+      gruposCorrida[key] = {
+        key,
+        es_grupo_corrida: true,
+        producto_id: i.producto_id,
+        color: i.color,
+        nombre: i.nombre,
+        imagen: i.imagen,
+        precio_corrida: i.precio_corrida,
+        cantidad: 0,
+        items: []
+      }
+    }
+    gruposCorrida[key].cantidad += i.cantidad
+    gruposCorrida[key].items.push(i)
+  })
+  
+  const itemsParaRender = [
+    ...sueltosList.map((i, idx) => ({ ...i, originalIdx: state.carrito.indexOf(i) })),
+    ...Object.values(gruposCorrida)
+  ]
+
   page().innerHTML = `
     <p class="section-title">${totalPares()} pares · ${tierLabel()}</p>
-    ${state.carrito.map((i, idx) => `
-      <div class="row">
-        <div class="r-top">
-          ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:.9rem">${esc(i.nombre)}</div>
-            <div class="muted" style="font-size:.78rem">${esc(i.color)} · T${esc(i.talla)}${i.es_corrida ? ' · corrida' : ''}</div>
-            <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(precioItem(i, sueltos))} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
+    ${itemsParaRender.map((i) => {
+      if (i.es_grupo_corrida) {
+        return `
+          <div class="row">
+            <div class="r-top">
+              ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:.9rem">${esc(i.nombre)}</div>
+                <div class="muted" style="font-size:.78rem">${esc(i.color)} · Corrida</div>
+                <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(i.precio_corrida)} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
+              </div>
+              <button onclick="window.__delGrupoCorrida('${i.producto_id}', '${esc(i.color)}')" style="background:none;border:none;color:#ccc;font-size:1.2rem">✕</button>
+            </div>
+            <div class="qty" style="margin-top:10px">
+              <button onclick="window.__qtyGrupoCorrida('${i.producto_id}', '${esc(i.color)}', -1)">−</button>
+              <span style="font-weight:700;min-width:26px;text-align:center">${i.cantidad}</span>
+              <button onclick="window.__qtyGrupoCorrida('${i.producto_id}', '${esc(i.color)}', 1)">+</button>
+              <span style="margin-left:auto;font-weight:700">${money(i.cantidad * i.precio_corrida)}</span>
+            </div>
           </div>
-          <button onclick="window.__delItem(${idx})" style="background:none;border:none;color:#ccc;font-size:1.2rem">✕</button>
-        </div>
-        <div class="qty" style="margin-top:10px">
-          <button onclick="window.__qty(${idx},-1)">−</button>
-          <span style="font-weight:700;min-width:26px;text-align:center">${i.cantidad}</span>
-          <button onclick="window.__qty(${idx},1)">+</button>
-          <span style="margin-left:auto;font-weight:700">${money(i.cantidad * precioItem(i, sueltos))}</span>
-        </div>
-      </div>`).join('')}
+        `
+      } else {
+        return `
+          <div class="row">
+            <div class="r-top">
+              ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:.9rem">${esc(i.nombre)}</div>
+                <div class="muted" style="font-size:.78rem">${esc(i.color)} · T${esc(i.talla)}</div>
+                <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(precioItem(i, sueltos))} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
+              </div>
+              <button onclick="window.__delItem(${i.originalIdx})" style="background:none;border:none;color:#ccc;font-size:1.2rem">✕</button>
+            </div>
+            <div class="qty" style="margin-top:10px">
+              <button onclick="window.__qty(${i.originalIdx},-1)">−</button>
+              <span style="font-weight:700;min-width:26px;text-align:center">${i.cantidad}</span>
+              <button onclick="window.__qty(${i.originalIdx},1)">+</button>
+              <span style="margin-left:auto;font-weight:700">${money(i.cantidad * precioItem(i, sueltos))}</span>
+            </div>
+          </div>
+        `
+      }
+    }).join('')}
     <div style="height:120px"></div>
     <div class="sticky-total">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -659,9 +846,57 @@ window.__qty = (idx, d) => {
   guardarCarrito(); renderCarrito()
   document.querySelector('.bottomnav').outerHTML = renderBottomNav()
 }
+
 window.__delItem = (idx) => {
   state.carrito.splice(idx, 1); guardarCarrito(); renderCarrito()
   document.querySelector('.bottomnav').outerHTML = renderBottomNav()
+}
+
+window.__qtyGrupoCorrida = (productoId, color, d) => {
+  const items = state.carrito.filter(i => i.producto_id === productoId && i.color === color && i.es_corrida)
+  const currentTotal = items.reduce((s, x) => s + x.cantidad, 0)
+  const currentM = currentTotal / 6
+  const newM = currentM + d
+  
+  if (newM <= 0) {
+    window.__delGrupoCorrida(productoId, color)
+    return
+  }
+  
+  const maxM = maxCorridasDisponibles(productoId, color)
+  if (newM > maxM) {
+    toast(`Sin existencias para ${newM} corridas (máximo ${maxM})`)
+    return
+  }
+  
+  const newQtyMap = resolverItemsCorrida(productoId, color, newM)
+  
+  // Remove existing
+  state.carrito = state.carrito.filter(i => !(i.producto_id === productoId && i.color === color && i.es_corrida))
+  
+  // Add new
+  const p = state.data.productos.find(x => x.id === productoId)
+  Object.entries(newQtyMap).forEach(([varId, cant]) => {
+    if (cant <= 0) return
+    const v = state.data.variantes.find(x => x.id === varId)
+    state.carrito.push({
+      variante_id: varId, producto_id: p.id, nombre: p.nombre, color: v.color, talla: v.talla,
+      cantidad: cant, es_corrida: true,
+      precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida,
+      imagen: v.foto_url || p.imagen_principal || null,
+    })
+  })
+  
+  guardarCarrito()
+  renderCarrito()
+  const nav = document.querySelector('.bottomnav'); if (nav) nav.outerHTML = renderBottomNav()
+}
+
+window.__delGrupoCorrida = (productoId, color) => {
+  state.carrito = state.carrito.filter(i => !(i.producto_id === productoId && i.color === color && i.es_corrida))
+  guardarCarrito()
+  renderCarrito()
+  const nav = document.querySelector('.bottomnav'); if (nav) nav.outerHTML = renderBottomNav()
 }
 
 // Envía el carrito al backend seguro: el server usa el cliente_id del token y
