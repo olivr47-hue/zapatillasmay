@@ -1166,7 +1166,7 @@ def sincronizar_inventario(background_tasks: BackgroundTasks):
 
 def _hacer_sync():
     try:
-        publicadas = _skus_shein()
+        publicadas = _skus_shein_cached()
         if not publicadas:
             cache_set("shein_sync_log", {"ts": time.time(), "error": "Sin SKUs publicados en SHEIN todavia"}, ttl=3600)
             return
