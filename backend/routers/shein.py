@@ -910,6 +910,51 @@ def _hacer_escaneo_skus_shein():
         cache_set("shein_skus_escaneando", None, ttl=1)
 
 
+@router.get("/publicaciones")
+def publicaciones():
+    """Lista COMPLETA de lo publicado en SHEIN (a diferencia de /mis-productos,
+    que solo trae la primera página de 50 vía product/query) -- y ya cruzada
+    contra el ERP para mostrar el nombre real del modelo en vez del SKC opaco
+    de SHEIN (ej. "I845m8bpegk8"), usando el mismo mapeo supplierSku<->skuCode
+    que ya usa la sincronización de stock. Mismo patrón de cache/background
+    que /catalogo-sin-publicar: si el cache está frío, dispara el escaneo (que
+    tarda varios minutos) y responde escaneando=true para que el panel reintente."""
+    publicados = cache_get("shein_skus_publicados")
+    if publicados is None:
+        if not cache_get("shein_skus_escaneando"):
+            cache_set("shein_skus_escaneando", True, ttl=600)
+            import threading
+            threading.Thread(target=_hacer_escaneo_skus_shein, daemon=True).start()
+        return {"escaneando": True}
+
+    variantes = supabase_get_all("variantes?activa=eq.true&select=sku,color,talla,producto_id")
+    productos = {p["id"]: p for p in supabase_get_all("productos?select=id,nombre,sku_interno")}
+    variante_por_sku_norm = {_norm_sku(v["sku"]): v for v in variantes if v.get("sku")}
+
+    grupos: dict = {}
+    for item in publicados:
+        clave = (item.get("spuName"), item.get("skcName"))
+        grupo = grupos.setdefault(clave, {"spuName": item.get("spuName"), "skcName": item.get("skcName"), "skus": []})
+        variante = variante_por_sku_norm.get(_norm_sku(item.get("supplierSku")))
+        producto = productos.get(variante["producto_id"]) if variante else None
+        grupo["skus"].append({
+            "skuCode":     item.get("skuCode"),
+            "supplierSku": item.get("supplierSku"),
+            "color":       variante.get("color") if variante else None,
+            "talla":       variante.get("talla") if variante else None,
+            "nombre":      producto.get("nombre") if producto else None,
+            "sku_interno": producto.get("sku_interno") if producto else None,
+        })
+
+    resultado = list(grupos.values())
+    for g in resultado:
+        g["nombre_erp"]   = next((s["nombre"] for s in g["skus"] if s["nombre"]), None)
+        g["sku_interno"]  = next((s["sku_interno"] for s in g["skus"] if s["sku_interno"]), None)
+        g["sin_match"]    = all(not s["nombre"] for s in g["skus"])
+    resultado.sort(key=lambda g: (g["sin_match"], g["nombre_erp"] or g["spuName"] or ""))
+    return {"total_skc": len(resultado), "total_skus": len(publicados), "grupos": resultado}
+
+
 # ─── Publicación masiva (mismo patron que /ml/publicar-catalogo) ───────────
 
 def _productos_sin_publicar_shein() -> list:

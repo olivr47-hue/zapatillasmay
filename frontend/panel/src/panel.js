@@ -19641,34 +19641,65 @@ window.sheinCargarPublicaciones = async (btn) => {
   btn.innerHTML = '⏳ Cargando...'
   btn.disabled = true
   wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">Consultando SHEIN...</p>'
+  btn.innerHTML = orig
+  btn.disabled = false
+  await window._sheinCargarPublicacionesReal()
+}
+
+window._sheinCargarPublicacionesReal = async () => {
+  const wrap = document.getElementById('shein-pubs-wrap')
   try {
-    const res  = await fetch(`${API}/shein/mis-productos`)
+    const res  = await fetch(`${API}/shein/publicaciones`)
     const data = await res.json()
-    if (!res.ok || data.ok === false) { wrap.innerHTML = `<p style="color:red">Error: ${data.error?.msg || data.detail || JSON.stringify(data)}</p>`; return }
+    if (!res.ok) { wrap.innerHTML = `<p style="color:red">Error: ${data.detail || JSON.stringify(data)}</p>`; return }
 
-    const items = data.info?.data || []
-    if (!items.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
+    if (data.escaneando) {
+      wrap.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#eff6ff;border-radius:10px;color:#1e40af;font-size:0.86rem">
+          <span style="width:14px;height:14px;border:2px solid #bfdbfe;border-top-color:#1e40af;border-radius:50%;display:inline-block;flex-shrink:0;animation:mlspin 0.8s linear infinite"></span>
+          Cargando el catálogo completo publicado en SHEIN (primera vez puede tardar varios minutos, va color por color). Puedes seguir usando el panel mientras tanto.
+        </div><style>@keyframes mlspin{to{transform:rotate(360deg)}}</style>`
+      setTimeout(() => { if (document.getElementById('shein-pubs-wrap')) window._sheinCargarPublicacionesReal() }, 10000)
+      return
+    }
 
-    const filas = items.map(it => `
-      <tr data-search="${(it.spuName + ' ' + it.skcName + ' ' + (it.skuCodeList||[]).join(' ')).toLowerCase().replace(/"/g,'')}" style="border-bottom:1px solid var(--border)">
-        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:${_SHEIN_ACCENT};white-space:nowrap">${it.spuName}</td>
-        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555;white-space:nowrap">${it.skcName}</td>
-        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${(it.skuCodeList||[]).length} SKU(s)</td>
-      </tr>`).join('')
+    const grupos = data.grupos || []
+    if (!grupos.length) { wrap.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No se encontraron publicaciones.</p>'; return }
 
+    const filas = grupos.map(g => {
+      const search = [g.nombre_erp, g.sku_interno, g.spuName, g.skcName, ...(g.skus||[]).map(s => s.supplierSku)]
+        .filter(Boolean).join(' ').toLowerCase().replace(/"/g, '')
+      const nombreCel = g.sin_match
+        ? `<span title="No se encontró ningún SKU de este color en el ERP -- puede ser un color/producto dado de baja" style="color:#b45309">⚠️ Sin match en ERP <span style="color:#aaa;font-family:monospace;font-size:0.72rem">(${_wmEsc(g.skcName || '')})</span></span>`
+        : `<b>${_wmEsc(g.nombre_erp || '')}</b>`
+      return `
+      <tr data-search="${search}" style="border-bottom:1px solid var(--border)">
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem">${nombreCel}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888;font-family:monospace;white-space:nowrap">${_wmEsc(g.sku_interno || '-')}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#555">${(g.skus||[]).map(s => _wmEsc(s.talla || '')).filter(Boolean).join(', ') || '-'}</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${(g.skus||[]).length} SKU(s)</td>
+        <td style="padding:0.4rem 0.5rem;font-size:0.72rem;color:#aaa;font-family:monospace;white-space:nowrap" title="Código interno de SHEIN (SKC)">${_wmEsc(g.skcName || '')}</td>
+      </tr>`
+    }).join('')
+
+    const sinMatch = grupos.filter(g => g.sin_match).length
     wrap.innerHTML = `
-      <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
-        <span style="font-size:0.82rem;color:#555">Total SKC: <b>${items.length}</b></span>
+      <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center">
+        <span style="font-size:0.82rem;color:#555">Total colores publicados: <b>${grupos.length}</b></span>
+        <span style="font-size:0.82rem;color:#555">Total SKUs: <b>${data.total_skus}</b></span>
+        ${sinMatch ? `<span style="font-size:0.8rem;color:#b45309">⚠️ ${sinMatch} sin coincidir con el ERP</span>` : ''}
       </div>
-      <input id="shein-pubs-buscar" oninput="sheinFiltrarPubs(this.value)" placeholder="🔍 Buscar por SPU, SKC o SKU..."
+      <input id="shein-pubs-buscar" oninput="sheinFiltrarPubs(this.value)" placeholder="🔍 Buscar por nombre, SKU del ERP, SPU o SKC..."
              style="width:100%;padding:0.5rem 0.75rem;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;margin-bottom:0.6rem;box-sizing:border-box">
-      <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
+      <div style="overflow-x:auto;max-height:440px;overflow-y:auto;border:1px solid var(--border);border-radius:6px">
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr style="background:var(--bg-secondary);position:sticky;top:0">
-              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SPU</th>
-              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKC (color)</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Producto (ERP)</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKU interno</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">Tallas</th>
               <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKUs</th>
+              <th style="padding:0.4rem 0.5rem;font-size:0.75rem;text-align:left;color:#888;font-weight:600">SKC (SHEIN)</th>
             </tr>
           </thead>
           <tbody>${filas}</tbody>
@@ -19676,9 +19707,6 @@ window.sheinCargarPublicaciones = async (btn) => {
       </div>`
   } catch(e) {
     wrap.innerHTML = `<p style="color:red">Error de conexión: ${e.message}</p>`
-  } finally {
-    btn.innerHTML = orig
-    btn.disabled = false
   }
 }
 
