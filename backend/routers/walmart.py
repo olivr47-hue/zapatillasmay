@@ -16,6 +16,7 @@ import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from database import supabase_get_all, supabase_post, supabase_get, supabase_patch
+from cache import cache_get, cache_set
 
 router = APIRouter(prefix="/walmart", tags=["Walmart"])
 
@@ -484,7 +485,17 @@ def _variantes_publicables() -> list:
     """Productos activos (excepto 'accesorios', fuera del alcance de la
     categoría Zapatos aprobada) con sus variantes activas, listas para armar
     el feed. Se agrupa por (producto_id, color) para elegir una variante
-    "primaria" por grupo de talla -- Walmart la exige para variantes."""
+    "primaria" por grupo de talla -- Walmart la exige para variantes.
+
+    Cacheado 30 min (mismo TTL que productos/variantes en el resto del
+    sistema) -- esta función volvía a jalar productos+variantes+inventario
+    completos de Supabase (~2.9 MB) en CADA llamada, y el panel la dispara
+    cada 90s solo para el badge de notificación (catalogo-sin-publicar),
+    sin importar si el admin está viendo esa sección o no. Sin caché, eso
+    solo eran ~1+ GB/día de egress de Supabase por una sola pestaña abierta."""
+    cached = cache_get("walmart_variantes_publicables")
+    if cached is not None:
+        return cached
     productos = supabase_get_all(
         "productos?activo=eq.true&categoria=neq.accesorios"
         "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal"
@@ -533,6 +544,7 @@ def _variantes_publicables() -> list:
                 "stock": stock_por_variante.get(v["id"], 0),
                 "num_fotos_color": len(fotos_color),
             })
+    cache_set("walmart_variantes_publicables", resultado, ttl=1800)
     return resultado
 
 

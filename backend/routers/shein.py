@@ -968,7 +968,15 @@ def _productos_sin_publicar_shein() -> list:
     cualquier producto con un registro exitoso en `shein_publicaciones`
     (nuestro propio historial local) -- si no, cada corrida de "publicar
     catalogo completo" volveria a mandar duplicados de todo lo que sigue
-    en cola de revision desde la corrida anterior."""
+    en cola de revision desde la corrida anterior.
+
+    Cacheado 30 min -- el panel hace poll de esta función cada 90s para el
+    badge de notificación (catalogo-sin-publicar), sin importar la sección
+    que se esté viendo, y sin caché volvía a jalar el catálogo completo de
+    Supabase en cada ciclo (ver el mismo fix en walmart._variantes_publicables)."""
+    cached = cache_get("shein_productos_sin_publicar")
+    if cached is not None:
+        return cached
     productos = supabase_get_all("productos?activo=eq.true&select=id,sku_interno,nombre,categoria,precio_menudeo,precio_mayoreo6")
     # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
     # en marketplaces externos, solo existen para uso interno del ERP.
@@ -995,6 +1003,7 @@ def _productos_sin_publicar_shein() -> list:
         if p["id"] in ya_enviados_ids:
             continue
         sin_publicar.append(p)
+    cache_set("shein_productos_sin_publicar", sin_publicar, ttl=1800)
     return sin_publicar
 
 
@@ -1017,8 +1026,15 @@ def catalogo_sin_publicar_shein(background_tasks: BackgroundTasks):
     if not productos:
         return {"total": 0, "productos": []}
 
-    ids_str   = ",".join(p["id"] for p in productos)
-    variantes = supabase_get_all(f"variantes?producto_id=in.({ids_str})&activa=eq.true&select=producto_id,color,imagenes,foto_url")
+    # Mismo motivo que _productos_sin_publicar_shein: este endpoint se poll-ea
+    # cada 90s desde el panel para el badge de notificación, y sin caché volvía
+    # a jalar las variantes (con fotos incluidas) de Supabase en cada ciclo.
+    ids_str = ",".join(p["id"] for p in productos)
+    ck_variantes = "shein_variantes_sin_publicar"
+    variantes = cache_get(ck_variantes)
+    if variantes is None:
+        variantes = supabase_get_all(f"variantes?producto_id=in.({ids_str})&activa=eq.true&select=producto_id,color,imagenes,foto_url")
+        cache_set(ck_variantes, variantes, ttl=1800)
 
     fotos_por_color: dict = {}
     for v in variantes:
