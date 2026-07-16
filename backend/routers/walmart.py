@@ -418,14 +418,16 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     talla_walmart   = f"{talla} (MX)"
 
     fila = {
-        # E (Product ID Type) / F (Product ID) se dejan vacíos a propósito --
-        # la cuenta tiene la exención de GTIN aprobada por Walmart (folio
-        # 15476267, "carga sin UPC"). Antes se mandaba E="GTIN" F="CUSTOM" en
-        # TODAS las filas: eso le decía a Walmart "aquí va un GTIN real" con
-        # un valor inválido y repetido 236 veces -- causa confirmada del
-        # rechazo total del feed ("SKU='CUSTOM'" duplicado en el error report
-        # real de Walmart, el SKU real en D nunca se llegó a leer).
-        "D": sku,
+        # OJO: Walmart confirmó por escrito (ver comentario junto a
+        # _TEMPLATE_PATH) que E="GTIN"/F="CUSTOM" literal es la forma correcta
+        # de la carga sin UPC (folio 15476267) -- se intentó dejarlos vacíos
+        # el 2026-07-16 pensando que el "CUSTOM" repetido causaba el rechazo
+        # ("SKU='CUSTOM' duplicado"), pero dejarlos vacíos produjo un error
+        # PEOR ("Please provide a valid Product ID"/"Identificador de
+        # Producto Adicional requerido"), confirmando que sí hacen falta.
+        # Revertido -- la causa real de "SKU duplicado" sigue sin resolverse,
+        # necesita soporte de Walmart (contradice su propia confirmación por escrito).
+        "D": sku, "E": "GTIN", "F": "CUSTOM",
         "G": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "H": "May",
         "I": imagen_principal,
