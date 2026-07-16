@@ -406,7 +406,9 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
         fotos = [producto["imagen_principal"]]
     fotos = [f for f in fotos if f]
     imagen_principal = _cloudinary_cuadrada(fotos[0]) if fotos else ""
-    imagenes_extra    = [_cloudinary_cuadrada(u) for u in fotos[1:4]]
+    # La plantilla oficial trae 4 columnas de foto secundaria (AJ/AK/AL/AM),
+    # no 3 -- antes se mandaban solo 3 y se perdía la 4ta foto disponible.
+    imagenes_extra    = [_cloudinary_cuadrada(u) for u in fotos[1:5]]
 
     color_categoria = _COLOR_CATEGORY.get(_normalizar(color), "Multicolor")
     genero          = _GENERO_POR_CATEGORIA.get(categoria, "Mujer")
@@ -449,12 +451,14 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
         "DB": f"{producto.get('sku_interno','')}-{_normalizar(color)}",
         "DC": "Talla del Zapato",
         "DD": "Sí" if es_primaria else "No",
+        "DE": "Color",
+        "DF": imagen_principal,
         "DI": "No",
         "DK": "No",
     }
     if talla_walmart in _TALLAS_VALIDAS_MX:
         fila["BJ"] = talla_walmart
-    for letra, url in zip(("AJ", "AK", "AL"), imagenes_extra):
+    for letra, url in zip(("AJ", "AK", "AL", "AM"), imagenes_extra):
         fila[letra] = url
     return fila
 
