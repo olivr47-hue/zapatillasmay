@@ -79,6 +79,14 @@ def _walmart_headers(extra: dict = None) -> dict:
         "WM_QOS.CORRELATION_ID":     str(uuid.uuid4()),
         "WM_MARKET":                 WALMART_MARKET,
         "WM_CONSUMER.CHANNEL.TYPE":  WALMART_CHANNEL_TYPE,
+        # La documentacion "mx-marketplace" (vieja) de Bulk Item Setup no la
+        # pide, pero la documentacion "global-marketplace" (Unified Content)
+        # del MISMO endpoint (POST /v3/feeds) la marca como requerida --
+        # unico valor permitido "3.1". Hipotesis: GMP_GATEWAY_API en el error
+        # "REQUEST_CONTENT_DEPRECATED_VERSION.GMP_GATEWAY_API" es literalmente
+        # "Global Marketplace Platform Gateway API" y la cuenta ya quedo del
+        # lado nuevo del gateway, que exige esta version explicita.
+        "WM_GLOBAL_VERSION":         "3.1",
         "Accept":                    "application/json",
     }
     if extra:
