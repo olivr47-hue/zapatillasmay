@@ -2967,14 +2967,14 @@ if (!window.fbq){
         <span class="cro-tier-icon">🛍️</span>
         <div>
           <span class="cro-tier-qty">3–5 pares</span>
-          <span class="cro-tier-label">-$110 por par</span>
+          <span class="cro-tier-label">-$70 por par</span>
         </div>
       </div>
       <div class="cro-tier cro-tier-highlight">
         <span class="cro-tier-icon">📦</span>
         <div>
           <span class="cro-tier-qty">6+ pares</span>
-          <span class="cro-tier-label">-$150 por par</span>
+          <span class="cro-tier-label">-$110 por par</span>
         </div>
       </div>
     </div>
@@ -3069,11 +3069,11 @@ if (!window.fbq){
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.1);border-left:1px solid rgba(184,124,130,0.5);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">3 — 5 pares</span>
-        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$110 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$70 por par</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:rgba(184,124,130,0.15);border-left:1px solid rgba(184,124,130,0.7);border-radius:0 8px 8px 0">
         <span style="font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(245,240,232,0.5)">6+ pares</span>
-        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$150 por par</span>
+        <span style="font-size:0.95rem;font-weight:600;color:#C4A89A">-$110 por par</span>
       </div>
     </div>
   </div>
@@ -3933,9 +3933,12 @@ cargarConfigSEO()
     // precio_menudeo en BD es el precio base; display menudeo = base+80
     // mayoreo 3+ = base (sin el +80), salvo que precio_mayoreo3 esté explícito
     const _precioMenu = p.precio_menudeo ? (p.es_oferta ? parseFloat(p.precio_menudeo) : parseFloat(p.precio_menudeo) + 80) : null
+    // +40 respecto al precio real del panel -- SOLO en el sitio público, para
+    // cubrir el costo real de envío/caja de embarque en mayoreo. El portal de
+    // mayoristas y el punto de venta siguen usando el precio del panel tal cual.
     const _precioMay3 = p.precio_mayoreo3
-      ? parseFloat(p.precio_mayoreo3)
-      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) - 30 : null)
+      ? parseFloat(p.precio_mayoreo3) + 40
+      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) - 30 + 40 : null)
     const _ahorro = _precioMay3 && _precioMenu ? Math.round(_precioMenu - _precioMay3) : 0
 
     return `
@@ -4086,8 +4089,9 @@ if (window.ttq) ttq.track('ViewContent', {
       _mayoreoEl.style.display = 'none'
     } else {
       _mayoreoEl.style.display = ''
-      const precioM3 = p.precio_mayoreo3 || (p.precio_menudeo - 30)
-      const precioM6 = p.precio_mayoreo6 || (p.precio_menudeo - 70)
+      // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
+      const precioM3 = (p.precio_mayoreo3 || (p.precio_menudeo - 30)) + 40
+      const precioM6 = (p.precio_mayoreo6 || (p.precio_menudeo - 70)) + 40
       const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
       _mayoreoEl.innerHTML = `
         <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
@@ -4351,8 +4355,9 @@ if (window.ttq) ttq.track('ViewContent', {
         talla: tallaSeleccionada,
         cantidad: 1,
         precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
-        precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
+        // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
+        precio_mayoreo3: (parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30)) + 40,
+        precio_mayoreo6: (parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70)) + 40,
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
         imagen: (() => {
@@ -4524,8 +4529,9 @@ if (window.ttq) {
         tallas_corrida: tallasCorrida,
         cantidad: 1,
         precio_menudeo: (parseFloat(p.precio_menudeo)||0) + 80,
-        precio_mayoreo3: parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo) - 30),
-        precio_mayoreo6: parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70),
+        // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
+        precio_mayoreo3: (parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo) - 30)) + 40,
+        precio_mayoreo6: (parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70)) + 40,
         precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-100),
         es_oferta: p.es_oferta||false,
         es_corrida: true,
@@ -4629,13 +4635,13 @@ if (window.ttq) {
     if (totalPares === 1) {
       mayoreoHTML = `
         <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
-          🎁 Agrega <strong style="color:#b5687a">2 pares más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $110 por par.
+          🎁 Agrega <strong style="color:#b5687a">2 pares más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $70 por par.
         </div>
       `
     } else if (totalPares === 2) {
       mayoreoHTML = `
         <div style="background:rgba(200,150,122,0.06);border:1px solid rgba(200,150,122,0.15);border-radius:10px;padding:8px 12px;font-size:0.72rem;color:#8B6A54;line-height:1.4">
-          🎁 Agrega <strong style="color:#b5687a">1 par más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $110 por par.
+          🎁 Agrega <strong style="color:#b5687a">1 par más</strong> para activar el precio <strong>Mayoreo 3+</strong> y ahorrar $70 por par.
         </div>
       `
     } else if (totalPares >= 3 && totalPares < 6) {
@@ -5719,14 +5725,14 @@ const PAGINAS = {
 
         <div class="may-tier" style="border:1.5px solid rgba(200,150,122,0.35);background:linear-gradient(135deg,rgba(200,150,122,0.06),rgba(181,104,122,0.03))">
           <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--pink);font-weight:700;margin-bottom:12px">3 - 5 pares</div>
-          <div style="font-family:var(--font-mono);font-size:1.3rem;font-weight:700;color:var(--pink)">-$110 c/u</div>
+          <div style="font-family:var(--font-mono);font-size:1.3rem;font-weight:700;color:var(--pink)">-$70 c/u</div>
           <div class="may-tier-bar" style="background:linear-gradient(90deg,#C8967A,#d4aa92)"></div>
           <p style="font-size:0.75rem;color:var(--gray-600);line-height:1.55">Modelos y colores mezclables en el mismo pedido</p>
         </div>
 
         <div class="may-tier" style="border:1.5px solid rgba(181,104,122,0.4);background:linear-gradient(135deg,rgba(181,104,122,0.08),rgba(200,150,122,0.05))">
           <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:#b5687a;font-weight:700;margin-bottom:12px">6 + pares</div>
-          <div style="font-family:var(--font-mono);font-size:1.3rem;font-weight:700;color:#b5687a">-$150 c/u</div>
+          <div style="font-family:var(--font-mono);font-size:1.3rem;font-weight:700;color:#b5687a">-$110 c/u</div>
           <div class="may-tier-bar" style="background:linear-gradient(90deg,#b5687a,#C8967A)"></div>
           <p style="font-size:0.75rem;color:var(--gray-600);line-height:1.55">Envio gratis incluido en pedidos de 6 pares o mas</p>
         </div>

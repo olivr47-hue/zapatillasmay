@@ -975,8 +975,9 @@ function renderProducto() {
     const totalPares = paresCarrito + (simular ? 1 : 0)
 
     // Precios mayoreo de este producto (misma lógica que el bloque de mayoreoHTML)
-    const _pM3 = parseFloat(p.precio_mayoreo3 || (parseFloat(p.precio_menudeo) - 30))
-    const _pM6 = parseFloat(p.precio_mayoreo6 || (parseFloat(p.precio_menudeo) - 70))
+    // +40 solo en el sitio (cubre envío/caja de embarque) -- portal mayorista y POS usan el precio del panel tal cual
+    const _pM3 = parseFloat(p.precio_mayoreo3 || (parseFloat(p.precio_menudeo) - 30)) + 40
+    const _pM6 = parseFloat(p.precio_mayoreo6 || (parseFloat(p.precio_menudeo) - 70)) + 40
     // Precio de este producto al tier que correspondería con el total de pares
     const precioEste = simular ? (
       totalPares >= 6 ? _pM6 :
@@ -1028,8 +1029,9 @@ function renderProducto() {
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
   if (!p.es_oferta) {
-    const m3 = parseFloat(p.precio_mayoreo3 || (p.precio_menudeo - 30))
-    const m6 = parseFloat(p.precio_mayoreo6 || (p.precio_menudeo - 70))
+    // +40 solo en el sitio (cubre envío/caja de embarque) -- portal mayorista y POS usan el precio del panel tal cual
+    const m3 = parseFloat(p.precio_mayoreo3 || (p.precio_menudeo - 30)) + 40
+    const m6 = parseFloat(p.precio_mayoreo6 || (p.precio_menudeo - 70)) + 40
     const ah3 = Math.round(precioDisplay - m3)
     const ah6 = Math.round(precioDisplay - m6)
     mayoreoHTML = `<div class="mayoreo-box">
@@ -1381,8 +1383,9 @@ function irACarrito() {
     talla: tallaSeleccionada,
     cantidad: 1,
     precio_menudeo: precioBase,
-    precio_mayoreo3: parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30),
-    precio_mayoreo6: parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70),
+    // +40 solo en el sitio (cubre envío/caja de embarque) -- portal mayorista y POS usan el precio del panel tal cual
+    precio_mayoreo3: (parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30)) + 40,
+    precio_mayoreo6: (parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70)) + 40,
     precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
     es_oferta: p.es_oferta || false,
     imagen: variante?.foto_url || (variante?.imagenes && variante.imagenes[0]) || p.imagen_principal || null,
