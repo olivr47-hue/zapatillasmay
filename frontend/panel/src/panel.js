@@ -2781,12 +2781,8 @@ window.guardarOportunidad = async () => {
 async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
   const content = document.getElementById('content')
   try {
-    const [resProds, resVars] = await Promise.all([
-      fetch(API + '/productos/'),
-      fetch(API + '/variantes/')
-    ])
+    const resProds = await fetch(API + '/productos/')
     const data = await resProds.json()
-    const variantes = await resVars.json()
 
     const activos = data.filter(p => p.activo)
     const inactivos = data.filter(p => !p.activo)
@@ -2794,6 +2790,24 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
     console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inactivos:', inactivos.length)
     const categorias = [...new Set(activos.map(p => p.categoria).filter(Boolean))]
     const filtrados = categoriaFiltro ? base.filter(p => p.categoria === categoriaFiltro) : base
+
+    let variantes = []
+    if (filtrados.length > 0) {
+      const ids = filtrados.map(p => p.id)
+      const chunks = []
+      for (let i = 0; i < ids.length; i += 80) {
+        chunks.push(ids.slice(i, i + 80))
+      }
+      const resList = await Promise.all(
+        chunks.map(chunk => fetch(API + '/variantes/?producto_ids=' + chunk.join(',')))
+      )
+      for (const res of resList) {
+        if (res.ok) {
+          const list = await res.json()
+          variantes = variantes.concat(list || [])
+        }
+      }
+    }
 
     window._modoAnuncio = false
     window._anuncioSeleccion = []

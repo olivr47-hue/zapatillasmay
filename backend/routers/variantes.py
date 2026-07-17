@@ -39,7 +39,14 @@ def talla_a_codigo(talla):
     return talla.replace('.', '_')
 
 @router.get("/")
-def listar_variantes():
+def listar_variantes(producto_ids: str = None):
+    if producto_ids:
+        ids_list = [i.strip() for i in producto_ids.split(",") if i.strip()]
+        if not ids_list:
+            return []
+        ids_str = ",".join(ids_list)
+        return supabase_get(f"variantes?producto_id=in.({ids_str})&or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,foto_url")
+
     cached = cache_get(_CK + "_all")
     if cached is not None:
         return cached
