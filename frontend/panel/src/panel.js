@@ -8373,7 +8373,11 @@ window.buscarProductoPedidoEdicion = (texto) => {
     if (!grupos[key]) grupos[key] = { nombre: prod?.nombre || '—', color: v.color || '', foto: prod?.imagen_principal, hex: v.color_hex, vars: [] }
     grupos[key].vars.push(v)
   })
-  const arr = Object.values(grupos).slice(0, 6)
+  // Orden natural + tope generoso (antes 6, en el orden que viniera de la BD --
+  // dificultaba encontrar un modelo entre marcas con muchos productos parecidos)
+  const arr = Object.values(grupos)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true, sensitivity: 'base' }))
+    .slice(0, 30)
 
   res.style.display = 'block'
   res.innerHTML = arr.map(g => {
@@ -8995,7 +8999,7 @@ window.renderDrawerPOS = () => {
   itemsCorrida.forEach(i => {
     const key = i.producto_id + '|' + i.color
     if (!corridasAgrupadas[key]) {
-      corridasAgrupadas[key] = { nombre: i.nombre, color: i.color, producto_id: i.producto_id, tallas: [], subtotal: 0, imagen: i.imagen || null }
+      corridasAgrupadas[key] = { nombre: i.nombre, color: i.color, producto_id: i.producto_id, variante_id: i.variante_id, tallas: [], subtotal: 0, imagen: i.imagen || null }
     }
     corridasAgrupadas[key].tallas.push({ talla: i.talla, cantidad: i.cantidad })
     corridasAgrupadas[key].subtotal += i.cantidad * i.precio_unitario
@@ -9008,7 +9012,7 @@ window.renderDrawerPOS = () => {
       return `
         <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
   <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
-    ${item.imagen ? `<img src="${item.imagen}" onclick="cerrarDrawerPOS();abrirProductoPOS('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5;cursor:pointer">` : `<div onclick="cerrarDrawerPOS();abrirProductoPOS('${item.producto_id}')" style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
+    ${item.imagen ? `<img src="${item.imagen}" onclick="verProductoDesdeCarritoPOS('${item.producto_id||''}','${item.variante_id||''}')" title="Ver producto / agregar más pares" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5;cursor:pointer">` : `<div onclick="verProductoDesdeCarritoPOS('${item.producto_id||''}','${item.variante_id||''}')" style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
     <div style="flex:1">
       <p style="font-size:0.9rem;font-weight:600">${item.nombre}</p>
       <p style="font-size:0.78rem;color:#888">${item.color} · T${item.talla}</p>
@@ -9037,7 +9041,7 @@ window.renderDrawerPOS = () => {
     ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
       <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-          ${corrida.imagen ? `<img src="${corrida.imagen}" onclick="cerrarDrawerPOS();abrirProductoPOS('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="cerrarDrawerPOS();abrirProductoPOS('${corrida.producto_id}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer">👠</div>`}
+          ${corrida.imagen ? `<img src="${corrida.imagen}" onclick="verProductoDesdeCarritoPOS('${corrida.producto_id||''}','${corrida.variante_id||''}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="verProductoDesdeCarritoPOS('${corrida.producto_id||''}','${corrida.variante_id||''}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer">👠</div>`}
           <div style="flex:1">
             <p style="font-size:0.9rem;font-weight:700">${corrida.nombre}</p>
             <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${corrida.color}</p>
@@ -9303,6 +9307,26 @@ window.actualizarInventarioPOS = async () => {
     const { productos } = window._posData
     renderProductosPOS(productos)
   } catch(e) {}
+}
+
+// Abre la ficha del producto desde un item del carrito. Items viejos guardados
+// en localStorage (de antes de que producto_id se guardara en cada item) pueden
+// no traerlo -- en ese caso se resuelve buscando la variante por variante_id,
+// que siempre está presente. Si aun así no se encuentra, avisa en vez de fallar
+// en silencio (antes no pasaba nada visible y parecía que el botón no hacía nada).
+window.verProductoDesdeCarritoPOS = (productoId, varianteId) => {
+  cerrarDrawerPOS()
+  let pid = productoId
+  if (!pid || pid === 'undefined' || pid === 'null') {
+    const v = window._posData?.variantes?.find(x => x.id === varianteId)
+    pid = v?.producto_id || null
+  }
+  if (!pid) {
+    if (typeof mostrarToastPanel === 'function') mostrarToastPanel('No se pudo abrir este producto (falta info en el item)')
+    else alert('No se pudo abrir este producto')
+    return
+  }
+  abrirProductoPOS(pid)
 }
 
 window.abrirProductoPOS = async (productoId) => {
@@ -22026,7 +22050,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const stock = invItem ? invItem.cantidad : null
                 return `
                   <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
-                    ${imagen ? `<img src="${imagen}" onclick="abrirProductoPOS('${g.productoId}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="abrirProductoPOS('${g.productoId}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
+                    ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
@@ -22050,7 +22074,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 return `
                   <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
                     <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
-                      ${imagen ? `<img src="${imagen}" onclick="abrirProductoPOS('${g.productoId}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="abrirProductoPOS('${g.productoId}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
+                      ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
                       <div style="flex:1">
                         <p style="font-weight:700;font-size:0.88rem;margin:0">${g.nombre}</p>
                         <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600;margin:2px 0 4px">📦 Corrida · ${g.color}</p>
@@ -22159,6 +22183,21 @@ if (!window._carritoOutsideCloser) {
   })
 }
 
+// Reabre el buscador propio de Carritos ya cargado con este producto -- usado
+// al tocar la foto de un item ya en el carrito para agregar más pares. Carritos
+// tiene su propio buscador (no el modal del POS: ese usa la sucursal del select
+// #pos-sucursal, que aquí no existe, y por eso todo salía "agotado").
+window.reabrirBusquedaCarrito = (nombre) => {
+  const inp = document.getElementById('c-buscar-prod')
+  if (!inp || !nombre) return
+  inp.value = nombre
+  inp.focus()
+  buscarProductoCarrito(nombre)
+  posicionarDropdownCarrito('c-prod-resultados', 'c-buscar-prod')
+  const res = document.getElementById('c-prod-resultados')
+  if (res) res.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 window.buscarProductoCarrito = (texto) => {
   const { variantes, productos } = window._carritoActivo
   const res = document.getElementById('c-prod-resultados')
@@ -22188,7 +22227,13 @@ window.buscarProductoCarrito = (texto) => {
     if (!grupos[key]) grupos[key] = { nombre: prod?.nombre || '—', color: v.color || '', foto: prod?.imagen_principal, hex: v.color_hex, vars: [] }
     grupos[key].vars.push(v)
   })
-  const arr = Object.values(grupos).slice(0, 6)
+  // Orden natural (así "OY4" sale antes que "OY20", no como texto) + tope
+  // generoso (antes 6, en el orden que viniera de la BD -- obligaba a teclear
+  // casi todo el modelo para encontrarlo entre marcas con muchos productos
+  // parecidos, ej. "OY"). El dropdown ya es scrolleable (max-height:340px).
+  const arr = Object.values(grupos)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { numeric: true, sensitivity: 'base' }))
+    .slice(0, 30)
 
   res.style.display = 'block'
   res.innerHTML = arr.map(g => {
@@ -22591,7 +22636,9 @@ window.buscarModeloCarrito = (texto) => {
     grupos[key].variantes.push(v)
   })
 
-  const entradas = Object.values(grupos).slice(0, 6)
+  const entradas = Object.values(grupos)
+    .sort((a, b) => a.prod.nombre.localeCompare(b.prod.nombre, 'es', { numeric: true, sensitivity: 'base' }))
+    .slice(0, 30)
   if (!entradas.length) { res.style.display = 'none'; return }
   res.style.display = 'block'
   res.innerHTML = entradas.map(g => `

@@ -1767,7 +1767,7 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
     const prod = pc.productos.find(x => x.id === v.producto_id)
     delServidor.push({
       producto_id: v.producto_id, variante_id: v.id, nombre: v.productos?.nombre || i.nombre || 'Producto',
-      sku: prod?.sku_interno || null, imagen: v.productos?.imagen_principal || null,
+      sku: prod?.sku_interno || null, imagen: v.foto_url || v.productos?.imagen_principal || null,
       talla: v.talla || i.talla, color: v.color || i.color, cantidad: i.cantidad,
       precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
     })
@@ -1775,6 +1775,7 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
   if (!delServidor.length) return
   pc.carrito = delServidor
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+  if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
 }
 
 // ── Carrito en vivo ───────────────────────────────────────────
@@ -1819,12 +1820,13 @@ async function pcRefrescarCarritoSiCambio() {
       const prod = pc.productos.find(x => x.id === v?.producto_id)
       return {
         producto_id: v?.producto_id, variante_id: v?.id, nombre: v?.productos?.nombre || i.nombre || 'Producto',
-        sku: prod?.sku_interno || null, imagen: v?.productos?.imagen_principal || null,
+        sku: prod?.sku_interno || null, imagen: v?.foto_url || v?.productos?.imagen_principal || null,
         talla: v?.talla || i.talla, color: v?.color || i.color, cantidad: i.cantidad,
         precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
       }
     })
     try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+    if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
     if (pc.tab === 'carrito') renderCarrito()
   } catch (e) { /* silencioso -- se reintenta en el siguiente ciclo */ }
 }
@@ -2362,7 +2364,7 @@ window.pcReordenar = function(pedidoId) {
       const prod = pc.productos.find(x => x.id === v.producto_id)
       pc.carrito.push({
         producto_id: v.producto_id, variante_id: v.id, nombre: nombreProd,
-        sku: prod?.sku_interno || null, imagen: v.productos?.imagen_principal || null,
+        sku: prod?.sku_interno || null, imagen: v.foto_url || v.productos?.imagen_principal || null,
         talla: v.talla, color: v.color, cantidad, precio_unitario: i.precio_unitario || 0, es_corrida: false,
       })
     }
