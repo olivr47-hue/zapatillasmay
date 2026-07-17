@@ -958,7 +958,7 @@ window.pcAbrirProducto = function(prodId) {
       <!-- Header: foto + nombre + precios -->
       <div style="padding:1.25rem 1.5rem 0.85rem;border-bottom:1px solid var(--pc-border-2);flex-shrink:0">
         <div style="display:flex;align-items:flex-start;gap:12px">
-          <img id="pc-modal-img" src="${esc(p.imagen_principal||'')}" onclick="abrirLightboxPC(this.src)"
+          <img id="pc-modal-img" src="${esc(p.imagen_principal||'')}" onclick="abrirLightboxPC(this.src, null, '${esc(String(p.nombre || '').split(' ')[0])}')"
             style="width:64px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;cursor:zoom-in;background:var(--pc-bg-elev)">
           <div style="flex:1;min-width:0">
             <p style="font-size:0.65rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(p.sku_interno||'')}</p>
@@ -1166,6 +1166,7 @@ function _pcHighlightColor(color, border, bg) {
 window.pcSeleccionarColor = (prodId, color) => {
   pcActualizarTabsModal(prodId, color)
 
+  const p = pc.productos.find(x => x.id === prodId)
   const varsProd = pc.variantes.filter(v => v.producto_id === prodId)
   const varsColor = varsProd.filter(v => v.color === color)
     .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
@@ -1187,8 +1188,9 @@ window.pcSeleccionarColor = (prodId, color) => {
     } else {
       strip.style.display = 'flex'
       window._pcFotosColorActual = todasFotos
+      const modelCode = p ? String(p.nombre || '').split(' ')[0] : ''
       strip.innerHTML = todasFotos.map((u, i) => `
-        <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual)"
+        <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual,'${esc(modelCode)}')"
           style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${i===0?'2px solid #E91E8C':'none'}">
       `).join('')
     }
@@ -1562,7 +1564,7 @@ window.pcConfirmarCorrida = (prodId) => {
   renderCatalogo()
 }
 
-window.abrirLightboxPC = function(src, fotos) {
+window.abrirLightboxPC = function(src, fotos, sku) {
   if (!src) return
   const prev = document.getElementById('pc-lightbox')
   if (prev) prev.remove()
@@ -1582,22 +1584,37 @@ window.abrirLightboxPC = function(src, fotos) {
 
   const lb = document.createElement('div')
   lb.id = 'pc-lightbox'
-  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:19999;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none'
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:19999;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none'
+
+  let scale = 1;
+  let currentX = 0, currentY = 0;
+  let startScale = 1;
+  let initDistance = 0;
+
+  const resetZoom = () => {
+    scale = 1;
+    currentX = 0;
+    currentY = 0;
+    const img = document.getElementById('lb-img')
+    if (img) {
+      img.style.transform = '';
+      img.style.cursor = 'zoom-in';
+    }
+  }
 
   const render = () => {
     const total = fotos.length
     lb.innerHTML = `
       <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
       <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.2rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">📤</button>
+      <button onclick="pcDescargarImagenLB()" title="Descargar esta foto" style="position:absolute;top:16px;left:68px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.2rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">📥</button>
       ${total > 1 ? `<button id="lb-prev" onclick="lbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.3:1}">‹</button>` : ''}
-      <img id="lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none">
+      <img id="lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none;cursor:zoom-in;transition:transform 0.1s ease-out">
       ${total > 1 ? `<button id="lb-next" onclick="lbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.3:1}">›</button>` : ''}
-      ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
+      ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px;z-index:2">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
     `
   }
 
-  // Comparte SOLO la foto que se está viendo (no el link de la tienda) -- para
-  // que el cliente pueda reenviarla tal cual a sus propios compradores.
   window.pcCompartirImagenLB = async () => {
     const url = fotos[idx]
     if (!url) return
@@ -1611,33 +1628,157 @@ window.abrirLightboxPC = function(src, fotos) {
       } else if (navigator.share) {
         await navigator.share({ url })
       } else {
-        const a = document.createElement('a')
-        a.href = URL.createObjectURL(blob)
-        a.download = file.name
-        a.click()
-        URL.revokeObjectURL(a.href)
+        window.pcDescargarImagenLB()
       }
     } catch (e) {
       if (e?.name !== 'AbortError' && typeof pcMostrarExito === 'function') pcMostrarExito('No se pudo compartir la imagen')
     }
   }
 
-  window.lbNav = (dir) => {
-    idx = Math.max(0, Math.min(fotos.length - 1, idx + dir))
-    render()
-    addSwipe()
+  window.pcDescargarImagenLB = async () => {
+    const url = fotos[idx]
+    if (!url) return
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      const cleanSku = sku ? sku.replace(/[^A-Za-z0-9_-]/g, '') : ''
+      a.download = cleanSku ? `Zapatillas_May_${cleanSku}.jpg` : `Zapatillas_May_${Date.now()}.jpg`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+      if (typeof pcMostrarExito === 'function') pcMostrarExito('Imagen descargada')
+    } catch (e) {
+      window.open(url, '_blank')
+    }
   }
-  window.lbGoto = (i) => { idx = i; render(); addSwipe() }
 
-  const addSwipe = () => {
+  window.lbNav = (dir) => {
+    if (dir < 0 && idx === 0) return
+    if (dir > 0 && idx === fotos.length - 1) return
+    idx = Math.max(0, Math.min(fotos.length - 1, idx + dir))
+    resetZoom()
+    render()
+    addGestures()
+  }
+  window.lbGoto = (i) => { idx = i; resetZoom(); render(); addGestures() }
+
+  const addGestures = () => {
     const img = document.getElementById('lb-img')
     if (!img) return
-    let startX = 0
-    img.addEventListener('touchstart', e => { startX = e.touches[0].clientX }, { passive: true })
+
+    let isDragging = false
+    let startX = 0, startY = 0
+    let lastTap = 0
+
+    img.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        const currentTime = new Date().getTime()
+        const tapLength = currentTime - lastTap
+        if (tapLength < 300 && tapLength > 0) {
+          // Doble tap: alternar zoom
+          if (scale > 1) {
+            resetZoom()
+          } else {
+            scale = 2.5
+            img.style.transform = `scale(${scale})`
+            img.style.cursor = 'grab'
+          }
+          e.preventDefault()
+          return
+        }
+        lastTap = currentTime
+
+        if (scale > 1) {
+          isDragging = true
+          startX = e.touches[0].clientX - currentX
+          startY = e.touches[0].clientY - currentY
+        } else {
+          startX = e.touches[0].clientX
+        }
+      } else if (e.touches.length === 2) {
+        isDragging = false
+        startScale = scale
+        initDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+      }
+    }, { passive: false })
+
+    img.addEventListener('touchmove', e => {
+      if (e.touches.length === 1 && scale > 1 && isDragging) {
+        e.preventDefault()
+        currentX = e.touches[0].clientX - startX
+        currentY = e.touches[0].clientY - startY
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+      } else if (e.touches.length === 2) {
+        e.preventDefault()
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+        scale = Math.max(1, Math.min(4, startScale * (dist / initDistance)))
+        if (scale <= 1) {
+          resetZoom()
+        } else {
+          img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+          img.style.cursor = 'grab'
+        }
+      }
+    }, { passive: false })
+
     img.addEventListener('touchend', e => {
-      const dx = e.changedTouches[0].clientX - startX
-      if (Math.abs(dx) > 50) window.lbNav(dx < 0 ? 1 : -1)
+      if (isDragging) {
+        isDragging = false
+      } else if (scale === 1 && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - startX
+        if (Math.abs(dx) > 50) window.lbNav(dx < 0 ? 1 : -1)
+      }
     }, { passive: true })
+
+    // Zoom con rueda de mouse (Escritorio)
+    img.addEventListener('wheel', e => {
+      e.preventDefault()
+      const delta = e.deltaY * -0.005
+      scale = Math.max(1, Math.min(4, scale + delta))
+      if (scale <= 1) {
+        resetZoom()
+      } else {
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+        img.style.cursor = 'grab'
+      }
+    }, { passive: false })
+
+    // Pan con arrastre de mouse (Escritorio)
+    let isMouseDown = false
+    let mouseStartX = 0, mouseStartY = 0
+
+    img.addEventListener('mousedown', e => {
+      if (scale > 1) {
+        isMouseDown = true
+        mouseStartX = e.clientX - currentX
+        mouseStartY = e.clientY - currentY
+        img.style.cursor = 'grabbing'
+      }
+    })
+
+    window.addEventListener('mousemove', e => {
+      if (isMouseDown && scale > 1) {
+        currentX = e.clientX - mouseStartX
+        currentY = e.clientY - mouseStartY
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+      }
+    })
+
+    window.addEventListener('mouseup', () => {
+      if (isMouseDown) {
+        isMouseDown = false
+        if (img) img.style.cursor = 'grab'
+      }
+    })
   }
 
   lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
@@ -1652,7 +1793,7 @@ window.abrirLightboxPC = function(src, fotos) {
 
   render()
   document.body.appendChild(lb)
-  addSwipe()
+  addGestures()
 }
 
 

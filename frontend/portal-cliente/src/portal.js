@@ -504,7 +504,7 @@ function abrirProducto(productoId) {
   ov.innerHTML = `
     <div class="modal">
       <div class="m-head">
-        ${p.imagen_principal ? `<img id="pm-img" src="${p.imagen_principal}">` : ''}
+        ${p.imagen_principal ? `<img id="pm-img" src="${p.imagen_principal}" onclick="window.abrirLightboxPC(this.src, null, '${esc(String(p.nombre || '').split(' ')[0])}')" style="cursor:zoom-in">` : ''}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;line-height:1.25">${esc(p.nombre)}</div>
           <div class="muted" style="font-size:.76rem">${esc(p.sku_interno || '')}</div>
@@ -1601,6 +1601,235 @@ function toast(msg) {
   const t = document.getElementById('toast'); if (!t) return
   t.textContent = msg; t.classList.add('show')
   clearTimeout(_toastT); _toastT = setTimeout(() => t.classList.remove('show'), 1600)
+}
+
+window.abrirLightboxPC = function(src, fotos, sku) {
+  if (!src) return
+  const prev = document.getElementById('pc-lightbox')
+  if (prev) prev.remove()
+
+  if (!fotos || !fotos.length) {
+    // Intentar recopilar fotos del swatch del modal actual
+    const swatches = document.getElementById('pm-swatches')
+    if (swatches) {
+      fotos = Array.from(swatches.querySelectorAll('img')).map(i => i.src)
+    }
+    if (!fotos || !fotos.length) fotos = [src]
+    if (!fotos.includes(src)) fotos = [src, ...fotos]
+  }
+
+  let idx = fotos.indexOf(src)
+  if (idx < 0) idx = 0
+
+  const lb = document.createElement('div')
+  lb.id = 'pc-lightbox'
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:19999;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none'
+
+  let scale = 1;
+  let currentX = 0, currentY = 0;
+  let startScale = 1;
+  let initDistance = 0;
+
+  const resetZoom = () => {
+    scale = 1;
+    currentX = 0;
+    currentY = 0;
+    const img = document.getElementById('lb-img')
+    if (img) {
+      img.style.transform = '';
+      img.style.cursor = 'zoom-in';
+    }
+  }
+
+  const render = () => {
+    const total = fotos.length
+    lb.innerHTML = `
+      <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
+      <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.2rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">📤</button>
+      <button onclick="pcDescargarImagenLB()" title="Descargar esta foto" style="position:absolute;top:16px;left:68px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.2rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">📥</button>
+      ${total > 1 ? `<button id="lb-prev" onclick="lbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.3:1}">‹</button>` : ''}
+      <img id="lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none;cursor:zoom-in;transition:transform 0.1s ease-out">
+      ${total > 1 ? `<button id="lb-next" onclick="lbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.3:1}">›</button>` : ''}
+      ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px;z-index:2">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
+    `
+  }
+
+  window.pcCompartirImagenLB = async () => {
+    const url = fotos[idx]
+    if (!url) return
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+      const file = new File([blob], `zapatillasmay-${Date.now()}.${ext}`, { type: blob.type })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] })
+      } else if (navigator.share) {
+        await navigator.share({ url })
+      } else {
+        window.pcDescargarImagenLB()
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError') toast('No se pudo compartir la imagen')
+    }
+  }
+
+  window.pcDescargarImagenLB = async () => {
+    const url = fotos[idx]
+    if (!url) return
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      const cleanSku = sku ? sku.replace(/[^A-Za-z0-9_-]/g, '') : ''
+      a.download = cleanSku ? `Zapatillas_May_${cleanSku}.jpg` : `Zapatillas_May_${Date.now()}.jpg`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
+      toast('Imagen descargada')
+    } catch (e) {
+      window.open(url, '_blank')
+    }
+  }
+
+  window.lbNav = (dir) => {
+    if (dir < 0 && idx === 0) return
+    if (dir > 0 && idx === fotos.length - 1) return
+    idx = Math.max(0, Math.min(fotos.length - 1, idx + dir))
+    resetZoom()
+    render()
+    addGestures()
+  }
+  window.lbGoto = (i) => { idx = i; resetZoom(); render(); addGestures() }
+
+  const addGestures = () => {
+    const img = document.getElementById('lb-img')
+    if (!img) return
+
+    let isDragging = false
+    let startX = 0, startY = 0
+    let lastTap = 0
+
+    img.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) {
+        const currentTime = new Date().getTime()
+        const tapLength = currentTime - lastTap
+        if (tapLength < 300 && tapLength > 0) {
+          if (scale > 1) {
+            resetZoom()
+          } else {
+            scale = 2.5
+            img.style.transform = `scale(${scale})`
+            img.style.cursor = 'grab'
+          }
+          e.preventDefault()
+          return
+        }
+        lastTap = currentTime
+
+        if (scale > 1) {
+          isDragging = true
+          startX = e.touches[0].clientX - currentX
+          startY = e.touches[0].clientY - currentY
+        } else {
+          startX = e.touches[0].clientX
+        }
+      } else if (e.touches.length === 2) {
+        isDragging = false
+        startScale = scale
+        initDistance = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+      }
+    }, { passive: false })
+
+    img.addEventListener('touchmove', e => {
+      if (e.touches.length === 1 && scale > 1 && isDragging) {
+        e.preventDefault()
+        currentX = e.touches[0].clientX - startX
+        currentY = e.touches[0].clientY - startY
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+      } else if (e.touches.length === 2) {
+        e.preventDefault()
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+        scale = Math.max(1, Math.min(4, startScale * (dist / initDistance)))
+        if (scale <= 1) {
+          resetZoom()
+        } else {
+          img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+          img.style.cursor = 'grab'
+        }
+      }
+    }, { passive: false })
+
+    img.addEventListener('touchend', e => {
+      if (isDragging) {
+        isDragging = false
+      } else if (scale === 1 && e.changedTouches.length === 1) {
+        const dx = e.changedTouches[0].clientX - startX
+        if (Math.abs(dx) > 50) window.lbNav(dx < 0 ? 1 : -1)
+      }
+    }, { passive: true })
+
+    img.addEventListener('wheel', e => {
+      e.preventDefault()
+      const delta = e.deltaY * -0.005
+      scale = Math.max(1, Math.min(4, scale + delta))
+      if (scale <= 1) {
+        resetZoom()
+      } else {
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+        img.style.cursor = 'grab'
+      }
+    }, { passive: false })
+
+    let isMouseDown = false
+    let mouseStartX = 0, mouseStartY = 0
+
+    img.addEventListener('mousedown', e => {
+      if (scale > 1) {
+        isMouseDown = true
+        mouseStartX = e.clientX - currentX
+        mouseStartY = e.clientY - currentY
+        img.style.cursor = 'grabbing'
+      }
+    })
+
+    window.addEventListener('mousemove', e => {
+      if (isMouseDown && scale > 1) {
+        currentX = e.clientX - mouseStartX
+        currentY = e.clientY - mouseStartY
+        img.style.transform = `scale(${scale}) translate(${currentX / scale}px, ${currentY / scale}px)`
+      }
+    })
+
+    window.addEventListener('mouseup', () => {
+      if (isMouseDown) {
+        isMouseDown = false
+        if (img) img.style.cursor = 'grab'
+      }
+    })
+  }
+
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+
+  const onKey = (e) => {
+    if (e.key === 'ArrowRight') window.lbNav(1)
+    else if (e.key === 'ArrowLeft') window.lbNav(-1)
+    else if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', onKey) }
+  }
+  document.addEventListener('keydown', onKey)
+  lb.addEventListener('remove', () => document.removeEventListener('keydown', onKey))
+
+  render()
+  document.body.appendChild(lb)
+  addGestures()
 }
 
 init()
