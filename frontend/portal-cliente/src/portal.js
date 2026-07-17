@@ -374,7 +374,7 @@ function renderCatalogo() {
   page().innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;width:100%">
       <h2 style="font-size:1.3rem;font-weight:800;margin:0;color:inherit">Productos</h2>
-      <button onclick="pcToggleModoCompartir()" style="padding:6px 12px;border-radius:100px;border:1px solid ${state.modoCompartir ? '#25D366' : '#d1d5db'};background:${state.modoCompartir ? '#25D366' : '#f3f4f6'};color:${state.modoCompartir ? 'white' : '#374151'};font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px">📲 ${state.modoCompartir ? 'Listo' : 'Compartir fotos'}</button>
+      <button onclick="pcToggleModoCompartir()" style="padding:6px 12px;border-radius:100px;border:1px solid ${state.modoCompartir ? '#25D366' : '#d1d5db'};background:${state.modoCompartir ? '#25D366' : '#f3f4f6'};color:${state.modoCompartir ? 'white' : '#374151'};font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px">📲 ${state.modoCompartir ? 'Listo' : 'Compartir fotos (sin precios)'}</button>
     </div>
     <input class="search" id="cat-search" placeholder="🔍 Buscar modelo o SKU…" value="${esc(state.busqueda)}">
     <div class="chips" style="margin-bottom:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
