@@ -1099,6 +1099,34 @@ function _pcHighlightColor(color, border, bg) {
 window.pcSeleccionarColor = (prodId, color) => {
   pcActualizarTabsModal(prodId, color)
 
+  const varsProd = pc.variantes.filter(v => v.producto_id === prodId)
+  const varsColor = varsProd.filter(v => v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  // Cambiar foto principal y strip de miniaturas
+  const todasFotos = []
+  varsColor.forEach(v => {
+    const imgs = Array.isArray(v.imagenes) && v.imagenes.length ? v.imagenes : (v.foto_url ? [v.foto_url] : [])
+    imgs.forEach(u => { if (u && !todasFotos.includes(u)) todasFotos.push(u) })
+  })
+  const fotoColor = todasFotos[0] || null
+  const modalImg = document.getElementById('pc-modal-img')
+  if (modalImg && fotoColor) modalImg.src = fotoColor
+  // Strip de miniaturas
+  const strip = document.getElementById('pc-modal-foto-strip')
+  if (strip) {
+    if (todasFotos.length <= 1) {
+      strip.style.display = 'none'
+    } else {
+      strip.style.display = 'flex'
+      window._pcFotosColorActual = todasFotos
+      strip.innerHTML = todasFotos.map((u, i) => `
+        <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual)"
+          style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${i===0?'2px solid #E91E8C':'none'}">
+      `).join('')
+    }
+  }
+
   if (window._pcModo === 'corrida') {
     window._pcSeleccion.color = color
     _pcHighlightColor(color, '#6a1b9a', 'rgba(107,27,154,0.12)')
@@ -1110,34 +1138,6 @@ window.pcSeleccionarColor = (prodId, color) => {
     }
     _pcHighlightColor(color, '#E91E8C', 'rgba(233,30,140,0.08)')
     window._pcSeleccion.color = color
-
-    const varsProd = pc.variantes.filter(v => v.producto_id === prodId)
-    const varsColor = varsProd.filter(v => v.color === color)
-      .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-
-    // Cambiar foto principal y strip de miniaturas
-    const todasFotos = []
-    varsColor.forEach(v => {
-      const imgs = Array.isArray(v.imagenes) && v.imagenes.length ? v.imagenes : (v.foto_url ? [v.foto_url] : [])
-      imgs.forEach(u => { if (u && !todasFotos.includes(u)) todasFotos.push(u) })
-    })
-    const fotoColor = todasFotos[0] || null
-    const modalImg = document.getElementById('pc-modal-img')
-    if (modalImg && fotoColor) modalImg.src = fotoColor
-    // Strip de miniaturas
-    const strip = document.getElementById('pc-modal-foto-strip')
-    if (strip) {
-      if (todasFotos.length <= 1) {
-        strip.style.display = 'none'
-      } else {
-        strip.style.display = 'flex'
-        window._pcFotosColorActual = todasFotos
-        strip.innerHTML = todasFotos.map((u, i) => `
-          <img src="${esc(u)}" onclick="document.getElementById('pc-modal-img').src='${esc(u)}';document.querySelectorAll('#pc-modal-foto-strip img').forEach(el=>el.style.outline='none');this.style.outline='2px solid #E91E8C';abrirLightboxPC('${esc(u)}',window._pcFotosColorActual)"
-            style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;outline:${i===0?'2px solid #E91E8C':'none'}">
-        `).join('')
-      }
-    }
 
     const bufferColor = window._pcBuffer[color] || {}
     const panel = document.getElementById('pc-tallas-panel')
@@ -1403,12 +1403,10 @@ window.pcRenderCorridaTallas = (prodId, color) => {
     window._pcCorridaM = 1
   }
 
-  const resolvedQty = pcResolverItemsCorrida(prodId, color, window._pcCorridaM)
-
   panel.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px">
       <!-- Selector de cantidad de corridas -->
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:2px solid var(--pc-border-2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:none">
         <span style="font-weight:800;font-size:1.05rem;color:var(--pc-text)">Corridas a agregar</span>
         <div style="display:flex;align-items:center;gap:8px">
           <button onclick="window.__changePCCorridaM('${prodId}', '${esc(color)}', -1)"
@@ -1419,21 +1417,8 @@ window.pcRenderCorridaTallas = (prodId, color) => {
         </div>
       </div>
       
-      <!-- Detalle de tallas unificadas -->
-      <p style="font-size:0.75rem;color:var(--pc-purple);font-weight:700;margin-bottom:4px">📦 CORRIDA · TALLAS INCLUIDAS (${window._pcCorridaM * 6} pares)</p>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        ${varsProd.map(v => {
-          const q = resolvedQty[v.id] || 0
-          const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,i)=>s+(i.cantidad||0),0)
-          return `
-            <div style="display:flex;align-items:center;justify-content:space-between;opacity:${stock===0?'0.4':'1'}">
-              <span style="font-size:0.9rem;font-weight:700;color:var(--pc-text)">Talla ${esc(v.talla)}</span>
-              <div style="display:flex;align-items:center;gap:12px">
-                <span style="font-size:0.72rem;color:var(--pc-muted-2)">Stock: ${stock}</span>
-                <span style="font-weight:800;color:var(--pc-purple);font-size:0.95rem">${q} ${q === 1 ? 'par' : 'pares'}</span>
-              </div>
-            </div>`
-        }).join('')}
+      <div style="padding: 12px 16px; background: rgba(107,27,154,0.06); border-radius: 8px; color: var(--pc-purple); font-weight: 600; font-size: 0.9rem; text-align: center;">
+        Cada corrida incluye 6 pares (sugeridos según stock disponible).
       </div>
     </div>`
   
@@ -1463,15 +1448,8 @@ window.pcActualizarBadgesCorrida = (prodId) => {
   const btn = document.getElementById('pc-btn-confirmar-corrida')
   if (total > 0) {
     if (resumen) {
-      const lineas = []
-      Object.entries(resolvedQty).forEach(([vid, cant]) => {
-        if (cant > 0) { const v = pc.variantes.find(v => v.id === vid); if (v) lineas.push({color:v.color, talla:v.talla, cantidad:cant}) }
-      })
       resumen.style.display = 'block'
-      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:var(--pc-purple);margin-bottom:6px">📦 CORRIDA — ${total} pares</p>
-        <div style="display:flex;flex-wrap:wrap;gap:5px">
-          ${lineas.map(l=>`<span style="background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:var(--pc-purple)">T${l.talla} ×${l.cantidad}</span>`).join('')}
-        </div>`
+      resumen.innerHTML = `<p style="font-size:0.75rem;font-weight:700;color:var(--pc-purple);margin:0">📦 CORRIDA — ${total} pares</p>`
     }
     if (btn) { 
       btn.textContent = `✅ Agregar ${window._pcCorridaM} ${window._pcCorridaM === 1 ? 'corrida' : 'corridas'} (${total} pares)`

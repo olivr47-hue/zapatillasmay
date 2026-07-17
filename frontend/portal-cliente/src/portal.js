@@ -608,11 +608,9 @@ function pintarTallas() {
     
     if (label) label.textContent = `Corrida completa — ${color} · ${money(p.precio_corrida)} x par`
     
-    const resolvedQty = resolverItemsCorrida(productoId, color, _corridaM)
-    
     cont.className = 'corrida-rows'
     cont.innerHTML = `
-      <div class="crow" style="border-bottom: 2px solid #f1f1f5; padding-bottom: 12px; margin-bottom: 12px;">
+      <div class="crow" style="border-bottom: none; padding-bottom: 12px; margin-bottom: 12px;">
         <span class="ct" style="min-width: 140px; font-weight: 800; font-size: 1.1rem; color: var(--black);">Corridas</span>
         <span class="cs muted" style="font-size: .8rem;">Máx: ${maxM}</span>
         <div class="cstep">
@@ -621,17 +619,9 @@ function pintarTallas() {
           <button onclick="window.__changeCorridaM(1)">+</button>
         </div>
       </div>
-      ${vars.map(v => {
-        const q = resolvedQty[v.id] || 0
-        const stock = state.data.stockPorVar[v.id] || 0
-        return `<div class="crow ${stock <= 0 ? 'off' : ''}">
-          <span class="ct">Talla ${v.talla}</span>
-          <span class="cs muted">Stock ${stock}</span>
-          <div class="cstep">
-            <span style="font-size: 1rem; color: var(--pink); font-weight: 800;">${q} ${q === 1 ? 'par' : 'pares'}</span>
-          </div>
-        </div>`
-      }).join('')}
+      <div style="padding: 12px 16px; background: rgba(107,27,154,0.06); border-radius: 8px; color: var(--pink); font-weight: 600; font-size: 0.9rem; text-align: center;">
+        Cada corrida incluye 6 pares (sugeridos según stock disponible).
+      </div>
     `
   } else {
     if (label) label.textContent = 'Tallas — ' + color
