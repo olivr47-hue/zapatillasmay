@@ -303,7 +303,11 @@ function renderBottomNav() {
 }
 
 window.__nav = navTo
-function navTo(tab) {
+function navTo(tab, _fromBack) {
+  if (!_fromBack && state.tab && state.tab !== tab && window._zmPushBack) {
+    const prevTab = state.tab
+    window._zmPushBack(() => navTo(prevTab, true))
+  }
   state.tab = tab
   // refrescar nav (badge/active)
   const oldNav = document.querySelector('.bottomnav')
@@ -515,7 +519,7 @@ function abrirProducto(productoId) {
             <span class="tier corr" id="pm-tier-corr">Corrida ${money(p.precio_corrida)}</span>
           </div>
         </div>
-        <button onclick="document.getElementById('pmodal').remove()" style="background:none;border:none;font-size:1.5rem;color:#aaa">✕</button>
+        <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;color:#aaa">✕</button>
       </div>
       <div class="m-scroll">
         <div class="mode-tabs" id="pm-mode">
@@ -538,11 +542,16 @@ function abrirProducto(productoId) {
         <div class="tallas" id="pm-tallas"></div>
       </div>
       <div class="m-foot" id="pm-foot">
-        <button class="btn-primary" onclick="document.getElementById('pmodal').remove();window.__nav('carrito')">Listo · ver carrito</button>
+        <button class="btn-primary" onclick="history.back(); setTimeout(() => window.__nav('carrito'), 50)">Listo · ver carrito</button>
       </div>
     </div>`
   document.body.appendChild(ov)
-  ov.addEventListener('click', e => { if (e.target === ov) ov.remove() })
+  ov.addEventListener('click', e => { if (e.target === ov) history.back() })
+
+  if (window._zmPushBack) {
+    window._zmPushBack(() => { const m = document.getElementById('pmodal'); if (m) m.remove() })
+  }
+
   if (_modalSel.color) {
     actualizarTabsModal()
     pintarTallas()
@@ -691,9 +700,13 @@ window.__agregarCorrida = () => {
   if (!added) { toast('Elige al menos una corrida'); return }
   _corridaM = 1
   guardarCarrito()
-  const nav = document.querySelector('.bottomnav'); if (nav) nav.outerHTML = renderBottomNav()
-  const m = document.getElementById('pmodal'); if (m) m.remove()
-  navTo('carrito')
+  const m = document.getElementById('pmodal');
+  if (m) {
+    history.back()
+    setTimeout(() => navTo('carrito'), 50)
+  } else {
+    navTo('carrito')
+  }
   toast('Corrida agregada · ' + added + ' pares')
 }
 
@@ -1644,7 +1657,7 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   const render = () => {
     const total = fotos.length
     lb.innerHTML = `
-      <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
+      <button onclick="history.back()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
       <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
       </button>
@@ -1821,12 +1834,12 @@ window.abrirLightboxPC = function(src, fotos, sku) {
     })
   }
 
-  lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+  lb.addEventListener('click', e => { if (e.target === lb) history.back() })
 
   const onKey = (e) => {
     if (e.key === 'ArrowRight') window.lbNav(1)
     else if (e.key === 'ArrowLeft') window.lbNav(-1)
-    else if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', onKey) }
+    else if (e.key === 'Escape') { history.back() }
   }
   document.addEventListener('keydown', onKey)
   lb.addEventListener('remove', () => document.removeEventListener('keydown', onKey))
@@ -1834,6 +1847,31 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   render()
   document.body.appendChild(lb)
   addGestures()
+
+  if (window._zmPushBack) {
+    window._zmPushBack(() => {
+      const el = document.getElementById('pc-lightbox')
+      if (el) el.remove()
+      document.removeEventListener('keydown', onKey)
+    })
+  }
 }
+
+// ---------- back-stack navigation ----------
+window._zmNavStack = []
+window._zmPushBack = (restoreFn) => {
+  history.pushState({ zmNav: window._zmNavStack.length + 1 }, '')
+  window._zmNavStack.push(restoreFn)
+}
+;(() => {
+  history.pushState({ zmApp: true }, '')
+  window.addEventListener('popstate', () => {
+    if (window._zmNavStack.length > 0) {
+      const restoreFn = window._zmNavStack.pop()
+      history.pushState({ zmApp: true }, '')
+      try { restoreFn() } catch (e) {}
+    }
+  })
+})()
 
 init()

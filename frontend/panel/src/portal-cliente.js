@@ -966,7 +966,7 @@ window.pcAbrirProducto = function(prodId) {
             <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${fmtP(parseFloat(p.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:var(--pc-muted)">menudeo</span></p>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
-            <button onclick="document.getElementById('pc-modal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--pc-muted);line-height:1">✕</button>
+            <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--pc-muted);line-height:1">✕</button>
             <button onclick="pcToggleCompartir('${prodId}')" title="Compartir con tus clientes" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--pc-muted);line-height:1;padding:2px">↗️</button>
           </div>
         </div>
@@ -1054,7 +1054,7 @@ window.pcAbrirProducto = function(prodId) {
           style="width:100%;padding:14px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
           Selecciona al menos una talla
         </button>
-        <button onclick="pcIrA('carrito');document.getElementById('pc-modal').remove()"
+        <button onclick="history.back(); setTimeout(() => pcIrA('carrito'), 50)"
           style="width:100%;padding:10px;background:transparent;color:var(--pc-muted);border:1px solid var(--pc-border-2);border-radius:10px;font-family:inherit;font-size:0.82rem;cursor:pointer">
           Ver pedido actual →
         </button>
@@ -1062,7 +1062,7 @@ window.pcAbrirProducto = function(prodId) {
     </div>`
 
   document.body.appendChild(modal)
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  modal.addEventListener('click', e => { if (e.target === modal) history.back() })
   window._pcSeleccion = { prodId, color: null }
   window._pcCorridaM = 1
 
@@ -1370,7 +1370,7 @@ window.pcConfirmarModal = (prodId) => {
   })
 
   if (agregados === 0) { alert('Agrega al menos una talla'); return }
-  document.getElementById('pc-modal').remove()
+  history.back()
   window._pcBuffer = {}
   pcGuardarCarrito()
   renderCatalogo()
@@ -1558,7 +1558,7 @@ window.pcConfirmarCorrida = (prodId) => {
   })
   
   if (agregados === 0) { alert('Agrega al menos una talla'); return }
-  document.getElementById('pc-modal').remove()
+  history.back()
   window._pcCorridaCantidades = {}
   pcGuardarCarrito()
   renderCatalogo()
@@ -1605,7 +1605,7 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   const render = () => {
     const total = fotos.length
     lb.innerHTML = `
-      <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
+      <button onclick="history.back()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
       <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
       </button>
@@ -1785,12 +1785,12 @@ window.abrirLightboxPC = function(src, fotos, sku) {
     })
   }
 
-  lb.addEventListener('click', e => { if (e.target === lb) lb.remove() })
+  lb.addEventListener('click', e => { if (e.target === lb) history.back() })
 
   const onKey = (e) => {
     if (e.key === 'ArrowRight') window.lbNav(1)
     else if (e.key === 'ArrowLeft') window.lbNav(-1)
-    else if (e.key === 'Escape') { lb.remove(); document.removeEventListener('keydown', onKey) }
+    else if (e.key === 'Escape') { history.back() }
   }
   document.addEventListener('keydown', onKey)
   lb.addEventListener('remove', () => document.removeEventListener('keydown', onKey))
@@ -1798,6 +1798,14 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   render()
   document.body.appendChild(lb)
   addGestures()
+
+  if (window._zmPushBack) {
+    window._zmPushBack(() => {
+      const el = document.getElementById('pc-lightbox')
+      if (el) el.remove()
+      document.removeEventListener('keydown', onKey)
+    })
+  }
 }
 
 
