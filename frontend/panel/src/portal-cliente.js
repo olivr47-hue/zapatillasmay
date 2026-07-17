@@ -28,7 +28,7 @@ const precioCorrida = (p) => parseFloat(p.precio_corrida) || Math.max(0, parseFl
 // ── Estado global ────────────────────────────────────────────
 const pc = {
   sesion:   null,
-  tab:      'inicio',
+  tab:      localStorage.getItem('pc_active_tab_admin') || 'inicio',
   productos: [],
   variantes: [],
   inventario: [],
@@ -349,6 +349,7 @@ function pcIrA(tab, _fromBack) {
     window._zmPushBack(() => pcIrA(prevTab, true))
   }
   pc.tab = tab
+  try { localStorage.setItem('pc_active_tab_admin', tab) } catch {}
   // Actualizar nav items
   document.querySelectorAll('.pc-nav-item').forEach(el => {
     const t = el.getAttribute('onclick')?.match(/'(\w+)'/)?.[1]
@@ -492,6 +493,12 @@ async function cargarDatosPC() {
   pc.datosCargados = true
   // Re-renderizar la pestaña activa con datos
   pcIrA(pc.tab)
+  try {
+    const activeProdId = localStorage.getItem('pc_active_product_id_admin')
+    if (activeProdId) {
+      pcAbrirProducto(activeProdId)
+    }
+  } catch {}
 }
 
 // ── INICIO ───────────────────────────────────────────────────
@@ -928,9 +935,13 @@ function pcEtiquetaHorma(v) {
 
 // ── Modal de producto: port del POS (misma lógica, datos de pc.*) ──────────────
 window.pcAbrirProducto = function(prodId) {
-  if (window._zmPushBack) window._zmPushBack(() => document.getElementById('pc-modal')?.remove())
+  if (window._zmPushBack) window._zmPushBack(() => {
+    document.getElementById('pc-modal')?.remove()
+    try { localStorage.removeItem('pc_active_product_id_admin') } catch {}
+  })
   const prev = document.getElementById('pc-modal')
   if (prev) prev.remove()
+  try { localStorage.setItem('pc_active_product_id_admin', prodId) } catch {}
 
   const p = pc.productos.find(x => x.id === prodId)
   if (!p) return

@@ -606,7 +606,6 @@ window._zmPushBack = (restoreFn) => {
   window.addEventListener('popstate', () => {
     if (window._zmNavStack.length > 0) {
       const restoreFn = window._zmNavStack.pop()
-      history.pushState({ zmApp: true }, '') // mantener un peldaño base para no salir de golpe
       try { restoreFn() } catch (e) {}
       return
     }

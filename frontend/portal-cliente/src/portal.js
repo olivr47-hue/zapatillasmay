@@ -14,7 +14,7 @@ const state = {
   sesion: null,        // { nombre, cliente_id, tipo, token }
   data: null,          // { productos, variantes, inventario }
   carrito: [],
-  tab: 'tienda',
+  tab: localStorage.getItem('pc_active_tab') || 'tienda',
   filtroCat: '',
   busqueda: '',
 }
@@ -251,6 +251,12 @@ async function entrar() {
     }
     try { await restaurarCarritoDeServidor(pedidos) } catch(e) {}
     renderShell()
+    try {
+      const activeProdId = localStorage.getItem('pc_active_product_id')
+      if (activeProdId) {
+        abrirProducto(activeProdId)
+      }
+    } catch {}
   } catch (e) {
     app.innerHTML = `<div class="empty"><div class="ic">😕</div><p>No se pudo cargar. Reintenta.</p>
       <button class="btn-primary" style="max-width:200px;margin:12px auto" onclick="location.reload()">Reintentar</button></div>`
@@ -309,6 +315,7 @@ function navTo(tab, _fromBack) {
     window._zmPushBack(() => navTo(prevTab, true))
   }
   state.tab = tab
+  try { localStorage.setItem('pc_active_tab', tab) } catch {}
   // refrescar nav (badge/active)
   const oldNav = document.querySelector('.bottomnav')
   if (oldNav) oldNav.outerHTML = renderBottomNav()
@@ -549,8 +556,13 @@ function abrirProducto(productoId) {
   ov.addEventListener('click', e => { if (e.target === ov) history.back() })
 
   if (window._zmPushBack) {
-    window._zmPushBack(() => { const m = document.getElementById('pmodal'); if (m) m.remove() })
+    window._zmPushBack(() => {
+      const m = document.getElementById('pmodal')
+      if (m) m.remove()
+      try { localStorage.removeItem('pc_active_product_id') } catch {}
+    })
   }
+  try { localStorage.setItem('pc_active_product_id', productoId) } catch {}
 
   if (_modalSel.color) {
     actualizarTabsModal()
@@ -1864,11 +1876,9 @@ window._zmPushBack = (restoreFn) => {
   window._zmNavStack.push(restoreFn)
 }
 ;(() => {
-  history.pushState({ zmApp: true }, '')
   window.addEventListener('popstate', () => {
     if (window._zmNavStack.length > 0) {
       const restoreFn = window._zmNavStack.pop()
-      history.pushState({ zmApp: true }, '')
       try { restoreFn() } catch (e) {}
     }
   })
