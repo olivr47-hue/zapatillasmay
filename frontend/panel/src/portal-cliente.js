@@ -715,7 +715,7 @@ function renderCatalogo(el) {
   el.innerHTML = `
     <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
       <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">Productos</h1>
-      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:6px 12px;font-size:0.75rem;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:100px">📲 ${window._pcModoCompartir ? 'Listo' : 'Compartir varios'}</button>
+      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:6px 12px;font-size:0.75rem;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:100px">📲 ${window._pcModoCompartir ? 'Listo' : 'Compartir fotos'}</button>
     </div>
 
     <!-- Categorías -->
@@ -788,8 +788,9 @@ function renderCatalogo(el) {
         return `
         <div id="pc-bulk-share-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:900;background:var(--pc-card);border:2px solid #25D366;border-radius:18px;padding:12px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);width:90%;max-width:500px">
           <div style="flex:1;line-height:1.2">
-            <p style="margin:0;font-size:0.75rem;color:var(--pc-text-4);font-weight:600">Compartir varios</p>
+            <p style="margin:0;font-size:0.75rem;color:var(--pc-text-4);font-weight:600">Compartir fotos</p>
             <p style="margin:0;font-size:1rem;font-weight:800;color:var(--pc-text)">${window._pcCompartirSeleccion.length} seleccionados</p>
+            <p style="margin:2px 0 0;font-size:0.58rem;color:#10b981;font-weight:600">⚠️ Solo fotos de portada (sin precios)</p>
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="pcCompartirVariosWhatsApp()" id="pc-bulk-share-btn" class="pc-btn" style="padding:10px 14px;font-size:0.8rem;background:#25D366;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">💬 Compartir</button>
@@ -872,19 +873,13 @@ window.pcCompartirVariosWhatsApp = async () => {
       }
     }
 
-    // 2. Generar el mensaje de texto formateado
-    let text = '*Catálogo de Zapatillas May* 👠✨\n\n'
+    // 2. Generar el mensaje de texto formateado (solo códigos de modelo, sin precios)
+    let text = '*Modelos de Calzado* 👠✨\n\n'
     seleccionados.forEach((p, index) => {
       const shortName = p.nombre.split(' ')[0]
       const sku = p.sku_interno || ''
-      const m3 = precioM3(p)
-      const m6 = precioM6(p)
-      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n`
-      if (m3) text += `   💵 3-5 pares: ${money(m3)} c/u\n`
-      if (m6) text += `   🔥 6+ pares: ${money(m6)} c/u\n`
-      text += '\n'
+      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n\n`
     })
-    text += '¡Pide los tuyos por WhatsApp! 📲'
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
       await navigator.share({
