@@ -372,11 +372,14 @@ async function renderInicio() {
 function renderCatalogo() {
   const cats = [...new Set(state.data.productos.map(p => p.categoria).filter(Boolean))]
   page().innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;width:100%">
+      <h2 style="font-size:1.3rem;font-weight:800;margin:0;color:inherit">Productos</h2>
+      <button onclick="pcToggleModoCompartir()" style="padding:6px 12px;border-radius:100px;border:1px solid ${state.modoCompartir ? '#25D366' : '#d1d5db'};background:${state.modoCompartir ? '#25D366' : '#f3f4f6'};color:${state.modoCompartir ? 'white' : '#374151'};font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px">📲 ${state.modoCompartir ? 'Listo' : 'Compartir varios'}</button>
+    </div>
     <input class="search" id="cat-search" placeholder="🔍 Buscar modelo o SKU…" value="${esc(state.busqueda)}">
     <div class="chips" style="margin-bottom:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
       <button class="${!state.filtroCat ? 'active' : ''}" onclick="window.__filtro('')">Todos</button>
       ${cats.map(c => `<button class="${state.filtroCat === c ? 'active' : ''}" onclick="window.__filtro('${c}')">${c[0].toUpperCase() + c.slice(1)}</button>`).join('')}
-      <button onclick="pcToggleModoCompartir()" style="margin-left:auto;padding:6px 12px;border-radius:100px;border:1px solid ${state.modoCompartir ? '#25D366' : '#d1d5db'};background:${state.modoCompartir ? '#25D366' : '#f3f4f6'};color:${state.modoCompartir ? 'white' : '#374151'};font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px">📲 ${state.modoCompartir ? 'Modo Selección' : 'Compartir varios'}</button>
     </div>
     <div class="grid" id="cat-grid"></div>
     

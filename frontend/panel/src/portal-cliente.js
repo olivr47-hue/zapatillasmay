@@ -713,8 +713,9 @@ function renderCatalogo(el) {
   const hayFiltrosActivos = pc.filtroTallas.length > 0 || pc.filtroColores.length > 0
 
   el.innerHTML = `
-    <div style="margin-bottom:20px">
+    <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
       <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">Productos</h1>
+      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:6px 12px;font-size:0.75rem;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:100px">📲 ${window._pcModoCompartir ? 'Listo' : 'Compartir varios'}</button>
     </div>
 
     <!-- Categorías -->
@@ -722,7 +723,6 @@ function renderCatalogo(el) {
       <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:var(--pc-green);border-color:var(--pc-green)'}">✨ Nuevos</button>
       <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
       ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
-      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:8px 14px;font-size:0.78rem;margin-left:auto;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📲 ${window._pcModoCompartir ? 'Modo Selección' : 'Compartir varios'}</button>
     </div>
 
     <!-- Buscador -->

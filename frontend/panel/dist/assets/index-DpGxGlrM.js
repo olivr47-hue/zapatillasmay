@@ -8606,8 +8606,9 @@ Tu selección se va a descargar en ${n.length} archivos separados -- súbelos a 
       <span class="pc-status-chip" style="background:${o}20;color:${o};white-space:nowrap">${e.status}</span>
       <p style="font-weight:700;color:var(--pc-text);margin:0;white-space:nowrap">${ee(e.total)}</p>
     </div>`}function se(e){if(e=e||document.getElementById("pc-content"),!e)return;const t=[...new Set(_.productos.map(d=>d.categoria).filter(Boolean))],o=_.variantes.filter(d=>d.activa!==!1),n=he.filter(d=>o.some(l=>l.talla===d)),a={};o.forEach(d=>{d.color&&(a[d.color]||(a[d.color]=d.color_hex||null))});const i=Object.entries(a).sort((d,l)=>d[0].localeCompare(l[0]));let r=_.productos;if(_.filtroNuevos&&(r=r.filter(Zt)),_.filtroCat&&(r=r.filter(d=>d.categoria===_.filtroCat)),_.busqueda){const d=_.busqueda.toLowerCase();r=r.filter(l=>{var p,c;return((p=l.nombre)==null?void 0:p.toLowerCase().includes(d))||((c=l.sku_interno)==null?void 0:c.toLowerCase().includes(d))})}_.filtroTallas.length&&(r=r.filter(d=>o.some(l=>l.producto_id===d.id&&_.filtroTallas.includes(l.talla)))),_.filtroColores.length&&(r=r.filter(d=>o.some(l=>l.producto_id===d.id&&_.filtroColores.includes(l.color))));const s=_.filtroTallas.length>0||_.filtroColores.length>0;e.innerHTML=`
-    <div style="margin-bottom:20px">
+    <div style="margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%">
       <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0">Productos</h1>
+      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:6px 12px;font-size:0.75rem;background:${window._pcModoCompartir?"#25D366":"var(--pc-card)"};color:${window._pcModoCompartir?"white":"var(--pc-text-2)"};border:1.5px solid ${window._pcModoCompartir?"#25D366":"var(--pc-border-2)"};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:100px">📲 ${window._pcModoCompartir?"Listo":"Compartir varios"}</button>
     </div>
 
     <!-- Categorías -->
@@ -8615,7 +8616,6 @@ Tu selección se va a descargar en ${n.length} archivos separados -- súbelos a 
       <button onclick="pcFiltrarNuevos()" class="pc-btn ${_.filtroNuevos?"pc-btn-primary":"pc-btn-secondary"}" style="padding:8px 14px;font-size:0.78rem;${_.filtroNuevos?"":"color:var(--pc-green);border-color:var(--pc-green)"}">✨ Nuevos</button>
       <button onclick="pcFiltrarCat('')" class="pc-btn ${!_.filtroCat&&!_.filtroNuevos?"pc-btn-primary":"pc-btn-secondary"}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
       ${t.map(d=>`<button onclick="pcFiltrarCat('${R(d)}')" class="pc-btn ${_.filtroCat===d&&!_.filtroNuevos?"pc-btn-primary":"pc-btn-secondary"}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${d}</button>`).join("")}
-      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:8px 14px;font-size:0.78rem;margin-left:auto;background:${window._pcModoCompartir?"#25D366":"var(--pc-card)"};color:${window._pcModoCompartir?"white":"var(--pc-text-2)"};border:1.5px solid ${window._pcModoCompartir?"#25D366":"var(--pc-border-2)"};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📲 ${window._pcModoCompartir?"Modo Selección":"Compartir varios"}</button>
     </div>
 
     <!-- Buscador -->
