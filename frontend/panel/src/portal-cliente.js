@@ -1641,8 +1641,25 @@ function pcSincronizarCarritoServidorDebounced() {
   _pcSyncTimer = setTimeout(() => { pcSincronizarCarritoServidor().catch(() => {}) }, 1500)
 }
 
+let _pcSyncEnCurso = false
+let _pcSyncPendiente = false
 async function pcSincronizarCarritoServidor() {
   if (!pc.sesion?.cliente_id) return
+  // Evitar sincronizaciones superpuestas: esta función borra TODOS los items
+  // del borrador y los vuelve a crear uno por uno, así que si se ejecutara dos
+  // veces en paralelo (o si el poll de 8s lee el borrador justo a medio borrar/
+  // recrear) el carrito parpadea -- items que "se agregan y quitan solos".
+  if (_pcSyncEnCurso) { _pcSyncPendiente = true; return }
+  _pcSyncEnCurso = true
+  try {
+    await _pcSincronizarCarritoServidorReal()
+  } finally {
+    _pcSyncEnCurso = false
+    if (_pcSyncPendiente) { _pcSyncPendiente = false; pcSincronizarCarritoServidorDebounced() }
+  }
+}
+
+async function _pcSincronizarCarritoServidorReal() {
   if (!pc.carrito.length) {
     // Carrito vacío: cancelar el borrador del servidor si había uno, para no
     // dejar un borrador viejo con items que ya no están.
@@ -1751,6 +1768,9 @@ async function pcRefrescarCarritoSiCambio() {
   // No interrumpir si el cliente está escribiendo/editando algo en la pantalla
   const activo = document.activeElement
   if (activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA')) return
+  // No leer el borrador mientras se está sincronizando (borrado+recreado de items):
+  // se vería a medio transicionar y ese estado parcial se pintaría como real.
+  if (_pcSyncEnCurso) return
   try {
     const resPoll = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
     if (resPoll.status === 401 || resPoll.status === 403) { pcDetenerPollCarrito(); pcForzarRelogin(); return }
@@ -1783,18 +1803,21 @@ function renderCarrito(el) {
   // Recalcular precios desde datos vivos (corrige $0 de localStorage)
   if (pc.productos.length > 0) {
     const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
+    // OJO: solo guardar/sincronizar si algún precio realmente cambió. Antes
+    // esto llamaba a pcGuardarCarrito() en CADA render -- incluyendo los
+    // renders que dispara el poll de 8s al traer el carrito del servidor --
+    // lo que disparaba una resincronización (borra+recrea todos los items)
+    // sin que el cliente hubiera hecho nada. Eso hacía que el poll de OTRO
+    // dispositivo pudiera leer el borrador a medio transicionar y lo pintara
+    // como real: pares que "se agregan y quitan solos".
+    let huboCambioPrecio = false
     pc.carrito.forEach(item => {
       const p = pc.productos.find(x => x.id === item.producto_id)
       if (!p) return
-      if (item.es_corrida) {
-        item.precio_unitario = precioCorrida(p)
-      } else if (totalPares >= 6) {
-        item.precio_unitario = precioM6(p)
-      } else {
-        item.precio_unitario = precioM3(p)
-      }
+      const nuevo = item.es_corrida ? precioCorrida(p) : (totalPares >= 6 ? precioM6(p) : precioM3(p))
+      if (nuevo !== item.precio_unitario) { item.precio_unitario = nuevo; huboCambioPrecio = true }
     })
-    pcGuardarCarrito()
+    if (huboCambioPrecio) pcGuardarCarrito()
   }
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
