@@ -160,6 +160,9 @@ function renderPC() {
   app.innerHTML = `
   <div id="pc-root" style="display:flex;min-height:100vh;width:100%;background:var(--pc-bg);font-family:'DM Sans',sans-serif;color:var(--pc-text)">
 
+    <!-- Overlay de Sidebar en móvil -->
+    <div id="pc-sidebar-overlay" onclick="pcToggleSidebar()" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:190;transition:opacity 0.25s"></div>
+
     <!-- Sidebar -->
     <aside id="pc-sidebar" style="width:220px;flex-shrink:0;background:var(--pc-bg-elev);border-right:1px solid var(--pc-border);display:flex;flex-direction:column;padding:0;transition:width 0.2s">
       <!-- Logo -->
@@ -360,11 +363,17 @@ function pcIrA(tab, _fromBack) {
   }
   // Cerrar sidebar en móvil
   document.getElementById('pc-sidebar')?.classList.remove('open')
+  const overlay = document.getElementById('pc-sidebar-overlay')
+  if (overlay) overlay.style.display = 'none'
 }
 
 function pcToggleSidebar(_fromBack) {
   const sidebar = document.getElementById('pc-sidebar')
+  const overlay = document.getElementById('pc-sidebar-overlay')
   const isOpen = sidebar?.classList.toggle('open')
+  if (overlay) {
+    overlay.style.display = isOpen ? 'block' : 'none'
+  }
   if (isOpen && !_fromBack && window._zmPushBack) {
     window._zmPushBack(() => pcToggleSidebar(true))
   }
