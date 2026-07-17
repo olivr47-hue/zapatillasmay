@@ -74,14 +74,14 @@ function pcForzarRelogin() {
 // Las variables --pc-* del bloque <style> cambian con el atributo
 // data-pc-theme del <html>; aquí solo se alterna ese atributo.
 function pcAplicarTema(tema) {
-  document.documentElement.setAttribute('data-pc-theme', tema === 'light' ? 'light' : 'dark')
+  document.documentElement.setAttribute('data-pc-theme', tema === 'dark' ? 'dark' : 'light')
 }
 function pcIconoTema(tema) {
   // Muestra el icono del tema al que se CAMBIARÁ (sol si estás en oscuro, luna si estás en claro).
-  return tema === 'light' ? '🌙' : '☀️'
+  return tema === 'dark' ? '☀️' : '🌙'
 }
 window.pcToggleTema = () => {
-  const actual = document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark'
+  const actual = document.documentElement.getAttribute('data-pc-theme') === 'dark' ? 'dark' : 'light'
   const nuevo = actual === 'light' ? 'dark' : 'light'
   pcAplicarTema(nuevo)
   try { localStorage.setItem('pc_tema', nuevo) } catch {}
@@ -91,8 +91,8 @@ window.pcToggleTema = () => {
 // ── Entry point ──────────────────────────────────────────────
 export function renderPortalCliente(sesionData) {
   pc.sesion = sesionData
-  // Tema: oscuro por defecto; recuerda la última elección del cliente.
-  try { pcAplicarTema(localStorage.getItem('pc_tema') === 'light' ? 'light' : 'dark') } catch {}
+  // Tema: claro por defecto; recuerda la última elección del cliente.
+  try { pcAplicarTema(localStorage.getItem('pc_tema') === 'dark' ? 'dark' : 'light') } catch {}
   try { pc.carrito = JSON.parse(localStorage.getItem(PC_CARRITO_KEY) || '[]') } catch { pc.carrito = [] }
   try {
     renderPC()
@@ -251,20 +251,20 @@ function renderPC() {
   </a>
 
   <style>
-    /* ── Tema (oscuro por defecto, claro con data-pc-theme="light") ── */
+    /* ── Tema (claro por defecto, oscuro con data-pc-theme="dark") ── */
     :root {
-      --pc-bg: #0f0f1c; --pc-bg-elev: #0c0c17; --pc-card: #161625;
-      --pc-border: #1e1e30; --pc-border-2: #2a2a40; --pc-hover: #161625;
-      --pc-text: #e2e2f0; --pc-text-2: #c0c0e0; --pc-text-3: #a0a0c0;
-      --pc-text-4: #8888aa; --pc-muted: #5a5a7a; --pc-muted-2: #3a3a5c;
-      --pc-purple: #b39ddb; --pc-green: #4ade80;
-    }
-    :root[data-pc-theme="light"] {
       --pc-bg: #f3f4f9; --pc-bg-elev: #ffffff; --pc-card: #ffffff;
       --pc-border: #e6e8f0; --pc-border-2: #d4d8e4; --pc-hover: #eef0f6;
       --pc-text: #1b1b2c; --pc-text-2: #33334a; --pc-text-3: #52526a;
       --pc-text-4: #6f6f88; --pc-muted: #8a8aa0; --pc-muted-2: #a8a8bc;
       --pc-purple: #7c3aed; --pc-green: #059669;
+    }
+    :root[data-pc-theme="dark"] {
+      --pc-bg: #0f0f1c; --pc-bg-elev: #0c0c17; --pc-card: #161625;
+      --pc-border: #1e1e30; --pc-border-2: #2a2a40; --pc-hover: #161625;
+      --pc-text: #e2e2f0; --pc-text-2: #c0c0e0; --pc-text-3: #a0a0c0;
+      --pc-text-4: #8888aa; --pc-muted: #5a5a7a; --pc-muted-2: #3a3a5c;
+      --pc-purple: #b39ddb; --pc-green: #4ade80;
     }
     @keyframes spin { to { transform: rotate(360deg) } }
     @media (max-width: 768px) {
