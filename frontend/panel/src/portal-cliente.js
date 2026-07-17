@@ -1086,6 +1086,11 @@ window.pcCambiarModo = (prodId, modo) => {
         style="width:100%;padding:14px;background:#E91E8C;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
         Selecciona al menos una talla
       </button>`
+    if (window._pcColores) {
+      window._pcColores.forEach(c => {
+        pcActualizarBadgeColor(prodId, c)
+      })
+    }
     if (colorActivo) pcSeleccionarColor(prodId, colorActivo)
   }
 }
