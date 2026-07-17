@@ -1237,7 +1237,7 @@ Diferencia: $${(n=r.diferencia)==null?void 0:n.toFixed(2)}`),Se()):alert("Error:
          onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
       ${n.nombre}
     </div>
-  `).join("")};window.seleccionarClienteOportunidad=(e,t)=>{document.getElementById("op-cliente-id").value=e,document.getElementById("op-cliente-buscar").value=t,document.getElementById("op-cliente-resultados").style.display="none"};window.guardarOportunidad=async()=>{const e=document.getElementById("op-titulo").value,t=document.getElementById("op-cliente-id").value,o=document.getElementById("op-monto").value,a=document.getElementById("op-etapa").value,n=document.getElementById("op-fecha").value,i=document.getElementById("op-notas").value;if(!e){alert("El título es requerido");return}try{await fetch(y+"/crm/oportunidades",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:e,cliente_id:t||null,monto_estimado:parseFloat(o)||0,etapa:a,fecha_cierre_estimada:n||null,notas:i})}),document.getElementById("modal-oportunidad").remove(),mostrarPipeline()}catch{alert("Error guardando oportunidad")}};async function Ne(e,t=!1){const o=document.getElementById("content");try{const n=await(await fetch(y+"/productos/")).json(),i=n.filter(c=>c.activo),r=n.filter(c=>!c.activo),s=t?r:i;console.log("mostrarInactivos:",t,"base:",s.length,"inactivos:",r.length);const d=[...new Set(i.map(c=>c.categoria).filter(Boolean))],l=e?s.filter(c=>c.categoria===e):s;let p=[];if(l.length>0){const c=l.map(u=>u.id),m=[];for(let u=0;u<c.length;u+=80)m.push(c.slice(u,u+80));const f=await Promise.all(m.map(u=>fetch(y+"/variantes/?producto_ids="+u.join(","))));for(const u of f)if(u.ok){const g=await u.json();p=p.concat(g||[])}}window._modoAnuncio=!1,window._anuncioSeleccion=[],o.innerHTML=`
+  `).join("")};window.seleccionarClienteOportunidad=(e,t)=>{document.getElementById("op-cliente-id").value=e,document.getElementById("op-cliente-buscar").value=t,document.getElementById("op-cliente-resultados").style.display="none"};window.guardarOportunidad=async()=>{const e=document.getElementById("op-titulo").value,t=document.getElementById("op-cliente-id").value,o=document.getElementById("op-monto").value,a=document.getElementById("op-etapa").value,n=document.getElementById("op-fecha").value,i=document.getElementById("op-notas").value;if(!e){alert("El título es requerido");return}try{await fetch(y+"/crm/oportunidades",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({titulo:e,cliente_id:t||null,monto_estimado:parseFloat(o)||0,etapa:a,fecha_cierre_estimada:n||null,notas:i})}),document.getElementById("modal-oportunidad").remove(),mostrarPipeline()}catch{alert("Error guardando oportunidad")}};async function Ne(e,t=!1){const o=document.getElementById("content"),a=n=>String(n??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");try{const i=await(await fetch(y+"/productos/")).json(),r=i.filter(m=>m.activo),s=i.filter(m=>!m.activo),d=t?s:r;console.log("mostrarInactivos:",t,"base:",d.length,"inactivos:",s.length);const l=[...new Set(r.map(m=>m.categoria).filter(Boolean))],p=e?d.filter(m=>m.categoria===e):d;let c=[];if(p.length>0){const m=p.map(g=>g.id),f=[];for(let g=0;g<m.length;g+=80)f.push(m.slice(g,g+80));const u=await Promise.all(f.map(g=>fetch(y+"/variantes/?producto_ids="+g.join(","))));for(const g of u)if(g.ok){const b=await g.json();c=c.concat(b||[])}}window._modoAnuncio=!1,window._anuncioSeleccion=[],o.innerHTML=`
       <style>
         .chk-col { display: none !important; width: 40px; text-align: center; vertical-align: middle; }
         .modo-anuncio-activo .chk-col { display: table-cell !important; }
@@ -1246,23 +1246,23 @@ Diferencia: $${(n=r.diferencia)==null?void 0:n.toFixed(2)}`),Se()):alert("Error:
       </style>
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn ${!t&&!e?"btn-primary":"btn-secondary"}" onclick="window.cargarProductos(null, false)">
-          ✅ Activos (${i.length})
+          ✅ Activos (${r.length})
         </button>
-        ${d.map(c=>`
-          <button class="btn ${!t&&e===c?"btn-primary":"btn-secondary"}" onclick="window.cargarProductos('${c}', false)">
-            ${c.charAt(0).toUpperCase()+c.slice(1)} (${i.filter(m=>m.categoria===c).length})
+        ${l.map(m=>`
+          <button class="btn ${!t&&e===m?"btn-primary":"btn-secondary"}" onclick="window.cargarProductos('${m}', false)">
+            ${m.charAt(0).toUpperCase()+m.slice(1)} (${r.filter(f=>f.categoria===m).length})
           </button>
         `).join("")}
         <button class="btn ${t?"btn-primary":"btn-secondary"}" style="${t?"":"color:#c62828;border-color:#c62828"}" onclick="window.cargarProductos(null, true)">
-          ❌ Desactivados (${r.length})
+          ❌ Desactivados (${s.length})
         </button>
       </div>
       <div class="table-card" id="productos-table-wrapper">
         <div class="table-header">
-          <h3>${t?"Productos desactivados":e?e.charAt(0).toUpperCase()+e.slice(1):"Productos activos"} (${l.length})</h3>
+          <h3>${t?"Productos desactivados":e?e.charAt(0).toUpperCase()+e.slice(1):"Productos activos"} (${p.length})</h3>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:180px" oninput="filtrarProductos()">
-            ${!t&&l.length>0?'<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>':""}
+            ${!t&&p.length>0?'<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>':""}
             <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
           </div>
         </div>
@@ -1281,37 +1281,37 @@ Diferencia: $${(n=r.diferencia)==null?void 0:n.toFixed(2)}`),Se()):alert("Error:
             </tr>
           </thead>
           <tbody>
-            ${l.length===0?'<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>':l.map(c=>{const m=p.filter(g=>g.producto_id===c.id&&g.activa!==!1),f={};m.forEach(g=>{g.color&&(f[g.color]=g.color_hex||"#888")});const u=Object.entries(f);return`
-                    <tr id="prod-row-${c.id}">
+            ${p.length===0?'<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>':p.map(m=>{const f=c.filter(b=>b.producto_id===m.id&&b.activa!==!1),u={};f.forEach(b=>{b.color&&(u[b.color]=b.color_hex||"#888")});const g=Object.entries(u);return`
+                    <tr id="prod-row-${m.id}">
                       <td class="chk-col">
-                        <input type="checkbox" class="prod-chk" value="${c.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleProductColorsRow('${c.id}', this)">
+                        <input type="checkbox" class="prod-chk" value="${m.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleProductColorsRow('${m.id}', this)">
                       </td>
                       <td style="vertical-align:middle">
                         <div style="display:flex;align-items:center;gap:10px">
-                          ${c.imagen_principal?`<img src="${c.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
+                          ${m.imagen_principal?`<img src="${m.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`:'<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>'}
                           <div>
-                            <strong>${c.nombre}</strong>
+                            <strong>${m.nombre}</strong>
                             <div class="chk-col-colors" style="display:none;gap:10px;margin-top:6px;flex-wrap:wrap">
-                              ${u.map(([g,b])=>`
+                              ${g.map(([b,h])=>`
                                 <label style="font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:normal;color:#4b5563;margin:0">
-                                  <input type="checkbox" class="prod-color-chk-${c.id}" value="${esc(g)}" checked onchange="window.actualizarSeleccionAnuncio()">
-                                  <span style="width:12px;height:12px;border-radius:50%;background:${b};border:1px solid #ccc;display:inline-block;flex-shrink:0"></span>
-                                  ${esc(g)}
+                                  <input type="checkbox" class="prod-color-chk-${m.id}" value="${a(b)}" checked onchange="window.actualizarSeleccionAnuncio()">
+                                  <span style="width:12px;height:12px;border-radius:50%;background:${h};border:1px solid #ccc;display:inline-block;flex-shrink:0"></span>
+                                  ${a(b)}
                                 </label>
                               `).join("")}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td><small style="color:#888">${c.sku_interno||"—"}</small></td>
-                      <td>${c.categoria||"—"}</td>
-                      <td>$${c.precio_menudeo}</td>
-                      <td><span class="badge ${c.activo?"badge-success":"badge-danger"}">${c.activo?"Activo":"Inactivo"}</span></td>
+                      <td><small style="color:#888">${m.sku_interno||"—"}</small></td>
+                      <td>${m.categoria||"—"}</td>
+                      <td>$${m.precio_menudeo}</td>
+                      <td><span class="badge ${m.activo?"badge-success":"badge-danger"}">${m.activo?"Activo":"Inactivo"}</span></td>
                       <td style="display:flex;gap:4px;flex-wrap:wrap">
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${c.id}')">Editar</button>
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${c.id}','${(c.nombre||"").replace(/'/g,"")}')">🎨 Colores</button>
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${c.id}')">Duplicar</button>
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${c.activo?"#c62828":"#2e7d32"};border-color:${c.activo?"#c62828":"#2e7d32"}" onclick="toggleProducto('${c.id}', ${c.activo})">${c.activo?"Desactivar":"Activar"}</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${m.id}')">Editar</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${m.id}','${(m.nombre||"").replace(/'/g,"")}')">🎨 Colores</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${m.id}')">Duplicar</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${m.activo?"#c62828":"#2e7d32"};border-color:${m.activo?"#c62828":"#2e7d32"}" onclick="toggleProducto('${m.id}', ${m.activo})">${m.activo?"Desactivar":"Activar"}</button>
                       </td>
                     </tr>
                   `}).join("")}

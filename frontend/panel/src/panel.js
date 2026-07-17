@@ -2780,6 +2780,7 @@ window.guardarOportunidad = async () => {
 
 async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
   const content = document.getElementById('content')
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
   try {
     const resProds = await fetch(API + '/productos/')
     const data = await resProds.json()
