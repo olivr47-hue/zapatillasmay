@@ -415,11 +415,18 @@ function pintarGrid() {
   if (!grid) return
   if (!lista.length) { grid.innerHTML = `<p class="muted" style="grid-column:1/-1;text-align:center;padding:30px">Sin resultados</p>`; return }
   grid.innerHTML = lista.slice(0, 120).map(p => {
-    const seleccionado = state.modoCompartir && state.compartirSeleccion.includes(p.id)
+    const seleccionado = state.modoCompartir && state.compartirSeleccion.some(x => x.startsWith(p.id + '::'))
     const clickAction = state.modoCompartir 
       ? `pcToggleSeleccionCompartir('${p.id}')` 
       : `window.__abrir('${p.id}')`
     
+    const vars = state.data.variantes.filter(v => v.producto_id === p.id)
+    const coloresMap = {}
+    vars.forEach(v => {
+      if (v.color) coloresMap[v.color] = v.color_hex || '#888'
+    })
+    const coloresList = Object.entries(coloresMap)
+
     return `
       <div class="card" onclick="${clickAction}" style="position:relative;${seleccionado ? 'border: 2px solid #25D366; box-shadow: 0 0 0 1px #25D366;' : ''}">
         ${p.imagen_principal ? `<img class="thumb" src="${p.imagen_principal}" loading="lazy">` : `<div class="thumb"></div>`}
@@ -433,12 +440,26 @@ function pintarGrid() {
         <div class="body">
           <div class="name">${esc(p.nombre)}</div>
           <div class="sku">${esc(p.sku_interno || '')}</div>
-          <div class="price">${money(p.precio_menudeo)} <small>x par</small></div>
-          <div class="tier-row">
-            <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
-            <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
-            ${tieneCorridaDisponibleProducto(p.id) ? `<span class="tier corr">Corr ${money(p.precio_corrida)}</span>` : ''}
-          </div>
+          
+          ${state.modoCompartir && coloresList.length > 0 ? `
+            <div style="display:flex;gap:5px;margin:8px 0;flex-wrap:wrap" onclick="event.stopPropagation()">
+              ${coloresList.map(([cn, hex]) => {
+                const colorSel = state.compartirSeleccion.includes(p.id + '::' + cn)
+                return `
+                  <div title="${esc(cn)}" onclick="event.stopPropagation();pcToggleSeleccionColorCompartir('${p.id}','${esc(cn)}')"
+                    style="width:20px;height:20px;border-radius:50%;background:${hex};border:2px solid ${colorSel ? '#25D366' : '#d1d5db'};cursor:pointer;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;transition:border-color 0.15s">
+                    ${colorSel ? '<span style="color:#25D366;font-size:0.62rem;font-weight:900">✓</span>' : ''}
+                  </div>`
+              }).join('')}
+            </div>
+          ` : `
+            <div class="price">${money(p.precio_menudeo)} <small>x par</small></div>
+            <div class="tier-row">
+              <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
+              <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
+              ${tieneCorridaDisponibleProducto(p.id) ? `<span class="tier corr">Corr ${money(p.precio_corrida)}</span>` : ''}
+            </div>
+          `}
         </div>
       </div>`
   }).join('')
@@ -453,11 +474,45 @@ window.pcToggleModoCompartir = () => {
 }
 
 window.pcToggleSeleccionCompartir = (prodId) => {
-  const idx = state.compartirSeleccion.indexOf(prodId)
+  const p = state.data.productos.find(x => x.id === prodId)
+  if (!p) return
+  const vars = state.data.variantes.filter(v => v.producto_id === prodId)
+  const colores = [...new Set(vars.map(v => v.color).filter(Boolean))]
+  
+  if (colores.length > 0) {
+    const algunColSel = colores.some(c => state.compartirSeleccion.includes(`${prodId}::${c}`))
+    if (algunColSel) {
+      colores.forEach(c => {
+        const idx = state.compartirSeleccion.indexOf(`${prodId}::${c}`)
+        if (idx > -1) state.compartirSeleccion.splice(idx, 1)
+      })
+    } else {
+      colores.forEach(c => {
+        const item = `${prodId}::${c}`
+        if (!state.compartirSeleccion.includes(item)) {
+          state.compartirSeleccion.push(item)
+        }
+      })
+    }
+  } else {
+    const item = `${prodId}::default`
+    const idx = state.compartirSeleccion.indexOf(item)
+    if (idx > -1) {
+      state.compartirSeleccion.splice(idx, 1)
+    } else {
+      state.compartirSeleccion.push(item)
+    }
+  }
+  renderCatalogo()
+}
+
+window.pcToggleSeleccionColorCompartir = (prodId, color) => {
+  const item = `${prodId}::${color}`
+  const idx = state.compartirSeleccion.indexOf(item)
   if (idx > -1) {
     state.compartirSeleccion.splice(idx, 1)
   } else {
-    state.compartirSeleccion.push(prodId)
+    state.compartirSeleccion.push(item)
   }
   renderCatalogo()
 }
@@ -476,36 +531,55 @@ window.pcCompartirVariosWhatsApp = async () => {
   btn.disabled = true
 
   try {
-    const seleccionados = state.data.productos.filter(p => state.compartirSeleccion.includes(p.id))
-    if (!seleccionados.length) {
+    if (!state.compartirSeleccion.length) {
       alert('Selecciona al menos un producto.')
       return
     }
 
-    // 1. Intentar descargar y compartir las fotos reales vía navigator.share
     const files = []
-    for (const p of seleccionados) {
-      const vars = state.data.variantes.filter(v => v.producto_id === p.id)
-      const fotoUrl = p.imagen_principal || vars[0]?.foto_url
+    const selecInfo = []
+    
+    for (const item of state.compartirSeleccion) {
+      const [prodId, colorName] = item.split('::')
+      const p = state.data.productos.find(x => x.id === prodId)
+      if (!p) continue
+      
+      const vars = state.data.variantes.filter(v => v.producto_id === prodId)
+      let fotoUrl = p.imagen_principal || vars[0]?.foto_url
+      
+      if (colorName !== 'default') {
+        const vColor = vars.find(x => x.color === colorName)
+        if (vColor?.foto_url) {
+          fotoUrl = vColor.foto_url
+        }
+      }
+      
       if (!fotoUrl) continue
+      
       try {
         const res = await fetch(fotoUrl)
         const blob = await res.blob()
         const ext = fotoUrl.split('.').pop().split('?')[0] || 'jpg'
         const shortCode = p.nombre.split(' ')[0]
-        const filename = `Zapatillas_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        const label = colorName !== 'default' ? `${shortCode}_${colorName}` : shortCode
+        const filename = `Zapatillas_May_${label}_${p.sku_interno || p.id}.${ext}`
         files.push(new File([blob], filename, { type: blob.type }))
+        
+        selecInfo.push({
+          nombre: p.nombre,
+          sku: p.sku_interno || '',
+          color: colorName !== 'default' ? colorName : ''
+        })
       } catch (e) {
         console.error('No se pudo descargar imagen:', fotoUrl, e)
       }
     }
 
-    // 2. Generar el mensaje de texto formateado (solo códigos de modelo, sin precios)
     let text = '*Modelos de Calzado* 👠✨\n\n'
-    seleccionados.forEach((p, index) => {
-      const shortName = p.nombre.split(' ')[0]
-      const sku = p.sku_interno || ''
-      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n\n`
+    selecInfo.forEach((item, index) => {
+      const shortName = item.nombre.split(' ')[0]
+      const colorText = item.color ? ` - Color ${item.color}` : ''
+      text += `*${index + 1}. Modelo ${shortName}* (${item.sku})${colorText}\n\n`
     })
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
@@ -525,7 +599,7 @@ window.pcCompartirVariosWhatsApp = async () => {
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
-        await new Promise(r => setTimeout(r, 400)) // Pausa para no saturar descargas
+        await new Promise(r => setTimeout(r, 400))
       }
     }
   } catch (err) {

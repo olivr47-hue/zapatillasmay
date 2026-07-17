@@ -2781,8 +2781,13 @@ window.guardarOportunidad = async () => {
 async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(API + '/productos/')
-    const data = await res.json()
+    const [resProds, resVars] = await Promise.all([
+      fetch(API + '/productos/'),
+      fetch(API + '/variantes/')
+    ])
+    const data = await resProds.json()
+    const variantes = await resVars.json()
+
     const activos = data.filter(p => p.activo)
     const inactivos = data.filter(p => !p.activo)
     const base = mostrarInactivos ? inactivos : activos
@@ -2797,6 +2802,8 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
       <style>
         .chk-col { display: none !important; width: 40px; text-align: center; vertical-align: middle; }
         .modo-anuncio-activo .chk-col { display: table-cell !important; }
+        .chk-col-colors { display: none !important; }
+        .modo-anuncio-activo .chk-col-colors { display: flex !important; }
       </style>
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn ${!mostrarInactivos && !categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="window.cargarProductos(null, false)">
@@ -2837,29 +2844,51 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
           <tbody>
             ${filtrados.length === 0
               ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
-              : filtrados.map(p => `
-                <tr id="prod-row-${p.id}">
-                  <td class="chk-col">
-                    <input type="checkbox" class="prod-chk" value="${p.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.actualizarSeleccionAnuncio()">
-                  </td>
-                  <td style="display:flex;align-items:center;gap:10px">
-                    ${p.imagen_principal
-                      ? `<img src="${p.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
-                      : `<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>`}
-                    <strong>${p.nombre}</strong>
-                  </td>
-                  <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
-                  <td>${p.categoria || '—'}</td>
-                  <td>$${p.precio_menudeo}</td>
-                  <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
-                  <td style="display:flex;gap:4px;flex-wrap:wrap">
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${p.id}','${(p.nombre||'').replace(/'/g,'')}')">🎨 Colores</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
-                    <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#c62828' : '#2e7d32'};border-color:${p.activo ? '#c62828' : '#2e7d32'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
-                  </td>
-                </tr>
-              `).join('')}
+              : filtrados.map(p => {
+                  const pVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
+                  const coloresMap = {}
+                  pVars.forEach(v => {
+                    if (v.color) coloresMap[v.color] = v.color_hex || '#888'
+                  })
+                  const coloresList = Object.entries(coloresMap)
+
+                  return `
+                    <tr id="prod-row-${p.id}">
+                      <td class="chk-col">
+                        <input type="checkbox" class="prod-chk" value="${p.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleProductColorsRow('${p.id}', this)">
+                      </td>
+                      <td style="vertical-align:middle">
+                        <div style="display:flex;align-items:center;gap:10px">
+                          ${p.imagen_principal
+                            ? `<img src="${p.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
+                            : `<div style="width:44px;height:44px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:1.2rem">?</div>`}
+                          <div>
+                            <strong>${p.nombre}</strong>
+                            <div class="chk-col-colors" style="display:none;gap:10px;margin-top:6px;flex-wrap:wrap">
+                              ${coloresList.map(([cn, hex]) => `
+                                <label style="font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:normal;color:#4b5563;margin:0">
+                                  <input type="checkbox" class="prod-color-chk-${p.id}" value="${esc(cn)}" checked onchange="window.actualizarSeleccionAnuncio()">
+                                  <span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ccc;display:inline-block;flex-shrink:0"></span>
+                                  ${esc(cn)}
+                                </label>
+                              `).join('')}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><small style="color:#888">${p.sku_interno || '—'}</small></td>
+                      <td>${p.categoria || '—'}</td>
+                      <td>$${p.precio_menudeo}</td>
+                      <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                      <td style="display:flex;gap:4px;flex-wrap:wrap">
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${p.id}','${(p.nombre||'').replace(/'/g,'')}')">🎨 Colores</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#c62828' : '#2e7d32'};border-color:${p.activo ? '#c62828' : '#2e7d32'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
+                      </td>
+                    </tr>
+                  `
+                }).join('')}
           </tbody>
         </table>
       </div>
@@ -2896,8 +2925,8 @@ window.toggleModoAnuncio = (forceVal) => {
       btn.style.color = ''
       btn.style.borderColor = ''
     }
-    // Desmarcar todos los checkboxes
     document.querySelectorAll('.prod-chk').forEach(c => c.checked = false)
+    document.querySelectorAll('[class^="prod-color-chk-"]').forEach(c => c.checked = true)
     const masterChk = document.getElementById('master-chk-anuncio')
     if (masterChk) masterChk.checked = false
   } else {
@@ -2919,24 +2948,45 @@ window.toggleModoAnuncio = (forceVal) => {
 
 window.toggleSelectAllAnuncios = (masterChk) => {
   const isChecked = masterChk.checked
-  const visibleChks = document.querySelectorAll('.prod-chk')
-  window._anuncioSeleccion = []
-  
-  visibleChks.forEach(chk => {
+  document.querySelectorAll('.prod-chk').forEach(chk => {
     chk.checked = isChecked
-    if (isChecked) {
-      window._anuncioSeleccion.push(chk.value)
-    }
+    const prodId = chk.value
+    document.querySelectorAll('.prod-color-chk-' + prodId).forEach(cChk => {
+      cChk.checked = isChecked
+    })
   })
-  
-  const countLabel = document.getElementById('anuncio-count')
-  if (countLabel) countLabel.textContent = `${window._anuncioSeleccion.length} seleccionados`
+  window.actualizarSeleccionAnuncio()
+}
+
+window.toggleProductColorsRow = (prodId, mainChk) => {
+  const isChecked = mainChk.checked
+  document.querySelectorAll('.prod-color-chk-' + prodId).forEach(chk => {
+    chk.checked = isChecked
+  })
+  window.actualizarSeleccionAnuncio()
 }
 
 window.actualizarSeleccionAnuncio = () => {
   window._anuncioSeleccion = []
-  document.querySelectorAll('.prod-chk:checked').forEach(chk => {
-    window._anuncioSeleccion.push(chk.value)
+  document.querySelectorAll('.prod-chk:checked').forEach(mainChk => {
+    const prodId = mainChk.value
+    const colorChks = document.querySelectorAll('.prod-color-chk-' + prodId)
+    if (colorChks.length > 0) {
+      let algunoMarcado = false
+      colorChks.forEach(chk => {
+        if (chk.checked) {
+          window._anuncioSeleccion.push(`${prodId}::${chk.value}`)
+          algunoMarcado = true
+        }
+      })
+      if (!algunoMarcado) {
+        colorChks.forEach(chk => {
+          window._anuncioSeleccion.push(`${prodId}::${chk.value}`)
+        })
+      }
+    } else {
+      window._anuncioSeleccion.push(`${prodId}::default`)
+    }
   })
   const countLabel = document.getElementById('anuncio-count')
   if (countLabel) countLabel.textContent = `${window._anuncioSeleccion.length} seleccionados`
@@ -2955,35 +3005,60 @@ window.compartirNovedadesWhatsApp = async () => {
       return
     }
 
-    const res = await fetch(API + '/productos/')
-    const todosProds = await res.json()
-    const seleccionados = todosProds.filter(p => window._anuncioSeleccion.includes(p.id))
+    const [resProds, resVars] = await Promise.all([
+      fetch(API + '/productos/'),
+      fetch(API + '/variantes/')
+    ])
+    const todosProds = await resProds.json()
+    const todasVars = await resVars.json()
 
-    // 2. Intentar descargar y compartir las fotos reales
     const files = []
-    for (const p of seleccionados) {
-      if (!p.imagen_principal) continue
+    const selecInfo = []
+    
+    for (const item of window._anuncioSeleccion) {
+      const [prodId, colorName] = item.split('::')
+      const p = todosProds.find(x => x.id === prodId)
+      if (!p) continue
+      
+      const vars = todasVars.filter(v => v.producto_id === prodId)
+      let fotoUrl = p.imagen_principal || vars[0]?.foto_url
+      
+      if (colorName !== 'default') {
+        const vColor = vars.find(x => x.color === colorName)
+        if (vColor?.foto_url) {
+          fotoUrl = vColor.foto_url
+        }
+      }
+      
+      if (!fotoUrl) continue
+      
       try {
-        const imgRes = await fetch(p.imagen_principal)
+        const imgRes = await fetch(fotoUrl)
         const blob = await imgRes.blob()
-        const ext = p.imagen_principal.split('.').pop().split('?')[0] || 'jpg'
+        const ext = fotoUrl.split('.').pop().split('?')[0] || 'jpg'
         const shortCode = p.nombre.split(' ')[0]
-        const filename = `Novedad_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        const label = colorName !== 'default' ? `${shortCode}_${colorName}` : shortCode
+        const filename = `Novedad_May_${label}_${p.sku_interno || p.id}.${ext}`
         files.push(new File([blob], filename, { type: blob.type }))
+        
+        selecInfo.push({
+          nombre: p.nombre,
+          sku: p.sku_interno || '',
+          color: colorName !== 'default' ? colorName : ''
+        })
       } catch (e) {
-        console.error('No se pudo descargar imagen:', p.imagen_principal, e)
+        console.error('No se pudo descargar imagen:', fotoUrl, e)
       }
     }
 
-    // 3. Generar el mensaje promocional
     let text = '*NUEVOS MODELOS* 👠✨\n\n'
     text += 'ya disponibles en el portal:\n'
-    text += 'https://tienda-zapatillas-may.vercel.app\n\n'
+    text += 'https://portal.zapatillasmay.mx\n\n'
     
-    seleccionados.forEach((p) => {
-      const shortName = p.nombre.split(' ')[0]
-      const sku = p.sku_interno || ''
-      text += `- Modelo *${shortName}* (${sku})\n`
+    selecInfo.forEach((item) => {
+      const shortName = item.nombre.split(' ')[0]
+      const colorText = item.color ? ` - Color ${item.color}` : ''
+      text += `- Modelo *${shortName}* (${item.sku})${colorText}\n`
     })
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {

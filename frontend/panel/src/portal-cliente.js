@@ -826,11 +826,45 @@ window.pcToggleModoCompartir = () => {
 }
 
 window.pcToggleSeleccionCompartir = (prodId) => {
-  const idx = window._pcCompartirSeleccion.indexOf(prodId)
+  const p = pc.productos.find(x => x.id === prodId)
+  if (!p) return
+  const vars = pc.variantes.filter(v => v.producto_id === prodId)
+  const colores = [...new Set(vars.map(v => v.color).filter(Boolean))]
+  
+  if (colores.length > 0) {
+    const algunColSel = colores.some(c => window._pcCompartirSeleccion.includes(`${prodId}::${c}`))
+    if (algunColSel) {
+      colores.forEach(c => {
+        const idx = window._pcCompartirSeleccion.indexOf(`${prodId}::${c}`)
+        if (idx > -1) window._pcCompartirSeleccion.splice(idx, 1)
+      })
+    } else {
+      colores.forEach(c => {
+        const item = `${prodId}::${c}`
+        if (!window._pcCompartirSeleccion.includes(item)) {
+          window._pcCompartirSeleccion.push(item)
+        }
+      })
+    }
+  } else {
+    const item = `${prodId}::default`
+    const idx = window._pcCompartirSeleccion.indexOf(item)
+    if (idx > -1) {
+      window._pcCompartirSeleccion.splice(idx, 1)
+    } else {
+      window._pcCompartirSeleccion.push(item)
+    }
+  }
+  renderCatalogo()
+}
+
+window.pcToggleSeleccionColorCompartir = (prodId, color) => {
+  const item = `${prodId}::${color}`
+  const idx = window._pcCompartirSeleccion.indexOf(item)
   if (idx > -1) {
     window._pcCompartirSeleccion.splice(idx, 1)
   } else {
-    window._pcCompartirSeleccion.push(prodId)
+    window._pcCompartirSeleccion.push(item)
   }
   renderCatalogo()
 }
@@ -849,36 +883,55 @@ window.pcCompartirVariosWhatsApp = async () => {
   btn.disabled = true
 
   try {
-    const seleccionados = pc.productos.filter(p => window._pcCompartirSeleccion.includes(p.id))
-    if (!seleccionados.length) {
+    if (!window._pcCompartirSeleccion.length) {
       alert('Selecciona al menos un producto.')
       return
     }
 
-    // 1. Intentar descargar y compartir las fotos reales vía navigator.share
     const files = []
-    for (const p of seleccionados) {
-      const vars = pc.variantes.filter(v => v.producto_id === p.id)
-      const fotoUrl = p.imagen_principal || vars[0]?.foto_url
+    const selecInfo = []
+    
+    for (const item of window._pcCompartirSeleccion) {
+      const [prodId, colorName] = item.split('::')
+      const p = pc.productos.find(x => x.id === prodId)
+      if (!p) continue
+      
+      const vars = pc.variantes.filter(v => v.producto_id === prodId)
+      let fotoUrl = p.imagen_principal || vars[0]?.foto_url
+      
+      if (colorName !== 'default') {
+        const vColor = vars.find(x => x.color === colorName)
+        if (vColor?.foto_url) {
+          fotoUrl = vColor.foto_url
+        }
+      }
+      
       if (!fotoUrl) continue
+      
       try {
         const res = await fetch(fotoUrl)
         const blob = await res.blob()
         const ext = fotoUrl.split('.').pop().split('?')[0] || 'jpg'
         const shortCode = p.nombre.split(' ')[0]
-        const filename = `Zapatillas_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        const label = colorName !== 'default' ? `${shortCode}_${colorName}` : shortCode
+        const filename = `Zapatillas_May_${label}_${p.sku_interno || p.id}.${ext}`
         files.push(new File([blob], filename, { type: blob.type }))
+        
+        selecInfo.push({
+          nombre: p.nombre,
+          sku: p.sku_interno || '',
+          color: colorName !== 'default' ? colorName : ''
+        })
       } catch (e) {
         console.error('No se pudo descargar imagen:', fotoUrl, e)
       }
     }
 
-    // 2. Generar el mensaje de texto formateado (solo códigos de modelo, sin precios)
     let text = '*Modelos de Calzado* 👠✨\n\n'
-    seleccionados.forEach((p, index) => {
-      const shortName = p.nombre.split(' ')[0]
-      const sku = p.sku_interno || ''
-      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n\n`
+    selecInfo.forEach((item, index) => {
+      const shortName = item.nombre.split(' ')[0]
+      const colorText = item.color ? ` - Color ${item.color}` : ''
+      text += `*${index + 1}. Modelo ${shortName}* (${item.sku})${colorText}\n\n`
     })
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
@@ -887,7 +940,6 @@ window.pcCompartirVariosWhatsApp = async () => {
         title: 'Modelos de Zapatillas May'
       })
     } else {
-      // Fallback: abrir en WhatsApp Web / App solo el texto y descargar las imágenes por separado
       const url = `https://wa.me/?text=${encodeURIComponent(text)}`
       window.open(url, '_blank')
       
@@ -899,7 +951,7 @@ window.pcCompartirVariosWhatsApp = async () => {
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
-        await new Promise(r => setTimeout(r, 400)) // Pausa para no saturar descargas
+        await new Promise(r => setTimeout(r, 400))
       }
     }
   } catch (err) {
@@ -968,7 +1020,7 @@ function pcProductoCard(p) {
   const coloresList = Object.entries(coloresMap) // [[color, {hex, foto}], ...]
   const imgPrincipal = p.imagen_principal || (coloresList[0]?.[1]?.foto) || ''
   const enCarrito = pc.carrito.filter(i => i.producto_id === p.id).reduce((s, i) => s + i.cantidad, 0)
-  const seleccionado = window._pcModoCompartir && window._pcCompartirSeleccion.includes(p.id)
+  const seleccionado = window._pcModoCompartir && window._pcCompartirSeleccion.some(x => x.startsWith(p.id + '::'))
 
   const clickAction = window._pcModoCompartir 
     ? `pcToggleSeleccionCompartir('${p.id}')` 
@@ -990,13 +1042,24 @@ function pcProductoCard(p) {
         ` : ''}
       </div>
       <!-- Swatches de color -->
-      ${coloresList.length > 0 && !window._pcModoCompartir ? `
+      ${coloresList.length > 0 ? `
       <div style="display:flex;gap:5px;padding:8px 10px;background:var(--pc-bg-elev);flex-wrap:wrap" onclick="event.stopPropagation()">
-        ${coloresList.slice(0,8).map(([cn, cd]) => `
-          <div title="${esc(cn)}" onclick="pcCardColor('${p.id}','${esc(cd.foto||imgPrincipal)}',this)"
-            style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid var(--pc-border-2);cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
-            onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='var(--pc-border-2)'">
-          </div>`).join('')}
+        ${coloresList.slice(0,8).map(([cn, cd]) => {
+          if (window._pcModoCompartir) {
+            const colorSel = window._pcCompartirSeleccion.includes(p.id + '::' + cn)
+            return `
+              <div title="${esc(cn)}" onclick="event.stopPropagation();pcToggleSeleccionColorCompartir('${p.id}','${esc(cn)}')"
+                style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid ${colorSel ? '#25D366' : 'var(--pc-border-2)'};cursor:pointer;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;transition:border-color 0.15s">
+                ${colorSel ? '<span style="color:#25D366;font-size:0.62rem;font-weight:900">✓</span>' : ''}
+              </div>`
+          } else {
+            return `
+              <div title="${esc(cn)}" onclick="pcCardColor('${p.id}','${esc(cd.foto||imgPrincipal)}',this)"
+                style="width:18px;height:18px;border-radius:50%;background:${cd.hex||'#888'};border:2px solid var(--pc-border-2);cursor:pointer;flex-shrink:0;transition:border-color 0.15s"
+                onmouseover="this.style.borderColor='#E91E8C'" onmouseout="if(!this.dataset.sel)this.style.borderColor='var(--pc-border-2)'">
+              </div>`
+          }
+        }).join('')}
         ${coloresList.length > 8 ? `<span style="font-size:0.62rem;color:var(--pc-muted);align-self:center">+${coloresList.length-8}</span>` : ''}
       </div>` : ''}
       <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column">
