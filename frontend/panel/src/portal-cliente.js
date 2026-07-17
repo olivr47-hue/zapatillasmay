@@ -260,6 +260,8 @@ function renderPC() {
       #pc-topbar { display:flex!important; }
       #pc-content { padding:20px 16px!important; }
       .pc-prod-grid { grid-template-columns:repeat(2,1fr)!important; gap:10px!important; }
+      .pc-cart-layout { grid-template-columns:1fr!important; }
+      .pc-cart-summary { position:static!important; width:100%!important; }
     }
     .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
     .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
@@ -1779,7 +1781,7 @@ function renderCarrito(el) {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
+    <div class="pc-cart-layout" style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
 
       <!-- Items del carrito -->
       <div>
@@ -1861,7 +1863,7 @@ function renderCarrito(el) {
 
       <!-- Resumen del pedido -->
       ${pc.carrito.length > 0 ? `
-      <div class="pc-card" style="min-width:240px;position:sticky;top:20px">
+      <div class="pc-card pc-cart-summary" style="position:sticky;top:20px">
         <p style="font-weight:700;color:var(--pc-text);margin:0 0 16px">Resumen</p>
         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
           <span style="color:var(--pc-text-4);font-size:0.83rem">${totalPares} pares</span>

@@ -731,7 +731,7 @@ function totalCarrito() {
   const s = paresSueltos()
   return state.carrito.reduce((sum, i) => sum + i.cantidad * precioItem(i, s), 0)
 }
-const PC_BORRADOR_MARCA = 'Borrador del carrito (portal_mayoreo)'
+const PC_BORRADOR_MARCA = '[carrito-respaldo]'
 let _borradorServerId = null
 let _syncTimer = null
 let _carritoPollInterval = null
