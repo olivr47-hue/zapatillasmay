@@ -2786,11 +2786,18 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
     const activos = data.filter(p => p.activo)
     const inactivos = data.filter(p => !p.activo)
     const base = mostrarInactivos ? inactivos : activos
-console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inactivos:', inactivos.length)
+    console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inactivos:', inactivos.length)
     const categorias = [...new Set(activos.map(p => p.categoria).filter(Boolean))]
     const filtrados = categoriaFiltro ? base.filter(p => p.categoria === categoriaFiltro) : base
 
+    window._modoAnuncio = false
+    window._anuncioSeleccion = []
+
     content.innerHTML = `
+      <style>
+        .chk-col { display: none !important; width: 40px; text-align: center; vertical-align: middle; }
+        .modo-anuncio-activo .chk-col { display: table-cell !important; }
+      </style>
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn ${!mostrarInactivos && !categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="window.cargarProductos(null, false)">
           ✅ Activos (${activos.length})
@@ -2804,17 +2811,21 @@ console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inacti
           ❌ Desactivados (${inactivos.length})
         </button>
       </div>
-      <div class="table-card">
+      <div class="table-card" id="productos-table-wrapper">
         <div class="table-header">
           <h3>${mostrarInactivos ? 'Productos desactivados' : categoriaFiltro ? categoriaFiltro.charAt(0).toUpperCase() + categoriaFiltro.slice(1) : 'Productos activos'} (${filtrados.length})</h3>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:220px" oninput="filtrarProductos()">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:180px" oninput="filtrarProductos()">
+            ${!mostrarInactivos && filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>` : ''}
             <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
           </div>
         </div>
         <table>
           <thead>
             <tr>
+              <th class="chk-col">
+                <input type="checkbox" id="master-chk-anuncio" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleSelectAllAnuncios(this)">
+              </th>
               <th>Producto</th>
               <th>SKU</th>
               <th>Categoria</th>
@@ -2825,9 +2836,12 @@ console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inacti
           </thead>
           <tbody>
             ${filtrados.length === 0
-              ? '<tr><td colspan="6" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
+              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
               : filtrados.map(p => `
-                <tr>
+                <tr id="prod-row-${p.id}">
+                  <td class="chk-col">
+                    <input type="checkbox" class="prod-chk" value="${p.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.actualizarSeleccionAnuncio()">
+                  </td>
                   <td style="display:flex;align-items:center;gap:10px">
                     ${p.imagen_principal
                       ? `<img src="${p.imagen_principal}" style="width:44px;height:44px;object-fit:contain;background:#f5f5f5;border-radius:6px;border:1px solid #eee;flex-shrink:0">`
@@ -2849,9 +2863,156 @@ console.log('mostrarInactivos:', mostrarInactivos, 'base:', base.length, 'inacti
           </tbody>
         </table>
       </div>
+
+      <div id="anuncio-floating-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;background:white;border:2px solid #E91E8C;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
+        <div style="flex:1;line-height:1.2">
+          <p style="margin:0;font-size:0.75rem;color:#6b7280;font-weight:600">Crear Anuncio WhatsApp</p>
+          <p id="anuncio-count" style="margin:0;font-size:1rem;font-weight:800;color:#111827">0 seleccionados</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="window.compartirNovedadesWhatsApp()" id="btn-anuncio-share" class="btn btn-primary" style="padding:10px 14px;font-size:0.8rem;background:#E91E8C;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📣 Compartir</button>
+          <button onclick="window.toggleModoAnuncio(false)" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
+        </div>
+      </div>
     `
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
+  }
+}
+
+window.toggleModoAnuncio = (forceVal) => {
+  const table = document.getElementById('productos-table-wrapper')
+  const bar = document.getElementById('anuncio-floating-bar')
+  const btn = document.getElementById('btn-anuncio-prod')
+  
+  if (forceVal === false || window._modoAnuncio) {
+    window._modoAnuncio = false
+    window._anuncioSeleccion = []
+    if (table) table.classList.remove('modo-anuncio-activo')
+    if (bar) bar.style.display = 'none'
+    if (btn) {
+      btn.innerHTML = '📲 Anunciar modelos'
+      btn.className = 'btn btn-secondary'
+      btn.style.color = ''
+      btn.style.borderColor = ''
+    }
+    // Desmarcar todos los checkboxes
+    document.querySelectorAll('.prod-chk').forEach(c => c.checked = false)
+    const masterChk = document.getElementById('master-chk-anuncio')
+    if (masterChk) masterChk.checked = false
+  } else {
+    window._modoAnuncio = true
+    window._anuncioSeleccion = []
+    if (table) table.classList.add('modo-anuncio-activo')
+    if (bar) {
+      bar.style.display = 'flex'
+      document.getElementById('anuncio-count').textContent = '0 seleccionados'
+    }
+    if (btn) {
+      btn.innerHTML = '✕ Cancelar'
+      btn.className = 'btn btn-secondary'
+      btn.style.color = '#c62828'
+      btn.style.borderColor = '#c62828'
+    }
+  }
+}
+
+window.toggleSelectAllAnuncios = (masterChk) => {
+  const isChecked = masterChk.checked
+  const visibleChks = document.querySelectorAll('.prod-chk')
+  window._anuncioSeleccion = []
+  
+  visibleChks.forEach(chk => {
+    chk.checked = isChecked
+    if (isChecked) {
+      window._anuncioSeleccion.push(chk.value)
+    }
+  })
+  
+  const countLabel = document.getElementById('anuncio-count')
+  if (countLabel) countLabel.textContent = `${window._anuncioSeleccion.length} seleccionados`
+}
+
+window.actualizarSeleccionAnuncio = () => {
+  window._anuncioSeleccion = []
+  document.querySelectorAll('.prod-chk:checked').forEach(chk => {
+    window._anuncioSeleccion.push(chk.value)
+  })
+  const countLabel = document.getElementById('anuncio-count')
+  if (countLabel) countLabel.textContent = `${window._anuncioSeleccion.length} seleccionados`
+}
+
+window.compartirNovedadesWhatsApp = async () => {
+  const btn = document.getElementById('btn-anuncio-share')
+  if (!btn) return
+  const origTxt = btn.innerHTML
+  btn.innerHTML = '⏳ Procesando...'
+  btn.disabled = true
+
+  try {
+    if (!window._anuncioSeleccion.length) {
+      alert('Selecciona al menos un producto.')
+      return
+    }
+
+    const res = await fetch(API + '/productos/')
+    const todosProds = await res.json()
+    const seleccionados = todosProds.filter(p => window._anuncioSeleccion.includes(p.id))
+
+    // 2. Intentar descargar y compartir las fotos reales
+    const files = []
+    for (const p of seleccionados) {
+      if (!p.imagen_principal) continue
+      try {
+        const imgRes = await fetch(p.imagen_principal)
+        const blob = await imgRes.blob()
+        const ext = p.imagen_principal.split('.').pop().split('?')[0] || 'jpg'
+        const shortCode = p.nombre.split(' ')[0]
+        const filename = `Novedad_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        files.push(new File([blob], filename, { type: blob.type }))
+      } catch (e) {
+        console.error('No se pudo descargar imagen:', p.imagen_principal, e)
+      }
+    }
+
+    // 3. Generar el mensaje promocional
+    let text = '*NUEVOS MODELOS* 👠✨\n\n'
+    text += 'ya disponibles en el portal:\n'
+    text += 'https://tienda-zapatillas-may.vercel.app\n\n'
+    
+    seleccionados.forEach((p) => {
+      const shortName = p.nombre.split(' ')[0]
+      const sku = p.sku_interno || ''
+      text += `- Modelo *${shortName}* (${sku})\n`
+    })
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        files,
+        title: 'Nuevos Modelos',
+        text: text
+      })
+    } else {
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+      window.open(url, '_blank')
+      
+      alert('Tu navegador no permite compartir archivos directamente. Se abrirá WhatsApp con los detalles del anuncio y se descargarán las imágenes seleccionadas a tu dispositivo para que las compartas.')
+      for (let i = 0; i < files.length; i++) {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(files[i])
+        a.download = files[i].name
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        await new Promise(r => setTimeout(r, 400))
+      }
+    }
+  } catch (err) {
+    alert('Error al compartir anuncio: ' + err.message)
+  } finally {
+    btn.innerHTML = origTxt
+    btn.disabled = false
+    window.toggleModoAnuncio(false)
   }
 }
 window.cargarProductos = cargarProductos
