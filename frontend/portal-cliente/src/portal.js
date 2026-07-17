@@ -506,15 +506,14 @@ window.pcCompartirVariosWhatsApp = async () => {
       text += `*${index + 1}. Modelo ${shortName}* (${sku})\n`
       if (m3) text += `   💵 3-5 pares: ${money(m3)} c/u\n`
       if (m6) text += `   🔥 6+ pares: ${money(m6)} c/u\n`
-      text += `   🔗 Ver modelo: https://tienda-zapatillas-may.vercel.app/?p=${p.id}\n\n`
+      text += '\n'
     })
     text += '¡Pide los tuyos por WhatsApp! 📲'
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
       await navigator.share({
         files,
-        title: 'Modelos de Zapatillas May',
-        text: text
+        title: 'Modelos de Zapatillas May'
       })
     } else {
       const url = `https://wa.me/?text=${encodeURIComponent(text)}`
