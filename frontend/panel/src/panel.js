@@ -16995,7 +16995,10 @@ function renderGestionPaginas() {
               <img src="${portada_url}" style="width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#f3f4f6">
               <div style="padding:6px 8px;background:#fff8f5">
                 <div style="font-size:0.7rem;font-weight:700;color:#E91E8C;margin-bottom:2px">🖼 Portada</div>
-                <div style="font-size:0.65rem;color:#888">Primera página</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+                  <span style="font-size:0.65rem;color:#888;flex:1">Primera página</span>
+                  <button onclick="window.descargarImagenUrl('${portada_url}','Portada_Catalogo.jpg')" title="Descargar" style="background:#e0f2fe;border:none;border-radius:4px;cursor:pointer;padding:2px 6px;font-size:0.65rem;display:flex;align-items:center;justify-content:center">📥</button>
+                </div>
               </div>
             </div>` : ''}
           ${paginas.map((p, i) => `
@@ -17006,6 +17009,7 @@ function renderGestionPaginas() {
                 <div style="display:flex;gap:3px;flex-wrap:wrap">
                   ${i > 0 ? `<button onclick="moverPagina('${p.id}','up')" title="Mover arriba" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↑</button>` : ''}
                   ${i < paginas.length-1 ? `<button onclick="moverPagina('${p.id}','down')" title="Mover abajo" style="flex:1;background:#f3f4f6;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">↓</button>` : ''}
+                  <button onclick="window.descargarImagenUrl('${p.imagen_url}','Pagina_${p.pagina_numero}.jpg')" title="Descargar" style="flex:1;background:#e0f2fe;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem;display:flex;align-items:center;justify-content:center">📥</button>
                   <button onclick="usarComoPortada('${p.imagen_url}','${catalogoId}')" title="Usar como portada" style="flex:1;background:#fef3c7;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem">🖼</button>
                   <button onclick="eliminarPagina('${p.id}','${catalogoId}')" title="Eliminar" style="flex:1;background:#fee2e2;border:none;border-radius:4px;cursor:pointer;padding:3px;font-size:0.7rem;color:#dc2626">✕</button>
                 </div>
@@ -17949,6 +17953,22 @@ window.eliminarPagina = async function(pagId, catalogoId) {
 window.usarComoPortada = async function(url, catalogoId) {
   await fetch(API + '/catalogos/' + catalogoId, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ portada_url: url }) })
   alert('✅ Portada actualizada')
+}
+
+window.descargarImagenUrl = async function(url, filename) {
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename || `Pagina_${Date.now()}.jpg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(a.href)
+  } catch (e) {
+    window.open(url, '_blank')
+  }
 }
 
 // ═══════════════════════════════════════════════════════
