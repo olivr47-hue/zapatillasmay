@@ -1428,6 +1428,11 @@ window.pcRenderCorridaTallas = (prodId, color) => {
 window.pcCorridaQty = () => {}
 
 window.pcActualizarBadgesCorrida = (prodId) => {
+  // Ocultar todos los badges de color primero en modo corrida para evitar confusión
+  document.querySelectorAll('[id^="pc-color-badge-"]').forEach(b => {
+    b.style.display = 'none'
+  });
+
   const color = window._pcSeleccion?.color
   const resolvedQty = pcResolverItemsCorrida(prodId, color, window._pcCorridaM || 1)
   
