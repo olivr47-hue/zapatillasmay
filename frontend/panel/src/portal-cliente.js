@@ -924,11 +924,7 @@ window.pcAbrirProducto = function(prodId) {
             <p style="font-size:0.6rem;color:var(--pc-muted);font-weight:700;text-transform:uppercase;margin:0 0 2px">Variado 6+</p>
             <p style="font-size:0.92rem;font-weight:800;color:#E91E8C;margin:0">${fmtP(pMay6)}</p>
           </div>
-          ${p.corrida_activa ? `
-          <div style="flex:1;background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:9px;padding:6px 4px;text-align:center">
-            <p style="font-size:0.6rem;color:var(--pc-purple);font-weight:700;text-transform:uppercase;margin:0 0 2px">Corrida c/u</p>
-            <p style="font-size:0.92rem;font-weight:800;color:var(--pc-purple);margin:0">${fmtP(pCorr)}</p>
-          </div>` : ''}
+          <div id="pc-tier-corr-container" style="flex:1"></div>
         </div>
         <!-- Strip de fotos por color -->
         <div id="pc-modal-foto-strip" style="display:none;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0 0;-webkit-overflow-scrolling:touch"></div>
@@ -937,20 +933,7 @@ window.pcAbrirProducto = function(prodId) {
       <!-- Scroll area: tabs + colores + tallas -->
       <div id="pc-modal-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
-        ${p.corrida_activa ? `
-        <div style="padding:12px 1.5rem 0">
-          <div style="display:flex;gap:4px;background:var(--pc-bg-elev);border-radius:12px;padding:4px">
-            <button id="pc-modo-variado" onclick="pcCambiarModo('${prodId}','variado')"
-              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:#E91E8C;color:white;transition:all 0.15s">
-              🧺 Variado
-            </button>
-            <button id="pc-modo-corrida" onclick="pcCambiarModo('${prodId}','corrida')"
-              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:transparent;color:var(--pc-purple);transition:all 0.15s">
-              📦 Corrida
-            </button>
-          </div>
-          <p id="pc-modo-hint" style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;line-height:1.4">Elige tallas sueltas — precio ajusta según total de pares en tu pedido.</p>
-        </div>` : ''}
+        <div id="pc-mode-tabs-container"></div>
 
         <!-- Selector de colores -->
         <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--pc-border)">
@@ -1019,6 +1002,7 @@ window.pcAbrirProducto = function(prodId) {
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
   window._pcSeleccion = { prodId, color: null }
+  window._pcCorridaM = 1
 
   // Auto-seleccionar primer color
   if (colores.length) pcSeleccionarColor(prodId, colores[0])
@@ -1026,33 +1010,76 @@ window.pcAbrirProducto = function(prodId) {
 
 // ── Helpers del modal de producto (port del POS) ──────────────────────────────
 
+window.pcActualizarTabsModal = (prodId, color) => {
+  const p = pc.productos.find(x => x.id === prodId)
+  if (!p) return
+
+  const container = document.getElementById('pc-mode-tabs-container')
+  const tierContainer = document.getElementById('pc-tier-corr-container')
+
+  const maxM = pcMaxCorridasDisponibles(prodId, color)
+  const disponible = maxM >= 1
+
+  if (tierContainer) {
+    if (disponible && p.corrida_activa) {
+      const pCorr = precioCorrida(p)
+      const fmtP = n => '$' + Math.round(n).toLocaleString('es-MX')
+      tierContainer.innerHTML = `
+        <div style="flex:1;background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:9px;padding:6px 4px;text-align:center">
+          <p style="font-size:0.6rem;color:var(--pc-purple);font-weight:700;text-transform:uppercase;margin:0 0 2px">Corrida c/u</p>
+          <p style="font-size:0.92rem;font-weight:800;color:var(--pc-purple);margin:0">${fmtP(pCorr)}</p>
+        </div>`
+    } else {
+      tierContainer.innerHTML = ''
+    }
+  }
+
+  if (container) {
+    if (p.corrida_activa && disponible) {
+      const modo = window._pcModo || 'variado'
+      container.innerHTML = `
+        <div style="padding:12px 1.5rem 0">
+          <div style="display:flex;gap:4px;background:var(--pc-bg-elev);border-radius:12px;padding:4px">
+            <button id="pc-modo-variado" onclick="pcCambiarModo('${prodId}','variado')"
+              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:${modo==='variado'?'#E91E8C':'transparent'};color:${modo==='variado'?'white':'var(--pc-muted)'};transition:all 0.15s">
+              🧺 Variado
+            </button>
+            <button id="pc-modo-corrida" onclick="pcCambiarModo('${prodId}','corrida')"
+              style="flex:1;padding:8px;border:none;border-radius:9px;cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:700;background:${modo==='corrida'?'#6a1b9a':'transparent'};color:${modo==='corrida'?'white':'var(--pc-purple)'};transition:all 0.15s">
+              📦 Corrida
+            </button>
+          </div>
+          <p id="pc-modo-hint" style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;line-height:1.4">
+            ${modo === 'corrida' 
+              ? 'Corrida completa: varias tallas del mismo color a precio de corrida. Ajusta la cantidad arriba.' 
+              : 'Elige tallas sueltas — precio ajusta según total de pares en tu pedido.'}
+          </p>
+        </div>`
+    } else {
+      window._pcModo = 'variado'
+      container.innerHTML = ''
+    }
+  }
+}
+
 window.pcCambiarModo = (prodId, modo) => {
   window._pcModo = modo
-  const tv = document.getElementById('pc-modo-variado')
-  const tc = document.getElementById('pc-modo-corrida')
-  if (tv) { tv.style.background = modo==='variado'?'#E91E8C':'transparent'; tv.style.color = modo==='variado'?'white':'var(--pc-muted)' }
-  if (tc) { tc.style.background = modo==='corrida'?'#6a1b9a':'transparent'; tc.style.color = modo==='corrida'?'white':'var(--pc-purple)' }
-  const hint = document.getElementById('pc-modo-hint')
-  if (hint) hint.textContent = modo === 'corrida'
-    ? 'Corrida completa: varias tallas del mismo color a precio de corrida. Usa "Sugerir" para llenarla rápido.'
-    : 'Elige tallas sueltas — precio ajusta según total de pares en tu pedido.'
-  document.querySelectorAll('[id^="pc-color-badge-"]').forEach(b => { b.style.display = 'none' })
+  const colorActivo = window._pcSeleccion?.color || (window._pcColores && window._pcColores[0])
+  pcActualizarTabsModal(prodId, colorActivo)
 
   const footer = document.getElementById('pc-modal-footer')
-  const colorActivo = window._pcSeleccion?.color || (window._pcColores && window._pcColores[0])
 
   if (modo === 'corrida') {
-    if (!window._pcCorridaCantidades) window._pcCorridaCantidades = {}
     if (footer) footer.innerHTML = `
-      <button onclick="pcSugerirCorrida('${prodId}', window._pcSeleccion?.color)"
-        style="width:100%;padding:12px;font-size:0.9rem;font-weight:700;cursor:pointer;background:rgba(107,27,154,0.15);color:var(--pc-purple);border:1.5px solid rgba(107,27,154,0.4);border-radius:10px;font-family:inherit">
-        ✨ Sugerir corrida (6 pares)
-      </button>
       <button onclick="pcConfirmarCorrida('${prodId}')" id="pc-btn-confirmar-corrida" disabled
         style="width:100%;padding:14px;background:#6a1b9a;color:white;border:none;border-radius:10px;font-family:inherit;font-size:1rem;font-weight:700;cursor:pointer;opacity:0.5">
-        Agrega tallas a la corrida
+        Agrega corridas
       </button>`
-    if (colorActivo) { _pcHighlightColor(colorActivo,'#6a1b9a','rgba(107,27,154,0.12)'); pcRenderCorridaTallas(prodId, colorActivo); window._pcSeleccion.color = colorActivo }
+    if (colorActivo) { 
+      _pcHighlightColor(colorActivo,'#6a1b9a','rgba(107,27,154,0.12)')
+      pcRenderCorridaTallas(prodId, colorActivo)
+      window._pcSeleccion.color = colorActivo 
+    }
   } else {
     if (footer) footer.innerHTML = `
       <button onclick="pcConfirmarModal('${prodId}')" id="pc-btn-confirmar" disabled
@@ -1070,6 +1097,8 @@ function _pcHighlightColor(color, border, bg) {
 }
 
 window.pcSeleccionarColor = (prodId, color) => {
+  pcActualizarTabsModal(prodId, color)
+
   if (window._pcModo === 'corrida') {
     window._pcSeleccion.color = color
     _pcHighlightColor(color, '#6a1b9a', 'rgba(107,27,154,0.12)')
@@ -1279,67 +1308,163 @@ window.pcConfirmarModal = (prodId) => {
 }
 
 // ── Corrida mode ──────────────────────────────────────────────────────────────
+window.pcMaxCorridasDisponibles = (prodId, color) => {
+  if (!color) return 0
+  const vars = pc.variantes.filter(v => v.producto_id === prodId && v.color === color)
+  if (!vars.length) return 0
+
+  const tieneMedios = vars.some(v => v.talla && (v.talla.includes('.5') || v.talla.includes('½') || v.talla.includes('/')))
+
+  let maxM = 0
+  for (let M = 1; M <= 6; M++) {
+    if (tieneMedios) {
+      const uniqueSizesWithStock = vars.filter(v => {
+        const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,x)=>s+(x.cantidad||0),0)
+        return stock >= M
+      })
+      if (uniqueSizesWithStock.length >= 6) {
+        maxM = M
+        continue
+      }
+      let sumEffective = 0
+      vars.forEach(v => {
+        const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,x)=>s+(x.cantidad||0),0)
+        sumEffective += Math.min(stock, 2 * M)
+      })
+      if (sumEffective >= 6 * M) {
+        maxM = M
+      } else {
+        break
+      }
+    } else {
+      let sumEffective = 0
+      vars.forEach(v => {
+        const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,x)=>s+(x.cantidad||0),0)
+        sumEffective += Math.min(stock, 2 * M)
+      })
+      if (sumEffective >= 6 * M) {
+        maxM = M
+      } else {
+        break
+      }
+    }
+  }
+  return maxM
+}
+
+window.pcResolverItemsCorrida = (prodId, color, M) => {
+  const vars = pc.variantes
+    .filter(v => v.producto_id === prodId && v.color === color)
+    .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+
+  const tieneMedios = vars.some(v => v.talla && (v.talla.includes('.5') || v.talla.includes('½') || v.talla.includes('/')))
+  const qtyMap = {}
+
+  if (tieneMedios) {
+    const uniqueSizesWithStock = vars.filter(v => {
+      const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,x)=>s+(x.cantidad||0),0)
+      return stock >= M
+    })
+    if (uniqueSizesWithStock.length >= 6) {
+      uniqueSizesWithStock.slice(0, 6).forEach(v => {
+        qtyMap[v.id] = M
+      })
+      return qtyMap
+    }
+  }
+
+  let totalNeeded = 6 * M
+  for (const v of vars) {
+    const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,x)=>s+(x.cantidad||0),0)
+    const aTomar = Math.min(stock, 2 * M, totalNeeded)
+    if (aTomar > 0) {
+      qtyMap[v.id] = aTomar
+      totalNeeded -= aTomar
+    }
+    if (totalNeeded <= 0) break
+  }
+  return qtyMap
+}
+
+window.__changePCCorridaM = (prodId, color, d) => {
+  const maxM = pcMaxCorridasDisponibles(prodId, color)
+  window._pcCorridaM = Math.min(maxM, Math.max(1, (window._pcCorridaM || 1) + d))
+  pcRenderCorridaTallas(prodId, color)
+}
+
 window.pcRenderCorridaTallas = (prodId, color) => {
   const varsProd = pc.variantes.filter(v => v.producto_id === prodId && v.color === color)
     .sort((a,b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
   const panel = document.getElementById('pc-tallas-panel')
   if (!panel) return
-  if (!window._pcCorridaCantidades) window._pcCorridaCantidades = {}
+
+  const maxM = pcMaxCorridasDisponibles(prodId, color)
+  if (window._pcCorridaM === undefined || window._pcCorridaM > maxM || window._pcCorridaM < 1) {
+    window._pcCorridaM = 1
+  }
+
+  const resolvedQty = pcResolverItemsCorrida(prodId, color, window._pcCorridaM)
 
   panel.innerHTML = `
-    <p style="font-size:0.75rem;color:var(--pc-purple);font-weight:700;margin-bottom:12px">📦 CORRIDA · ${esc(color)} — ajusta cantidades</p>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${varsProd.map(v => {
-        const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,i)=>s+(i.cantidad||0),0)
-        const cantidad = window._pcCorridaCantidades[v.id] || 0
-        return `
-          <div style="display:flex;align-items:center;gap:10px;opacity:${stock===0?'0.4':'1'}">
-            <span style="min-width:40px;font-size:0.9rem;font-weight:700;color:var(--pc-text)">${esc(v.talla)}</span>
-            <span style="font-size:0.72rem;color:var(--pc-muted-2);min-width:54px">Stock: ${stock}</span>
-            <div style="display:flex;align-items:center;gap:6px">
-              <button ${stock===0?'disabled':''} onclick="pcCorridaQty('${v.id}',-1,${stock},'${prodId}')"
-                style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">−</button>
-              <input type="number" min="0" max="${stock}" value="${cantidad}" id="pc-qty-corrida-${v.id}" ${stock===0?'disabled':''}
-                style="width:56px;height:40px;text-align:center;border:2px solid ${cantidad>0?'#6a1b9a':'var(--pc-border-2)'};border-radius:8px;font-size:1rem;font-weight:700;background:var(--pc-bg);color:var(--pc-text);font-family:inherit"
-                oninput="window._pcCorridaCantidades['${v.id}']=Math.min(${stock},Math.max(0,parseInt(this.value)||0));this.value=window._pcCorridaCantidades['${v.id}'];this.style.borderColor=window._pcCorridaCantidades['${v.id}']>0?'#6a1b9a':'var(--pc-border-2)';pcActualizarBadgesCorrida('${prodId}')">
-              <button ${stock===0?'disabled':''} onclick="pcCorridaQty('${v.id}',1,${stock},'${prodId}')"
-                style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:40px;height:40px;cursor:pointer;font-size:1.3rem;font-weight:700;touch-action:manipulation">+</button>
-            </div>
-            ${stock===0?'<span style="font-size:0.7rem;color:#ef4444;background:rgba(239,68,68,0.1);padding:2px 8px;border-radius:100px">Agotado</span>':''}
-          </div>`
-      }).join('')}
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <!-- Selector de cantidad de corridas -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:2px solid var(--pc-border-2)">
+        <span style="font-weight:800;font-size:1.05rem;color:var(--pc-text)">Corridas a agregar</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="window.__changePCCorridaM('${prodId}', '${esc(color)}', -1)"
+            style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700">−</button>
+          <span style="min-width:24px;text-align:center;font-weight:800;font-size:1.1rem;color:var(--pc-text)">${window._pcCorridaM}</span>
+          <button onclick="window.__changePCCorridaM('${prodId}', '${esc(color)}', 1)"
+            style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:1.2rem;font-weight:700">+</button>
+        </div>
+      </div>
+      
+      <!-- Detalle de tallas unificadas -->
+      <p style="font-size:0.75rem;color:var(--pc-purple);font-weight:700;margin-bottom:4px">📦 CORRIDA · TALLAS INCLUIDAS (${window._pcCorridaM * 6} pares)</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${varsProd.map(v => {
+          const q = resolvedQty[v.id] || 0
+          const stock = pc.inventario.filter(i => i.variante_id === v.id).reduce((s,i)=>s+(i.cantidad||0),0)
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;opacity:${stock===0?'0.4':'1'}">
+              <span style="font-size:0.9rem;font-weight:700;color:var(--pc-text)">Talla ${esc(v.talla)}</span>
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="font-size:0.72rem;color:var(--pc-muted-2)">Stock: ${stock}</span>
+                <span style="font-weight:800;color:var(--pc-purple);font-size:0.95rem">${q} ${q === 1 ? 'par' : 'pares'}</span>
+              </div>
+            </div>`
+        }).join('')}
+      </div>
     </div>`
+  
   pcActualizarBadgesCorrida(prodId)
 }
 
-window.pcCorridaQty = (varId, delta, stock, prodId) => {
-  const cur = window._pcCorridaCantidades[varId] || 0
-  const val = Math.min(stock, Math.max(0, cur + delta))
-  window._pcCorridaCantidades[varId] = val
-  const input = document.getElementById('pc-qty-corrida-' + varId)
-  if (input) { input.value = val; input.style.borderColor = val>0?'#6a1b9a':'var(--pc-border-2)' }
-  pcActualizarBadgesCorrida(prodId)
-}
+window.pcCorridaQty = () => {}
 
 window.pcActualizarBadgesCorrida = (prodId) => {
-  let total = 0
-  ;(window._pcColores || []).forEach(c => {
-    const varsC = pc.variantes.filter(v => v.producto_id === prodId && v.color === c)
-    let sum = 0
-    varsC.forEach(v => { sum += window._pcCorridaCantidades[v.id] || 0 })
-    total += sum
-    const badge = document.getElementById('pc-color-badge-' + c.replace(/\s/g,'_'))
-    if (badge) {
-      if (sum > 0) { badge.textContent = sum + ' par' + (sum>1?'es':''); badge.style.color='var(--pc-purple)'; badge.style.display='block' }
-      else badge.style.display = 'none'
+  const color = window._pcSeleccion?.color
+  const resolvedQty = pcResolverItemsCorrida(prodId, color, window._pcCorridaM || 1)
+  
+  let total = Object.values(resolvedQty).reduce((s, x) => s + x, 0)
+  
+  const badge = document.getElementById('pc-color-badge-' + color.replace(/\s/g,'_'))
+  if (badge) {
+    if (total > 0) {
+      badge.textContent = total + ' pares'
+      badge.style.color = 'var(--pc-purple)'
+      badge.style.display = 'block'
+    } else {
+      badge.style.display = 'none'
     }
-  })
+  }
+
   const resumen = document.getElementById('pc-modal-resumen')
   const btn = document.getElementById('pc-btn-confirmar-corrida')
   if (total > 0) {
     if (resumen) {
       const lineas = []
-      Object.entries(window._pcCorridaCantidades).forEach(([vid, cant]) => {
+      Object.entries(resolvedQty).forEach(([vid, cant]) => {
         if (cant > 0) { const v = pc.variantes.find(v => v.id === vid); if (v) lineas.push({color:v.color, talla:v.talla, cantidad:cant}) }
       })
       resumen.style.display = 'block'
@@ -1348,68 +1473,28 @@ window.pcActualizarBadgesCorrida = (prodId) => {
           ${lineas.map(l=>`<span style="background:rgba(107,27,154,0.1);border:1px solid rgba(107,27,154,0.3);border-radius:100px;padding:2px 10px;font-size:0.78rem;color:var(--pc-purple)">T${l.talla} ×${l.cantidad}</span>`).join('')}
         </div>`
     }
-    if (btn) { btn.textContent = `✅ Agregar corrida (${total} pares)`; btn.disabled = false; btn.style.opacity = '1' }
+    if (btn) { 
+      btn.textContent = `✅ Agregar ${window._pcCorridaM} ${window._pcCorridaM === 1 ? 'corrida' : 'corridas'} (${total} pares)`
+      btn.disabled = false
+      btn.style.opacity = '1' 
+    }
   } else {
     if (resumen) resumen.style.display = 'none'
     if (btn) { btn.textContent = 'Agrega tallas a la corrida'; btn.disabled = true; btn.style.opacity = '0.5' }
   }
 }
 
-window.pcSugerirCorrida = (prodId, color) => {
-  if (!color) { alert('Selecciona un color primero'); return }
-  const varsProd = pc.variantes.filter(v => v.producto_id === prodId)
-  const varsColor = varsProd.filter(v => v.color === color)
-    .sort((a,b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
-
-  const conStock = varsColor.filter(v => {
-    return pc.inventario.filter(i => i.variante_id === v.id).reduce((s,i)=>s+(i.cantidad||0),0) > 0
-  })
-
-  const tieneMedias = conStock.some(v => v.talla.includes('.'))
-  varsColor.forEach(v => { window._pcCorridaCantidades[v.id] = 0 })
-
-  const tiene26 = conStock.some(v => v.talla === '26')
-  const RANGOS = tieneMedias
-    ? { con26:['26','25.5','25','24.5','24','23.5'], sin26:['25.5','25','24.5','24','23.5','23'] }
-    : { con26:['26','25','24','23'],                  sin26:['25','24','23','22'] }
-  const rangoDeseado = tiene26 ? RANGOS.con26 : RANGOS.sin26
-
-  let seleccionadas = rangoDeseado.map(t => conStock.find(v => v.talla === t)).filter(Boolean)
-
-  if (seleccionadas.length < 6) {
-    const idsYa = new Set(seleccionadas.map(v => v.id))
-    const rangoMinIdx = TALLAS_ORDEN.indexOf(rangoDeseado[rangoDeseado.length - 1])
-    const extras = conStock
-      .filter(v => !idsYa.has(v.id) && TALLAS_ORDEN.indexOf(v.talla) < rangoMinIdx)
-      .sort((a,b) => TALLAS_ORDEN.indexOf(b.talla) - TALLAS_ORDEN.indexOf(a.talla))
-    for (const v of extras) { if (seleccionadas.length >= 6) break; seleccionadas.push(v) }
-  }
-
-  if (!seleccionadas.length) seleccionadas = conStock.slice(0, tieneMedias ? 6 : 5)
-
-  if (tieneMedias) {
-    seleccionadas.slice(0,6).forEach(v => { window._pcCorridaCantidades[v.id] = 1 })
-  } else {
-    const tallas = seleccionadas.slice(0,5)
-    if (tallas.length === 4) {
-      tallas.forEach((v,i) => { window._pcCorridaCantidades[v.id] = (i===1||i===2)?2:1 })
-    } else if (tallas.length === 5) {
-      tallas.forEach((v,i) => { window._pcCorridaCantidades[v.id] = i===2?2:1 })
-    } else {
-      seleccionadas.slice(0,6).forEach(v => { window._pcCorridaCantidades[v.id] = Math.ceil(6/seleccionadas.length) })
-    }
-  }
-
-  _pcHighlightColor(color, '#6a1b9a', 'rgba(107,27,154,0.12)')
-  pcRenderCorridaTallas(prodId, color)
-}
+window.pcSugerirCorrida = () => {}
 
 window.pcConfirmarCorrida = (prodId) => {
   const p = pc.productos.find(x => x.id === prodId)
   if (!p) return
+  const color = window._pcSeleccion?.color
+  const resolvedQty = pcResolverItemsCorrida(prodId, color, window._pcCorridaM || 1)
   let agregados = 0
   const precio = precioCorrida(p)
-  Object.entries(window._pcCorridaCantidades).forEach(([varId, cantidad]) => {
+  
+  Object.entries(resolvedQty).forEach(([varId, cantidad]) => {
     if (cantidad <= 0) return
     const v = pc.variantes.find(v => v.id === varId)
     if (!v) return
@@ -1417,8 +1502,9 @@ window.pcConfirmarCorrida = (prodId) => {
     const existente = pc.carrito.find(i => i.variante_id === varId && i.es_corrida)
     if (existente) { existente.cantidad += cantidad }
     else pc.carrito.push({ producto_id: prodId, variante_id: varId, nombre: p.nombre, sku: p.sku_interno, imagen: foto, talla: v.talla, color: v.color, cantidad, precio_unitario: precio, es_corrida: true })
-    agregados++
+    agregados += cantidad
   })
+  
   if (agregados === 0) { alert('Agrega al menos una talla'); return }
   document.getElementById('pc-modal').remove()
   window._pcCorridaCantidades = {}
@@ -1724,14 +1810,18 @@ function renderCarrito(el) {
                     <p style="font-size:0.7rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(corrida.sku||'')}</p>
                     <p style="font-size:0.88rem;font-weight:700;color:var(--pc-text-2);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(corrida.nombre)}</p>
                     <p style="font-size:0.75rem;color:#a855f7;font-weight:600;margin:0 0 6px">📦 Corrida · ${esc(corrida.color)}</p>
-                    <div style="display:flex;flex-wrap:wrap;gap:4px">
-                      ${corrida.tallas.map(t => `<span style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:100px;padding:2px 8px;font-size:0.7rem;color:#a855f7">T${esc(t.talla)} ×${t.cantidad}</span>`).join('')}
-                    </div>
                   </div>
                   <button onclick="pcQuitarCorrida('${key}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                  <span style="font-size:0.75rem;color:var(--pc-text-4)">${corrida.tallas.reduce((s,t)=>s+t.cantidad,0)} pares · ${money(corrida.precio_unitario)} c/u</span>
+                  <span style="font-size:0.75rem;color:var(--pc-text-4)">${money(corrida.precio_unitario)} c/u</span>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button onclick="window.__pcQtyGrupoCorrida('${corrida.producto_id}','${esc(corrida.color)}',-1)"
+                      style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:1.1rem;font-weight:700">−</button>
+                    <span style="min-width:20px;text-align:center;font-weight:800;color:var(--pc-text)">${corrida.tallas.reduce((s,t)=>s+t.cantidad,0)}</span>
+                    <button onclick="window.__pcQtyGrupoCorrida('${corrida.producto_id}','${esc(corrida.color)}',1)"
+                      style="background:var(--pc-bg);border:1px solid var(--pc-border-2);color:var(--pc-text-2);border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:1.1rem;font-weight:700">+</button>
+                  </div>
                   <span style="font-weight:700;color:#a855f7">${money(corrida.subtotal)}</span>
                 </div>
               </div>
@@ -2394,4 +2484,42 @@ function pcCerrarSesion() {
   localStorage.removeItem(PC_CARRITO_KEY)
   pc.sesion = null
   window.location.reload()
+}
+
+window.__pcQtyGrupoCorrida = (productoId, color, d) => {
+  const items = pc.carrito.filter(i => i.producto_id === productoId && i.color === color && i.es_corrida)
+  const currentTotal = items.reduce((s, x) => s + x.cantidad, 0)
+  const currentM = currentTotal / 6
+  const newM = currentM + d
+  
+  if (newM <= 0) {
+    pc.carrito = pc.carrito.filter(i => !(i.producto_id === productoId && i.color === color && i.es_corrida))
+    pcGuardarCarrito()
+    renderCarrito()
+    return
+  }
+  
+  const maxM = pcMaxCorridasDisponibles(productoId, color)
+  if (newM > maxM) {
+    alert(`Sin existencias para ${newM} corridas (máximo ${maxM})`)
+    return
+  }
+  
+  const newQtyMap = pcResolverItemsCorrida(productoId, color, newM)
+  
+  // Remove existing
+  pc.carrito = pc.carrito.filter(i => !(i.producto_id === productoId && i.color === color && i.es_corrida))
+  
+  // Add new
+  const p = pc.productos.find(x => x.id === productoId)
+  const precio = precioCorrida(p)
+  Object.entries(newQtyMap).forEach(([varId, cant]) => {
+    if (cant <= 0) return
+    const v = pc.variantes.find(x => x.id === varId)
+    const foto = v.foto_url || p.imagen_principal || null
+    pc.carrito.push({ producto_id: productoId, variante_id: varId, nombre: p.nombre, sku: p.sku_interno, imagen: foto, talla: v.talla, color: v.color, cantidad: cant, precio_unitario: precio, es_corrida: true })
+  })
+  
+  pcGuardarCarrito()
+  renderCarrito()
 }
