@@ -56,6 +56,21 @@ function pcAuthHeaders() {
     : { 'Content-Type': 'application/json' }
 }
 
+// Limpia la sesión inválida/vencida y manda al login -- mismo tratamiento que
+// el interceptor global da a un 401, pero disparado aquí para los 403 de
+// cliente_autorizado() que ese interceptor no detecta (solo mira 401).
+let _pcRelogEnCurso = false
+function pcForzarRelogin() {
+  if (_pcRelogEnCurso) return
+  _pcRelogEnCurso = true
+  try {
+    localStorage.removeItem('erp_token')
+    localStorage.removeItem('pc_sesion')
+  } catch (e) {}
+  alert('Tu sesión expiró. Inicia sesión de nuevo.')
+  location.reload()
+}
+
 // ── Tema claro/oscuro ────────────────────────────────────────
 // Las variables --pc-* del bloque <style> cambian con el atributo
 // data-pc-theme del <html>; aquí solo se alterna ese atributo.
@@ -411,13 +426,32 @@ async function cargarDatosPC() {
       return null
     }
   }
+  // Variante para los endpoints ligados al cliente (/auth/pedidos/{cid},
+  // /clientes/{cid}), protegidos con cliente_autorizado(): si el token no
+  // coincide o venció responden 403 (no 401), que el interceptor global de
+  // main.js NO detecta como sesión vencida (solo reacciona a 401) -- ese 403
+  // quedaba ignorado en silencio por _safeFetch, y como GUARDAR el carrito no
+  // exige el mismo token estricto, el efecto era: cada dispositivo seguía
+  // guardando lo suyo, pero ninguno lograba "leer" de vuelta lo que guardó el
+  // otro -- el bug real de "lo que agrego en la PC no aparece en el celular".
+  const _safeFetchCliente = async (url) => {
+    try {
+      const res = await fetch(url, { headers: pcAuthHeaders() })
+      if (res.status === 401 || res.status === 403) { pcForzarRelogin(); return null }
+      if (!res.ok) return null
+      return await res.json()
+    } catch (e) {
+      console.error('[portal] fetch error', url, e)
+      return null
+    }
+  }
 
   const [prod, vari, inv, ped, cli, masVend] = await Promise.all([
     _safeFetch(`${PC_API}/productos/`),
     _safeFetch(`${PC_API}/variantes/?activa=eq.true`),
     _safeFetch(`${PC_API}/inventario/`),
-    cid ? _safeFetch(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
-    cid ? _safeFetch(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
+    cid ? _safeFetchCliente(`${PC_API}/auth/pedidos/${cid}`) : Promise.resolve(null),
+    cid ? _safeFetchCliente(`${PC_API}/clientes/${cid}`) : Promise.resolve(null),
     _safeFetch(`${PC_API}/productos/mas-vendidos`),
   ])
 
@@ -1711,7 +1745,9 @@ async function pcRefrescarCarritoSiCambio() {
   const activo = document.activeElement
   if (activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA')) return
   try {
-    const ped = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() }).then(r => r.ok ? r.json() : null)
+    const resPoll = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
+    if (resPoll.status === 401 || resPoll.status === 403) { pcDetenerPollCarrito(); pcForzarRelogin(); return }
+    const ped = resPoll.ok ? await resPoll.json() : null
     const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA)
     const itemsServidor = borrador?.pedido_items || []
     const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario]))

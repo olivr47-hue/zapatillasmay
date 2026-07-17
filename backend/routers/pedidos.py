@@ -351,6 +351,24 @@ async def crear_pedido(pedido: dict, request: Request):
                     pedido["cliente_id"] = token_payload["cliente_id"]
             except Exception:
                 pass  # token inválido/expirado -> se trata como anónimo, no se bloquea el checkout
+        # Idempotencia del carrito-respaldo del portal: si ya existe un borrador
+        # de este tipo para el cliente, se reusa en vez de crear uno duplicado.
+        # Sin esto, dos dispositivos del mismo cliente que nunca se habían
+        # sincronizado entre sí (ej. agrega en la PC y en el celular sin haber
+        # cargado antes el portal en el otro) creaban CADA UNO su propio
+        # borrador -- cada dispositivo se quedaba escribiendo para siempre en su
+        # copia, sin ver nunca lo que agregaba el otro. Es el bug real detrás de
+        # "lo que agrego en la PC no aparece en el celular, y viceversa".
+        if (pedido.get("status") == "borrador" and pedido.get("canal") == "portal_mayoreo"
+                and pedido.get("notas") == "[carrito-respaldo]" and pedido.get("cliente_id")):
+            existentes = supabase_get(
+                f"pedidos?cliente_id=eq.{pedido['cliente_id']}&status=eq.borrador"
+                "&canal=eq.portal_mayoreo&select=id,notas"
+            ) or []
+            existente = next((p for p in existentes if p.get("notas") == "[carrito-respaldo]"), None)
+            if existente:
+                return existente
+
         items = pedido.pop("items", [])
         # Capturar IP real del cliente para CAPI de Meta
         ip = (
