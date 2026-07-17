@@ -1802,7 +1802,7 @@ function renderCarrito(el) {
             return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border)">
               ${item.imagen ? `<img src="${esc(item.imagen)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : '<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>'}
               <div style="flex:1;min-width:0">
-                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(item.sku || item.nombre)}</p>
+                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(item.nombre || '').split(' ')[0])}</p>
                 <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
               </div>
               <div style="text-align:right;flex-shrink:0">
@@ -1819,7 +1819,7 @@ function renderCarrito(el) {
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                   <div style="flex:1;min-width:0">
-                    <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(corrida.sku || corrida.nombre)}</p>
+                    <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(corrida.nombre || '').split(' ')[0])}</p>
                     <p style="font-size:0.75rem;color:#a855f7;font-weight:600;margin:0 0 6px">📦 Corrida · ${esc(corrida.color)}</p>
                   </div>
                   <button onclick="pcQuitarCorrida('${key}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>

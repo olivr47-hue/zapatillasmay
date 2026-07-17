@@ -962,7 +962,7 @@ function renderCarrito() {
             <div class="r-top">
               ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
               <div style="flex:1;min-width:0">
-                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(i.sku || i.nombre)}</div>
+                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(String(i.nombre || '').split(' ')[0])}</div>
                 <div class="muted" style="font-size:.78rem">${esc(i.color)} · Corrida</div>
                 <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(i.precio_corrida)} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
               </div>
@@ -982,7 +982,7 @@ function renderCarrito() {
             <div class="r-top">
               ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
               <div style="flex:1;min-width:0">
-                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(i.sku || i.nombre)}</div>
+                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(String(i.nombre || '').split(' ')[0])}</div>
                 <div class="muted" style="font-size:.78rem">${esc(i.color)} · T${esc(i.talla)}</div>
                 <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(precioItem(i, sueltos))} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
               </div>
