@@ -11,7 +11,9 @@ from datetime import datetime, timedelta, timezone
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 ALGORITHM = "HS256"
-TOKEN_EXPIRE_HOURS = 12
+TOKEN_EXPIRE_HOURS = 15 * 24  # 15 días -- antes 12h, muy corto para el portal de mayoreo
+                               # (clientes que no entran a diario perdían la sincronización
+                               # del carrito entre dispositivos al vencer el token en silencio)
 
 # ── Rate limiter (opcional) ───────────────────────────────────────────────────
 try:
