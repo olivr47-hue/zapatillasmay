@@ -683,6 +683,7 @@ window.__agregarCorrida = () => {
       cantidad: cant, es_corrida: true,
       precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida,
       imagen: v.foto_url || p.imagen_principal || null,
+      sku: p.sku_interno || null,
     })
     added += cant
   })
@@ -709,6 +710,7 @@ window.__addTalla = (varianteId) => {
     cantidad: 1, es_corrida: false,
     precio_menudeo: p.precio_menudeo, precio_mayoreo3: p.precio_mayoreo3, precio_mayoreo6: p.precio_mayoreo6, precio_corrida: p.precio_corrida,
     imagen: v.foto_url || p.imagen_principal || null,
+    sku: p.sku_interno || null,
   })
   guardarCarrito()
   pintarTallas()
@@ -780,6 +782,7 @@ async function refrescarCarritoSiCambio() {
         precio_mayoreo6: p?.precio_mayoreo6 || 0,
         precio_corrida: p?.precio_corrida || 0,
         imagen: v?.foto_url || p?.imagen_principal || null,
+        sku: p?.sku_interno || i.sku || null,
       }
     })
     guardarCarritoLocalOnly()
@@ -896,6 +899,7 @@ async function restaurarCarritoDeServidor(pedidosCrudos) {
       precio_mayoreo6: p?.precio_mayoreo6 || 0,
       precio_corrida: p?.precio_corrida || 0,
       imagen: v.foto_url || p?.imagen_principal || null,
+      sku: p?.sku_interno || i.sku || null,
     })
   })
   if (!delServidor.length) return
@@ -958,7 +962,7 @@ function renderCarrito() {
             <div class="r-top">
               ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600;font-size:.9rem">${esc(i.nombre)}</div>
+                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(i.sku || i.nombre)}</div>
                 <div class="muted" style="font-size:.78rem">${esc(i.color)} · Corrida</div>
                 <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(i.precio_corrida)} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
               </div>
@@ -978,7 +982,7 @@ function renderCarrito() {
             <div class="r-top">
               ${i.imagen ? `<img src="${i.imagen}">` : `<div style="width:52px;height:52px;border-radius:9px;background:#f1f1f5;display:flex;align-items:center;justify-content:center">👠</div>`}
               <div style="flex:1;min-width:0">
-                <div style="font-weight:600;font-size:.9rem">${esc(i.nombre)}</div>
+                <div style="font-weight:700;font-size:.95rem;color:var(--text)">${esc(i.sku || i.nombre)}</div>
                 <div class="muted" style="font-size:.78rem">${esc(i.color)} · T${esc(i.talla)}</div>
                 <div style="font-weight:700;color:var(--pink);margin-top:3px">${money(precioItem(i, sueltos))} <span class="muted" style="font-size:.7rem;font-weight:600">x par</span></div>
               </div>
