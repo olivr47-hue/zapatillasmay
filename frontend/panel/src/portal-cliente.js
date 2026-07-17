@@ -1655,7 +1655,14 @@ async function pcSincronizarCarritoServidor() {
   }
   let pedidoId = pc._borradorServerId
   if (!pedidoId) {
-    const res = await fetch(`${PC_API}/pedidos`, {
+    // OJO: "/pedidos" SIN diagonal final -- FastAPI redirige (307) a "/pedidos/",
+    // y esa redirección sale del proxy /api de Vercel directo al dominio de
+    // Railway, que el navegador bloquea por CORS ("Failed to fetch"), sin
+    // ningún error visible más que el catch silencioso de quien llama esta
+    // función. Este es el bug real detrás de "el carrito no sincroniza entre
+    // dispositivos": el POST para respaldar el carrito en el servidor nunca
+    // llegaba a completarse.
+    const res = await fetch(`${PC_API}/pedidos/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cliente_id: pc.sesion.cliente_id, status: 'borrador', canal: 'portal_mayoreo', total: 0, notas: PC_BORRADOR_MARCA })
     })
@@ -2165,7 +2172,11 @@ window.pcHacerPedido = async function() {
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true }
 
   try {
-    const res = await fetch(`${PC_API}/pedidos`, {
+    // OJO: "/pedidos" SIN diagonal final -- ver el comentario en
+    // pcSincronizarCarritoServidor. Sin la diagonal, el navegador bloqueaba
+    // por CORS al seguir la redirección de FastAPI, y el pedido nunca se
+    // llegaba a crear -- aunque el cliente viera "Enviando..." y no un error.
+    const res = await fetch(`${PC_API}/pedidos/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
