@@ -328,9 +328,10 @@ function render() {
     const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
     const precioUnit = calcularPrecioUnitario(item, total)
     const subtotal = precioUnit * pares
+    const hrefProducto = item.producto_id ? `/producto/${item.producto_id}` : null
     const imgHTML = item.imagen
-      ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" width="84" height="100" onerror="this.style.display='none'">`
-      : `<div class="item-img-placeholder">👠</div>`
+      ? `<img class="item-img" src="${item.imagen}" alt="${item.nombre}" width="84" height="100" onerror="this.style.display='none'"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" style="cursor:pointer" title="Ver producto / agregar más pares"` : ''}>`
+      : `<div class="item-img-placeholder"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" style="cursor:pointer" title="Ver producto / agregar más pares"` : ''}>👠</div>`
     const corridaBadge = item.es_corrida ? `<div class="item-corrida-badge">Corrida completa</div>` : ''
     return `
       <div class="item-card">

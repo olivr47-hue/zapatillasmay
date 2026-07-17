@@ -2306,6 +2306,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    touch-action: none;
   }
   #lightbox-overlay.active { display: flex; }
   #lightbox-img {
@@ -4675,9 +4676,9 @@ if (window.ttq) {
     const btnVaciar = document.getElementById('btn-vaciar-carrito')
     if (btnVaciar) btnVaciar.style.display = 'block'
 
-    container.innerHTML = carrito.map((item, idx) => `
+    container.innerHTML = carrito.map((item, idx) => { const hrefProducto = item.producto_id ? `/producto/${item.producto_id}` : null; return `
       <div class="cart-item">
-        ${item.imagen ? `<img class="cart-item-img" src="${zmImg(item.imagen, 120)}" alt="${item.nombre}" width="80" height="96">` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
+        ${item.imagen ? `<img class="cart-item-img" src="${zmImg(item.imagen, 120)}" alt="${item.nombre}" width="80" height="96"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" style="cursor:pointer" title="Ver producto / agregar más pares"` : ''}>` : `<div class="cart-item-img" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem${hrefProducto ? ';cursor:pointer' : ''}"${hrefProducto ? ` onclick="location.href='${hrefProducto}'" title="Ver producto / agregar más pares"` : ''}>👠</div>`}
         <div class="cart-item-info">
           <p class="cart-item-name">${item.nombre}</p>
           ${item.es_corrida
@@ -4697,7 +4698,7 @@ if (window.ttq) {
           </div>
         </div>
       </div>
-    `).join('')
+    ` }).join('')
   }
 
   function eliminarDelCarrito(idx) {
@@ -4888,6 +4889,17 @@ if (window.ttq) {
       ? _lbFotos.map((_, i) => `<button class="lightbox-dot ${i===_lbIdx?'active':''}" onclick="event.stopPropagation();_lbIdx=${i};_renderLightbox()" aria-label="Ir a foto ${i + 1}"></button>`).join('')
       : ''
   }
+  // Swipe táctil (mismo patrón que el lightbox del portal mayorista/POS)
+  let _lbSwipeStartX = 0
+  document.addEventListener('DOMContentLoaded', () => {
+    const img = document.getElementById('lightbox-img')
+    if (!img) return
+    img.addEventListener('touchstart', e => { _lbSwipeStartX = e.touches[0].clientX }, { passive: true })
+    img.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _lbSwipeStartX
+      if (Math.abs(dx) > 50) lightboxNav(dx < 0 ? 1 : -1)
+    }, { passive: true })
+  })
   // ─────────────────────────────────────────────────────────
   function mostrarPaginaExito(paymentId, pedidoId) {
   const hero = document.getElementById('hero-section')

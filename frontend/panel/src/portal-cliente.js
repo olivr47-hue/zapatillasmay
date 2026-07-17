@@ -43,7 +43,6 @@ const pc = {
   filtroColores: [],
   filtrosExpandido: false,
   datosCargados: false,
-  borradores: [],
   masVendidos: [],
   modelosSugeridos: [],
   _borradorServerId: null, // id del pedido status=borrador que respalda el carrito activo en el servidor
@@ -95,7 +94,6 @@ export function renderPortalCliente(sesionData) {
   // Tema: oscuro por defecto; recuerda la última elección del cliente.
   try { pcAplicarTema(localStorage.getItem('pc_tema') === 'light' ? 'light' : 'dark') } catch {}
   try { pc.carrito = JSON.parse(localStorage.getItem(PC_CARRITO_KEY) || '[]') } catch { pc.carrito = [] }
-  try { pc.borradores = JSON.parse(localStorage.getItem('pc_borradores') || '[]') } catch { pc.borradores = [] }
   try {
     renderPC()
   } catch(err) {
@@ -308,9 +306,6 @@ function renderPC() {
   window.pcCerrarSesion = pcCerrarSesion
   window.pcToggleSidebar = pcToggleSidebar
   window.pcQuitarDelCarrito = pcQuitarDelCarrito
-  window.pcGuardarBorrador = pcGuardarBorrador
-  window.pcCargarBorrador = pcCargarBorrador
-  window.pcBorrarBorrador = pcBorrarBorrador
   window.pcHacerPedido = pcHacerPedido
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; pc.filtroNuevos = false; renderCatalogo() }
   window.pcFiltrarNuevos = () => { pc.filtroNuevos = !pc.filtroNuevos; pc.filtroCat = ''; renderCatalogo() }
@@ -922,6 +917,15 @@ window.pcCompartirProducto = function(prodId, medio) {
   }
 }
 
+// Traduce los códigos guardados en tipo_tacon/horma (valores de <select> del
+// alta de producto) a una etiqueta legible para el cliente.
+function pcEtiquetaTipoTacon(v) {
+  return { aguja: 'Aguja', bloque: 'Bloque', cuna: 'Cuña', plataforma: 'Plataforma', sin_tacon: 'Sin tacón' }[v] || v
+}
+function pcEtiquetaHorma(v) {
+  return { normal: 'Normal', reducida: 'Reducida (corre chico)', amplia: 'Amplia (corre grande)' }[v] || v
+}
+
 // ── Modal de producto: port del POS (misma lógica, datos de pc.*) ──────────────
 window.pcAbrirProducto = function(prodId) {
   if (window._zmPushBack) window._zmPushBack(() => document.getElementById('pc-modal')?.remove())
@@ -1022,18 +1026,20 @@ window.pcAbrirProducto = function(prodId) {
           <p style="color:var(--pc-muted);font-size:0.85rem">← Selecciona un color para ver las tallas</p>
         </div>
 
-        ${(p.descripcion || p.material || p.forro || p.tipo_tacon || p.horma) ? `
+        ${(p.descripcion || p.material || p.material_suela || p.forro || p.tipo_tacon || p.altura_tacon || p.horma) ? `
         <div style="padding:1rem 1.5rem">
           ${p.descripcion ? `
           <p style="font-size:0.7rem;color:var(--pc-muted);font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Descripción</p>
           <p style="font-size:0.85rem;color:var(--pc-text-2);line-height:1.6;margin:0 0 16px">${esc(p.descripcion)}</p>` : ''}
-          ${(p.material || p.forro || p.tipo_tacon || p.horma) ? `
+          ${(p.material || p.material_suela || p.forro || p.tipo_tacon || p.altura_tacon || p.horma) ? `
           <p style="font-size:0.7rem;color:var(--pc-muted);font-weight:700;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em">Detalles del producto</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            ${p.material ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Material</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.material)}</p></div>` : ''}
-            ${p.forro ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Forro</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.forro)}</p></div>` : ''}
-            ${p.tipo_tacon ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Tipo de tacón</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.tipo_tacon)}</p></div>` : ''}
-            ${p.horma ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Horma</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.horma)}</p></div>` : ''}
+            ${p.material ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Material</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0;text-transform:uppercase">${esc(p.material)}</p></div>` : ''}
+            ${p.material_suela ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Suela</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0;text-transform:uppercase">${esc(p.material_suela)}</p></div>` : ''}
+            ${p.forro ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Forro</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0;text-transform:uppercase">${esc(p.forro)}</p></div>` : ''}
+            ${p.altura_tacon ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Tamaño de tacón</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0">${esc(p.altura_tacon)} cm</p></div>` : ''}
+            ${p.tipo_tacon ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Tipo de tacón</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0;text-transform:uppercase">${esc(pcEtiquetaTipoTacon(p.tipo_tacon))}</p></div>` : ''}
+            ${p.horma ? `<div><p style="font-size:0.65rem;color:var(--pc-muted);margin:0 0 2px;text-transform:uppercase">Horma</p><p style="font-size:0.82rem;color:var(--pc-text);margin:0;text-transform:uppercase">${esc(pcEtiquetaHorma(p.horma))}</p></div>` : ''}
           </div>` : ''}
         </div>` : ''}
 
@@ -1582,11 +1588,38 @@ window.abrirLightboxPC = function(src, fotos) {
     const total = fotos.length
     lb.innerHTML = `
       <button onclick="document.getElementById('pc-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
+      <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.2rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">📤</button>
       ${total > 1 ? `<button id="lb-prev" onclick="lbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.3:1}">‹</button>` : ''}
       <img id="lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none">
       ${total > 1 ? `<button id="lb-next" onclick="lbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.3:1}">›</button>` : ''}
       ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
     `
+  }
+
+  // Comparte SOLO la foto que se está viendo (no el link de la tienda) -- para
+  // que el cliente pueda reenviarla tal cual a sus propios compradores.
+  window.pcCompartirImagenLB = async () => {
+    const url = fotos[idx]
+    if (!url) return
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+      const file = new File([blob], `zapatillasmay-${Date.now()}.${ext}`, { type: blob.type })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] })
+      } else if (navigator.share) {
+        await navigator.share({ url })
+      } else {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = file.name
+        a.click()
+        URL.revokeObjectURL(a.href)
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError' && typeof pcMostrarExito === 'function') pcMostrarExito('No se pudo compartir la imagen')
+    }
   }
 
   window.lbNav = (dir) => {
@@ -1823,7 +1856,7 @@ function renderCarrito(el) {
   const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
   const credito = parseFloat(pc.clienteData?.credito_disponible || 0)
 
-  if (pc.carrito.length === 0 && pc.borradores.length === 0) {
+  if (pc.carrito.length === 0) {
     el.innerHTML = `
       <div style="text-align:center;padding:60px 20px">
         <p style="font-size:3rem;margin:0 0 16px">🛒</p>
@@ -1842,8 +1875,7 @@ function renderCarrito(el) {
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${pc.carrito.length > 0 ? `
-        <button onclick="pcGuardarBorrador()" class="pc-btn pc-btn-secondary" style="font-size:0.78rem">💾 Guardar borrador</button>
-        <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-secondary" style="font-size:0.78rem">+ Agregar más</button>` : ''}
+        <button onclick="pcIrA('catalogo')" class="pc-btn pc-btn-secondary" style="font-size:0.78rem">📋 Ver catálogo</button>` : ''}
       </div>
     </div>
 
@@ -1866,7 +1898,7 @@ function renderCarrito(el) {
           ${normales.map((item) => {
             const idx = pc.carrito.indexOf(item)
             return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border)">
-              ${item.imagen ? `<img src="${esc(item.imagen)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : '<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>'}
+              ${item.imagen ? `<img src="${esc(item.imagen)}" onclick="pcAbrirProducto('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${item.producto_id}')" style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
                 <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(item.nombre || '').split(' ')[0])}</p>
                 <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
@@ -1881,7 +1913,7 @@ function renderCarrito(el) {
           ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
           <div style="padding:12px 0;border-bottom:1px solid var(--pc-border);background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px">
             <div style="display:flex;gap:10px;align-items:flex-start">
-              ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : '<div style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>'}
+              ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" onclick="pcAbrirProducto('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${corrida.producto_id}')" style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                   <div style="flex:1;min-width:0">
@@ -1906,23 +1938,6 @@ function renderCarrito(el) {
           </div>`).join('')}
         </div>`
         })()}
-
-        <!-- Borradores guardados -->
-        ${pc.borradores.length > 0 ? `
-        <div class="pc-card">
-          <p style="font-weight:700;color:var(--pc-text-3);margin:0 0 14px;font-size:0.88rem">📋 Borradores guardados</p>
-          ${pc.borradores.map((b, idx) => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--pc-border);gap:12px">
-              <div>
-                <p style="font-size:0.83rem;font-weight:600;color:var(--pc-text-2);margin:0 0 2px">${esc(b.nombre)}</p>
-                <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${b.items?.length || 0} producto${(b.items?.length||0) !== 1 ? 's' : ''} · ${money(b.total)}</p>
-              </div>
-              <div style="display:flex;gap:6px">
-                <button onclick="pcCargarBorrador(${idx})" class="pc-btn pc-btn-secondary" style="padding:6px 12px;font-size:0.75rem">Cargar</button>
-                <button onclick="pcBorrarBorrador(${idx})" style="background:none;border:none;color:var(--pc-muted);cursor:pointer;font-size:0.78rem">✕</button>
-              </div>
-            </div>`).join('')}
-        </div>` : ''}
       </div>
 
       <!-- Resumen del pedido -->
@@ -2151,28 +2166,6 @@ window.pcQuitarCorrida = function(key) {
   const [productoId, color] = key.split('|')
   pc.carrito = pc.carrito.filter(i => !(i.es_corrida && i.producto_id === productoId && i.color === color))
   pcGuardarCarrito()
-  renderCarrito()
-}
-
-window.pcGuardarBorrador = function() {
-  const nombre = prompt('Nombre para este borrador (ej. "Pedido tacones julio"):')
-  if (!nombre) return
-  const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
-  pc.borradores.unshift({ nombre, items: [...pc.carrito], total, fecha: new Date().toISOString() })
-  try { localStorage.setItem('pc_borradores', JSON.stringify(pc.borradores)) } catch {}
-  renderCarrito()
-}
-
-window.pcCargarBorrador = function(idx) {
-  if (!confirm('¿Cargar este borrador? Reemplazará el carrito actual.')) return
-  pc.carrito = [...(pc.borradores[idx]?.items || [])]
-  pcGuardarCarrito()
-  renderCarrito()
-}
-
-window.pcBorrarBorrador = function(idx) {
-  pc.borradores.splice(idx, 1)
-  try { localStorage.setItem('pc_borradores', JSON.stringify(pc.borradores)) } catch {}
   renderCarrito()
 }
 

@@ -5265,9 +5265,9 @@ window.mostrarFormProducto = (datos) => {
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <p style="font-weight:600;margin-bottom:1rem;color:#333">Detalles tecnicos</p>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
-          <div><label class="form-label">Material</label><input class="form-input" id="f-material" placeholder="Ej: Cuero sintetico" value="${d.material || ''}"></div>
-          <div><label class="form-label">Material suela</label><input class="form-input" id="f-suela" placeholder="Ej: Hule" value="${d.material_suela || ''}"></div>
-          <div><label class="form-label">Forro</label><input class="form-input" id="f-forro" placeholder="Ej: Textil" value="${d.forro || ''}"></div>
+          <div><label class="form-label">Material</label><input class="form-input" id="f-material" style="text-transform:uppercase" placeholder="Ej: Cuero sintetico" value="${d.material || ''}"></div>
+          <div><label class="form-label">Material suela</label><input class="form-input" id="f-suela" style="text-transform:uppercase" placeholder="Ej: Hule" value="${d.material_suela || ''}"></div>
+          <div><label class="form-label">Forro</label><input class="form-input" id="f-forro" style="text-transform:uppercase" placeholder="Ej: Textil" value="${d.forro || ''}"></div>
           <div>
             <label class="form-label">Horma (¿corre chico o grande de talla?)</label>
             <select class="form-input" id="f-horma">
@@ -6014,9 +6014,11 @@ document.querySelectorAll('.variante-item').forEach(v => {
     categoria,
     subcategoria: document.getElementById('f-subcategoria') ? document.getElementById('f-subcategoria').value || null : null,
     descripcion: document.getElementById('f-descripcion') ? document.getElementById('f-descripcion').value || null : null,
-    material: document.getElementById('f-material') ? document.getElementById('f-material').value || null : null,
-    material_suela: document.getElementById('f-suela') ? document.getElementById('f-suela').value || null : null,
-    forro: document.getElementById('f-forro') ? document.getElementById('f-forro').value || null : null,
+    // Mayúsculas por defecto -- antes quedaba tal cual lo tecleara quien daba
+    // de alta el producto, mezclando "Sintetico" con "SINTETICO" entre productos.
+    material: document.getElementById('f-material') ? document.getElementById('f-material').value.trim().toUpperCase() || null : null,
+    material_suela: document.getElementById('f-suela') ? document.getElementById('f-suela').value.trim().toUpperCase() || null : null,
+    forro: document.getElementById('f-forro') ? document.getElementById('f-forro').value.trim().toUpperCase() || null : null,
     horma: document.getElementById('f-horma') ? document.getElementById('f-horma').value || null : null,
     ajuste_empeine: document.getElementById('f-ajuste-empeine') ? document.getElementById('f-ajuste-empeine').value || 'normal' : 'normal',
     recomendacion_talla: document.getElementById('f-recomendacion-talla') ? document.getElementById('f-recomendacion-talla').value || null : null,
@@ -9006,7 +9008,7 @@ window.renderDrawerPOS = () => {
       return `
         <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
   <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
-    ${item.imagen ? `<img src="${item.imagen}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5">` : `<div style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
+    ${item.imagen ? `<img src="${item.imagen}" onclick="cerrarDrawerPOS();abrirProductoPOS('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:48px;height:48px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#f5f5f5;cursor:pointer">` : `<div onclick="cerrarDrawerPOS();abrirProductoPOS('${item.producto_id}')" style="width:48px;height:48px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
     <div style="flex:1">
       <p style="font-size:0.9rem;font-weight:600">${item.nombre}</p>
       <p style="font-size:0.78rem;color:#888">${item.color} · T${item.talla}</p>
@@ -9035,7 +9037,7 @@ window.renderDrawerPOS = () => {
     ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
       <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-          ${corrida.imagen ? `<img src="${corrida.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>'}
+          ${corrida.imagen ? `<img src="${corrida.imagen}" onclick="cerrarDrawerPOS();abrirProductoPOS('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="cerrarDrawerPOS();abrirProductoPOS('${corrida.producto_id}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;cursor:pointer">👠</div>`}
           <div style="flex:1">
             <p style="font-size:0.9rem;font-weight:700">${corrida.nombre}</p>
             <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600">📦 Corrida · ${corrida.color}</p>
@@ -9303,10 +9305,22 @@ window.actualizarInventarioPOS = async () => {
   } catch(e) {}
 }
 
-window.abrirProductoPOS = (productoId) => {
+window.abrirProductoPOS = async (productoId) => {
   // Cerrar cualquier modal anterior
 const modalAnterior = document.getElementById('pos-modal')
 if (modalAnterior) modalAnterior.remove()
+  // Si se abre desde una sección que no sea POS (ej. Carritos), _posData puede
+  // no estar cargado todavía -- se carga aquí para que el modal funcione igual.
+  if (!window._posData) {
+    try {
+      const [productos, variantes, inventario] = await Promise.all([
+        fetch(API + '/productos/').then(r => r.json()),
+        fetch(API + '/variantes/').then(r => r.json()),
+        fetch(API + '/inventario/?fresh=true').then(r => r.json())
+      ])
+      window._posData = { productos, variantes, sucursales: [], clientes: [], inventario }
+    } catch (e) { return }
+  }
   const { productos, variantes, inventario } = window._posData
   const producto = productos.find(p => p.id === productoId)
   if (!producto) return
@@ -9465,11 +9479,36 @@ window.abrirLightboxPOS = (src) => {
     const total = fotos.length
     lb.innerHTML = `
       <button onclick="document.getElementById('pos-lightbox').remove()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">✕</button>
+      <button onclick="posCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.3rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">📤</button>
       ${total > 1 ? `<button onclick="posLbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.35:1}">‹</button>` : ''}
       <img id="pos-lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.6);user-select:none;-webkit-user-drag:none">
       ${total > 1 ? `<button onclick="posLbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.35:1}">›</button>` : ''}
       ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px">${fotos.map((_,i)=>`<div onclick="posLbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.35)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
     `
+  }
+
+  // Comparte SOLO la foto que se está viendo (no un link) -- útil para que la
+  // asesora reenvíe la foto exacta que le está mostrando a un cliente.
+  window.posCompartirImagenLB = async () => {
+    const url = fotos[idx]
+    if (!url) return
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+      const file = new File([blob], `zapatillasmay-${Date.now()}.${ext}`, { type: blob.type })
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] })
+      } else if (navigator.share) {
+        await navigator.share({ url })
+      } else {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = file.name
+        a.click()
+        URL.revokeObjectURL(a.href)
+      }
+    } catch (e) { /* usuario canceló el share o falló -- silencioso */ }
   }
 
   window.posLbNav = (dir) => { idx = Math.max(0, Math.min(fotos.length - 1, idx + dir)); render(); addSwipe() }
@@ -21969,7 +22008,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
               const esCorrida = !!item.es_corrida
               // Corridas agrupan por nombre+color; pares sueltos van solos por su ID
               const key = esCorrida ? ('c|' + nombre + '|' + color) : ('s|' + item.id)
-              if (!grupos[key]) grupos[key] = { nombre, color, esCorrida, items: [], imagen: v.foto_url || pr.imagen_principal || null }
+              if (!grupos[key]) grupos[key] = { nombre, color, esCorrida, items: [], imagen: v.foto_url || pr.imagen_principal || null, productoId: v.producto_id || pr.id || null }
               grupos[key].items.push({ ...item, _idx: idx })
             })
 
@@ -21987,7 +22026,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const stock = invItem ? invItem.cantidad : null
                 return `
                   <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
-                    ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👟</div>`}
+                    ${imagen ? `<img src="${imagen}" onclick="abrirProductoPOS('${g.productoId}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="abrirProductoPOS('${g.productoId}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
@@ -22011,7 +22050,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 return `
                   <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
                     <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
-                      ${imagen ? `<img src="${imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">👠</div>`}
+                      ${imagen ? `<img src="${imagen}" onclick="abrirProductoPOS('${g.productoId}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="abrirProductoPOS('${g.productoId}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
                       <div style="flex:1">
                         <p style="font-weight:700;font-size:0.88rem;margin:0">${g.nombre}</p>
                         <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600;margin:2px 0 4px">📦 Corrida · ${g.color}</p>
