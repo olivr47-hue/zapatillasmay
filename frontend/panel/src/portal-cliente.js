@@ -206,6 +206,12 @@ function renderPC() {
         </div>
         <div style="display:flex;align-items:center;gap:4px">
           <button onclick="pcToggleTema()" title="Cambiar tema" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;font-size:1.05rem;line-height:1"><span data-pc-tema-icono>${pcIconoTema(document.documentElement.getAttribute('data-pc-theme') === 'light' ? 'light' : 'dark')}</span></button>
+          
+          <button onclick="pcIrA('carrito')" title="Ver carrito" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px;position:relative;display:flex;align-items:center;justify-content:center">
+            🛒
+            <span id="pc-topbar-cart-badge" style="position:absolute;top:-2px;right:-2px;background:#E91E8C;color:#fff;border-radius:100px;min-width:16px;height:16px;display:none;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;padding:0 3px"></span>
+          </button>
+
           <button onclick="pcToggleSidebar()" style="background:none;border:none;color:var(--pc-text-3);cursor:pointer;padding:4px">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
@@ -302,6 +308,7 @@ function renderPC() {
   window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
   window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
   window.pcVaciarCarrito = () => { pc.carrito = []; pcGuardarCarrito(); renderCarrito() }
+  window.pcActualizarBadgeCarritoTopbar = pcActualizarBadgeCarritoTopbar
 
   // Reemplazar spinner de inmediato
   const _initContent = document.getElementById('pc-content')
@@ -310,6 +317,10 @@ function renderPC() {
       console.error('[pc] renderInicio init error', e)
       _initContent.innerHTML = `<div style="padding:40px;text-align:center;color:#ef4444">Error al inicializar: ${e.message}</div>`
     }
+  }
+
+  if (typeof pcActualizarBadgeCarritoTopbar === 'function') {
+    pcActualizarBadgeCarritoTopbar()
   }
 }
 
@@ -1570,6 +1581,9 @@ window.abrirLightboxPC = function(src, fotos) {
 function pcGuardarCarrito() {
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
   pcSincronizarCarritoServidorDebounced()
+  if (typeof pcActualizarBadgeCarritoTopbar === 'function') {
+    pcActualizarBadgeCarritoTopbar()
+  }
 }
 
 // ── Carrito persistente en servidor: el carrito activo se respalda como un
@@ -2510,4 +2524,16 @@ window.__pcQtyGrupoCorrida = (productoId, color, d) => {
   
   pcGuardarCarrito()
   renderCarrito()
+}
+
+function pcActualizarBadgeCarritoTopbar() {
+  const badge = document.getElementById('pc-topbar-cart-badge')
+  if (!badge) return
+  const totalPares = (pc.carrito || []).reduce((s, i) => s + (i.cantidad || 0), 0)
+  if (totalPares > 0) {
+    badge.textContent = totalPares
+    badge.style.display = 'flex'
+  } else {
+    badge.style.display = 'none'
+  }
 }
