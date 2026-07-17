@@ -17,6 +17,8 @@ const state = {
   tab: localStorage.getItem('pc_active_tab') || 'tienda',
   filtroCat: '',
   busqueda: '',
+  modoCompartir: false,
+  compartirSeleccion: [],
 }
 
 const num = (v) => parseFloat(v) || 0
@@ -371,11 +373,30 @@ function renderCatalogo() {
   const cats = [...new Set(state.data.productos.map(p => p.categoria).filter(Boolean))]
   page().innerHTML = `
     <input class="search" id="cat-search" placeholder="🔍 Buscar modelo o SKU…" value="${esc(state.busqueda)}">
-    <div class="chips">
+    <div class="chips" style="margin-bottom:12px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">
       <button class="${!state.filtroCat ? 'active' : ''}" onclick="window.__filtro('')">Todos</button>
       ${cats.map(c => `<button class="${state.filtroCat === c ? 'active' : ''}" onclick="window.__filtro('${c}')">${c[0].toUpperCase() + c.slice(1)}</button>`).join('')}
+      <button onclick="pcToggleModoCompartir()" style="margin-left:auto;padding:6px 12px;border-radius:100px;border:1px solid ${state.modoCompartir ? '#25D366' : '#d1d5db'};background:${state.modoCompartir ? '#25D366' : '#f3f4f6'};color:${state.modoCompartir ? 'white' : '#374151'};font-weight:700;font-size:0.75rem;cursor:pointer;display:flex;align-items:center;gap:4px">📲 ${state.modoCompartir ? 'Modo Selección' : 'Compartir varios'}</button>
     </div>
-    <div class="grid" id="cat-grid"></div>`
+    <div class="grid" id="cat-grid"></div>
+    
+    ${(() => {
+      if (state.modoCompartir) {
+        if (state.compartirSeleccion.length === 0) return ''
+        return `
+        <div id="pc-bulk-share-bar" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:900;background:white;border:2px solid #25D366;border-radius:18px;padding:12px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
+          <div style="flex:1;line-height:1.2">
+            <p style="margin:0;font-size:0.75rem;color:#6b7280;font-weight:600">Compartir varios</p>
+            <p style="margin:0;font-size:1rem;font-weight:800;color:#111827">${state.compartirSeleccion.length} seleccionados</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="pcCompartirVariosWhatsApp()" id="pc-bulk-share-btn" style="padding:10px 14px;font-size:0.8rem;background:#25D366;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">💬 Compartir</button>
+            <button onclick="pcCancelarSeleccionCompartir()" style="padding:10px 14px;font-size:0.8rem;background:#f3f4f6;color:#4b5563;border:1px solid #d1d5db;border-radius:8px;font-weight:600;cursor:pointer">Cancelar</button>
+          </div>
+        </div>`
+      }
+      return ''
+    })()}`
   document.getElementById('cat-search').addEventListener('input', (e) => { state.busqueda = e.target.value; pintarGrid() })
   pintarGrid()
 }
@@ -389,20 +410,134 @@ function pintarGrid() {
   const grid = document.getElementById('cat-grid')
   if (!grid) return
   if (!lista.length) { grid.innerHTML = `<p class="muted" style="grid-column:1/-1;text-align:center;padding:30px">Sin resultados</p>`; return }
-  grid.innerHTML = lista.slice(0, 120).map(p => `
-    <div class="card" onclick="window.__abrir('${p.id}')">
-      ${p.imagen_principal ? `<img class="thumb" src="${p.imagen_principal}" loading="lazy">` : `<div class="thumb"></div>`}
-      <div class="body">
-        <div class="name">${esc(p.nombre)}</div>
-        <div class="sku">${esc(p.sku_interno || '')}</div>
-        <div class="price">${money(p.precio_menudeo)} <small>x par</small></div>
-        <div class="tier-row">
-          <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
-          <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
-          ${tieneCorridaDisponibleProducto(p.id) ? `<span class="tier corr">Corr ${money(p.precio_corrida)}</span>` : ''}
+  grid.innerHTML = lista.slice(0, 120).map(p => {
+    const seleccionado = state.modoCompartir && state.compartirSeleccion.includes(p.id)
+    const clickAction = state.modoCompartir 
+      ? `pcToggleSeleccionCompartir('${p.id}')` 
+      : `window.__abrir('${p.id}')`
+    
+    return `
+      <div class="card" onclick="${clickAction}" style="position:relative;${seleccionado ? 'border: 2px solid #25D366; box-shadow: 0 0 0 1px #25D366;' : ''}">
+        ${p.imagen_principal ? `<img class="thumb" src="${p.imagen_principal}" loading="lazy">` : `<div class="thumb"></div>`}
+        
+        ${state.modoCompartir ? `
+          <div style="position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:${seleccionado ? '#25D366' : 'rgba(0,0,0,0.5)'};border:2px solid white;display:flex;align-items:center;justify-content:center;z-index:10;color:white;font-weight:bold;font-size:0.8rem;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+            ${seleccionado ? '✓' : ''}
+          </div>
+        ` : ''}
+        
+        <div class="body">
+          <div class="name">${esc(p.nombre)}</div>
+          <div class="sku">${esc(p.sku_interno || '')}</div>
+          <div class="price">${money(p.precio_menudeo)} <small>x par</small></div>
+          <div class="tier-row">
+            <span class="tier">3+ ${money(p.precio_mayoreo3)}</span>
+            <span class="tier">6+ ${money(p.precio_mayoreo6)}</span>
+            ${tieneCorridaDisponibleProducto(p.id) ? `<span class="tier corr">Corr ${money(p.precio_corrida)}</span>` : ''}
+          </div>
         </div>
-      </div>
-    </div>`).join('')
+      </div>`
+  }).join('')
+}
+
+window.pcToggleModoCompartir = () => {
+  state.modoCompartir = !state.modoCompartir
+  if (!state.modoCompartir) {
+    state.compartirSeleccion = []
+  }
+  renderCatalogo()
+}
+
+window.pcToggleSeleccionCompartir = (prodId) => {
+  const idx = state.compartirSeleccion.indexOf(prodId)
+  if (idx > -1) {
+    state.compartirSeleccion.splice(idx, 1)
+  } else {
+    state.compartirSeleccion.push(prodId)
+  }
+  renderCatalogo()
+}
+
+window.pcCancelarSeleccionCompartir = () => {
+  state.modoCompartir = false
+  state.compartirSeleccion = []
+  renderCatalogo()
+}
+
+window.pcCompartirVariosWhatsApp = async () => {
+  const btn = document.getElementById('pc-bulk-share-btn')
+  if (!btn) return
+  const origTxt = btn.innerHTML
+  btn.innerHTML = '⏳ Procesando...'
+  btn.disabled = true
+
+  try {
+    const seleccionados = state.data.productos.filter(p => state.compartirSeleccion.includes(p.id))
+    if (!seleccionados.length) {
+      alert('Selecciona al menos un producto.')
+      return
+    }
+
+    // 1. Intentar descargar y compartir las fotos reales vía navigator.share
+    const files = []
+    for (const p of seleccionados) {
+      const vars = state.data.variantes.filter(v => v.producto_id === p.id)
+      const fotoUrl = p.imagen_principal || vars[0]?.foto_url
+      if (!fotoUrl) continue
+      try {
+        const res = await fetch(fotoUrl)
+        const blob = await res.blob()
+        const ext = fotoUrl.split('.').pop().split('?')[0] || 'jpg'
+        const shortCode = p.nombre.split(' ')[0]
+        const filename = `Zapatillas_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        files.push(new File([blob], filename, { type: blob.type }))
+      } catch (e) {
+        console.error('No se pudo descargar imagen:', fotoUrl, e)
+      }
+    }
+
+    // 2. Generar el mensaje de texto formateado
+    let text = '*Catálogo de Zapatillas May* 👠✨\n\n'
+    seleccionados.forEach((p, index) => {
+      const shortName = p.nombre.split(' ')[0]
+      const sku = p.sku_interno || ''
+      const m3 = p.precio_mayoreo3
+      const m6 = p.precio_mayoreo6
+      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n`
+      if (m3) text += `   💵 3-5 pares: ${money(m3)} c/u\n`
+      if (m6) text += `   🔥 6+ pares: ${money(m6)} c/u\n`
+      text += `   🔗 Ver modelo: https://tienda-zapatillas-may.vercel.app/?p=${p.id}\n\n`
+    })
+    text += '¡Pide los tuyos por WhatsApp! 📲'
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        files,
+        title: 'Modelos de Zapatillas May',
+        text: text
+      })
+    } else {
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+      window.open(url, '_blank')
+      
+      alert('Tu navegador no permite compartir archivos directamente. Se abrirá WhatsApp con los detalles y se descargarán las imágenes seleccionadas a tu dispositivo para que las subas.')
+      for (let i = 0; i < files.length; i++) {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(files[i])
+        a.download = files[i].name
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        await new Promise(r => setTimeout(r, 400)) // Pausa para no saturar descargas
+      }
+    }
+  } catch (err) {
+    alert('Error al compartir: ' + err.message)
+  } finally {
+    btn.innerHTML = origTxt
+    btn.disabled = false
+    window.pcCancelarSeleccionCompartir()
+  }
 }
 
 // ============================================================

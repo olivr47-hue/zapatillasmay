@@ -11,6 +11,9 @@ const PC_CARRITO_KEY = 'pc_carrito'
 const PC_BORRADOR_MARCA = '[carrito-respaldo]'
 const TALLAS_ORDEN  = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
 
+window._pcModoCompartir = false
+window._pcCompartirSeleccion = []
+
 // "Nuevo" se calcula por fecha real de alta (últimos 30 días), no por la
 // bandera manual `nuevo` -- no se apagaba sola con el tiempo ni se llenaba
 // en todas las vías de alta de producto (ej. import masivo), así que
@@ -715,10 +718,11 @@ function renderCatalogo(el) {
     </div>
 
     <!-- Categorías -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;width:100%">
       <button onclick="pcFiltrarNuevos()" class="pc-btn ${pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;${pc.filtroNuevos ? '' : 'color:var(--pc-green);border-color:var(--pc-green)'}">✨ Nuevos</button>
       <button onclick="pcFiltrarCat('')" class="pc-btn ${!pc.filtroCat && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem">Todos</button>
       ${cats.map(c => `<button onclick="pcFiltrarCat('${esc(c)}')" class="pc-btn ${pc.filtroCat === c && !pc.filtroNuevos ? 'pc-btn-primary' : 'pc-btn-secondary'}" style="padding:8px 14px;font-size:0.78rem;text-transform:capitalize">${c}</button>`).join('')}
+      <button onclick="pcToggleModoCompartir()" class="pc-btn" style="padding:8px 14px;font-size:0.78rem;margin-left:auto;background:${window._pcModoCompartir ? '#25D366' : 'var(--pc-card)'};color:${window._pcModoCompartir ? 'white' : 'var(--pc-text-2)'};border:1.5px solid ${window._pcModoCompartir ? '#25D366' : 'var(--pc-border-2)'};font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">📲 ${window._pcModoCompartir ? 'Modo Selección' : 'Compartir varios'}</button>
     </div>
 
     <!-- Buscador -->
@@ -779,6 +783,20 @@ function renderCatalogo(el) {
     </div>`}
 
     ${(() => {
+      if (window._pcModoCompartir) {
+        if (window._pcCompartirSeleccion.length === 0) return ''
+        return `
+        <div id="pc-bulk-share-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:900;background:var(--pc-card);border:2px solid #25D366;border-radius:18px;padding:12px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);width:90%;max-width:500px">
+          <div style="flex:1;line-height:1.2">
+            <p style="margin:0;font-size:0.75rem;color:var(--pc-text-4);font-weight:600">Compartir varios</p>
+            <p style="margin:0;font-size:1rem;font-weight:800;color:var(--pc-text)">${window._pcCompartirSeleccion.length} seleccionados</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button onclick="pcCompartirVariosWhatsApp()" id="pc-bulk-share-btn" class="pc-btn" style="padding:10px 14px;font-size:0.8rem;background:#25D366;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer">💬 Compartir</button>
+            <button onclick="pcCancelarSeleccionCompartir()" class="pc-btn pc-btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
+          </div>
+        </div>`
+      }
       const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
       const totalMonto = pc.carrito.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
       if (totalPares === 0) return ''
@@ -796,6 +814,107 @@ function renderCatalogo(el) {
       </div>`
     })()}
   `
+}
+
+window.pcToggleModoCompartir = () => {
+  window._pcModoCompartir = !window._pcModoCompartir
+  if (!window._pcModoCompartir) {
+    window._pcCompartirSeleccion = []
+  }
+  renderCatalogo()
+}
+
+window.pcToggleSeleccionCompartir = (prodId) => {
+  const idx = window._pcCompartirSeleccion.indexOf(prodId)
+  if (idx > -1) {
+    window._pcCompartirSeleccion.splice(idx, 1)
+  } else {
+    window._pcCompartirSeleccion.push(prodId)
+  }
+  renderCatalogo()
+}
+
+window.pcCancelarSeleccionCompartir = () => {
+  window._pcModoCompartir = false
+  window._pcCompartirSeleccion = []
+  renderCatalogo()
+}
+
+window.pcCompartirVariosWhatsApp = async () => {
+  const btn = document.getElementById('pc-bulk-share-btn')
+  if (!btn) return
+  const origTxt = btn.innerHTML
+  btn.innerHTML = '⏳ Procesando...'
+  btn.disabled = true
+
+  try {
+    const seleccionados = pc.productos.filter(p => window._pcCompartirSeleccion.includes(p.id))
+    if (!seleccionados.length) {
+      alert('Selecciona al menos un producto.')
+      return
+    }
+
+    // 1. Intentar descargar y compartir las fotos reales vía navigator.share
+    const files = []
+    for (const p of seleccionados) {
+      const vars = pc.variantes.filter(v => v.producto_id === p.id)
+      const fotoUrl = p.imagen_principal || vars[0]?.foto_url
+      if (!fotoUrl) continue
+      try {
+        const res = await fetch(fotoUrl)
+        const blob = await res.blob()
+        const ext = fotoUrl.split('.').pop().split('?')[0] || 'jpg'
+        const shortCode = p.nombre.split(' ')[0]
+        const filename = `Zapatillas_May_${shortCode}_${p.sku_interno || p.id}.${ext}`
+        files.push(new File([blob], filename, { type: blob.type }))
+      } catch (e) {
+        console.error('No se pudo descargar imagen:', fotoUrl, e)
+      }
+    }
+
+    // 2. Generar el mensaje de texto formateado
+    let text = '*Catálogo de Zapatillas May* 👠✨\n\n'
+    seleccionados.forEach((p, index) => {
+      const shortName = p.nombre.split(' ')[0]
+      const sku = p.sku_interno || ''
+      const m3 = precioM3(p)
+      const m6 = precioM6(p)
+      text += `*${index + 1}. Modelo ${shortName}* (${sku})\n`
+      if (m3) text += `   💵 3-5 pares: ${money(m3)} c/u\n`
+      if (m6) text += `   🔥 6+ pares: ${money(m6)} c/u\n`
+      text += `   🔗 Ver modelo: https://tienda-zapatillas-may.vercel.app/?p=${p.id}\n\n`
+    })
+    text += '¡Pide los tuyos por WhatsApp! 📲'
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        files,
+        title: 'Modelos de Zapatillas May',
+        text: text
+      })
+    } else {
+      // Fallback: abrir en WhatsApp Web / App solo el texto y descargar las imágenes por separado
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`
+      window.open(url, '_blank')
+      
+      alert('Tu navegador no permite compartir archivos directamente. Se abrirá WhatsApp con los detalles y se descargarán las imágenes seleccionadas a tu dispositivo para que las subas.')
+      for (let i = 0; i < files.length; i++) {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(files[i])
+        a.download = files[i].name
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        await new Promise(r => setTimeout(r, 400)) // Pausa para no saturar descargas
+      }
+    }
+  } catch (err) {
+    alert('Error al compartir: ' + err.message)
+  } finally {
+    btn.innerHTML = origTxt
+    btn.disabled = false
+    window.pcCancelarSeleccionCompartir()
+  }
 }
 
 // ── CATÁLOGOS (descarga PDF por categoría) ────────────────────
@@ -855,18 +974,29 @@ function pcProductoCard(p) {
   const coloresList = Object.entries(coloresMap) // [[color, {hex, foto}], ...]
   const imgPrincipal = p.imagen_principal || (coloresList[0]?.[1]?.foto) || ''
   const enCarrito = pc.carrito.filter(i => i.producto_id === p.id).reduce((s, i) => s + i.cantidad, 0)
+  const seleccionado = window._pcModoCompartir && window._pcCompartirSeleccion.includes(p.id)
+
+  const clickAction = window._pcModoCompartir 
+    ? `pcToggleSeleccionCompartir('${p.id}')` 
+    : `pcAbrirProducto('${p.id}')`
 
   return `
-    <div class="pc-prod-card" onclick="pcAbrirProducto('${p.id}')" style="display:flex;flex-direction:column">
+    <div class="pc-prod-card" onclick="${clickAction}" style="display:flex;flex-direction:column;position:relative;${seleccionado ? 'border-color:#25D366;box-shadow:0 0 0 2px #25D366;' : ''}">
       <div style="position:relative;aspect-ratio:3/4;overflow:hidden;background:var(--pc-bg-elev)">
         <img id="pc-card-img-${p.id}" src="${esc(imgPrincipal)}" alt="${esc(p.nombre)}" loading="lazy"
           style="width:100%;height:100%;object-fit:cover;transition:opacity 0.2s">
         ${p.es_oferta ? '<span style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">OFERTA</span>' : ''}
         ${esNuevo(p) ? '<span style="position:absolute;top:8px;right:8px;background:#10b981;color:white;font-size:0.6rem;font-weight:700;padding:3px 7px;border-radius:100px">NUEVO</span>' : ''}
-        ${enCarrito > 0 ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${enCarrito} par${enCarrito !== 1 ? 'es' : ''}</span>` : ''}
+        ${enCarrito > 0 && !window._pcModoCompartir ? `<span style="position:absolute;bottom:8px;right:8px;background:rgba(233,30,140,0.92);color:white;font-size:0.6rem;font-weight:700;padding:3px 8px;border-radius:100px">${enCarrito} par${enCarrito !== 1 ? 'es' : ''}</span>` : ''}
+        
+        ${window._pcModoCompartir ? `
+          <div style="position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:50%;background:${seleccionado ? '#25D366' : 'rgba(0,0,0,0.5)'};border:2px solid white;display:flex;align-items:center;justify-content:center;z-index:10;color:white;font-weight:bold;font-size:0.8rem;box-shadow:0 2px 6px rgba(0,0,0,0.3)">
+            ${seleccionado ? '✓' : ''}
+          </div>
+        ` : ''}
       </div>
       <!-- Swatches de color -->
-      ${coloresList.length > 0 ? `
+      ${coloresList.length > 0 && !window._pcModoCompartir ? `
       <div style="display:flex;gap:5px;padding:8px 10px;background:var(--pc-bg-elev);flex-wrap:wrap" onclick="event.stopPropagation()">
         ${coloresList.slice(0,8).map(([cn, cd]) => `
           <div title="${esc(cn)}" onclick="pcCardColor('${p.id}','${esc(cd.foto||imgPrincipal)}',this)"
@@ -882,9 +1012,15 @@ function pcProductoCard(p) {
           ${m3 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">3-5: <strong style="color:var(--pc-text)">${money(m3)}</strong></span>` : ''}
           ${m6 ? `<span style="font-size:0.72rem;color:var(--pc-text-3)">6+: <strong style="color:#E91E8C">${money(m6)}</strong></span>` : ''}
         </div>
-        <button onclick="event.stopPropagation();pcAbrirProducto('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:7px;font-size:0.78rem">
-          ${enCarrito > 0 ? `✓ ${enCarrito} par${enCarrito !== 1 ? 'es' : ''} · Editar` : '+ Seleccionar tallas'}
-        </button>
+        ${window._pcModoCompartir ? `
+          <button class="pc-btn" style="width:100%;padding:7px;font-size:0.78rem;background:${seleccionado ? 'rgba(37,211,102,0.15)' : 'var(--pc-bg-elev)'};color:${seleccionado ? '#25D366' : 'var(--pc-text-3)'};border:1.5px solid ${seleccionado ? '#25D366' : 'var(--pc-border-2)'};font-weight:bold;cursor:pointer">
+            ${seleccionado ? '✓ Seleccionado' : 'Seleccionar'}
+          </button>
+        ` : `
+          <button onclick="event.stopPropagation();pcAbrirProducto('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;padding:7px;font-size:0.78rem">
+            ${enCarrito > 0 ? `✓ ${enCarrito} par${enCarrito !== 1 ? 'es' : ''} · Editar` : '+ Seleccionar tallas'}
+          </button>
+        `}
       </div>
     </div>`
 }
