@@ -229,10 +229,11 @@ function salir() {
 async function entrar() {
   app.innerHTML = `<div class="spinner">Cargando catálogo…</div>`
   try {
-    const [productos, variantes, inventario] = await Promise.all([
+    const [productos, variantes, inventario, pedidos] = await Promise.all([
       fetch(API + '/productos/').then(r => r.json()),
       fetch(API + '/variantes/').then(r => r.json()),
       fetch(API + '/inventario/').then(r => r.json()).catch(() => []),
+      fetch(API + '/portal/pedidos', { headers: authHeaders() }).then(r => r.ok ? r.json() : []).catch(() => []),
     ])
     // Stock total por variante (sumado entre sucursales)
     const stockPorVar = {}
@@ -248,6 +249,7 @@ async function entrar() {
       variantes: Array.isArray(variantes) ? variantes : [],
       stockPorVar,
     }
+    try { await restaurarCarritoDeServidor(pedidos) } catch(e) {}
     renderShell()
   } catch (e) {
     app.innerHTML = `<div class="empty"><div class="ic">😕</div><p>No se pudo cargar. Reintenta.</p>
@@ -308,6 +310,13 @@ function navTo(tab) {
   if (oldNav) oldNav.outerHTML = renderBottomNav()
   const sub = document.getElementById('tb-sub')
   if (sub) sub.textContent = state.sesion?.nombre ? `Hola, ${state.sesion.nombre.split(' ')[0]}` : ''
+
+  if (tab === 'carrito') {
+    iniciarPollCarrito()
+  } else {
+    detenerPollCarrito()
+  }
+
   if (tab === 'inicio') renderInicio()
   else if (tab === 'tienda') renderCatalogo()
   else if (tab === 'catalogos') renderCatalogos()
@@ -722,7 +731,177 @@ function totalCarrito() {
   const s = paresSueltos()
   return state.carrito.reduce((sum, i) => sum + i.cantidad * precioItem(i, s), 0)
 }
-function guardarCarrito() { try { localStorage.setItem(CARRITO_KEY, JSON.stringify(state.carrito)) } catch {} }
+const PC_BORRADOR_MARCA = 'Borrador del carrito (portal_mayoreo)'
+let _borradorServerId = null
+let _syncTimer = null
+let _carritoPollInterval = null
+let _carritoPollFocusHandler = null
+
+function detenerPollCarrito() {
+  if (_carritoPollInterval) { clearInterval(_carritoPollInterval); _carritoPollInterval = null }
+  if (_carritoPollFocusHandler) { window.removeEventListener('focus', _carritoPollFocusHandler); _carritoPollFocusHandler = null }
+}
+
+function iniciarPollCarrito() {
+  detenerPollCarrito()
+  const refrescar = () => refrescarCarritoSiCambio()
+  _carritoPollInterval = setInterval(refrescar, 8000)
+  _carritoPollFocusHandler = refrescar
+  window.addEventListener('focus', _carritoPollFocusHandler)
+}
+
+async function refrescarCarritoSiCambio() {
+  if (state.tab !== 'carrito' || !state.sesion?.cliente_id) { detenerPollCarrito(); return }
+  const activo = document.activeElement
+  if (activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA')) return
+  try {
+    const ped = await fetch(API + '/portal/pedidos', { headers: authHeaders() }).then(r => r.ok ? r.json() : null)
+    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notes === PC_BORRADOR_MARCA)
+    const itemsServidor = borrador?.pedido_items || []
+    
+    const antes = JSON.stringify(state.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario || i.precio_menudeo || 0]))
+    const despues = JSON.stringify(itemsServidor.map(i => [i.variante_id || i.variantes?.id, i.cantidad, i.precio_unitario]))
+    if (antes === despues) return
+
+    _borradorServerId = borrador?.id || null
+    state.carrito = itemsServidor.map(i => {
+      const v = i.variantes
+      const p = state.data.productos.find(x => x.id === (v?.producto_id || i.producto_id))
+      return {
+        producto_id: v?.producto_id || i.producto_id,
+        variante_id: v?.id || i.variante_id,
+        nombre: v?.productos?.nombre || i.nombre || p?.nombre || 'Producto',
+        color: v?.color || i.color,
+        talla: v?.talla || i.talla,
+        cantidad: i.cantidad,
+        es_corrida: !!i.es_corrida,
+        precio_menudeo: p?.precio_menudeo || 0,
+        precio_mayoreo3: p?.precio_mayoreo3 || 0,
+        precio_mayoreo6: p?.precio_mayoreo6 || 0,
+        precio_corrida: p?.precio_corrida || 0,
+        imagen: v?.foto_url || p?.imagen_principal || null,
+      }
+    })
+    guardarCarritoLocalOnly()
+    if (state.tab === 'carrito') renderCarrito()
+  } catch (e) {}
+}
+
+function guardarCarritoLocalOnly() {
+  try {
+    localStorage.setItem(CARRITO_KEY, JSON.stringify(state.carrito))
+  } catch(e) {}
+  const nav = document.querySelector('.bottomnav')
+  if (nav) nav.outerHTML = renderBottomNav()
+}
+
+function guardarCarrito() {
+  guardarCarritoLocalOnly()
+  sincronizarCarritoServidorDebounced()
+}
+
+function sincronizarCarritoServidorDebounced() {
+  clearTimeout(_syncTimer)
+  _syncTimer = setTimeout(() => { sincronizarCarritoServidor().catch(() => {}) }, 1500)
+}
+
+async function sincronizarCarritoServidor() {
+  if (!state.sesion?.cliente_id) return
+  if (!state.carrito.length) {
+    if (_borradorServerId) {
+      const idViejo = _borradorServerId
+      _borradorServerId = null
+      fetch(`${API}/pedidos/${idViejo}/cancelar`, { method: 'POST', headers: authHeaders() }).catch(() => {})
+    }
+    return
+  }
+  let pedidoId = _borradorServerId
+  if (!pedidoId) {
+    try {
+      const ped = await fetch(API + '/portal/pedidos', { headers: authHeaders() }).then(r => r.ok ? r.json() : [])
+      const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA)
+      if (borrador) {
+        pedidoId = borrador.id
+        _borradorServerId = pedidoId
+      }
+    } catch(e) {}
+  }
+  
+  if (!pedidoId) {
+    const res = await fetch(`${API}/pedidos`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ cliente_id: state.sesion.cliente_id, status: 'borrador', canal: 'portal_mayoreo', total: 0, notas: PC_BORRADOR_MARCA })
+    })
+    if (!res.ok) return
+    const d = await res.json()
+    pedidoId = Array.isArray(d) ? d[0]?.id : d?.id
+    if (!pedidoId) return
+    _borradorServerId = pedidoId
+  }
+  
+  try {
+    const actuales = await fetch(`${API}/pedidos/${pedidoId}/items`, { headers: authHeaders() }).then(r => r.ok ? r.json() : [])
+    for (const it of (Array.isArray(actuales) ? actuales : [])) {
+      await fetch(`${API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE', headers: authHeaders() }).catch(() => {})
+    }
+    for (const item of state.carrito) {
+      const totalPares = state.carrito.reduce((s, i) => s + i.cantidad, 0)
+      const p = state.data.productos.find(x => x.id === item.producto_id)
+      let pu = item.precio_menudeo || 0
+      if (p) {
+        if (item.es_corrida) pu = p.precio_corrida
+        else if (totalPares >= 6) pu = p.precio_mayoreo6
+        else if (totalPares >= 3) pu = p.precio_mayoreo3
+      }
+      
+      await fetch(`${API}/pedidos/${pedidoId}/items`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({
+          variante_id: item.variante_id, cantidad: item.cantidad, precio_unitario: pu,
+          subtotal: item.cantidad * pu, nombre: item.nombre, color: item.color,
+          talla: item.talla, es_corrida: !!item.es_corrida,
+        })
+      }).catch(() => {})
+    }
+    const total = totalCarrito()
+    await fetch(`${API}/pedidos/${pedidoId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ total })
+    }).catch(() => {})
+  } catch (e) {}
+}
+
+async function restaurarCarritoDeServidor(pedidosCrudos) {
+  const borrador = (Array.isArray(pedidosCrudos) ? pedidosCrudos : [])
+    .find(p => p.notas === PC_BORRADOR_MARCA)
+  if (!borrador) return
+  _borradorServerId = borrador.id
+  const items = borrador.pedido_items || []
+  if (!items.length) return
+  
+  const delServidor = []
+  items.forEach(i => {
+    const v = i.variantes
+    if (!v || !v.id) return
+    const p = state.data.productos.find(x => x.id === v.producto_id)
+    delServidor.push({
+      producto_id: v.producto_id,
+      variante_id: v.id,
+      nombre: v.productos?.nombre || i.nombre || p?.nombre || 'Producto',
+      color: v.color || i.color,
+      talla: v.talla || i.talla,
+      cantidad: i.cantidad,
+      es_corrida: !!i.es_corrida,
+      precio_menudeo: p?.precio_menudeo || 0,
+      precio_mayoreo3: p?.precio_mayoreo3 || 0,
+      precio_mayoreo6: p?.precio_mayoreo6 || 0,
+      precio_corrida: p?.precio_corrida || 0,
+      imagen: v.foto_url || p?.imagen_principal || null,
+    })
+  })
+  if (!delServidor.length) return
+  state.carrito = delServidor
+  guardarCarritoLocalOnly()
+}
 
 function tierLabel() {
   const s = paresSueltos()
