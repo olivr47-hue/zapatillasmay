@@ -425,20 +425,27 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     age_group       = _AGE_GROUP_POR_CATEGORIA.get(categoria, "Adulto")
     material        = producto.get("material") or "Sintético"
     talla_walmart   = f"{talla} (MX)"
+    # F ("Product ID") no puede pasar de 14 caracteres (confirmado con reporte
+    # de error real de Walmart, 2026-07-21: "no puede exceder 14 caracteres")
+    # -- el sku real (ej. "O-FLT-0279-NUD-23_5") no cabe. Se usa el id de la
+    # variante (uuid) sin guiones, recortado a 14 caracteres: sigue siendo
+    # único por fila (que es lo que de verdad exige Walmart) sin pasarse del
+    # límite de longitud.
+    product_id_corto = (variante.get("id") or "").replace("-", "")[:14] or sku[:14]
 
     fila = {
         # OJO: Walmart confirmó por escrito (ver comentario junto a
         # _TEMPLATE_PATH) que E="GTIN" es la forma correcta de pedir la carga
         # sin UPC (folio 15476267), pero F ("Product ID"/"Identificador de
-        # Producto Adicional") DEBE ser único por fila -- confirmado con un
-        # reporte de error real de Walmart (2026-07-21): con F="CUSTOM" fijo
-        # en las 28 filas, Walmart trata "CUSTOM" como si fuera el SKU/
-        # identificador único del artículo, ve las 28 filas como el mismo
-        # artículo repetido ("duplicate items for SKU='CUSTOM'") y además
-        # marca 'SKU' como obligatorio/faltante. Se cambió F al mismo valor
-        # que D (el sku real de la variante) para que cada fila tenga un
-        # identificador distinto.
-        "D": sku, "E": "GTIN", "F": sku,
+        # Producto Adicional") DEBE ser único por fila Y de máximo 14
+        # caracteres -- confirmado con dos reportes de error reales de
+        # Walmart (2026-07-21): con F="CUSTOM" fijo en las 28 filas, Walmart
+        # trataba "CUSTOM" como si fuera el identificador único del artículo
+        # ("duplicate items for SKU='CUSTOM'"); al cambiarlo al sku real
+        # (único pero >14 caracteres) salió "no puede exceder 14 caracteres".
+        # En ambos casos también marcaba 'SKU' como obligatorio/faltante --
+        # parece ser un error en cascada del mismo problema, no uno aparte.
+        "D": sku, "E": "GTIN", "F": product_id_corto,
         "G": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "H": "May",
         "I": imagen_principal,
