@@ -125,7 +125,8 @@ window.__loginMetodo = (m) => { _loginMetodo = m; _loginPaso = 'pedir'; renderLo
 async function initGoogle() {
   try {
     if (!window._seoConfig) {
-      window._seoConfig = await fetch(API + '/seo/config').then(r => r.json()).catch(() => ({}))
+      const cfg = await fetch(API + '/seo/config').then(r => r.json()).catch(() => ({}))
+      window._seoConfig = Array.isArray(cfg) ? Object.fromEntries(cfg.map(x => [x.clave, x.valor])) : cfg
     }
     const clientId = window._seoConfig?.google_client_id
     if (!clientId) return
