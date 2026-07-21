@@ -401,7 +401,11 @@ function renderCatalogo() {
       }
       return ''
     })()}`
-  document.getElementById('cat-search').addEventListener('input', (e) => { state.busqueda = e.target.value; pintarGrid() })
+  document.getElementById('cat-search').addEventListener('input', (e) => {
+    state.busqueda = e.target.value
+    clearTimeout(window._pcSearchDebounce)
+    window._pcSearchDebounce = setTimeout(pintarGrid, 220)
+  })
   pintarGrid()
 }
 window.__filtro = (c) => { state.filtroCat = c; renderCatalogo() }
