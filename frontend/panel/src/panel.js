@@ -8569,6 +8569,14 @@ window.activarEdicionPedido = async (pedidoId) => {
           <span style="font-size:0.8rem;color:#888">(se resta del total final)</span>
         </div>
 
+        <div style="margin-top:1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <label style="font-size:0.85rem;color:#333;font-weight:600">Forma de pago:</label>
+          <select id="edit-forma-pago" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem">
+            ${['efectivo','tarjeta','spei','credito','mercadopago'].map(v => `<option value="${v}" ${(window._currentPedido?.forma_pago || 'efectivo') === v ? 'selected' : ''}>${{efectivo:'Efectivo',tarjeta:'Tarjeta',spei:'SPEI / Transferencia',credito:'Credito',mercadopago:'Mercado Pago'}[v]}</option>`).join('')}
+          </select>
+          <span style="font-size:0.78rem;color:#888">(por si se registró mal al cerrar el pedido)</span>
+        </div>
+
         <div style="margin-top:1rem;display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary" onclick="guardarEdicionPedido()">💾 Guardar cambios</button>
           <button class="btn btn-secondary" onclick="cancelarEdicionPedido('${pedidoId}')">Cancelar</button>
@@ -8893,6 +8901,7 @@ window.guardarEdicionPedido = async () => {
   const pedidoId = window._editPedidoId
   const items = window._editItems
   const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0
+  const formaPago = document.getElementById('edit-forma-pago')?.value
 
   // Actualizar cada ítem en paralelo
   await Promise.all(items.map(item =>
@@ -8908,7 +8917,7 @@ window.guardarEdicionPedido = async () => {
   await fetch(API + '/pedidos/' + pedidoId, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ total: nuevoTotal })
+    body: JSON.stringify({ total: nuevoTotal, ...(formaPago ? { forma_pago: formaPago } : {}) })
   })
 
   alert('Pedido actualizado correctamente')
@@ -11211,15 +11220,24 @@ window.guardarCarritoPOS = async (fromDrawer) => {
 }
 
 window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
+  // OJO: abrir la ventana ANTES de cualquier await. Si window.open() se llama
+  // después de un fetch (aquí, o en los varios await de cobrarPOS() antes de
+  // llegar aquí), el navegador ya no lo considera "iniciado directamente por
+  // el usuario" y bloquea el pop-up en silencio -- sin error visible, solo
+  // deja de aparecer el ticket. Por eso dejó de imprimirse solo al cerrar
+  // una venta (había que ir a Pedidos y reimprimir a mano).
+  const ticket = window.open('', '_blank', 'width=400,height=600')
+  if (!ticket) {
+    alert('El navegador bloqueó la ventana del ticket (pop-up). Permite las ventanas emergentes para este sitio, o reimprímelo desde Pedidos.')
+    return
+  }
   const res = await fetch(API + '/pedidos/' + pedidoId)
   const data = await res.json()
-  if (!data || data.length === 0) return
+  if (!data || data.length === 0) { ticket.close(); return }
   const pedido = data[0]
   const items = pedido.pedido_items || []
   const cliente = pedido.clientes || {}
   const fecha = new Date().toLocaleString('es-MX')
-
-  const ticket = window.open('', '_blank', 'width=400,height=600')
   ticket.document.write(`
     <!DOCTYPE html>
     <html>
@@ -22342,6 +22360,15 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const subtotalCorrida = g.items.reduce((s,i) => s+(i.cantidad*i.precio_unitario), 0)
                 const precioPorPar = (subtotalCorrida / totalParesCorrida).toFixed(2)
                 const ids = g.items.map(i => i.id).join(',')
+                // Tallas que existen para este producto+color pero que NO están
+                // todavía en esta corrida -- antes no había forma de agregarlas
+                // sin borrar toda la corrida y rehacerla desde cero.
+                const TALLAS_ORDEN_C = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+                const tallasEnCorrida = new Set(g.items.map(i => (i.variantes || {}).talla || i.talla))
+                const tallasFaltantes = (window._carritoActivo.variantes || [])
+                  .filter(v => v.producto_id === g.productoId && v.color === g.color && !tallasEnCorrida.has(v.talla))
+                  .sort((a, b) => TALLAS_ORDEN_C.indexOf(a.talla) - TALLAS_ORDEN_C.indexOf(b.talla))
+                const idsKey = ids.replace(/,/g,'_').substring(0,20)
                 return `
                   <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
                     <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
@@ -22389,6 +22416,19 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                             <button class="carrito-mini-btn carrito-del-btn" onclick="eliminarDeCarrito('${i.id}',${i._idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem;padding:2px">🗑</button>
                           </div>`
                       }).join('')}
+                      ${tallasFaltantes.length > 0 ? `
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px dashed #e8d5f5">
+                          <select id="add-talla-${idsKey}" style="flex:1;padding:5px;border:1px solid #d8b4fe;border-radius:6px;font-size:0.82rem;color:#6a1b9a">
+                            ${tallasFaltantes.map(v => {
+                              const invItem = inventario.find(x => x.variante_id === v.id && (sucursalId ? x.sucursal_id === sucursalId : true))
+                              const stock = invItem ? invItem.cantidad : null
+                              return `<option value="${v.id}">T${v.talla}${stock !== null ? ' (stock ' + stock + ')' : ''}</option>`
+                            }).join('')}
+                          </select>
+                          <button onclick="agregarTallaACorridaCarrito('${idsKey}','${g.productoId}','${(g.color||'').replace(/'/g,"\\'")}',${precioPorPar})"
+                            style="background:#6a1b9a;color:white;border:none;border-radius:6px;padding:6px 12px;font-size:0.78rem;cursor:pointer;white-space:nowrap">+ Agregar talla</button>
+                        </div>
+                      ` : ''}
                     </div>
                     <button onclick="toggleCorridaDetalle('${ids.replace(/,/g,'_').substring(0,20)}')"
                       style="margin-top:8px;background:none;border:1px solid #d8b4fe;border-radius:6px;padding:4px 10px;font-size:0.75rem;color:#6a1b9a;cursor:pointer;width:100%">
@@ -22816,6 +22856,32 @@ window.toggleCorridaDetalle = (key) => {
   el.style.display = visible ? 'none' : 'block'
   const btn = el.nextElementSibling
   if (btn) btn.textContent = visible ? '✏️ Editar tallas individualmente' : '▲ Cerrar edición'
+}
+
+window.agregarTallaACorridaCarrito = async (idsKey, productoId, color, precioPorPar) => {
+  const sel = document.getElementById('add-talla-' + idsKey)
+  const varianteId = sel?.value
+  if (!varianteId) return
+  const { variantes, productos, pedidoId } = window._carritoActivo
+  const v = variantes.find(x => x.id === varianteId)
+  const prod = productos.find(p => p.id === productoId)
+  if (!v || !prod) return
+  try {
+    await fetch(API + '/pedidos/' + pedidoId + '/items', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        variante_id: varianteId, cantidad: 1, precio_unitario: parseFloat(precioPorPar) || 0,
+        subtotal: parseFloat(precioPorPar) || 0, nombre: prod.nombre, color, talla: v.talla, es_corrida: true,
+      })
+    })
+    const nuevoTotal = window._carritoActivo.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) + (parseFloat(precioPorPar) || 0)
+    await fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    await abrirCarrito(pedidoId)
+    mostrarToastPanel('✓ Talla ' + v.talla + ' agregada a la corrida')
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 window.eliminarCorridaCarrito = async (idsStr) => {
