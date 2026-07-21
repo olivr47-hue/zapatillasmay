@@ -425,13 +425,18 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     age_group       = _AGE_GROUP_POR_CATEGORIA.get(categoria, "Adulto")
     material        = producto.get("material") or "Sintético"
     talla_walmart   = f"{talla} (MX)"
-    # F ("Product ID") no puede pasar de 14 caracteres (confirmado con reporte
-    # de error real de Walmart, 2026-07-21: "no puede exceder 14 caracteres")
-    # -- el sku real (ej. "O-FLT-0279-NUD-23_5") no cabe. Se usa el id de la
-    # variante (uuid) sin guiones, recortado a 14 caracteres: sigue siendo
-    # único por fila (que es lo que de verdad exige Walmart) sin pasarse del
-    # límite de longitud.
-    product_id_corto = (variante.get("id") or "").replace("-", "")[:14] or sku[:14]
+    # F ("Product ID") con tipo "GTIN" tiene que ser un GTIN-14 -- puramente
+    # numérico (0-9), NUNCA letras. El intento anterior usaba el id de la
+    # variante en hexadecimal (incluye a-f), y Walmart lo aceptaba a veces y
+    # otras no ("SKU requerido" vs. "Product ID inválido" en filas con la
+    # misma estructura, sin patrón aparente) -- consistente con que valide el
+    # checksum/formato GTIN solo cuando el valor "parece" numérico. Se deriva
+    # un número de 14 dígitos a partir del id de la variante (hash estable,
+    # sin letras) para que sea a la vez único por fila y un GTIN sintácticamente
+    # válido.
+    import hashlib as _hashlib
+    _hash_variante = int(_hashlib.md5((variante.get("id") or sku).encode()).hexdigest(), 16)
+    product_id_corto = str(_hash_variante % 10**14).zfill(14)
 
     fila = {
         # OJO: Walmart confirmó por escrito (ver comentario junto a
