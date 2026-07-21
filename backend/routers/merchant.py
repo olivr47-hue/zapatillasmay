@@ -17,8 +17,9 @@ Requisito manual (una sola vez):
 """
 
 import os, json, time, urllib.parse, urllib.request, urllib.error
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 import google_sa
+from security import require_staff
 
 router = APIRouter(prefix="/merchant", tags=["Merchant"])
 
@@ -67,6 +68,32 @@ def _get(path: str) -> dict | None:
         f"{BASE}/{path}",
         headers={"Authorization": f"Bearer {token}"},
         method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            _last_error = ""
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        _last_error = f"HTTP {e.code}: {e.read().decode(errors='replace')[:600]}"
+        print(f"[merchant] {_last_error}")
+        return None
+    except Exception as e:
+        _last_error = str(e)
+        print(f"[merchant] {_last_error}")
+        return None
+
+
+def _put(path: str, body: dict) -> dict | None:
+    global _last_error
+    token = _access_token()
+    if not token:
+        return None
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        f"{BASE}/{path}",
+        data=data,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="PUT",
     )
     try:
         with urllib.request.urlopen(req) as r:
@@ -196,6 +223,30 @@ def cuenta():
     info = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}")
     links = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}/listlinks")
     return {"configurado": True, "cuenta": info, "vinculos": links, "error": _last_error or None}
+
+
+@router.post("/actualizar-nombre-cuenta")
+def actualizar_nombre_cuenta(nombre: str = "Zapatillas May"):
+    """Cambia el 'name' (nombre visible) de la cuenta de Merchant Center.
+    Estaba puesto como el dominio ("zapatillasmay.mx") en vez de una marca --
+    por eso Google Shopping mostraba el link completo del sitio junto al
+    precio, en vez de un nombre como "Zapatillas May" (que sí usan otros
+    vendedores). Solo modifica el campo "name"; el resto de la cuenta se
+    reenvía tal cual se recibió para no perder ninguna otra configuración."""
+    if not _configurado():
+        return _no_config()
+    actual = _get(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}")
+    if not actual:
+        return {"ok": False, "error": _last_error}
+    nombre_anterior = actual.get("name")
+    actual["name"] = nombre
+    resultado = _put(f"{MERCHANT_ID}/accounts/{MERCHANT_ID}", actual)
+    return {
+        "ok": resultado is not None,
+        "nombre_anterior": nombre_anterior,
+        "nombre_nuevo": resultado.get("name") if resultado else None,
+        "error": _last_error or None,
+    }
 
 
 @router.get("/account-issues")
