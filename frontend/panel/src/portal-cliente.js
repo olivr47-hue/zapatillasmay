@@ -324,7 +324,17 @@ function renderPC() {
   }
   window.pcLimpiarFiltrosTC = () => { pc.filtroTallas = []; pc.filtroColores = []; renderCatalogo() }
   window.pcToggleFiltrosPanel = () => { pc.filtrosExpandido = !pc.filtrosExpandido; renderCatalogo() }
-  window.pcBuscar = (q) => { pc.busqueda = q; renderCatalogo() }
+  window.pcBuscar = (q) => {
+    pc.busqueda = q
+    const inputAntes = document.getElementById('pc-search-input')
+    const cursor = inputAntes ? inputAntes.selectionStart : null
+    renderCatalogo()
+    const inputDespues = document.getElementById('pc-search-input')
+    if (inputDespues) {
+      inputDespues.focus()
+      if (cursor != null) inputDespues.setSelectionRange(cursor, cursor)
+    }
+  }
   window.pcVaciarCarrito = () => { pc.carrito = []; pcGuardarCarrito(); renderCarrito() }
   window.pcActualizarBadgeCarritoTopbar = pcActualizarBadgeCarritoTopbar
 
@@ -727,7 +737,7 @@ function renderCatalogo(el) {
 
     <!-- Buscador -->
     <div style="margin-bottom:14px">
-      <input class="pc-input" style="width:100%" placeholder="🔍 Buscar modelo o SKU..."
+      <input id="pc-search-input" class="pc-input" style="width:100%" placeholder="🔍 Buscar modelo o SKU..."
         value="${esc(pc.busqueda)}" oninput="pcBuscar(this.value)">
     </div>
 
