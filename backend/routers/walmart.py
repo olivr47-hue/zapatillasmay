@@ -179,9 +179,14 @@ def walmart_ordenes_test():
 # ─── Ventas Walmart → descontar inventario en el ERP ──────────────────────────
 # Mismo patrón que _hacer_sync_ventas de mercadolibre.py: buscar órdenes
 # recientes, deduplicar contra pedidos.walmart_order_id, descontar inventario
-# por SKU y crear el registro de pedido. El SKU de Walmart es literalmente
-# variantes.sku (así se armó el feed en _fila_variante), por eso el match es
-# directo por igualdad, sin necesidad de normalizar como en ML/SHEIN.
+# por SKU y crear el registro de pedido. El SKU que Walmart conoce es
+# variantes.sku_walmart (columna D del feed, ver _fila_variante), NO
+# variantes.sku -- el sku interno real (ej. "O-FLT-0279-NUD-23_5") excede el
+# límite de 15 caracteres que Walmart exige para ese campo (confirmado con un
+# reporte de error real: con el sku interno completo, Walmart lo rechazaba
+# reportándolo como "'SKU' es un atributo obligatorio", un mensaje engañoso
+# que en realidad significa "no pasó validación", no "está vacío"). Por eso
+# el match contra pedidos entrantes es por sku_walmart, no por sku.
 
 def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
     filas = supabase_get_all(f"inventario?variante_id=eq.{variante_id}&select=sucursal_id,cantidad&order=cantidad.desc")
@@ -228,7 +233,7 @@ def _hacer_sync_ventas_walmart() -> dict:
             cantidad = int(float((linea.get("orderLineQuantity") or {}).get("amount") or 0))
             if not sku or cantidad <= 0:
                 continue
-            variantes = supabase_get_all(f"variantes?sku=eq.{sku}&select=id,sku,color,talla,producto_id")
+            variantes = supabase_get_all(f"variantes?sku_walmart=eq.{sku}&select=id,sku,color,talla,producto_id")
             if not variantes:
                 resultado["sin_match"].append({"orden": order_id, "sku": sku})
                 faltante = True
@@ -415,6 +420,25 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     categoria = producto.get("categoria") or ""
     nombre    = producto.get("nombre") or ""
     sku       = variante.get("sku") or ""
+    # El campo "SKU" de Walmart no acepta más de 15 caracteres (confirmado con
+    # reporte de error real, 2026-07-21) -- el sku interno (ej.
+    # "O-FLT-0279-NUD-23_5") lo excede casi siempre. Se usa un código corto
+    # fijo por variante (columna variantes.sku_walmart, generado por
+    # migración) en su lugar; el orden de ventas y la sincronización de
+    # inventario ya hacen el match contra esta misma columna, no contra sku.
+    import hashlib as _hashlib
+    sku_walmart = variante.get("sku_walmart")
+    if not sku_walmart:
+        # Variante creada después de la migración que agregó esta columna --
+        # se calcula y se guarda ahora para que quede fijo (la sincronización
+        # de inventario y el match de pedidos entrantes dependen de que este
+        # valor sea estable, no se puede recalcular distinto cada vez).
+        sku_walmart = _hashlib.md5((variante.get("id") or sku).encode()).hexdigest()[:12]
+        if variante.get("id"):
+            try:
+                supabase_patch(f"variantes?id=eq.{variante['id']}", {"sku_walmart": sku_walmart})
+            except Exception:
+                pass
     color     = variante.get("color") or ""
     talla     = _talla_display(variante.get("talla"))
     caja      = _CAJAS.get(categoria, _CAJAS["_default"])
@@ -444,7 +468,6 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     # en filas con la misma estructura). Se deriva un cuerpo de 13 dígitos
     # único por variante (hash estable de su id) y se le calcula el dígito
     # verificador real.
-    import hashlib as _hashlib
     _hash_variante = int(_hashlib.md5((variante.get("id") or sku).encode()).hexdigest(), 16)
     _cuerpo13 = str(_hash_variante % 10**13).zfill(13)
     product_id_corto = _gtin14_valido(_cuerpo13)
@@ -461,7 +484,7 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
         # (único pero >14 caracteres) salió "no puede exceder 14 caracteres".
         # En ambos casos también marcaba 'SKU' como obligatorio/faltante --
         # parece ser un error en cascada del mismo problema, no uno aparte.
-        "D": sku, "E": "GTIN", "F": product_id_corto,
+        "D": sku_walmart, "E": "GTIN", "F": product_id_corto,
         "G": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "H": "May",
         "I": imagen_principal,
@@ -534,7 +557,7 @@ def _variantes_publicables() -> list:
     ids_str   = ",".join(p["id"] for p in productos)
     variantes = supabase_get_all(
         f"variantes?producto_id=in.({ids_str})&activa=eq.true"
-        "&select=id,producto_id,sku,color,talla,foto_url,imagenes"
+        "&select=id,producto_id,sku,sku_walmart,color,talla,foto_url,imagenes"
     )
     inventario = supabase_get_all("inventario?select=variante_id,cantidad")
     stock_por_variante: dict = {}
@@ -816,9 +839,12 @@ def sincronizar_inventario():
     """Manda a Walmart el stock actual del ERP para todas las variantes
     publicables, vía Feeds API (POST /v3/feeds?feedType=inventory)."""
     items = _variantes_publicables()
+    # sku_walmart, no sku -- Walmart conoce el artículo por el código corto
+    # que se le mandó en el feed (columna D), no por el sku interno (ver nota
+    # junto a _fila_variante: el sku interno excede su límite de 15 caracteres).
     registros = [
-        {"sku": it["variante"]["sku"], "quantity": {"unit": "EACH", "amount": max(0, int(it["stock"] or 0))}}
-        for it in items if it["variante"].get("sku")
+        {"sku": it["variante"]["sku_walmart"], "quantity": {"unit": "EACH", "amount": max(0, int(it["stock"] or 0))}}
+        for it in items if it["variante"].get("sku_walmart")
     ]
     if not registros:
         return {"total_variantes": 0, "enviados": 0}
