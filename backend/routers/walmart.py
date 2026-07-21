@@ -428,15 +428,17 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
 
     fila = {
         # OJO: Walmart confirmó por escrito (ver comentario junto a
-        # _TEMPLATE_PATH) que E="GTIN"/F="CUSTOM" literal es la forma correcta
-        # de la carga sin UPC (folio 15476267) -- se intentó dejarlos vacíos
-        # el 2026-07-16 pensando que el "CUSTOM" repetido causaba el rechazo
-        # ("SKU='CUSTOM' duplicado"), pero dejarlos vacíos produjo un error
-        # PEOR ("Please provide a valid Product ID"/"Identificador de
-        # Producto Adicional requerido"), confirmando que sí hacen falta.
-        # Revertido -- la causa real de "SKU duplicado" sigue sin resolverse,
-        # necesita soporte de Walmart (contradice su propia confirmación por escrito).
-        "D": sku, "E": "GTIN", "F": "CUSTOM",
+        # _TEMPLATE_PATH) que E="GTIN" es la forma correcta de pedir la carga
+        # sin UPC (folio 15476267), pero F ("Product ID"/"Identificador de
+        # Producto Adicional") DEBE ser único por fila -- confirmado con un
+        # reporte de error real de Walmart (2026-07-21): con F="CUSTOM" fijo
+        # en las 28 filas, Walmart trata "CUSTOM" como si fuera el SKU/
+        # identificador único del artículo, ve las 28 filas como el mismo
+        # artículo repetido ("duplicate items for SKU='CUSTOM'") y además
+        # marca 'SKU' como obligatorio/faltante. Se cambió F al mismo valor
+        # que D (el sku real de la variante) para que cada fila tenga un
+        # identificador distinto.
+        "D": sku, "E": "GTIN", "F": sku,
         "G": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "H": "May",
         "I": imagen_principal,
