@@ -369,6 +369,12 @@ def metricas_hoy():
     if not resp:
         return {"configurado": True, "error": "No se pudo obtener datos de GA4"}
 
+    # OJO: sessions/activeUsers/newUsers/screenPageViews SÍ se pueden sumar
+    # entre las filas por pagePath (son conteos). bounceRate y
+    # averageSessionDuration NO -- son tasas/promedios YA calculados por fila;
+    # sumarlas entre 8-10 páginas daba cosas como "tasa de rebote: 800%".
+    # Se piden aparte SIN dimensión de página, para que GA4 regrese una sola
+    # fila con el promedio real de todo el período.
     totals = {h["name"]: 0 for h in resp.get("metricHeaders", [])}
     for row in resp.get("rows", []):
         for i, mv in enumerate(row.get("metricValues", [])):
@@ -377,6 +383,22 @@ def metricas_hoy():
                 totals[key] = totals.get(key, 0) + float(mv.get("value", 0))
             except Exception:
                 pass
+
+    resp_prom = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": "today" if _periodo == "hoy" else "yesterday",
+                         "endDate":   "today" if _periodo == "hoy" else "yesterday"}],
+        "metrics": [{"name": "averageSessionDuration"}, {"name": "bounceRate"}],
+    })
+    duracion_prom = 0.0
+    tasa_rebote = 0.0
+    if resp_prom and resp_prom.get("rows"):
+        mv = resp_prom["rows"][0].get("metricValues", [])
+        if len(mv) > 0:
+            try: duracion_prom = float(mv[0].get("value", 0))
+            except Exception: pass
+        if len(mv) > 1:
+            try: tasa_rebote = float(mv[1].get("value", 0))
+            except Exception: pass
 
     top_paginas = []
     for row in (resp.get("rows") or [])[:10]:
@@ -393,8 +415,8 @@ def metricas_hoy():
         "usuarios_activos":    int(totals.get("activeUsers", 0)),
         "usuarios_nuevos":     int(totals.get("newUsers", 0)),
         "paginas_vistas":      int(totals.get("screenPageViews", 0)),
-        "duracion_promedio_s": round(totals.get("averageSessionDuration", 0)),
-        "tasa_rebote":         round(totals.get("bounceRate", 0) * 100, 1),
+        "duracion_promedio_s": round(duracion_prom),
+        "tasa_rebote":         round(tasa_rebote * 100, 1),
         "top_paginas":         top_paginas,
     }
 
