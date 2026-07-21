@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Depends
 from fastapi.responses import JSONResponse
 from typing import List
 import datetime
+import re
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_FEEDS
 from security import require_staff
@@ -9,6 +10,23 @@ from security import require_staff
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
 _CK = "productos"  # prefijo de caché
+
+
+def _asegurar_slug_unico(slug: str, sku_interno: str, excluir_id: str = None) -> str:
+    """Si el slug ya lo usa otro producto activo, le agrega el SKU al final
+    para desambiguar (mismo criterio que se usó para limpiar los duplicados
+    existentes en 2026-07-21 -- 44 productos con slugs repetidos, incluyendo
+    varios reducidos a una sola letra por un bug previo de generación)."""
+    if not slug:
+        return slug
+    filtro = f"productos?slug=eq.{slug}&activo=eq.true"
+    if excluir_id:
+        filtro += f"&id=neq.{excluir_id}"
+    existente = supabase_get(filtro)
+    if existente:
+        sufijo = re.sub(r"[^a-zA-Z0-9]+", "-", (sku_interno or "")).strip("-").lower()
+        return f"{slug}-{sufijo}" if sufijo else slug
+    return slug
 
 @router.get("/mas-vendidos")
 def productos_mas_vendidos(dias: int = 30, limit: int = 12):
@@ -136,6 +154,10 @@ def productos_por_categoria(categoria: str):
 def producto_por_sku(sku: str):
     return supabase_get(f"productos?sku_interno=eq.{sku}")
 
+@router.get("/slug/{slug}")
+def producto_por_slug(slug: str):
+    return supabase_get(f"productos?slug=eq.{slug}")
+
 @router.get("/catalog-version")
 def catalog_version():
     """Versión del catálogo — la tienda lo usa para invalidar su caché local."""
@@ -169,6 +191,8 @@ def crear_producto(producto: dict, _staff=Depends(require_staff)):
             prefix = cat_prefijos.get(categoria, "MAY")
             prov = proveedor[0].upper() if proveedor else "M"
             producto["sku_interno"] = f"{prov}-{prefix}-{str(num).zfill(4)}"
+    if producto.get("slug"):
+        producto["slug"] = _asegurar_slug_unico(producto["slug"], producto.get("sku_interno"))
     resultado = supabase_post("productos", producto)
     cache_invalidate_prefix(_CK)
     return resultado
@@ -179,6 +203,9 @@ def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
         if existente:
             return {"error": f"El SKU {producto['sku_interno']} ya existe en otro producto"}
+    if producto.get("slug"):
+        sku_actual = producto.get("sku_interno") or (supabase_get(f"productos?id=eq.{id}&select=sku_interno") or [{}])[0].get("sku_interno")
+        producto["slug"] = _asegurar_slug_unico(producto["slug"], sku_actual, excluir_id=id)
     resultado = supabase_patch(f"productos?id=eq.{id}", producto)
     cache_invalidate_prefix(_CK)
     return resultado

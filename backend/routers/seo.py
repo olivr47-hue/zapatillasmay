@@ -126,9 +126,12 @@ def _producto_ssr_inner(sku: str):
     _cached = cache_get(_ck_ssr)
     if _cached is not None:
         return HTMLResponse(content=_cached)
-    # 1. Buscar producto por SKU; solo intenta por id si parece UUID (evita 400 de PostgREST)
+    # 1. Buscar producto por slug (URL amigable para SEO) → SKU (links viejos
+    #    ya compartidos/indexados) → id, solo si parece UUID (evita 400 de PostgREST)
     import re as _re
-    datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
+    datos = supabase_get(f"productos?slug=eq.{sku}&activo=eq.true&limit=1")
+    if not datos:
+        datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
     if not datos and _re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', sku, _re.I):
         try:
             datos = supabase_get(f"productos?id=eq.{sku}&activo=eq.true&limit=1")
@@ -184,7 +187,11 @@ def _producto_ssr_inner(sku: str):
     precio_display = precio if p.get("es_oferta") else precio + 80
     imagen    = p.get("imagen_principal") or ""
     categoria = (p.get("categoria") or "calzado").strip()
-    canonical = f"https://zapatillasmay.mx/producto/{sku_canon}"
+    # La URL canónica prioriza el slug (si existe) sobre el SKU -- sku_canon
+    # se sigue usando tal cual para el título (sufijo de unicidad) y el JSON-LD
+    # "sku", que deben mostrar el código real, no el slug.
+    url_canonica = (p.get("slug") or sku_canon).strip()
+    canonical = f"https://zapatillasmay.mx/producto/{url_canonica}"
 
     # Imágenes para SEO de imágenes (Google Images / Shopping): principal + variantes
     imagenes_seo = []
@@ -1177,7 +1184,7 @@ def sitemap():
             xml += f'  <url>\n    <loc>{url}</loc>\n    <lastmod>{_today}</lastmod>\n    <changefreq>{_freq}</changefreq>\n    <priority>{_pri}</priority>\n  </url>\n'
         # URLs de producto, cada una con su imagen (SEO de imágenes para Google)
         for p in productos:
-            slug = p.get('sku_interno') or p.get('id', '')
+            slug = p.get('slug') or p.get('sku_interno') or p.get('id', '')
             if not slug:
                 continue
             loc = f'https://zapatillasmay.mx/producto/{slug}'
