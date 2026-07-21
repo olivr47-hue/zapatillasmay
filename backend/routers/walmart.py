@@ -394,6 +394,18 @@ def _talla_display(talla) -> str:
     return str(talla or "").strip().replace("_", ".")
 
 
+def _gtin14_valido(cuerpo13: str) -> str:
+    """Calcula el dígito verificador GS1 (mod 10, pesos 3/1 alternados desde
+    la derecha) y regresa un GTIN-14 completo. Un GTIN "al azar" (14 dígitos
+    sin este checksum) no es un identificador válido de verdad -- confirmado
+    con 2 reportes de error reales de Walmart (2026-07-21) donde números de
+    14 dígitos sin checksum daban error inconsistente ('SKU requerido' en
+    unas filas, 'Product ID inválido' en otras, misma estructura, sin patrón)."""
+    total = sum(int(d) * (3 if i % 2 == 0 else 1) for i, d in enumerate(reversed(cuerpo13)))
+    digito_verificador = (10 - (total % 10)) % 10
+    return f"{cuerpo13}{digito_verificador}"
+
+
 def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     """Arma un dict {columna_Zapatos: valor} para una variante (talla+color =
     1 SKU). Las columnas están fijas a mano según la plantilla oficial (hoja
@@ -425,18 +437,17 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     age_group       = _AGE_GROUP_POR_CATEGORIA.get(categoria, "Adulto")
     material        = producto.get("material") or "Sintético"
     talla_walmart   = f"{talla} (MX)"
-    # F ("Product ID") con tipo "GTIN" tiene que ser un GTIN-14 -- puramente
-    # numérico (0-9), NUNCA letras. El intento anterior usaba el id de la
-    # variante en hexadecimal (incluye a-f), y Walmart lo aceptaba a veces y
-    # otras no ("SKU requerido" vs. "Product ID inválido" en filas con la
-    # misma estructura, sin patrón aparente) -- consistente con que valide el
-    # checksum/formato GTIN solo cuando el valor "parece" numérico. Se deriva
-    # un número de 14 dígitos a partir del id de la variante (hash estable,
-    # sin letras) para que sea a la vez único por fila y un GTIN sintácticamente
-    # válido.
+    # F ("Product ID") con tipo "GTIN" tiene que ser un GTIN-14 real, con
+    # dígito verificador GS1 válido -- un número de 14 dígitos al azar (sin
+    # checksum) no basta: Walmart lo procesaba de forma inconsistente ("SKU
+    # requerido" en unas filas, "Product ID inválido" en otras, sin patrón,
+    # en filas con la misma estructura). Se deriva un cuerpo de 13 dígitos
+    # único por variante (hash estable de su id) y se le calcula el dígito
+    # verificador real.
     import hashlib as _hashlib
     _hash_variante = int(_hashlib.md5((variante.get("id") or sku).encode()).hexdigest(), 16)
-    product_id_corto = str(_hash_variante % 10**14).zfill(14)
+    _cuerpo13 = str(_hash_variante % 10**13).zfill(13)
+    product_id_corto = _gtin14_valido(_cuerpo13)
 
     fila = {
         # OJO: Walmart confirmó por escrito (ver comentario junto a
