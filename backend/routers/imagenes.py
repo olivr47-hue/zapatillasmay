@@ -115,6 +115,22 @@ async def pdf_viewer(url: str):
         )
 
 
+@router.post("/reemplazar-logo-temp")
+async def reemplazar_logo_temp(archivo: UploadFile = File(...)):
+    """Un solo uso (2026-07-21): reemplaza el logo del sitio conservando el
+    mismo public_id ("Proyecto_nuevo_wpdwus") para que /logo.png (rewrite en
+    vercel.json) siga apuntando ahi sin tener que tocar nada mas. Se retira
+    despues de usarse una vez."""
+    contenido = await archivo.read()
+    resultado = cloudinary.uploader.upload(
+        contenido,
+        public_id="Proyecto_nuevo_wpdwus",
+        overwrite=True,
+        invalidate=True,
+    )
+    return {"url": resultado.get("secure_url"), "public_id": resultado.get("public_id")}
+
+
 @router.delete("/{public_id:path}")
 def eliminar(public_id: str):
     return eliminar_imagen(public_id)
