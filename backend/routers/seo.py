@@ -359,9 +359,16 @@ def _producto_ssr_inner(sku: str):
         return HTMLResponse(content=html)
 
     # 3. Inyectar meta tags producto-específicos y optimización de LCP
-    template = template.replace(
-        "<title>Zapatillas May</title>",
-        f"<title>{_esc(titulo_seo)}</title>"
+    # OJO: antes buscaba el texto exacto "<title>Zapatillas May</title>", que
+    # ya no existe en producto.html (el título por defecto cambió) -- el
+    # replace() nunca hacía match y CADA página de producto se indexaba con
+    # el título genérico en vez del título SEO específico. Con regex sobre
+    # cualquier <title>...</title> ya no depende de que el texto por defecto
+    # se mantenga idéntico.
+    template = re.sub(
+        r"<title>.*?</title>",
+        f"<title>{_esc(titulo_seo)}</title>",
+        template, count=1, flags=re.S
     )
     template = template.replace(
         'content="Calzado de moda para dama. León, Guanajuato."',
