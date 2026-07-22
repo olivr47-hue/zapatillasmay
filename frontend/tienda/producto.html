@@ -1222,7 +1222,29 @@ function renderProducto() {
       const vp = varsProd.find(v => v.foto_url === p.imagen_principal || (Array.isArray(v.imagenes) && v.imagenes.includes(p.imagen_principal)))
       if (vp && vp.color && colores.includes(vp.color)) colorPrincipal = vp.color
     }
-    setTimeout(() => seleccionarColor(colorPrincipal), 60)
+
+    // Si el link trae ?color=&talla= (feeds de Google/Meta usan este formato para
+    // apuntar a la variante exacta que se anuncio), respetar esa seleccion en vez
+    // del color/talla por defecto -- si no, el cliente da click en un anuncio de una
+    // talla/color especifico y llega sin esa seleccion, como si no hubiera dado click.
+    const _paramsSeo = new URLSearchParams(location.search)
+    const _colorUrl = _paramsSeo.get('color')
+    const _tallaUrl = _paramsSeo.get('talla')
+    const _normColor = (c) => (c || '').trim().replace(/ /g, '_').replace(/\//g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '').toLowerCase()
+    if (_colorUrl) {
+      const _match = colores.find(c => _normColor(c) === _normColor(_colorUrl))
+      if (_match) colorPrincipal = _match
+    }
+
+    setTimeout(() => {
+      seleccionarColor(colorPrincipal)
+      if (_tallaUrl) {
+        const varsColor = varsProd.filter(v => v.color === colorPrincipal)
+        const vTalla = varsColor.find(v => String(v.talla) === String(_tallaUrl))
+        const stockTalla = vTalla ? (inventario.find(i => i.variante_id === vTalla.id)?.cantidad ?? 0) : 0
+        if (vTalla && stockTalla > 0) seleccionarTalla(vTalla.talla)
+      }
+    }, 60)
   }
 
   // Descripción
