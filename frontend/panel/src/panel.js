@@ -2462,11 +2462,11 @@ async function cargarCRM() {
     const top10 = [...clientesEnriquecidos].sort((a,b) => b.totalGastado - a.totalGastado).slice(0,10)
 
     const ventasHoy = pedidos.filter(p => {
-      const f = new Date(p.created_at)
+      const f = new Date(p.confirmado_at || p.created_at)
       return f.toDateString() === hoy.toDateString() && (p.status === 'confirmado' || p.status === 'pagado')
     }).reduce((s,p) => s + parseFloat(p.total||0), 0)
 
-    const ventas30 = pedidos.filter(p => new Date(p.created_at) >= hace30 && (p.status === 'confirmado' || p.status === 'pagado'))
+    const ventas30 = pedidos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30 && (p.status === 'confirmado' || p.status === 'pagado'))
       .reduce((s,p) => s + parseFloat(p.total||0), 0)
 
     content.innerHTML = `
@@ -6826,7 +6826,7 @@ window.verCliente = async (id) => {
     // Meses de actividad
     const ventasPorMes = {}
     pedidosConfirmados.forEach(p => {
-      const mes = new Date(p.created_at).toLocaleDateString('es-MX', { month: 'short', year: '2-digit' })
+      const mes = new Date(p.confirmado_at || p.created_at).toLocaleDateString('es-MX', { month: 'short', year: '2-digit' })
       ventasPorMes[mes] = (ventasPorMes[mes] || 0) + parseFloat(p.total || 0)
     })
 
@@ -11908,9 +11908,12 @@ async function cargarDashboard() {
     const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
     const hace30 = new Date(hoy); hace30.setDate(hace30.getDate()-30)
 
+    // fechaVenta: cuando el pedido realmente se confirmo/vendio, no cuando se creo
+    // el carrito/borrador (que puede ser dias antes si se dejo pendiente en Carritos).
+    const fechaVenta = (p) => new Date(p.confirmado_at || p.created_at)
     const conf = pedidos.filter(p => ['confirmado','pagado','enviado'].includes(p.status))
-    const hoyP = conf.filter(p => new Date(p.created_at) >= hoy)
-    const s7P = conf.filter(p => new Date(p.created_at) >= hace7)
+    const hoyP = conf.filter(p => fechaVenta(p) >= hoy)
+    const s7P = conf.filter(p => fechaVenta(p) >= hace7)
 
     const ventasHoy = hoyP.reduce((s,p) => s + parseFloat(p.total||0), 0)
     const ventas7 = s7P.reduce((s,p) => s + parseFloat(p.total||0), 0)
@@ -11918,8 +11921,8 @@ async function cargarDashboard() {
 
     const diasNombre = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab']
     const porDia = {}; diasNombre.forEach(d => porDia[d] = 0)
-    conf.filter(p => new Date(p.created_at) >= hace30).forEach(p => {
-      const d = diasNombre[new Date(p.created_at).getDay()]
+    conf.filter(p => fechaVenta(p) >= hace30).forEach(p => {
+      const d = diasNombre[fechaVenta(p).getDay()]
       porDia[d] += parseFloat(p.total||0)
     })
 
@@ -11933,7 +11936,7 @@ async function cargarDashboard() {
     conf.forEach(p => { porEmpleado[p.empleado||'Admin'] = (porEmpleado[p.empleado||'Admin']||0) + parseFloat(p.total||0) })
 
     const porMes = {}
-    conf.forEach(p => { const m = new Date(p.created_at).toLocaleDateString('es-MX',{month:'short',year:'numeric'}); porMes[m] = (porMes[m]||0) + parseFloat(p.total||0) })
+    conf.forEach(p => { const m = fechaVenta(p).toLocaleDateString('es-MX',{month:'short',year:'numeric'}); porMes[m] = (porMes[m]||0) + parseFloat(p.total||0) })
 
     const porCliente = {}
     conf.forEach(p => { if(p.clientes){ porCliente[p.clientes.nombre] = (porCliente[p.clientes.nombre]||0) + parseFloat(p.total||0) } })
@@ -11946,7 +11949,7 @@ async function cargarDashboard() {
     if (!dashboard) return
 
     // Ventas 30 días
-    const hace30P = conf.filter(p => new Date(p.created_at) >= hace30)
+    const hace30P = conf.filter(p => fechaVenta(p) >= hace30)
     const ventas30 = hace30P.reduce((s,p) => s + parseFloat(p.total||0), 0)
 
     // Últimos 7 días por día (para gráfica tendencia)
@@ -11955,7 +11958,7 @@ async function cargarDashboard() {
       const d = new Date(hoy); d.setDate(d.getDate() - i)
       const ds = d.toISOString().split('T')[0]
       const label = d.toLocaleDateString('es-MX',{weekday:'short',day:'numeric'})
-      const total = conf.filter(p => p.created_at?.startsWith(ds)).reduce((s,p) => s + parseFloat(p.total||0), 0)
+      const total = conf.filter(p => (p.confirmado_at || p.created_at)?.startsWith(ds)).reduce((s,p) => s + parseFloat(p.total||0), 0)
       ultimos7.push({ label, total, ds })
     }
 

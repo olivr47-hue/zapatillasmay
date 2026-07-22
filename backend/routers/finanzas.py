@@ -46,10 +46,11 @@ def cerrar_caja(id: str, datos: dict):
         if not caja:
             return JSONResponse(status_code=404, content={"error": "Caja no encontrada"})
         
-        # Calcular ventas del dia
-        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)")
+        # Calcular ventas del dia -- por confirmado_at (cuando se cerro la venta),
+        # no created_at (cuando se abrio el carrito/borrador, que puede ser dias antes)
+        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)&select=*")
         hoy = date.today().isoformat()
-        pedidos_hoy = [p for p in pedidos if p['created_at'][:10] == hoy]
+        pedidos_hoy = [p for p in pedidos if (p.get('confirmado_at') or p['created_at'])[:10] == hoy]
         
         ventas_efectivo = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'efectivo')
         ventas_tarjeta = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'tarjeta')
@@ -165,15 +166,17 @@ def reporte_financiero(sucursal_id: str):
         hoy = date.today()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
-        # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días
+        # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días.
+        # Se filtra por confirmado_at (fecha real de venta), no created_at (fecha del
+        # carrito/borrador, que puede ser de mucho antes si se dejo pendiente).
         pedidos_sucursal = supabase_get(
             f"pedidos?sucursal_id=eq.{sucursal_id}"
-            f"&status=in.(confirmado,pagado,entregado,enviado)&created_at=gte.{hace30}"
+            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}"
             f"&select=id,total"
         ) or []
         pedidos_online = supabase_get(
             f"pedidos?sucursal_id=is.null"
-            f"&status=in.(pagado,enviado)&created_at=gte.{hace30}"
+            f"&status=in.(pagado,enviado)&confirmado_at=gte.{hace30}"
             f"&select=id,total"
         ) or []
         pedidos = pedidos_sucursal + pedidos_online
@@ -309,7 +312,7 @@ def estado_resultados(sucursal_id: str):
 
         resultado = []
         for primer_dia, ultimo_dia in meses:
-            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
+            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{primer_dia.isoformat()}T00:00:00&confirmado_at=lte.{ultimo_dia.isoformat()}T23:59:59")
             gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -337,14 +340,14 @@ def flujo_efectivo(sucursal_id: str):
         hace7 = (hoy - timedelta(days=7)).isoformat()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
-        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace7}T00:00:00")
-        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hace30}T00:00:00")
+        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hace7}T00:00:00")
+        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hace30}T00:00:00")
         gastos_semana = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}T00:00:00")
         gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
 
         # Por forma de pago hoy
         hoy_str = hoy.isoformat()
-        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&created_at=gte.{hoy_str}T00:00:00")
+        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hoy_str}T00:00:00")
 
         return {
             "hoy": {
