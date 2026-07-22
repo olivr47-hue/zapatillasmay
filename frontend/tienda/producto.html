@@ -889,6 +889,45 @@ async function init() {
 
 // ── RENDER PRODUCTO ───────────────────────────────────────────────
 
+// Mismo algoritmo que _producto_ssr_inner (backend/routers/seo.py) -- si no se replica aquí,
+// este script (que corre siempre, tambien sobre el HTML del SSR) sobreescribe el <title>
+// que ya arma el servidor con el meta_titulo, dejando solo "nombre | Zapatillas May".
+function construirTituloSeo(p) {
+  const nombre = (p.nombre || 'Calzado').trim()
+  const skuCanon = (p.sku_interno || p.id || '').trim()
+  const metaTitulo = (p.meta_titulo || '').trim()
+
+  let prefix = nombre
+  if (metaTitulo) {
+    const dbPrefix = metaTitulo.split(' | ')[0].trim()
+    if (dbPrefix.length > 3) prefix = dbPrefix
+  }
+  if (skuCanon && !prefix.toLowerCase().includes(skuCanon.toLowerCase())) {
+    prefix = `${prefix} ${skuCanon}`
+  }
+
+  let titulo = `${prefix} | Zapatillas May`
+  if (titulo.length > 60) {
+    const allowedPrefixLen = 60 - ' | Zapatillas May'.length
+    if (skuCanon && prefix.endsWith(skuCanon)) {
+      let descPart = prefix.slice(0, prefix.length - skuCanon.length).trim()
+      const maxDescLen = allowedPrefixLen - skuCanon.length - 1
+      prefix = maxDescLen > 5 ? `${descPart.slice(0, maxDescLen).trim()} ${skuCanon}` : skuCanon
+    } else {
+      prefix = prefix.slice(0, allowedPrefixLen).trim()
+    }
+    titulo = `${prefix} | Zapatillas May`
+  }
+  if (titulo.length < 30) {
+    prefix = `Calzado de Dama ${prefix}`
+    titulo = `${prefix} | Zapatillas May`
+    if (titulo.length < 30) {
+      titulo = `${prefix} León GTO | Zapatillas May`
+    }
+  }
+  return titulo
+}
+
 function renderProducto() {
   const p = producto
   const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
@@ -907,7 +946,7 @@ function renderProducto() {
 
   // SEO dinámico
   const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
-  document.title = `${p.nombre} | Zapatillas May`
+  document.title = construirTituloSeo(p)
 
   // JSON-LD dinámico (para navegadores; el SSR ya lo inyecta para crawlers)
   if (!document.querySelector('script[type="application/ld+json"]')) {
