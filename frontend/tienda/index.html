@@ -1657,6 +1657,17 @@
       box-shadow:0 4px 16px rgba(200,150,122,0.35);transition: transform 0.2s, box-shadow 0.2s;
     }
     .pg-cta:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(200,150,122,0.45); }
+    .form-label { display:block;font-size:0.78rem;font-weight:700;color:#8B6A54;margin-bottom:6px; }
+    .form-input {
+      display:block;width:100%;box-sizing:border-box;
+      border:1.5px solid rgba(200,150,122,0.25);border-radius:10px;
+      padding:12px 14px;font-family:var(--font-body);font-size:0.9rem;
+      color:#2A1A0E;background:#fdfaf7;outline:none;
+      transition:border-color 0.2s,box-shadow 0.2s;
+    }
+    .form-input::placeholder { color:#b0a08e; }
+    .form-input:focus { border-color:#C8967A;box-shadow:0 0 0 3px rgba(200,150,122,0.15); }
+    textarea.form-input { resize:vertical;min-height:80px;font-family:inherit; }
     .pg-table { width:100%;border-collapse:collapse;font-size:0.85rem; }
     .pg-table th { background:rgba(200,150,122,0.1);color:#a07060;font-weight:700;
       font-size:0.68rem;text-transform:uppercase;letter-spacing:1px;padding:10px 14px;
