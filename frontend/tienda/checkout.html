@@ -405,6 +405,65 @@ function seleccionarEntrega(tipo) {
   render()
 }
 
+// Checkout desde link de Meta Shops: ?products={retailer_id}:{cantidad},...&coupon=...
+// El retailer_id es sku-color_norm-talla, mismo formato que genera el feed de Meta
+// (backend/routers/seo.py, feed/meta.xml) -- hay que normalizar el color IGUAL para que haga match.
+async function cargarCarritoDesdeURL() {
+  const params = new URLSearchParams(location.search)
+  const productsParam = params.get('products')
+  if (!productsParam) return false
+  const pares = productsParam.split(',').map(s => {
+    const [id, qty] = s.split(':')
+    return { id: (id || '').trim(), cantidad: parseInt(qty, 10) || 1 }
+  }).filter(p => p.id)
+  if (!pares.length) return false
+
+  const normColor = (c) => (c || '').trim().replace(/ /g, '_').replace(/\//g, '_').replace(/-/g, '_').replace(/^_+|_+$/g, '')
+
+  try {
+    const [productos, variantes] = await Promise.all([
+      fetch(`${API}/productos/`).then(r => r.json()),
+      fetch(`${API}/variantes/`).then(r => r.json()),
+    ])
+    const prodById = {}
+    ;(Array.isArray(productos) ? productos : []).forEach(p => { prodById[p.id] = p })
+
+    const items = []
+    for (const par of pares) {
+      const match = (Array.isArray(variantes) ? variantes : []).find(v => {
+        const p = prodById[v.producto_id]
+        if (!p) return false
+        const sku = p.sku_interno || p.id
+        const cn = normColor(v.color)
+        const talla = (v.talla || '').trim()
+        const varId = talla ? `${sku}-${cn}-${talla}` : `${sku}-${cn}`
+        return varId === par.id
+      })
+      if (!match) continue
+      const p = prodById[match.producto_id]
+      if (!p) continue
+      items.push({
+        variante_id: match.id,
+        producto_id: p.id,
+        nombre: p.nombre,
+        color: match.color,
+        talla: match.talla,
+        cantidad: par.cantidad,
+        precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
+        precio_mayoreo3: (parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30)) + 40,
+        precio_mayoreo6: (parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70)) + 40,
+        precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
+        es_oferta: p.es_oferta || false,
+        imagen: match.foto_url || (match.imagenes && match.imagenes[0]) || p.imagen_principal || null,
+        precio_unitario: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
+      })
+    }
+    if (!items.length) return false
+    localStorage.setItem('zm_carrito', JSON.stringify(items))
+    return true
+  } catch (e) { return false }
+}
+
 function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } }
 
 function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
@@ -1175,6 +1234,7 @@ async function guardarDatosEnCuenta(datos) {
 }
 
 async function init() {
+  await cargarCarritoDesdeURL()
   if (!window.history.state) {
     window.history.replaceState({ step: 1 }, '', '')
   }
