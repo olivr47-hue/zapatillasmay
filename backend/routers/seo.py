@@ -552,9 +552,8 @@ _PAGINAS_CONTENT = {
   <h2 style="font-size:1.2rem;margin-top:32px">Precios de mayoreo automáticos</h2>
   <ul style="padding-left:20px">
     <li>1–2 pares: precio de menudeo</li>
-    <li>3–5 pares: $110 MXN menos por par</li>
-    <li>6–11 pares: $150 MXN menos por par</li>
-    <li>12+ pares (corrida completa): $180 MXN menos por par</li>
+    <li>3–5 pares: $60 MXN menos por par</li>
+    <li>6+ pares: $100 MXN menos por par</li>
   </ul>
   <p>El descuento se aplica automáticamente al agregar pares al carrito — sin códigos ni trámites.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Envíos a todo México</h2>
@@ -641,9 +640,8 @@ _PAGINAS_CONTENT = {
   <h2 style="font-size:1.2rem;margin-top:28px">Precios de mayoreo</h2>
   <p>El descuento de mayoreo es automático — no necesitas registro, RFC ni código especial. Solo agrega 3 o más pares al carrito y el precio baja solo.</p>
   <ul style="padding-left:20px">
-    <li>3–5 pares: $110 MXN menos por par</li>
-    <li>6–11 pares: $150 MXN menos por par</li>
-    <li>12+ pares: $180 MXN menos por par</li>
+    <li>3–5 pares: $60 MXN menos por par</li>
+    <li>6+ pares: $100 MXN menos por par</li>
   </ul>
 </section>""",
     "mayoreo": """
@@ -671,9 +669,8 @@ _PAGINAS_CONTENT = {
     </tr></thead>
     <tbody>
       <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">1–2 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Precio de menudeo</td></tr>
-      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$110 MXN por par</td></tr>
-      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6–11 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$150 MXN por par</td></tr>
-      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">12+ pares (corrida)</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$180 MXN por par</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$60 MXN por par</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6+ pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$100 MXN por par</td></tr>
     </tbody>
   </table>
   <h2 style="font-size:1.2rem;margin-top:28px">¿Qué es una corrida?</h2>
@@ -734,7 +731,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué tipos de tacones venden?",
          "a": "Vendemos tacones de aguja, bloque, cuña, plataforma y kitten heel para dama, todos fabricados en León, Guanajuato. Contamos con modelos para oficina, eventos especiales y uso diario en una amplia variedad de colores y materiales."},
         {"q": "¿Puedo comprar tacones al mayoreo sin registro?",
-         "a": "Sí. El mayoreo es automático desde 3 pares: no necesitas registro, RFC ni trámite especial. Con 3–5 pares el descuento es $110 MXN por par; con 6–11 pares, $150 MXN; y con 12 o más pares (corrida completa), $180 MXN por par."},
+         "a": "Sí. El mayoreo es automático desde 3 pares: no necesitas registro, RFC ni trámite especial. Con 3–5 pares el descuento es $60 MXN por par; con 6 o más pares, $100 MXN por par; y en corrida completa, hasta $180 MXN por par."},
         {"q": "¿Qué tallas manejan en tacones?",
          "a": "La mayoría de nuestros modelos de tacones están disponibles en tallas del 22 al 27 (numeración mexicana), equivalentes a las tallas 5 a 10 US. Algunos modelos especiales pueden tener rango reducido; consulta la ficha de cada producto."},
         {"q": "¿Hacen envíos de tacones a todo México?",
@@ -744,7 +741,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué estilos de sandalias tienen disponibles?",
          "a": "Contamos con sandalias casuales, de fiesta, de cuña, planas y con tiras para dama, fabricadas en León, Guanajuato. Tenemos modelos para playa, uso diario y eventos en materiales como cuero sintético, textil y charol."},
         {"q": "¿Puedo comprar sandalias al mayoreo?",
-         "a": "Sí, vendemos sandalias al mayoreo desde 3 pares sin registro especial. El descuento de mayoreo se aplica automáticamente en el carrito: $110 MXN menos por par desde 3 pares, y hasta $180 MXN menos en corrida completa."},
+         "a": "Sí, vendemos sandalias al mayoreo desde 3 pares sin registro especial. El descuento de mayoreo se aplica automáticamente en el carrito: $60 MXN menos por par con 3–5 pares, $100 MXN con 6 o más, y hasta $180 MXN menos en corrida completa."},
         {"q": "¿Las sandalias están disponibles en talla grande?",
          "a": "Manejamos tallas del 22 al 27 (MX) en la mayoría de modelos de sandalias. Si necesitas una talla especial o tienes dudas sobre disponibilidad, escríbenos por WhatsApp antes de realizar tu pedido."},
         {"q": "¿Cuánto tarda en llegar un pedido de sandalias?",
@@ -754,7 +751,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué tipos de botas para dama tienen?",
          "a": "Manejamos botas altas, medianas y cortas para dama en materiales como cuero sintético, charol y textil. Nuestros modelos van desde botas de moda urbana hasta botas vaqueras y de temporada, fabricadas en León, Guanajuato."},
         {"q": "¿Venden botas al mayoreo?",
-         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 pares sin ningún trámite: $110 MXN de descuento por par con 3–5 pares, $150 MXN con 6–11 pares y $180 MXN por par con corrida completa (12 o más)."},
+         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 pares sin ningún trámite: $60 MXN de descuento por par con 3–5 pares, $100 MXN con 6 o más pares y hasta $180 MXN por par en corrida completa."},
         {"q": "¿Las botas tienen garantía de fabricación?",
          "a": "Sí. Aceptamos devoluciones y cambios dentro de los 30 días naturales si el producto presenta defecto de fabricación. En ese caso cubrimos el costo del envío de devolución."},
         {"q": "¿Tienen botas para temporada de frío?",
@@ -774,7 +771,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué son los flats y qué modelos tienen?",
          "a": "Los flats son zapatos de piso sin tacón, cómodos para uso diario. En Zapatillas May manejamos flats tipo bailarina, mocasín, loafer y puntiagudos para dama, fabricados en León, Guanajuato en cuero sintético, charol y textil."},
         {"q": "¿Tienen flats al mayoreo?",
-         "a": "Sí, los flats también aplican para el mayoreo automático desde 3 pares. El precio baja $110 MXN por par con 3–5 pares, $150 con 6–11, y $180 con corrida completa."},
+         "a": "Sí, los flats también aplican para el mayoreo automático desde 3 pares. El precio baja $60 MXN por par con 3–5 pares, $100 con 6 o más, y hasta $180 en corrida completa."},
         {"q": "¿Los flats son cómodos para usar todo el día?",
          "a": "Sí. Nuestros flats están diseñados para uso prolongado con plantilla acolchada y horma cómoda. Son ideales para oficina, school y uso cotidiano. Puedes consultar los detalles de materiales y suela en la ficha de cada modelo."},
         {"q": "¿Puedo devolver unos flats si no son de mi talla?",
@@ -786,7 +783,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Las plataformas son cómodas para uso prolongado?",
          "a": "Sí. La plataforma distribuye el peso del pie de forma más uniforme que un tacón alto tradicional, lo que las hace más cómodas para caminar. Nuestros modelos incluyen plantilla acolchada y suela antiderrapante."},
         {"q": "¿Tienen plataformas al mayoreo?",
-         "a": "Sí. Mayoreo automático desde 3 pares sin registro: $110 MXN de descuento por par con 3–5 pares, $150 con 6–11 y $180 en corrida completa."},
+         "a": "Sí. Mayoreo automático desde 3 pares sin registro: $60 MXN de descuento por par con 3–5 pares, $100 con 6 o más y hasta $180 en corrida completa."},
         {"q": "¿En qué materiales están disponibles las plataformas?",
          "a": "Manejamos plataformas en cuero sintético, charol, ante y textil en distintos colores de temporada. Consulta el catálogo actualizado en nuestra tienda en línea."},
     ],
@@ -794,7 +791,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué tipo de tenis para dama venden?",
          "a": "Vendemos tenis de moda urbana y casual para dama, fabricados en León, Guanajuato. Nuestros modelos incluyen tenis plataforma, tenis chunky y tenis ligeros para uso diario en materiales textiles y sintéticos."},
         {"q": "¿Los tenis aplican para mayoreo?",
-         "a": "Sí. El mayoreo automático aplica desde 3 pares: $110 MXN menos por par con 3–5 pares, $150 con 6–11 y $180 con corrida completa. Sin registro ni trámite previo."},
+         "a": "Sí. El mayoreo automático aplica desde 3 pares: $60 MXN menos por par con 3–5 pares, $100 con 6 o más y hasta $180 con corrida completa. Sin registro ni trámite previo."},
         {"q": "¿Tienen tenis deportivos o solo de moda?",
          "a": "Nuestro catálogo está enfocado en tenis de moda y estilo urbano para dama. No manejamos tenis deportivos de alto rendimiento. Son ideales para uso casual, escolar y street style."},
         {"q": "¿Cuánto tarda el envío de tenis?",
@@ -804,7 +801,7 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué tipos de calzado para niña manejan?",
          "a": "Tenemos zapatillas, sandalias, botines y zapatos escolares para niña, fabricados en León, Guanajuato. Los modelos están diseñados para ser cómodos, resistentes y de moda para las más pequeñas."},
         {"q": "¿Venden calzado de niña al mayoreo?",
-         "a": "Sí, el mayoreo automático aplica desde 3 pares sin registro. Ideal para revendedoras, tiendas de calzado y compras familiares en volumen. El descuento es de $110 a $180 MXN por par según la cantidad."},
+         "a": "Sí, el mayoreo automático aplica desde 3 pares sin registro. Ideal para revendedoras, tiendas de calzado y compras familiares en volumen. El descuento es de $60 a $180 MXN por par según la cantidad."},
         {"q": "¿Qué tallas manejan en calzado para niña?",
          "a": "Manejamos tallas infantiles desde el 14 hasta el 21 (MX) aproximadamente, dependiendo del modelo. Consulta la ficha de cada producto o escríbenos por WhatsApp para verificar disponibilidad en tallas específicas."},
         {"q": "¿El calzado de niña es de buena calidad y resistente?",
@@ -814,13 +811,13 @@ _FAQS: dict[str, list[dict]] = {
         {"q": "¿Qué tipo de accesorios venden?",
          "a": "Manejamos accesorios de moda para complementar tus outfits: bolsas, cinturones y complementos de moda fabricados o distribuidos desde León, Guanajuato. El catálogo se actualiza con cada temporada."},
         {"q": "¿Los accesorios tienen precio de mayoreo?",
-         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 piezas en el carrito. Descuentos de $110 a $180 MXN por pieza según cantidad, sin registro especial."},
+         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 piezas en el carrito. Descuentos de $60 a $180 MXN por pieza según cantidad, sin registro especial."},
         {"q": "¿Hacen envíos de accesorios a todo México?",
          "a": "Sí. Enviamos accesorios a toda la República Mexicana en 1 a 3 días hábiles. El envío es gratis en pedidos de $1,299 MXN o más."},
     ],
     "mayoreo": [
         {"q": "¿Cuántos pares necesito comprar para obtener precio de mayoreo?",
-         "a": "Solo necesitas 3 pares para activar el precio de mayoreo. El descuento es automático en el carrito: $110 MXN menos por par con 3–5 pares, $150 MXN con 6–11 pares, y $180 MXN por par con 12 o más (corrida completa). No se requiere registro."},
+         "a": "Solo necesitas 3 pares para activar el precio de mayoreo. El descuento es automático en el carrito: $60 MXN menos por par con 3–5 pares, $100 MXN con 6 o más pares, y hasta $180 MXN por par en corrida completa. No se requiere registro."},
         {"q": "¿Necesito RFC o estar registrada como negocio para comprar al mayoreo?",
          "a": "No. En Zapatillas May el mayoreo es abierto para cualquier persona. No necesitas RFC, registro especial ni aprobación previa. Solo agrega 3 o más pares al carrito y el precio baja automáticamente."},
         {"q": "¿Puedo mezclar modelos y tallas en mi pedido de mayoreo?",
@@ -1329,12 +1326,12 @@ def llms_txt():
             "",
             "## Precios de mayoreo",
             "- 1-2 pares: precio de menudeo (precio normal al público).",
-            "- 3-5 pares: precio de mayoreo — $110 MXN menos por par vs. menudeo.",
-            "- 6-11 pares: mejor precio de mayoreo — $150 MXN menos por par vs. menudeo.",
-            "- 12+ pares (corrida completa): precio máximo mayoreo — $180 MXN menos por par vs. menudeo.",
+            "- 3-5 pares: precio de mayoreo — $60 MXN menos por par vs. menudeo.",
+            "- 6+ pares: mejor precio de mayoreo — $100 MXN menos por par vs. menudeo.",
+            "- 12+ pares (corrida completa): precio máximo mayoreo — hasta $180 MXN menos por par vs. menudeo.",
             "- El descuento se aplica automáticamente al agregar pares al carrito, sin registro ni código especial.",
             "- No se requiere registro, RFC, ni trámite para comprar a mayoreo.",
-            "- Ejemplo: si un modelo vale $650 menudeo, a 3 pares cuesta $540/par, a 6+ cuesta $500/par.",
+            "- Ejemplo: si un modelo vale $650 menudeo, a 3 pares cuesta $590/par, a 6+ cuesta $550/par.",
             "",
             "## Envíos",
             "- Envíos a todo México por paquetería (1-3 días hábiles).",
@@ -1512,7 +1509,7 @@ def feed_json():
             },
             "devoluciones": "30 días. Más info: https://zapatillasmay.mx/politica-de-devoluciones",
             "mayoreo": {
-                "nota": "El precio baja automáticamente según cuántos pares hay en el carrito: 1-2 pares = menudeo; 3-5 pares = $110 menos/par; 6-11 pares = $150 menos/par; 12+ pares (corrida) = $180 menos/par.",
+                "nota": "El precio baja automáticamente según cuántos pares hay en el carrito: 1-2 pares = menudeo; 3-5 pares = $60 menos/par; 6+ pares = $100 menos/par; 12+ pares (corrida) = hasta $180 menos/par.",
                 "sin_registro": True,
                 "minimo_pares_mayoreo": 3
             },
