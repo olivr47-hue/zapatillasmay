@@ -928,6 +928,14 @@ function construirTituloSeo(p) {
   return titulo
 }
 
+// Mismo criterio que el SSR (backend/routers/seo.py): meta_descripcion si existe,
+// si no la descripcion normal, truncada a 160 caracteres.
+function construirDescripcionSeo(p) {
+  const metaDesc = (p.meta_descripcion || '').trim()
+  const descRaw = (p.descripcion || p.nombre || '').trim()
+  return (metaDesc || descRaw).slice(0, 160)
+}
+
 function renderProducto() {
   const p = producto
   const varsProd = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
@@ -994,9 +1002,10 @@ function renderProducto() {
   const sbPrecio = document.getElementById('sb-precio')
   if (sbNombre) sbNombre.textContent = p.nombre
   if (sbPrecio) sbPrecio.textContent = `$${precioDisplay} MXN`
-  setMeta('description', p.descripcion || `${p.nombre} — Zapatillas May. Calzado de moda para dama.`)
-  setMeta('og:title', `${p.nombre} | Zapatillas May`, true)
-  setMeta('og:description', p.descripcion || `${p.nombre}`, true)
+  const descripcionSeo = construirDescripcionSeo(p)
+  setMeta('description', descripcionSeo)
+  setMeta('og:title', construirTituloSeo(p), true)
+  setMeta('og:description', descripcionSeo, true)
   setMeta('og:image', p.imagen_principal || '', true)
   setMeta('og:url', `https://zapatillasmay.mx/producto/${window._urlCanonica || _slug}`, true)
   setCanonical(`https://zapatillasmay.mx/producto/${window._urlCanonica || _slug}`)
