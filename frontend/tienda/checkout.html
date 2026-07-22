@@ -450,8 +450,9 @@ async function cargarCarritoDesdeURL() {
         talla: match.talla,
         cantidad: par.cantidad,
         precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
-        precio_mayoreo3: (parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30)) + 40,
-        precio_mayoreo6: (parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70)) + 40,
+        // Descuento fijo de mayoreo sobre el precio del sitio: $60/par en 3-5, $100/par en 6+
+        precio_mayoreo3: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 60,
+        precio_mayoreo6: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 100,
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
         imagen: match.foto_url || (match.imagenes && match.imagenes[0]) || p.imagen_principal || null,

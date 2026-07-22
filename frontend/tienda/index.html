@@ -3934,12 +3934,10 @@ cargarConfigSEO()
     // precio_menudeo en BD es el precio base; display menudeo = base+80
     // mayoreo 3+ = base (sin el +80), salvo que precio_mayoreo3 esté explícito
     const _precioMenu = p.precio_menudeo ? (p.es_oferta ? parseFloat(p.precio_menudeo) : parseFloat(p.precio_menudeo) + 80) : null
-    // +40 respecto al precio real del panel -- SOLO en el sitio público, para
-    // cubrir el costo real de envío/caja de embarque en mayoreo. El portal de
+    // Descuento fijo de mayoreo sobre el precio del sitio (no el del panel):
+    // $60/par en 3-5, $100/par en 6+ -- SOLO en el sitio público. El portal de
     // mayoristas y el punto de venta siguen usando el precio del panel tal cual.
-    const _precioMay3 = p.precio_mayoreo3
-      ? parseFloat(p.precio_mayoreo3) + 40
-      : (p.precio_menudeo && !p.es_oferta ? parseFloat(p.precio_menudeo) - 30 + 40 : null)
+    const _precioMay3 = (_precioMenu && !p.es_oferta) ? _precioMenu - 60 : null
     const _ahorro = _precioMay3 && _precioMenu ? Math.round(_precioMenu - _precioMay3) : 0
 
     return `
@@ -4090,9 +4088,10 @@ if (window.ttq) ttq.track('ViewContent', {
       _mayoreoEl.style.display = 'none'
     } else {
       _mayoreoEl.style.display = ''
-      // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
-      const precioM3 = (p.precio_mayoreo3 || (p.precio_menudeo - 30)) + 40
-      const precioM6 = (p.precio_mayoreo6 || (p.precio_menudeo - 70)) + 40
+      // Descuento fijo de mayoreo sobre el precio del sitio -- ver comentario en _tarjetaProducto
+      const _menuWeb = parseFloat(p.precio_menudeo) + 80
+      const precioM3 = _menuWeb - 60
+      const precioM6 = _menuWeb - 100
       const precioCorrida = p.precio_corrida || (p.precio_menudeo - 100)
       _mayoreoEl.innerHTML = `
         <p>Mayoreo 3-5 pares: <strong>$${precioM3} MXN</strong> por par</p>
@@ -4356,9 +4355,9 @@ if (window.ttq) ttq.track('ViewContent', {
         talla: tallaSeleccionada,
         cantidad: 1,
         precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
-        // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
-        precio_mayoreo3: (parseFloat(p.precio_mayoreo3) || (parseFloat(p.precio_menudeo) - 30)) + 40,
-        precio_mayoreo6: (parseFloat(p.precio_mayoreo6) || (parseFloat(p.precio_menudeo) - 70)) + 40,
+        // Descuento fijo de mayoreo sobre el precio del sitio: $60/par en 3-5, $100/par en 6+
+        precio_mayoreo3: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 60,
+        precio_mayoreo6: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 100,
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
         imagen: (() => {
@@ -4530,9 +4529,9 @@ if (window.ttq) {
         tallas_corrida: tallasCorrida,
         cantidad: 1,
         precio_menudeo: (parseFloat(p.precio_menudeo)||0) + 80,
-        // +40 solo en el sitio (cubre envío/caja de embarque) -- ver comentario en _tarjetaProducto
-        precio_mayoreo3: (parseFloat(p.precio_mayoreo3)||(parseFloat(p.precio_menudeo) - 30)) + 40,
-        precio_mayoreo6: (parseFloat(p.precio_mayoreo6)||(parseFloat(p.precio_menudeo)-70)) + 40,
+        // Descuento fijo de mayoreo sobre el precio del sitio: $60/par en 3-5, $100/par en 6+
+        precio_mayoreo3: ((parseFloat(p.precio_menudeo)||0) + 80) - 60,
+        precio_mayoreo6: ((parseFloat(p.precio_menudeo)||0) + 80) - 100,
         precio_corrida: parseFloat(p.precio_corrida)||(parseFloat(p.precio_menudeo)-100),
         es_oferta: p.es_oferta||false,
         es_corrida: true,
