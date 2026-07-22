@@ -341,7 +341,7 @@ function render() {
           <div class="item-name" title="${item.nombre}">${item.nombre}</div>
           <div class="item-meta">${item.color || ''}${item.talla ? ' · Talla ' + item.talla : ''}${item.es_corrida ? ' · ' + pares + ' pares' : ''}</div>
           <div class="item-price">$${subtotal.toFixed(0)} MXN
-            <span class="item-price-each">($${precioUnit.toFixed(0)}/par)</span>
+            <span class="item-price-each">(${precioUnit < item.precio_menudeo ? `<span class="precio-tachado">$${item.precio_menudeo.toFixed(0)}</span>` : ''}$${precioUnit.toFixed(0)}/par)</span>
           </div>
           ${!item.es_corrida ? `
           <div class="item-qty">
