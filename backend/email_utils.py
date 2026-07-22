@@ -79,12 +79,14 @@ def diagnostico_smtp() -> dict:
     }
 
 
-def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = "") -> bool:
+def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = "", reply_to: str = None) -> bool:
     """
     Envía un email HTML vía ZeptoMail. Retorna True si tuvo éxito.
     Registra el intento en `emails_enviados` sin importar el resultado.
     `tipo` es una etiqueta libre (ej. "recuperar_password", "carrito_abandonado")
     para poder filtrar el historial en el panel.
+    `reply_to` opcional: si se pasa, contestar el correo va a esa direccion
+    en vez de a REMITENTE_EMAIL (util para notificaciones "de parte de" alguien).
     """
     if not (ZEPTOMAIL_TOKEN and REMITENTE_EMAIL):
         print(f"[email] ZeptoMail no configurado — no se envió a {to}")
@@ -92,7 +94,7 @@ def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = 
         return False
 
     try:
-        _enviar_zeptomail(to, subject, html, bcc)
+        _enviar_zeptomail(to, subject, html, bcc, reply_to)
         _guardar_log(to, subject, html, True, None, bcc, tipo)
         return True
     except Exception as e:
@@ -101,7 +103,7 @@ def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = 
         return False
 
 
-def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None):
+def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None, reply_to: str = None):
     body = {
         "from": {"address": REMITENTE_EMAIL, "name": FROM_DISPLAY},
         "to": [{"email_address": {"address": to}}],
@@ -110,6 +112,8 @@ def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None):
     }
     if bcc:
         body["bcc"] = [{"email_address": {"address": bcc}}]
+    if reply_to:
+        body["reply_to"] = [{"address": reply_to}]
 
     req = urllib.request.Request(
         _ZEPTOMAIL_URL,
@@ -388,4 +392,28 @@ def email_nuevo_pedido_negocio(pedido: dict):
       </table>"""
 
     subject = f"🛍️ Pedido #{pedido_id} pagado — {nombre} · ${total:,.0f} MXN"
+    return subject, _base_html(contenido)
+
+
+def email_contacto_web(nombre: str, correo: str, mensaje: str):
+    """Retorna (subject, html) para notificar al negocio de un mensaje del
+    formulario de contacto del sitio (reply-to = correo de quien escribió)."""
+    contenido = f"""
+      <h2 style="color:#2A1A0E;font-size:1.2rem;margin-bottom:4px">✉️ Nuevo mensaje de contacto</h2>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:24px">Enviado desde el formulario de zapatillasmay.mx/contacto</p>
+
+      <div style="background:#f5f0eb;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+        <table style="width:100%;font-size:0.88rem">
+          <tr><td style="color:#aaa;padding:4px 0;width:100px">Nombre</td><td><strong>{nombre}</strong></td></tr>
+          <tr><td style="color:#aaa;padding:4px 0">Correo</td><td><a href="mailto:{correo}" style="color:#b5687a">{correo}</a></td></tr>
+        </table>
+      </div>
+
+      <div style="background:#fdf8f5;border-radius:10px;padding:16px 20px;white-space:pre-wrap;font-size:0.9rem;color:#333;line-height:1.6">{mensaje}</div>
+
+      <p style="color:#888;font-size:0.83rem;text-align:center;margin-top:20px">
+        Responde directo a este correo para contestarle a {nombre}.
+      </p>"""
+
+    subject = f"✉️ Contacto web — {nombre}"
     return subject, _base_html(contenido)

@@ -5616,9 +5616,9 @@ const PAGINAS = {
       <p class="pg-p" style="margin-bottom:16px">Te contactamos de vuelta por correo. ¿Prefieres WhatsApp? Usa el botón de arriba.</p>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div><label class="form-label" for="contacto-nombre">Nombre</label><input type="text" id="contacto-nombre" placeholder="Tu nombre" class="form-input" autocomplete="name"></div>
-        <div><label class="form-label" for="contacto-tel">Teléfono (opcional)</label><input type="tel" id="contacto-tel" placeholder="477 123 4567" class="form-input" autocomplete="tel"></div>
+        <div><label class="form-label" for="contacto-correo">Correo</label><input type="email" id="contacto-correo" placeholder="tu@correo.com" class="form-input" autocomplete="email"></div>
         <div><label class="form-label" for="contacto-msg">Mensaje</label><textarea id="contacto-msg" placeholder="¿En qué te podemos ayudar?" rows="3" class="form-input"></textarea></div>
-        <button onclick="enviarContacto()" class="pg-cta" style="width:100%;justify-content:center">✉️ Enviar por correo →</button>
+        <button onclick="enviarContacto()" id="contacto-btn" class="pg-cta" style="width:100%;justify-content:center">✉️ Enviar mensaje →</button>
       </div>
     </div>
     <div data-animate style="text-align:center;padding:8px 0 16px">
@@ -6311,14 +6311,34 @@ function mostrarPagina(id) {
   if (typeof gtag === 'function') gtag('event', 'page_view', { page_path: '/' + id, page_title: id })
 }
 
-function enviarContacto() {
-  const nombre = document.getElementById('contacto-nombre').value
-  const tel = document.getElementById('contacto-tel').value
-  const msg = document.getElementById('contacto-msg').value
+async function enviarContacto() {
+  const nombre = document.getElementById('contacto-nombre').value.trim()
+  const correo = document.getElementById('contacto-correo').value.trim()
+  const msg = document.getElementById('contacto-msg').value.trim()
   if (!nombre || !msg) { mostrarToast('Por favor completa nombre y mensaje'); return }
-  const asunto = encodeURIComponent(`Contacto desde la web — ${nombre}`)
-  const cuerpo = encodeURIComponent(`Nombre: ${nombre}${tel ? '\nTeléfono: ' + tel : ''}\n\nMensaje:\n${msg}`)
-  window.location.href = `mailto:contacto@zapatillasmay.mx?subject=${asunto}&body=${cuerpo}`
+  if (!correo || !correo.includes('@')) { mostrarToast('Escribe un correo válido'); return }
+  const btn = document.getElementById('contacto-btn')
+  const textoOriginal = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando…'
+  try {
+    const res = await fetch(API + '/emails/contacto-web', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, correo, mensaje: msg })
+    })
+    const data = await res.json()
+    if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo enviar')
+    mostrarToast('✓ Mensaje enviado, te contactamos pronto')
+    document.getElementById('contacto-nombre').value = ''
+    document.getElementById('contacto-correo').value = ''
+    document.getElementById('contacto-msg').value = ''
+  } catch (e) {
+    mostrarToast('No se pudo enviar. Intenta por WhatsApp arriba.')
+  } finally {
+    btn.disabled = false
+    btn.textContent = textoOriginal
+  }
 }
 
 async function registrarMayorista() {

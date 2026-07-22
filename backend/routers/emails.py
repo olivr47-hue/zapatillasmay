@@ -11,10 +11,29 @@ verificar ni en el proveedor ni en el panel).
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all
-from email_utils import diagnostico_smtp, enviar_email
+from email_utils import diagnostico_smtp, enviar_email, email_contacto_web, NEGOCIO_EMAIL
 import zoho_mail
 
 router = APIRouter(prefix="/emails", tags=["Correo corporativo"])
+
+
+@router.post("/contacto-web")
+def contacto_web(body: dict):
+    """Formulario publico de contacto del sitio -- SIEMPRE manda al correo del
+    negocio (NEGOCIO_EMAIL), el visitante nunca controla el destinatario."""
+    nombre  = (body.get("nombre") or "").strip()[:120]
+    correo  = (body.get("correo") or "").strip()[:200]
+    mensaje = (body.get("mensaje") or "").strip()[:3000]
+    if not nombre or not mensaje:
+        return JSONResponse(status_code=400, content={"error": "Falta nombre o mensaje"})
+    if not correo or "@" not in correo:
+        return JSONResponse(status_code=400, content={"error": "Correo inválido"})
+
+    asunto, html = email_contacto_web(nombre, correo, mensaje)
+    ok = enviar_email(NEGOCIO_EMAIL, asunto, html, tipo="contacto_web", reply_to=correo)
+    if not ok:
+        return JSONResponse(status_code=502, content={"error": "No se pudo enviar el mensaje, intenta de nuevo"})
+    return {"ok": True}
 
 
 @router.post("/prueba")
