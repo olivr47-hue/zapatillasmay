@@ -5602,12 +5602,12 @@ const PAGINAS = {
     </div>
     <div class="pg-card" data-animate>
       <h2 class="pg-h2">Enviar <em>mensaje</em></h2>
-      <p class="pg-p" style="margin-bottom:16px">Te contactamos de vuelta por WhatsApp.</p>
+      <p class="pg-p" style="margin-bottom:16px">Te contactamos de vuelta por correo. ¿Prefieres WhatsApp? Usa el botón de arriba.</p>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div><label class="form-label" for="contacto-nombre">Nombre</label><input type="text" id="contacto-nombre" placeholder="Tu nombre" class="form-input" autocomplete="name"></div>
-        <div><label class="form-label" for="contacto-tel">Teléfono / WhatsApp</label><input type="tel" id="contacto-tel" placeholder="477 123 4567" class="form-input" autocomplete="tel"></div>
+        <div><label class="form-label" for="contacto-tel">Teléfono (opcional)</label><input type="tel" id="contacto-tel" placeholder="477 123 4567" class="form-input" autocomplete="tel"></div>
         <div><label class="form-label" for="contacto-msg">Mensaje</label><textarea id="contacto-msg" placeholder="¿En qué te podemos ayudar?" rows="3" class="form-input"></textarea></div>
-        <button onclick="enviarContacto()" class="pg-cta" style="width:100%;justify-content:center">Enviar por WhatsApp →</button>
+        <button onclick="enviarContacto()" class="pg-cta" style="width:100%;justify-content:center">✉️ Enviar por correo →</button>
       </div>
     </div>
     <div data-animate style="text-align:center;padding:8px 0 16px">
@@ -6305,8 +6305,9 @@ function enviarContacto() {
   const tel = document.getElementById('contacto-tel').value
   const msg = document.getElementById('contacto-msg').value
   if (!nombre || !msg) { mostrarToast('Por favor completa nombre y mensaje'); return }
-  const texto = encodeURIComponent(`Hola, mi nombre es ${nombre}${tel ? ', mi telefono es ' + tel : ''}.\n\n${msg}`)
-  window.open('https://wa.me/5214792244560?text=' + texto, '_blank')
+  const asunto = encodeURIComponent(`Contacto desde la web — ${nombre}`)
+  const cuerpo = encodeURIComponent(`Nombre: ${nombre}${tel ? '\nTeléfono: ' + tel : ''}\n\nMensaje:\n${msg}`)
+  window.location.href = `mailto:contacto@zapatillasmay.mx?subject=${asunto}&body=${cuerpo}`
 }
 
 async function registrarMayorista() {
