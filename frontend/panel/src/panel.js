@@ -89,7 +89,6 @@ const modulos = [
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
   { id: 'envio', icon: '🚚', label: 'Envíos', section: 'Configuracion', soloAdmin: true },
-  { id: 'ordenes', icon: '🛒', label: 'Órdenes de compra', section: 'Finanzas', soloAdmin: true },
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
@@ -536,7 +535,6 @@ async function cargarModulo(id) {
     case 'crm': await cargarCRM(); break;
     case 'finanzas': await cargarFinanzas(); break;
     case 'proveedores': await cargarProveedores(); break;
-    case 'ordenes': await cargarOrdenes(); break;
     case 'conversaciones': await cargarConversaciones(); break;
     case 'envios': await cargarEnviosMasivos(); break;
     case 'mercadolibre': await cargarMercadoLibre(); break;
@@ -566,13 +564,15 @@ function renderDashboard() {
   }, 100)
   return '<div style="padding:2rem;color:#888;text-align:center">Cargando...</div>'
 }
-async function cargarOrdenes() {
-  const content = document.getElementById('content')
+async function cargarOrdenes(containerId, sucursalIdForzada) {
+  containerId = containerId || 'content'
+  const embebido = containerId !== 'content'
+  const content = document.getElementById(containerId)
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando sugerencias...</p>'
   try {
     const resSucursales = await fetch(API + '/sucursales/')
     const sucursales = await resSucursales.json()
-    const sucursalId = sucursales[0]?.id
+    const sucursalId = sucursalIdForzada || sucursales[0]?.id
 
     const [resSugerencias, resProveedores] = await Promise.all([
       fetch(API + '/finanzas/sugerencias-recompra/' + sucursalId),
@@ -592,7 +592,7 @@ async function cargarOrdenes() {
     })
     const nPospuestos = sugerencias.length - sugerenciasFiltradas.length
 
-    window._ordenesData = { sugerencias: sugerenciasFiltradas, proveedores, sucursalId }
+    window._ordenesData = { sugerencias: sugerenciasFiltradas, proveedores, sucursalId, containerId }
     window._ordenSeleccion = {}
 
     const urgentes = sugerenciasFiltradas.filter(s => s.urgente)
@@ -601,13 +601,14 @@ async function cargarOrdenes() {
 
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        ${embebido ? '<div></div>' : `
         <div>
           <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🛒 Órdenes de compra</h2>
           <p style="color:#888;font-size:0.85rem">Sugerencias de recompra basadas en rotación e inventario</p>
-        </div>
+        </div>`}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <select class="form-input" id="ord-sucursal" style="max-width:200px" onchange="recargarOrdenes(this.value)">
-            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            ${sucursales.map(s => `<option value="${s.id}" ${s.id === sucursalId ? 'selected' : ''}>${s.nombre}</option>`).join('')}
           </select>
           <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden</button>
         </div>
@@ -652,14 +653,16 @@ async function cargarOrdenes() {
                 <input type="checkbox" id="sel-todos" onchange="seleccionarTodos(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C">
                 <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${sugerenciasFiltradas.length})</p>
               </div>
-              <div style="display:flex;gap:8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input type="text" id="ord-buscador" placeholder="🔎 Buscar modelo o SKU..." oninput="filtrarOrdenesTexto(this.value)"
+                       style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:0.82rem;min-width:180px">
                 <button class="btn btn-secondary" style="font-size:0.78rem" onclick="filtrarOrdenes('todos')">Todos</button>
                 <button class="btn btn-secondary" style="font-size:0.78rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarOrdenes('urgente')">🚨 Urgentes</button>
               </div>
             </div>
 
             ${sugerenciasFiltradas.map(p => `
-              <div class="orden-item" data-urgente="${p.urgente}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div class="orden-item" data-urgente="${p.urgente}" data-nombre="${(p.nombre||'').toLowerCase().replace(/"/g,'')}" data-sku="${(p.sku||'').toLowerCase()}" style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
                 <input type="checkbox" class="orden-check" data-id="${p.producto_id}" onchange="actualizarSeleccion('${p.producto_id}', this.checked)"
                        style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C;flex-shrink:0">
                 ${p.imagen ? `<img src="${p.imagen}" style="width:52px;height:52px;object-fit:contain;background:#f5f5f5;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
@@ -764,17 +767,28 @@ window.actualizarCostoOrden = () => {
   if (countEl) countEl.textContent = count + ' productos seleccionados'
 }
 
-window.filtrarOrdenes = (tipo) => {
+window._aplicarFiltrosOrdenes = () => {
+  const tipo = window._ordenFiltroTipo || 'todos'
+  const texto = window._ordenFiltroTexto || ''
   document.querySelectorAll('.orden-item').forEach(el => {
-    el.style.display = tipo === 'todos' || (tipo === 'urgente' && el.dataset.urgente === 'true') ? '' : 'none'
+    const pasaTipo = tipo === 'todos' || (tipo === 'urgente' && el.dataset.urgente === 'true')
+    const pasaTexto = !texto || (el.dataset.nombre || '').includes(texto) || (el.dataset.sku || '').includes(texto)
+    el.style.display = (pasaTipo && pasaTexto) ? '' : 'none'
   })
 }
 
+window.filtrarOrdenes = (tipo) => {
+  window._ordenFiltroTipo = tipo
+  window._aplicarFiltrosOrdenes()
+}
+
+window.filtrarOrdenesTexto = (texto) => {
+  window._ordenFiltroTexto = (texto || '').trim().toLowerCase()
+  window._aplicarFiltrosOrdenes()
+}
+
 window.recargarOrdenes = async (sucursalId) => {
-  const resSugerencias = await fetch(API + '/finanzas/sugerencias-recompra/' + sucursalId)
-  window._ordenesData.sugerencias = await resSugerencias.json()
-  window._ordenesData.sucursalId = sucursalId
-  cargarOrdenes()
+  cargarOrdenes(window._ordenesData?.containerId, sucursalId)
 }
 
 window.generarOrden = () => {
@@ -926,7 +940,7 @@ window.guardarOrdenCompra = async (proveedoresStr) => {
     }
     document.querySelector('div[style*="position:fixed"]').remove()
     alert('Orden de compra guardada exitosamente')
-    cargarOrdenes()
+    cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   } catch(e) {
     alert('Error guardando orden: ' + e.message)
   }
@@ -1075,7 +1089,7 @@ window.aplicarPosponer = (productoId, dias) => {
   pospuestos[productoId] = { hasta }
   localStorage.setItem('ordenes_pospuestos', JSON.stringify(pospuestos))
   document.getElementById('modal-posponer')?.remove()
-  cargarOrdenes()
+  cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
 }
 
 window.verPospuestos = () => {
@@ -1092,7 +1106,7 @@ window.verPospuestos = () => {
   const confirmar = confirm('Productos pospuestos:\n\n' + lista + '\n\n¿Quieres reactivar todos?')
   if (confirmar) {
     localStorage.removeItem('ordenes_pospuestos')
-    cargarOrdenes()
+    cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   }
 }
 
@@ -1152,7 +1166,7 @@ window.guardarOrdenCompra2 = async () => {
     }
     document.getElementById('modal-orden')?.remove()
     alert('Orden de compra guardada')
-    cargarOrdenes()
+    cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   } catch(e) {
     alert('Error guardando orden: ' + e.message)
   }
@@ -2029,6 +2043,21 @@ async function cargarAnalisis() {
 
     // Ventas por producto (unidades)
     const ventasPorProducto = {}
+    // Notas (transacciones) distintas por producto — para saber si vendió
+    // poco a poco (rotación real) o todo de un jalón (una sola nota/mayoreo)
+    const notasPorProducto = {}
+    // Detalle de cada nota/transacción por producto — para el desglose de pedidos
+    const movimientosPorProducto = {}
+
+    function canalDeMovimiento(m) {
+      const motivo = (m.motivo || '').toLowerCase()
+      if (motivo.includes('mercadolibre')) return 'MercadoLibre'
+      if (motivo.includes('shein')) return 'SHEIN'
+      if (motivo.includes('walmart')) return 'Walmart'
+      if (motivo.includes('mercadopago') || motivo.includes('pedido')) return 'Pedido web'
+      if (motivo.includes('apartado')) return 'Apartado'
+      return 'POS / mostrador'
+    }
     // Ventas por variante_id
     const ventasPorVariante = {}
     // Ventas por (producto_id, talla)
@@ -2036,7 +2065,10 @@ async function cargarAnalisis() {
     // Ventas por (producto_id, color, talla)
     const ventasPorColorTalla = {}
 
-    const ventasMovs = movimientos.filter(m => m.tipo === 'venta')
+    // 'venta' = POS/pedidos propios. 'salida' = MercadoLibre/SHEIN/Walmart
+    // (esos canales registran su descuento de inventario con ese tipo distinto;
+    // si solo se contaba 'venta' esos canales quedaban invisibles en Análisis).
+    const ventasMovs = movimientos.filter(m => m.tipo === 'venta' || m.tipo === 'salida')
     ventasMovs.forEach(m => {
       const variante = varianteMap[m.variante_id]
       if (!variante) return
@@ -2049,6 +2081,19 @@ async function cargarAnalisis() {
       if (fecha >= hace30) ventasPorProducto[pid].d30 += cantidad
       if (fecha >= hace60) ventasPorProducto[pid].d60 += cantidad
       if (fecha >= hace90) ventasPorProducto[pid].d90 += cantidad
+
+      // Cada fila de movimiento ya es una nota/transacción independiente
+      // (se inserta una vez por línea de pedido/venta, sin importar la cantidad).
+      if (!notasPorProducto[pid]) notasPorProducto[pid] = { d30: 0, d90: 0 }
+      if (fecha >= hace30) notasPorProducto[pid].d30 += 1
+      if (fecha >= hace90) notasPorProducto[pid].d90 += 1
+
+      if (!movimientosPorProducto[pid]) movimientosPorProducto[pid] = []
+      movimientosPorProducto[pid].push({
+        fecha, cantidad,
+        talla: variante.talla || '', color: variante.color || '',
+        canal: canalDeMovimiento(m), motivo: m.motivo || ''
+      })
 
       if (!ventasPorVariante[m.variante_id]) ventasPorVariante[m.variante_id] = { d30: 0, d90: 0, total: 0 }
       ventasPorVariante[m.variante_id].total += cantidad
@@ -2078,12 +2123,32 @@ async function cargarAnalisis() {
       const ventasSemana = ventas.d30 / 4
       const diasInventario = ventasSemana > 0 ? Math.round(stockTotal / ventasSemana * 7) : null
 
+      // notas.d90 = en cuántas transacciones distintas se vendió (no cuántos pares).
+      // Esto es lo que distingue "rota bien" de verdad de "una sola nota de
+      // mayoreo se llevó varios pares de un jalón" (el caso CR3388).
+      const notas = notasPorProducto[p.id] || { d30: 0, d90: 0 }
+
       let semaforo = 'gris'
       let recomendacion = 'Sin ventas recientes'
-      if (ventas.d30 >= 6) { semaforo = 'verde'; recomendacion = 'Rota bien — considerar resurtido' }
-      else if (ventas.d30 >= 2) { semaforo = 'amarillo'; recomendacion = 'Rotación moderada' }
-      else if (ventas.d90 === 0 && stockTotal > 0) { semaforo = 'rojo'; recomendacion = 'Sin movimiento en 90 días — revisar' }
-      else if (ventas.d30 > 0) { semaforo = 'amarillo'; recomendacion = 'Rotación lenta' }
+      if (ventas.d90 === 0 && stockTotal > 0) {
+        semaforo = 'rojo'
+        recomendacion = 'Sin movimiento en 90 días — revisar'
+      } else if (ventas.d90 > 0 && notas.d90 <= 1 && ventas.d90 >= 4) {
+        semaforo = 'morado'
+        recomendacion = `${ventas.d90} pares en 1 sola nota — no es rotación, fue venta puntual`
+      } else if (ventas.d90 > 0 && notas.d90 >= 2) {
+        const seAgotaPronto = diasInventario !== null && diasInventario <= 21
+        if (seAgotaPronto) {
+          semaforo = 'verde'
+          recomendacion = `Rota bien y se agota en ${diasInventario}d — pedir ahora`
+        } else {
+          semaforo = 'azul'
+          recomendacion = diasInventario !== null ? `Rota bien, alcanza para ${diasInventario}d — no urge pedir` : 'Rota bien, aún con stock'
+        }
+      } else if (ventas.d90 > 0) {
+        semaforo = 'amarillo'
+        recomendacion = 'Rotación lenta'
+      }
 
       // Tallas más vendidas (global del producto)
       const tallasData = varIds
@@ -2114,19 +2179,22 @@ async function cargarAnalisis() {
         return { id: vid, label: [v.talla, v.color].filter(Boolean).join(' / ') || vid, stock, ...vventas }
       }).filter(Boolean).sort((a, b) => b.total - a.total)
 
-      return { ...p, ventas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion, tallasData, tallasDesglosadas, variantesData }
+      return { ...p, ventas, notas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion, tallasData, tallasDesglosadas, variantesData }
     }).sort((a, b) => b.ventas.d30 - a.ventas.d30)
 
-    window._analisisData = { productosConRotacion, ventasPorTalla }
+    window._analisisData = { productosConRotacion, ventasPorTalla, movimientosPorProducto }
 
     const total30 = productosConRotacion.reduce((s,p) => s+p.ventas.d30, 0)
     const total90 = productosConRotacion.reduce((s,p) => s+p.ventas.d90, 0)
-    const rotan = productosConRotacion.filter(p=>p.semaforo==='verde').length
+    const rotan = productosConRotacion.filter(p=>p.semaforo==='verde' || p.semaforo==='azul').length
     const muertos = productosConRotacion.filter(p=>p.semaforo==='rojo').length
+    const puntuales = productosConRotacion.filter(p=>p.semaforo==='morado').length
 
     const badgeSemaforo = {
-      verde:   { bg:'#dcfce7', color:'#166534', dot:'#16a34a', txt:'Rota bien' },
+      verde:   { bg:'#dcfce7', color:'#166534', dot:'#16a34a', txt:'Rota bien — pedir' },
+      azul:    { bg:'#dbeafe', color:'#1e40af', dot:'#2563eb', txt:'Rota bien' },
       amarillo:{ bg:'#fef9c3', color:'#854d0e', dot:'#ca8a04', txt:'Rotación lenta' },
+      morado:  { bg:'#f3e8ff', color:'#6b21a8', dot:'#9333ea', txt:'Venta puntual' },
       rojo:    { bg:'#fee2e2', color:'#991b1b', dot:'#dc2626', txt:'Sin movimiento' },
       gris:    { bg:'#f1f5f9', color:'#64748b', dot:'#94a3b8', txt:'Sin datos' }
     }
@@ -2145,8 +2213,10 @@ async function cargarAnalisis() {
       return `
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
           <button class="pill-filter pill-active" onclick="filtrarRotacion('todos')">Todos</button>
-          <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Rotan bien</button>
+          <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Pedir ahora</button>
+          <button class="pill-filter" style="background:#dbeafe;border-color:#93c5fd;color:#1e40af" onclick="filtrarRotacion('azul')">Rotan bien</button>
           <button class="pill-filter pill-warning" onclick="filtrarRotacion('amarillo')">Lentos</button>
+          <button class="pill-filter" style="background:#f3e8ff;border-color:#d8b4fe;color:#6b21a8" onclick="filtrarRotacion('morado')">Venta puntual</button>
           <button class="pill-filter pill-danger" onclick="filtrarRotacion('rojo')">Sin movimiento</button>
         </div>
         <div id="rotacion-lista" style="display:flex;flex-direction:column;gap:8px">
@@ -2170,11 +2240,15 @@ async function cargarAnalisis() {
               <div style="min-width:160px;flex:1">
                 <p style="font-size:0.67rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px">Ventas últimos 30 días</p>
                 ${miniBar(p.ventas.d30, maxD30, '#E91E8C')}
-                <div style="display:flex;gap:12px;margin-top:6px">
+                <div style="display:flex;gap:12px;margin-top:6px;flex-wrap:wrap">
                   <span style="font-size:0.7rem;color:#64748b">60d: <strong>${p.ventas.d60}</strong></span>
                   <span style="font-size:0.7rem;color:#64748b">90d: <strong>${p.ventas.d90}</strong></span>
                   <span style="font-size:0.7rem;color:#64748b">${p.ventasSemana.toFixed(1)} /sem</span>
                 </div>
+                <p style="font-size:0.68rem;color:#94a3b8;margin-top:4px">
+                  ${p.notas.d90 === 0 ? 'Sin notas en 90d'
+                    : `<span onclick="verDetalleProducto('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px" title="Ver el desglose de pedidos de este modelo">${p.notas.d90 === 1 ? '📌 vendido en <strong>1 sola nota</strong> en 90d' : `🔁 vendido en <strong>${p.notas.d90} notas distintas</strong> en 90d`}</span>`}
+                </p>
               </div>
               <div style="text-align:right;min-width:100px">
                 ${p.diasInventario
@@ -2182,6 +2256,9 @@ async function cargarAnalisis() {
                      <p style="font-size:0.67rem;color:#94a3b8">stock restante</p>`
                   : `<p style="font-size:0.72rem;color:#94a3b8">Sin ventas</p>`}
                 <p style="font-size:0.67rem;color:#64748b;margin-top:3px">${p.recomendacion}</p>
+                ${p.semaforo === 'verde'
+                  ? `<button onclick="irAPedirOrden('${p.nombre.replace(/'/g,"\\'")}')" style="margin-top:5px;font-size:0.67rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:3px 10px;cursor:pointer">🛒 Pedir ahora</button>`
+                  : ''}
               </div>
             </div>`
           }).join('')}
@@ -2324,9 +2401,92 @@ async function cargarAnalisis() {
       }).join('')
     }
 
+    function renderPedidosList(productoId, filtro) {
+      filtro = (filtro || '').trim().toLowerCase()
+      const movs = (movimientosPorProducto[productoId] || [])
+        .slice()
+        .sort((a, b) => b.fecha - a.fecha)
+        .filter(m => !filtro ||
+          m.canal.toLowerCase().includes(filtro) ||
+          (m.talla || '').toLowerCase().includes(filtro) ||
+          (m.color || '').toLowerCase().includes(filtro) ||
+          m.motivo.toLowerCase().includes(filtro)
+        )
+      if (movs.length === 0) return `<p style="padding:1.5rem;text-align:center;color:#94a3b8;font-size:0.85rem">Sin notas que coincidan</p>`
+      return `
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${movs.map(m => `
+            <div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:#f8fafc;border-radius:8px;border:1px solid #f1f5f9;flex-wrap:wrap">
+              <span style="font-size:0.75rem;color:#64748b;min-width:88px">${m.fecha.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' })}</span>
+              <span style="font-size:0.78rem;font-weight:700;color:#0f172a;min-width:90px">${[m.talla, m.color].filter(Boolean).join(' / ') || '—'}</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#E91E8C">${m.cantidad} par${m.cantidad === 1 ? '' : 'es'}</span>
+              <span style="font-size:0.68rem;font-weight:700;background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:100px">${m.canal}</span>
+            </div>`).join('')}
+        </div>`
+    }
+
+    function renderDetalleProducto(productoId) {
+      const p = productosConRotacion.find(x => x.id === productoId)
+      if (!p) return `<p style="padding:2rem;color:#94a3b8">Producto no encontrado</p>`
+
+      const variantesConDias = p.variantesData.map(v => {
+        const ventasSemana = v.d30 / 4
+        const dias = ventasSemana > 0 ? Math.round(v.stock / ventasSemana * 7) : null
+        return { ...v, dias }
+      }).sort((a, b) => (a.dias === null ? Infinity : a.dias) - (b.dias === null ? Infinity : b.dias))
+
+      return `
+        <button onclick="switchTabAnalisis('rotacion')" style="background:none;border:none;color:#E91E8C;font-weight:700;font-size:0.82rem;cursor:pointer;margin-bottom:14px;padding:0">← Volver a Rotación</button>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:1.25rem;flex-wrap:wrap">
+          ${p.imagen_principal
+            ? `<img src="${p.imagen_principal}" style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#f8fafc">`
+            : `<div style="width:56px;height:56px;background:#f8fafc;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#cbd5e1">👠</div>`}
+          <div>
+            <p style="font-weight:800;font-size:1.05rem;color:#0f172a">${p.nombre}</p>
+            <p style="font-size:0.78rem;color:#94a3b8">${p.sku_interno || ''} · ${p.stockTotal} pares en stock · ${p.ventas.d90} pares vendidos en 90 días</p>
+          </div>
+        </div>
+
+        <p style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Tallas/colores — el que se agota más rápido primero</p>
+        <div style="overflow-x:auto;margin-bottom:1.5rem">
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <thead>
+              <tr style="background:#f8fafc;text-align:left">
+                <th style="padding:7px 10px">Talla</th><th style="padding:7px 10px">Color</th>
+                <th style="padding:7px 10px;text-align:center">Stock</th>
+                <th style="padding:7px 10px;text-align:center">30d</th><th style="padding:7px 10px;text-align:center">90d</th>
+                <th style="padding:7px 10px;text-align:right">Días restantes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${variantesConDias.map(v => `
+                <tr style="border-bottom:1px solid #f1f5f9">
+                  <td style="padding:7px 10px;font-weight:600">${v.label.split(' / ')[0] || '—'}</td>
+                  <td style="padding:7px 10px;color:#64748b">${v.label.split(' / ')[1] || '—'}</td>
+                  <td style="padding:7px 10px;text-align:center">${v.stock}</td>
+                  <td style="padding:7px 10px;text-align:center">${v.d30}</td>
+                  <td style="padding:7px 10px;text-align:center">${v.total}</td>
+                  <td style="padding:7px 10px;text-align:right;font-weight:700;color:${v.dias === null ? '#94a3b8' : v.dias <= 14 ? '#dc2626' : v.dias <= 30 ? '#ca8a04' : '#16a34a'}">${v.dias === null ? '—' : v.dias + 'd'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+          <p style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Pedidos en los que estuvo involucrado (${(movimientosPorProducto[productoId]||[]).length} notas)</p>
+          <input type="text" placeholder="🔎 Buscar por canal, talla o color..."
+                 oninput="document.getElementById('detalle-pedidos-lista').innerHTML = window._renderPedidosList('${productoId}', this.value)"
+                 style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:0.8rem;min-width:220px">
+        </div>
+        <div id="detalle-pedidos-lista">${renderPedidosList(productoId, '')}</div>
+      `
+    }
+
     window._renderTabRotacion = renderTabRotacion
     window._renderTabTallas = renderTabTallas
     window._renderTabVariantes = renderTabVariantes
+    window._renderDetalleProducto = renderDetalleProducto
+    window._renderPedidosList = renderPedidosList
 
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
@@ -2349,6 +2509,10 @@ async function cargarAnalisis() {
           <p style="font-size:1.5rem;font-weight:800;color:#15803d;line-height:1;margin-bottom:3px">${rotan}</p>
           <p style="font-size:0.67rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em">Rotan bien</p>
         </div>
+        <div style="background:linear-gradient(135deg,#faf5ff,#f3e8ff);border:1px solid #d8b4fe;border-radius:14px;padding:1rem 1.1rem">
+          <p style="font-size:1.5rem;font-weight:800;color:#6b21a8;line-height:1;margin-bottom:3px">${puntuales}</p>
+          <p style="font-size:0.67rem;font-weight:700;color:#6b21a8;text-transform:uppercase;letter-spacing:0.06em">Venta puntual</p>
+        </div>
         <div style="background:linear-gradient(135deg,#fff1f2,#fee2e2);border:1px solid #fca5a5;border-radius:14px;padding:1rem 1.1rem">
           <p style="font-size:1.5rem;font-weight:800;color:#b91c1c;line-height:1;margin-bottom:3px">${muertos}</p>
           <p style="font-size:0.67rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em">Sin movimiento</p>
@@ -2368,6 +2532,10 @@ async function cargarAnalisis() {
           style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
           Variantes
         </button>
+        <button id="tab-ordenes" onclick="switchTabAnalisis('ordenes')"
+          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+          🛒 Órdenes de compra
+        </button>
       </div>
 
       <div id="analisis-tab-content">
@@ -2383,8 +2551,8 @@ async function cargarAnalisis() {
   }
 }
 
-window.switchTabAnalisis = (tab) => {
-  const tabs = ['rotacion','tallas','variantes']
+window.switchTabAnalisis = async (tab) => {
+  const tabs = ['rotacion','tallas','variantes','ordenes']
   tabs.forEach(t => {
     const btn = document.getElementById('tab-' + t)
     if (!btn) return
@@ -2404,6 +2572,38 @@ window.switchTabAnalisis = (tab) => {
   if (tab === 'rotacion') container.innerHTML = window._renderTabRotacion()
   else if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
   else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
+  else if (tab === 'ordenes') await cargarOrdenes('analisis-tab-content')
+}
+
+window.verDetalleProducto = (productoId) => {
+  const container = document.getElementById('analisis-tab-content')
+  if (!container || !window._renderDetalleProducto) return
+  ;['rotacion','tallas','variantes','ordenes'].forEach(t => {
+    const btn = document.getElementById('tab-' + t)
+    if (btn) { btn.style.background = 'transparent'; btn.style.color = '#64748b'; btn.style.boxShadow = 'none' }
+  })
+  window._analisisTabActivo = 'detalle'
+  container.innerHTML = window._renderDetalleProducto(productoId)
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+window.irAPedirOrden = async (nombre) => {
+  await switchTabAnalisis('ordenes')
+  const buscador = document.getElementById('ord-buscador')
+  if (buscador) {
+    buscador.value = nombre
+    filtrarOrdenesTexto(nombre)
+  }
+  const nombreNorm = (nombre || '').toLowerCase()
+  const item = [...document.querySelectorAll('.orden-item')].find(el => el.dataset.nombre === nombreNorm)
+  if (item) {
+    item.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    item.style.transition = 'box-shadow 0.3s'
+    item.style.boxShadow = '0 0 0 3px #E91E8C'
+    setTimeout(() => { item.style.boxShadow = '' }, 2200)
+  } else {
+    alert(`"${nombre}" no aparece en Órdenes de compra ahora mismo — puede que ya no requiera resurtido según el inventario actual.`)
+  }
 }
 
 window.filtrarRotacion = (semaforo) => {
@@ -2413,10 +2613,11 @@ window.filtrarRotacion = (semaforo) => {
   document.querySelectorAll('#analisis-tab-content .pill-filter').forEach(btn => {
     btn.classList.remove('pill-active')
   })
+  const keyword = {
+    todos: 'todos', verde: 'pedir', azul: 'rotan', amarillo: 'lento', morado: 'puntual', rojo: 'movimiento'
+  }[semaforo] || 'todos'
   const btnClicked = [...document.querySelectorAll('#analisis-tab-content .pill-filter')]
-    .find(b => b.textContent.trim().toLowerCase().includes(
-      semaforo === 'todos' ? 'todos' : semaforo === 'verde' ? 'bien' : semaforo === 'amarillo' ? 'lento' : 'movimiento'
-    ))
+    .find(b => b.textContent.trim().toLowerCase().includes(keyword))
   if (btnClicked) btnClicked.classList.add('pill-active')
 }
 async function cargarCRM() {

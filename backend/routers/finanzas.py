@@ -407,7 +407,9 @@ def sugerencias_recompra(sucursal_id: str):
         productos = supabase_get("productos?activo=eq.true&select=*,proveedores(nombre,telefono,email)")
         variantes = supabase_get("variantes?select=*")
         inventario = supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}")
-        movimientos = supabase_get(f"movimientos?tipo=eq.venta&created_at=gte.{hace90}T00:00:00")
+        # 'venta' = POS/pedidos propios. 'salida' = MercadoLibre/SHEIN/Walmart
+        # (esos canales registran su descuento de inventario con ese tipo distinto).
+        movimientos = supabase_get(f"movimientos?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
 
         sugerencias = []
         for p in productos:
@@ -463,8 +465,15 @@ def sugerencias_recompra(sucursal_id: str):
                 por_rotacion = max(0, round(velocidad_semanal * 4) - stock_total)
                 cantidad_sugerida = max(cantidad_sugerida, por_rotacion)
 
+            # Días "efectivos" para ordenar por urgencia real: si ya hay una
+            # variante en cero (o el total está en cero), cuenta como 0 días
+            # sin importar qué tan bien surtido esté el resto del modelo —
+            # así un modelo con una talla agotada siempre queda antes que uno
+            # con más días de stock global pero ninguna talla realmente agotada.
+            dias_efectivos = 0 if (stock_total == 0 or tiene_variante_sin_stock) else (dias_inventario if dias_inventario is not None else 9999)
+
             # Mostrar si: stock total bajo mínimo, alguna variante en 0, o días críticos
-            if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 14):
+            if stock_total == 0 or stock_total <= stock_minimo or tiene_variante_sin_stock or (dias_inventario and dias_inventario <= 21):
                 sugerencias.append({
                     "producto_id": p['id'],
                     "nombre": p['nombre'],
@@ -476,6 +485,7 @@ def sugerencias_recompra(sucursal_id: str):
                     "ventas_90": ventas_90,
                     "velocidad_semanal": round(velocidad_semanal, 1),
                     "dias_inventario": dias_inventario,
+                    "dias_efectivos": dias_efectivos,
                     "cantidad_sugerida": max(6, cantidad_sugerida),
                     "costo_unitario": float(p.get('costo') or 0),
                     "proveedor": p.get('proveedores'),
@@ -484,7 +494,7 @@ def sugerencias_recompra(sucursal_id: str):
                     "variantes": variantes_detalle
                 })
 
-        sugerencias.sort(key=lambda x: (not x['urgente'], x['dias_inventario'] or 999))
+        sugerencias.sort(key=lambda x: x['dias_efectivos'])
         return sugerencias
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
