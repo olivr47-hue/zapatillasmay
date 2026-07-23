@@ -563,6 +563,47 @@ def fuentes_trafico():
     return {"configurado": True, "total_sesiones": total, "fuentes": result[:12]}
 
 
+@router.get("/diag-compras-google-temp")
+def diag_compras_google_temp(dias: int = 90):
+    """Diagnostico de un solo uso (2026-07-23): que productos se compraron
+    llegando desde trafico de Google (organico/shopping/cpc), para identificar
+    la venta que Merchant Center reporto. Se retira despues de usarse."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "dimensions": [{"name": "sessionSourceMedium"}, {"name": "itemName"}, {"name": "date"}],
+        "metrics":    [{"name": "itemsPurchased"}, {"name": "itemRevenue"}],
+        "dimensionFilter": {
+            "filter": {
+                "fieldName": "sessionSourceMedium",
+                "stringFilter": {"matchType": "CONTAINS", "value": "google", "caseSensitive": False}
+            }
+        },
+        "orderBys": [{"metric": {"metricName": "itemsPurchased"}, "desc": True}],
+        "limit": 100,
+    })
+    if not resp:
+        return {"configurado": True, "error": _last_ga4_error, "filas": []}
+
+    filas = []
+    for row in resp.get("rows", []):
+        dims = row.get("dimensionValues", [])
+        metr = row.get("metricValues", [])
+        cant = float(metr[0].get("value", 0)) if len(metr) > 0 else 0
+        if cant <= 0:
+            continue
+        filas.append({
+            "source_medium": dims[0].get("value") if len(dims) > 0 else "",
+            "item_name":     dims[1].get("value") if len(dims) > 1 else "",
+            "fecha":         dims[2].get("value") if len(dims) > 2 else "",
+            "items_comprados": cant,
+            "ingreso": round(float(metr[1].get("value", 0)), 2) if len(metr) > 1 else 0,
+        })
+    return {"configurado": True, "dias": dias, "filas": filas}
+
+
 @router.get("/ciudades")
 def top_ciudades():
     """Top ciudades de los últimos 7 días."""
