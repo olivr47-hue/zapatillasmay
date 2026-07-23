@@ -205,6 +205,77 @@ def items_orden(id: str):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/ordenes/recibir")
+def recibir_mercancia(datos: dict):
+    """Registra una remision de mercancia que ya llego: sube el inventario
+    de cada variante recibida Y crea la orden de compra (cuenta por pagar)
+    en un solo paso, con la fecha de hoy y el dias_credito que se le haya
+    dado a esa remision en particular (puede ser distinto al default del
+    proveedor si se llego a otro acuerdo)."""
+    try:
+        proveedor_id = datos.get("proveedor_id")
+        sucursal_id = datos.get("sucursal_id")
+        dias_credito = datos.get("dias_credito")
+        notas = datos.get("notas", "")
+        items = datos.get("items") or []
+        if not sucursal_id or not items:
+            return JSONResponse(status_code=400, content={"error": "Falta sucursal o productos"})
+
+        total = sum(float(i.get("cantidad", 0)) * float(i.get("costo_unitario", 0)) for i in items)
+
+        orden_payload = {
+            "proveedor_id": proveedor_id,
+            "sucursal_id": sucursal_id,
+            "status": "recibida",
+            "total": total,
+            "notas": notas,
+        }
+        if dias_credito is not None:
+            orden_payload["dias_credito"] = int(dias_credito)
+        orden = supabase_post("ordenes_compra", orden_payload)
+        orden_id = orden[0]["id"]
+
+        for i in items:
+            variante_id = i.get("variante_id")
+            cantidad = int(i.get("cantidad") or 0)
+            costo_unitario = float(i.get("costo_unitario") or 0)
+            if not variante_id or cantidad <= 0:
+                continue
+
+            supabase_post("ordenes_compra_items", {
+                "orden_id": orden_id,
+                "variante_id": variante_id,
+                "cantidad": cantidad,
+                "costo_unitario": costo_unitario,
+                "subtotal": cantidad * costo_unitario,
+            })
+
+            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
+            cantidad_nueva = cantidad_anterior + cantidad
+            if inv_actual:
+                supabase_patch(
+                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                    {"cantidad": cantidad_nueva}
+                )
+            else:
+                supabase_post("inventario", {
+                    "variante_id": variante_id, "sucursal_id": sucursal_id,
+                    "cantidad": cantidad_nueva, "stock_minimo": 3
+                })
+            supabase_post("movimientos_inventario", {
+                "tipo": "entrada",
+                "variante_id": variante_id,
+                "sucursal_id": sucursal_id,
+                "cantidad": cantidad,
+                "cantidad_anterior": cantidad_anterior,
+                "motivo": f"Recepcion de mercancia - orden {orden_id}",
+            })
+
+        return {"ok": True, "orden_id": orden_id, "total": total}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 # ─── REPORTES ─────────────────────────────────────
 @router.get("/reporte/{sucursal_id}")
 def reporte_financiero(sucursal_id: str):
@@ -565,7 +636,11 @@ def cuentas_por_pagar():
         resultado = []
         for o in ordenes:
             prov = o.get("proveedores") or {}
-            dias_credito = prov.get("dias_credito") or 0
+            # La orden puede traer su propio dias_credito (acuerdo puntual con
+            # el proveedor); si no, se usa el default capturado en el proveedor.
+            dias_credito = o.get("dias_credito")
+            if dias_credito is None:
+                dias_credito = prov.get("dias_credito") or 0
             fecha_orden = datetime.fromisoformat(o["created_at"]).date()
             fecha_vencimiento = fecha_orden + timedelta(days=dias_credito)
             dias_restantes = (fecha_vencimiento - hoy).days

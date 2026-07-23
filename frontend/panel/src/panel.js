@@ -5301,6 +5301,7 @@ async function cargarInventario() {
       <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">⚠ Alertas</button>
       <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Masivo</button>
       <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
+      <button class="btn btn-secondary" onclick="mostrarRecibirMercancia()" style="background:#fce4ec;border-color:#E91E8C;color:#E91E8C">📥 Recibir mercancía</button>
       <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">− Salida</button>
       <button class="btn btn-secondary" onclick="mostrarAjuste()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">⚙ Ajuste</button>
       <button class="btn btn-secondary" onclick="mostrarCambio()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">↔ Cambio</button>
@@ -5878,6 +5879,149 @@ window.seleccionarVariante = (id, texto, prefijo) => {
   if (selDiv) { selDiv.textContent = 'Ô£ô ' + texto; selDiv.style.display = 'block' }
   const resultadosDiv = document.getElementById(prefijo + '-resultados')
   if (resultadosDiv) resultadosDiv.style.display = 'none'
+}
+
+window.mostrarRecibirMercancia = async () => {
+  const [resSucursales, resProveedores, resVariantes] = await Promise.all([
+    fetch(API + '/sucursales/'),
+    fetch(API + '/finanzas/proveedores'),
+    fetch(API + '/variantes/')
+  ])
+  const sucursales = await resSucursales.json()
+  const proveedores = await resProveedores.json()
+  const variantes = await resVariantes.json()
+  window._variantesCache = variantes
+  window._recibirRowCount = 0
+
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:820px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+        <h3>📥 Recibir mercancía</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">Registra lo que llegó de un proveedor: sube el inventario y genera la cuenta por pagar automáticamente con la fecha de hoy.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Proveedor *</label>
+          <select class="form-input" id="rec-proveedor" onchange="autocompletarDiasCredito()">
+            <option value="">Selecciona...</option>
+            ${proveedores.map(p => `<option value="${p.id}" data-dias="${p.dias_credito || 0}">${p.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Sucursal *</label>
+          <select class="form-input" id="rec-sucursal">
+            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Días de crédito</label>
+          <input class="form-input" id="rec-dias-credito" type="number" min="0" value="0">
+          <p style="font-size:0.66rem;color:#aaa;margin-top:2px">Se autocompleta con el proveedor, pero puedes cambiarlo si hicieron otro trato</p>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Notas / número de remisión</label>
+        <input class="form-input" id="rec-notas" placeholder="Ej: Remisión #1234">
+      </div>
+
+      <div style="background:#fafafa;border-radius:10px;border:1px solid #eee;padding:1rem;margin-bottom:1rem">
+        <p style="font-weight:700;font-size:0.85rem;margin-bottom:10px">Productos recibidos</p>
+        <div id="rec-items"></div>
+        <button class="btn btn-secondary" style="font-size:0.8rem;margin-top:8px" onclick="agregarRenglonRecibir()">+ Agregar producto</button>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <p style="font-size:0.85rem;color:#888">Total estimado</p>
+        <p id="rec-total" style="font-size:1.3rem;font-weight:700;color:#E91E8C">$0</p>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarRecibirMercancia()">Generar remisión y cuenta por pagar</button>
+      </div>
+    </div>
+  `
+  agregarRenglonRecibir()
+}
+
+window.autocompletarDiasCredito = () => {
+  const sel = document.getElementById('rec-proveedor')
+  const opt = sel.options[sel.selectedIndex]
+  const dias = opt ? parseInt(opt.dataset.dias || '0') : 0
+  document.getElementById('rec-dias-credito').value = dias
+}
+
+window.agregarRenglonRecibir = () => {
+  const idx = window._recibirRowCount++
+  const cont = document.getElementById('rec-items')
+  const row = document.createElement('div')
+  row.id = 'rec-row-' + idx
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 90px 120px 32px;gap:8px;align-items:start;margin-bottom:10px;position:relative'
+  row.innerHTML = `
+    <div style="position:relative">
+      <input class="form-input" id="rec-item-${idx}-buscar" placeholder="Buscar modelo (nombre o SKU)..." oninput="buscarVariante(this.value, 'rec-item-${idx}')">
+      <div id="rec-item-${idx}-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:220px;overflow-y:auto;display:none;background:white;position:absolute;z-index:50;width:100%"></div>
+      <input type="hidden" id="rec-item-${idx}">
+      <div id="rec-item-${idx}-seleccionado" style="display:none;margin-top:4px;font-size:0.75rem;color:#2e7d32"></div>
+    </div>
+    <input class="form-input" type="number" min="1" value="1" id="rec-item-${idx}-cantidad" placeholder="Cant." oninput="actualizarTotalRecibir()">
+    <input class="form-input" type="number" step="0.01" min="0" id="rec-item-${idx}-costo" placeholder="Costo/par" oninput="actualizarTotalRecibir()">
+    <button onclick="document.getElementById('rec-row-${idx}').remove(); actualizarTotalRecibir()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding-top:8px">✕</button>
+  `
+  cont.appendChild(row)
+}
+
+window.actualizarTotalRecibir = () => {
+  let total = 0
+  for (let i = 0; i < window._recibirRowCount; i++) {
+    if (!document.getElementById('rec-row-' + i)) continue
+    const cant = parseFloat(document.getElementById('rec-item-' + i + '-cantidad')?.value) || 0
+    const costo = parseFloat(document.getElementById('rec-item-' + i + '-costo')?.value) || 0
+    total += cant * costo
+  }
+  const el = document.getElementById('rec-total')
+  if (el) el.textContent = '$' + total.toLocaleString('es-MX', { maximumFractionDigits: 0 })
+}
+
+window.guardarRecibirMercancia = async () => {
+  const proveedor_id = document.getElementById('rec-proveedor').value
+  const sucursal_id = document.getElementById('rec-sucursal').value
+  const dias_credito = parseInt(document.getElementById('rec-dias-credito').value) || 0
+  const notas = document.getElementById('rec-notas').value
+
+  if (!proveedor_id) { alert('Selecciona el proveedor'); return }
+  if (!sucursal_id) { alert('Selecciona la sucursal'); return }
+
+  const items = []
+  for (let i = 0; i < window._recibirRowCount; i++) {
+    if (!document.getElementById('rec-row-' + i)) continue
+    const variante_id = document.getElementById('rec-item-' + i)?.value
+    const cantidad = parseInt(document.getElementById('rec-item-' + i + '-cantidad')?.value) || 0
+    const costo_unitario = parseFloat(document.getElementById('rec-item-' + i + '-costo')?.value) || 0
+    if (variante_id && cantidad > 0) items.push({ variante_id, cantidad, costo_unitario })
+  }
+  if (items.length === 0) { alert('Agrega al menos un producto con talla y cantidad'); return }
+
+  try {
+    const res = await fetch(API + '/finanzas/ordenes/recibir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proveedor_id, sucursal_id, dias_credito, notas, items })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert(`Mercancía recibida — se agregaron $${data.total.toFixed(0)} a Cuentas por pagar (vence en ${dias_credito} días).`)
+      navegarA('inventario')
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
 }
 
 function renderVariante(i, datos) {
@@ -9766,7 +9910,15 @@ async function cargarPOS() {
 
         <div id="pos-carrito-desktop" style="background:white;border-radius:12px;border:1px solid #eee;display:flex;flex-direction:column;overflow:hidden">
           <div style="padding:1rem;border-bottom:1px solid #eee">
-            <p style="font-weight:700;font-size:1rem;margin-bottom:0.5rem">Carrito</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+              <p style="font-weight:700;font-size:1rem">Carrito</p>
+              <button onclick="mostrarCambiosPOS()" style="background:#ffebee;border:1px solid #ef9a9a;color:#c62828;border-radius:8px;padding:5px 10px;font-size:0.78rem;font-weight:600;cursor:pointer">↔ Cambios</button>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:0.75rem" id="pos-mayoreo-forzado-botones">
+              <button onclick="forzarMayoreoPOS(null)" id="btn-mayoreo-auto" style="flex:1;padding:5px;font-size:0.72rem;border-radius:6px;border:1px solid #ddd;background:#333;color:white;cursor:pointer">Automático</button>
+              <button onclick="forzarMayoreoPOS(3)" id="btn-mayoreo-3" style="flex:1;padding:5px;font-size:0.72rem;border-radius:6px;border:1px solid #ddd;background:white;color:#333;cursor:pointer">Mayoreo x3</button>
+              <button onclick="forzarMayoreoPOS(6)" id="btn-mayoreo-6" style="flex:1;padding:5px;font-size:0.72rem;border-radius:6px;border:1px solid #ddd;background:white;color:#333;cursor:pointer">Mayoreo x6</button>
+            </div>
             <input class="form-input" id="pos-cliente-buscar" placeholder="🔍 Buscar cliente..." style="font-size:0.85rem" oninput="buscarClientePOS(this.value)">
             <div id="pos-cliente-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:180px;overflow-y:auto;display:none;background:white;margin-top:4px;z-index:50;position:relative"></div>
             <input type="hidden" id="pos-cliente">
@@ -9827,6 +9979,11 @@ async function cargarPOS() {
           <button onclick="cerrarDrawerPOS()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
         </div>
         <div style="padding:0.75rem 1rem;border-bottom:1px solid #eee">
+          <div style="display:flex;gap:6px;margin-bottom:0.75rem">
+            <button onclick="mostrarCambiosPOS()" style="flex:1;background:#ffebee;border:1px solid #ef9a9a;color:#c62828;border-radius:8px;padding:8px;font-size:0.8rem;font-weight:600;cursor:pointer">↔ Cambios</button>
+            <button onclick="forzarMayoreoPOS(3)" id="btn-mayoreo-3-m" style="flex:1;padding:8px;font-size:0.78rem;border-radius:8px;border:1px solid #ddd;background:white;color:#333;cursor:pointer">Mayoreo x3</button>
+            <button onclick="forzarMayoreoPOS(6)" id="btn-mayoreo-6-m" style="flex:1;padding:8px;font-size:0.78rem;border-radius:8px;border:1px solid #ddd;background:white;color:#333;cursor:pointer">Mayoreo x6</button>
+          </div>
           <input class="form-input" id="pos-cliente-buscar-m" placeholder="🔍 Buscar cliente..." style="width:100%;font-size:0.9rem" oninput="buscarClientePOSM(this.value)">
           <div id="pos-cliente-resultados-m" style="border:1px solid #ddd;border-radius:6px;max-height:150px;overflow-y:auto;display:none;background:white;margin-top:4px"></div>
           <div id="pos-cliente-sel-m" style="display:none;margin-top:6px;padding:6px 10px;background:#e8f5e9;border-radius:6px;font-size:0.82rem;color:#2e7d32;cursor:pointer" onclick="limpiarClientePOSM()"></div>
@@ -9905,9 +10062,12 @@ window.renderDrawerPOS = () => {
   const container = document.getElementById('pos-drawer-items')
   if (!container) return
 
-  const totalPares = items.reduce((s,i) => s+i.cantidad, 0)
+  const totalPares = items.reduce((s,i) => s+(i.es_cambio?0:i.cantidad), 0)
   const total = items.reduce((s,i) => s+i.cantidad*i.precio_unitario, 0)
-  const tipo = items.some(i=>i.es_corrida)?'Corrida':totalPares>=6?'Mayoreo 6+':totalPares>=3?'Mayoreo 3+':'Menudeo'
+  const forzadoD = window._posMayoreoForzado || null
+  const tipo = items.some(i=>i.es_corrida)?'Corrida'
+    : forzadoD===6?'Mayoreo 6+ (forzado)' : forzadoD===3?'Mayoreo 3+ (forzado)'
+    : totalPares>=6?'Mayoreo 6+':totalPares>=3?'Mayoreo 3+':'Menudeo'
 
   const dp = document.getElementById('pos-drawer-pares')
   const dt = document.getElementById('pos-drawer-total')
@@ -9936,8 +10096,22 @@ window.renderDrawerPOS = () => {
 
   container.innerHTML = `
     ${itemsNormales.map(item => {
-      
       const realIdx = items.indexOf(item)
+      if (item.es_cambio) {
+        return `
+        <div style="padding:12px 0;border-bottom:1px solid #f5f5f5;background:#fff5f5">
+          <div style="display:flex;gap:10px;align-items:center">
+            ${item.imagen ? `<img src="${item.imagen}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;opacity:0.85">` : `<div style="width:44px;height:44px;background:#fee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">↩️</div>`}
+            <div style="flex:1">
+              <p style="font-size:0.85rem;font-weight:600">${item.nombre} <span style="font-size:0.68rem;font-weight:700;background:#ffebee;color:#c62828;padding:1px 7px;border-radius:100px;margin-left:4px">↩ Cambio</span></p>
+              <p style="font-size:0.75rem;color:#888">${item.color} · T${item.talla} · ${item.tier_label || ''}</p>
+            </div>
+            <button onclick="eliminarItemPOS(${realIdx});renderDrawerPOS()" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem">✕</button>
+          </div>
+          <p style="text-align:right;font-size:0.95rem;font-weight:700;color:#c62828;margin-top:6px">-$${Math.abs(item.cantidad*item.precio_unitario).toFixed(2)}</p>
+        </div>
+      `
+      }
       return `
         <div style="padding:12px 0;border-bottom:1px solid #f5f5f5">
   <div style="display:flex;gap:10px;margin-bottom:8px;align-items:start">
@@ -10039,7 +10213,8 @@ window.aplicarDescuentoPOS = (monto) => {
   const descuento = parseFloat(monto) || 0
 
   window._posCarrito.forEach(item => {
-    const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
+    if (item.es_cambio) return  // las líneas de cambio ya tienen su propio precio fijo
+    const totalPares = window._posCarrito.reduce((sum, i) => sum + (i.es_cambio ? 0 : i.cantidad), 0)
     let precioBase
 
     if (!item.precio_base_original) {
@@ -10068,7 +10243,7 @@ window.aplicarDescuentoPOS = (monto) => {
   // Info
   const infoEl = document.getElementById('pos-descuento-info')
   if (infoEl) {
-    const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
+    const totalPares = window._posCarrito.reduce((sum, i) => sum + (i.es_cambio ? 0 : i.cantidad), 0)
     infoEl.textContent = descuento > 0
       ? `Ahorro total: $${(descuento * totalPares).toFixed(2)} en ${totalPares} pares`
       : ''
@@ -11341,14 +11516,22 @@ window.renderCarritoPOS = () => {
   const container = document.getElementById('pos-carrito-items')
   if (!container) return
 
-  const totalPares = items.reduce((sum, i) => sum + i.cantidad, 0)
+  // Las líneas de cambio (devoluciones, cantidad negativa) no cuentan como
+  // pares comprados — si no, una devolución podría bajar el carrito por
+  // debajo del umbral de mayoreo que sí le corresponde a lo que sí compran.
+  const totalPares = items.reduce((sum, i) => sum + (i.es_cambio ? 0 : i.cantidad), 0)
+  const forzado = window._posMayoreoForzado || null
 
   items.forEach(item => {
-    if (item.precio_manual) return  // respetar precio editado manualmente
+    if (item.precio_manual || item.es_cambio) return  // ya tienen precio fijo
     if (item.es_oferta) {
       item.precio_unitario = item.precio_menudeo
     } else if (item.es_corrida) {
       item.precio_unitario = item.precio_corrida
+    } else if (forzado === 6) {
+      item.precio_unitario = item.precio_mayoreo6
+    } else if (forzado === 3) {
+      item.precio_unitario = item.precio_mayoreo3
     } else if (totalPares >= 6) {
       item.precio_unitario = item.precio_mayoreo6
     } else if (totalPares >= 3) {
@@ -11360,7 +11543,10 @@ window.renderCarritoPOS = () => {
 
   // Calcular total DESPUÉS de actualizar precios
   const total = items.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
-  const tipoPrecio = items.some(i => i.es_corrida) ? 'Corrida' : totalPares >= 6 ? 'Mayoreo 6+' : totalPares >= 3 ? 'Mayoreo 3+' : 'Menudeo'
+  const tipoPrecio = items.some(i => i.es_corrida) ? 'Corrida'
+    : forzado === 6 ? 'Mayoreo 6+ (forzado)'
+    : forzado === 3 ? 'Mayoreo 3+ (forzado)'
+    : totalPares >= 6 ? 'Mayoreo 6+' : totalPares >= 3 ? 'Mayoreo 3+' : 'Menudeo'
 
   // Separar normales y corridas
   const itemsNormales = items.filter(i => !i.es_corrida)
@@ -11389,7 +11575,19 @@ window.renderCarritoPOS = () => {
     container.innerHTML = '<p style="color:#888;font-size:0.85rem;text-align:center;padding:2rem">El carrito esta vacio</p>'
   } else {
     container.innerHTML = `
-      ${itemsNormales.map((item) => `
+      ${itemsNormales.map((item) => item.es_cambio ? `
+  <div style="padding:10px;border-bottom:1px solid #f5f5f5;background:#fff5f5">
+    <div style="display:flex;gap:10px;align-items:center">
+      ${item.imagen ? `<img src="${item.imagen}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;opacity:0.85">` : `<div style="width:44px;height:44px;background:#fee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem">↩️</div>`}
+      <div style="flex:1">
+        <p style="font-size:0.85rem;font-weight:600">${item.nombre} <span style="font-size:0.68rem;font-weight:700;background:#ffebee;color:#c62828;padding:1px 7px;border-radius:100px;margin-left:4px">↩ Cambio</span></p>
+        <p style="font-size:0.75rem;color:#888">${item.color} · T${item.talla} · ${item.tier_label || ''}</p>
+      </div>
+      <button onclick="eliminarItemPOS(${items.indexOf(item)})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1.2rem;padding:0 4px">✕</button>
+    </div>
+    <p style="text-align:right;font-size:0.95rem;font-weight:700;color:#c62828;margin-top:6px">-$${Math.abs(item.cantidad * item.precio_unitario).toFixed(2)}</p>
+  </div>
+` : `
   <div style="padding:10px;border-bottom:1px solid #f5f5f5">
     <div style="display:flex;gap:10px;margin-bottom:8px">
       ${item.imagen ? `<img src="${item.imagen}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0">` : `<div style="width:52px;height:52px;background:#f5f5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.5rem">👠</div>`}
@@ -11472,6 +11670,139 @@ window.renderCarritoPOS = () => {
   if (document.getElementById('pos-drawer')?.classList.contains('open')) renderDrawerPOS()
   guardarCarritoLocal()  // persistir el carrito tras cada cambio
 }
+
+window.forzarMayoreoPOS = (nivel) => {
+  window._posMayoreoForzado = (window._posMayoreoForzado === nivel) ? null : nivel
+  const activo = window._posMayoreoForzado
+  const botonesDesktop = { auto: 'btn-mayoreo-auto', 3: 'btn-mayoreo-3', 6: 'btn-mayoreo-6' }
+  Object.entries(botonesDesktop).forEach(([k, id]) => {
+    const btn = document.getElementById(id)
+    if (!btn) return
+    const esteActivo = (k === 'auto' ? activo === null : parseInt(k) === activo)
+    btn.style.background = esteActivo ? '#333' : 'white'
+    btn.style.color = esteActivo ? 'white' : '#333'
+  })
+  ;[3, 6].forEach(n => {
+    const btn = document.getElementById('btn-mayoreo-' + n + '-m')
+    if (!btn) return
+    const esteActivo = activo === n
+    btn.style.background = esteActivo ? '#333' : 'white'
+    btn.style.color = esteActivo ? 'white' : '#333'
+  })
+  renderCarritoPOS()
+}
+
+// ─── Modal de Cambios: el cliente devuelve un par y se lleva otro. Se
+// agrega como línea de cantidad NEGATIVA al carrito (se descuenta del
+// total) y al cobrar, el backend sube el inventario en vez de bajarlo. ───
+window.mostrarCambiosPOS = () => {
+  window._cambioTierSeleccionado = 'mayoreo3'
+  const modal = document.createElement('div')
+  modal.id = 'modal-cambios-pos'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:1.5rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <h3 style="margin:0">↔ Cambios</h3>
+        <button onclick="document.getElementById('modal-cambios-pos').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">✕</button>
+      </div>
+      <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Busca el modelo que el cliente se lleva a cambio. Se descuenta del total del carrito y el inventario se ajusta solo al cobrar.</p>
+
+      <p style="font-size:0.78rem;font-weight:700;color:#333;margin-bottom:6px">Precio a aplicar al par que se lleva:</p>
+      <div style="display:flex;gap:6px;margin-bottom:1rem">
+        <button onclick="seleccionarTierCambio('mayoreo3')" id="tier-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;opacity:0.9">-$30/par</span></button>
+        <button onclick="seleccionarTierCambio('mayoreo6')" id="tier-mayoreo6" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x6<br><span style="font-size:0.66rem;color:#888">-$70/par</span></button>
+        <button onclick="seleccionarTierCambio('corrida')" id="tier-corrida" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Corrida<br><span style="font-size:0.66rem;color:#888">-$100/par</span></button>
+      </div>
+
+      <input class="form-input" id="cambio-buscar" placeholder="🔍 Buscar modelo (nombre o SKU)..." oninput="buscarCambioPOS(this.value)" autocomplete="off">
+      <div id="cambio-resultados" style="margin-top:10px;max-height:320px;overflow-y:auto"></div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.seleccionarTierCambio = (tier) => {
+  window._cambioTierSeleccionado = tier
+  ;['mayoreo3', 'mayoreo6', 'corrida'].forEach(t => {
+    const btn = document.getElementById('tier-' + t)
+    if (!btn) return
+    const activo = t === tier
+    btn.style.background = activo ? '#E91E8C' : 'white'
+    btn.style.color = activo ? 'white' : '#333'
+    btn.style.borderColor = activo ? '#E91E8C' : '#ddd'
+  })
+}
+
+window.buscarCambioPOS = (texto) => {
+  const resultadosDiv = document.getElementById('cambio-resultados')
+  if (!resultadosDiv) return
+  if (!texto || texto.length < 2) { resultadosDiv.innerHTML = ''; return }
+  const productos = window._posData?.productos || []
+  const variantes = window._posData?.variantes || []
+  const term = texto.toLowerCase()
+  const prodsFiltrados = productos.filter(p =>
+    (p.nombre || '').toLowerCase().includes(term) || (p.sku_interno || '').toLowerCase().includes(term)
+  ).slice(0, 8)
+
+  if (prodsFiltrados.length === 0) {
+    resultadosDiv.innerHTML = '<p style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Sin resultados</p>'
+    return
+  }
+
+  const TALLAS_ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+  resultadosDiv.innerHTML = prodsFiltrados.map(p => {
+    const varsProducto = variantes.filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProducto.map(v => v.color))]
+    return colores.map(color => {
+      const varsColor = varsProducto.filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+      const hex = varsColor[0]?.color_hex
+      const chips = varsColor.map(v => `
+        <button onclick="agregarCambioPOS('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}')"
+          style="min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid #ddd;border-radius:8px;background:white;color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}</button>
+      `).join('')
+      return `
+        <div style="padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8">` : ''}
+            ${hex ? `<span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ddd"></span>` : ''}
+            <span style="font-size:0.85rem;font-weight:600">${p.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        </div>
+      `
+    }).join('')
+  }).join('')
+}
+
+window.agregarCambioPOS = (varianteId, productoId, nombre, talla, color, imagen) => {
+  const producto = (window._posData?.productos || []).find(p => p.id === productoId)
+  if (!producto) return
+  const tier = window._cambioTierSeleccionado || 'mayoreo3'
+  const precioMap = {
+    mayoreo3: producto.precio_mayoreo3 || (producto.precio_menudeo - 30),
+    mayoreo6: producto.precio_mayoreo6 || (producto.precio_menudeo - 70),
+    corrida: producto.precio_corrida || (producto.precio_menudeo - 100)
+  }
+  const labelMap = { mayoreo3: 'precio mayoreo x3', mayoreo6: 'precio mayoreo x6', corrida: 'precio corrida' }
+  const precio = precioMap[tier]
+
+  const existente = window._posCarrito.find(i => i.variante_id === varianteId && i.es_cambio && i.tier_cambio === tier)
+  if (existente) {
+    existente.cantidad -= 1
+  } else {
+    window._posCarrito.push({
+      variante_id: varianteId, producto_id: productoId, nombre, talla, color, imagen,
+      cantidad: -1, precio_unitario: precio,
+      es_cambio: true, tier_cambio: tier, tier_label: labelMap[tier]
+    })
+  }
+  renderCarritoPOS()
+}
+
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
   if (!window._posCarrito[idx]) return
   const precio = parseFloat(nuevoPrecio)

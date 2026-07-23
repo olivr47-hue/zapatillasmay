@@ -618,12 +618,17 @@ def confirmar_pedido(id: str, datos: dict):
                         f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
                         {"cantidad": nueva_cantidad}
                     )
+                    # Una linea con cantidad negativa es un "cambio" (el cliente
+                    # devuelve ese par en vez de comprarlo) — el stock sube en
+                    # vez de bajar; se etiqueta distinto para que el historial
+                    # de movimientos sea coherente (ver movimientos.py cambio_entrada).
+                    es_cambio = cantidad < 0
                     supabase_post("movimientos_inventario", {
-                        "tipo": "venta",
+                        "tipo": "cambio_entrada" if es_cambio else "venta",
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
                         "cantidad": -cantidad,
-                        "motivo": f"Venta pedido {id}"
+                        "motivo": f"Cambio — devolución en pedido {id}" if es_cambio else f"Venta pedido {id}"
                     })
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
