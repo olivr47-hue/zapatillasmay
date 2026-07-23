@@ -1388,14 +1388,16 @@ async function cargarFinanzas() {
     const sucursales = await resSucursales.json()
     const sucursalId = sucursales[0]?.id
 
-    const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias] = await Promise.all([
+    const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias, resCxP, resDeudas] = await Promise.all([
       fetch(API + '/finanzas/caja/hoy/' + sucursalId),
       fetch(API + '/finanzas/reporte/' + sucursalId),
       fetch(API + '/finanzas/gastos/' + sucursalId),
       fetch(API + '/finanzas/estado-resultados/' + sucursalId),
       fetch(API + '/finanzas/flujo/' + sucursalId),
       fetch(API + '/finanzas/cuentas-por-cobrar'),
-      fetch(API + '/finanzas/gastos-categorias/' + sucursalId)
+      fetch(API + '/finanzas/gastos-categorias/' + sucursalId),
+      fetch(API + '/finanzas/cuentas-por-pagar'),
+      fetch(API + '/finanzas/deudas')
     ])
 
     const cajas = await resCaja.json()
@@ -1405,12 +1407,16 @@ async function cargarFinanzas() {
     const flujo = await resFlujo.json()
     const cxc = await resCxC.json()
     const categorias = await resCategorias.json()
+    const cxp = await resCxP.json()
+    const deudas = await resDeudas.json()
 
     const cajaActiva = cajas.find(c => c.status === 'abierta')
     const hoy = new Date().toISOString().split('T')[0]
     const gastosHoy = gastos.filter(g => g.created_at?.startsWith(hoy))
     const totalGastosHoy = gastosHoy.reduce((s, g) => s + parseFloat(g.monto || 0), 0)
     const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const totalCxP = (Array.isArray(cxp) ? cxp : []).reduce((s, o) => s + parseFloat(o.total || 0), 0)
+    const cxpVencidas = (Array.isArray(cxp) ? cxp : []).filter(o => o.vencido).length
 
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -1489,9 +1495,13 @@ async function cargarFinanzas() {
           <p style="font-size:1.5rem;font-weight:700;color:#333">$${(reporte.ticket_promedio||0).toFixed(0)}</p>
           <p style="font-size:0.68rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Ticket promedio</p>
         </div>
-        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarCxC()">
+        <div style="background:#fff8e1;border-radius:12px;padding:1.25rem;border:1px solid #ffe082;text-align:center;cursor:pointer" onclick="mostrarTabFinanzas('cxc')">
           <p style="font-size:1.5rem;font-weight:700;color:#f57f17">$${totalCxC.toFixed(0)}</p>
           <p style="font-size:0.68rem;color:#f57f17;text-transform:uppercase;letter-spacing:0.5px">Cuentas x cobrar</p>
+        </div>
+        <div style="background:${cxpVencidas > 0 ? '#ffebee' : '#f3e5f5'};border-radius:12px;padding:1.25rem;border:1px solid ${cxpVencidas > 0 ? '#ffcdd2' : '#ce93d8'};text-align:center;cursor:pointer" onclick="mostrarTabFinanzas('cxp')">
+          <p style="font-size:1.5rem;font-weight:700;color:${cxpVencidas > 0 ? '#c62828' : '#6a1b9a'}">$${totalCxP.toFixed(0)}</p>
+          <p style="font-size:0.68rem;color:${cxpVencidas > 0 ? '#c62828' : '#6a1b9a'};text-transform:uppercase;letter-spacing:0.5px">Cuentas x pagar${cxpVencidas > 0 ? ' · ' + cxpVencidas + ' vencida' + (cxpVencidas>1?'s':'') : ''}</p>
         </div>
       </div>
 
@@ -1501,14 +1511,17 @@ async function cargarFinanzas() {
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cmv')">📦 Costo mercancía</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('estado')">📊 Estado de resultados</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('flujo')">💧 Flujo de efectivo</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('proyeccion')">📈 Proyección</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('caja')">📋 Historial caja</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxc')">📑 Cuentas x cobrar</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxp')">📥 Cuentas x pagar</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('deudas')">💳 Deudas</button>
       </div>
 
       <div id="fin-tab-contenido"></div>
     `
 
-    window._finanzasData = { sucursalId, gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial: [], reporte }
+    window._finanzasData = { sucursalId, gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, cxp, deudas, categorias, historial: [], reporte }
     window._finanzasSucursalId = sucursalId
 
     // Cargar historial
@@ -1524,7 +1537,7 @@ async function cargarFinanzas() {
 }
 
 window.mostrarTabFinanzas = (tab) => {
-  const { gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, categorias, historial, sucursalId } = window._finanzasData
+  const { gastosHoy, totalGastosHoy, estadoResultados, flujo, cxc, cxp, deudas, categorias, historial, sucursalId } = window._finanzasData
   const container = document.getElementById('fin-tab-contenido')
   if (!container) return
 
@@ -1613,7 +1626,7 @@ window.mostrarTabFinanzas = (tab) => {
             : gastosHoy.map(g => `
               <div style="padding:0.75rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px">
                 <div style="flex:1">
-                  <p style="font-size:0.85rem;font-weight:600">${g.concepto}</p>
+                  <p style="font-size:0.85rem;font-weight:600">${g.concepto}${g.es_recurrente ? ' <span title="Gasto recurrente" style="font-size:0.7rem">🔁</span>' : ''}</p>
                   <p style="font-size:0.72rem;color:#888">${g.categoria} · ${new Date(g.created_at).toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'})}</p>
                 </div>
                 <p style="font-weight:700;color:#c62828">-$${parseFloat(g.monto).toFixed(2)}</p>
@@ -1781,6 +1794,12 @@ window.mostrarTabFinanzas = (tab) => {
     `
   } else if (tab === 'cxc') {
     mostrarCxC()
+  } else if (tab === 'cxp') {
+    mostrarCxP()
+  } else if (tab === 'deudas') {
+    mostrarDeudas()
+  } else if (tab === 'proyeccion') {
+    mostrarProyeccion()
   }
 }
 
@@ -1822,6 +1841,343 @@ window.mostrarCxC = () => {
         }).join('')}
     </div>
   `
+}
+
+window.mostrarCxP = () => {
+  const { cxp } = window._finanzasData
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+  const lista = Array.isArray(cxp) ? cxp : []
+  container.innerHTML = `
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <p style="font-weight:700;font-size:0.9rem">📥 Cuentas por pagar a proveedores</p>
+        <span style="font-size:0.78rem;color:#888">${lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.total||0),0).toFixed(0)} total</span>
+      </div>
+      ${lista.length === 0
+        ? '<div style="padding:2rem;text-align:center;color:#888">Sin órdenes de compra pendientes de pago</div>'
+        : lista.map(o => {
+          const vencido = o.vencido
+          const dias = o.dias_restantes
+          const badge = vencido
+            ? { bg:'#ffebee', color:'#c62828', txt:`Vencida hace ${Math.abs(dias)}d` }
+            : dias <= 3 ? { bg:'#fff8e1', color:'#f57f17', txt:`Vence en ${dias}d` }
+            : { bg:'#e8f5e9', color:'#2e7d32', txt:`Vence en ${dias}d` }
+          return `
+            <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div style="flex:1;min-width:160px">
+                <p style="font-size:0.85rem;font-weight:600">🏭 ${o.proveedor_nombre}</p>
+                <p style="font-size:0.72rem;color:#888">
+                  Orden del ${new Date(o.fecha_orden).toLocaleDateString('es-MX')}
+                  ${o.dias_credito > 0 ? ` · ${o.dias_credito} días de crédito` : ' · pago inmediato'}
+                  · vence ${new Date(o.fecha_vencimiento).toLocaleDateString('es-MX')}
+                </p>
+              </div>
+              <div style="text-align:right">
+                <p style="font-weight:700;color:#333;font-size:1rem">$${parseFloat(o.total||0).toFixed(0)}</p>
+                <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600">${badge.txt}</span>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="marcarOrdenPagada('${o.id}')">✅ Marcar pagada</button>
+                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#c62828;border-color:#ef9a9a" onclick="marcarOrdenCancelada('${o.id}')">✕ Cancelar</button>
+              </div>
+            </div>
+          `
+        }).join('')}
+    </div>
+  `
+}
+
+window.marcarOrdenPagada = async (id) => {
+  if (!confirm('¿Confirmar que esta orden ya se pagó al proveedor?')) return
+  try {
+    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-pagada', { method: 'POST' })
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error marcando la orden como pagada')
+  }
+}
+
+window.marcarOrdenCancelada = async (id) => {
+  if (!confirm('¿Cancelar esta orden de compra? Ya no contará como cuenta por pagar.')) return
+  try {
+    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-cancelada', { method: 'POST' })
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error cancelando la orden')
+  }
+}
+
+window.mostrarDeudas = () => {
+  const { deudas } = window._finanzasData
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+  const lista = Array.isArray(deudas) ? deudas : []
+  const totalSaldo = lista.reduce((s,d) => s + parseFloat(d.saldo_actual||0), 0)
+  container.innerHTML = `
+    <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <p style="font-weight:700;font-size:0.9rem">💳 Deudas y préstamos</p>
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="font-size:0.78rem;color:#888">${lista.length} activas · $${totalSaldo.toLocaleString('es-MX',{maximumFractionDigits:0})} saldo total</span>
+          <button class="btn btn-primary" style="font-size:0.78rem" onclick="mostrarFormDeuda()">+ Nueva deuda</button>
+        </div>
+      </div>
+      ${lista.length === 0
+        ? '<div style="padding:2rem;text-align:center;color:#888">Sin deudas o préstamos registrados</div>'
+        : lista.map(d => `
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+            <div style="flex:1;min-width:180px">
+              <p style="font-size:0.85rem;font-weight:600">${d.nombre}${d.acreedor ? ` <span style="color:#888;font-weight:400">· ${d.acreedor}</span>` : ''}</p>
+              <p style="font-size:0.72rem;color:#888">
+                ${d.tasa_interes_anual > 0 ? `Tasa ${d.tasa_interes_anual}% anual` : 'Sin tasa registrada'}
+                ${d.pago_mensual ? ` · Pago mensual $${parseFloat(d.pago_mensual).toFixed(0)}` : ''}
+                ${d.proximo_pago ? ` · Próximo pago: ${new Date(d.proximo_pago).toLocaleDateString('es-MX')}` : ''}
+              </p>
+            </div>
+            <div style="text-align:right">
+              <p style="font-weight:700;color:#333;font-size:1rem">$${parseFloat(d.saldo_actual||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+              <p style="font-size:0.65rem;color:#888">de $${parseFloat(d.monto_original||0).toLocaleString('es-MX',{maximumFractionDigits:0})} original</p>
+            </div>
+            <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="mostrarFormPagoDeuda('${d.id}','${d.nombre.replace(/'/g,"\\'")}', ${d.pago_mensual||0})">💵 Registrar pago</button>
+          </div>
+        `).join('')}
+    </div>
+  `
+}
+
+window.mostrarFormDeuda = () => {
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:1.5rem">💳 Nueva deuda / préstamo</h3>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Nombre *</label>
+          <input class="form-input" id="deuda-nombre" placeholder="Ej: Préstamo BBVA, Tarjeta empresarial...">
+        </div>
+        <div>
+          <label class="form-label">Acreedor / institución</label>
+          <input class="form-input" id="deuda-acreedor" placeholder="Ej: BBVA, American Express...">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Monto original *</label>
+            <input class="form-input" id="deuda-monto" type="number" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label class="form-label">Tasa de interés anual (%)</label>
+            <input class="form-input" id="deuda-tasa" type="number" step="0.01" placeholder="Ej: 24.5">
+          </div>
+          <div>
+            <label class="form-label">Pago mensual</label>
+            <input class="form-input" id="deuda-pago-mensual" type="number" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label class="form-label">Día de pago del mes</label>
+            <input class="form-input" id="deuda-dia-pago" type="number" min="1" max="31" placeholder="Ej: 5">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="deuda-notas" rows="2" placeholder="Detalles adicionales..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarDeuda()">Guardar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarDeuda = async () => {
+  const nombre = document.getElementById('deuda-nombre').value
+  const monto = parseFloat(document.getElementById('deuda-monto').value)
+  if (!nombre || !monto) { alert('Completa nombre y monto original'); return }
+  try {
+    await fetch(API + '/finanzas/deudas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sucursal_id: window._finanzasSucursalId,
+        nombre,
+        acreedor: document.getElementById('deuda-acreedor').value,
+        monto_original: monto,
+        tasa_interes_anual: parseFloat(document.getElementById('deuda-tasa').value) || 0,
+        pago_mensual: parseFloat(document.getElementById('deuda-pago-mensual').value) || null,
+        dia_pago: parseInt(document.getElementById('deuda-dia-pago').value) || null,
+        notas: document.getElementById('deuda-notas').value
+      })
+    })
+    document.querySelector('div[style*="position:fixed"]').remove()
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error guardando la deuda')
+  }
+}
+
+window.mostrarFormPagoDeuda = (deudaId, nombre, pagoSugerido) => {
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:420px;width:100%">
+      <h3 style="margin-bottom:4px">💵 Registrar pago</h3>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">${nombre}</p>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Monto de capital (abona al saldo) *</label>
+          <input class="form-input" id="pago-capital" type="number" step="0.01" value="${pagoSugerido || ''}">
+        </div>
+        <div>
+          <label class="form-label">Monto de interés (gasto, no abona saldo)</label>
+          <input class="form-input" id="pago-interes" type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Fecha</label>
+          <input class="form-input" id="pago-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarPagoDeuda('${deudaId}')">Guardar pago</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarPagoDeuda = async (deudaId) => {
+  const monto_capital = parseFloat(document.getElementById('pago-capital').value) || 0
+  const monto_interes = parseFloat(document.getElementById('pago-interes').value) || 0
+  const fecha = document.getElementById('pago-fecha').value
+  if (monto_capital <= 0 && monto_interes <= 0) { alert('Captura al menos un monto'); return }
+  try {
+    await fetch(API + '/finanzas/deudas/' + deudaId + '/pagos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto_capital, monto_interes, fecha })
+    })
+    document.querySelector('div[style*="position:fixed"]').remove()
+    cargarFinanzas()
+  } catch(e) {
+    alert('Error guardando el pago')
+  }
+}
+
+window.mostrarProyeccion = async () => {
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+  container.innerHTML = '<p style="padding:2rem;color:#888">Calculando proyección...</p>'
+  try {
+    const sucursalId = window._finanzasSucursalId
+    const [resSaldo, resProy] = await Promise.all([
+      fetch(API + '/finanzas/saldo'),
+      fetch(API + '/finanzas/proyeccion/' + sucursalId + '?dias=60')
+    ])
+    const saldo = await resSaldo.json()
+    const proy = await resProy.json()
+    window._proyeccionData = proy
+
+    const dias = proy.dias || []
+    // Agrupar en semanas de 7 dias para que sea legible
+    const semanas = []
+    for (let i = 0; i < dias.length; i += 7) {
+      const semana = dias.slice(i, i + 7)
+      if (semana.length === 0) continue
+      semanas.push({
+        inicio: semana[0].fecha,
+        fin: semana[semana.length - 1].fecha,
+        ingreso: semana.reduce((s,d) => s + d.ingreso, 0),
+        egreso: semana.reduce((s,d) => s + d.egreso, 0),
+        saldoFinal: semana[semana.length - 1].saldo,
+        huboNegativo: semana.some(d => d.saldo < 0),
+        eventos: semana.flatMap(d => d.detalle_egresos.map(ev => `${new Date(d.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})}: ${ev}`))
+      })
+    }
+    const primerNegativo = dias.find(d => d.saldo < 0)
+
+    container.innerHTML = `
+      <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.25rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <p style="font-weight:700;font-size:0.9rem;margin-bottom:4px">💰 Saldo inicial (banco + efectivo)</p>
+            <p style="font-size:0.72rem;color:#888">${saldo.fecha ? 'Actualizado el ' + new Date(saldo.fecha).toLocaleDateString('es-MX') : 'Sin capturar todavía'}</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="saldo-inicial-input" type="number" step="0.01" value="${saldo.monto || 0}" style="width:150px">
+            <button class="btn btn-primary" style="font-size:0.8rem" onclick="guardarSaldoInicial()">Guardar</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem">
+        <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.3rem;font-weight:700;color:#2e7d32">$${(proy.ingreso_diario_promedio||0).toFixed(0)}</p>
+          <p style="font-size:0.65rem;color:#888;text-transform:uppercase">Ingreso diario prom.</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.3rem;font-weight:700;color:#c62828">$${(proy.egreso_variable_diario||0).toFixed(0)}</p>
+          <p style="font-size:0.65rem;color:#888;text-transform:uppercase">Egreso variable diario</p>
+        </div>
+        <div style="background:${primerNegativo ? '#ffebee' : '#e8f5e9'};border-radius:12px;padding:1rem;border:1px solid ${primerNegativo ? '#ffcdd2' : '#a5d6a7'};text-align:center">
+          <p style="font-size:1.1rem;font-weight:700;color:${primerNegativo ? '#c62828' : '#2e7d32'}">${primerNegativo ? '⚠️ ' + new Date(primerNegativo.fecha).toLocaleDateString('es-MX',{day:'2-digit',month:'short'}) : '✅ Sin riesgo'}</p>
+          <p style="font-size:0.65rem;color:${primerNegativo ? '#c62828' : '#2e7d32'};text-transform:uppercase">${primerNegativo ? 'te quedas en negativo' : 'en los próximos 60 días'}</p>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📈 Saldo proyectado — próximas ${semanas.length} semanas</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:2px solid #eee">
+                <th style="padding:8px 12px;text-align:left">Semana</th>
+                <th style="padding:8px 12px;text-align:right">Ingresos</th>
+                <th style="padding:8px 12px;text-align:right">Egresos</th>
+                <th style="padding:8px 12px;text-align:right">Saldo al cierre</th>
+                <th style="padding:8px 12px;text-align:left">Pagos programados</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${semanas.map(s => `
+                <tr style="border-bottom:1px solid #f5f5f5;${s.huboNegativo ? 'background:#fff5f5' : ''}">
+                  <td style="padding:8px 12px">${new Date(s.inicio).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})} – ${new Date(s.fin).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})}</td>
+                  <td style="padding:8px 12px;text-align:right;color:#2e7d32">+$${s.ingreso.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:8px 12px;text-align:right;color:#c62828">-$${s.egreso.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:8px 12px;text-align:right;font-weight:700;color:${s.saldoFinal < 0 ? '#c62828' : '#333'}">$${s.saldoFinal.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:8px 12px;font-size:0.72rem;color:#888">${s.eventos.length ? s.eventos.join('<br>') : '—'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p style="font-size:0.72rem;color:#aaa;margin-top:8px">Los ingresos se proyectan con el promedio de ventas de los últimos 30 días. Los egresos combinan gastos variables promedio + cuentas por pagar + gastos recurrentes + pagos de deudas ya registrados.</p>
+    `
+  } catch(e) {
+    container.innerHTML = '<p style="padding:2rem;color:red">Error calculando la proyección: ' + e.message + '</p>'
+  }
+}
+
+window.guardarSaldoInicial = async () => {
+  const monto = parseFloat(document.getElementById('saldo-inicial-input').value) || 0
+  try {
+    await fetch(API + '/finanzas/saldo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto })
+    })
+    mostrarProyeccion()
+  } catch(e) {
+    alert('Error guardando el saldo')
+  }
 }
 
 window.abrirCaja = async (sucursalId) => {
@@ -1892,8 +2248,19 @@ window.agregarGasto = (sucursalId) => {
             <option value="servicios">Servicios</option>
             <option value="comida">Comida</option>
             <option value="renta">Renta</option>
+            <option value="nomina">Nómina</option>
+            <option value="impuestos">Impuestos</option>
+            <option value="financiero">Financiero (intereses, comisiones)</option>
             <option value="otro">Otro</option>
           </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="gasto-recurrente" style="width:16px;height:16px;cursor:pointer" onchange="document.getElementById('gasto-dia-mes-wrap').style.display=this.checked?'block':'none'">
+          <label for="gasto-recurrente" style="font-size:0.85rem;cursor:pointer">Es un gasto recurrente (se repite cada mes)</label>
+        </div>
+        <div id="gasto-dia-mes-wrap" style="display:none">
+          <label class="form-label">Día del mes en que se repite</label>
+          <input class="form-input" id="gasto-dia-mes" type="number" min="1" max="28" value="${new Date().getDate()}">
         </div>
       </div>
       <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
@@ -1910,6 +2277,8 @@ window.guardarGasto = async (sucursalId, btn) => {
   const concepto = document.getElementById('gasto-concepto').value
   const monto = document.getElementById('gasto-monto').value
   const categoria = document.getElementById('gasto-categoria').value
+  const esRecurrente = document.getElementById('gasto-recurrente').checked
+  const diaMes = parseInt(document.getElementById('gasto-dia-mes').value) || new Date().getDate()
   if (!concepto || !monto) { alert('Completa concepto y monto'); return }
   try {
     await fetch(API + '/finanzas/gastos', {
@@ -1920,6 +2289,8 @@ window.guardarGasto = async (sucursalId, btn) => {
         concepto,
         monto: parseFloat(monto),
         categoria,
+        es_recurrente: esRecurrente,
+        dia_mes: esRecurrente ? diaMes : null,
         empleado: window._empleadoActual?.nombre || 'Admin'
       })
     })
@@ -1955,7 +2326,7 @@ async function cargarProveedores() {
           ? '<div style="padding:3rem;text-align:center;color:#888">No hay proveedores registrados</div>'
           : `<table>
             <thead>
-              <tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Acciones</th></tr>
+              <tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>Ciudad</th><th>Crédito</th><th>Acciones</th></tr>
             </thead>
             <tbody>
               ${data.map(p => `
@@ -1964,6 +2335,7 @@ async function cargarProveedores() {
                   <td>${p.contacto || '—'}</td>
                   <td>${p.telefono || '—'}</td>
                   <td>${p.ciudad || '—'}</td>
+                  <td>${p.dias_credito > 0 ? `<span style="background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600">${p.dias_credito} días</span>` : '<span style="color:#94a3b8;font-size:0.78rem">Contado</span>'}</td>
                   <td>
                     <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProveedor('${p.id}')">Editar</button>
                   </td>
@@ -2006,6 +2378,16 @@ window.mostrarFormProveedor = (datos) => {
           <label class="form-label">Ciudad</label>
           <input class="form-input" id="prov-ciudad" value="${d.ciudad || ''}" placeholder="Leon">
         </div>
+        <div>
+          <label class="form-label">Días de crédito</label>
+          <select class="form-input" id="prov-dias-credito">
+            <option value="0" ${(d.dias_credito || 0) === 0 ? 'selected' : ''}>Sin crédito (pago inmediato)</option>
+            <option value="15" ${d.dias_credito === 15 ? 'selected' : ''}>15 días</option>
+            <option value="30" ${d.dias_credito === 30 ? 'selected' : ''}>30 días</option>
+            <option value="45" ${d.dias_credito === 45 ? 'selected' : ''}>45 días</option>
+            <option value="60" ${d.dias_credito === 60 ? 'selected' : ''}>60 días</option>
+          </select>
+        </div>
         <div style="grid-column:1/-1">
           <label class="form-label">Dirección</label>
           <input class="form-input" id="prov-direccion" value="${d.direccion || ''}" placeholder="Calle y número">
@@ -2033,7 +2415,8 @@ window.guardarProveedor = async (id) => {
     email: document.getElementById('prov-email').value,
     ciudad: document.getElementById('prov-ciudad').value,
     direccion: document.getElementById('prov-direccion').value,
-    notas: document.getElementById('prov-notas').value
+    notas: document.getElementById('prov-notas').value,
+    dias_credito: parseInt(document.getElementById('prov-dias-credito').value) || 0
   }
   if (!datos.nombre) { alert('El nombre es requerido'); return }
   try {

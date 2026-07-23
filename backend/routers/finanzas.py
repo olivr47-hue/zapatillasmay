@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from datetime import date
+import json
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
 
@@ -78,9 +79,51 @@ def cerrar_caja(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ─── GASTOS ───────────────────────────────────────
+def _materializar_gastos_recurrentes(sucursal_id):
+    """Los gastos recurrentes (renta, nomina, suscripciones) se guardan una
+    vez como 'plantilla' (es_recurrente=true, plantilla_id=null) y aqui se
+    clona automaticamente una copia para el mes actual si todavia no existe,
+    para no tener que capturarlos a mano cada mes."""
+    import calendar
+    try:
+        hoy = date.today()
+        mes_actual = hoy.strftime("%Y-%m")
+        plantillas = supabase_get(
+            f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
+        ) or []
+        for t in plantillas:
+            if t.get("mes_generado") == mes_actual:
+                continue
+            ya_generado = supabase_get(
+                f"gastos?plantilla_id=eq.{t['id']}&mes_generado=eq.{mes_actual}"
+            )
+            if ya_generado:
+                continue
+            dia = t.get("dia_mes") or 1
+            ultimo_dia = calendar.monthrange(hoy.year, hoy.month)[1]
+            fecha_gasto = date(hoy.year, hoy.month, min(dia, ultimo_dia))
+            try:
+                supabase_post("gastos", {
+                    "sucursal_id": sucursal_id,
+                    "concepto": t["concepto"],
+                    "monto": t["monto"],
+                    "categoria": t.get("categoria", "general"),
+                    "empleado": "Sistema (recurrente)",
+                    "fecha": fecha_gasto.isoformat(),
+                    "es_recurrente": True,
+                    "dia_mes": dia,
+                    "plantilla_id": t["id"],
+                    "mes_generado": mes_actual,
+                })
+            except Exception:
+                pass  # no bloquear el listado si falla un gasto recurrente individual
+    except Exception:
+        pass
+
 @router.get("/gastos/{sucursal_id}")
 def listar_gastos(sucursal_id: str):
     try:
+        _materializar_gastos_recurrentes(sucursal_id)
         return supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&order=created_at.desc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -88,6 +131,10 @@ def listar_gastos(sucursal_id: str):
 @router.post("/gastos")
 def crear_gasto(datos: dict):
     try:
+        if datos.get("es_recurrente"):
+            hoy = date.today()
+            datos.setdefault("dia_mes", hoy.day)
+            datos["mes_generado"] = hoy.strftime("%Y-%m")
         return supabase_post("gastos", datos)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -500,5 +547,259 @@ def sugerencias_recompra(sucursal_id: str):
 
         sugerencias.sort(key=lambda x: x['dias_efectivos'])
         return sugerencias
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── CUENTAS POR PAGAR (proveedores) ──────────────
+@router.get("/cuentas-por-pagar")
+def cuentas_por_pagar():
+    """Ordenes de compra que todavia no se han pagado, con su fecha de
+    vencimiento calculada a partir de los dias de credito del proveedor."""
+    try:
+        from datetime import datetime, timedelta
+        ordenes = supabase_get_all(
+            "ordenes_compra?status=not.in.(pagada,cancelada)"
+            "&order=created_at.asc&select=*,proveedores(nombre,telefono,dias_credito)"
+        )
+        hoy = date.today()
+        resultado = []
+        for o in ordenes:
+            prov = o.get("proveedores") or {}
+            dias_credito = prov.get("dias_credito") or 0
+            fecha_orden = datetime.fromisoformat(o["created_at"]).date()
+            fecha_vencimiento = fecha_orden + timedelta(days=dias_credito)
+            dias_restantes = (fecha_vencimiento - hoy).days
+            resultado.append({
+                **o,
+                "proveedor_nombre": prov.get("nombre") or "Sin proveedor",
+                "dias_credito": dias_credito,
+                "fecha_orden": fecha_orden.isoformat(),
+                "fecha_vencimiento": fecha_vencimiento.isoformat(),
+                "dias_restantes": dias_restantes,
+                "vencido": dias_restantes < 0,
+            })
+        resultado.sort(key=lambda x: x["dias_restantes"])
+        return resultado
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/ordenes/{id}/marcar-pagada")
+def marcar_orden_pagada(id: str):
+    try:
+        from datetime import datetime
+        supabase_patch(f"ordenes_compra?id=eq.{id}", {
+            "status": "pagada",
+            "fecha_pago": datetime.now().isoformat()
+        })
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/ordenes/{id}/marcar-cancelada")
+def marcar_orden_cancelada(id: str):
+    try:
+        supabase_patch(f"ordenes_compra?id=eq.{id}", {"status": "cancelada"})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── DEUDAS / PRESTAMOS ────────────────────────────
+def _proximo_dia_pago(dia_pago):
+    """Dado un dia del mes (1-28ish), regresa la proxima fecha en que cae."""
+    from datetime import timedelta
+    import calendar
+    if not dia_pago:
+        return None
+    hoy = date.today()
+    ultimo_dia_mes = calendar.monthrange(hoy.year, hoy.month)[1]
+    dia = min(dia_pago, ultimo_dia_mes)
+    candidata = date(hoy.year, hoy.month, dia)
+    if candidata < hoy:
+        mes = hoy.month + 1
+        anio = hoy.year
+        if mes > 12:
+            mes = 1
+            anio += 1
+        ultimo_dia_sig = calendar.monthrange(anio, mes)[1]
+        candidata = date(anio, mes, min(dia_pago, ultimo_dia_sig))
+    return candidata.isoformat()
+
+@router.get("/deudas")
+def listar_deudas():
+    try:
+        deudas = supabase_get("deudas?activo=eq.true&order=dia_pago.asc.nullslast")
+        for d in deudas:
+            d["proximo_pago"] = _proximo_dia_pago(d.get("dia_pago"))
+        return deudas
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/deudas")
+def crear_deuda(datos: dict):
+    try:
+        datos.setdefault("saldo_actual", datos.get("monto_original", 0))
+        return supabase_post("deudas", datos)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.patch("/deudas/{id}")
+def actualizar_deuda(id: str, datos: dict):
+    try:
+        return supabase_patch(f"deudas?id=eq.{id}", datos)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.get("/deudas/{id}/pagos")
+def listar_pagos_deuda(id: str):
+    try:
+        return supabase_get(f"deudas_pagos?deuda_id=eq.{id}&order=fecha.desc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/deudas/{id}/pagos")
+def registrar_pago_deuda(id: str, datos: dict):
+    """Registra un pago (capital + interes) y descuenta el capital del saldo."""
+    try:
+        deuda = supabase_get(f"deudas?id=eq.{id}")
+        if not deuda:
+            return JSONResponse(status_code=404, content={"error": "Deuda no encontrada"})
+        deuda = deuda[0]
+
+        monto_capital = float(datos.get("monto_capital") or 0)
+        monto_interes = float(datos.get("monto_interes") or 0)
+        monto_total   = float(datos.get("monto") or (monto_capital + monto_interes))
+        saldo_nuevo   = max(0, float(deuda["saldo_actual"]) - monto_capital)
+
+        pago = supabase_post("deudas_pagos", {
+            "deuda_id": id,
+            "monto": monto_total,
+            "monto_interes": monto_interes,
+            "monto_capital": monto_capital,
+            "fecha": datos.get("fecha") or date.today().isoformat(),
+            "saldo_despues": saldo_nuevo,
+            "notas": datos.get("notas", "")
+        })
+
+        supabase_patch(f"deudas?id=eq.{id}", {"saldo_actual": saldo_nuevo})
+        if saldo_nuevo <= 0:
+            supabase_patch(f"deudas?id=eq.{id}", {"activo": False})
+
+        return {"ok": True, "saldo_actual": saldo_nuevo, "pago": pago}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── SALDO INICIAL (para proyeccion de flujo) ─────
+@router.get("/saldo")
+def obtener_saldo():
+    try:
+        rows = supabase_get("configuracion?clave=eq.saldo_flujo_efectivo")
+        if rows and rows[0].get("valor"):
+            return json.loads(rows[0]["valor"])
+        return {"monto": 0, "fecha": None}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/saldo")
+def guardar_saldo(datos: dict):
+    try:
+        valor = json.dumps({"monto": float(datos.get("monto") or 0), "fecha": date.today().isoformat()})
+        existente = supabase_get("configuracion?clave=eq.saldo_flujo_efectivo")
+        if existente:
+            supabase_patch("configuracion?clave=eq.saldo_flujo_efectivo", {"valor": valor})
+        else:
+            supabase_post("configuracion", {"clave": "saldo_flujo_efectivo", "valor": valor})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── PROYECCION DE FLUJO DE CAJA ──────────────────
+@router.get("/proyeccion/{sucursal_id}")
+def proyeccion_flujo(sucursal_id: str, dias: int = 60):
+    """Proyecta el saldo dia a dia combinando: saldo inicial capturado,
+    ingreso promedio (velocidad de venta reciente), egresos variables
+    promedio, y egresos YA CONOCIDOS con fecha (cuentas por pagar a
+    proveedores, gastos recurrentes, pagos de deudas)."""
+    try:
+        from datetime import timedelta
+        import calendar as _cal
+        hoy = date.today()
+
+        saldo_rows = supabase_get("configuracion?clave=eq.saldo_flujo_efectivo")
+        saldo_inicial = 0.0
+        if saldo_rows and saldo_rows[0].get("valor"):
+            saldo_inicial = float(json.loads(saldo_rows[0]["valor"]).get("monto") or 0)
+
+        hace30 = (hoy - timedelta(days=30)).isoformat()
+        pedidos_suc = supabase_get(
+            f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)"
+            f"&confirmado_at=gte.{hace30}&select=total"
+        ) or []
+        pedidos_online = supabase_get(
+            f"pedidos?sucursal_id=is.null&status=in.(pagado,enviado)"
+            f"&confirmado_at=gte.{hace30}&select=total"
+        ) or []
+        ventas_30 = sum(float(p['total'] or 0) for p in pedidos_suc + pedidos_online)
+        ingreso_diario_prom = ventas_30 / 30
+
+        gastos_30 = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00") or []
+        gastos_variables_30 = sum(float(g['monto'] or 0) for g in gastos_30 if not g.get('es_recurrente'))
+        egreso_variable_diario = gastos_variables_30 / 30
+
+        cxp = cuentas_por_pagar()
+        if isinstance(cxp, JSONResponse):
+            cxp = []
+        plantillas = supabase_get(
+            f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
+        ) or []
+        deudas = supabase_get("deudas?activo=eq.true") or []
+
+        dias_proyeccion = []
+        saldo_actual = saldo_inicial
+        for i in range(dias):
+            fecha_i = hoy + timedelta(days=i)
+            fecha_iso = fecha_i.isoformat()
+            ingreso = ingreso_diario_prom
+            egreso = egreso_variable_diario
+            detalle = []
+
+            for o in cxp:
+                if o.get("fecha_vencimiento") == fecha_iso:
+                    monto = float(o.get("total") or 0)
+                    egreso += monto
+                    detalle.append(f"Pago a {o.get('proveedor_nombre')}: ${monto:,.0f}")
+
+            for t in plantillas:
+                dia = t.get("dia_mes") or 1
+                ultimo_dia = _cal.monthrange(fecha_i.year, fecha_i.month)[1]
+                if fecha_i.day == min(dia, ultimo_dia):
+                    monto = float(t.get("monto") or 0)
+                    egreso += monto
+                    detalle.append(f"{t.get('concepto')}: ${monto:,.0f}")
+
+            for d in deudas:
+                dia_pago = d.get("dia_pago")
+                pago_mensual = d.get("pago_mensual")
+                if dia_pago and pago_mensual:
+                    ultimo_dia = _cal.monthrange(fecha_i.year, fecha_i.month)[1]
+                    if fecha_i.day == min(dia_pago, ultimo_dia):
+                        monto = float(pago_mensual or 0)
+                        egreso += monto
+                        detalle.append(f"Pago deuda {d.get('nombre')}: ${monto:,.0f}")
+
+            saldo_actual += (ingreso - egreso)
+            dias_proyeccion.append({
+                "fecha": fecha_iso,
+                "ingreso": round(ingreso, 2),
+                "egreso": round(egreso, 2),
+                "saldo": round(saldo_actual, 2),
+                "detalle_egresos": detalle,
+            })
+
+        return {
+            "saldo_inicial": saldo_inicial,
+            "ingreso_diario_promedio": round(ingreso_diario_prom, 2),
+            "egreso_variable_diario": round(egreso_variable_diario, 2),
+            "dias": dias_proyeccion,
+        }
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
