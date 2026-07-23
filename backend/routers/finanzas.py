@@ -413,7 +413,7 @@ def sugerencias_recompra(sucursal_id: str):
         inventario = supabase_get_all(f"inventario?sucursal_id=eq.{sucursal_id}")
         # 'venta' = POS/pedidos propios. 'salida' = MercadoLibre/SHEIN/Walmart
         # (esos canales registran su descuento de inventario con ese tipo distinto).
-        movimientos = supabase_get_all(f"movimientos?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
+        movimientos = supabase_get_all(f"movimientos_inventario?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
 
         sugerencias = []
         for p in productos:
