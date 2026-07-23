@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_post, supabase_patch, supabase_delete
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 from datetime import date
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
@@ -404,12 +404,16 @@ def sugerencias_recompra(sucursal_id: str):
         hace30 = (date.today() - timedelta(days=30)).isoformat()
         hace90 = (date.today() - timedelta(days=90)).isoformat()
 
-        productos = supabase_get("productos?activo=eq.true&select=*,proveedores(nombre,telefono,email)")
-        variantes = supabase_get("variantes?select=*")
-        inventario = supabase_get(f"inventario?sucursal_id=eq.{sucursal_id}")
+        # supabase_get sin paginar corta en ~1000 filas (limite de PostgREST) —
+        # con 1400+ variantes y miles de movimientos, se perdian productos
+        # completos del desglose sin ningun error visible (quedaban con
+        # variantes_detalle vacio, como si no necesitaran nada).
+        productos = supabase_get_all("productos?activo=eq.true&select=*,proveedores(nombre,telefono,email)")
+        variantes = supabase_get_all("variantes?select=*")
+        inventario = supabase_get_all(f"inventario?sucursal_id=eq.{sucursal_id}")
         # 'venta' = POS/pedidos propios. 'salida' = MercadoLibre/SHEIN/Walmart
         # (esos canales registran su descuento de inventario con ese tipo distinto).
-        movimientos = supabase_get(f"movimientos?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
+        movimientos = supabase_get_all(f"movimientos?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
 
         sugerencias = []
         for p in productos:

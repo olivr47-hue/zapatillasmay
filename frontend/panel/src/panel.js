@@ -581,6 +581,30 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
     const sugerencias = await resSugerencias.json()
     const proveedores = await resProveedores.json()
 
+    // Enriquecer cada variante con su propia velocidad de venta (viene de
+    // Análisis, ya calculada por variante) para poder sugerir cuánto pedir
+    // de CADA talla/color, no solo un total genérico del modelo.
+    const rotacionPorProducto = {}
+    ;(window._analisisData?.productosConRotacion || []).forEach(rp => { rotacionPorProducto[rp.id] = rp })
+    sugerencias.forEach(p => {
+      const rotProd = rotacionPorProducto[p.producto_id]
+      const variantesRot = {}
+      ;(rotProd?.variantesData || []).forEach(v => { variantesRot[v.id] = v })
+      ;(p.variantes || []).forEach(v => {
+        const vr = variantesRot[v.id]
+        const ventasSemana = vr ? vr.d30 / 4 : 0
+        const porRotacion = ventasSemana > 0 ? Math.max(0, Math.round(ventasSemana * 4) - v.stock) : 0
+        v.ventas_30 = vr ? vr.d30 : 0
+        v.ventas_90 = vr ? vr.total : 0
+        v.sugerido = v.sin_stock ? Math.max(1, porRotacion) : porRotacion
+      })
+      if (p.variantes && p.variantes.length) {
+        p.variantes.sort((a, b) => (b.sugerido - a.sugerido) || (b.sin_stock - a.sin_stock))
+        const sumaVariantes = p.variantes.reduce((s, v) => s + v.sugerido, 0)
+        if (sumaVariantes > 0) p.cantidad_sugerida = sumaVariantes
+      }
+    })
+
     // Filtrar productos pospuestos (guardados en localStorage)
     const pospuestos = JSON.parse(localStorage.getItem('ordenes_pospuestos') || '{}')
     const hoy = new Date().toISOString().split('T')[0]
@@ -651,13 +675,13 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
             <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
               <div style="display:flex;align-items:center;gap:12px">
                 <input type="checkbox" id="sel-todos" onchange="seleccionarTodos(this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:#E91E8C">
-                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (${sugerenciasFiltradas.length})</p>
+                <p style="font-weight:700;font-size:0.9rem">Productos a resurtir (<span id="ord-contador">${sugerenciasFiltradas.length}</span> de ${sugerenciasFiltradas.length})</p>
               </div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <input type="text" id="ord-buscador" placeholder="🔎 Buscar modelo o SKU..." oninput="filtrarOrdenesTexto(this.value)"
                        style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:0.82rem;min-width:180px">
-                <button class="btn btn-secondary" style="font-size:0.78rem" onclick="filtrarOrdenes('todos')">Todos</button>
-                <button class="btn btn-secondary" style="font-size:0.78rem;background:#ffebee;border-color:#c62828;color:#c62828" onclick="filtrarOrdenes('urgente')">🚨 Urgentes</button>
+                <button id="ord-filtro-todos" class="btn btn-secondary" style="font-size:0.78rem;background:#333;border-color:#333;color:white" onclick="filtrarOrdenes('todos')">Todos</button>
+                <button id="ord-filtro-urgente" class="btn btn-secondary" style="font-size:0.78rem;background:white;border-color:#c62828;color:#c62828" onclick="filtrarOrdenes('urgente')">🚨 Solo urgentes</button>
               </div>
             </div>
 
@@ -674,19 +698,36 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
                   <p style="font-size:0.75rem;color:#888">${p.sku || ''} · Stock: ${p.stock_total} pares · Mín: ${p.stock_minimo}</p>
                   <p style="font-size:0.72rem;color:#888">${p.velocidad_semanal} pares/sem · ${p.dias_inventario ? p.dias_inventario + ' días de stock' : 'Sin ventas recientes'}</p>
                   ${p.proveedor ? `<p style="font-size:0.72rem;color:#6a1b9a;margin-top:2px">🏭 ${p.proveedor.nombre}</p>` : '<p style="font-size:0.72rem;color:#aaa;margin-top:2px">Sin proveedor asignado</p>'}
-                  ${p.variantes && p.variantes.length > 0 ? `
-                  <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
-                    ${p.variantes.map(v => {
-                      const label = [v.talla, v.color].filter(Boolean).join(' / ')
-                      const sinStock = v.sin_stock
-                      return `<span style="
-                        padding:2px 7px;border-radius:100px;font-size:0.68rem;font-weight:600;
-                        ${sinStock
-                          ? 'background:#ffebee;color:#c62828;border:1px solid #ef9a9a'
-                          : 'background:#f5f5f5;color:#666;border:1px solid #e0e0e0'}
-                      " title="${sinStock ? 'Sin stock' : 'Stock: ' + v.stock}">${label}${sinStock ? ' ✗' : ''}</span>`
-                    }).join('')}
-                  </div>` : ''}
+                  ${p.variantes && p.variantes.length > 0 ? (() => {
+                    const conSugerido = p.variantes.filter(v => v.sugerido > 0)
+                    const sinNecesidad = p.variantes.length - conSugerido.length
+                    if (conSugerido.length === 0) return ''
+                    return `
+                  <div style="margin-top:8px;overflow-x:auto">
+                    <table style="border-collapse:collapse;font-size:0.75rem">
+                      <thead>
+                        <tr style="color:#94a3b8;text-align:left">
+                          <th style="padding:2px 8px 2px 0;font-weight:600">Talla</th>
+                          <th style="padding:2px 8px;font-weight:600">Color</th>
+                          <th style="padding:2px 8px;text-align:center;font-weight:600">Stock</th>
+                          <th style="padding:2px 8px;text-align:center;font-weight:600">Pedir</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${conSugerido.map(v => `
+                        <tr style="${v.sin_stock ? 'background:#fff5f5' : ''}">
+                          <td style="padding:2px 8px 2px 0;font-weight:${v.sin_stock ? '700' : '400'}">${v.talla || '—'}</td>
+                          <td style="padding:2px 8px;color:${v.sin_stock ? '#c62828' : '#555'}">${v.color || '—'}</td>
+                          <td style="padding:2px 8px;text-align:center">
+                            <span style="background:${v.sin_stock ? '#ffebee' : '#e8f5e9'};color:${v.sin_stock ? '#c62828' : '#2e7d32'};padding:1px 7px;border-radius:100px;font-size:0.68rem;font-weight:600">${v.stock}</span>
+                          </td>
+                          <td style="padding:2px 8px;text-align:center;font-weight:700;color:#E91E8C">${v.sugerido}</td>
+                        </tr>`).join('')}
+                      </tbody>
+                    </table>
+                    ${sinNecesidad > 0 ? `<p style="font-size:0.65rem;color:#94a3b8;margin-top:2px">+ ${sinNecesidad} talla${sinNecesidad === 1 ? '' : 's'}/color${sinNecesidad === 1 ? '' : 'es'} sin necesidad de pedido</p>` : ''}
+                  </div>`
+                  })() : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
                   <div style="text-align:center">
@@ -770,15 +811,38 @@ window.actualizarCostoOrden = () => {
 window._aplicarFiltrosOrdenes = () => {
   const tipo = window._ordenFiltroTipo || 'todos'
   const texto = window._ordenFiltroTexto || ''
+  let visibles = 0
   document.querySelectorAll('.orden-item').forEach(el => {
     const pasaTipo = tipo === 'todos' || (tipo === 'urgente' && el.dataset.urgente === 'true')
     const pasaTexto = !texto || (el.dataset.nombre || '').includes(texto) || (el.dataset.sku || '').includes(texto)
-    el.style.display = (pasaTipo && pasaTexto) ? '' : 'none'
+    const visible = pasaTipo && pasaTexto
+    el.style.display = visible ? '' : 'none'
+    if (visible) visibles++
   })
+  const contador = document.getElementById('ord-contador')
+  if (contador) contador.textContent = visibles
 }
 
 window.filtrarOrdenes = (tipo) => {
   window._ordenFiltroTipo = tipo
+  // "Todos" también limpia la búsqueda de texto — si no, parecía que el
+  // botón "no hacía nada" porque el buscador seguía filtrando por debajo.
+  if (tipo === 'todos') {
+    window._ordenFiltroTexto = ''
+    const buscador = document.getElementById('ord-buscador')
+    if (buscador) buscador.value = ''
+  }
+  const btnTodos = document.getElementById('ord-filtro-todos')
+  const btnUrgente = document.getElementById('ord-filtro-urgente')
+  if (btnTodos && btnUrgente) {
+    if (tipo === 'todos') {
+      btnTodos.style.background = '#333'; btnTodos.style.color = 'white'
+      btnUrgente.style.background = 'white'; btnUrgente.style.color = '#c62828'
+    } else {
+      btnTodos.style.background = 'white'; btnTodos.style.color = '#333'
+      btnUrgente.style.background = '#ffebee'; btnUrgente.style.color = '#c62828'
+    }
+  }
   window._aplicarFiltrosOrdenes()
 }
 
@@ -833,9 +897,8 @@ window.generarOrden = () => {
       </div>
 
       ${seleccionados.map(p => {
-        const varsSinStock = (p.variantes || []).filter(v => v.sin_stock)
-        const varsConStock = (p.variantes || []).filter(v => !v.sin_stock)
-        const allVars = [...varsSinStock, ...varsConStock]
+        // Ya vienen ordenadas por sugerido desc / sin_stock desde cargarOrdenes()
+        const allVars = p.variantes || []
         return `
         <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -858,10 +921,13 @@ window.generarOrden = () => {
               </tr>
             </thead>
             <tbody>
-              ${allVars.map(v => `
+              ${allVars.map(v => {
+                const sugerido = v.sugerido || (v.sin_stock ? 1 : 0)
+                const marcado = sugerido > 0
+                return `
               <tr style="border-bottom:1px solid #f0f0f0;${v.sin_stock ? 'background:#fff8f8' : ''}">
                 <td style="padding:5px 8px">
-                  <input type="checkbox" id="chk-var-${v.id}" ${v.sin_stock ? 'checked' : ''}
+                  <input type="checkbox" id="chk-var-${v.id}" ${marcado ? 'checked' : ''}
                          onchange="ordenToggleVar('${v.id}', this.checked)"
                          style="accent-color:#E91E8C;cursor:pointer;width:15px;height:15px">
                 </td>
@@ -871,12 +937,12 @@ window.generarOrden = () => {
                   <span style="background:${v.sin_stock ? '#ffebee' : '#e8f5e9'};color:${v.sin_stock ? '#c62828' : '#2e7d32'};padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:600">${v.stock}</span>
                 </td>
                 <td style="text-align:center;padding:5px 8px">
-                  <input type="number" id="qty-var-${v.id}" min="0" value="${v.sin_stock ? 1 : 0}"
-                         ${v.sin_stock ? '' : 'disabled'}
+                  <input type="number" id="qty-var-${v.id}" min="0" value="${marcado ? sugerido : 0}"
+                         ${marcado ? '' : 'disabled'}
                          onchange="ordenRecalcTotal()"
-                         style="width:55px;text-align:center;border:1px solid ${v.sin_stock ? '#E91E8C' : '#ddd'};border-radius:6px;padding:3px 5px;font-size:0.85rem;${v.sin_stock ? '' : 'opacity:0.35'}">
+                         style="width:55px;text-align:center;border:1px solid ${marcado ? '#E91E8C' : '#ddd'};border-radius:6px;padding:3px 5px;font-size:0.85rem;${marcado ? '' : 'opacity:0.35'}">
                 </td>
-              </tr>`).join('')}
+              </tr>`}).join('')}
             </tbody>
           </table>` : `<p style="font-size:0.8rem;color:#aaa;margin-top:4px">Sin variantes registradas — pedir ${p.cantidad_sugerida} pares en total</p>`}
         </div>`
@@ -2013,16 +2079,18 @@ async function cargarAnalisis() {
     <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}</style>`
 
   try {
-    const [resProductos, resVariantes, resMovimientos, resInventario] = await Promise.all([
+    const [resProductos, resVariantes, resMovimientos, resInventario, resPedidos] = await Promise.all([
       fetch(API + '/productos/'),
       fetch(API + '/variantes/?activa=eq.true'),
       fetch(API + '/movimientos/'),
-      fetch(API + '/inventario/slim')
+      fetch(API + '/inventario/slim'),
+      fetch(API + '/pedidos/')
     ])
     const productos = await resProductos.json()
     const variantes = await resVariantes.json()
     const movimientos = await resMovimientos.json()
     const inventario = await resInventario.json()
+    const pedidos = await resPedidos.json()
 
     const varianteMap = {}
     const prodVariantes = {}
@@ -2043,21 +2111,6 @@ async function cargarAnalisis() {
 
     // Ventas por producto (unidades)
     const ventasPorProducto = {}
-    // Notas (transacciones) distintas por producto — para saber si vendió
-    // poco a poco (rotación real) o todo de un jalón (una sola nota/mayoreo)
-    const notasPorProducto = {}
-    // Detalle de cada nota/transacción por producto — para el desglose de pedidos
-    const movimientosPorProducto = {}
-
-    function canalDeMovimiento(m) {
-      const motivo = (m.motivo || '').toLowerCase()
-      if (motivo.includes('mercadolibre')) return 'MercadoLibre'
-      if (motivo.includes('shein')) return 'SHEIN'
-      if (motivo.includes('walmart')) return 'Walmart'
-      if (motivo.includes('mercadopago') || motivo.includes('pedido')) return 'Pedido web'
-      if (motivo.includes('apartado')) return 'Apartado'
-      return 'POS / mostrador'
-    }
     // Ventas por variante_id
     const ventasPorVariante = {}
     // Ventas por (producto_id, talla)
@@ -2082,19 +2135,6 @@ async function cargarAnalisis() {
       if (fecha >= hace60) ventasPorProducto[pid].d60 += cantidad
       if (fecha >= hace90) ventasPorProducto[pid].d90 += cantidad
 
-      // Cada fila de movimiento ya es una nota/transacción independiente
-      // (se inserta una vez por línea de pedido/venta, sin importar la cantidad).
-      if (!notasPorProducto[pid]) notasPorProducto[pid] = { d30: 0, d90: 0 }
-      if (fecha >= hace30) notasPorProducto[pid].d30 += 1
-      if (fecha >= hace90) notasPorProducto[pid].d90 += 1
-
-      if (!movimientosPorProducto[pid]) movimientosPorProducto[pid] = []
-      movimientosPorProducto[pid].push({
-        fecha, cantidad,
-        talla: variante.talla || '', color: variante.color || '',
-        canal: canalDeMovimiento(m), motivo: m.motivo || ''
-      })
-
       if (!ventasPorVariante[m.variante_id]) ventasPorVariante[m.variante_id] = { d30: 0, d90: 0, total: 0 }
       ventasPorVariante[m.variante_id].total += cantidad
       if (fecha >= hace30) ventasPorVariante[m.variante_id].d30 += cantidad
@@ -2114,6 +2154,49 @@ async function cargarAnalisis() {
       ventasPorColorTalla[keyC].total += cantidad
       if (fecha >= hace30) ventasPorColorTalla[keyC].d30 += cantidad
       if (fecha >= hace90) ventasPorColorTalla[keyC].d90 += cantidad
+    })
+
+    function canalLegible(canal) {
+      return {
+        mercadolibre: 'MercadoLibre', shein: 'SHEIN', walmart: 'Walmart',
+        whatsapp: 'WhatsApp', portal_mayoreo: 'Portal mayorista', mayoreo: 'Mayoreo'
+      }[canal] || 'Tienda / Web'
+    }
+
+    // Pedidos compactados por ticket real (no por línea de SKU) — cada
+    // pedido cuenta como UNA nota sin importar cuántas tallas/colores traiga,
+    // y nos deja saber a quién se le vendió y poder abrir el pedido real.
+    const pedidosPorProducto = {}
+    pedidos.forEach(ped => {
+      if (ped.status === 'cancelado') return
+      const porProducto = {}
+      ;(ped.pedido_items || []).forEach(it => {
+        const variante = varianteMap[it.variante_id]
+        if (!variante) return
+        const pid = variante.producto_id
+        if (!porProducto[pid]) porProducto[pid] = { cantidad: 0, tallas: [] }
+        porProducto[pid].cantidad += Math.abs(it.cantidad || 0)
+        porProducto[pid].tallas.push([variante.talla, variante.color].filter(Boolean).join(' / '))
+      })
+      const cliente = ped.clientes?.nombre || ped.nombre_cliente || 'Cliente'
+      const canal = canalLegible(ped.canal)
+      const fecha = new Date(ped.created_at)
+      Object.entries(porProducto).forEach(([pid, info]) => {
+        if (!pedidosPorProducto[pid]) pedidosPorProducto[pid] = []
+        pedidosPorProducto[pid].push({ pedidoId: ped.id, cliente, fecha, cantidad: info.cantidad, tallas: info.tallas, canal, status: ped.status })
+      })
+    })
+
+    // Notas (transacciones) distintas por producto — para saber si vendió
+    // poco a poco (rotación real) o todo de un jalón (una sola nota/mayoreo).
+    // Se cuenta por PEDIDO real, no por movimiento de inventario, para que
+    // un pedido con varias tallas del mismo modelo no infle el conteo.
+    const notasPorProducto = {}
+    Object.entries(pedidosPorProducto).forEach(([pid, lista]) => {
+      notasPorProducto[pid] = {
+        d30: lista.filter(x => x.fecha >= hace30).length,
+        d90: lista.filter(x => x.fecha >= hace90).length
+      }
     })
 
     const productosConRotacion = productos.map(p => {
@@ -2182,7 +2265,7 @@ async function cargarAnalisis() {
       return { ...p, ventas, notas, stockTotal, ventasSemana, diasInventario, semaforo, recomendacion, tallasData, tallasDesglosadas, variantesData }
     }).sort((a, b) => b.ventas.d30 - a.ventas.d30)
 
-    window._analisisData = { productosConRotacion, ventasPorTalla, movimientosPorProducto }
+    window._analisisData = { productosConRotacion, ventasPorTalla, pedidosPorProducto }
 
     const total30 = productosConRotacion.reduce((s,p) => s+p.ventas.d30, 0)
     const total90 = productosConRotacion.reduce((s,p) => s+p.ventas.d90, 0)
@@ -2403,24 +2486,26 @@ async function cargarAnalisis() {
 
     function renderPedidosList(productoId, filtro) {
       filtro = (filtro || '').trim().toLowerCase()
-      const movs = (movimientosPorProducto[productoId] || [])
+      const tickets = (pedidosPorProducto[productoId] || [])
         .slice()
         .sort((a, b) => b.fecha - a.fecha)
-        .filter(m => !filtro ||
-          m.canal.toLowerCase().includes(filtro) ||
-          (m.talla || '').toLowerCase().includes(filtro) ||
-          (m.color || '').toLowerCase().includes(filtro) ||
-          m.motivo.toLowerCase().includes(filtro)
+        .filter(t => !filtro ||
+          t.cliente.toLowerCase().includes(filtro) ||
+          t.canal.toLowerCase().includes(filtro) ||
+          t.tallas.some(tv => tv.toLowerCase().includes(filtro))
         )
-      if (movs.length === 0) return `<p style="padding:1.5rem;text-align:center;color:#94a3b8;font-size:0.85rem">Sin notas que coincidan</p>`
+      if (tickets.length === 0) return `<p style="padding:1.5rem;text-align:center;color:#94a3b8;font-size:0.85rem">Sin pedidos que coincidan</p>`
       return `
         <div style="display:flex;flex-direction:column;gap:6px">
-          ${movs.map(m => `
-            <div style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:#f8fafc;border-radius:8px;border:1px solid #f1f5f9;flex-wrap:wrap">
-              <span style="font-size:0.75rem;color:#64748b;min-width:88px">${m.fecha.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' })}</span>
-              <span style="font-size:0.78rem;font-weight:700;color:#0f172a;min-width:90px">${[m.talla, m.color].filter(Boolean).join(' / ') || '—'}</span>
-              <span style="font-size:0.75rem;font-weight:700;color:#E91E8C">${m.cantidad} par${m.cantidad === 1 ? '' : 'es'}</span>
-              <span style="font-size:0.68rem;font-weight:700;background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:100px">${m.canal}</span>
+          ${tickets.map(t => `
+            <div onclick="verPedido('${t.pedidoId}')" title="Ver este pedido"
+                 style="display:flex;align-items:center;gap:12px;padding:9px 12px;background:#f8fafc;border-radius:8px;border:1px solid #f1f5f9;flex-wrap:wrap;cursor:pointer"
+                 onmouseover="this.style.background='#fdf2f8'" onmouseout="this.style.background='#f8fafc'">
+              <span style="font-size:0.75rem;color:#64748b;min-width:88px">${t.fecha.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric' })}</span>
+              <span style="font-size:0.78rem;font-weight:700;color:#0f172a;min-width:120px">👤 ${t.cliente}</span>
+              <span style="font-size:0.72rem;color:#64748b;min-width:130px">${t.tallas.join(', ') || '—'}</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#E91E8C">${t.cantidad} par${t.cantidad === 1 ? '' : 'es'}</span>
+              <span style="font-size:0.68rem;font-weight:700;background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:100px">${t.canal}</span>
             </div>`).join('')}
         </div>`
     }
@@ -2473,8 +2558,8 @@ async function cargarAnalisis() {
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-          <p style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Pedidos en los que estuvo involucrado (${(movimientosPorProducto[productoId]||[]).length} notas)</p>
-          <input type="text" placeholder="🔎 Buscar por canal, talla o color..."
+          <p style="font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em">Pedidos en los que estuvo involucrado (${(pedidosPorProducto[productoId]||[]).length} notas)</p>
+          <input type="text" placeholder="🔎 Buscar por cliente, canal o talla..."
                  oninput="document.getElementById('detalle-pedidos-lista').innerHTML = window._renderPedidosList('${productoId}', this.value)"
                  style="padding:6px 10px;border:1px solid #ddd;border-radius:8px;font-size:0.8rem;min-width:220px">
         </div>
