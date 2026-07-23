@@ -1910,6 +1910,7 @@ def feed_google():
                     xml += f'  <g:title>{_html.escape(titulo_base + (" - " + color_title if color_title else ""), quote=True)}</g:title>\n'
                     xml += f'  <g:description>{desc}</g:description>\n'
                     xml += f'  <g:link>{url}?color={color_encoded}&amp;talla={talla}</g:link>\n'
+                    xml += f'  <g:checkout_link_template>https://zapatillasmay.mx/checkout?products={var_id}:{{quantity}}</g:checkout_link_template>\n'
                     xml += f'  <g:image_link>{_img_feed(imagen)}</g:image_link>\n'
                     for img_extra in imagenes_extra[:9]:
                         xml += f'  <g:additional_image_link>{_img_feed(img_extra)}</g:additional_image_link>\n'
