@@ -10561,15 +10561,20 @@ window.cargarDispositivosTerminal = async () => {
       cont.innerHTML = '<p style="color:#888;font-size:0.85rem">No se encontraron terminales vinculadas a la cuenta de Mercado Pago.</p>'
       return
     }
+    const activaId = localStorage.getItem('pos_terminal_device_id') || ''
     cont.innerHTML = devices.map(d => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px">
         <div>
-          <p style="font-size:0.85rem;font-weight:600">${d.id}</p>
+          <p style="font-size:0.85rem;font-weight:600">${d.id}${d.id === activaId ? ' <span style="color:#E91E8C">★ en uso</span>' : ''}</p>
           <p style="font-size:0.72rem;color:#888">Tienda ${d.store_id} · <span style="font-weight:700;color:${d.operating_mode === 'PDV' ? '#2e7d32' : '#f57f17'}">${d.operating_mode}</span></p>
         </div>
-        ${d.operating_mode !== 'PDV'
-          ? `<button class="btn btn-secondary" style="font-size:0.72rem;padding:5px 10px" onclick="activarModoPDV('${d.id}')">Activar modo PDV</button>`
-          : `<span style="font-size:0.72rem;color:#2e7d32">✓ integrada</span>`}
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          ${d.operating_mode !== 'PDV'
+            ? `<button class="btn btn-secondary" style="font-size:0.72rem;padding:5px 10px" onclick="activarModoPDV('${d.id}')">Activar PDV</button>`
+            : d.id === activaId
+              ? `<span style="font-size:0.72rem;color:#2e7d32;padding:5px 4px">✓ activa</span>`
+              : `<button class="btn btn-primary" style="font-size:0.72rem;padding:5px 10px" onclick="usarTerminalPOS('${d.id}')">Usar para cobros</button>`}
+        </div>
       </div>
     `).join('')
     if (select) select.innerHTML = devices.map(d => `<option value="${d.id}">${d.id} (${d.operating_mode})</option>`).join('')
@@ -10593,6 +10598,11 @@ window.activarModoPDV = async (deviceId) => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+
+window.usarTerminalPOS = (deviceId) => {
+  localStorage.setItem('pos_terminal_device_id', deviceId)
+  cargarDispositivosTerminal()
 }
 
 window.probarCobroTerminal = async () => {
@@ -12267,6 +12277,74 @@ window.limpiarCarritoPOS = () => {
   renderCarritoPOS()
 }
 
+// Manda el monto a la terminal fisica y espera a que el cliente pague (o
+// a que se cancele). Regresa una Promise<boolean> -- true si se completo
+// el pago en la terminal, false si se canceló o falló.
+window.cobrarConTerminalYEsperar = (deviceId, monto, pedidoId) => {
+  return new Promise(async (resolve) => {
+    let intentId = null
+    try {
+      const res = await fetch(API + '/pagos/terminal/cobrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId, monto, pedido_id: pedidoId })
+      })
+      const data = await res.json()
+      if (data.error || !data.id) {
+        alert('No se pudo enviar el cobro a la terminal:\n' + JSON.stringify(data.error || data))
+        resolve(false)
+        return
+      }
+      intentId = data.id
+    } catch (e) {
+      alert('Error conectando con la terminal')
+      resolve(false)
+      return
+    }
+
+    const modal = document.createElement('div')
+    modal.id = 'modal-esperando-terminal'
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem'
+    modal.innerHTML = `
+      <div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:100%;text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:12px">💳</div>
+        <p style="font-weight:700;font-size:1.05rem;margin-bottom:6px">Esperando la terminal...</p>
+        <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Pide al cliente que pase o inserte su tarjeta.<br>Monto: $${monto.toFixed(2)}</p>
+        <button class="btn btn-secondary" style="width:100%;color:#c62828;border-color:#ef9a9a" onclick="window._cancelarEsperaTerminal=true">Cancelar cobro</button>
+      </div>
+    `
+    document.body.appendChild(modal)
+    window._cancelarEsperaTerminal = false
+
+    const revisar = async () => {
+      if (!document.getElementById('modal-esperando-terminal')) return  // ya se resolvió
+      if (window._cancelarEsperaTerminal) {
+        try { await fetch(API + '/pagos/terminal/' + deviceId + '/cobrar/' + intentId, { method: 'DELETE' }) } catch (e) {}
+        modal.remove()
+        resolve(false)
+        return
+      }
+      try {
+        const res = await fetch(API + '/pagos/terminal/estado/' + intentId)
+        const data = await res.json()
+        if (data.state === 'FINISHED') {
+          modal.remove()
+          resolve(true)
+          return
+        }
+        if (data.state === 'CANCELED' || data.state === 'ERROR') {
+          modal.remove()
+          alert('El cobro no se completó en la terminal (' + data.state + ').')
+          resolve(false)
+          return
+        }
+      } catch (e) {}
+      setTimeout(revisar, 2500)
+    }
+    revisar()
+  })
+}
+
 window.cobrarPOS = async () => {
   if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
 
@@ -12337,6 +12415,20 @@ window.cobrarPOS = async () => {
       if (!resItem.ok) {
         const errItem = await resItem.json().catch(() => ({}))
         throw new Error('Error en item ' + item.nombre + ': ' + JSON.stringify(errItem))
+      }
+    }
+
+    // 2.5. Si es pago con tarjeta y hay una terminal configurada, mandarle
+    // el monto y esperar a que el cliente pague ANTES de confirmar la
+    // venta — si cancela o falla, no se descuenta inventario ni se cobra.
+    const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
+    if (formaPago === 'tarjeta' && terminalDeviceId) {
+      const pagoTerminalOk = await cobrarConTerminalYEsperar(terminalDeviceId, total, pedidoId)
+      if (!pagoTerminalOk) {
+        try { await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) } catch (e2) {}
+        window._cobrando = false
+        ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+        return
       }
     }
 
