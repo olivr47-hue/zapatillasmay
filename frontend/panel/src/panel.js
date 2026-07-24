@@ -5949,8 +5949,14 @@ window.mostrarRecibirMercancia = async () => {
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin:1.5rem 0">
-        <p style="font-size:0.85rem;color:#888">Total estimado</p>
-        <p id="rec-total" style="font-size:1.3rem;font-weight:700;color:#E91E8C">$0</p>
+        <div>
+          <p style="font-size:0.85rem;color:#888">Total de pares recibidos</p>
+          <p id="rec-pares" style="font-size:1.1rem;font-weight:700;color:#333">0</p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-size:0.85rem;color:#888">Total estimado</p>
+          <p id="rec-total" style="font-size:1.3rem;font-weight:700;color:#E91E8C">$0</p>
+        </div>
       </div>
 
       <div style="display:flex;gap:1rem;justify-content:flex-end">
@@ -5993,10 +5999,14 @@ window.buscarProductoRecibir = (texto) => {
       const varsColor = varsProducto.filter(v => v.color === color)
         .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
       const hex = varsColor[0]?.color_hex
-      const chips = varsColor.map(v => `
+      const chips = varsColor.map(v => {
+        const yaAgregado = (window._recibirItems || []).find(i => i.variante_id === v.id)?.cantidad || 0
+        return `
         <button onclick="agregarProductoRecibir('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${p.costo || 0})"
-          style="min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid #ddd;border-radius:8px;background:white;color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}</button>
-      `).join('')
+          style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${yaAgregado > 0 ? '#2e7d32' : '#ddd'};border-radius:8px;background:${yaAgregado > 0 ? '#e8f5e9' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
+          ${yaAgregado > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#2e7d32;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${yaAgregado}</span>` : ''}
+        </button>
+      `}).join('')
       return `
         <div style="padding:10px;border-bottom:1px solid #f0f0f0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -6023,6 +6033,10 @@ window.agregarProductoRecibir = (varianteId, productoId, nombre, talla, color, i
     })
   }
   renderListaRecibir()
+  // Refrescar los chips para que se vea el numerito de cuantos ya se
+  // agregaron de esta talla, sin tener que ver la lista aparte.
+  const buscador = document.getElementById('rec-buscar')
+  if (buscador) buscarProductoRecibir(buscador.value)
 }
 
 window.renderListaRecibir = () => {
@@ -6071,9 +6085,13 @@ window.eliminarItemRecibir = (idx) => {
 }
 
 window.actualizarTotalRecibir = () => {
-  const total = (window._recibirItems || []).reduce((s, i) => s + (i.cantidad * i.costo_unitario), 0)
+  const items = window._recibirItems || []
+  const total = items.reduce((s, i) => s + (i.cantidad * i.costo_unitario), 0)
+  const pares = items.reduce((s, i) => s + (i.cantidad || 0), 0)
   const el = document.getElementById('rec-total')
+  const elPares = document.getElementById('rec-pares')
   if (el) el.textContent = '$' + total.toLocaleString('es-MX', { maximumFractionDigits: 0 })
+  if (elPares) elPares.textContent = pares
 }
 
 window.guardarRecibirMercancia = async () => {
@@ -11838,6 +11856,8 @@ window.seleccionarTierCambio = (tier) => {
     btn.style.color = activo ? 'white' : '#333'
     btn.style.borderColor = activo ? '#E91E8C' : '#ddd'
   })
+  const buscador = document.getElementById('cambio-buscar')
+  if (buscador) buscarCambioPOS(buscador.value)
 }
 
 window.buscarCambioPOS = (texto) => {
@@ -11864,10 +11884,15 @@ window.buscarCambioPOS = (texto) => {
       const varsColor = varsProducto.filter(v => v.color === color)
         .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
       const hex = varsColor[0]?.color_hex
-      const chips = varsColor.map(v => `
+      const tierActual = window._cambioTierSeleccionado || 'mayoreo3'
+      const chips = varsColor.map(v => {
+        const enCambio = Math.abs((window._posCarrito || []).find(i => i.variante_id === v.id && i.es_cambio && i.tier_cambio === tierActual)?.cantidad || 0)
+        return `
         <button onclick="agregarCambioPOS('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}')"
-          style="min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid #ddd;border-radius:8px;background:white;color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}</button>
-      `).join('')
+          style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${enCambio > 0 ? '#c62828' : '#ddd'};border-radius:8px;background:${enCambio > 0 ? '#ffebee' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
+          ${enCambio > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#c62828;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${enCambio}</span>` : ''}
+        </button>
+      `}).join('')
       return `
         <div style="padding:10px;border-bottom:1px solid #f0f0f0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -11907,6 +11932,10 @@ window.agregarCambioPOS = (varianteId, productoId, nombre, talla, color, imagen)
   }
   renderCarritoPOS()
   actualizarResumenCambiosPOS()
+  // Refrescar los chips para que se vea el numerito de cuantos ya se
+  // seleccionaron de esta talla, sin tener que ver el carrito aparte.
+  const buscador = document.getElementById('cambio-buscar')
+  if (buscador) buscarCambioPOS(buscador.value)
 }
 
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
