@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_patch, supabase_post
 from cache import cache_get, cache_set, TTL_PUBLICO
+from security import require_staff
 import mercadopago
 import os
 import hashlib
@@ -590,6 +591,91 @@ def listar_dispositivos_point():
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
         return data
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def _mp_point_request(method, path, body=None, idempotency_key=None):
+    url = f"https://api.mercadopago.com{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    headers = {
+        "Authorization": f"Bearer {os.getenv('MP_ACCESS_TOKEN')}",
+        "Content-Type": "application/json",
+    }
+    if idempotency_key:
+        headers["X-Idempotency-Key"] = idempotency_key
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        raw = resp.read()
+        return json.loads(raw) if raw else {}
+
+
+@router.post("/terminal/{device_id}/modo")
+def cambiar_modo_terminal(device_id: str, datos: dict, _staff=Depends(require_staff)):
+    """Cambia el modo de operacion de la terminal: PDV (integrable por API,
+    deja de aceptar montos tecleados a mano) o STANDALONE (modo manual,
+    como viene por default)."""
+    try:
+        modo = datos.get("operating_mode", "PDV")
+        resultado = _mp_point_request("PATCH", f"/point/integration-api/devices/{device_id}", {"operating_mode": modo})
+        return resultado
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/terminal/cobrar")
+def cobrar_con_terminal(datos: dict, _staff=Depends(require_staff)):
+    """Manda el monto (en pesos MXN) a la terminal fisica para que el
+    cliente pague con tarjeta. Requiere que la terminal ya este en modo PDV."""
+    try:
+        device_id = datos.get("device_id")
+        monto = float(datos.get("monto") or 0)
+        pedido_id = datos.get("pedido_id", "")
+        if not device_id or monto <= 0:
+            return JSONResponse(status_code=400, content={"error": "Falta device_id o el monto es invalido"})
+
+        body = {
+            "amount": int(round(monto * 100)),  # la API espera centavos
+            "additional_info": {
+                "external_reference": pedido_id,
+                "print_on_terminal": True
+            }
+        }
+        resultado = _mp_point_request(
+            "POST", f"/point/integration-api/devices/{device_id}/payment-intents",
+            body, idempotency_key=f"pedido-{pedido_id}-{int(time.time())}"
+        )
+        return resultado
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/terminal/estado/{intent_id}")
+def estado_intento_terminal(intent_id: str, _staff=Depends(require_staff)):
+    """Consulta el estado del cobro en la terminal: OPEN (esperando
+    tarjeta), FINISHED (pagado), ERROR o CANCELED."""
+    try:
+        resultado = _mp_point_request("GET", f"/point/integration-api/payment-intents/{intent_id}")
+        return resultado
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.delete("/terminal/{device_id}/cobrar/{intent_id}")
+def cancelar_intento_terminal(device_id: str, intent_id: str, _staff=Depends(require_staff)):
+    """Cancela un cobro pendiente en la terminal (el cliente se arrepintio
+    o el cajero se equivoco de monto)."""
+    try:
+        resultado = _mp_point_request("DELETE", f"/point/integration-api/devices/{device_id}/payment-intents/{intent_id}")
+        return resultado
     except urllib.error.HTTPError as e:
         return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
     except Exception as e:
