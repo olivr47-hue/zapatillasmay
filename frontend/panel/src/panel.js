@@ -5882,20 +5882,23 @@ window.seleccionarVariante = (id, texto, prefijo) => {
 }
 
 window.mostrarRecibirMercancia = async () => {
-  const [resSucursales, resProveedores, resVariantes] = await Promise.all([
+  const [resSucursales, resProveedores, resVariantes, resProductos] = await Promise.all([
     fetch(API + '/sucursales/'),
     fetch(API + '/finanzas/proveedores'),
-    fetch(API + '/variantes/')
+    fetch(API + '/variantes/'),
+    fetch(API + '/productos/')
   ])
   const sucursales = await resSucursales.json()
   const proveedores = await resProveedores.json()
   const variantes = await resVariantes.json()
-  window._variantesCache = variantes
-  window._recibirRowCount = 0
+  const productos = await resProductos.json()
+  window._recibirVariantes = variantes
+  window._recibirProductos = productos
+  window._recibirItems = []
 
   const content = document.getElementById('content')
   content.innerHTML = `
-    <div class="table-card" style="padding:2rem;max-width:820px">
+    <div class="table-card" style="padding:2rem;max-width:920px">
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
         <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
         <h3>📥 Recibir mercancía</h3>
@@ -5923,29 +5926,40 @@ window.mostrarRecibirMercancia = async () => {
         </div>
       </div>
 
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 12px">
+        <input type="checkbox" id="rec-pagado-contado" style="width:16px;height:16px;cursor:pointer">
+        <label for="rec-pagado-contado" style="font-size:0.85rem;cursor:pointer;color:#2e7d32;font-weight:600">Se pagó de contado (no generar cuenta por pagar)</label>
+      </div>
+
       <div style="margin-bottom:1rem">
         <label class="form-label">Notas / número de remisión</label>
         <input class="form-input" id="rec-notas" placeholder="Ej: Remisión #1234">
       </div>
 
-      <div style="background:#fafafa;border-radius:10px;border:1px solid #eee;padding:1rem;margin-bottom:1rem">
-        <p style="font-weight:700;font-size:0.85rem;margin-bottom:10px">Productos recibidos</p>
-        <div id="rec-items"></div>
-        <button class="btn btn-secondary" style="font-size:0.8rem;margin-top:8px" onclick="agregarRenglonRecibir()">+ Agregar producto</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+        <div>
+          <label class="form-label">Buscar modelo</label>
+          <input class="form-input" id="rec-buscar" placeholder="🔍 Nombre o SKU..." oninput="buscarProductoRecibir(this.value)" autocomplete="off">
+          <div id="rec-resultados" style="margin-top:8px;max-height:440px;overflow-y:auto;border:1px solid #eee;border-radius:8px"></div>
+        </div>
+        <div>
+          <p style="font-weight:700;font-size:0.85rem;margin-bottom:10px">Productos a recibir</p>
+          <div id="rec-lista" style="max-height:480px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:0 12px"></div>
+        </div>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:1.5rem 0">
         <p style="font-size:0.85rem;color:#888">Total estimado</p>
         <p id="rec-total" style="font-size:1.3rem;font-weight:700;color:#E91E8C">$0</p>
       </div>
 
       <div style="display:flex;gap:1rem;justify-content:flex-end">
         <button class="btn btn-secondary" onclick="navegarA('inventario')">Cancelar</button>
-        <button class="btn btn-primary" onclick="guardarRecibirMercancia()">Generar remisión y cuenta por pagar</button>
+        <button class="btn btn-primary" onclick="guardarRecibirMercancia()">Generar remisión</button>
       </div>
     </div>
   `
-  agregarRenglonRecibir()
+  renderListaRecibir()
 }
 
 window.autocompletarDiasCredito = () => {
@@ -5955,34 +5969,109 @@ window.autocompletarDiasCredito = () => {
   document.getElementById('rec-dias-credito').value = dias
 }
 
-window.agregarRenglonRecibir = () => {
-  const idx = window._recibirRowCount++
-  const cont = document.getElementById('rec-items')
-  const row = document.createElement('div')
-  row.id = 'rec-row-' + idx
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 90px 120px 32px;gap:8px;align-items:start;margin-bottom:10px;position:relative'
-  row.innerHTML = `
-    <div style="position:relative">
-      <input class="form-input" id="rec-item-${idx}-buscar" placeholder="Buscar modelo (nombre o SKU)..." oninput="buscarVariante(this.value, 'rec-item-${idx}')">
-      <div id="rec-item-${idx}-resultados" style="border:1px solid #ddd;border-radius:6px;max-height:220px;overflow-y:auto;display:none;background:white;position:absolute;z-index:50;width:100%"></div>
-      <input type="hidden" id="rec-item-${idx}">
-      <div id="rec-item-${idx}-seleccionado" style="display:none;margin-top:4px;font-size:0.75rem;color:#2e7d32"></div>
-    </div>
-    <input class="form-input" type="number" min="1" value="1" id="rec-item-${idx}-cantidad" placeholder="Cant." oninput="actualizarTotalRecibir()">
-    <input class="form-input" type="number" step="0.01" min="0" id="rec-item-${idx}-costo" placeholder="Costo/par" oninput="actualizarTotalRecibir()">
-    <button onclick="document.getElementById('rec-row-${idx}').remove(); actualizarTotalRecibir()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem;padding-top:8px">✕</button>
-  `
-  cont.appendChild(row)
+window.buscarProductoRecibir = (texto) => {
+  const resultadosDiv = document.getElementById('rec-resultados')
+  if (!resultadosDiv) return
+  if (!texto || texto.length < 2) { resultadosDiv.innerHTML = ''; return }
+  const productos = window._recibirProductos || []
+  const variantes = window._recibirVariantes || []
+  const term = texto.toLowerCase()
+  const prodsFiltrados = productos.filter(p =>
+    (p.nombre || '').toLowerCase().includes(term) || (p.sku_interno || '').toLowerCase().includes(term)
+  ).slice(0, 8)
+
+  if (prodsFiltrados.length === 0) {
+    resultadosDiv.innerHTML = '<p style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Sin resultados</p>'
+    return
+  }
+
+  const TALLAS_ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+  resultadosDiv.innerHTML = prodsFiltrados.map(p => {
+    const varsProducto = variantes.filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProducto.map(v => v.color))]
+    return colores.map(color => {
+      const varsColor = varsProducto.filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+      const hex = varsColor[0]?.color_hex
+      const chips = varsColor.map(v => `
+        <button onclick="agregarProductoRecibir('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${p.costo || 0})"
+          style="min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid #ddd;border-radius:8px;background:white;color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}</button>
+      `).join('')
+      return `
+        <div style="padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8">` : ''}
+            ${hex ? `<span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ddd"></span>` : ''}
+            <span style="font-size:0.85rem;font-weight:600">${p.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        </div>
+      `
+    }).join('')
+  }).join('')
+}
+
+window.agregarProductoRecibir = (varianteId, productoId, nombre, talla, color, imagen, costoDefault) => {
+  const existente = window._recibirItems.find(i => i.variante_id === varianteId)
+  if (existente) {
+    existente.cantidad += 1
+  } else {
+    window._recibirItems.push({
+      variante_id: varianteId, producto_id: productoId, nombre, talla, color, imagen,
+      cantidad: 1, costo_unitario: costoDefault || 0
+    })
+  }
+  renderListaRecibir()
+}
+
+window.renderListaRecibir = () => {
+  const cont = document.getElementById('rec-lista')
+  if (!cont) return
+  const items = window._recibirItems || []
+  cont.innerHTML = items.length === 0
+    ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:2rem 1rem">Busca un modelo a la izquierda y toca la talla para agregarlo</p>'
+    : items.map((item, idx) => `
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+        ${item.imagen ? `<img src="${item.imagen}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8;flex-shrink:0">` : ''}
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${item.color} · T${item.talla}</p>
+        </div>
+        <input type="number" min="1" value="${item.cantidad}" oninput="actualizarCantidadRecibir(${idx}, this.value)"
+               title="Cantidad" style="width:50px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
+        <div style="display:flex;align-items:center;gap:2px">
+          <span style="font-size:0.72rem;color:#888">$</span>
+          <input type="number" step="0.01" min="0" value="${item.costo_unitario}" oninput="actualizarCostoRecibir(${idx}, this.value)"
+                 title="Costo por par" style="width:62px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
+        </div>
+        <button onclick="eliminarItemRecibir(${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem">✕</button>
+      </div>
+    `).join('')
+  actualizarTotalRecibir()
+}
+
+window.actualizarCantidadRecibir = (idx, valor) => {
+  const item = window._recibirItems[idx]
+  if (!item) return
+  item.cantidad = parseInt(valor) || 1
+  actualizarTotalRecibir()
+}
+
+window.actualizarCostoRecibir = (idx, valor) => {
+  const item = window._recibirItems[idx]
+  if (!item) return
+  item.costo_unitario = parseFloat(valor) || 0
+  actualizarTotalRecibir()
+}
+
+window.eliminarItemRecibir = (idx) => {
+  window._recibirItems.splice(idx, 1)
+  renderListaRecibir()
 }
 
 window.actualizarTotalRecibir = () => {
-  let total = 0
-  for (let i = 0; i < window._recibirRowCount; i++) {
-    if (!document.getElementById('rec-row-' + i)) continue
-    const cant = parseFloat(document.getElementById('rec-item-' + i + '-cantidad')?.value) || 0
-    const costo = parseFloat(document.getElementById('rec-item-' + i + '-costo')?.value) || 0
-    total += cant * costo
-  }
+  const total = (window._recibirItems || []).reduce((s, i) => s + (i.cantidad * i.costo_unitario), 0)
   const el = document.getElementById('rec-total')
   if (el) el.textContent = '$' + total.toLocaleString('es-MX', { maximumFractionDigits: 0 })
 }
@@ -5992,29 +6081,27 @@ window.guardarRecibirMercancia = async () => {
   const sucursal_id = document.getElementById('rec-sucursal').value
   const dias_credito = parseInt(document.getElementById('rec-dias-credito').value) || 0
   const notas = document.getElementById('rec-notas').value
+  const pagada = document.getElementById('rec-pagado-contado').checked
 
   if (!proveedor_id) { alert('Selecciona el proveedor'); return }
   if (!sucursal_id) { alert('Selecciona la sucursal'); return }
 
-  const items = []
-  for (let i = 0; i < window._recibirRowCount; i++) {
-    if (!document.getElementById('rec-row-' + i)) continue
-    const variante_id = document.getElementById('rec-item-' + i)?.value
-    const cantidad = parseInt(document.getElementById('rec-item-' + i + '-cantidad')?.value) || 0
-    const costo_unitario = parseFloat(document.getElementById('rec-item-' + i + '-costo')?.value) || 0
-    if (variante_id && cantidad > 0) items.push({ variante_id, cantidad, costo_unitario })
-  }
+  const items = (window._recibirItems || [])
+    .map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad, costo_unitario: i.costo_unitario }))
+    .filter(i => i.cantidad > 0)
   if (items.length === 0) { alert('Agrega al menos un producto con talla y cantidad'); return }
 
   try {
     const res = await fetch(API + '/finanzas/ordenes/recibir', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proveedor_id, sucursal_id, dias_credito, notas, items })
+      body: JSON.stringify({ proveedor_id, sucursal_id, dias_credito, notas, items, pagada })
     })
     const data = await res.json()
     if (data.ok) {
-      alert(`Mercancía recibida — se agregaron $${data.total.toFixed(0)} a Cuentas por pagar (vence en ${dias_credito} días).`)
+      alert(pagada
+        ? `Mercancía recibida — $${data.total.toFixed(0)} registrados como pagados de contado.`
+        : `Mercancía recibida — se agregaron $${data.total.toFixed(0)} a Cuentas por pagar (vence en ${dias_credito} días).`)
       navegarA('inventario')
     } else {
       alert('Error: ' + JSON.stringify(data))
@@ -11701,26 +11788,44 @@ window.mostrarCambiosPOS = () => {
   modal.id = 'modal-cambios-pos'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem'
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:1.5rem;max-width:480px;width:100%;max-height:85vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
-        <h3 style="margin:0">↔ Cambios</h3>
-        <button onclick="document.getElementById('modal-cambios-pos').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">✕</button>
-      </div>
-      <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Busca el modelo que el cliente se lleva a cambio. Se descuenta del total del carrito y el inventario se ajusta solo al cobrar.</p>
+    <div style="background:white;border-radius:16px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:1.5rem 1.5rem 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+          <h3 style="margin:0">↔ Cambios</h3>
+          <button onclick="document.getElementById('modal-cambios-pos').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Busca el modelo que el cliente se lleva a cambio y toca la talla. Puedes agregar varios — se van sumando abajo.</p>
 
-      <p style="font-size:0.78rem;font-weight:700;color:#333;margin-bottom:6px">Precio a aplicar al par que se lleva:</p>
-      <div style="display:flex;gap:6px;margin-bottom:1rem">
-        <button onclick="seleccionarTierCambio('mayoreo3')" id="tier-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;opacity:0.9">-$30/par</span></button>
-        <button onclick="seleccionarTierCambio('mayoreo6')" id="tier-mayoreo6" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x6<br><span style="font-size:0.66rem;color:#888">-$70/par</span></button>
-        <button onclick="seleccionarTierCambio('corrida')" id="tier-corrida" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Corrida<br><span style="font-size:0.66rem;color:#888">-$100/par</span></button>
-      </div>
+        <p style="font-size:0.78rem;font-weight:700;color:#333;margin-bottom:6px">Precio a aplicar al par que se lleva:</p>
+        <div style="display:flex;gap:6px;margin-bottom:1rem">
+          <button onclick="seleccionarTierCambio('mayoreo3')" id="tier-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;opacity:0.9">-$30/par</span></button>
+          <button onclick="seleccionarTierCambio('mayoreo6')" id="tier-mayoreo6" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x6<br><span style="font-size:0.66rem;color:#888">-$70/par</span></button>
+          <button onclick="seleccionarTierCambio('corrida')" id="tier-corrida" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Corrida<br><span style="font-size:0.66rem;color:#888">-$100/par</span></button>
+        </div>
 
-      <input class="form-input" id="cambio-buscar" placeholder="🔍 Buscar modelo (nombre o SKU)..." oninput="buscarCambioPOS(this.value)" autocomplete="off">
-      <div id="cambio-resultados" style="margin-top:10px;max-height:320px;overflow-y:auto"></div>
+        <input class="form-input" id="cambio-buscar" placeholder="🔍 Buscar modelo (nombre o SKU)..." oninput="buscarCambioPOS(this.value)" autocomplete="off">
+      </div>
+      <div id="cambio-resultados" style="padding:0 1.5rem;overflow-y:auto;flex:1"></div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid #eee;background:#fafafa">
+        <div id="cambio-resumen" style="font-size:0.9rem;margin-bottom:10px"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="document.getElementById('modal-cambios-pos').remove()">Listo</button>
+      </div>
     </div>
   `
   document.body.appendChild(modal)
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  actualizarResumenCambiosPOS()
+}
+
+window.actualizarResumenCambiosPOS = () => {
+  const resumen = document.getElementById('cambio-resumen')
+  if (!resumen) return
+  const cambios = (window._posCarrito || []).filter(i => i.es_cambio)
+  const pares = cambios.reduce((s, i) => s + Math.abs(i.cantidad), 0)
+  const total = cambios.reduce((s, i) => s + Math.abs(i.cantidad * i.precio_unitario), 0)
+  resumen.innerHTML = pares > 0
+    ? `<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">${pares} par${pares === 1 ? '' : 'es'} en cambio</span><span style="font-weight:700;color:#c62828">-$${total.toFixed(2)}</span></div>`
+    : `<span style="color:#aaa">Ningún par agregado todavía</span>`
 }
 
 window.seleccionarTierCambio = (tier) => {
@@ -11801,6 +11906,7 @@ window.agregarCambioPOS = (varianteId, productoId, nombre, talla, color, imagen)
     })
   }
   renderCarritoPOS()
+  actualizarResumenCambiosPOS()
 }
 
 window.editarPrecioPOS = (idx, nuevoPrecio) => {
@@ -12091,7 +12197,7 @@ window.cobrarPOS = async () => {
     }
 
     // 4. Éxito — limpiar carrito e imprimir
-    const totalPares = window._posCarrito.reduce((sum, i) => sum + i.cantidad, 0)
+    const totalPares = window._posCarrito.reduce((sum, i) => sum + (i.es_cambio ? 0 : i.cantidad), 0)
     window._posCarrito = []
     window._cobrando = false
     ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
@@ -12293,25 +12399,33 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
       </div>
       <div class="divider"></div>
       ${(() => {
-  const grupos = {}
-  items.forEach(item => {
-    const variante = item.variantes || {}
-    const producto = variante.productos || {}
-    const _clave = (producto.nombre || '—').split(' ')[0]
-    const key = _clave + '|' + (variante.color || '')
-    if (!grupos[key]) {
-      grupos[key] = {
-        nombre: _clave,
-        color: variante.color || '',
-        precio: item.precio_unitario || 0,
-        cantidad: 0,
-        subtotal: 0
+  const itemsCompra = items.filter(i => (i.cantidad || 0) > 0)
+  const itemsCambio = items.filter(i => (i.cantidad || 0) < 0)
+
+  const agrupar = (lista) => {
+    const grupos = {}
+    lista.forEach(item => {
+      const variante = item.variantes || {}
+      const producto = variante.productos || {}
+      const _clave = (producto.nombre || '—').split(' ')[0]
+      const key = _clave + '|' + (variante.color || '') + '|' + (variante.talla || '')
+      if (!grupos[key]) {
+        grupos[key] = {
+          nombre: _clave,
+          color: variante.color || '',
+          precio: item.precio_unitario || 0,
+          cantidad: 0,
+          subtotal: 0
+        }
       }
-    }
-    grupos[key].cantidad += item.cantidad
-    grupos[key].subtotal += parseFloat(item.subtotal) || (item.cantidad * item.precio_unitario)
-  })
-  return `
+      grupos[key].cantidad += Math.abs(item.cantidad)
+      grupos[key].subtotal += Math.abs(parseFloat(item.subtotal) || (item.cantidad * item.precio_unitario))
+    })
+    return grupos
+  }
+
+  const gruposCompra = agrupar(itemsCompra)
+  let html = `
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <tr style="border-bottom:1px solid #000">
         <td style="width:24px;text-align:right;padding-right:4px;font-weight:bold">Cant</td>
@@ -12319,7 +12433,7 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         <td style="text-align:right;padding-right:4px;font-weight:bold">P/U</td>
         <td style="text-align:right;font-weight:bold">Total</td>
       </tr>
-      ${Object.values(grupos).map(g => `
+      ${Object.values(gruposCompra).map(g => `
         <tr>
           <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
           <td>${g.nombre}<br><span style="font-size:10px">${g.color}</span></td>
@@ -12327,8 +12441,25 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
           <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
         </tr>
       `).join('')}
-    </table>
-  `
+    </table>`
+
+  if (itemsCambio.length > 0) {
+    const gruposCambio = agrupar(itemsCambio)
+    html += `
+      <div class="divider"></div>
+      <p style="font-size:11px">↩ CAMBIOS (se descuentan)</p>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+        ${Object.values(gruposCambio).map(g => `
+          <tr>
+            <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
+            <td>${g.nombre}<br><span style="font-size:10px">${g.color}</span></td>
+            <td style="text-align:right;font-weight:bold">-$${g.subtotal.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </table>`
+  }
+
+  return html
 })()}
       <div class="divider"></div>
       <div class="row">

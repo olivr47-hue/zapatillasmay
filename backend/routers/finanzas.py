@@ -222,14 +222,18 @@ def recibir_mercancia(datos: dict):
             return JSONResponse(status_code=400, content={"error": "Falta sucursal o productos"})
 
         total = sum(float(i.get("cantidad", 0)) * float(i.get("costo_unitario", 0)) for i in items)
+        pagada = bool(datos.get("pagada"))
 
         orden_payload = {
             "proveedor_id": proveedor_id,
             "sucursal_id": sucursal_id,
-            "status": "recibida",
+            "status": "pagada" if pagada else "recibida",
             "total": total,
             "notas": notas,
         }
+        if pagada:
+            from datetime import datetime
+            orden_payload["fecha_pago"] = datetime.now().isoformat()
         if dias_credito is not None:
             orden_payload["dias_credito"] = int(dias_credito)
         orden = supabase_post("ordenes_compra", orden_payload)
