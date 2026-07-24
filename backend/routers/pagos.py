@@ -575,6 +575,27 @@ def pagos_config(test: bool = False):
     return {"public_key": pk, "test_mode": bool(test and MP_ACCESS_TOKEN_TEST), "disponible": bool(pk)}
 
 
+# ─── TERMINAL POINT (Point Integration API) ────────────────────────
+@router.get("/terminal/dispositivos")
+def listar_dispositivos_point():
+    """Diagnostico: lista las terminales Point vinculadas a la cuenta de MP
+    y si estan en modo PDV (integrable por API) o STANDALONE (solo manual).
+    Paso previo obligatorio antes de poder mandarle el monto a la terminal
+    automaticamente desde el POS."""
+    try:
+        req = urllib.request.Request(
+            "https://api.mercadopago.com/point/integration-api/devices",
+            headers={"Authorization": f"Bearer {os.getenv('MP_ACCESS_TOKEN')}"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        return data
+    except urllib.error.HTTPError as e:
+        return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/procesar")
 def procesar_pago(datos: dict):
     """Cobro embebido (Checkout Bricks / Payments API). El navegador tokeniza la
