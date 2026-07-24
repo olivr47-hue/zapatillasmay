@@ -23619,18 +23619,23 @@ function renderCarritoAbierto(p) {
         </div>
 
         ${items.length > 0 ? `
-          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem">
+          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px">
               <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
-              <select id="c-forma-pago" class="form-input" style="width:140px">
+              <select id="c-forma-pago" class="form-input" style="width:190px" onchange="cambiarFormaPagoCarrito('${pedidoId}')">
                 <option value="efectivo">Efectivo</option>
                 <option value="transferencia">Transferencia</option>
                 <option value="tarjeta">Tarjeta</option>
                 <option value="spei">SPEI</option>
                 <option value="credito">Crédito</option>
+                <option value="link_mp">Link de pago (Mercado Pago)</option>
               </select>
             </div>
-            <button class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
+            <div id="c-envio-wrap" style="display:none;align-items:center;gap:6px">
+              <label style="font-size:0.85rem;color:#333">Envío $</label>
+              <input type="number" id="c-envio-monto" min="0" step="1" value="${_envioSugeridoCarrito(total, totalPares)}" style="width:80px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:6px">
+            </div>
+            <button id="c-btn-confirmar-pago" class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
               ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
             </button>
           </div>
@@ -24333,6 +24338,84 @@ window.confirmarVentaCarrito = async (pedidoId) => {
       alert('Error: ' + JSON.stringify(data))
     }
   } catch(e) { alert('Error: ' + e.message) }
+}
+
+// Envío sugerido con la misma tarifa que ya se usa en la tienda/Link de
+// pago (1 par $99 · 2 $150 · 3-5 $199 · gratis desde $1,299) -- pero aquí
+// es solo un default editable, no un valor fijo.
+function _envioSugeridoCarrito(total, pares) {
+  if (total >= 1299) return 0
+  if (pares >= 3) return 199
+  if (pares >= 2) return 150
+  return 99
+}
+
+window.cambiarFormaPagoCarrito = (pedidoId) => {
+  const val = document.getElementById('c-forma-pago')?.value
+  const envioWrap = document.getElementById('c-envio-wrap')
+  const btn = document.getElementById('c-btn-confirmar-pago')
+  if (!btn) return
+  if (val === 'link_mp') {
+    if (envioWrap) envioWrap.style.display = 'flex'
+    btn.innerHTML = '🔗 Generar link de pago'
+    btn.style.background = '#E91E8C'
+    btn.style.borderColor = '#E91E8C'
+    btn.onclick = () => generarLinkPagoCarrito(pedidoId)
+  } else {
+    if (envioWrap) envioWrap.style.display = 'none'
+    const totalActual = document.getElementById('carrito-total-monto')?.textContent || '0.00'
+    btn.innerHTML = `✅ Confirmar venta — $<span id="carrito-total-btn">${totalActual}</span>`
+    btn.style.background = '#2e7d32'
+    btn.style.borderColor = '#2e7d32'
+    btn.onclick = () => confirmarVentaCarrito(pedidoId)
+  }
+}
+
+window.generarLinkPagoCarrito = async (pedidoId) => {
+  const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
+  const cliente = window._carritoActivo?.pedidoData?.clientes || {}
+  const btn = document.getElementById('c-btn-confirmar-pago')
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando...' }
+  try {
+    const res = await fetch(API + '/pagos/crear-preferencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pedido_id: pedidoId,
+        items: envio > 0 ? [{ nombre: 'Envío', precio: envio }] : [],
+        cliente: { nombre: cliente.nombre || '', email: cliente.email || '' }
+      })
+    })
+    const data = await res.json()
+    if (data.init_point) {
+      mostrarLinkGeneradoCarrito(data.init_point)
+    } else {
+      alert('Error generando el link: ' + JSON.stringify(data.error || data))
+    }
+  } catch (e) {
+    alert('Error conectando con el servidor')
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔗 Generar link de pago' }
+  }
+}
+
+window.mostrarLinkGeneradoCarrito = (link) => {
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;text-align:center">
+      <p style="font-size:1.8rem;margin-bottom:6px">🔗</p>
+      <p style="font-weight:700;margin-bottom:4px">Link de pago generado</p>
+      <p style="font-size:0.78rem;color:#888;margin-bottom:12px">Este carrito pasó a "Pedidos" (checkout iniciado) mientras el cliente paga.</p>
+      <input readonly value="${link}" onclick="this.select()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.75rem;margin-bottom:12px;box-sizing:border-box">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="navigator.clipboard.writeText('${link}');this.textContent='¡Copiado!'">📋 Copiar</button>
+        <a href="${link}" target="_blank" class="btn btn-primary" style="flex:1;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center">Abrir</a>
+      </div>
+      <button onclick="this.closest('div[style*=position]').remove();cargarCarritos()" style="margin-top:14px;background:none;border:none;color:#888;cursor:pointer;font-size:0.85rem">Cerrar</button>
+    </div>
+  `
+  document.body.appendChild(modal)
 }
 
 window.carritoModo = (modo) => {
