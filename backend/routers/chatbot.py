@@ -850,7 +850,7 @@ def subir_imagen_storage(img_bytes: bytes, filename: str, content_type: str = "i
         print(f"[storage] Error subiendo imagen: {e}")
         return ""
 
-def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", media_url=""):
+def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", media_url="", canal="whatsapp"):
     try:
         from database import supabase_post
         data = {
@@ -862,12 +862,21 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
         }
         if media_url:
             data["media_url"] = media_url
+        if canal and canal != "whatsapp":
+            data["canal"] = canal
         try:
             supabase_post("conversaciones_whatsapp", data)
         except Exception as e_post:
-            # Si falla por la columna media_url (cache de PostgREST desactualizado), reintentar sin ella
+            # Si falla por columnas que el cache de PostgREST no conoce todavia
+            # (migracion reciente), reintentar quitandolas una por una.
+            reintentado = False
             if "media_url" in data:
                 data.pop("media_url", None)
+                reintentado = True
+            if "canal" in data:
+                data.pop("canal", None)
+                reintentado = True
+            if reintentado:
                 supabase_post("conversaciones_whatsapp", data)
             else:
                 raise e_post
@@ -1503,6 +1512,138 @@ async def verificar_webhook(request: Request):
     if _WA_VERIFY_TOKEN and mode == "subscribe" and token == _WA_VERIFY_TOKEN:
         return int(challenge)
     return JSONResponse(status_code=403, content={"error": "Token invalido"})
+
+
+# ── MESSENGER + INSTAGRAM (mismo Meta App que WhatsApp) ──────────────────
+# Reusa el mismo "cerebro" de Maya (catalogo, flujos por palabra clave,
+# Claude, historial) -- solo cambia como se reciben y mandan los mensajes.
+# v1: solo texto. Los marcadores de Maya para fotos/pago (pensados para
+# WhatsApp) se limpian del texto en vez de ejecutarse.
+_FB_VERIFY_TOKEN = os.getenv("FB_VERIFY_TOKEN", "")
+FB_PAGE_ACCESS_TOKEN = os.getenv("FB_PAGE_ACCESS_TOKEN", "")
+
+@router.get("/meta")
+async def verificar_webhook_meta(request: Request):
+    params = dict(request.query_params)
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
+    if _FB_VERIFY_TOKEN and mode == "subscribe" and token == _FB_VERIFY_TOKEN:
+        return int(challenge)
+    return JSONResponse(status_code=403, content={"error": "Token invalido"})
+
+
+def _limpiar_respuesta_ia_meta(texto: str) -> str:
+    """Quita marcadores internos de Maya (fotos/colores/pago, pensados para
+    WhatsApp) del texto antes de mandarlo por Messenger/Instagram."""
+    limpio = re.sub(r'ENVIAR_FOTO:\[[^\]]+\]', '', texto or '')
+    limpio = re.sub(r'ENVIAR_FOTO:\S+', '', limpio)
+    limpio = re.sub(r'BUSCAR_COLORES:\[?[A-Za-z0-9_\-]+\]?', '', limpio)
+    _, limpio = _extraer_generar_pago(limpio)
+    return limpio.strip()
+
+
+def _enviar_mensaje_meta(destinatario_id: str, texto: str):
+    """Manda un mensaje de texto por la Send API de Meta -- misma llamada para
+    Messenger e Instagram cuando se usa el token de la pagina."""
+    if not FB_PAGE_ACCESS_TOKEN:
+        print("[meta webhook] FB_PAGE_ACCESS_TOKEN no configurado, no se pudo responder")
+        return
+    try:
+        body = json.dumps({
+            "recipient": {"id": destinatario_id},
+            "message": {"text": texto},
+            "messaging_type": "RESPONSE",
+        }).encode()
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v21.0/me/messages?access_token={FB_PAGE_ACCESS_TOKEN}",
+            data=body, headers={"Content-Type": "application/json"}, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        print(f"[meta webhook] Error enviando mensaje: {e.read().decode()}")
+    except Exception as e:
+        print(f"[meta webhook] Error enviando mensaje: {e}")
+
+
+async def _procesar_webhook_meta(datos: dict):
+    try:
+        object_type = datos.get("object", "")
+        canal = "instagram" if object_type == "instagram" else "messenger"
+        prefijo = "ig" if canal == "instagram" else "msgr"
+
+        for entry in datos.get("entry", []):
+            for evento in entry.get("messaging", []):
+                mensaje_obj = evento.get("message") or {}
+                if mensaje_obj.get("is_echo"):
+                    continue  # eco de un mensaje que mando la pagina misma -- ignorar
+                sender_id = (evento.get("sender") or {}).get("id", "")
+                mid = mensaje_obj.get("mid", "")
+                texto = (mensaje_obj.get("text") or "").strip()
+                if not sender_id:
+                    continue
+                if mid and _wamid_duplicado(mid):
+                    continue
+
+                identificador = f"{prefijo}:{sender_id}"
+
+                if not texto:
+                    guardar_conversacion(identificador, "[Adjunto no soportado todavía]", None, "no_soportado", "", canal=canal)
+                    continue
+
+                control = supabase_get(f"chats_control?telefono=eq.{identificador}&en_control=eq.true")
+                if control:
+                    guardar_conversacion(identificador, texto, None, "texto", "", canal=canal)
+                    continue
+
+                _resp_flujo = None
+                try:
+                    _resp_flujo = _buscar_flujo(texto, en_control=False)
+                except Exception:
+                    pass
+                if _resp_flujo:
+                    _enviar_mensaje_meta(sender_id, _resp_flujo)
+                    guardar_conversacion(identificador, texto, _resp_flujo, "texto", "", canal=canal)
+                    continue
+
+                try:
+                    productos = cargar_catalogo()
+                    catalogo = construir_catalogo(productos)
+                    sistema = construir_sistema(catalogo, [])
+                    historial = obtener_historial(identificador)
+                    mensajes_h = historial + [{"role": "user", "content": texto}]
+                    respuesta = llamar_claude(mensajes_h, sistema)
+                    respuesta_limpia = _limpiar_respuesta_ia_meta(respuesta)
+                except Exception as e:
+                    respuesta = None
+                    respuesta_limpia = "Disculpa, tuve un problema técnico 😔 ¿Puedes repetir tu mensaje?"
+                    print(f"[meta webhook] Error Claude: {e}")
+
+                if respuesta_limpia:
+                    _enviar_mensaje_meta(sender_id, respuesta_limpia)
+                guardar_conversacion(identificador, texto, respuesta or respuesta_limpia, "texto", "", canal=canal)
+    except Exception as e:
+        print(f"[meta webhook] Error procesando: {e}")
+
+
+@router.post("/meta")
+async def recibir_webhook_meta(request: Request):
+    """Recibe webhooks de Messenger e Instagram. Responde 200 de inmediato y
+    procesa en segundo plano, igual que /whatsapp (evita reintentos/duplicados
+    de Meta si Claude tarda)."""
+    import asyncio
+    raw_body = await request.body()
+    if not _verificar_firma_meta(raw_body, request.headers.get("X-Hub-Signature-256", "")):
+        print("[meta webhook] firma invalida - request rechazado")
+        return JSONResponse(status_code=403, content={"error": "firma invalida"})
+    try:
+        datos = json.loads(raw_body) if raw_body else {}
+    except Exception:
+        datos = {}
+    asyncio.create_task(_procesar_webhook_meta(datos))
+    return {"status": "ok"}
+
 
 @router.post("/mensaje")
 async def procesar_mensaje(datos: dict):
