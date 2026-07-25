@@ -24475,6 +24475,27 @@ window.confirmarVentaCarrito = async (pedidoId) => {
   const formaPagoEl = document.getElementById('c-forma-pago')
   const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
   if (!confirm(`¿Confirmar la venta? Se descontará el stock del inventario.`)) return
+
+  // Igual que en POS: si es tarjeta, el cobro tiene que pasar de verdad por
+  // la terminal física antes de confirmar la venta -- si no, un empleado
+  // podría cerrar como "tarjeta" sin cobrar nada realmente en la terminal.
+  const total = parseFloat((document.getElementById('carrito-total-monto')?.textContent || '0').replace(/,/g, '')) || 0
+  if (formaPago === 'tarjeta') {
+    const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
+    if (!terminalDeviceId) {
+      alert('No hay una terminal configurada en este equipo. Para cobrar con "Tarjeta" el cobro debe pasar por la terminal física -- configúrala primero en POS > Terminal.')
+      return
+    }
+    const btn = document.getElementById('c-btn-confirmar-pago')
+    if (btn) { btn.disabled = true; btn.textContent = 'Esperando terminal...' }
+    const pagoOk = await cobrarConTerminalYEsperar(terminalDeviceId, total, pedidoId)
+    if (btn) { btn.disabled = false; btn.innerHTML = `✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>` }
+    if (!pagoOk) {
+      alert('El cobro no se completó en la terminal. No se confirmó la venta.')
+      return
+    }
+  }
+
   try {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
       method: 'POST',
