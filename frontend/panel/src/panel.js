@@ -599,7 +599,13 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
         v.sugerido = v.sin_stock ? Math.max(1, porRotacion) : porRotacion
       })
       if (p.variantes && p.variantes.length) {
-        p.variantes.sort((a, b) => (b.sugerido - a.sugerido) || (b.sin_stock - a.sin_stock))
+        // Agrupado por color (para no mezclar colores en la tabla) y dentro
+        // de cada color, por talla en orden natural (22, 22.5, 23...).
+        const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
+        p.variantes.sort((a, b) =>
+          (a.color || '').localeCompare(b.color || '') ||
+          (TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+        )
         const sumaVariantes = p.variantes.reduce((s, v) => s + v.sugerido, 0)
         if (sumaVariantes > 0) p.cantidad_sugerida = sumaVariantes
       }
@@ -956,6 +962,7 @@ window.generarOrden = () => {
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="document.getElementById('modal-orden').remove()">Cancelar</button>
         <button class="btn btn-secondary" onclick="imprimirOrden()" style="background:#e3f2fd;border-color:#1565c0;color:#1565c0">🖨️ Imprimir</button>
+        <button class="btn btn-secondary" onclick="generarPDFOrden()" style="background:#fce4ec;border-color:#E91E8C;color:#c2185b">📄 Generar PDF</button>
         <button class="btn btn-primary" onclick="guardarOrdenCompra2()">💾 Guardar orden</button>
       </div>
     </div>
@@ -1121,6 +1128,123 @@ window.imprimirOrden = () => {
   <script>window.onload = () => window.print()</script>
 </body></html>`)
   win.document.close()
+}
+
+window.generarPDFOrden = async () => {
+  const { seleccionados } = window._ordenModal || {}
+  if (!seleccionados) return
+  const fecha = document.getElementById('orden-fecha')?.value || ''
+  const notas = document.getElementById('orden-notas')?.value || ''
+  const hoy = new Date().toLocaleDateString('es-MX')
+
+  const filas = []
+  let total = 0
+  seleccionados.forEach(p => {
+    const vars = p.variantes || []
+    if (vars.length === 0) {
+      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
+      const sub = qty * p.costo_unitario
+      total += sub
+      filas.push([p.nombre, p.sku || '', '—', '—', String(qty), '$' + sub.toFixed(0)])
+    } else {
+      vars.forEach(v => {
+        const chk = document.getElementById('chk-var-' + v.id)
+        if (!chk?.checked) return
+        const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
+        if (qty <= 0) return
+        const sub = qty * p.costo_unitario
+        total += sub
+        filas.push([p.nombre, p.sku || '', v.talla || '—', v.color || '—', String(qty), '$' + sub.toFixed(0)])
+      })
+    }
+  })
+
+  if (filas.length === 0) {
+    alert('No hay productos incluidos en la orden.')
+    return
+  }
+
+  const btn = document.querySelector('[onclick="generarPDFOrden()"]')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando...' }
+
+  try {
+    if (!window.jspdf) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = resolve; s.onerror = reject
+        document.head.appendChild(s)
+      })
+    }
+    const { jsPDF } = window.jspdf
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+    const pageW = 210, pageH = 297, marginX = 14
+    const cols = [marginX, 90, 128, 148, 172, 188]  // x de cada columna
+    const headers = ['Modelo', 'SKU', 'Talla', 'Color', 'Pares', 'Subtotal']
+    let y = 20
+
+    const dibujarEncabezado = () => {
+      pdf.setFontSize(15); pdf.setFont(undefined, 'bold')
+      pdf.text('Orden de compra — Zapatillas May', marginX, y)
+      y += 7
+      pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); pdf.setTextColor(100)
+      let meta = `Fecha de emisión: ${hoy}`
+      if (fecha) meta += `   |   Entrega estimada: ${fecha}`
+      pdf.text(meta, marginX, y)
+      y += 5
+      if (notas) {
+        const notasWrap = pdf.splitTextToSize('Notas: ' + notas, pageW - marginX * 2)
+        pdf.text(notasWrap, marginX, y)
+        y += notasWrap.length * 4.5
+      }
+      pdf.setTextColor(0)
+      y += 3
+      pdf.setFillColor(240, 240, 240)
+      pdf.rect(marginX, y - 4.5, pageW - marginX * 2, 7, 'F')
+      pdf.setFont(undefined, 'bold'); pdf.setFontSize(9)
+      headers.forEach((h, i) => pdf.text(h, cols[i], y))
+      y += 6
+      pdf.setFont(undefined, 'normal')
+    }
+
+    dibujarEncabezado()
+
+    filas.forEach(fila => {
+      if (y > pageH - 25) {
+        pdf.addPage()
+        y = 20
+        dibujarEncabezado()
+      }
+      pdf.setFontSize(8.5)
+      const nombreWrap = pdf.splitTextToSize(fila[0], cols[1] - cols[0] - 3)
+      nombreWrap.forEach((linea, i) => pdf.text(linea, cols[0], y + i * 3.8))
+      pdf.text(fila[1], cols[1], y)
+      pdf.text(fila[2], cols[2], y)
+      pdf.text(fila[3], cols[3], y)
+      pdf.text(fila[4], cols[4], y)
+      pdf.text(fila[5], cols[5], y)
+      pdf.setDrawColor(230)
+      const altoFila = Math.max(nombreWrap.length * 3.8, 5)
+      pdf.line(marginX, y + altoFila - 1.5, pageW - marginX, y + altoFila - 1.5)
+      y += altoFila + 1.5
+    })
+
+    if (y > pageH - 20) { pdf.addPage(); y = 20 }
+    pdf.setDrawColor(50)
+    pdf.line(marginX, y, pageW - marginX, y)
+    y += 6
+    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11)
+    pdf.text('TOTAL GENERAL', marginX, y)
+    pdf.text('$' + total.toFixed(0), cols[5], y)
+
+    const nombreArchivo = `orden_compra_${hoy.replace(/\//g, '-')}.pdf`
+    pdf.save(nombreArchivo)
+  } catch(e) {
+    console.error('Error generando PDF:', e)
+    alert('Error al generar el PDF: ' + e.message)
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 Generar PDF' }
+  }
 }
 
 window.posponerProducto = (productoId, nombre) => {
@@ -2586,6 +2710,11 @@ async function cargarAnalisis() {
       const ventas = ventasPorProducto[p.id] || { d30: 0, d60: 0, d90: 0, total: 0 }
       const varIds = prodVariantes[p.id] || []
       const stockTotal = varIds.reduce((s, vid) => s + (stockPorVariante[vid] || 0), 0)
+      // Aunque el total agregado alcance para varias semanas, si ya hay algún
+      // color/talla activo en cero se está perdiendo venta real de esa
+      // combinación específica — debe contar como "pedir ahora" igual que en
+      // sugerencias-recompra, no solo cuando el stock total baja del umbral.
+      const tieneVarianteSinStock = varIds.length > 0 && varIds.some(vid => (stockPorVariante[vid] || 0) === 0)
       const ventasSemana = ventas.d30 / 4
       const diasInventario = ventasSemana > 0 ? Math.round(stockTotal / ventasSemana * 7) : null
 
@@ -2603,10 +2732,12 @@ async function cargarAnalisis() {
         semaforo = 'morado'
         recomendacion = `${ventas.d90} pares en 1 sola nota — no es rotación, fue venta puntual`
       } else if (ventas.d90 > 0 && notas.d90 >= 2) {
-        const seAgotaPronto = diasInventario !== null && diasInventario <= 21
+        const seAgotaPronto = (diasInventario !== null && diasInventario <= 21) || tieneVarianteSinStock
         if (seAgotaPronto) {
           semaforo = 'verde'
-          recomendacion = `Rota bien y se agota en ${diasInventario}d — pedir ahora`
+          recomendacion = (diasInventario !== null && diasInventario <= 21)
+            ? `Rota bien y se agota en ${diasInventario}d — pedir ahora`
+            : 'Ya se agotó en algún color/talla — pedir ahora'
         } else {
           semaforo = 'azul'
           recomendacion = diasInventario !== null ? `Rota bien, alcanza para ${diasInventario}d — no urge pedir` : 'Rota bien, aún con stock'
