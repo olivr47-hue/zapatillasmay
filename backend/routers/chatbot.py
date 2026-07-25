@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate
 import urllib.request
+import urllib.parse
 import json
 import os
 import time
@@ -1567,8 +1568,127 @@ def _enviar_mensaje_meta(destinatario_id: str, texto: str):
         print(f"[meta webhook] Error enviando mensaje: {e}")
 
 
+# ── Comentarios públicos (Facebook feed / Instagram comments) ───────────────
+_META_IDS_CACHE: dict = {}
+
+def _obtener_ids_propios_meta() -> tuple:
+    """Devuelve (page_id, ig_id) de la cuenta conectada -- para distinguir un
+    comentario nuevo de un cliente de un eco de la respuesta que Maya misma
+    acaba de publicar (evita que se responda a si misma en loop)."""
+    if _META_IDS_CACHE:
+        return _META_IDS_CACHE.get("page_id", ""), _META_IDS_CACHE.get("ig_id", "")
+    if not FB_PAGE_ACCESS_TOKEN:
+        return "", ""
+    try:
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v21.0/me?fields=id,instagram_business_account&access_token={FB_PAGE_ACCESS_TOKEN}"
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        page_id = data.get("id", "")
+        ig_id = (data.get("instagram_business_account") or {}).get("id", "")
+        _META_IDS_CACHE["page_id"] = page_id
+        _META_IDS_CACHE["ig_id"] = ig_id
+        return page_id, ig_id
+    except Exception as e:
+        print(f"[meta webhook] Error resolviendo ids propios: {e}")
+        return "", ""
+
+
+def _sistema_comentario_meta(catalogo: str) -> str:
+    return f"""Eres Maya, la cuenta de Zapatillas May respondiendo comentarios PUBLICOS en una publicacion de Facebook o Instagram.
+
+SOBRE ZAPATILLAS MAY:
+- Calzado de moda para dama en Leon, Guanajuato. Envios a todo Mexico, USA y Canada.
+
+CATALOGO ACTUAL (precios y tallas reales -- usalos tal cual, sin inventar ni calcular):
+{catalogo if catalogo else "Catálogo en actualización"}
+
+REGLAS PARA COMENTARIOS PUBLICOS (todo mundo lo ve, no es un chat privado):
+- Responde en 1-2 lineas, tono amigable de marca, nunca como robot.
+- Si preguntan precio, tallas o disponibilidad de un modelo del catalogo: contesta con el dato EXACTO del catalogo.
+- NUNCA pidas datos personales (direccion, telefono, email) en el comentario -- si hace falta cerrar una venta, invita a mandar mensaje directo: "Te esperamos por inbox para tu pedido 💕"
+- NUNCA generes links de pago ni uses marcadores internos (ENVIAR_FOTO, BUSCAR_COLORES, GENERAR_PAGO) -- aqui no aplican.
+- Si el comentario no tiene relacion con el negocio, es spam o solo un emoji: responde algo breve y cordial (ej. un emoji o "¡Gracias! 😊"), nunca lo ignores por completo.
+- Responde siempre en español mexicano natural."""
+
+
+def _responder_comentario_meta(comment_id: str, texto: str, plataforma: str):
+    """Publica una respuesta a un comentario -- POST /{id}/comments en Facebook,
+    POST /{id}/replies en Instagram (mismo Page Access Token para ambos)."""
+    if not FB_PAGE_ACCESS_TOKEN or not comment_id or not texto:
+        return
+    endpoint = "replies" if plataforma == "instagram" else "comments"
+    try:
+        body = urllib.parse.urlencode({"message": texto}).encode()
+        req = urllib.request.Request(
+            f"https://graph.facebook.com/v21.0/{comment_id}/{endpoint}?access_token={FB_PAGE_ACCESS_TOKEN}",
+            data=body, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as e:
+        print(f"[meta webhook] Error respondiendo comentario: {e.read().decode()}")
+    except Exception as e:
+        print(f"[meta webhook] Error respondiendo comentario: {e}")
+
+
+async def _procesar_comentarios_meta(datos: dict):
+    """Procesa comentarios nuevos en publicaciones (campo 'feed' de Facebook,
+    campo 'comments' de Instagram) y responde publicamente con IA."""
+    try:
+        page_id, ig_id = _obtener_ids_propios_meta()
+        for entry in datos.get("entry", []):
+            for change in entry.get("changes", []):
+                campo = change.get("field", "")
+                valor = change.get("value", {}) or {}
+
+                if campo == "feed":
+                    if valor.get("item") != "comment" or valor.get("verb") != "add":
+                        continue
+                    comment_id = valor.get("comment_id", "")
+                    autor_id = valor.get("sender_id", "")
+                    texto_comentario = (valor.get("message") or "").strip()
+                    plataforma = "facebook"
+                elif campo == "comments":
+                    comment_id = valor.get("id", "")
+                    autor_id = (valor.get("from") or {}).get("id", "")
+                    texto_comentario = (valor.get("text") or "").strip()
+                    plataforma = "instagram"
+                else:
+                    continue
+
+                if not comment_id or not texto_comentario:
+                    continue
+                if autor_id and page_id and autor_id == page_id:
+                    continue  # eco de nuestra propia respuesta
+                if autor_id and ig_id and autor_id == ig_id:
+                    continue
+                if _wamid_duplicado(f"comment:{comment_id}"):
+                    continue
+
+                try:
+                    productos = cargar_catalogo()
+                    catalogo = construir_catalogo(productos)
+                    sistema_comentario = _sistema_comentario_meta(catalogo)
+                    respuesta = llamar_claude([{"role": "user", "content": texto_comentario}], sistema_comentario)
+                    respuesta_limpia = _limpiar_respuesta_ia_meta(respuesta).strip()
+                except Exception as e:
+                    respuesta_limpia = ""
+                    print(f"[meta webhook] Error IA comentario: {e}")
+
+                if respuesta_limpia:
+                    _responder_comentario_meta(comment_id, respuesta_limpia, plataforma)
+                    identificador_c = f"{'ig' if plataforma == 'instagram' else 'fb'}coment:{autor_id or comment_id}"
+                    guardar_conversacion(identificador_c, texto_comentario, respuesta_limpia, "comentario_publico", "", canal=f"{plataforma}_comentario")
+    except Exception as e:
+        print(f"[meta webhook] Error procesando comentarios: {e}")
+
+
 async def _procesar_webhook_meta(datos: dict):
     try:
+        await _procesar_comentarios_meta(datos)
+
         object_type = datos.get("object", "")
         canal = "instagram" if object_type == "instagram" else "messenger"
         prefijo = "ig" if canal == "instagram" else "msgr"
