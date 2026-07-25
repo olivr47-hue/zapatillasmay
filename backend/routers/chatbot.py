@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
-from cache import cache_get, cache_set, cache_invalidate
+from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
 import urllib.request
 import urllib.parse
 import json
@@ -905,8 +905,44 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
 def enviar_whatsapp(from_number, respuesta):
     enviar_whatsapp_texto(from_number, respuesta)
 
+_TALLAS_ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+
+def _tallas_reales_catalogo() -> dict:
+    """Tallas con stock > 0 por producto_id, calculado desde variantes+inventario
+    reales (igual que el feed del sitio web) -- cacheado para no pegarle a la DB
+    en cada mensaje/comentario que procese Maya."""
+    cache_key = "chatbot_tallas_reales"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    try:
+        variantes = supabase_get("variantes?activa=eq.true&select=id,producto_id,talla") or []
+        inventario = supabase_get("inventario?select=variante_id,cantidad") or []
+        inv_map = {i["variante_id"]: (i.get("cantidad") or 0) for i in inventario if i.get("variante_id")}
+        tallas_por_producto: dict = {}
+        for v in variantes:
+            pid = v.get("producto_id")
+            talla = (v.get("talla") or "").strip()
+            if not pid or not talla or inv_map.get(v.get("id"), 0) <= 0:
+                continue
+            tallas_por_producto.setdefault(pid, set()).add(talla)
+        resultado = {
+            pid: sorted(tallas, key=lambda t: _TALLAS_ORDEN.index(t) if t in _TALLAS_ORDEN else 99)
+            for pid, tallas in tallas_por_producto.items()
+        }
+        cache_set(cache_key, resultado, ttl=TTL_STOCK)
+        return resultado
+    except Exception as e:
+        print(f"[catalogo] Error calculando tallas reales: {e}")
+        return {}
+
 def cargar_catalogo():
-    return supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal")
+    productos = supabase_get("productos?activo=eq.true&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta,categoria,nuevo,corrida_activa,tallas_disponibles,imagen_principal") or []
+    tallas_reales = _tallas_reales_catalogo()
+    for p in productos:
+        if p.get("id") in tallas_reales:
+            p["tallas_disponibles"] = tallas_reales[p["id"]]  # puede quedar [] si se agotó todo
+    return productos
 
 def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
     """Descarga el audio de WhatsApp, lo sube a Storage y lo transcribe con Whisper.
