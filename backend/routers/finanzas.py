@@ -531,7 +531,9 @@ def sugerencias_recompra(sucursal_id: str):
         # completos del desglose sin ningun error visible (quedaban con
         # variantes_detalle vacio, como si no necesitaran nada).
         productos = supabase_get_all("productos?activo=eq.true&select=*,proveedores(nombre,telefono,email)")
-        variantes = supabase_get_all("variantes?select=*")
+        # Solo variantes activas: colores/tallas descontinuados no deben inflar
+        # el stock_total ni disparar "sin_stock" de algo que ya no se vende.
+        variantes = supabase_get_all("variantes?activa=eq.true&select=*")
         inventario = supabase_get_all(f"inventario?sucursal_id=eq.{sucursal_id}")
         # 'venta' = POS/pedidos propios. 'salida' = MercadoLibre/SHEIN/Walmart
         # (esos canales registran su descuento de inventario con ese tipo distinto).
@@ -620,7 +622,11 @@ def sugerencias_recompra(sucursal_id: str):
                     "variantes": variantes_detalle
                 })
 
-        sugerencias.sort(key=lambda x: x['dias_efectivos'])
+        # Entre empatados en dias_efectivos (ej. todos los "urgentes" con alguna
+        # variante en 0), priorizar los que más rápido se venden -- sin esto,
+        # un modelo agotado casi sin ventas quedaba mezclado al mismo nivel que
+        # uno agotado que vende decenas de pares por semana.
+        sugerencias.sort(key=lambda x: (x['dias_efectivos'], -x['velocidad_semanal']))
         return sugerencias
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
