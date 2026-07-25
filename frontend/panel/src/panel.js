@@ -9951,6 +9951,28 @@ window.guardarEdicionPedido = async () => {
   const items = window._editItems
   const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0
   const formaPago = document.getElementById('edit-forma-pago')?.value
+  const formaPagoOriginal = window._currentPedido?.forma_pago || 'efectivo'
+  const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento)
+
+  // Cambiar a "Tarjeta" aquí NO puede ser solo relabelear el pedido -- eso es
+  // justo el hueco que permite cobrar en efectivo y luego "corregir" el
+  // registro para que cuadre la caja. Si se cambia a tarjeta, se exige un
+  // cobro real en la terminal física antes de guardar cualquier cambio.
+  if (formaPago === 'tarjeta' && formaPago !== formaPagoOriginal) {
+    const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
+    if (!terminalDeviceId) {
+      alert('No hay una terminal configurada en este equipo. Para cambiar a "Tarjeta" el cobro debe pasar por la terminal física -- configúrala primero en POS > Terminal.')
+      return
+    }
+    const btnGuardar = document.querySelector('[onclick="guardarEdicionPedido()"]')
+    if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.textContent = 'Esperando terminal...' }
+    const pagoOk = await cobrarConTerminalYEsperar(terminalDeviceId, nuevoTotal, pedidoId)
+    if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.textContent = '💾 Guardar cambios' }
+    if (!pagoOk) {
+      alert('El cobro no se completó en la terminal. No se guardó el cambio a "Tarjeta".')
+      return
+    }
+  }
 
   // Actualizar cada ítem en paralelo
   await Promise.all(items.map(item =>
@@ -9961,8 +9983,6 @@ window.guardarEdicionPedido = async () => {
     })
   ))
 
-  // Recalcular total con descuento
-  const nuevoTotal = Math.max(0, items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0) - descuento)
   await fetch(API + '/pedidos/' + pedidoId, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
