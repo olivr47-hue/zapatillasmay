@@ -2034,6 +2034,7 @@ def feed_google_local():
                     xml += f'  <g:availability>{availability}</g:availability>\n'
                     xml += f'  <g:price>{precio} MXN</g:price>\n'
                     xml += f'  <g:quantity>{qty}</g:quantity>\n'
+                    xml += f'  <g:checkout_link_template>https://zapatillasmay.mx/checkout?products={var_id}:{{quantity}}</g:checkout_link_template>\n'
                     xml += '</entry>\n'
             else:
                 # Sin variantes: ID simple igual que fallback del feed primario
@@ -2043,6 +2044,7 @@ def feed_google_local():
                 xml += f'  <g:availability>out of stock</g:availability>\n'
                 xml += f'  <g:price>{precio} MXN</g:price>\n'
                 xml += f'  <g:quantity>0</g:quantity>\n'
+                xml += f'  <g:checkout_link_template>https://zapatillasmay.mx/checkout?products={_html.escape(str(sku))}:{{quantity}}</g:checkout_link_template>\n'
                 xml += '</entry>\n'
 
         xml += '</feed>'
