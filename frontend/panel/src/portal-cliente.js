@@ -1441,7 +1441,7 @@ window.pcSeleccionarColor = (prodId, color) => {
                   ${stock===0?'disabled':''}
                   style="width:100%;min-height:62px;border:2px solid ${qty>0?'#E91E8C':'var(--pc-border-2)'};background:${qty>0?'rgba(233,30,140,0.12)':'var(--pc-bg)'};border-radius:12px;cursor:${stock===0?'not-allowed':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock===0?'opacity:0.4':''}">
                   <span style="font-size:1rem;font-weight:800;color:${stock===0?'var(--pc-muted-2)':'var(--pc-text)'}">${esc(v.talla)}</span>
-                  <span style="font-size:0.62rem;color:${stock===0?'var(--pc-muted-2)':'var(--pc-green)'}">${stock===0?'Agotado':'Stk '+stock}</span>
+                  <span style="font-size:0.62rem;color:${stock===0?'var(--pc-muted-2)':'var(--pc-green)'}">${stock===0?'Agotado':'Disponible'}</span>
                   ${v.sku ? `<span style="font-size:0.55rem;color:var(--pc-muted);font-family:monospace">${esc(v.sku)}</span>` : ''}
                 </button>
                 ${stock===0 ? `<button onclick="pcAvisameStock('${v.id}',this)" title="Avísame cuando haya stock" style="position:absolute;top:-7px;left:-7px;background:var(--pc-card);border:1.5px solid var(--pc-border-2);color:var(--pc-muted);border-radius:100px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer;padding:0">🔔</button>` : ''}
