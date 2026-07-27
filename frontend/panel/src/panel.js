@@ -3612,6 +3612,8 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
 
     window._modoAnuncio = false
     window._anuncioSeleccion = []
+    window._modoBulkEdit = false
+    window._bulkSeleccion = []
 
     content.innerHTML = `
       <style>
@@ -3619,6 +3621,8 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         .modo-anuncio-activo .chk-col { display: table-cell !important; }
         .chk-col-colors { display: none !important; }
         .modo-anuncio-activo .chk-col-colors { display: flex !important; }
+        .chk-col-bulk { display: none !important; width: 40px; text-align: center; vertical-align: middle; }
+        .modo-bulk-activo .chk-col-bulk { display: table-cell !important; }
       </style>
       <div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn ${!mostrarInactivos && !categoriaFiltro ? 'btn-primary' : 'btn-secondary'}" onclick="window.cargarProductos(null, false)">
@@ -3638,6 +3642,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
           <h3>${mostrarInactivos ? 'Productos desactivados' : categoriaFiltro ? categoriaFiltro.charAt(0).toUpperCase() + categoriaFiltro.slice(1) : 'Productos activos'} (${filtrados.length})</h3>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input class="form-input" id="prod-buscar" placeholder="Buscar producto..." style="max-width:180px" oninput="filtrarProductos()">
+            ${filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-bulk-prod" onclick="window.toggleModoBulkEdit()" style="display:flex;align-items:center;gap:6px;font-weight:700">✏️ Edición masiva</button>` : ''}
             ${!mostrarInactivos && filtrados.length > 0 ? `<button class="btn btn-secondary" id="btn-anuncio-prod" onclick="window.toggleModoAnuncio()" style="display:flex;align-items:center;gap:6px;font-weight:700">📲 Anunciar modelos</button>` : ''}
             <button class="btn btn-primary" onclick="mostrarFormProducto()">+ Nuevo producto</button>
           </div>
@@ -3645,6 +3650,9 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         <table>
           <thead>
             <tr>
+              <th class="chk-col-bulk">
+                <input type="checkbox" id="master-chk-bulk" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleSelectAllBulk(this)">
+              </th>
               <th class="chk-col">
                 <input type="checkbox" id="master-chk-anuncio" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleSelectAllAnuncios(this)">
               </th>
@@ -3658,7 +3666,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
           </thead>
           <tbody>
             ${filtrados.length === 0
-              ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
+              ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay productos</td></tr>'
               : filtrados.map(p => {
                   const pVars = variantes.filter(v => v.producto_id === p.id && v.activa !== false)
                   const coloresMap = {}
@@ -3669,6 +3677,9 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
 
                   return `
                     <tr id="prod-row-${p.id}">
+                      <td class="chk-col-bulk">
+                        <input type="checkbox" class="prod-chk-bulk" value="${p.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.actualizarSeleccionBulk()">
+                      </td>
                       <td class="chk-col">
                         <input type="checkbox" class="prod-chk" value="${p.id}" style="width:18px;height:18px;cursor:pointer" onchange="window.toggleProductColorsRow('${p.id}', this)">
                       </td>
@@ -3718,6 +3729,17 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
           <button onclick="window.toggleModoAnuncio(false)" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
         </div>
       </div>
+
+      <div id="bulkedit-floating-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;background:white;border:2px solid #6366f1;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
+        <div style="flex:1;line-height:1.2">
+          <p style="margin:0;font-size:0.75rem;color:#6b7280;font-weight:600">Edición masiva</p>
+          <p id="bulk-count" style="margin:0;font-size:1rem;font-weight:800;color:#111827">0 seleccionados</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="window.abrirEditorMasivo()" id="btn-bulk-editar" class="btn btn-primary" style="padding:10px 14px;font-size:0.8rem;background:#6366f1;color:white;border:none;border-radius:8px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer" disabled>✏️ Editar</button>
+          <button onclick="window.toggleModoBulkEdit(false)" class="btn btn-secondary" style="padding:10px 14px;font-size:0.8rem;cursor:pointer">Cancelar</button>
+        </div>
+      </div>
     `
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
@@ -3758,6 +3780,191 @@ window.toggleModoAnuncio = (forceVal) => {
       btn.style.color = '#c62828'
       btn.style.borderColor = '#c62828'
     }
+  }
+}
+
+// ── Edición masiva de productos ─────────────────────────────────────
+window.OCASION_OPTS = [
+  { v: 'casual', l: 'Casual / Diario' },
+  { v: 'formal', l: 'Formal / Vestir' },
+  { v: 'trabajo', l: 'Trabajo / Oficina' },
+  { v: 'fiesta', l: 'Fiesta / Noche' },
+  { v: 'urbano', l: 'Urbano' },
+]
+
+const _CAMPOS_BULK_DEF = [
+  { v: 'costo', l: 'Costo', tipo: 'numero' },
+  { v: 'precio_menudeo', l: 'Precio menudeo', tipo: 'numero' },
+  { v: 'altura_tacon', l: 'Altura de tacón (cm)', tipo: 'numero' },
+  { v: 'categoria', l: 'Categoría', tipo: 'select', opciones: ['tacones','sandalias','botas','botines','flats','plataformas','tenis','nina','accesorios'] },
+  { v: 'subcategoria', l: 'Subcategoría', tipo: 'texto' },
+  { v: 'activo', l: 'Activo / Inactivo', tipo: 'bool' },
+  { v: 'ocasion', l: 'Ocasión', tipo: 'ocasion' },
+]
+
+window.toggleModoBulkEdit = (forceVal) => {
+  const table = document.getElementById('productos-table-wrapper')
+  const bar = document.getElementById('bulkedit-floating-bar')
+  const btn = document.getElementById('btn-bulk-prod')
+
+  if (forceVal === false || window._modoBulkEdit) {
+    window._modoBulkEdit = false
+    window._bulkSeleccion = []
+    if (table) table.classList.remove('modo-bulk-activo')
+    if (bar) bar.style.display = 'none'
+    if (btn) { btn.innerHTML = '✏️ Edición masiva'; btn.style.color = ''; btn.style.borderColor = '' }
+    document.querySelectorAll('.prod-chk-bulk').forEach(c => c.checked = false)
+    const masterChk = document.getElementById('master-chk-bulk')
+    if (masterChk) masterChk.checked = false
+  } else {
+    window._modoBulkEdit = true
+    window._bulkSeleccion = []
+    if (table) table.classList.add('modo-bulk-activo')
+    if (bar) { bar.style.display = 'flex'; document.getElementById('bulk-count').textContent = '0 seleccionados' }
+    if (btn) { btn.innerHTML = '✕ Cancelar'; btn.style.color = '#6366f1'; btn.style.borderColor = '#6366f1' }
+    // Si el modo anuncio estaba activo, apagarlo para no confundir los checkboxes
+    if (window._modoAnuncio) window.toggleModoAnuncio(false)
+  }
+}
+
+window.toggleSelectAllBulk = (masterChk) => {
+  document.querySelectorAll('.prod-chk-bulk').forEach(chk => { chk.checked = masterChk.checked })
+  window.actualizarSeleccionBulk()
+}
+
+window.actualizarSeleccionBulk = () => {
+  window._bulkSeleccion = Array.from(document.querySelectorAll('.prod-chk-bulk:checked')).map(c => c.value)
+  const countLabel = document.getElementById('bulk-count')
+  if (countLabel) countLabel.textContent = `${window._bulkSeleccion.length} seleccionados`
+  const btnEditar = document.getElementById('btn-bulk-editar')
+  if (btnEditar) btnEditar.disabled = window._bulkSeleccion.length === 0
+}
+
+window.abrirEditorMasivo = () => {
+  if (!window._bulkSeleccion.length) return
+  const m = document.createElement('div')
+  m.id = 'modal-bulk-edit'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;width:480px;max-width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+    <h3 style="margin:0 0 4px;font-size:1.05rem;color:#0f172a">Edición masiva</h3>
+    <p style="margin:0 0 16px;font-size:0.8rem;color:#64748b">${window._bulkSeleccion.length} producto(s) seleccionado(s)</p>
+    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">¿Qué campo quieres cambiar?</label>
+    <select id="bulk-campo" class="form-input" style="margin-bottom:14px" onchange="window._bulkRenderValor()">
+      ${_CAMPOS_BULK_DEF.map(c => `<option value="${c.v}">${c.l}</option>`).join('')}
+    </select>
+    <div id="bulk-valor-container"></div>
+    <div id="bulk-preview-container" style="margin-top:14px"></div>
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button onclick="document.getElementById('modal-bulk-edit').remove()" class="btn btn-secondary" style="flex:1">Cancelar</button>
+      <button onclick="window._bulkPrevisualizar()" id="btn-bulk-previsualizar" class="btn btn-primary" style="flex:1;background:#6366f1;border-color:#6366f1">Vista previa →</button>
+    </div>
+  </div>`
+  m.addEventListener('click', e => { if (e.target === m) m.remove() })
+  document.body.appendChild(m)
+  window._bulkRenderValor()
+}
+
+window._bulkRenderValor = () => {
+  const campo = document.getElementById('bulk-campo').value
+  const def = _CAMPOS_BULK_DEF.find(c => c.v === campo)
+  const cont = document.getElementById('bulk-valor-container')
+  const previewCont = document.getElementById('bulk-preview-container')
+  if (previewCont) previewCont.innerHTML = ''
+  if (!def || !cont) return
+  if (def.tipo === 'numero') {
+    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo valor</label>
+      <input type="number" step="0.01" id="bulk-valor" class="form-input" placeholder="Ej. 150">`
+  } else if (def.tipo === 'texto') {
+    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo valor</label>
+      <input type="text" id="bulk-valor" class="form-input" placeholder="Nuevo valor">`
+  } else if (def.tipo === 'select') {
+    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nueva categoría</label>
+      <select id="bulk-valor" class="form-input">${def.opciones.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
+  } else if (def.tipo === 'bool') {
+    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo estado</label>
+      <select id="bulk-valor" class="form-input"><option value="true">Activo</option><option value="false">Inactivo</option></select>`
+  } else if (def.tipo === 'ocasion') {
+    cont.innerHTML = `
+      <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Etiquetas de ocasión</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        ${window.OCASION_OPTS.map(o => `
+          <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:normal;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer">
+            <input type="checkbox" class="bulk-ocasion-chk" value="${o.v}"> ${o.l}
+          </label>`).join('')}
+      </div>
+      <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Acción</label>
+      <select id="bulk-ocasion-modo" class="form-input">
+        <option value="agregar">Agregar estas etiquetas (sin quitar las que ya tenían)</option>
+        <option value="reemplazar">Reemplazar por completo las etiquetas actuales</option>
+        <option value="quitar">Quitar estas etiquetas</option>
+      </select>`
+  }
+}
+
+window._bulkLeerValor = () => {
+  const campo = document.getElementById('bulk-campo').value
+  const def = _CAMPOS_BULK_DEF.find(c => c.v === campo)
+  if (def.tipo === 'ocasion') {
+    const valores = Array.from(document.querySelectorAll('.bulk-ocasion-chk:checked')).map(c => c.value)
+    return { campo, valor: valores, modo_ocasion: document.getElementById('bulk-ocasion-modo').value }
+  }
+  let valor = document.getElementById('bulk-valor').value
+  if (def.tipo === 'numero') valor = parseFloat(valor)
+  if (def.tipo === 'bool') valor = valor === 'true'
+  return { campo, valor }
+}
+
+window._bulkPrevisualizar = async () => {
+  const { campo, valor, modo_ocasion } = window._bulkLeerValor()
+  if (campo !== 'ocasion' && campo !== 'activo' && (valor === '' || valor === null || Number.isNaN(valor))) {
+    alert('Escribe un valor'); return
+  }
+  const btn = document.getElementById('btn-bulk-previsualizar')
+  btn.disabled = true; btn.textContent = 'Cargando...'
+  try {
+    const res = await fetch(API + '/productos/bulk-actualizar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: window._bulkSeleccion, campo, valor, modo: 'preview', modo_ocasion })
+    })
+    const data = await res.json()
+    if (!data.ok) { alert(data.error || 'Error generando vista previa'); return }
+    const cont = document.getElementById('bulk-preview-container')
+    cont.innerHTML = `
+      <div style="border-top:1px solid #e2e8f0;padding-top:12px">
+        <p style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:8px">Así quedarían ${data.total} producto(s):</p>
+        <div style="max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px">
+          ${data.cambios.map(c => `
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;font-size:0.78rem;border-bottom:1px solid #f1f5f9">
+              <span style="color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nombre || c.sku_interno}</span>
+              <span style="color:#94a3b8;white-space:nowrap">${JSON.stringify(c.actual)} → <strong style="color:#6366f1">${JSON.stringify(c.nuevo)}</strong></span>
+            </div>`).join('')}
+        </div>
+        <button onclick="window._bulkAplicar()" id="btn-bulk-aplicar" class="btn btn-primary" style="width:100%;margin-top:12px;background:#16a34a;border-color:#16a34a">✅ Aplicar a ${data.total} producto(s)</button>
+      </div>`
+  } catch (e) {
+    alert('Error: ' + e.message)
+  } finally {
+    btn.disabled = false; btn.textContent = 'Vista previa →'
+  }
+}
+
+window._bulkAplicar = async () => {
+  const { campo, valor, modo_ocasion } = window._bulkLeerValor()
+  const btn = document.getElementById('btn-bulk-aplicar')
+  btn.disabled = true; btn.textContent = 'Aplicando...'
+  try {
+    const res = await fetch(API + '/productos/bulk-actualizar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: window._bulkSeleccion, campo, valor, modo: 'aplicar', modo_ocasion })
+    })
+    const data = await res.json()
+    if (!data.ok) { alert(data.error || 'Error aplicando cambios'); return }
+    document.getElementById('modal-bulk-edit')?.remove()
+    window.toggleModoBulkEdit(false)
+    alert(`Listo: ${data.actualizados} producto(s) actualizado(s)${data.errores.length ? `, ${data.errores.length} con error` : ''}.`)
+    window.cargarProductos()
+  } catch (e) {
+    alert('Error: ' + e.message)
   }
 }
 
@@ -6589,6 +6796,15 @@ window.mostrarFormProducto = (datos) => {
               <option value="sin_tacon" ${d.tipo_tacon === 'sin_tacon' ? 'selected' : ''}>Sin tacon</option>
             </select>
           </div>
+          <div style="grid-column:1/-1">
+            <label class="form-label">Ocasión (para filtro de la tienda)</label>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${(window.OCASION_OPTS || []).map(o => `
+                <label style="display:flex;align-items:center;gap:5px;font-size:0.82rem;font-weight:normal;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer">
+                  <input type="checkbox" class="f-ocasion-chk" value="${o.v}" ${(d.ocasion || []).includes(o.v) ? 'checked' : ''}> ${o.l}
+                </label>`).join('')}
+            </div>
+          </div>
           <div>
             <label class="form-label">Temporada (para MercadoLibre)</label>
             <select class="form-input" id="f-temporada">
@@ -7325,6 +7541,7 @@ document.querySelectorAll('.variante-item').forEach(v => {
     temporada: document.getElementById('f-temporada') ? document.getElementById('f-temporada').value || null : null,
     altura_tacon: document.getElementById('f-tacon') && document.getElementById('f-tacon').value ? parseFloat(document.getElementById('f-tacon').value) : null,
     tipo_tacon: document.getElementById('f-tipotacon') ? document.getElementById('f-tipotacon').value || null : null,
+    ocasion: Array.from(document.querySelectorAll('.f-ocasion-chk:checked')).map(c => c.value),
     costo: parseFloat(costo),
     precio_menudeo: parseFloat(precio_menudeo),
     precio_mayoreo3: document.getElementById('f-mayoreo3') && document.getElementById('f-mayoreo3').value ? parseFloat(document.getElementById('f-mayoreo3').value) : null,

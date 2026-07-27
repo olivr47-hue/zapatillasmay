@@ -372,3 +372,77 @@ def guardar_orden_home(ordenes: List[dict] = Body(...), _staff=Depends(require_s
     # Actualizar versión del catálogo para que la tienda invalide su caché
     cache_set(_CK + "_version", {"v": int(time.time())}, ttl=3600)
     return {"ok": True, "actualizados": len(ordenes) - len(errores), "errores": errores}
+
+
+# Campos editables desde "Edición masiva" en el panel -- lista blanca a propósito,
+# nunca aceptar un nombre de campo arbitrario del cliente (evita sobreescribir
+# columnas como id/sku_interno/slug por error o de forma maliciosa).
+_CAMPOS_BULK = {"costo", "precio_menudeo", "categoria", "subcategoria", "activo", "altura_tacon", "ocasion"}
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
+
+
+def _calcular_ocasion(actual, valor, modo):
+    actual_set = set(actual or [])
+    valor_set = set(valor if isinstance(valor, list) else [valor])
+    if modo == "agregar":
+        return sorted(actual_set | valor_set)
+    if modo == "quitar":
+        return sorted(actual_set - valor_set)
+    return sorted(valor_set)  # reemplazar
+
+
+@router.post("/bulk-actualizar")
+def bulk_actualizar(datos: dict = Body(...), _staff=Depends(require_staff)):
+    """Edita el mismo campo en varios productos a la vez (ej. corregir costo mal
+    capturado en 20 productos de un jalón, en vez de entrar uno por uno).
+    Body: {"ids": [...], "campo": "costo", "valor": 123.5, "modo": "preview"|"aplicar"}
+    Para campo="ocasion" (array), "valor" es lista y "modo_ocasion" define si se
+    agrega, se quita o se reemplaza por completo la lista actual de cada producto."""
+    ids = [i for i in (datos.get("ids") or []) if _UUID_RE.match(str(i))]
+    campo = datos.get("campo")
+    valor = datos.get("valor")
+    modo = datos.get("modo", "aplicar")
+    modo_ocasion = datos.get("modo_ocasion", "reemplazar")
+
+    if not ids:
+        return {"ok": False, "error": "Selecciona al menos un producto válido"}
+    if campo not in _CAMPOS_BULK:
+        return {"ok": False, "error": f"Campo '{campo}' no permitido para edición masiva"}
+
+    try:
+        actuales = supabase_get(f"productos?id=in.({','.join(ids)})&select=id,nombre,sku_interno,{campo}") or []
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    por_id = {p["id"]: p for p in actuales}
+
+    if modo == "preview":
+        cambios = []
+        for pid in ids:
+            p = por_id.get(pid)
+            if not p:
+                continue
+            actual_val = p.get(campo)
+            nuevo_val = _calcular_ocasion(actual_val, valor, modo_ocasion) if campo == "ocasion" else valor
+            cambios.append({
+                "id": pid, "nombre": p.get("nombre"), "sku_interno": p.get("sku_interno"),
+                "actual": actual_val, "nuevo": nuevo_val,
+            })
+        return {"ok": True, "modo": "preview", "total": len(cambios), "cambios": cambios}
+
+    ok = 0
+    errores = []
+    for pid in ids:
+        try:
+            if campo == "ocasion":
+                actual_val = (por_id.get(pid) or {}).get("ocasion") or []
+                supabase_patch(f"productos?id=eq.{pid}", {"ocasion": _calcular_ocasion(actual_val, valor, modo_ocasion)})
+            else:
+                supabase_patch(f"productos?id=eq.{pid}", {campo: valor})
+            ok += 1
+        except Exception as e:
+            errores.append({"id": pid, "error": str(e)})
+
+    import time
+    cache_invalidate_prefix(_CK)
+    cache_set(_CK + "_version", {"v": int(time.time())}, ttl=3600)
+    return {"ok": True, "modo": "aplicar", "actualizados": ok, "errores": errores}

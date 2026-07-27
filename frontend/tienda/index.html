@@ -3014,6 +3014,10 @@ if (!window.fbq){
         <h3>Categoría</h3>
         <div class="filtro-chips" id="fc-categoria"></div>
       </div>
+      <div class="filtro-grupo" id="fg-ocasion">
+        <h3>Ocasión</h3>
+        <div class="filtro-chips" id="fc-ocasion"></div>
+      </div>
       <div class="filtro-grupo" id="fg-talla">
         <h3>Talla</h3>
         <div class="filtro-chips" id="fc-talla"></div>
@@ -5083,6 +5087,7 @@ function mostrarNuevos() {
 // ════════════ SISTEMA DE FILTROS ════════════
 const _ORDEN_TALLAS = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica','Única']
 const _CAT_LABELS = {tacones:'Tacones',sandalias:'Sandalias',botas:'Botas',botines:'Botines',flats:'Flats',plataformas:'Plataformas',tenis:'Tenis',nina:'Niña',accesorios:'Accesorios'}
+const _OCASION_LABELS = {casual:'Casual / Diario', formal:'Formal / Vestir', trabajo:'Trabajo / Oficina', fiesta:'Fiesta / Noche', urbano:'Urbano'}
 const _RANGOS_PRECIO = [
   { label: 'Menos de $400', min: 0, max: 400 },
   { label: '$400 – $600', min: 400, max: 600 },
@@ -5090,7 +5095,7 @@ const _RANGOS_PRECIO = [
   { label: 'Más de $800', min: 800, max: Infinity },
 ]
 let _filtroBase = []
-let _filtros = { categoria: '', tallas: [], colores: [], precioRango: null }
+let _filtros = { categoria: '', tallas: [], colores: [], precioRango: null, ocasion: [] }
 let _idxTallas = {}, _idxColores = {}, _invMapF = {}, _colorMeta = {}
 
 function _normColor(c){ return c.trim().toLowerCase().replace(/\s+/g,' ') }
@@ -5154,7 +5159,7 @@ function mostrarConFiltros(baseLista, titulo, catPreset, urlPath) {
   const strip = document.querySelector('.cro-trust-strip'); if (strip) strip.style.display='none'
   document.getElementById('productos-section').style.setProperty('display','block','important')
   _filtroBase = baseLista
-  _filtros = { categoria: catPreset || '', tallas: [], colores: [], precioRango: null }
+  _filtros = { categoria: catPreset || '', tallas: [], colores: [], precioRango: null, ocasion: [] }
   document.getElementById('productos-titulo').innerHTML = titulo
   _construirChipsFiltro()
   document.getElementById('filtros-bar').classList.add('visible')
@@ -5209,6 +5214,17 @@ function _construirChipsFiltro() {
     ).join('')
     document.getElementById('fg-categoria').style.display = catsPresentes.length > 1 ? '' : 'none'
   }
+  // Ocasión presente en la base (campo directo del producto, no requiere índice de variantes)
+  const ocasionSet = new Set()
+  _filtroBase.forEach(p => { (p.ocasion || []).forEach(o => ocasionSet.add(o)) })
+  const fcOcasion = document.getElementById('fc-ocasion')
+  if (fcOcasion) {
+    fcOcasion.innerHTML = [...ocasionSet].map(o =>
+      `<div class="filtro-chip ${_filtros.ocasion.includes(o)?'active':''}" role="button" tabindex="0" onclick="_toggleOcasion('${o}')" onkeydown="if(event.key==='Enter'||event.key===' ') _toggleOcasion('${o}')">${_OCASION_LABELS[o]||o}</div>`
+    ).join('')
+    const fgOcasion = document.getElementById('fg-ocasion')
+    if (fgOcasion) fgOcasion.style.display = ocasionSet.size ? '' : 'none'
+  }
   // Tallas presentes en la base
   const tallasSet = new Set()
   _filtroBase.forEach(p => { if(_idxTallas[p.id]) _idxTallas[p.id].forEach(t => tallasSet.add(t)) })
@@ -5238,12 +5254,13 @@ function _construirChipsFiltro() {
 }
 
 function _toggleCat(c){ _filtros.categoria = _filtros.categoria===c?'':c; _construirChipsFiltro(); aplicarFiltros() }
+function _toggleOcasion(o){ const i=_filtros.ocasion.indexOf(o); if(i<0)_filtros.ocasion.push(o); else _filtros.ocasion.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
 function _toggleTalla(t){ const i=_filtros.tallas.indexOf(t); if(i<0)_filtros.tallas.push(t); else _filtros.tallas.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
 function _toggleColor(c){ const i=_filtros.colores.indexOf(c); if(i<0)_filtros.colores.push(c); else _filtros.colores.splice(i,1); _construirChipsFiltro(); aplicarFiltros() }
 function _togglePrecio(i){ _filtros.precioRango = _filtros.precioRango===i?null:i; _construirChipsFiltro(); aplicarFiltros() }
 
 function _actualizarContador(){
-  const n = _filtros.tallas.length + _filtros.colores.length + (_filtros.categoria?1:0) + (_filtros.precioRango!==null?1:0)
+  const n = _filtros.tallas.length + _filtros.colores.length + _filtros.ocasion.length + (_filtros.categoria?1:0) + (_filtros.precioRango!==null?1:0)
   const badge = document.getElementById('fb-count')
   if (!badge) return
   if (n>0){ badge.style.display=''; badge.textContent=n } else badge.style.display='none'
@@ -5252,6 +5269,7 @@ function _actualizarContador(){
 function aplicarFiltros() {
   let lista = _filtroBase.slice()
   if (_filtros.categoria) lista = lista.filter(p => p.categoria === _filtros.categoria)
+  if (_filtros.ocasion.length) lista = lista.filter(p => (p.ocasion || []).some(o => _filtros.ocasion.includes(o)))
   if (_filtros.tallas.length) lista = lista.filter(p => { const ts=_idxTallas[p.id]; return ts && _filtros.tallas.some(t=>ts.has(t)) })
   if (_filtros.colores.length) lista = lista.filter(p => { const cs=_idxColores[p.id]; return cs && _filtros.colores.some(c=>cs.has(c)) })
   if (_filtros.precioRango!==null){ const r=_RANGOS_PRECIO[_filtros.precioRango]; lista = lista.filter(p=>{const pr=_precioDe(p); return pr>=r.min && pr<r.max}) }
@@ -5267,7 +5285,7 @@ function aplicarFiltros() {
 }
 
 function toggleFiltros(){ const p=document.getElementById('filtros-panel'); if(p) p.classList.toggle('open') }
-function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.precioRango=null; const o=document.getElementById('filtros-orden'); if(o)o.value='relevancia'; _construirChipsFiltro(); aplicarFiltros() }
+function limpiarFiltros(){ _filtros.tallas=[]; _filtros.colores=[]; _filtros.precioRango=null; _filtros.ocasion=[]; const o=document.getElementById('filtros-orden'); if(o)o.value='relevancia'; _construirChipsFiltro(); aplicarFiltros() }
 
   function scrollToProductos() {
     document.getElementById('productos-section').scrollIntoView({behavior:'smooth', block:'start'})
