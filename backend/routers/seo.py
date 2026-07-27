@@ -672,17 +672,18 @@ _PAGINAS_CONTENT = {
   </div>
   <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h2>
   <p style="color:#7a6055;margin-bottom:24px">Desde 3 pares, sin registro especial · León, Guanajuato</p>
-  <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial. El descuento se aplica automáticamente en el carrito.</p>
-  <h2 style="font-size:1.2rem;margin-top:28px">Tabla de precios de mayoreo</h2>
+  <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial: el descuento de 3 a 5 pares se aplica automáticamente en el carrito. Para precios de 6 pares en adelante, corrida completa y catálogo con fotos, regístrate gratis en el Portal de Mayoristas.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Ejemplo de precios de mayoreo</h2>
   <table style="width:100%;border-collapse:collapse;margin-top:12px">
     <thead><tr style="background:#f5ece2">
       <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Cantidad</th>
       <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Descuento por par</th>
+      <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Dónde</th>
     </tr></thead>
     <tbody>
-      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">1–2 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Precio de menudeo</td></tr>
-      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$60 MXN por par</td></tr>
-      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6+ pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$100 MXN por par</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">1–2 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Precio de menudeo</td><td style="padding:8px 12px;border:1px solid #e8d8cc">zapatillasmay.mx</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$60 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">zapatillasmay.mx (automático)</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6+ pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$100 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Portal de Mayoristas</td></tr>
     </tbody>
   </table>
   <h2 style="font-size:1.2rem;margin-top:28px">¿Qué es una corrida?</h2>
@@ -692,8 +693,8 @@ _PAGINAS_CONTENT = {
     <p style="margin:0 0 16px;color:#7a6055">Entra a nuestro Portal de Mayoristas: precios especiales, arma tu corrida por talla y color, descarga catálogos y haz tu pedido directo.</p>
     <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:#E91E8C;color:white;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px">Entrar al portal de mayoristas →</a>
   </div>
-  <h2 style="font-size:1.2rem;margin-top:28px">Sin registro</h2>
-  <p>No necesitas cuenta especial ni autorización previa. Cualquier persona puede comprar a precio de mayoreo desde el primer pedido.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Sin registro para empezar</h2>
+  <p>No necesitas cuenta especial ni autorización previa para comprar 3 a 5 pares a precio de mayoreo desde tu primer pedido en zapatillasmay.mx. Para precios de 6 pares en adelante y corridas completas, el registro en el Portal de Mayoristas es gratuito.</p>
 </section>""",
     "privacidad": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
