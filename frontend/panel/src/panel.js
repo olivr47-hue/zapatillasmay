@@ -1973,13 +1973,16 @@ window.mostrarCxP = () => {
   if (!container) return
   const lista = Array.isArray(cxp) ? cxp : []
   container.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;justify-content:flex-end">
+      <button class="btn btn-primary" onclick="window.mostrarFormCuentaPorPagarManual()">+ Agregar cuenta por pagar</button>
+    </div>
     <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
       <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <p style="font-weight:700;font-size:0.9rem">📥 Cuentas por pagar a proveedores</p>
-        <span style="font-size:0.78rem;color:#888">${lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.total||0),0).toFixed(0)} total</span>
+        <span style="font-size:0.78rem;color:#888">${lista.length} pendientes · $${lista.reduce((s,o)=>s+parseFloat(o.saldo_pendiente ?? o.total ?? 0),0).toFixed(0)} saldo total</span>
       </div>
       ${lista.length === 0
-        ? '<div style="padding:2rem;text-align:center;color:#888">Sin órdenes de compra pendientes de pago</div>'
+        ? '<div style="padding:2rem;text-align:center;color:#888">Sin cuentas por pagar pendientes</div>'
         : lista.map(o => {
           const vencido = o.vencido
           const dias = o.dias_restantes
@@ -1987,21 +1990,30 @@ window.mostrarCxP = () => {
             ? { bg:'#ffebee', color:'#c62828', txt:`Vencida hace ${Math.abs(dias)}d` }
             : dias <= 3 ? { bg:'#fff8e1', color:'#f57f17', txt:`Vence en ${dias}d` }
             : { bg:'#e8f5e9', color:'#2e7d32', txt:`Vence en ${dias}d` }
+          const total = parseFloat(o.total || 0)
+          const saldo = o.saldo_pendiente != null ? parseFloat(o.saldo_pendiente) : total
+          const abonado = Math.max(0, total - saldo)
+          const abonos = o.abonos || []
           return `
             <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
               <div style="flex:1;min-width:160px">
                 <p style="font-size:0.85rem;font-weight:600">🏭 ${o.proveedor_nombre}</p>
                 <p style="font-size:0.72rem;color:#888">
-                  Orden del ${new Date(o.fecha_orden).toLocaleDateString('es-MX')}
+                  ${o.notas ? `${o.notas} · ` : ''}Orden del ${new Date(o.fecha_orden).toLocaleDateString('es-MX')}
                   ${o.dias_credito > 0 ? ` · ${o.dias_credito} días de crédito` : ' · pago inmediato'}
                   · vence ${new Date(o.fecha_vencimiento).toLocaleDateString('es-MX')}
                 </p>
+                ${abonado > 0
+                  ? `<p style="font-size:0.72rem;color:#2e7d32;margin-top:3px">💵 Abonado $${abonado.toFixed(0)} de $${total.toFixed(0)} (${abonos.length} abono${abonos.length===1?'':'s'})</p>`
+                  : ''}
               </div>
               <div style="text-align:right">
-                <p style="font-weight:700;color:#333;font-size:1rem">$${parseFloat(o.total||0).toFixed(0)}</p>
+                <p style="font-weight:700;color:#333;font-size:1rem">$${saldo.toFixed(0)}</p>
+                ${abonado > 0 ? `<p style="font-size:0.68rem;color:#94a3b8">de $${total.toFixed(0)}</p>` : ''}
                 <span style="font-size:0.68rem;padding:2px 8px;border-radius:100px;background:${badge.bg};color:${badge.color};font-weight:600">${badge.txt}</span>
               </div>
-              <div style="display:flex;gap:6px">
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#1565c0;border-color:#90caf9" onclick='window.mostrarFormAbono(${JSON.stringify(o.id)}, ${saldo}, ${JSON.stringify(o.proveedor_nombre)})'>💵 Abonar</button>
                 <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="marcarOrdenPagada('${o.id}')">✅ Marcar pagada</button>
                 <button class="btn btn-secondary" style="font-size:0.75rem;padding:6px 10px;color:#c62828;border-color:#ef9a9a" onclick="marcarOrdenCancelada('${o.id}')">✕ Cancelar</button>
               </div>
@@ -2010,6 +2022,141 @@ window.mostrarCxP = () => {
         }).join('')}
     </div>
   `
+}
+
+window.mostrarFormCuentaPorPagarManual = async () => {
+  let proveedores = []
+  try {
+    proveedores = await fetch(API + '/finanzas/proveedores').then(r => r.json())
+  } catch (e) {}
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:460px;width:100%;max-height:90vh;overflow-y:auto">
+      <h3 style="margin-bottom:4px">📥 Nueva cuenta por pagar</h3>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Para deudas con proveedores que ya existían (mercancía que ya está físicamente en la tienda pero cuya nota nunca se capturó), sin afectar el inventario.</p>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Proveedor *</label>
+          <select class="form-input" id="cxp-proveedor">
+            <option value="">Selecciona un proveedor</option>
+            ${(Array.isArray(proveedores) ? proveedores : []).map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <label class="form-label">Monto adeudado *</label>
+            <input class="form-input" id="cxp-monto" type="number" step="0.01" placeholder="0.00">
+          </div>
+          <div>
+            <label class="form-label">Fecha de la nota</label>
+            <input class="form-input" id="cxp-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Días de crédito</label>
+          <select class="form-input" id="cxp-dias-credito">
+            <option value="0">Sin crédito (pago inmediato)</option>
+            <option value="15">15 días</option>
+            <option value="30" selected>30 días</option>
+            <option value="45">45 días</option>
+            <option value="60">60 días</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Notas</label>
+          <textarea class="form-input" id="cxp-notas" rows="2" placeholder="Ej: nota de mercancía recibida antes de usar el sistema"></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="window.guardarCuentaPorPagarManual()">Guardar</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarCuentaPorPagarManual = async () => {
+  const proveedor_id = document.getElementById('cxp-proveedor').value
+  const monto = parseFloat(document.getElementById('cxp-monto').value)
+  if (!proveedor_id) { alert('Selecciona un proveedor'); return }
+  if (!monto || monto <= 0) { alert('Captura un monto válido'); return }
+  try {
+    const res = await fetch(API + '/finanzas/cuentas-por-pagar/manual', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        proveedor_id,
+        sucursal_id: window._finanzasSucursalId,
+        monto,
+        fecha: document.getElementById('cxp-fecha').value || null,
+        dias_credito: parseInt(document.getElementById('cxp-dias-credito').value) || 0,
+        notas: document.getElementById('cxp-notas').value
+      })
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) { alert('Error guardando: ' + (data.error || res.status)); return }
+    document.querySelector('div[style*="position: fixed"]')?.remove()
+    cargarFinanzas()
+  } catch (e) {
+    alert('Error guardando la cuenta por pagar: ' + e.message)
+  }
+}
+
+window.mostrarFormAbono = (ordenId, saldoActual, proveedorNombre) => {
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:420px;width:100%">
+      <h3 style="margin-bottom:4px">💵 Registrar abono</h3>
+      <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">${proveedorNombre} · saldo actual $${parseFloat(saldoActual||0).toFixed(0)}</p>
+      <div style="display:flex;flex-direction:column;gap:1rem">
+        <div>
+          <label class="form-label">Monto del abono *</label>
+          <input class="form-input" id="abono-monto" type="number" step="0.01" max="${saldoActual}" placeholder="0.00">
+        </div>
+        <div>
+          <label class="form-label">Fecha</label>
+          <input class="form-input" id="abono-fecha" type="date" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <div>
+          <label class="form-label">Notas</label>
+          <input class="form-input" id="abono-notas" placeholder="Opcional">
+        </div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:1.5rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="this.closest('div[style*=position]').remove()">Cancelar</button>
+        <button class="btn btn-primary" onclick="window.guardarAbono('${ordenId}')">Guardar abono</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+}
+
+window.guardarAbono = async (ordenId) => {
+  const monto = parseFloat(document.getElementById('abono-monto').value)
+  if (!monto || monto <= 0) { alert('Captura un monto válido'); return }
+  try {
+    const res = await fetch(API + '/finanzas/ordenes/' + ordenId + '/abonos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        monto,
+        fecha: document.getElementById('abono-fecha').value || null,
+        notas: document.getElementById('abono-notas').value
+      })
+    })
+    const data = await res.json()
+    if (!res.ok || data.error) { alert('Error guardando el abono: ' + (data.error || res.status)); return }
+    document.querySelector('div[style*="position: fixed"]')?.remove()
+    alert(data.pagada ? '✅ Abono registrado — la cuenta quedó saldada' : '✅ Abono registrado')
+    cargarFinanzas()
+  } catch (e) {
+    alert('Error guardando el abono: ' + e.message)
+  }
 }
 
 window.marcarOrdenPagada = async (id) => {

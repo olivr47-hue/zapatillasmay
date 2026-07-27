@@ -229,6 +229,7 @@ def recibir_mercancia(datos: dict):
             "sucursal_id": sucursal_id,
             "status": "pagada" if pagada else "recibida",
             "total": total,
+            "saldo_pendiente": 0 if pagada else total,
             "notas": notas,
         }
         if pagada:
@@ -635,7 +636,9 @@ def sugerencias_recompra(sucursal_id: str):
 @router.get("/cuentas-por-pagar")
 def cuentas_por_pagar():
     """Ordenes de compra que todavia no se han pagado, con su fecha de
-    vencimiento calculada a partir de los dias de credito del proveedor."""
+    vencimiento calculada a partir de los dias de credito del proveedor,
+    su saldo pendiente (puede ya traer abonos parciales) y el historial
+    de abonos registrados."""
     try:
         from datetime import datetime, timedelta
         ordenes = supabase_get_all(
@@ -643,6 +646,14 @@ def cuentas_por_pagar():
             "&order=created_at.asc&select=*,proveedores(nombre,telefono,dias_credito)"
         )
         hoy = date.today()
+
+        pagos_por_orden = {}
+        orden_ids = [o["id"] for o in ordenes]
+        if orden_ids:
+            pagos = supabase_get_all(f"ordenes_compra_pagos?orden_id=in.({','.join(orden_ids)})&order=fecha.desc")
+            for pg in pagos:
+                pagos_por_orden.setdefault(pg["orden_id"], []).append(pg)
+
         resultado = []
         for o in ordenes:
             prov = o.get("proveedores") or {}
@@ -654,6 +665,9 @@ def cuentas_por_pagar():
             fecha_orden = datetime.fromisoformat(o["created_at"]).date()
             fecha_vencimiento = fecha_orden + timedelta(days=dias_credito)
             dias_restantes = (fecha_vencimiento - hoy).days
+            total = float(o.get("total") or 0)
+            saldo = o.get("saldo_pendiente")
+            saldo = total if saldo is None else float(saldo)
             resultado.append({
                 **o,
                 "proveedor_nombre": prov.get("nombre") or "Sin proveedor",
@@ -662,9 +676,42 @@ def cuentas_por_pagar():
                 "fecha_vencimiento": fecha_vencimiento.isoformat(),
                 "dias_restantes": dias_restantes,
                 "vencido": dias_restantes < 0,
+                "saldo_pendiente": saldo,
+                "abonos": pagos_por_orden.get(o["id"], []),
             })
         resultado.sort(key=lambda x: x["dias_restantes"])
         return resultado
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/cuentas-por-pagar/manual")
+def crear_cuenta_por_pagar_manual(datos: dict):
+    """Registra una cuenta por pagar que el negocio ya tenia desde antes de usar
+    el sistema (ej. mercancia que ya esta fisicamente en la tienda pero cuya nota
+    de compra nunca se capturo): crea la deuda con el proveedor sin tocar
+    inventario ni requerir productos/variantes, a diferencia de /ordenes/recibir."""
+    try:
+        proveedor_id = datos.get("proveedor_id")
+        monto = float(datos.get("monto") or 0)
+        if not proveedor_id or monto <= 0:
+            return JSONResponse(status_code=400, content={"error": "Falta proveedor o el monto debe ser mayor a 0"})
+
+        orden_payload = {
+            "proveedor_id": proveedor_id,
+            "sucursal_id": datos.get("sucursal_id"),
+            "status": "recibida",
+            "total": monto,
+            "saldo_pendiente": monto,
+            "notas": datos.get("notas", ""),
+        }
+        dias_credito = datos.get("dias_credito")
+        if dias_credito is not None:
+            orden_payload["dias_credito"] = int(dias_credito)
+        fecha = datos.get("fecha")
+        if fecha:
+            orden_payload["created_at"] = fecha
+        orden = supabase_post("ordenes_compra", orden_payload)
+        return {"ok": True, "orden": orden[0] if orden else None}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -674,9 +721,47 @@ def marcar_orden_pagada(id: str):
         from datetime import datetime
         supabase_patch(f"ordenes_compra?id=eq.{id}", {
             "status": "pagada",
+            "saldo_pendiente": 0,
             "fecha_pago": datetime.now().isoformat()
         })
         return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/ordenes/{id}/abonos")
+def registrar_abono_orden(id: str, datos: dict):
+    """Registra un abono parcial a una cuenta por pagar. Si el abono cubre el
+    saldo restante, la orden se marca como pagada automaticamente."""
+    try:
+        monto = float(datos.get("monto") or 0)
+        if monto <= 0:
+            return JSONResponse(status_code=400, content={"error": "El monto debe ser mayor a 0"})
+
+        orden = supabase_get(f"ordenes_compra?id=eq.{id}")
+        if not orden:
+            return JSONResponse(status_code=404, content={"error": "Cuenta por pagar no encontrada"})
+        orden = orden[0]
+        saldo_actual = orden.get("saldo_pendiente")
+        saldo_actual = float(orden.get("total") or 0) if saldo_actual is None else float(saldo_actual)
+        saldo_nuevo = max(0, round(saldo_actual - monto, 2))
+
+        fecha = datos.get("fecha") or date.today().isoformat()
+        supabase_post("ordenes_compra_pagos", {
+            "orden_id": id,
+            "monto": monto,
+            "fecha": fecha,
+            "saldo_despues": saldo_nuevo,
+            "notas": datos.get("notas", ""),
+        })
+
+        patch = {"saldo_pendiente": saldo_nuevo}
+        if saldo_nuevo <= 0:
+            from datetime import datetime
+            patch["status"] = "pagada"
+            patch["fecha_pago"] = datetime.now().isoformat()
+        supabase_patch(f"ordenes_compra?id=eq.{id}", patch)
+
+        return {"ok": True, "saldo_pendiente": saldo_nuevo, "pagada": saldo_nuevo <= 0}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
