@@ -929,7 +929,7 @@ def pagina_ssr(slug: str):
         _cat_productos = []
         try:
             _cat_productos = supabase_get(
-                f"productos?activo=eq.true&categoria=eq.{slug}&select=sku_interno,nombre,meta_titulo,imagen_principal,precio_menudeo,es_oferta&limit=20"
+                f"productos?activo=eq.true&categoria=eq.{slug}&select=sku_interno,slug,nombre,meta_titulo,imagen_principal,precio_menudeo,es_oferta&limit=20"
             ) or []
         except Exception:
             pass
@@ -962,7 +962,7 @@ def pagina_ssr(slug: str):
             _prod_links = ""
             if _cat_productos and _cat_desc_txt:
                 _prod_links = "".join(
-                    f'<li style="flex:0 0 auto"><a href="/producto/{_esc_pagina(_pp.get("sku_interno") or "")}"'
+                    f'<li style="flex:0 0 auto"><a href="/producto/{_esc_pagina(_pp.get("slug") or _pp.get("sku_interno") or "")}"'
                     f' style="display:block;padding:6px 12px;background:#fff;border:1px solid #e8e0da;'
                     f'border-radius:20px;text-decoration:none;color:#5a4a40;font-size:0.78rem;white-space:nowrap">'
                     f'{_esc_pagina((_pp.get("nombre") or "").strip())}</a></li>'
@@ -981,14 +981,14 @@ def pagina_ssr(slug: str):
         if _cat_productos:
             _items_ld = []
             for _i, _pp in enumerate(_cat_productos, 1):
-                _psku = _pp.get("sku_interno") or str(_pp.get("id", ""))
-                _pnombre = (_pp.get("nombre") or _psku).strip()
+                _pslug = _pp.get("slug") or _pp.get("sku_interno") or str(_pp.get("id", ""))
+                _pnombre = (_pp.get("nombre") or _pslug).strip()
                 _pprecio = (_pp.get("precio_menudeo") or 0)
                 _pprecio_d = _pprecio if _pp.get("es_oferta") else round(float(_pprecio) + 80)
                 _items_ld.append({
                     "@type": "ListItem",
                     "position": _i,
-                    "url": f"https://zapatillasmay.mx/producto/{_psku}",
+                    "url": f"https://zapatillasmay.mx/producto/{_pslug}",
                     "name": _pnombre,
                 })
             ld_list = {
