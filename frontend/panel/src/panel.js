@@ -3792,16 +3792,6 @@ window.OCASION_OPTS = [
   { v: 'urbano', l: 'Urbano' },
 ]
 
-const _CAMPOS_BULK_DEF = [
-  { v: 'costo', l: 'Costo', tipo: 'numero' },
-  { v: 'precio_menudeo', l: 'Precio menudeo', tipo: 'numero' },
-  { v: 'altura_tacon', l: 'Altura de tacón (cm)', tipo: 'numero' },
-  { v: 'categoria', l: 'Categoría', tipo: 'select', opciones: ['tacones','sandalias','botas','botines','flats','plataformas','tenis','nina','accesorios'] },
-  { v: 'subcategoria', l: 'Subcategoría', tipo: 'texto' },
-  { v: 'activo', l: 'Activo / Inactivo', tipo: 'bool' },
-  { v: 'ocasion', l: 'Ocasión', tipo: 'ocasion' },
-]
-
 window.toggleModoBulkEdit = (forceVal) => {
   const table = document.getElementById('productos-table-wrapper')
   const bar = document.getElementById('bulkedit-floating-bar')
@@ -3840,131 +3830,137 @@ window.actualizarSeleccionBulk = () => {
   if (btnEditar) btnEditar.disabled = window._bulkSeleccion.length === 0
 }
 
-window.abrirEditorMasivo = () => {
+const _BULK_CATEGORIAS = ['tacones','sandalias','botas','botines','flats','plataformas','tenis','nina','accesorios']
+
+window.abrirEditorMasivo = async () => {
   if (!window._bulkSeleccion.length) return
-  const m = document.createElement('div')
-  m.id = 'modal-bulk-edit'
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px'
-  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;width:480px;max-width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
-    <h3 style="margin:0 0 4px;font-size:1.05rem;color:#0f172a">Edición masiva</h3>
-    <p style="margin:0 0 16px;font-size:0.8rem;color:#64748b">${window._bulkSeleccion.length} producto(s) seleccionado(s)</p>
-    <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">¿Qué campo quieres cambiar?</label>
-    <select id="bulk-campo" class="form-input" style="margin-bottom:14px" onchange="window._bulkRenderValor()">
-      ${_CAMPOS_BULK_DEF.map(c => `<option value="${c.v}">${c.l}</option>`).join('')}
-    </select>
-    <div id="bulk-valor-container"></div>
-    <div id="bulk-preview-container" style="margin-top:14px"></div>
-    <div style="display:flex;gap:8px;margin-top:18px">
-      <button onclick="document.getElementById('modal-bulk-edit').remove()" class="btn btn-secondary" style="flex:1">Cancelar</button>
-      <button onclick="window._bulkPrevisualizar()" id="btn-bulk-previsualizar" class="btn btn-primary" style="flex:1;background:#6366f1;border-color:#6366f1">Vista previa →</button>
-    </div>
-  </div>`
-  m.addEventListener('click', e => { if (e.target === m) m.remove() })
-  document.body.appendChild(m)
-  window._bulkRenderValor()
-}
-
-window._bulkRenderValor = () => {
-  const campo = document.getElementById('bulk-campo').value
-  const def = _CAMPOS_BULK_DEF.find(c => c.v === campo)
-  const cont = document.getElementById('bulk-valor-container')
-  const previewCont = document.getElementById('bulk-preview-container')
-  if (previewCont) previewCont.innerHTML = ''
-  if (!def || !cont) return
-  if (def.tipo === 'numero') {
-    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo valor</label>
-      <input type="number" step="0.01" id="bulk-valor" class="form-input" placeholder="Ej. 150">`
-  } else if (def.tipo === 'texto') {
-    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo valor</label>
-      <input type="text" id="bulk-valor" class="form-input" placeholder="Nuevo valor">`
-  } else if (def.tipo === 'select') {
-    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nueva categoría</label>
-      <select id="bulk-valor" class="form-input">${def.opciones.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`
-  } else if (def.tipo === 'bool') {
-    cont.innerHTML = `<label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Nuevo estado</label>
-      <select id="bulk-valor" class="form-input"><option value="true">Activo</option><option value="false">Inactivo</option></select>`
-  } else if (def.tipo === 'ocasion') {
-    cont.innerHTML = `
-      <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:6px">Etiquetas de ocasión</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-        ${window.OCASION_OPTS.map(o => `
-          <label style="display:flex;align-items:center;gap:5px;font-size:0.78rem;font-weight:normal;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;cursor:pointer">
-            <input type="checkbox" class="bulk-ocasion-chk" value="${o.v}"> ${o.l}
-          </label>`).join('')}
-      </div>
-      <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:4px">Acción</label>
-      <select id="bulk-ocasion-modo" class="form-input">
-        <option value="agregar">Agregar estas etiquetas (sin quitar las que ya tenían)</option>
-        <option value="reemplazar">Reemplazar por completo las etiquetas actuales</option>
-        <option value="quitar">Quitar estas etiquetas</option>
-      </select>`
-  }
-}
-
-window._bulkLeerValor = () => {
-  const campo = document.getElementById('bulk-campo').value
-  const def = _CAMPOS_BULK_DEF.find(c => c.v === campo)
-  if (def.tipo === 'ocasion') {
-    const valores = Array.from(document.querySelectorAll('.bulk-ocasion-chk:checked')).map(c => c.value)
-    return { campo, valor: valores, modo_ocasion: document.getElementById('bulk-ocasion-modo').value }
-  }
-  let valor = document.getElementById('bulk-valor').value
-  if (def.tipo === 'numero') valor = parseFloat(valor)
-  if (def.tipo === 'bool') valor = valor === 'true'
-  return { campo, valor }
-}
-
-window._bulkPrevisualizar = async () => {
-  const { campo, valor, modo_ocasion } = window._bulkLeerValor()
-  if (campo !== 'ocasion' && campo !== 'activo' && (valor === '' || valor === null || Number.isNaN(valor))) {
-    alert('Escribe un valor'); return
-  }
-  const btn = document.getElementById('btn-bulk-previsualizar')
-  btn.disabled = true; btn.textContent = 'Cargando...'
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando productos seleccionados...</p>'
   try {
-    const res = await fetch(API + '/productos/bulk-actualizar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: window._bulkSeleccion, campo, valor, modo: 'preview', modo_ocasion })
-    })
-    const data = await res.json()
-    if (!data.ok) { alert(data.error || 'Error generando vista previa'); return }
-    const cont = document.getElementById('bulk-preview-container')
-    cont.innerHTML = `
-      <div style="border-top:1px solid #e2e8f0;padding-top:12px">
-        <p style="font-size:0.78rem;font-weight:600;color:#374151;margin-bottom:8px">Así quedarían ${data.total} producto(s):</p>
-        <div style="max-height:220px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px">
-          ${data.cambios.map(c => `
-            <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;font-size:0.78rem;border-bottom:1px solid #f1f5f9">
-              <span style="color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nombre || c.sku_interno}</span>
-              <span style="color:#94a3b8;white-space:nowrap">${JSON.stringify(c.actual)} → <strong style="color:#6366f1">${JSON.stringify(c.nuevo)}</strong></span>
-            </div>`).join('')}
-        </div>
-        <button onclick="window._bulkAplicar()" id="btn-bulk-aplicar" class="btn btn-primary" style="width:100%;margin-top:12px;background:#16a34a;border-color:#16a34a">✅ Aplicar a ${data.total} producto(s)</button>
-      </div>`
+    const res = await fetch(API + '/productos/')
+    const todos = await res.json()
+    const seleccionados = todos.filter(p => window._bulkSeleccion.includes(p.id))
+    window._bulkGridData = seleccionados
+    window._renderGridEdicionMasiva(seleccionados)
   } catch (e) {
-    alert('Error: ' + e.message)
-  } finally {
-    btn.disabled = false; btn.textContent = 'Vista previa →'
+    content.innerHTML = `<p style="padding:2rem;color:red">Error cargando productos: ${e.message}</p>`
   }
 }
 
-window._bulkAplicar = async () => {
-  const { campo, valor, modo_ocasion } = window._bulkLeerValor()
-  const btn = document.getElementById('btn-bulk-aplicar')
-  btn.disabled = true; btn.textContent = 'Aplicando...'
+window._renderGridEdicionMasiva = (productos) => {
+  const content = document.getElementById('content')
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  content.innerHTML = `
+    <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 style="margin:0 0 4px">✏️ Edición masiva</h2>
+        <p style="margin:0;color:#64748b;font-size:0.85rem">${productos.length} producto(s) — modifica lo que necesites en cada fila y guarda todo junto</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="window.toggleModoBulkEdit(false); window.cargarProductos()">← Volver a Productos</button>
+        <button class="btn btn-primary" id="btn-bulk-guardar-grid" style="background:#16a34a;border-color:#16a34a" onclick="window._bulkGuardarGrid()">💾 Guardar cambios</button>
+      </div>
+    </div>
+    <div class="table-card" style="overflow-x:auto">
+      <table style="min-width:1500px">
+        <thead>
+          <tr>
+            <th style="min-width:200px">Producto</th>
+            <th style="min-width:90px">SKU</th>
+            <th style="min-width:120px">Categoría</th>
+            <th style="min-width:110px">Precio menudeo</th>
+            <th style="min-width:90px">Costo</th>
+            <th style="min-width:120px">Temporada</th>
+            <th style="min-width:90px">Tacón (cm)</th>
+            <th style="min-width:240px">Ocasión</th>
+            <th style="min-width:90px">Activo</th>
+            <th style="min-width:280px">Descripción</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${productos.map(p => `
+            <tr data-pid="${p.id}">
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;background:#f5f5f5;border-radius:6px;flex-shrink:0">` : ''}
+                  <strong style="font-size:0.8rem">${esc(p.nombre)}</strong>
+                </div>
+              </td>
+              <td><small style="color:#888">${esc(p.sku_interno || '—')}</small></td>
+              <td>
+                <select class="form-input bulk-cell" data-campo="categoria">
+                  ${_BULK_CATEGORIAS.map(c => `<option value="${c}" ${p.categoria === c ? 'selected' : ''}>${c}</option>`).join('')}
+                </select>
+              </td>
+              <td><input type="number" step="0.01" class="form-input bulk-cell" data-campo="precio_menudeo" value="${p.precio_menudeo ?? ''}"></td>
+              <td><input type="number" step="0.01" class="form-input bulk-cell" data-campo="costo" value="${p.costo ?? ''}"></td>
+              <td>
+                <select class="form-input bulk-cell" data-campo="temporada">
+                  <option value="" ${!p.temporada ? 'selected' : ''}>Automático</option>
+                  <option value="primavera_verano" ${p.temporada === 'primavera_verano' ? 'selected' : ''}>Prim/Verano</option>
+                  <option value="otono_invierno" ${p.temporada === 'otono_invierno' ? 'selected' : ''}>Oto/Invierno</option>
+                </select>
+              </td>
+              <td><input type="number" step="0.5" class="form-input bulk-cell" data-campo="altura_tacon" value="${p.altura_tacon ?? ''}"></td>
+              <td>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  ${(window.OCASION_OPTS || []).map(o => `
+                    <label style="display:flex;align-items:center;gap:3px;font-size:0.7rem;font-weight:normal;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;cursor:pointer">
+                      <input type="checkbox" class="bulk-ocasion-cell" value="${o.v}" ${(p.ocasion || []).includes(o.v) ? 'checked' : ''}> ${esc(o.l.split(' /')[0])}
+                    </label>`).join('')}
+                </div>
+              </td>
+              <td>
+                <select class="form-input bulk-cell" data-campo="activo">
+                  <option value="true" ${p.activo ? 'selected' : ''}>Sí</option>
+                  <option value="false" ${!p.activo ? 'selected' : ''}>No</option>
+                </select>
+              </td>
+              <td><textarea class="form-input bulk-cell" data-campo="descripcion" rows="2" style="min-width:260px;resize:vertical">${esc(p.descripcion || '')}</textarea></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `
+}
+
+window._bulkGuardarGrid = async () => {
+  const filas = document.querySelectorAll('#content tbody tr[data-pid]')
+  if (!filas.length) return
+  const items = []
+  filas.forEach(tr => {
+    const item = { id: tr.dataset.pid }
+    tr.querySelectorAll('.bulk-cell').forEach(el => {
+      const campo = el.dataset.campo
+      let val = el.value
+      if (campo === 'precio_menudeo' || campo === 'costo' || campo === 'altura_tacon') {
+        val = val === '' ? null : parseFloat(val)
+      } else if (campo === 'activo') {
+        val = val === 'true'
+      }
+      item[campo] = val
+    })
+    item.ocasion = Array.from(tr.querySelectorAll('.bulk-ocasion-cell:checked')).map(c => c.value)
+    items.push(item)
+  })
+  if (!confirm(`¿Guardar cambios en ${items.length} producto(s)?`)) return
+  const btn = document.getElementById('btn-bulk-guardar-grid')
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
   try {
-    const res = await fetch(API + '/productos/bulk-actualizar', {
+    const res = await fetch(API + '/productos/bulk-guardar', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: window._bulkSeleccion, campo, valor, modo: 'aplicar', modo_ocasion })
+      body: JSON.stringify({ items })
     })
     const data = await res.json()
-    if (!data.ok) { alert(data.error || 'Error aplicando cambios'); return }
-    document.getElementById('modal-bulk-edit')?.remove()
+    if (!data.ok) { alert(data.error || 'Error guardando cambios'); return }
+    alert(`Listo: ${data.actualizados} producto(s) actualizado(s)${data.errores?.length ? `, ${data.errores.length} con error` : ''}.`)
     window.toggleModoBulkEdit(false)
-    alert(`Listo: ${data.actualizados} producto(s) actualizado(s)${data.errores.length ? `, ${data.errores.length} con error` : ''}.`)
     window.cargarProductos()
   } catch (e) {
     alert('Error: ' + e.message)
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar cambios' }
   }
 }
 

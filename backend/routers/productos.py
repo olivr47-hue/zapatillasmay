@@ -377,7 +377,7 @@ def guardar_orden_home(ordenes: List[dict] = Body(...), _staff=Depends(require_s
 # Campos editables desde "Edición masiva" en el panel -- lista blanca a propósito,
 # nunca aceptar un nombre de campo arbitrario del cliente (evita sobreescribir
 # columnas como id/sku_interno/slug por error o de forma maliciosa).
-_CAMPOS_BULK = {"costo", "precio_menudeo", "categoria", "subcategoria", "activo", "altura_tacon", "ocasion"}
+_CAMPOS_BULK = {"costo", "precio_menudeo", "categoria", "subcategoria", "activo", "altura_tacon", "ocasion", "descripcion", "temporada"}
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
 
@@ -446,3 +446,36 @@ def bulk_actualizar(datos: dict = Body(...), _staff=Depends(require_staff)):
     cache_invalidate_prefix(_CK)
     cache_set(_CK + "_version", {"v": int(time.time())}, ttl=3600)
     return {"ok": True, "modo": "aplicar", "actualizados": ok, "errores": errores}
+
+
+@router.post("/bulk-guardar")
+def bulk_guardar(datos: dict = Body(...), _staff=Depends(require_staff)):
+    """Guarda una tabla de edición masiva tipo hoja de cálculo, donde cada producto
+    puede tener valores distintos (ej. corregir el costo de 20 productos que traían
+    números diferentes, todo en un solo guardado, en vez de repetir el mismo valor
+    en todos como hace /bulk-actualizar.
+    Body: {"items": [{"id": "...", "costo": 120, "precio_menudeo": 350, "ocasion": [...], ...}, ...]}"""
+    items = datos.get("items") or []
+    if not items:
+        return {"ok": False, "error": "No hay cambios que guardar"}
+
+    ok = 0
+    errores = []
+    for item in items:
+        pid = item.get("id")
+        if not pid or not _UUID_RE.match(str(pid)):
+            errores.append({"id": pid, "error": "id inválido"})
+            continue
+        cambios = {k: v for k, v in item.items() if k != "id" and k in _CAMPOS_BULK}
+        if not cambios:
+            continue
+        try:
+            supabase_patch(f"productos?id=eq.{pid}", cambios)
+            ok += 1
+        except Exception as e:
+            errores.append({"id": pid, "error": str(e)})
+
+    import time
+    cache_invalidate_prefix(_CK)
+    cache_set(_CK + "_version", {"v": int(time.time())}, ttl=3600)
+    return {"ok": True, "actualizados": ok, "errores": errores}
