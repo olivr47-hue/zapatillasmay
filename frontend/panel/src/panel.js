@@ -1011,7 +1011,7 @@ window.guardarOrdenCompra = async (proveedoresStr) => {
         })
       }
     }
-    document.querySelector('div[style*="position:fixed"]').remove()
+    document.querySelector('div[style*="position: fixed"]')?.remove()
     alert('Orden de compra guardada exitosamente')
     cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   } catch(e) {
@@ -2137,7 +2137,7 @@ window.guardarDeuda = async () => {
         notas: document.getElementById('deuda-notas').value
       })
     })
-    document.querySelector('div[style*="position:fixed"]').remove()
+    document.querySelector('div[style*="position: fixed"]')?.remove()
     cargarFinanzas()
   } catch(e) {
     alert('Error guardando la deuda')
@@ -2186,7 +2186,7 @@ window.guardarPagoDeuda = async (deudaId) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monto_capital, monto_interes, fecha })
     })
-    document.querySelector('div[style*="position:fixed"]').remove()
+    document.querySelector('div[style*="position: fixed"]')?.remove()
     cargarFinanzas()
   } catch(e) {
     alert('Error guardando el pago')
@@ -2418,7 +2418,7 @@ window.guardarGasto = async (sucursalId, btn) => {
         empleado: window._empleadoActual?.nombre || 'Admin'
       })
     })
-    btn.closest('div[style*="position:fixed"]').remove()
+    btn.closest('div[style*="position: fixed"]')?.remove()
     cargarFinanzas()
   } catch(e) {
     alert('Error guardando gasto')
@@ -2544,23 +2544,20 @@ window.guardarProveedor = async (id) => {
   }
   if (!datos.nombre) { alert('El nombre es requerido'); return }
   try {
-    if (id) {
-      await fetch(API + '/finanzas/proveedores/' + id, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
-      })
-    } else {
-      await fetch(API + '/finanzas/proveedores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos)
-      })
+    const res = await fetch(API + '/finanzas/proveedores' + (id ? '/' + id : ''), {
+      method: id ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos)
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      alert('Error guardando proveedor: ' + (err.error || err.detail || res.status))
+      return
     }
-    document.querySelector('div[style*="position:fixed"]').remove()
+    document.querySelector('div[style*="position: fixed"]')?.remove()
     cargarProveedores()
   } catch(e) {
-    alert('Error guardando proveedor')
+    alert('Error guardando proveedor: ' + e.message)
   }
 }
 
@@ -16588,7 +16585,7 @@ window._buildCaption = (id) => {
 
 window.enviarProductoWA = async (telefono, imagenUrl, caption) => {
   console.log('imagenUrl:', imagenUrl, 'caption:', caption)
-  const modalWA = document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]')
+  const modalWA = document.querySelector('div[style*="position: fixed"][style*="z-index: 1000"]')
 if (modalWA) modalWA.remove()
   console.log('enviando a:', telefono, imagenUrl)
   const agente = window._empleadoActual?.nombre || 'Admin'
@@ -17758,7 +17755,7 @@ window.actualizarEtapaOportunidad = async (id, etapa) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ etapa })
     })
-    document.querySelector('div[style*="position:fixed"][style*="z-index:1000"]')?.remove()
+    document.querySelector('div[style*="position: fixed"][style*="z-index: 1000"]')?.remove()
     mostrarPipeline()
   } catch(e) { alert('Error actualizando etapa') }
 }
