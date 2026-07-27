@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
 """Genera descripciones de producto ricas (~130-150 palabras) a partir de los
-datos estructurados y las guarda vía el backend. Uso:
+datos estructurados. Uso:
   python gen_descripciones.py            -> dry-run (imprime 3 ejemplos, no guarda)
-  python gen_descripciones.py --commit   -> genera y guarda TODAS las delgadas
+  python gen_descripciones.py --sql       -> escribe UPDATE statements en
+                                              descripciones.sql (AUTH_ENFORCE ya
+                                              bloquea el PATCH via API sin token;
+                                              se aplican luego por Supabase MCP)
 """
 import sys, json, re, hashlib, urllib.request, time
 
 API = "https://zapatillasmay-production.up.railway.app"
 COMMIT = "--commit" in sys.argv
+SQL_MODE = "--sql" in sys.argv
 
 def fetch(url):
     return json.loads(urllib.request.urlopen(urllib.request.Request(url), timeout=60).read())
@@ -172,17 +176,39 @@ def generar(p):
     ]
     return " ".join(clean(f) for f in frases)
 
+_FICHA_CRUDA = re.compile(r"^(corte|forro)\b.*\b(peso|kg|horma normal)\b", re.I)
+
+def es_delgada(desc):
+    """Delgada si tiene pocas palabras O es una ficha técnica en crudo pegada
+    como texto ('Corte sintético forro sintético alto X CM peso X Kg horma
+    normal...') -- boilerplate casi idéntico entre productos, sin narrativa
+    ni diferenciación real aunque a veces pase de 60 palabras."""
+    d = desc or ""
+    if wc(d) < 60:
+        return True
+    return bool(_FICHA_CRUDA.search(clean(d)))
+
 def main():
     prods = fetch(f"{API}/productos/")
-    thin = [p for p in prods if p.get("activo") and wc(p.get("descripcion")) < 60]
+    thin = [p for p in prods if p.get("activo") and es_delgada(p.get("descripcion")) and p.get("id")]
     print(f"Productos activos con descripción delgada: {len(thin)}")
+    if SQL_MODE:
+        lineas = ["begin;"]
+        for p in thin:
+            d = generar(p).replace("'", "''")
+            lineas.append(f"update productos set descripcion = '{d}' where id = '{p['id']}';")
+        lineas.append("commit;")
+        with open("descripciones.sql", "w", encoding="utf-8") as f:
+            f.write("\n".join(lineas))
+        print(f"Escrito descripciones.sql con {len(thin)} UPDATEs.")
+        return
     if not COMMIT:
         print("\n=== DRY-RUN (no se guarda). 3 ejemplos: ===")
         for p in thin[:3]:
             d = generar(p)
             print(f"\n--- {p.get('sku_interno')} · {clean(p.get('nombre'))} ({p.get('categoria')}) · {wc(d)} palabras ---")
             print(d)
-        print("\nEjecuta con --commit para guardar las", len(thin))
+        print("\nEjecuta con --sql para generar el archivo SQL (AUTH_ENFORCE bloquea el PATCH directo).")
         return
     ok = err = 0
     for i, p in enumerate(thin, 1):
