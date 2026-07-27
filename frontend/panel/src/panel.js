@@ -2808,6 +2808,11 @@ async function cargarAnalisis() {
 
     function renderTabRotacion() {
       return `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input id="rotacion-buscar" class="form-input" placeholder="Buscar modelo o SKU..."
+            style="max-width:260px;font-size:0.82rem" oninput="window.filtrarRotacionTexto(this.value)">
+          <span id="rotacion-contador" style="font-size:0.75rem;color:#94a3b8">${productosConRotacion.length} modelos</span>
+        </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
           <button class="pill-filter pill-active" onclick="filtrarRotacion('todos')">Todos</button>
           <button class="pill-filter pill-success" onclick="filtrarRotacion('verde')">Pedir ahora</button>
@@ -2822,6 +2827,7 @@ async function cargarAnalisis() {
             const maxD30 = Math.max(...productosConRotacion.map(x=>x.ventas.d30), 1)
             return `
             <div class="rotacion-item" data-semaforo="${p.semaforo}"
+                 data-nombre="${(p.nombre||'').toLowerCase()}" data-sku="${(p.sku_interno||'').toLowerCase()}"
                  style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:box-shadow 0.15s"
                  onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.07)'" onmouseout="this.style.boxShadow=''">
               ${p.imagen_principal
@@ -3205,10 +3211,11 @@ window.irAPedirOrden = async (nombre) => {
   }
 }
 
+window._rotacionFiltroSemaforo = 'todos'
+window._rotacionFiltroTexto = ''
+
 window.filtrarRotacion = (semaforo) => {
-  document.querySelectorAll('.rotacion-item').forEach(item => {
-    item.style.display = semaforo === 'todos' || item.dataset.semaforo === semaforo ? '' : 'none'
-  })
+  window._rotacionFiltroSemaforo = semaforo
   document.querySelectorAll('#analisis-tab-content .pill-filter').forEach(btn => {
     btn.classList.remove('pill-active')
   })
@@ -3218,6 +3225,27 @@ window.filtrarRotacion = (semaforo) => {
   const btnClicked = [...document.querySelectorAll('#analisis-tab-content .pill-filter')]
     .find(b => b.textContent.trim().toLowerCase().includes(keyword))
   if (btnClicked) btnClicked.classList.add('pill-active')
+  window._aplicarFiltroRotacion()
+}
+
+window.filtrarRotacionTexto = (texto) => {
+  window._rotacionFiltroTexto = (texto || '').toLowerCase().trim()
+  window._aplicarFiltroRotacion()
+}
+
+window._aplicarFiltroRotacion = () => {
+  const semaforo = window._rotacionFiltroSemaforo || 'todos'
+  const texto = window._rotacionFiltroTexto || ''
+  let visibles = 0
+  document.querySelectorAll('.rotacion-item').forEach(item => {
+    const matchSemaforo = semaforo === 'todos' || item.dataset.semaforo === semaforo
+    const matchTexto = !texto || (item.dataset.nombre || '').includes(texto) || (item.dataset.sku || '').includes(texto)
+    const visible = matchSemaforo && matchTexto
+    item.style.display = visible ? '' : 'none'
+    if (visible) visibles++
+  })
+  const contador = document.getElementById('rotacion-contador')
+  if (contador) contador.textContent = `${visibles} de ${document.querySelectorAll('.rotacion-item').length} modelos`
 }
 async function cargarCRM() {
   const content = document.getElementById('content')
