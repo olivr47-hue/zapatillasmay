@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTMLResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
@@ -110,16 +110,16 @@ Responde ÚNICAMENTE con JSON válido sin markdown ni explicaciones:
         return {"error": str(e)}
 
 @router.get("/seo/producto/{sku}")
-def producto_ssr(sku: str):
+def producto_ssr(sku: str, request: Request):
     """Sirve producto.html con meta tags y datos del producto pre-inyectados para indexación SEO."""
     try:
-        return _producto_ssr_inner(sku)
+        return _producto_ssr_inner(sku, request)
     except Exception as e:
         print(f"[seo] producto_ssr crash sku={sku}: {e}")
         return RedirectResponse(url="https://zapatillasmay.mx/", status_code=302)
 
 
-def _producto_ssr_inner(sku: str):
+def _producto_ssr_inner(sku: str, request: Request):
     # 0. Caché del HTML ya armado (baja el TTFB). El JS del navegador re-carga
     #    stock/precio en vivo, así que cachear el SSR no muestra datos viejos al cliente.
     _ck_ssr = f"ssr_prod_{sku}"
@@ -141,6 +141,18 @@ def _producto_ssr_inner(sku: str):
         return RedirectResponse(url="https://zapatillasmay.mx/", status_code=302)
 
     p = datos[0]
+
+    # Redirect 301 a la URL canonica (slug) si se pidio por SKU/id viejo -- consolida
+    # el indice de Google mas rapido que solo el <link rel=canonical> y hace que las
+    # visitas reales (y por lo tanto GA4) ya se registren bajo la URL con slug.
+    slug_prod = (p.get("slug") or "").strip()
+    if slug_prod and sku != slug_prod:
+        query = str(request.url.query)
+        destino = f"https://zapatillasmay.mx/producto/{slug_prod}"
+        if query:
+            destino += f"?{query}"
+        return RedirectResponse(url=destino, status_code=301)
+
     nombre    = (p.get("nombre") or "Calzado").strip()
     meta_titulo = (p.get("meta_titulo") or "").strip()
     meta_desc   = (p.get("meta_descripcion") or "").strip()
