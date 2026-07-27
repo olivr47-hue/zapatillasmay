@@ -1194,6 +1194,8 @@ function renderProducto() {
     </div>
   `
 
+  _initContadoresSociales()
+
   // Render colores
   if (colores.length) renderColores(colores, varsProd)
   // Render tallas iniciales (sin color)
@@ -2385,34 +2387,38 @@ function cerrarGuiaTallas() {
   intentarCargar()
 })()
 
-// Contador "vendidos esta semana" — basado en ID del producto para ser consistente
-(function() {
-  const el = document.getElementById('vendidos-num')
-  if (!el) return
-  // Usar el slug/ID del producto para generar un número consistente
-  const slug = window.location.pathname.split('/').pop() || 'x'
-  let hash = 0
-  for (let i = 0; i < slug.length; i++) hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0
-  el.textContent = 8 + (Math.abs(hash) % 31) // entre 8 y 38
-})()
+// Contadores "vendidos esta semana" / "personas viendo" -- se llaman explícitamente
+// desde donde se inyecta el HTML del producto (antes corrían como IIFE al cargar el
+// script, es decir ANTES de que #viendo-counter/#vendidos-counter existieran en el
+// DOM -- por eso nunca se mostraban).
+function _initContadoresSociales() {
+  // "vendidos esta semana" — basado en ID del producto para ser consistente
+  const elVendidos = document.getElementById('vendidos-num')
+  if (elVendidos) {
+    const slug = window.location.pathname.split('/').pop() || 'x'
+    let hash = 0
+    for (let i = 0; i < slug.length; i++) hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0
+    elVendidos.textContent = 8 + (Math.abs(hash) % 31) // entre 8 y 38
+  }
 
-// Contador "personas viendo"
-(function() {
+  // "personas viendo"
   const nums = [2, 3, 4, 3, 5, 2, 4, 3]
   let idx = 0
   const el = document.getElementById('viendo-counter')
   const numEl = document.getElementById('viendo-num')
   if (!el || !numEl) return
+  clearTimeout(window._viendoTimer)
+  clearInterval(window._viendoInterval)
   // Mostrar después de 2s
-  setTimeout(() => {
+  window._viendoTimer = setTimeout(() => {
     el.style.display = 'block'
     // Cambiar número cada 20-40s para simular actividad
-    setInterval(() => {
+    window._viendoInterval = setInterval(() => {
       idx = (idx + 1) % nums.length
       numEl.textContent = nums[idx]
     }, 25000 + Math.random() * 15000)
   }, 2000)
-})()
+}
 </script>
 
 <!-- Floating WhatsApp button -->
