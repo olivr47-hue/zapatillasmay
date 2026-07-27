@@ -450,9 +450,7 @@ async function cargarCarritoDesdeURL() {
         talla: match.talla,
         cantidad: par.cantidad,
         precio_menudeo: p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80,
-        // Descuento fijo de mayoreo sobre el precio del sitio: $60/par en 3-5, $100/par en 6+
         precio_mayoreo3: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 60,
-        precio_mayoreo6: (p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) || 0) + 80) - 100,
         precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
         es_oferta: p.es_oferta || false,
         imagen: match.foto_url || (match.imagenes && match.imagenes[0]) || p.imagen_principal || null,
@@ -469,10 +467,11 @@ function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario')
 
 function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
 function totalPares(c) { return c.reduce((s, i) => s + (i.es_corrida ? (i.cantidad * 6) : i.cantidad), 0) }
+// El descuento de 3+ pares SI se queda en el sitio público. El de 6+ pares
+// ya solo vive en el panel y el portal de mayoristas.
 function calcularPrecioUnitario(item, total) {
   if (item.es_oferta) return item.precio_unitario
-  if (item.es_corrida) return item.precio_corrida || item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
-  if (total >= 6) return item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
+  if (item.es_corrida) return item.precio_corrida || item.precio_menudeo
   if (total >= 3) return item.precio_mayoreo3 || item.precio_menudeo
   return item.precio_menudeo
 }
@@ -527,7 +526,8 @@ function render() {
   const costoEnvio = esRecoger ? 0 : calcularEnvio(total, subtotalProductos)
   const totalFinal = subtotalProductos + costoEnvio
 
-  let tipoDesc = total >= 6 ? 'Mayoreo (6+ pares)' : total >= 3 ? 'Mayoreo (3-5 pares)' : ''
+  const tieneCorridaResumen = carrito.some(i => i.es_corrida)
+  const tipoDesc = tieneCorridaResumen ? 'Descuento corrida completa' : total >= 3 ? 'Precio mayoreo (3+ pares)' : ''
   let h = `<div class="resumen-row"><span>Subtotal (${total} ${total===1?'par':'pares'})</span><span>$${subtotalSinDesc.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   if (ahorro > 0) h += `<div class="resumen-row" style="color:var(--mauve)"><span>${tipoDesc}</span><span>−$${ahorro.toLocaleString('es-MX',{maximumFractionDigits:0})}</span></div>`
   if (esRecoger) {

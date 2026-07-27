@@ -472,11 +472,11 @@
   <div>
     <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
     <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span style="padding:0 40px">🏷️ Mayoreo sin mínimo de registro</span>
+    <span style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
     <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
     <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
     <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span style="padding:0 40px">🏷️ Mayoreo sin mínimo de registro</span>
+    <span style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
     <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
   </div>
 </div>
@@ -749,7 +749,7 @@
     <div class="footer-top">
       <div class="footer-brand">
         <a class="footer-logo" href="/">Zapatillas <span>May</span></a>
-        <p>Hecho en León, Guanajuato — la capital mundial del calzado. Mayoreo y menudeo sin mínimo de registro. Enviamos a todo México, Estados Unidos y Canadá.</p>
+        <p>Hecho en León, Guanajuato — la capital mundial del calzado. Tacones, sandalias, botas y botines con estilo. Enviamos a todo México, Estados Unidos y Canadá.</p>
         <div class="footer-social">
           <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" title="WhatsApp">WA</a>
           <a href="https://www.instagram.com/zapatillas_may" target="_blank" rel="noopener" title="Instagram">IG</a>
@@ -1045,25 +1045,21 @@ function renderProducto() {
     const paresCarrito = carritoActual.reduce((s, i) => s + (i.es_corrida ? i.cantidad * 6 : i.cantidad), 0)
     const totalPares = paresCarrito + (simular ? 1 : 0)
 
-    // Precios mayoreo de este producto (misma lógica que el bloque de mayoreoHTML)
-    // Descuento fijo de mayoreo sobre el precio del sitio -- portal mayorista y POS usan el precio del panel tal cual
+    // Precio de mayoreo por 3+ pares: SI se queda en el sitio público. El de
+    // 6+ ya solo vive en el panel y el portal de mayoristas.
     const _pM3 = precioDisplay - 60
-    const _pM6 = precioDisplay - 100
     // Precio de este producto al tier que correspondería con el total de pares
     const precioEste = simular ? (
-      totalPares >= 6 ? _pM6 :
       totalPares >= 3 ? _pM3 :
       precioDisplay
     ) : 0
 
-    // Recalcular cada item del carrito al tier correcto (el precio baja cuando cruza umbral de mayoreo)
+    // Recalcular cada item del carrito al tier correcto (el precio baja al cruzar 3 pares)
     const subtotal = carritoActual.reduce((s, i) => {
       const pp = i.es_corrida ? i.cantidad * 6 : i.cantidad
-      const precio = totalPares >= 6
-        ? parseFloat(i.precio_mayoreo6 || i.precio_menudeo)
-        : totalPares >= 3
-          ? parseFloat(i.precio_mayoreo3 || i.precio_menudeo)
-          : parseFloat(i.precio_menudeo)
+      const precio = totalPares >= 3
+        ? parseFloat(i.precio_mayoreo3 || i.precio_menudeo)
+        : parseFloat(i.precio_menudeo)
       return s + precio * pp
     }, 0) + precioEste
 
@@ -1077,10 +1073,9 @@ function renderProducto() {
     }
 
     const faltan = Math.round(_cfg.gratis_desde - subtotal)
-    // Detectar si agregar este par cruza un umbral de mayoreo
+    // Detectar si agregar este par cruza el umbral de 3 pares
     const cruzaMayoreo3 = simular && paresCarrito === 2  // 2→3 pares: baja a precio mayoreo
-    const cruzaMayoreo6 = simular && paresCarrito === 5  // 5→6 pares: baja a precio mayoreo6
-    const nuevoPrecio = cruzaMayoreo6 ? _pM6 : cruzaMayoreo3 ? _pM3 : null
+    const nuevoPrecio = cruzaMayoreo3 ? _pM3 : null
     let textoFaltan
     if (simular && nuevoPrecio) {
       textoFaltan = `Si agregas este par, el precio baja a <strong>$${nuevoPrecio}/par</strong> y faltarían <strong>$${faltan}</strong> para envío gratis 🎯`
@@ -1100,25 +1095,13 @@ function renderProducto() {
   const envioGratisNote = `<div id="envio-note-producto">${envioHTML()}</div>`
   let mayoreoHTML = ''
   if (!p.es_oferta) {
-    // Descuento fijo de mayoreo sobre el precio del sitio -- portal mayorista y POS usan el precio del panel tal cual
+    // Descuento de 3+ pares SI se queda en el sitio público (el de 6+ ya solo
+    // vive en el panel y el portal de mayoristas -- por eso aquí ya no se muestra).
     const m3 = precioDisplay - 60
-    const m6 = precioDisplay - 100
     const ah3 = Math.round(precioDisplay - m3)
-    const ah6 = Math.round(precioDisplay - m6)
     mayoreoHTML = `<div class="mayoreo-box">
-      <p style="color:var(--gray-light);font-size:0.7rem;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">💰 Precio mayoreo automático</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:110px;background:#fff;border:1px solid rgba(200,150,122,0.2);border-radius:8px;padding:8px 10px">
-          <div style="font-size:0.66rem;color:#aaa;margin-bottom:2px">3–5 pares</div>
-          <div style="font-size:0.88rem;font-weight:700;color:var(--tan)">$${m3} MXN</div>
-          ${ah3 > 0 ? `<div style="font-size:0.66rem;color:#22c55e;font-weight:600">Ahorras $${ah3}/par</div>` : ''}
-        </div>
-        <div style="flex:1;min-width:110px;background:#fff;border:1px solid rgba(200,150,122,0.2);border-radius:8px;padding:8px 10px">
-          <div style="font-size:0.66rem;color:#aaa;margin-bottom:2px">6+ pares</div>
-          <div style="font-size:0.88rem;font-weight:700;color:var(--tan)">$${m6} MXN</div>
-          ${ah6 > 0 ? `<div style="font-size:0.66rem;color:#22c55e;font-weight:600">Ahorras $${ah6}/par</div>` : ''}
-        </div>
-      </div>
+      <p style="color:var(--gray-light);font-size:0.7rem;margin-bottom:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">🏷️ Descuento automático a partir de 3 pares</p>
+      ${ah3 > 0 ? `<p style="font-size:0.78rem;color:#22c55e;font-weight:600;margin:0">Ahorras $${ah3}/par</p>` : ''}
     </div>`
   }
 
@@ -1480,9 +1463,9 @@ function irACarrito() {
     talla: tallaSeleccionada,
     cantidad: 1,
     precio_menudeo: precioBase,
-    // Descuento fijo de mayoreo sobre el precio del sitio: $60/par en 3-5, $100/par en 6+
+    // Descuento de mayoreo por 3+ pares: SI se queda en el sitio público.
+    // El de 6+ ya solo vive en el panel y el portal de mayoristas.
     precio_mayoreo3: precioBase - 60,
-    precio_mayoreo6: precioBase - 100,
     precio_corrida: parseFloat(p.precio_corrida) || (parseFloat(p.precio_menudeo) - 100),
     es_oferta: p.es_oferta || false,
     imagen: variante?.foto_url || (variante?.imagenes && variante.imagenes[0]) || p.imagen_principal || null,

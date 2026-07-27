@@ -250,11 +250,12 @@ function guardarCarrito() {
   localStorage.setItem('zm_carrito', JSON.stringify(carrito))
 }
 
-// ── PRECIO DINÁMICO POR VOLUMEN ──────────────────────────────────
+// ── PRECIO ─────────────────────────────────────────────────────
+// El descuento de 3+ pares SI se queda en el sitio público. El de 6+ pares
+// ya solo vive en el panel y el portal de mayoristas.
 function calcularPrecioUnitario(item, totalPares) {
   if (item.es_oferta) return item.precio_unitario
-  if (item.es_corrida) return item.precio_corrida || item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
-  if (totalPares >= 6) return item.precio_mayoreo6 || item.precio_mayoreo3 || item.precio_menudeo
+  if (item.es_corrida) return item.precio_corrida || item.precio_menudeo
   if (totalPares >= 3) return item.precio_mayoreo3 || item.precio_menudeo
   return item.precio_menudeo
 }
@@ -282,7 +283,7 @@ function render() {
   document.getElementById('carrito-subtitle').textContent =
     `${totalItems} ${totalItems === 1 ? 'artículo' : 'artículos'} · ${total} ${total === 1 ? 'par' : 'pares'}`
 
-  // Hint mayoreo
+  // Hint mayoreo -- solo tramo 3+ (el de 6+ ya no aplica en el sitio público)
   const hint = document.getElementById('mayoreo-hint')
   const hintText = document.getElementById('mayoreo-hint-texto')
   if (total < 3) {
@@ -290,8 +291,6 @@ function render() {
     hint.style.background = 'linear-gradient(135deg,rgba(200,150,122,0.12),rgba(181,104,122,0.08))'
     hint.style.border = '1px solid rgba(200,150,122,0.3)'
     const falta = 3 - total
-    // Ahorro real al llegar a 3 pares (precio de mayoreo): diferencia de precio
-    // unitario entre la cantidad actual y el tramo de 3, por el número de pares.
     const ahorroTotal = carrito.reduce((s, item) => {
       const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
       const precioActual = calcularPrecioUnitario(item, total)
@@ -300,24 +299,6 @@ function render() {
     }, 0)
     const ahorroStr = ahorroTotal > 0 ? ` — ahorras <strong style="color:#b5687a">$${Math.round(ahorroTotal)} MXN</strong>` : ''
     hintText.innerHTML = `🛍️ Agrega <strong>${falta} par${falta > 1 ? 'es' : ''} más</strong> y baja el precio de todos${ahorroStr}. <a href="/" style="color:var(--tan);font-weight:700;text-decoration:none;white-space:nowrap">+ Ver modelos →</a>`
-  } else if (total === 5) {
-    // Caso especial: a 1 par de desbloquear el mejor precio — mostrar ahorro real
-    const ahorroExtra = carrito.reduce((s, item) => {
-      const pares = item.es_corrida ? item.cantidad * 6 : item.cantidad
-      const precioActual  = calcularPrecioUnitario(item, 5)
-      const precioConSeis = calcularPrecioUnitario(item, 6)
-      return s + (precioActual - precioConSeis) * pares
-    }, 0)
-    const ahorroStr = ahorroExtra > 0 ? ` — ahorras <strong style="color:#b5687a">$${Math.round(ahorroExtra)} MXN más</strong> en tu pedido` : ''
-    hint.style.display = 'flex'
-    hint.style.background = 'linear-gradient(135deg,rgba(181,104,122,0.14),rgba(200,150,122,0.10))'
-    hint.style.border = '1px solid rgba(181,104,122,0.35)'
-    hintText.innerHTML = `🔥 ¡Solo falta <strong>1 par</strong> para precio de 6+ pares${ahorroStr}!`
-  } else if (total < 6) {
-    hint.style.display = 'flex'
-    hint.style.background = ''
-    hint.style.border = ''
-    hintText.innerHTML = `Agrega <strong>${6 - total} pares más</strong> para mejor precio (-$100/par)`
   } else {
     hint.style.display = 'none'
   }
@@ -376,9 +357,8 @@ function render() {
   const costoEnvio = calcularEnvio(total, subtotalProductos)
   const totalFinal = subtotalProductos + costoEnvio
 
-  let tipoDesc = ''
-  if (total >= 6) tipoDesc = 'Precio mayoreo (6+ pares)'
-  else if (total >= 3) tipoDesc = 'Precio mayoreo (3-5 pares)'
+  const tieneCorridaResumen = carrito.some(i => i.es_corrida)
+  const tipoDesc = tieneCorridaResumen ? 'Descuento corrida completa' : total >= 3 ? 'Precio mayoreo (3+ pares)' : ''
 
   let resumenHTML = `
     <div class="resumen-row"><span>Subtotal (${total} ${total === 1 ? 'par' : 'pares'})</span><span>$${subtotalSinDesc.toFixed(0)} MXN</span></div>`
