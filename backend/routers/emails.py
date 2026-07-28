@@ -8,8 +8,8 @@ intento en la tabla `emails_enviados`; este router solo expone esa tabla al
 panel para que se puedan ver los correos enviados (algo que antes no se podía
 verificar ni en el proveedor ni en el panel).
 """
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, Response
 from database import supabase_get, supabase_get_all
 from email_utils import diagnostico_smtp, enviar_email, email_contacto_web, NEGOCIO_EMAIL
 import zoho_mail
@@ -129,14 +129,24 @@ def buzon_enviados(limit: int = 30, start: int = 1):
 
 
 @router.get("/buzon/mensaje/{folder_id}/{message_id}")
-def buzon_mensaje(folder_id: str, message_id: str):
+def buzon_mensaje(folder_id: str, message_id: str, request: Request):
     try:
-        html = zoho_mail.obtener_contenido(message_id, folder_id)
+        html = zoho_mail.obtener_contenido(message_id, folder_id, str(request.base_url))
         try:
             zoho_mail.marcar_visto(message_id)
         except Exception:
             pass  # que un fallo aquí no impida ver el correo
         return {"html": html}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/buzon/imagen")
+def buzon_imagen(ruta: str):
+    """Proxy de imágenes embebidas en un correo del buzón — ver obtener_contenido()."""
+    try:
+        contenido, content_type = zoho_mail.descargar_recurso(ruta)
+        return Response(content=contenido, media_type=content_type)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

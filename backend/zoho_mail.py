@@ -15,6 +15,7 @@ Variables de entorno necesarias (Railway):
 
 import os
 import json
+import re
 import time
 import urllib.request
 import urllib.error
@@ -180,10 +181,46 @@ def listar_mensajes(carpeta: str = "Inbox", limite: int = 30, start: int = 1) ->
     return out
 
 
-def obtener_contenido(message_id: str, folder_id: str) -> str:
+def obtener_contenido(message_id: str, folder_id: str, base_url: str = "") -> str:
     """HTML completo de un mensaje (los metadatos ya vienen del listado)."""
     data = _request(f"/accounts/{_account_id()}/folders/{folder_id}/messages/{message_id}/content")
-    return data.get("data", {}).get("content") or ""
+    html = data.get("data", {}).get("content") or ""
+    if base_url:
+        html = _reescribir_imagenes(html, base_url)
+    return html
+
+
+_SRC_RE = re.compile(r'''src\s*=\s*(["'])(.*?)\1''', re.IGNORECASE)
+
+
+def _reescribir_imagenes(html: str, base_url: str) -> str:
+    """Las imágenes embebidas en el correo (fotos que el cliente adjuntó dentro
+    del cuerpo, no como archivo aparte) vienen con una URL relativa a la API de
+    Zoho Mail que exige el token OAuth para descargarse — el navegador del panel
+    no lo tiene, así que se ven rotas (por eso había que entrar a mail.zoho.com
+    directo). Aquí se reescriben para pasar por nuestro propio proxy
+    (/emails/buzon/imagen), que sí tiene el token y las reenvía."""
+    def _reemplazar(m):
+        comilla, src = m.group(1), m.group(2)
+        if src.startswith("data:") or (src.startswith("http") and "zoho.com" not in src):
+            return m.group(0)  # ya es una imagen pública o embebida en base64, no tocar
+        proxied = f"{base_url.rstrip('/')}/emails/buzon/imagen?ruta=" + urllib.parse.quote(src, safe="")
+        return f'src={comilla}{proxied}{comilla}'
+    return _SRC_RE.sub(_reemplazar, html)
+
+
+def descargar_recurso(ruta: str) -> tuple:
+    """Descarga una imagen/adjunto inline de la API de Zoho Mail con el token
+    OAuth del backend, para reenviarla al navegador del panel (que no tiene
+    ese token y no puede pedirla directo). Devuelve (bytes, content_type)."""
+    if not (ruta.startswith("/") or "zoho.com" in ruta):
+        raise ValueError("Ruta de recurso no permitida")
+    token = _get_access_token()
+    url = ruta if ruta.startswith("http") else f"{_API_BASE}{ruta}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Zoho-oauthtoken {token}"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        content_type = r.headers.get("Content-Type", "application/octet-stream")
+        return r.read(), content_type
 
 
 def enviar_correo(para: str, asunto: str, html: str, cc: str = "", responder_a_message_id: str = "") -> dict:
