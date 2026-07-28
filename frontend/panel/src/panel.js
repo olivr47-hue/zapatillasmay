@@ -14538,6 +14538,8 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const chats = Array.isArray(chatsRaw) ? chatsRaw : []
     const productosRaw = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo').then(r => r.json()).catch(() => [])
     const productos = Array.isArray(productosRaw) ? productosRaw : []
+    const configWA = await fetch(API + '/chatbot/config').then(r => r.json()).catch(() => ({}))
+    window._mayaActivaGlobal = configWA.maya_activa !== 'false'
 
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
@@ -14553,6 +14555,14 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
         <span class="wa-topbar-title">Conversaciones</span>
         ${totalNoLeidos > 0 ? `<span class="wa-new-badge">${totalNoLeidos}</span>` : ''}
       </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-right:14px" title="${window._mayaActivaGlobal ? 'Maya está respondiendo automáticamente en todos los canales' : 'Maya está en pausa: los mensajes se guardan pero nadie responde solo'}">
+      <span style="font-size:0.78rem;font-weight:600;color:${window._mayaActivaGlobal ? '#16a34a' : '#94a3b8'}">🤖 Maya ${window._mayaActivaGlobal ? 'activa' : 'en pausa'}</span>
+      <label style="position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0">
+        <input type="checkbox" id="maya-activa-switch" ${window._mayaActivaGlobal ? 'checked' : ''} onchange="window.toggleMayaGlobal(this.checked)" style="opacity:0;width:0;height:0">
+        <span style="position:absolute;inset:0;background:${window._mayaActivaGlobal ? '#16a34a' : '#cbd5e1'};border-radius:21px;transition:0.15s;cursor:pointer" onclick="const cb=this.previousElementSibling;cb.checked=!cb.checked;cb.dispatchEvent(new Event('change'))"></span>
+        <span style="position:absolute;height:16px;width:16px;left:${window._mayaActivaGlobal ? '19px' : '3px'};top:2.5px;background:white;border-radius:50%;transition:0.15s;pointer-events:none"></span>
+      </label>
     </div>
     <div class="wa-topbar-tabs">
       <button id="tab-chats" class="wa-tab-btn activo" onclick="mostrarTabWA('chats')">Chat</button>
@@ -14613,6 +14623,25 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
   }
 }
 
+
+window.toggleMayaGlobal = async (activa) => {
+  window._mayaActivaGlobal = activa
+  try {
+    const res = await fetch(API + '/chatbot/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maya_activa: activa ? 'true' : 'false' })
+    })
+    if (!res.ok) throw new Error('No se pudo guardar')
+  } catch (e) {
+    alert('Error cambiando el estado de Maya: ' + e.message)
+    window._mayaActivaGlobal = !activa
+    const cb = document.getElementById('maya-activa-switch')
+    if (cb) cb.checked = window._mayaActivaGlobal
+    return
+  }
+  window.cargarConversaciones()
+}
 
 window.mostrarTabWA = async (tab) => {
   // La barra de pestañas (.wa-topbar) es fija y NO se vuelve a dibujar al cambiar
@@ -15587,6 +15616,20 @@ window._colorAvatarWA = (seed) => {
   for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0
   return window._WA_AVATAR_PALETTE[hash % window._WA_AVATAR_PALETTE.length]
 }
+// Metadatos por canal — WhatsApp/Instagram/Messenger/comentarios públicos.
+// 'whatsapp' (o vacío, para filas viejas) no lleva insignia, es el canal por defecto.
+window._CANAL_INFO_WA = {
+  instagram: { emoji: '📷', bg: '#E4405F', label: 'Instagram' },
+  messenger: { emoji: '💬', bg: '#0084FF', label: 'Messenger' },
+  instagram_comentario: { emoji: '💭', bg: '#E4405F', label: 'Comentario de Instagram' },
+  facebook_comentario: { emoji: '💭', bg: '#1877F2', label: 'Comentario de Facebook' },
+}
+window._badgeCanalWA = (canal) => {
+  const d = window._CANAL_INFO_WA[canal]
+  if (!d) return ''
+  return `<div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;border:1.5px solid white" title="${d.label}">${d.emoji}</div>`
+}
+
 // Primer caracter "seguro" para el avatar: .charAt(0) rompe con nombres que empiezan
 // con emoji (son pares de surrogates en JS) y muestra un "�". El spread [...str]
 // itera por code point real y evita ese glitch.
@@ -15604,9 +15647,10 @@ window._htmlChatItems = (chats) => {
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
               <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
                    onclick="abrirChat('${c.telefono}')">
-                <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)}">
+                <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._letraAvatarWA(c.nombre || c.telefono)}
                   ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
+                  ${window._badgeCanalWA(c.canal)}
                 </div>
                 <div class="wa-chat-info">
                   <div class="wa-chat-name">${c.nombre || c.telefono}
@@ -15867,6 +15911,10 @@ area.style.flexDirection = 'column'
 area.style.flex = '1'
 area.style.minHeight = '0'
 
+  const _canalChat = chat.canal || 'whatsapp'
+  const _esComentarioChat = _canalChat.endsWith('_comentario')
+  const _esWhatsappChat = _canalChat === 'whatsapp'
+
   area.innerHTML = `
     <!-- Header compacto -->
     <div class="wa-chat-header">
@@ -15874,7 +15922,7 @@ area.style.minHeight = '0'
       <div class="wa-avatar-sm">${(chat.nombre||chat.telefono).charAt(0).toUpperCase()}</div>
       <div class="wa-header-info">
         <div class="wa-header-name">${chat.nombre || chat.telefono}</div>
-        <div class="wa-header-sub">${chat.telefono} · ${chat.mensajes.length} msg</div>
+        <div class="wa-header-sub">${window._CANAL_INFO_WA[chat.canal] ? window._CANAL_INFO_WA[chat.canal].emoji + ' ' + window._CANAL_INFO_WA[chat.canal].label + ' · ' : ''}${chat.mensajes.length} msg</div>
       </div>
       <div class="wa-header-actions">
         ${chat.en_control
@@ -15915,8 +15963,13 @@ area.style.minHeight = '0'
     </div>
 
     <!-- Input -->
+    ${_esComentarioChat ? `
+    <div class="wa-input-bar" style="padding:14px;color:#94a3b8;font-size:0.8rem;text-align:center">
+      💭 Los comentarios públicos todavía no se pueden contestar desde aquí — Maya ya los responde sola si está activa, o contesta directamente en Instagram/Facebook.
+    </div>` : `
     <div class="wa-input-bar">
       <div class="wa-input-toolbar">
+        ${_esWhatsappChat ? `
         <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${telefono}').click()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
@@ -15944,11 +15997,11 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${telefono}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        </button>
         <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${telefono}','${(chat.nombre||'').replace(/'/g,'')}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </button>` : ''}
+        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
         <div style="flex:1"></div>
         <span id="reply-context-${telefono}" class="wa-reply-context" style="display:none"></span>
@@ -15962,7 +16015,7 @@ area.style.minHeight = '0'
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
-    </div>
+    </div>`}
 
     <!-- Toggle notas/tareas -->
     <button class="wa-nt-toggle" onclick="toggleNotasTareas()">
@@ -16210,15 +16263,22 @@ window.enviarMensajeWA = async (telefono) => {
   const cc = document.getElementById('char-count-' + telefono)
   if (cc) cc.textContent = ''
   try {
-    await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
+    const res = await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mensaje, agente, reply_to_wa_id })
     })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      alert(data.error || 'Error enviando mensaje')
+      input.value = mensaje
+      return
+    }
     await window._recargarChats()
     abrirChat(telefono)
   } catch(e) {
     alert('Error enviando mensaje')
+    input.value = mensaje
   }
 }
 

@@ -851,6 +851,23 @@ def subir_imagen_storage(img_bytes: bytes, filename: str, content_type: str = "i
         print(f"[storage] Error subiendo imagen: {e}")
         return ""
 
+def _maya_activa_global() -> bool:
+    """Interruptor general para pausar a Maya en TODOS los canales a la vez
+    (a diferencia de 'en_control', que solo pausa una conversacion puntual).
+    Cuando esta apagada, los mensajes se siguen guardando para que el equipo
+    los conteste a mano, pero Maya no genera ni envia respuesta automatica."""
+    cached = cache_get("maya_activa_global")
+    if cached is not None:
+        return cached
+    try:
+        fila = supabase_get("whatsapp_config?clave=eq.maya_activa")
+        activa = fila[0]["valor"] != "false" if fila else True
+    except Exception:
+        activa = True
+    cache_set("maya_activa_global", activa, ttl=30)
+    return activa
+
+
 def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", media_url="", canal="whatsapp"):
     try:
         from database import supabase_post
@@ -1190,6 +1207,8 @@ async def _procesar_webhook_whatsapp(datos: dict):
             mark_as_read_wa(wa_msg_id)
 
         control = supabase_get(f"chats_control?telefono=eq.{from_number}&en_control=eq.true")
+        if not control and not _maya_activa_global():
+            control = True  # Maya apagada globalmente -- mismo camino que un take-over manual
 
         # ── Sticker ─────────────────────────────────────────────────
         if tipo == "sticker":
@@ -1703,6 +1722,11 @@ async def _procesar_comentarios_meta(datos: dict):
                 if _wamid_duplicado(f"comment:{comment_id}"):
                     continue
 
+                if not _maya_activa_global():
+                    identificador_c = f"{'ig' if plataforma == 'instagram' else 'fb'}coment:{autor_id or comment_id}"
+                    guardar_conversacion(identificador_c, texto_comentario, None, "comentario_publico", "", canal=f"{plataforma}_comentario")
+                    continue
+
                 try:
                     productos = cargar_catalogo()
                     catalogo = construir_catalogo(productos)
@@ -1749,7 +1773,7 @@ async def _procesar_webhook_meta(datos: dict):
                     continue
 
                 control = supabase_get(f"chats_control?telefono=eq.{identificador}&en_control=eq.true")
-                if control:
+                if control or not _maya_activa_global():
                     guardar_conversacion(identificador, texto, None, "texto", "", canal=canal)
                     continue
 
@@ -1828,7 +1852,7 @@ async def listar_chats():
                 "conversaciones_whatsapp"
                 "?order=created_at.desc"
                 "&limit=400"
-                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url"
+                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,canal"
             )
         except Exception:
             conversaciones = supabase_get(
@@ -1844,6 +1868,7 @@ async def listar_chats():
                 chats[tel] = {
                     "telefono": tel,
                     "nombre": None,
+                    "canal": m.get('canal') or 'whatsapp',
                     "mensajes": [],
                     "ultimo_mensaje": m['created_at'],
                     "no_leidos": 0,
@@ -1931,7 +1956,18 @@ async def enviar_mensaje_manual(telefono: str, datos: dict):
         reply_to = datos.get("reply_to_wa_id")
         if not mensaje:
             return JSONResponse(status_code=400, content={"error": "Mensaje vacio"})
-        wa_id = enviar_whatsapp_texto(telefono, mensaje, reply_to_id=reply_to)
+
+        if telefono.startswith("igcoment:") or telefono.startswith("fbcoment:"):
+            return JSONResponse(status_code=400, content={
+                "error": "Los comentarios públicos todavía no se pueden contestar desde aquí — responde directamente en Instagram/Facebook."
+            })
+
+        wa_id = None
+        if telefono.startswith("msgr:") or telefono.startswith("ig:"):
+            destinatario_id = telefono.split(":", 1)[1]
+            _enviar_mensaje_meta(destinatario_id, mensaje)
+        else:
+            wa_id = enviar_whatsapp_texto(telefono, mensaje, reply_to_id=reply_to)
         row = {
             "telefono": telefono,
             "mensaje": f"[{agente}]: {mensaje}",
@@ -2025,6 +2061,8 @@ async def guardar_config(datos: dict):
                 supabase_patch(f"whatsapp_config?clave=eq.{clave}", {"valor": str(valor)})
             else:
                 supabase_post("whatsapp_config", {"clave": clave, "valor": str(valor)})
+        if "maya_activa" in datos:
+            cache_invalidate("maya_activa_global")
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
