@@ -854,13 +854,15 @@ def subir_imagen_storage(img_bytes: bytes, filename: str, content_type: str = "i
 def _maya_activa_global() -> bool:
     """Interruptor general para pausar a Maya en TODOS los canales a la vez
     (a diferencia de 'en_control', que solo pausa una conversacion puntual).
+    Reusa la clave 'bot_activo' -- ya existia un checkbox para esto en la
+    pestaña Config del panel, pero nada en el backend la leia todavia.
     Cuando esta apagada, los mensajes se siguen guardando para que el equipo
     los conteste a mano, pero Maya no genera ni envia respuesta automatica."""
     cached = cache_get("maya_activa_global")
     if cached is not None:
         return cached
     try:
-        fila = supabase_get("whatsapp_config?clave=eq.maya_activa")
+        fila = supabase_get("whatsapp_config?clave=eq.bot_activo")
         activa = fila[0]["valor"] != "false" if fila else True
     except Exception:
         activa = True
@@ -2061,7 +2063,7 @@ async def guardar_config(datos: dict):
                 supabase_patch(f"whatsapp_config?clave=eq.{clave}", {"valor": str(valor)})
             else:
                 supabase_post("whatsapp_config", {"clave": clave, "valor": str(valor)})
-        if "maya_activa" in datos:
+        if "bot_activo" in datos:
             cache_invalidate("maya_activa_global")
         return {"ok": True}
     except Exception as e:

@@ -14539,7 +14539,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const productosRaw = await fetch(API + '/productos/?select=id,nombre,imagen_principal,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,corrida_activa,activo').then(r => r.json()).catch(() => [])
     const productos = Array.isArray(productosRaw) ? productosRaw : []
     const configWA = await fetch(API + '/chatbot/config').then(r => r.json()).catch(() => ({}))
-    window._mayaActivaGlobal = configWA.maya_activa !== 'false'
+    window._mayaActivaGlobal = configWA.bot_activo !== 'false'
 
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
@@ -14630,7 +14630,7 @@ window.toggleMayaGlobal = async (activa) => {
     const res = await fetch(API + '/chatbot/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ maya_activa: activa ? 'true' : 'false' })
+      body: JSON.stringify({ bot_activo: activa ? 'true' : 'false' })
     })
     if (!res.ok) throw new Error('No se pudo guardar')
   } catch (e) {
