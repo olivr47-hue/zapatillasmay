@@ -2392,32 +2392,37 @@ function cerrarGuiaTallas() {
 // script, es decir ANTES de que #viendo-counter/#vendidos-counter existieran en el
 // DOM -- por eso nunca se mostraban).
 function _initContadoresSociales() {
+  const slug = window.location.pathname.split('/').pop() || 'x'
+  let hash = 0
+  for (let i = 0; i < slug.length; i++) hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0
+  const h = Math.abs(hash)
+
   // "vendidos esta semana" — basado en ID del producto para ser consistente
   const elVendidos = document.getElementById('vendidos-num')
-  if (elVendidos) {
-    const slug = window.location.pathname.split('/').pop() || 'x'
-    let hash = 0
-    for (let i = 0; i < slug.length; i++) hash = ((hash << 5) - hash + slug.charCodeAt(i)) | 0
-    elVendidos.textContent = 8 + (Math.abs(hash) % 31) // entre 8 y 38
-  }
+  if (elVendidos) elVendidos.textContent = 8 + (h % 31) // entre 8 y 38
 
-  // "personas viendo"
-  const nums = [2, 3, 4, 3, 5, 2, 4, 3]
-  let idx = 0
+  // "personas viendo" — antes mostraba el mismo "3" fijo en TODOS los modelos
+  // (número hardcodeado en el HTML). Ahora se basa en vistas reales de GA4 de
+  // los últimos 7 días (/analytics/producto-popularidad): solo los modelos que
+  // de verdad tienen tráfico esta semana muestran el contador, con un nivel de
+  // 1 a 6 relativo a qué tan visto está frente al más visto de la tienda. Los
+  // modelos que nadie visita simplemente no muestran esta línea.
   const el = document.getElementById('viendo-counter')
   const numEl = document.getElementById('viendo-num')
   if (!el || !numEl) return
   clearTimeout(window._viendoTimer)
   clearInterval(window._viendoInterval)
-  // Mostrar después de 2s
-  window._viendoTimer = setTimeout(() => {
-    el.style.display = 'block'
-    // Cambiar número cada 20-40s para simular actividad
-    window._viendoInterval = setInterval(() => {
-      idx = (idx + 1) % nums.length
-      numEl.textContent = nums[idx]
-    }, 25000 + Math.random() * 15000)
-  }, 2000)
+  el.style.display = 'none'
+
+  fetch(`${API}/analytics/producto-popularidad`)
+    .then(r => r.json())
+    .then(d => {
+      const nivel = d && d.niveles ? d.niveles[slug] : null
+      if (!nivel) return // este modelo no tuvo suficiente tráfico esta semana
+      numEl.textContent = nivel
+      window._viendoTimer = setTimeout(() => { el.style.display = 'block' }, 2000)
+    })
+    .catch(() => {}) // sin datos de GA4, simplemente no se muestra el contador
 }
 </script>
 

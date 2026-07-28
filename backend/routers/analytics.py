@@ -599,6 +599,59 @@ def top_ciudades():
     return {"configurado": True, "ciudades": ciudades[:12]}
 
 
+_pop_cache: dict = {"data": None, "expira": 0}
+
+
+@router.get("/producto-popularidad")
+def producto_popularidad():
+    """Nivel de '\U0001f441 X personas viendo' (1-6) por producto, calculado con
+    vistas reales de GA4 de los últimos 7 días -- no un número inventado igual
+    para todos. Solo los modelos con tráfico real (>= 3 vistas esta semana)
+    aparecen en el mapa; el resto no debe mostrar el contador en el sitio.
+    Cache de 1h: no tiene sentido pegarle a GA4 en cada carga de ficha."""
+    now = time.time()
+    if _pop_cache["data"] is not None and now < _pop_cache["expira"]:
+        return _pop_cache["data"]
+
+    if not _esta_configurado():
+        resultado = {"configurado": False, "niveles": {}}
+        _pop_cache["data"], _pop_cache["expira"] = resultado, now + 300
+        return resultado
+
+    resp = _ga4_post("runReport", {
+        "dateRanges":      [{"startDate": "7daysAgo", "endDate": "today"}],
+        "metrics":         [{"name": "screenPageViews"}],
+        "dimensions":      [{"name": "pagePath"}],
+        "dimensionFilter": {"filter": {"fieldName": "pagePath",
+                             "stringFilter": {"matchType": "BEGINS_WITH", "value": "/producto/"}}},
+        "orderBys":        [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
+        "limit":           200,
+    })
+
+    niveles: dict = {}
+    if resp and resp.get("rows"):
+        vistas_por_slug: dict = {}
+        for row in resp["rows"]:
+            path = row["dimensionValues"][0]["value"]
+            slug = path.split("/producto/")[-1].split("?")[0].strip("/")
+            if not slug:
+                continue
+            vistas = int(float(row["metricValues"][0]["value"]))
+            vistas_por_slug[slug] = vistas_por_slug.get(slug, 0) + vistas
+
+        MIN_VISITAS = 3  # menos que esto = "nadie lo visita", no se muestra
+        calificantes = {s: v for s, v in vistas_por_slug.items() if v >= MIN_VISITAS}
+        if calificantes:
+            max_vistas = max(calificantes.values())
+            for slug, vistas in calificantes.items():
+                nivel = -(-6 * vistas // max_vistas)  # ceil(6 * vistas / max_vistas)
+                niveles[slug] = max(1, min(6, nivel))
+
+    resultado = {"configurado": True, "niveles": niveles}
+    _pop_cache["data"], _pop_cache["expira"] = resultado, now + 3600
+    return resultado
+
+
 @router.get("/horario")
 def horario_trafico():
     """Tráfico por hora del día (últimos 7 días)."""
