@@ -2599,7 +2599,7 @@
   </style>
   <script>
     (function(){
-      var internas = ['/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/pedido-exitoso'];
+      var internas = ['/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/terminos','/eliminacion-datos','/pedido-exitoso'];
       var categorias = ['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios','/catalogo','/ofertas'];
       if (internas.indexOf(location.pathname) !== -1) {
         document.documentElement.classList.add('ruta-interna');
@@ -3352,6 +3352,8 @@ if (!window.fbq){
         <h4>Legal</h4>
         <a href="/privacidad">Política de privacidad</a>
         <a href="/politica-de-devoluciones">Política de devoluciones</a>
+        <a href="/terminos">Términos y condiciones</a>
+        <a href="/eliminacion-datos">Eliminación de datos</a>
       </div>
     </div>
 
@@ -3399,7 +3401,7 @@ if (!window.fbq){
 window.addEventListener('load', () => {
   // Ocultar hero inmediatamente en rutas de categoría/interna (antes de cualquier async)
   const _pathLoad = window.location.pathname
-  const _catPathsLoad = ['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios','/catalogo','/ofertas','/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/pedido-exitoso','/pedido-pendiente','/pedido-fallido']
+  const _catPathsLoad = ['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios','/catalogo','/ofertas','/nosotros','/contacto','/mayoreo','/envios','/tabla-tallas','/como-comprar','/devoluciones','/privacidad','/terminos','/eliminacion-datos','/pedido-exitoso','/pedido-pendiente','/pedido-fallido']
   if (_catPathsLoad.includes(_pathLoad)) {
     const _hLoad = document.getElementById('hero-section')
     if (_hLoad) _hLoad.style.setProperty('display','none','important')
@@ -3527,6 +3529,10 @@ window.addEventListener('load', () => {
     ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('devoluciones'))
   } else if (path === '/privacidad') {
     ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('privacidad'))
+  } else if (path === '/terminos') {
+    ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('terminos'))
+  } else if (path === '/eliminacion-datos') {
+    ;(window._initPromise || Promise.resolve()).then(() => mostrarPagina('eliminacion-datos'))
   // ── Rutas limpias para categorías ──
   } else if (['/tacones','/sandalias','/botas','/botines','/flats','/plataformas','/tenis','/nina','/accesorios'].includes(path)) {
     const cat = path.slice(1)
@@ -6221,8 +6227,80 @@ const PAGINAS = {
     </div>
   </div>
 `,
+  'terminos': `
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow" data-animate>Reglas claras</p>
+    <h2 class="pg-hero-title" data-animate>Términ<em>os</em> y condiciones</h2>
+    <p class="pg-hero-sub" data-animate>Lo que debes saber antes de comprar en Zapatillas May.</p>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card" data-animate>
+      <p class="pg-h3">1. Sobre nosotros</p>
+      <p class="pg-p">Zapatillas May es una tienda de calzado de moda para dama con base en León, Guanajuato, México. Vendemos al público (menudeo) a través de este sitio, y a revendedores registrados (mayoreo) a través de nuestro portal de mayoristas.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">2. Productos y precios</p>
+      <p class="pg-p">Los precios se muestran en pesos mexicanos (MXN) e incluyen IVA. Nos esforzamos por mantener el catálogo y el stock actualizados, pero puede haber diferencias de disponibilidad por talla o color al momento de tu compra; si esto ocurre te contactamos antes de procesar el pedido.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">3. Pedidos y pago</p>
+      <p class="pg-p">Los pagos se procesan de forma segura a través de Mercado Pago. Un pedido se considera confirmado una vez que el pago es aprobado. No almacenamos los datos de tu tarjeta en nuestros sistemas.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">4. Envíos y devoluciones</p>
+      <p class="pg-p">Consulta los tiempos y costos de envío en nuestra página de <a href="/envios">Envíos</a>, y nuestra política completa de cambios y devoluciones en <a href="/devoluciones">Devoluciones</a>.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">5. Comunicación por WhatsApp, Instagram y Messenger</p>
+      <p class="pg-p">Al escribirnos por WhatsApp, Instagram o Messenger para pedir información, dar seguimiento a un pedido o resolver una duda, aceptas que nuestro equipo (o Maya, nuestra asistente automatizada) te responda por ese mismo medio. No usamos estos canales para enviarte publicidad no solicitada.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">6. Uso del sitio</p>
+      <p class="pg-p">Este sitio es para uso personal y de compra. No está permitido su uso para fines fraudulentos, para extraer información de forma automatizada (scraping) sin autorización, ni para revender nuestros contenidos o imágenes sin permiso.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">7. Contacto</p>
+      <p class="pg-p">Si tienes dudas sobre estos términos, contáctanos:</p>
+      <ul class="pg-list">
+        <li>WhatsApp: +52 1 479 224 4560</li>
+        <li>Email: contacto@zapatillasmay.mx</li>
+        <li>León, Guanajuato, México</li>
+      </ul>
+    </div>
+    <div data-animate style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Contactar por WhatsApp</a>
+    </div>
+  </div>
+`,
+  'eliminacion-datos': `
+  <div class="pg-hero">
+    <p class="pg-hero-eyebrow" data-animate>Tus datos, tu decisión</p>
+    <h2 class="pg-hero-title" data-animate>Eliminac<em>ión</em> de datos</h2>
+    <p class="pg-hero-sub" data-animate>Cómo pedir que borremos tu información, paso a paso.</p>
+  </div>
+  <div class="pg-body">
+    <div class="pg-card" data-animate>
+      <p class="pg-h3">1. Qué información guardamos</p>
+      <p class="pg-p">Si nos has escrito por WhatsApp, Instagram o Messenger, o has hecho un pedido con nosotros, podemos tener guardado: tu nombre, teléfono, correo, dirección de envío, historial de pedidos, y el contenido de las conversaciones que hemos tenido contigo por esos canales.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">2. Cómo pedir que se elimine tu información</p>
+      <p class="pg-p">Puedes solicitar la eliminación de tus datos personales en cualquier momento, por cualquiera de estos medios:</p>
+      <ul class="pg-list">
+        <li>WhatsApp: +52 1 479 224 4560 — escribe "Eliminar mis datos"</li>
+        <li>Email: contacto@zapatillasmay.mx — asunto "Solicitud de eliminación de datos"</li>
+      </ul>
+      <p class="pg-p">Para procesar tu solicitud te pediremos confirmar tu nombre y el número de teléfono o correo con el que nos contactaste, para localizar y borrar la información correcta.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">3. Tiempo de respuesta</p>
+      <p class="pg-p">Confirmamos y completamos toda solicitud de eliminación en un plazo máximo de 15 días hábiles. Si tienes un pedido en proceso, conservamos únicamente los datos indispensables para completarlo (como lo exige la ley) y eliminamos el resto.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">4. Desconectar Instagram o Facebook</p>
+      <p class="pg-p">Dejar de seguirnos, bloquearnos o eliminar la conversación desde tu app de Instagram o Messenger no borra automáticamente la información ya guardada en nuestros sistemas — para eso necesitamos tu solicitud explícita por los medios de arriba.</p>
+      <div class="pg-divider"></div>
+      <p class="pg-h3">5. Más información</p>
+      <p class="pg-p">Consulta también nuestra <a href="/privacidad">Política de privacidad</a> para conocer el detalle completo de qué información recopilamos y cómo la usamos.</p>
+    </div>
+    <div data-animate style="text-align:center;padding-bottom:16px">
+      <a href="https://wa.me/5214792244560" target="_blank" rel="noopener" class="pg-cta">💬 Solicitar por WhatsApp</a>
+    </div>
+  </div>
+`,
   '_tabla_tallas_old': `REPLACED_ABOVE`
-  
+
 }
 
 
