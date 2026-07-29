@@ -247,6 +247,33 @@ function renderPC() {
     </main>
   </div>
 
+  <!-- ═══ BOTTOM NAV estilo app (solo móvil) ═══ -->
+  <nav id="pc-bottomnav" aria-label="Navegación principal">
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'inicio' ? ' activo' : ''}" onclick="pcIrA('inicio')" aria-label="Inicio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      <span>Inicio</span>
+    </button>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'catalogo' ? ' activo' : ''}" onclick="pcIrA('catalogo')" aria-label="Productos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Productos</span>
+    </button>
+    <button class="pc-nav-item pc-bn-item pc-bn-cart${pc.tab === 'carrito' ? ' activo' : ''}" onclick="pcIrA('carrito')" aria-label="Carrito">
+      <span class="pc-bn-cart-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="pc-bn-badge" id="pc-bn-cart-badge" style="display:none" aria-hidden="true">0</span>
+      </span>
+      <span>Carrito</span>
+    </button>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'pedidos' ? ' activo' : ''}" onclick="pcIrA('pedidos')" aria-label="Mis pedidos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg>
+      <span>Pedidos</span>
+    </button>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'cuenta' ? ' activo' : ''}" onclick="pcIrA('cuenta')" aria-label="Mi cuenta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      <span>Cuenta</span>
+    </button>
+  </nav>
+
   <a href="https://wa.me/5214792244560?text=${encodeURIComponent('Hola, soy ' + (pc.sesion?.nombre || 'cliente') + ' del portal mayoreo y tengo una pregunta 👋')}"
      target="_blank" rel="noopener" title="Escríbele a tu asesora"
      style="position:fixed;bottom:24px;right:24px;width:52px;height:52px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(37,211,102,0.4);z-index:500;text-decoration:none">
@@ -270,6 +297,7 @@ function renderPC() {
       --pc-purple: #b39ddb; --pc-green: #4ade80;
     }
     @keyframes spin { to { transform: rotate(360deg) } }
+    #pc-bottomnav { display: none; }
     @media (max-width: 768px) {
       #pc-sidebar { position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform 0.25s; }
       #pc-sidebar.open { transform:translateX(0); }
@@ -278,6 +306,40 @@ function renderPC() {
       .pc-prod-grid { grid-template-columns:repeat(2,1fr)!important; gap:10px!important; }
       .pc-cart-layout { grid-template-columns:1fr!important; }
       .pc-cart-summary { position:static!important; width:100%!important; }
+
+      /* Bottom nav estilo app */
+      #pc-bottomnav {
+        display: flex;
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 210;
+        background: var(--pc-bg-elev);
+        backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid var(--pc-border);
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
+      }
+      .pc-bn-item {
+        flex: 1; background: none; border: none; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 3px;
+        padding: 6px 2px; color: var(--pc-muted); font-family: inherit;
+        font-size: 0.62rem; font-weight: 600; text-decoration: none;
+        transition: color 0.18s, transform 0.18s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .pc-bn-item svg { width: 22px; height: 22px; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+      .pc-bn-item:active { transform: scale(0.92); }
+      .pc-bn-item:active svg { transform: scale(1.12); }
+      .pc-bn-item.activo { color: #E91E8C; background: none; }
+      .pc-bn-cart-wrap { position: relative; display: inline-flex; }
+      .pc-bn-badge {
+        position: absolute; top: -6px; right: -8px;
+        background: #E91E8C; color: white;
+        min-width: 16px; height: 16px; border-radius: 100px; padding: 0 4px;
+        font-size: 0.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 6px rgba(233,30,140,0.45);
+      }
+      /* Espacio para que el bottom-nav no tape contenido ni el botón de WhatsApp */
+      #pc-content { padding-bottom: 76px !important; }
+      a[href*="wa.me"][style*="fixed"] { bottom: 84px !important; }
     }
     .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
     .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
@@ -2968,13 +3030,15 @@ window.__pcQtyGrupoCorrida = (productoId, color, d) => {
 }
 
 function pcActualizarBadgeCarritoTopbar() {
-  const badge = document.getElementById('pc-topbar-cart-badge')
-  if (!badge) return
   const totalPares = (pc.carrito || []).reduce((s, i) => s + (i.cantidad || 0), 0)
-  if (totalPares > 0) {
-    badge.textContent = totalPares
-    badge.style.display = 'flex'
-  } else {
-    badge.style.display = 'none'
-  }
+  ;['pc-topbar-cart-badge', 'pc-bn-cart-badge'].forEach(id => {
+    const badge = document.getElementById(id)
+    if (!badge) return
+    if (totalPares > 0) {
+      badge.textContent = totalPares
+      badge.style.display = 'flex'
+    } else {
+      badge.style.display = 'none'
+    }
+  })
 }
