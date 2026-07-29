@@ -23,6 +23,13 @@
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex, follow" }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "ALLOW-FROM https://portal.zapatillasmay.mx" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'self' https://portal.zapatillasmay.mx; object-src 'none'; base-uri 'self'" }
+      ]
     }
   ],
   "rewrites": [

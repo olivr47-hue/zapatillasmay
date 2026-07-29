@@ -2948,12 +2948,12 @@ if (!window.fbq){
   </div>
 
   <div class="hero-content fade-in" id="hero-content">
-    <p class="hero-eyebrow">Directo del fabricante · León, Guanajuato</p>
-    <h1 class="hero-title">Calzado de dama<br>desde <em style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, Gto</em></h1>
-    <p class="hero-subtitle">Tacones, sandalias y botas desde <strong style="color:#e8c4a0">$360 MXN</strong> · Directo del fabricante · Envío a todo México</p>
+    <p class="hero-eyebrow" data-editable="hero_eyebrow">Directo del fabricante · León, Guanajuato</p>
+    <h1 class="hero-title"><span data-editable="hero_titulo_linea1">Calzado de dama</span><br>desde <em data-editable="hero_titulo_destacado" style="color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)">León, Gto</em></h1>
+    <p class="hero-subtitle" data-editable="hero_subtitulo">Tacones, sandalias y botas desde <strong style="color:#e8c4a0">$360 MXN</strong> · Directo del fabricante · Envío a todo México</p>
     <div class="hero-cta">
-      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()">Ver novedades</button>
-      <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()">Ver ofertas</button>
+      <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()" data-editable="hero_boton1_texto">Ver novedades</button>
+      <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()" data-editable="hero_boton2_texto">Ver ofertas</button>
     </div>
     <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.8rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25);max-width:min(92vw,420px)">🏷️ <strong>3+ pares:</strong> <strong style="color:#7CFFB2">-$60/par</strong> · 🚚 <strong style="color:#7CFFB2">Envío gratis</strong> desde $1,299</p>
   </div>
@@ -3747,10 +3747,14 @@ if (config.hero_titulo_linea1 || config.hero_titulo_destacado) {
     const linea1 = config.hero_titulo_linea1 || 'Calzado de dama'
     const destacado = config.hero_titulo_destacado || 'León, Gto'
     el.textContent = ''
-    el.appendChild(document.createTextNode(linea1))
+    const span = document.createElement('span')
+    span.setAttribute('data-editable', 'hero_titulo_linea1')
+    span.textContent = linea1
+    el.appendChild(span)
     el.appendChild(document.createElement('br'))
     el.appendChild(document.createTextNode('desde '))
     const em = document.createElement('em')
+    em.setAttribute('data-editable', 'hero_titulo_destacado')
     em.style.cssText = 'color:#a56780;text-shadow:0 0 20px rgba(136, 77, 101, 0.6),0 2px 0px rgba(211, 183, 194, 0.8)'
     em.textContent = destacado
     el.appendChild(em)
@@ -3805,6 +3809,81 @@ if (config.favicon_url) {
 }
 
 cargarConfigSEO()
+
+// ── Editor visual (clic-para-editar) del panel ──────────────────────────────
+// Se activa SOLO con ?zmEditor=1 en la URL — el panel abre el sitio así
+// dentro de un iframe. Nunca se activa para un visitante normal. Los
+// elementos marcados con [data-editable="clave"] (hoy: textos del hero) se
+// vuelven editables con un clic; el cambio se guarda solo al salir del campo
+// (blur), reusando el mismo endpoint /seo/config que ya usa el panel.
+;(function () {
+  if (new URLSearchParams(location.search).get('zmEditor') !== '1') return
+  const API_EDIT = 'https://zapatillasmay-production.up.railway.app'
+
+  function avisarPanel(msg) {
+    try { if (window.parent) window.parent.postMessage(Object.assign({ origen: 'zm-editor' }, msg), '*') } catch(e) {}
+  }
+
+  function guardarCampo(clave, valor) {
+    avisarPanel({ tipo: 'guardando', clave })
+    fetch(`${API_EDIT}/seo/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [clave]: valor })
+    })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); avisarPanel({ tipo: 'guardado', clave, valor }) })
+      .catch(() => avisarPanel({ tipo: 'error', clave }))
+  }
+
+  document.addEventListener('click', (ev) => {
+    const el = ev.target.closest('[data-editable]')
+    if (!el) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    if (el.isContentEditable) return
+    el.dataset.zmPrev = el.textContent
+    el.setAttribute('contenteditable', 'true')
+    el.classList.add('zm-editing')
+    // Un tick de más: en algunos navegadores el foco no agarra si se pide
+    // en el mismo ciclo en que se acaba de activar contenteditable.
+    requestAnimationFrame(() => {
+      el.focus()
+      const rango = document.createRange()
+      rango.selectNodeContents(el)
+      const sel = window.getSelection()
+      sel.removeAllRanges()
+      sel.addRange(rango)
+    })
+  }, true)
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return
+    const el = ev.target.closest && ev.target.closest('[data-editable]')
+    if (!el || !el.isContentEditable) return
+    el.textContent = el.dataset.zmPrev || el.textContent
+    el.blur()
+  })
+
+  document.addEventListener('focusout', (ev) => {
+    const el = ev.target
+    if (!el.hasAttribute || !el.hasAttribute('data-editable') || !el.isContentEditable) return
+    el.removeAttribute('contenteditable')
+    el.classList.remove('zm-editing')
+    const clave = el.getAttribute('data-editable')
+    let valor = el.textContent.trim()
+    if (!valor) { valor = el.dataset.zmPrev || ''; el.textContent = valor }
+    if (valor !== el.dataset.zmPrev) guardarCampo(clave, valor)
+  })
+
+  const estilos = document.createElement('style')
+  estilos.textContent = `
+    [data-editable] { outline: 2px dashed transparent; outline-offset: 3px; cursor: text; transition: outline-color .15s, background-color .15s; border-radius: 4px; }
+    [data-editable]:hover { outline-color: rgba(233,30,140,0.55); background: rgba(233,30,140,0.08); }
+    [data-editable].zm-editing { outline: 2px solid #E91E8C !important; background: rgba(233,30,140,0.1) !important; }
+  `
+  document.head.appendChild(estilos)
+  avisarPanel({ tipo: 'listo' })
+})()
 
   // ── Caché local de productos (TTL: 5 minutos) ──────────────────────────────
   const CACHE_KEY = 'zm_catalog_v2'

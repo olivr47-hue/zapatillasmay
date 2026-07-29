@@ -88,6 +88,7 @@ const modulos = [
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
   { id: 'empleados', icon: '👤', label: 'Empleados', section: 'Configuracion', soloAdmin: true },
   { id: 'seo', icon: '🔍', label: 'SEO y Sitio', section: 'Configuracion', soloAdmin: true },
+  { id: 'editor-visual', icon: '🖌️', label: 'Editor visual', section: 'Configuracion', soloAdmin: true },
   { id: 'envio', icon: '🚚', label: 'Envíos', section: 'Configuracion', soloAdmin: true },
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
@@ -530,6 +531,7 @@ async function cargarModulo(id) {
     case 'historial': await cargarHistorial(); break
     case 'empleados': await cargarEmpleados(); break
     case 'seo': await cargarSEO(); break
+    case 'editor-visual': await cargarEditorVisual(); break
     case 'envio': await cargarEnvio(); break
     case 'analisis': await cargarAnalisis(); break
     case 'crm': await cargarCRM(); break;
@@ -19038,6 +19040,37 @@ window.guardarSEO = async () => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+
+// ── Editor visual (clic-para-editar sobre el sitio real) ────────────────
+async function cargarEditorVisual() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 100px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.75rem;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0 0 2px;font-size:1.1rem">🖌️ Editor visual</h2>
+          <p style="margin:0;font-size:0.8rem;color:var(--text-muted)">Pasa el mouse sobre un texto resaltado del hero y haz clic para editarlo directo aquí. Se guarda solo al salir del campo (clic afuera o Tab). Presiona <kbd style="font-size:0.72rem;background:var(--bg-secondary);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">Esc</kbd> para cancelar un cambio.</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.75rem">
+          <span id="editor-visual-estado" style="font-size:0.8rem;font-weight:600;min-height:1.2em"></span>
+          <button class="btn btn-secondary" onclick="document.getElementById('editor-visual-iframe').src=document.getElementById('editor-visual-iframe').src">↻ Recargar</button>
+        </div>
+      </div>
+      <iframe id="editor-visual-iframe" src="https://zapatillasmay.mx/?zmEditor=1"
+        style="flex:1;width:100%;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+    </div>
+  `
+  window._editorVisualListener && window.removeEventListener('message', window._editorVisualListener)
+  window._editorVisualListener = (ev) => {
+    if (!ev.data || ev.data.origen !== 'zm-editor') return
+    const estado = document.getElementById('editor-visual-estado')
+    if (!estado) return
+    if (ev.data.tipo === 'guardando') { estado.style.color = 'var(--text-muted)'; estado.textContent = 'Guardando…' }
+    else if (ev.data.tipo === 'guardado') { estado.style.color = '#16a34a'; estado.textContent = '✓ Guardado'; setTimeout(() => { if (estado.textContent === '✓ Guardado') estado.textContent = '' }, 2500) }
+    else if (ev.data.tipo === 'error') { estado.style.color = '#c62828'; estado.textContent = '❌ No se pudo guardar' }
+  }
+  window.addEventListener('message', window._editorVisualListener)
 }
 
 // ── HERO IMAGE UPLOAD ───────────────────────────────────
