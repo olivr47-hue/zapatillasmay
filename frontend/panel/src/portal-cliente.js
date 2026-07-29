@@ -337,9 +337,11 @@ function renderPC() {
         font-size: 0.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
         box-shadow: 0 2px 6px rgba(233,30,140,0.45);
       }
-      /* Espacio para que el bottom-nav no tape contenido ni el botón de WhatsApp */
+      /* Espacio para que el bottom-nav no tape contenido ni los flotantes existentes */
       #pc-content { padding-bottom: 76px !important; }
       a[href*="wa.me"][style*="fixed"] { bottom: 84px !important; }
+      #pc-float-cart { bottom: 76px !important; }
+      #pc-bulk-share-bar { bottom: 76px !important; }
     }
     .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
     .pc-nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;
@@ -874,7 +876,7 @@ function renderCatalogo(el) {
       const totalMonto = pc.carrito.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
       if (totalPares === 0) return ''
       return `
-      <div onclick="pcIrA('carrito')"
+      <div id="pc-float-cart" onclick="pcIrA('carrito')"
         style="position:fixed;bottom:20px;right:20px;z-index:900;background:var(--pc-card);border:1.5px solid #E91E8C;border-radius:100px;padding:10px 18px 10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,0.5);transition:transform 0.15s"
         onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
         <div style="position:relative;width:38px;height:38px;background:#E91E8C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛒
@@ -1504,7 +1506,6 @@ window.pcSeleccionarColor = (prodId, color) => {
                   style="width:100%;min-height:62px;border:2px solid ${qty>0?'#E91E8C':'var(--pc-border-2)'};background:${qty>0?'rgba(233,30,140,0.12)':'var(--pc-bg)'};border-radius:12px;cursor:${stock===0?'not-allowed':'pointer'};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;padding:8px 4px;${stock===0?'opacity:0.4':''}">
                   <span style="font-size:1rem;font-weight:800;color:${stock===0?'var(--pc-muted-2)':'var(--pc-text)'}">${esc(v.talla)}</span>
                   <span style="font-size:0.62rem;color:${stock===0?'var(--pc-muted-2)':'var(--pc-green)'}">${stock===0?'Agotado':'Disponible'}</span>
-                  ${v.sku ? `<span style="font-size:0.55rem;color:var(--pc-muted);font-family:monospace">${esc(v.sku)}</span>` : ''}
                 </button>
                 ${stock===0 ? `<button onclick="pcAvisameStock('${v.id}',this)" title="Avísame cuando haya stock" style="position:absolute;top:-7px;left:-7px;background:var(--pc-card);border:1.5px solid var(--pc-border-2);color:var(--pc-muted);border-radius:100px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer;padding:0">🔔</button>` : ''}
                 <span id="pc-chipbadge-${v.id}" style="position:absolute;top:-7px;right:-7px;background:#E91E8C;color:#fff;border-radius:100px;min-width:22px;height:22px;display:${qty>0?'flex':'none'};align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;padding:0 5px;pointer-events:none">${qty}</span>
