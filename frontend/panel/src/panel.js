@@ -3891,7 +3891,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         </table>
       </div>
 
-      <div id="anuncio-floating-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;background:white;border:2px solid #E91E8C;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
+      <div id="anuncio-floating-bar" style="position:fixed;bottom:20px;left:0;right:0;margin-left:auto;margin-right:auto;z-index:9999;background:white;border:2px solid #E91E8C;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
         <div style="flex:1;line-height:1.2">
           <p style="margin:0;font-size:0.75rem;color:#6b7280;font-weight:600">Crear Anuncio WhatsApp</p>
           <p id="anuncio-count" style="margin:0;font-size:1rem;font-weight:800;color:#111827">0 seleccionados</p>
@@ -3902,7 +3902,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
         </div>
       </div>
 
-      <div id="bulkedit-floating-bar" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;background:white;border:2px solid #6366f1;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
+      <div id="bulkedit-floating-bar" style="position:fixed;bottom:20px;left:0;right:0;margin-left:auto;margin-right:auto;z-index:9999;background:white;border:2px solid #6366f1;border-radius:18px;padding:12px 20px;display:none;align-items:center;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.15);width:90%;max-width:500px;color:#1f2937">
         <div style="flex:1;line-height:1.2">
           <p style="margin:0;font-size:0.75rem;color:#6b7280;font-weight:600">Edición masiva</p>
           <p id="bulk-count" style="margin:0;font-size:1rem;font-weight:800;color:#111827">0 seleccionados</p>
@@ -3952,6 +3952,8 @@ window.toggleModoAnuncio = (forceVal) => {
       btn.style.color = '#c62828'
       btn.style.borderColor = '#c62828'
     }
+    // Si la edición masiva estaba activa, apagarla para no tener dos modos de selección a la vez
+    if (window._modoBulkEdit) window.toggleModoBulkEdit(false)
   }
 }
 
@@ -14544,6 +14546,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
     window._productosWA = productos.filter(p => p.activo)
+    window._waFiltros = { canal: '', estado: '', etiqueta: '', texto: '' }
 
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
@@ -14581,7 +14584,10 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             <span class="wa-search-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
             <input class="wa-search-input" placeholder="Buscar contacto..." oninput="filtrarChats(this.value)">
           </div>
-          <div class="wa-estado-tabs">
+          <div class="wa-estado-tabs" id="wa-canal-tabs" style="flex-wrap:wrap;row-gap:4px">
+            ${window._htmlCanalTabsWA(chats)}
+          </div>
+          <div class="wa-estado-tabs" id="wa-estado-tabs">
             <button class="wa-estado-tab activa" onclick="filtrarEstado('',this)">Todos</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('abierto',this)"><span class="wa-estado-dot abierto"></span>Abierto</button>
             <button class="wa-estado-tab" onclick="filtrarEstado('espera',this)"><span class="wa-estado-dot espera"></span>Espera</button>
@@ -14786,22 +14792,41 @@ window._waKbAbrir = (telefono) => {
   window.mostrarTabWA('chats').then(() => { setTimeout(() => { try { window.abrirChat(telefono) } catch (e) {} }, 120) })
 }
 
-window.filtrarEtiqueta = (etiqueta) => {
-  document.querySelectorAll('.wa-pill').forEach(b => b.classList.remove('activa'))
-  event.target.classList.add('activa')
+// Estado combinado de los 4 filtros de la barra lateral de chats (canal, estado,
+// etiqueta, texto) — cada uno actualiza su parte y todos se aplican juntos, para
+// que por ejemplo "Instagram" + "Comprador" muestre la intersección real y no se
+// pisen entre sí (como pasaba antes, cuando cada filtro era independiente).
+window._waFiltros = { canal: '', estado: '', etiqueta: '', texto: '' }
+window._aplicarFiltrosWA = () => {
+  const f = window._waFiltros
   document.querySelectorAll('.wa-chat-item').forEach(el => {
-    const etiq = el.dataset.etiqueta || ''
-    el.style.display = !etiqueta || etiq === etiqueta ? '' : 'none'
+    const ok = (!f.canal || el.dataset.canal === f.canal) &&
+               (!f.estado || (el.dataset.estado || 'abierto') === f.estado) &&
+               (!f.etiqueta || (el.dataset.etiqueta || '') === f.etiqueta) &&
+               (!f.texto || (el.dataset.nombre || '').includes(f.texto) || (el.dataset.tel || '').includes(f.texto))
+    el.style.display = ok ? '' : 'none'
   })
 }
 
-window.filtrarEstado = (estado, btn) => {
-  document.querySelectorAll('.wa-estado-tab').forEach(b => b.classList.remove('activa'))
+window.filtrarCanalWA = (canal, btn) => {
+  window._waFiltros.canal = canal
+  document.querySelectorAll('#wa-canal-tabs .wa-estado-tab').forEach(b => b.classList.remove('activa'))
   if (btn) btn.classList.add('activa')
-  document.querySelectorAll('.wa-chat-item').forEach(el => {
-    const est = el.dataset.estado || 'abierto'
-    el.style.display = !estado || est === estado ? '' : 'none'
-  })
+  window._aplicarFiltrosWA()
+}
+
+window.filtrarEtiqueta = (etiqueta) => {
+  document.querySelectorAll('.wa-pill').forEach(b => b.classList.remove('activa'))
+  event.target.classList.add('activa')
+  window._waFiltros.etiqueta = etiqueta
+  window._aplicarFiltrosWA()
+}
+
+window.filtrarEstado = (estado, btn) => {
+  document.querySelectorAll('#wa-estado-tabs .wa-estado-tab').forEach(b => b.classList.remove('activa'))
+  if (btn) btn.classList.add('activa')
+  window._waFiltros.estado = estado
+  window._aplicarFiltrosWA()
 }
 
 window.cambiarEstadoChat = async (telefono, estado) => {
@@ -15567,11 +15592,8 @@ window.eliminarRespuesta = (id) => {
 
 
 window.filtrarChats = (texto) => {
-  document.querySelectorAll('.wa-chat-item').forEach(el => {
-    const nombre = el.dataset.nombre || ''
-    const tel = el.dataset.tel || ''
-    el.style.display = !texto || nombre.includes(texto.toLowerCase()) || tel.includes(texto) ? '' : 'none'
-  })
+  window._waFiltros.texto = (texto || '').toLowerCase()
+  window._aplicarFiltrosWA()
 }
 window.renderMensaje = (m, esManual, nombreContacto) => {
   if (m.tipo === 'imagen_saliente') {
@@ -15630,6 +15652,32 @@ window._badgeCanalWA = (canal) => {
   return `<div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;border:1.5px solid white" title="${d.label}">${d.emoji}</div>`
 }
 
+// Grupo de canal al que pertenece un chat, para las pestañas de la barra lateral:
+// cada canal (incluyendo cada tipo de comentario público) es su propia ventana,
+// para no mezclar mensajes privados con comentarios públicos ni IG con FB.
+window._grupoCanalWA = (canal) => {
+  if (canal === 'instagram_comentario') return 'comentario_ig'
+  if (canal === 'facebook_comentario') return 'comentario_fb'
+  if (canal === 'messenger' || canal === 'instagram') return canal
+  return 'whatsapp'
+}
+window._htmlCanalTabsWA = (chats) => {
+  const conteo = { whatsapp: 0, messenger: 0, instagram: 0, comentario_ig: 0, comentario_fb: 0 }
+  ;(chats || []).forEach(c => { conteo[window._grupoCanalWA(c.canal)]++ })
+  const tabs = [
+    { id: '', emoji: '', label: 'Todos' },
+    { id: 'whatsapp', emoji: '💬', label: 'WhatsApp' },
+    { id: 'messenger', emoji: '💬', label: 'Messenger' },
+    { id: 'instagram', emoji: '📷', label: 'Instagram DM' },
+    { id: 'comentario_ig', emoji: '💭', label: 'Coment. IG' },
+    { id: 'comentario_fb', emoji: '💭', label: 'Coment. FB' },
+  ]
+  return tabs.map(t => `
+    <button class="wa-estado-tab${t.id === '' ? ' activa' : ''}" style="flex:1 1 28%;min-width:60px" onclick="window.filtrarCanalWA('${t.id}',this)">
+      ${t.emoji ? t.emoji + ' ' : ''}${t.label}${t.id && conteo[t.id] ? ` (${conteo[t.id]})` : ''}
+    </button>`).join('')
+}
+
 // Primer caracter "seguro" para el avatar: .charAt(0) rompe con nombres que empiezan
 // con emoji (son pares de surrogates en JS) y muestra un "�". El spread [...str]
 // itera por code point real y evita ese glitch.
@@ -15645,7 +15693,7 @@ window._htmlChatItems = (chats) => {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}"
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}"
                    onclick="abrirChat('${c.telefono}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._letraAvatarWA(c.nombre || c.telefono)}
@@ -15674,17 +15722,8 @@ window._refrescarListaChats = (chats) => {
   if (firmaNueva === window._firmaListaChats) return  // nada cambió, no re-renderizar
   window._firmaListaChats = firmaNueva
   lista.innerHTML = window._htmlChatItems(chats)
-  // Re-aplicar búsqueda y filtros activos
-  const busq = document.querySelector('.wa-search-input')
-  if (busq && busq.value) filtrarChats(busq.value)
-  const etiqAct = document.querySelector('.wa-pill.activa')
-  const estAct = document.querySelector('.wa-estado-tab.activa')
-  document.querySelectorAll('.wa-chat-item').forEach(el => {
-    let mostrar = true
-    if (etiqAct) { const e = (etiqAct.getAttribute('onclick')||'').match(/filtrarEtiqueta\('([^']*)'\)/); if (e && e[1] && (el.dataset.etiqueta||'') !== e[1]) mostrar = false }
-    if (mostrar && estAct) { const s = (estAct.getAttribute('onclick')||'').match(/filtrarEstado\('([^']*)'/); if (s && s[1] && (el.dataset.estado||'abierto') !== s[1]) mostrar = false }
-    if (!mostrar) el.style.display = 'none'
-  })
+  // Re-aplicar los filtros activos (canal/estado/etiqueta/búsqueda ya viven en window._waFiltros)
+  window._aplicarFiltrosWA()
   // Marcar como activo el chat abierto
   if (window._chatActivo) {
     const act = lista.querySelector(`.wa-chat-item[data-tel="${window._chatActivo}"]`)
@@ -18763,8 +18802,45 @@ async function cargarSEO() {
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
   <h3 style="margin-bottom:0.25rem">Portada del sitio (Hero)</h3>
   <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.75rem">
-    Personaliza las imágenes que aparecen en la portada de tu tienda en línea.
+    Personaliza los textos e imágenes que aparecen en la portada de tu tienda en línea.
   </p>
+
+  <!-- ── TEXTOS DEL HERO ── -->
+  <div style="margin-bottom:2rem">
+    <h4 style="font-size:0.9rem;font-weight:700;color:var(--text-primary);margin:0 0 0.4rem">Textos</h4>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">Deja un campo vacío para conservar el texto actual del sitio.</p>
+    <div style="display:grid;gap:1rem">
+      <div>
+        <label class="form-label">Texto pequeño arriba del título</label>
+        <input class="form-input" id="hero-eyebrow" value="${(config.hero_eyebrow||'').replace(/"/g,'')}" placeholder="Directo del fabricante · León, Guanajuato">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <label class="form-label">Título — primera línea</label>
+          <input class="form-input" id="hero-titulo1" value="${(config.hero_titulo_linea1||'').replace(/"/g,'')}" placeholder="Calzado de dama">
+        </div>
+        <div>
+          <label class="form-label">Título — palabra destacada</label>
+          <input class="form-input" id="hero-titulo2" value="${(config.hero_titulo_destacado||'').replace(/"/g,'')}" placeholder="León, Gto">
+          <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Se muestra como "${'{línea 1}'} <em>desde {destacada}</em>"</p>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Subtítulo</label>
+        <input class="form-input" id="hero-subtitulo" value="${(config.hero_subtitulo||'').replace(/"/g,'')}" placeholder="Tacones, sandalias y botas desde $360 MXN · Directo del fabricante · Envío a todo México">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div>
+          <label class="form-label">Botón principal</label>
+          <input class="form-input" id="hero-boton1" value="${(config.hero_boton1_texto||'').replace(/"/g,'')}" placeholder="Ver novedades">
+        </div>
+        <div>
+          <label class="form-label">Botón secundario</label>
+          <input class="form-input" id="hero-boton2" value="${(config.hero_boton2_texto||'').replace(/"/g,'')}" placeholder="Ver ofertas">
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ── FOTO LIFESTYLE ── -->
   <div style="margin-bottom:2rem">
@@ -18846,6 +18922,19 @@ async function cargarSEO() {
   <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Icono que aparece en la pestaña del navegador (recomendado 32x32px)</p>
 </div>
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">Colores de marca</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+            Cambia el color principal y todo el sitio (botones, acentos, hero) se ajusta junto — no hace falta tocar cada sección por separado.
+          </p>
+          <div style="display:flex;align-items:center;gap:1rem">
+            <input type="color" id="color-primario" value="${(config.color_primario||'#9c5a52')}" style="width:56px;height:44px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:var(--bg-primary)"
+              oninput="document.getElementById('color-primario-hex').value=this.value">
+            <input class="form-input" id="color-primario-hex" value="${(config.color_primario||'#9c5a52').replace(/"/g,'')}" placeholder="#9c5a52" style="max-width:140px;font-family:monospace"
+              oninput="const c=document.getElementById('color-primario'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
             <div>
@@ -18916,6 +19005,13 @@ window.guardarSEO = async () => {
   const campos = {
     favicon_url: document.getElementById('seo-favicon').value,
     hero_imagen: document.getElementById('seo-hero-img').value,
+    hero_eyebrow: document.getElementById('hero-eyebrow').value,
+    hero_titulo_linea1: document.getElementById('hero-titulo1').value,
+    hero_titulo_destacado: document.getElementById('hero-titulo2').value,
+    hero_subtitulo: document.getElementById('hero-subtitulo').value,
+    hero_boton1_texto: document.getElementById('hero-boton1').value,
+    hero_boton2_texto: document.getElementById('hero-boton2').value,
+    color_primario: document.getElementById('color-primario-hex').value,
     meta_titulo_home: document.getElementById('seo-titulo').value,
     meta_descripcion_home: document.getElementById('seo-desc').value,
     google_analytics_id: document.getElementById('seo-ga').value,
