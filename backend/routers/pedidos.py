@@ -196,7 +196,14 @@ def cerrar_apartado(id: str, datos: dict):
     No toca inventario (ya se descontó al aprobar el apartado) -- solo pasa el
     pedido a pendiente_pago con la forma de pago elegida. El pago real se
     confirma aparte: por transferencia el dueño lo checa manual, por tarjeta
-    el webhook de MercadoPago lo marca al aprobarse."""
+    el webhook de MercadoPago lo marca al aprobarse.
+
+    Importante: además quita la marca "[carrito-respaldo]" de notas. Ese
+    pedido deja de ser "el carrito en vivo" y se convierte en un pedido real
+    cerrado -- si se dejara la marca, el portal lo seguiría tratando como el
+    carrito activo (reutilizándolo para lo próximo que agregue la clienta) y
+    a la vez el cliente lo vería listado en "Mis pedidos" con status
+    desincronizado."""
     try:
         forma_pago = (datos.get("forma_pago") or "").strip()
         if forma_pago not in ("transferencia", "tarjeta"):
@@ -206,7 +213,10 @@ def cerrar_apartado(id: str, datos: dict):
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
         if pedido[0].get("status") != "apartado":
             return JSONResponse(status_code=400, content={"error": "Solo se puede cerrar un pedido que ya está apartado"})
-        supabase_patch(f"pedidos?id=eq.{id}", {"status": "pendiente_pago", "forma_pago": forma_pago})
+        update = {"status": "pendiente_pago", "forma_pago": forma_pago}
+        if pedido[0].get("notas") == "[carrito-respaldo]":
+            update["notas"] = None
+        supabase_patch(f"pedidos?id=eq.{id}", update)
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

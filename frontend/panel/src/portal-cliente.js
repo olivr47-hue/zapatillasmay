@@ -604,10 +604,13 @@ async function cargarDatosPC() {
     // El borrador que respalda el carrito activo no debe verse como "pedido" --
     // se usa aparte para restaurar el carrito, nunca en Mis pedidos / Inicio.
     try { await pcRestaurarCarritoDeServidor(ped) } catch {}
-    // Ocultar de "Mis pedidos" SOLO el borrador que respalda el carrito activo
-    // (status borrador + marca). Si ese carrito se confirma como venta desde el
-    // panel, cambia de status y debe volver a verse como pedido real.
-    pc.pedidos = ped.filter(p => !(p.status === 'borrador' && p.notas === PC_BORRADOR_MARCA))
+    // Ocultar de "Mis pedidos" el borrador que respalda el carrito activo --
+    // MIENTRAS siga con esa marca sigue siendo "el carrito", así esté en
+    // borrador o en apartado (que es una cotización previa al cierre, no un
+    // pedido real todavía). Al cerrar un apartado (cerrar-apartado en el
+    // backend) esa marca se quita, así que ahí sí se vuelve a ver como
+    // pedido real -- por eso este filtro ya no depende del status.
+    pc.pedidos = ped.filter(p => p.notas !== PC_BORRADOR_MARCA)
   }
 
   pc.datosCargados = true
@@ -2976,6 +2979,26 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
     })
     const data = await res.json()
     if (!data.ok) throw new Error(data.error || 'Error al cerrar el pedido')
+
+    // El pedido que se acaba de cerrar YA NO es "el carrito en vivo" (el
+    // backend le quitó la marca de carrito-respaldo) -- si se sigue usando
+    // como referencia local, lo próximo que la clienta agregue se mezclaría
+    // con un pedido ya cerrado. Se limpia para que el próximo cambio de
+    // carrito cree un borrador nuevo desde cero.
+    if (pc._borradorServerId === pedidoId) {
+      pc.carrito = []
+      pc._borradorServerId = null
+      try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+      _pcMarcarSincronizado()
+      if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
+    }
+    if (pc.sesion?.cliente_id) {
+      const rp = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() }).catch(() => null)
+      if (rp?.ok) {
+        const todos = await rp.json()
+        pc.pedidos = Array.isArray(todos) ? todos.filter(p => p.notas !== PC_BORRADOR_MARCA) : todos
+      }
+    }
 
     if (formaPago === 'transferencia') {
       const cfg = await fetch(`${PC_API}/config/pago-transferencia`).then(r => r.json()).catch(() => ({}))
