@@ -313,6 +313,53 @@ _arrancarPollPedidos()
 if (window._pedidosInterval) clearInterval(window._pedidosInterval)
 window._pedidosInterval = setInterval(_pollPedidosPorEnviar, 30000)
 
+// ── Polling: solicitudes pendientes en Carritos (apartar/liberar) ──────
+const _CARRITOS_BADGE_KEY = 'zm_badge_carritos'
+let _ultimoConteoCarritos = null
+
+function _setBadgeCarritos(count) {
+  const badge = document.getElementById('badge-carritos-solicitudes')
+  if (!badge) return
+  badge.textContent = count
+  badge.style.display = count > 0 ? 'inline' : 'none'
+}
+
+async function _pollSolicitudesCarritos() {
+  if (window._carritosPollEnVuelo) return
+  window._carritosPollEnVuelo = true
+  try {
+    const res = await fetch(API + '/pedidos/solicitudes-total')
+    if (!res.ok) return
+    const data = await res.json()
+    const count = data.total || 0
+    localStorage.setItem(_CARRITOS_BADGE_KEY, count)
+    _setBadgeCarritos(count)
+    if (_ultimoConteoCarritos !== null && count > _ultimoConteoCarritos) {
+      _mostrarNotifPedido(`🔒 Una clienta tiene una solicitud pendiente en Carritos`)
+    }
+    _ultimoConteoCarritos = count
+  } catch(e) {}
+  finally { window._carritosPollEnVuelo = false }
+}
+
+window._limpiarBadgeCarritos = function() {
+  _setBadgeCarritos(0)
+  localStorage.setItem(_CARRITOS_BADGE_KEY, 0)
+}
+
+function _arrancarPollCarritos() {
+  if (document.getElementById('badge-carritos-solicitudes')) {
+    const cached = parseInt(localStorage.getItem(_CARRITOS_BADGE_KEY) || '0', 10)
+    if (cached > 0) _setBadgeCarritos(cached)
+    _pollSolicitudesCarritos()
+  } else {
+    setTimeout(_arrancarPollCarritos, 400)
+  }
+}
+_arrancarPollCarritos()
+if (window._carritosInterval) clearInterval(window._carritosInterval)
+window._carritosInterval = setInterval(_pollSolicitudesCarritos, 30000)
+
 // ── Polling: correo entrante no leído ──────────────────────────────
 const _CORREO_BADGE_KEY = 'zm_badge_correo'
 let _ultimoConteoCorreo = null
@@ -503,6 +550,7 @@ function renderNav() {
         <span class="nav-icon">${m.icon}</span>
         ${m.label}
         ${m.id === 'pedidos' ? '<span id="badge-pedidos-enviar" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
+        ${m.id === 'carritos' ? '<span id="badge-carritos-solicitudes" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'correo' ? '<span id="badge-correo-nuevo" style="display:none;background:#0d9488;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'mercadolibre' ? '<span id="badge-preguntas-ml" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
         ${m.id === 'shein' ? '<span id="badge-pendientes-shein" style="display:none;background:#e53935;color:white;border-radius:100px;font-size:0.65rem;font-weight:700;padding:1px 6px;margin-left:auto">0</span>' : ''}
@@ -24068,6 +24116,7 @@ window.ajustarCredito = async function(clienteId, nombre, creditoActual) {
 
 async function cargarCarritos() {
   _detenerPollCarritoActivo()
+  if (typeof window._limpiarBadgeCarritos === 'function') window._limpiarBadgeCarritos()
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {

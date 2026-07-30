@@ -730,6 +730,19 @@ def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/solicitudes-total")
+def solicitudes_total(_staff=Depends(require_staff)):
+    """Conteo liviano de solicitudes pendientes (apartar + liberar) para el
+    badge de "Carritos" en el menú del panel -- se sondea cada rato desde
+    cualquier pantalla, así que no trae el detalle completo."""
+    try:
+        apartar = supabase_get("pedido_items?solicitud_apartar=eq.true&reservado=eq.false&select=id") or []
+        liberar = supabase_get("pedido_items?solicitud_liberar=eq.true&reservado=eq.true&select=id") or []
+        return {"total": len(apartar) + len(liberar)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/{id}/aprobar-apartado")
 def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
     """Reserva de verdad el inventario de los pares del carrito: los descuenta
