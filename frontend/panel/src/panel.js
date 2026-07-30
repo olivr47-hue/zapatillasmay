@@ -24404,6 +24404,7 @@ function renderCarritoAbierto(p) {
   const esApartado = p.status === 'apartado'
   const hayNuevosSinReservar = esApartado && items.some(i => !i.reservado)
   const nSolicitados = items.filter(i => !i.reservado && i.solicitud_apartar).length
+  const nQuitar = items.filter(i => i.reservado && i.solicitud_liberar).length
   const anticipo = parseFloat(p.anticipo || 0)
   const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
 
@@ -24423,6 +24424,9 @@ function renderCarritoAbierto(p) {
           🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
         </button>
         ${nSolicitados > 0 ? `<p style="width:100%;font-size:0.72rem;color:#b45309;margin:-8px 0 0">🙋 La clienta pidió apartar ${nSolicitados} par${nSolicitados!==1?'es':''} específico${nSolicitados!==1?'s':''} — al aprobar solo se descuenta stock de esos, no de todo el carrito.</p>` : ''}
+        ${nQuitar > 0 ? `<button class="btn btn-secondary" style="color:#991b1b;border-color:#dc2626;background:#fef2f2;font-weight:700" onclick="aprobarLiberacionesCarrito('${pedidoId}')">
+          🚫 Aprobar quitar ${nQuitar} par${nQuitar!==1?'es':''}
+        </button>` : ''}
         <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
           ✅ Confirmar venta
         </button>
@@ -25466,6 +25470,18 @@ window.agregarCorridaAlCarritoActivo = async () => {
   })
 
   await abrirCarrito(pedidoId)
+}
+
+window.aprobarLiberacionesCarrito = async (pedidoId) => {
+  const items = (window._carritoActivo?.items || []).filter(i => i.reservado && i.solicitud_liberar)
+  if (!items.length) return
+  if (!confirm(`¿Aprobar que se quiten los ${items.length} par(es) que la clienta pidió liberar? Se devuelve su stock al inventario.`)) return
+  try {
+    for (const item of items) {
+      await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id + '?forzar=true', { method: 'DELETE' })
+    }
+    await abrirCarrito(pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 window.aprobarApartadoCarrito = async (pedidoId) => {
