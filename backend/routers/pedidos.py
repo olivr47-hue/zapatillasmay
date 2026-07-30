@@ -972,36 +972,45 @@ def cancelar_pedido(id: str):
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
         status_actual = pedido[0].get("status")
-        if status_actual in ["confirmado", "pagado", "apartado"]:
-            items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
-            sucursal_id = pedido[0].get("sucursal_id")
-            for item in items:
-                # En un apartado solo hay que devolver los ítems que de verdad
-                # se habían reservado (descontado) -- si se agregó algo después
-                # sin volver a aprobar, ese nunca tocó el inventario.
-                if status_actual == "apartado" and not item.get("reservado"):
-                    continue
-                variante_id = item.get("variante_id")
-                cantidad = item.get("cantidad", 1)
-                if variante_id and sucursal_id:
-                    inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                    if inv:
-                        nueva_cantidad = inv[0]["cantidad"] + cantidad
-                        supabase_patch(
-                            f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                            {"cantidad": nueva_cantidad}
-                        )
-                        supabase_post("movimientos_inventario", {
-                            "tipo": "ajuste",
-                            "variante_id": variante_id,
-                            "sucursal_id": sucursal_id,
-                            "cantidad": cantidad,
-                            "motivo": f"Cancelacion pedido {id}"
-                        })
-            if status_actual == "apartado":
-                supabase_patch(f"pedido_items?pedido_id=eq.{id}", {"reservado": False, "solicitud_liberar": False})
+        # OJO: no basta con mirar el status del PEDIDO para saber si hay que
+        # devolver stock. Un apartado aprobado puede seguir de largo a
+        # pendiente_pago (cerrar-apartado) y luego a checkout_iniciado
+        # (crear-preferencia de MercadoPago) SIN que nada le quite la
+        # reserva real -- si aquí solo se revisara status=='apartado', un
+        # pedido cancelado en cualquiera de esos estados posteriores dejaba
+        # el stock descontado para siempre, sin ningún pedido que lo
+        # explique (fuga real de inventario, encontrada en producción).
+        # `reservado` en cada ítem es la fuente de verdad real de si ese
+        # par tiene stock tomado, sin importar en qué status quedó el pedido.
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
+        sucursal_id = pedido[0].get("sucursal_id")
+        hubo_devolucion = False
+        for item in items:
+            debe_devolver = item.get("reservado") or status_actual in ("confirmado", "pagado")
+            if not debe_devolver:
+                continue
+            variante_id = item.get("variante_id")
+            cantidad = item.get("cantidad", 1)
+            if variante_id and sucursal_id:
+                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+                if inv:
+                    nueva_cantidad = inv[0]["cantidad"] + cantidad
+                    supabase_patch(
+                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                        {"cantidad": nueva_cantidad}
+                    )
+                    supabase_post("movimientos_inventario", {
+                        "tipo": "ajuste",
+                        "variante_id": variante_id,
+                        "sucursal_id": sucursal_id,
+                        "cantidad": cantidad,
+                        "motivo": f"Cancelacion pedido {id}"
+                    })
+                    hubo_devolucion = True
+        if hubo_devolucion:
+            supabase_patch(f"pedido_items?pedido_id=eq.{id}", {"reservado": False, "solicitud_liberar": False})
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
-        return {"ok": True, "stock_devuelto": status_actual in ["confirmado", "pagado", "apartado"]}
+        return {"ok": True, "stock_devuelto": hubo_devolucion}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

@@ -3114,7 +3114,6 @@ window.pcCerrarPedidoDirecto = async function() {
 
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const itemsParaMP = pc.carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario }))
-  const descripcion = pc.carrito.map(i => `${i.sku} T${i.talla}${i.color ? ' '+i.color : ''} x${i.cantidad}`).join(', ')
 
   const btn = document.querySelector('[onclick="pcCerrarPedidoDirecto()"]')
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true }
@@ -3132,8 +3131,7 @@ window.pcCerrarPedidoDirecto = async function() {
         total,
         status: 'pendiente_pago',
         canal: 'portal_mayoreo',
-        descripcion,
-        notas_cliente: notas,
+        comentarios: notas,
         direccion_envio: direccionEnvio,
         items: pc.carrito.map(i => ({
           producto_id: i.producto_id,
