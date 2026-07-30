@@ -24123,14 +24123,16 @@ async function cargarCarritos() {
               const esApartado = p.status === 'apartado'
               const anticipo = parseFloat(p.anticipo || 0)
               const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
+              const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
               return `
-                <div style="background:white;border-radius:14px;border:1px solid ${esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div style="background:white;border-radius:14px;border:1px solid ${nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
                       <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
                       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+                        ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
                         ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
                         ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
                       </div>
@@ -24350,6 +24352,7 @@ function renderCarritoAbierto(p) {
   const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
   const esApartado = p.status === 'apartado'
   const hayNuevosSinReservar = esApartado && items.some(i => !i.reservado)
+  const nSolicitados = items.filter(i => !i.reservado && i.solicitud_apartar).length
   const anticipo = parseFloat(p.anticipo || 0)
   const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
 
@@ -24366,8 +24369,9 @@ function renderCarritoAbierto(p) {
             <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">editar</a></p>` : ''}
         </div>
         <button class="btn btn-secondary" style="color:#92400e;border-color:#fbbf24;background:#fffbeb;font-weight:700" onclick="aprobarApartadoCarrito('${pedidoId}')">
-          🔒 ${esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
+          🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
         </button>
+        ${nSolicitados > 0 ? `<p style="width:100%;font-size:0.72rem;color:#b45309;margin:-8px 0 0">🙋 La clienta pidió apartar ${nSolicitados} par${nSolicitados!==1?'es':''} específico${nSolicitados!==1?'s':''} — al aprobar solo se descuenta stock de esos, no de todo el carrito.</p>` : ''}
         <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
           ✅ Confirmar venta
         </button>
@@ -24549,11 +24553,13 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const talla = v.talla || item.talla || ''
                 const invItem = inventario.find(i => i.variante_id === item.variante_id && (sucursalId ? i.sucursal_id === sucursalId : true))
                 const stock = invItem ? invItem.cantidad : null
+                const pidioApartar = !item.reservado && item.solicitud_apartar
                 return `
-                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:${pidioApartar?'#fffbeb':'#f9f9f9'};border-radius:8px;margin-bottom:8px;border:1px solid ${pidioApartar?'#fbbf24':'#eee'};flex-wrap:wrap">
                     ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${item.reservado ? '🔒 ' : ''}${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
+                      ${pidioApartar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">🙋 Clienta pidió apartar este par</p>` : ''}
                       ${item.solicitud_liberar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">⚠️ Clienta pidió quitarlo</p>` : ''}
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
                     </div>
