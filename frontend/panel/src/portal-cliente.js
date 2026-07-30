@@ -723,6 +723,15 @@ function renderInicio(el) {
         <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">📸 Compartir o descargar fotos</p>
         <p style="margin:0 0 16px">Dentro de la ficha de un producto, toca cualquier foto para verla en grande. Ahí puedes compartir esa foto sola, o activar "seleccionar varias" para elegir varias fotos del mismo modelo y compartirlas o descargarlas juntas de una vez. También puedes compartir las fotos de portada de varios productos sin entrar a cada uno: en el catálogo, selecciona los modelos/colores que quieras y compártelos juntos por WhatsApp. No hay un límite fijo de cuántas fotos puedes seleccionar — el límite real depende de la app a la que las compartas (por ejemplo, WhatsApp).</p>
 
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">📥 Catálogos para descargar</p>
+        <p style="margin:0 0 16px">En "Catálogos" puedes bajar un PDF con las fotos de todos los modelos activos de cada categoría (tacones, sandalias, botas, etc.) — listo para mandarlo directo a tus clientas por WhatsApp, sin tener que armar nada tú misma.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">💡 Sugerencias</p>
+        <p style="margin:0 0 16px">Esta sección no es de productos — es para escribirnos directo si quieres pedir una función nueva, avisar de un error, o darnos cualquier recomendación sobre el portal.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0">👤 Mi cuenta</p>
+        <p style="margin:0">Ahí actualizas tu dirección de envío (necesaria para poder cerrar cualquier pedido), tus datos de contacto y tu crédito disponible si tienes.</p>
+
       </div>
     </details>
 
@@ -2644,7 +2653,7 @@ function renderCarrito(el) {
           ${pc._seleccionApartadoActivo ? 'Cancelar selección' : '🔒 Apartar pares específicos'}
         </button>
         <div style="display:flex;gap:8px">
-          <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
+          <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem">
             Cerrar pedido
           </button>
           <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem">
