@@ -1308,7 +1308,6 @@ window.pcAbrirProducto = function(prodId) {
           <div style="flex:1;min-width:0">
             <p style="font-size:0.65rem;font-family:monospace;color:var(--pc-muted);margin:0 0 2px">${esc(p.sku_interno||'')}</p>
             <p style="font-weight:700;font-size:0.95rem;line-height:1.25;color:var(--pc-text);margin:0">${esc(p.nombre)}</p>
-            <p style="font-weight:800;color:#E91E8C;font-size:1.05rem;margin:4px 0 0">${fmtP(parseFloat(p.precio_menudeo)||0)} <span style="font-size:0.72rem;font-weight:600;color:var(--pc-muted)">menudeo</span></p>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
             <button onclick="history.back()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--pc-muted);line-height:1">✕</button>
@@ -2652,8 +2651,10 @@ function renderCarrito(el) {
         <button onclick="pcToggleModoSeleccionApartado()" class="pc-btn ${pc._seleccionApartadoActivo ? 'pc-btn-secondary' : 'pc-btn-primary'}" style="width:100%;margin-bottom:8px">
           ${pc._seleccionApartadoActivo ? 'Cancelar selección' : '🔒 Apartar pares específicos'}
         </button>
+        ${totalPares < 3 ? `
+        <p style="font-size:0.75rem;color:var(--pc-muted);margin:0 0 8px;text-align:center">Pedido mínimo para cerrar: 3 pares (llevas ${totalPares})</p>` : ''}
         <div style="display:flex;gap:8px">
-          <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem">
+          <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem" ${totalPares < 3 ? 'disabled title="Pedido mínimo: 3 pares"' : ''}>
             Cerrar pedido
           </button>
           <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem">
@@ -3104,6 +3105,11 @@ window.pcCerrarPedidoDirecto = async function() {
   const notas = document.getElementById('pc-notas')?.value?.trim() || ''
   const errEl = document.getElementById('pc-pedido-err')
   if (pc.carrito.length === 0) return
+  const totalParesCierre = pc.carrito.reduce((s, i) => s + (i.cantidad || 0), 0)
+  if (totalParesCierre < 3) {
+    if (errEl) { errEl.textContent = `Pedido mínimo para cerrar: 3 pares (llevas ${totalParesCierre})`; errEl.style.display = 'block' }
+    return
+  }
   if (!pc.sesion?.cliente_id) { if (errEl) { errEl.textContent = 'Sin sesión activa'; errEl.style.display = 'block' } return }
   const direccion = (pc.clienteData?.direccion || '').trim()
   if (!direccion) {
