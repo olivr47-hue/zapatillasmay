@@ -1200,16 +1200,18 @@ def save_config_envio(datos: dict):
         return {"error": str(e)}
 
 
+_PAGO_TRANSFERENCIA_CAMPOS = ["banco", "clabe", "cuenta", "tarjeta_oxxo", "titular"]
+
 @router.get("/config/pago-transferencia")
 def get_config_pago_transferencia():
     """Datos bancarios reales para mostrar al cliente cuando cierra un apartado
-    pagando por transferencia (portal mayorista)."""
+    pagando por transferencia/OXXO (portal mayorista)."""
     cached = cache_get("config_pago_transferencia")
     if cached is not None:
         return cached
     try:
         rows = supabase_get("configuracion?clave=like.banco_*&select=clave,valor")
-        cfg = {"banco": "", "clabe": "", "titular": ""}
+        cfg = {campo: "" for campo in _PAGO_TRANSFERENCIA_CAMPOS}
         for r in rows:
             clave = r["clave"].replace("banco_", "")
             if clave in cfg:
@@ -1217,14 +1219,14 @@ def get_config_pago_transferencia():
         cache_set("config_pago_transferencia", cfg, ttl=3600)
         return cfg
     except Exception:
-        return {"banco": "", "clabe": "", "titular": ""}
+        return {campo: "" for campo in _PAGO_TRANSFERENCIA_CAMPOS}
 
 
 @router.post("/config/pago-transferencia")
 def save_config_pago_transferencia(datos: dict):
     """Guarda los datos bancarios desde el panel."""
     try:
-        for campo in ["banco", "clabe", "titular"]:
+        for campo in _PAGO_TRANSFERENCIA_CAMPOS:
             if campo not in datos:
                 continue
             clave = f"banco_{campo}"

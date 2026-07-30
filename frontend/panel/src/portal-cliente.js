@@ -2990,7 +2990,7 @@ window.pcAbrirCerrarApartado = function(pedidoId, total) {
       <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
         <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">Cerrar pedido — ${money(total)}</h3>
         <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
-        <button id="pc-pago-btn-transferencia" onclick="pcCerrarApartadoConPago('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
+        <button id="pc-pago-btn-transferencia" onclick="pcCerrarApartadoConPago('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia o pago en OXXO</button>
         <button id="pc-pago-btn-tarjeta" onclick="pcCerrarApartadoConPago('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
         <div id="pc-cerrar-apartado-resultado" style="margin-top:16px"></div>
       </div>
@@ -3053,10 +3053,15 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
       } else if (resultado) {
         resultado.innerHTML = `
           <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px">
-            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transfiere a:</p>
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transferencia bancaria:</p>
             <p style="font-size:0.85rem;margin:0 0 4px"><strong>Banco:</strong> ${esc(cfg.banco)}</p>
             <p style="font-size:0.85rem;margin:0 0 4px"><strong>CLABE:</strong> ${esc(cfg.clabe)}</p>
-            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+            ${cfg.cuenta ? `<p style="font-size:0.85rem;margin:0 0 4px"><strong>Cuenta (sin CLABE):</strong> ${esc(cfg.cuenta)}</p>` : ''}
+            <p style="font-size:0.85rem;margin:0 0 10px"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+            ${cfg.tarjeta_oxxo ? `
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 8px;border-top:1px solid var(--pc-border);padding-top:10px">O deposita en OXXO a esta tarjeta:</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Tarjeta:</strong> ${esc(cfg.tarjeta_oxxo)}</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>` : ''}
           </div>
           <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
       }
@@ -3169,7 +3174,7 @@ window.pcAbrirPagoDirecto = function(pedidoId, total, itemsParaMP) {
       <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
         <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">¡Pedido enviado! — ${money(total)}</h3>
         <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
-        <button onclick="pcElegirPagoDirecto('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
+        <button onclick="pcElegirPagoDirecto('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia o pago en OXXO</button>
         <button onclick="pcElegirPagoDirecto('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
         <div id="pc-pago-directo-resultado" style="margin-top:16px"></div>
       </div>
@@ -3191,10 +3196,15 @@ window.pcElegirPagoDirecto = async function(pedidoId, formaPago) {
       } else if (resultado) {
         resultado.innerHTML = `
           <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px">
-            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transfiere a:</p>
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transferencia bancaria:</p>
             <p style="font-size:0.85rem;margin:0 0 4px"><strong>Banco:</strong> ${esc(cfg.banco)}</p>
             <p style="font-size:0.85rem;margin:0 0 4px"><strong>CLABE:</strong> ${esc(cfg.clabe)}</p>
-            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+            ${cfg.cuenta ? `<p style="font-size:0.85rem;margin:0 0 4px"><strong>Cuenta (sin CLABE):</strong> ${esc(cfg.cuenta)}</p>` : ''}
+            <p style="font-size:0.85rem;margin:0 0 10px"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+            ${cfg.tarjeta_oxxo ? `
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 8px;border-top:1px solid var(--pc-border);padding-top:10px">O deposita en OXXO a esta tarjeta:</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Tarjeta:</strong> ${esc(cfg.tarjeta_oxxo)}</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>` : ''}
           </div>
           <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
       }
@@ -3319,10 +3329,29 @@ function pcPedidoDetalle(p) {
       </div>` : ''}
       ${['pendiente_pago','checkout_iniciado'].includes(p.status) ? `
       <button onclick="pcContinuarPago('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;margin-top:14px;font-size:0.82rem">💳 Continuar pago</button>
-      <p style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;text-align:center">${p.status === 'checkout_iniciado' ? 'El link de pago anterior quedó a medias -- genera uno nuevo o paga por transferencia.' : 'Elige cómo pagar este pedido.'}</p>` : ''}
+      <p style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;text-align:center">${p.status === 'checkout_iniciado' ? 'El link de pago anterior quedó a medias -- genera uno nuevo o paga por transferencia.' : 'Elige cómo pagar este pedido.'}</p>
+      <button onclick="pcCancelarPedidoCliente('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.78rem;color:#ef4444">✕ Ya no quiero este pedido, cancelarlo</button>` : ''}
       ${items.length > 0 ? `
       <button onclick="pcReordenar('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.82rem">🔁 Pedir de nuevo</button>` : ''}
     </div>`
+}
+
+window.pcCancelarPedidoCliente = async function(pedidoId) {
+  if (!confirm('¿Cancelar este pedido? No se podrá pagar después -- si cambias de opinión tendrás que hacer uno nuevo.')) return
+  try {
+    const res = await fetch(`${PC_API}/pedidos/${pedidoId}/cancelar`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.error) throw new Error(data.error || 'No se pudo cancelar')
+    if (pc.sesion?.cliente_id) {
+      const rp = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() }).catch(() => null)
+      if (rp?.ok) {
+        const todos = await rp.json()
+        pc.pedidos = Array.isArray(todos) ? todos.filter(p => p.notas !== PC_BORRADOR_MARCA) : todos
+      }
+    }
+    if (typeof pcMostrarExito === 'function') pcMostrarExito('Pedido cancelado')
+    renderMisPedidos()
+  } catch (e) { alert('Error: ' + e.message) }
 }
 
 window.pcContinuarPago = function(pedidoId) {
