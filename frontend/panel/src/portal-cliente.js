@@ -6,6 +6,11 @@
 const PC_API        = '/api'
 const PC_SESION_KEY = 'pc_sesion'
 const PC_CARRITO_KEY = 'pc_carrito'
+// Snapshot del carrito tal como quedó la ÚLTIMA VEZ que se confirmó sincronizado
+// con éxito contra el servidor -- ver pcRestaurarCarritoDeServidor() y
+// pcRefrescarCarritoSiCambio() para por qué existe (evita que un borrado
+// reaparezca si se recarga/refresca antes de que el servidor se entere).
+const PC_CARRITO_SYNCED_KEY = 'pc_carrito_synced'
 // Marca el pedido-borrador que respalda el carrito activo en el servidor, para
 // distinguirlo de un pedido real sin importar su status (incluso ya cancelado).
 const PC_BORRADOR_MARCA = '[carrito-respaldo]'
@@ -257,16 +262,16 @@ function renderPC() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
       <span>Productos</span>
     </button>
+    <button class="pc-bn-item pc-bn-search" onclick="pcBottomSearch()" aria-label="Buscar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span>Buscar</span>
+    </button>
     <button class="pc-nav-item pc-bn-item pc-bn-cart${pc.tab === 'carrito' ? ' activo' : ''}" onclick="pcIrA('carrito')" aria-label="Carrito">
       <span class="pc-bn-cart-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         <span class="pc-bn-badge" id="pc-bn-cart-badge" style="display:none" aria-hidden="true">0</span>
       </span>
       <span>Carrito</span>
-    </button>
-    <button class="pc-nav-item pc-bn-item${pc.tab === 'pedidos' ? ' activo' : ''}" onclick="pcIrA('pedidos')" aria-label="Mis pedidos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg>
-      <span>Pedidos</span>
     </button>
     <button class="pc-nav-item pc-bn-item${pc.tab === 'cuenta' ? ' activo' : ''}" onclick="pcIrA('cuenta')" aria-label="Mi cuenta">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
@@ -329,6 +334,13 @@ function renderPC() {
       .pc-bn-item:active { transform: scale(0.92); }
       .pc-bn-item:active svg { transform: scale(1.12); }
       .pc-bn-item.activo { color: #E91E8C; background: none; }
+      /* Botón Buscar destacado (centro) */
+      .pc-bn-search svg {
+        background: #E91E8C; color: white;
+        border-radius: 50%; padding: 7px; width: 36px; height: 36px;
+        box-shadow: 0 4px 14px rgba(233,30,140,0.45); margin-top: -14px;
+      }
+      .pc-bn-search span:last-child { margin-top: 1px; }
       .pc-bn-cart-wrap { position: relative; display: inline-flex; }
       .pc-bn-badge {
         position: absolute; top: -6px; right: -8px;
@@ -340,7 +352,6 @@ function renderPC() {
       /* Espacio para que el bottom-nav no tape contenido ni los flotantes existentes */
       #pc-content { padding-bottom: 76px !important; }
       a[href*="wa.me"][style*="fixed"] { bottom: 84px !important; }
-      #pc-float-cart { bottom: 76px !important; }
       #pc-bulk-share-bar { bottom: 76px !important; }
     }
     .pc-prod-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
@@ -399,8 +410,9 @@ function renderPC() {
       if (cursor != null) inputDespues.setSelectionRange(cursor, cursor)
     }
   }
-  window.pcVaciarCarrito = () => { pc.carrito = []; pcGuardarCarrito(); renderCarrito() }
+  window.pcVaciarCarrito = () => { pc.carrito = []; pcGuardarCarrito(true); renderCarrito() }
   window.pcActualizarBadgeCarritoTopbar = pcActualizarBadgeCarritoTopbar
+  window.pcBottomSearch = pcBottomSearch
 
   // Reemplazar spinner de inmediato
   const _initContent = document.getElementById('pc-content')
@@ -467,6 +479,18 @@ function pcToggleSidebar(_fromBack) {
   if (isOpen && !_fromBack && window._zmPushBack) {
     window._zmPushBack(() => pcToggleSidebar(true))
   }
+}
+
+// Botón "Buscar" del bottom-nav: va a Productos (si no estabas ahí), sube
+// hasta arriba y enfoca el buscador -- mismo patrón que zmBottomSearch() en la tienda.
+function pcBottomSearch() {
+  if (pc.tab !== 'catalogo') pcIrA('catalogo')
+  const main = document.getElementById('pc-main')
+  if (main) main.scrollTo({ top: 0, behavior: 'smooth' })
+  setTimeout(() => {
+    const input = document.getElementById('pc-search-input')
+    if (input) input.focus()
+  }, 300)
 }
 
 // ── Carga inicial de datos ───────────────────────────────────
@@ -872,21 +896,7 @@ function renderCatalogo(el) {
           </div>
         </div>`
       }
-      const totalPares = pc.carrito.reduce((s, i) => s + i.cantidad, 0)
-      const totalMonto = pc.carrito.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0)
-      if (totalPares === 0) return ''
-      return `
-      <div id="pc-float-cart" onclick="pcIrA('carrito')"
-        style="position:fixed;bottom:20px;right:20px;z-index:900;background:var(--pc-card);border:1.5px solid #E91E8C;border-radius:100px;padding:10px 18px 10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,0.5);transition:transform 0.15s"
-        onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
-        <div style="position:relative;width:38px;height:38px;background:#E91E8C;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🛒
-          <span style="position:absolute;top:-5px;right:-5px;background:white;color:#E91E8C;font-size:0.62rem;font-weight:800;min-width:18px;height:18px;border-radius:100px;display:flex;align-items:center;justify-content:center;padding:0 4px">${totalPares}</span>
-        </div>
-        <div style="line-height:1.2">
-          <p style="margin:0;font-size:0.68rem;color:var(--pc-text-4);font-weight:600">${totalPares} par${totalPares !== 1 ? 'es' : ''} · Ver carrito</p>
-          <p style="margin:0;font-size:0.95rem;font-weight:800;color:#E91E8C">${money(totalMonto)}</p>
-        </div>
-      </div>`
+      return ''
     })()}
   `
 }
@@ -2086,9 +2096,17 @@ window.abrirLightboxPC = function(src, fotos, sku) {
 }
 
 
-function pcGuardarCarrito() {
+function pcGuardarCarrito(inmediato) {
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
-  pcSincronizarCarritoServidorDebounced()
+  // Quitar un par debe reflejarse en el servidor YA -- si se deja en el debounce
+  // normal (1.5s) y el cliente recarga antes de que corra, el borrador del
+  // servidor sigue con el item viejo y pcRestaurarCarritoDeServidor lo revive.
+  if (inmediato) {
+    clearTimeout(_pcSyncTimer)
+    pcSincronizarCarritoServidor().catch(() => {})
+  } else {
+    pcSincronizarCarritoServidorDebounced()
+  }
   if (typeof pcActualizarBadgeCarritoTopbar === 'function') {
     pcActualizarBadgeCarritoTopbar()
   }
@@ -2122,6 +2140,12 @@ async function pcSincronizarCarritoServidor() {
   }
 }
 
+function _pcMarcarSincronizado() {
+  // Snapshot de "esto es lo que el servidor de verdad tiene ahora" -- ver
+  // PC_CARRITO_SYNCED_KEY arriba.
+  try { localStorage.setItem(PC_CARRITO_SYNCED_KEY, JSON.stringify(pc.carrito)) } catch {}
+}
+
 async function _pcSincronizarCarritoServidorReal() {
   if (!pc.carrito.length) {
     // Carrito vacío: cancelar el borrador del servidor si había uno, para no
@@ -2129,7 +2153,12 @@ async function _pcSincronizarCarritoServidorReal() {
     if (pc._borradorServerId) {
       const idViejo = pc._borradorServerId
       pc._borradorServerId = null
-      fetch(`${PC_API}/pedidos/${idViejo}/cancelar`, { method: 'POST' }).catch(() => {})
+      try {
+        const res = await fetch(`${PC_API}/pedidos/${idViejo}/cancelar`, { method: 'POST' })
+        if (res.ok) _pcMarcarSincronizado()
+      } catch (e) { /* si falla, PC_CARRITO_SYNCED_KEY se queda vieja y el próximo restore reintenta */ }
+    } else {
+      _pcMarcarSincronizado()
     }
     return
   }
@@ -2153,24 +2182,33 @@ async function _pcSincronizarCarritoServidorReal() {
     pc._borradorServerId = pedidoId
   }
   try {
+    let huboError = false
     const actuales = await fetch(`${PC_API}/pedidos/${pedidoId}/items`).then(r => r.ok ? r.json() : [])
     for (const it of (Array.isArray(actuales) ? actuales : [])) {
-      await fetch(`${PC_API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE' }).catch(() => {})
+      const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE' }).catch(() => null)
+      if (!r || !r.ok) huboError = true
     }
     for (const item of pc.carrito) {
-      await fetch(`${PC_API}/pedidos/${pedidoId}/items`, {
+      const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           variante_id: item.variante_id, cantidad: item.cantidad, precio_unitario: item.precio_unitario,
           subtotal: item.cantidad * item.precio_unitario, nombre: item.nombre, color: item.color,
           talla: item.talla, es_corrida: !!item.es_corrida,
         })
-      }).catch(() => {})
+      }).catch(() => null)
+      if (!r || !r.ok) huboError = true
     }
     const total = pc.carrito.reduce((s, i) => s + i.cantidad * i.precio_unitario, 0)
-    await fetch(`${PC_API}/pedidos/${pedidoId}`, {
+    const rTotal = await fetch(`${PC_API}/pedidos/${pedidoId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ total })
-    }).catch(() => {})
+    }).catch(() => null)
+    if (!rTotal || !rTotal.ok) huboError = true
+    // Solo se marca "confirmado con el servidor" si TODO salió bien -- si algo
+    // falló (404/500/red caída), se deja la marca vieja para que el próximo
+    // restore/poll detecte la diferencia y reintente el envío en vez de
+    // asumir que el servidor ya tiene el estado correcto.
+    if (!huboError) _pcMarcarSincronizado()
   } catch (e) { /* silencioso -- el carrito local sigue funcionando aunque falle el respaldo */ }
 }
 
@@ -2182,6 +2220,20 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
     .find(p => p.notas === PC_BORRADOR_MARCA)
   if (!borrador) return
   pc._borradorServerId = borrador.id
+
+  // Si el carrito local (cargado de localStorage al iniciar, ANTES de esta
+  // función) no coincide con el último snapshot confirmado como sincronizado,
+  // hay un cambio local (ej. un "quitar") que el servidor todavía no confirmó
+  // -- pisar con lo que diga el servidor en ese momento revivirla justo lo que
+  // el cliente acaba de borrar. En ese caso se respeta lo local y se reintenta
+  // empujarlo al servidor, en vez de leerlo de vuelta.
+  let ultimoSincronizado = null
+  try { ultimoSincronizado = localStorage.getItem(PC_CARRITO_SYNCED_KEY) } catch {}
+  if (ultimoSincronizado !== null && ultimoSincronizado !== JSON.stringify(pc.carrito)) {
+    pcSincronizarCarritoServidorDebounced()
+    return
+  }
+
   const items = borrador.pedido_items || []
   // El borrador del servidor es la fuente de verdad del carrito: así, si la
   // asesora arma/edita el carrito del cliente desde el panel de administración,
@@ -2205,6 +2257,7 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
   if (!delServidor.length) return
   pc.carrito = delServidor
   try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+  _pcMarcarSincronizado()
   if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
 }
 
@@ -2244,6 +2297,15 @@ async function pcRefrescarCarritoSiCambio() {
     const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario]))
     const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario]))
     if (antes === despues) return  // sin cambios, no tocar el DOM
+    // Si lo local todavía no se confirmó sincronizado (ej. un "quitar" reciente
+    // cuyo DELETE al servidor sigue en camino), no hay que pisarlo con el
+    // estado -viejo- que este poll acaba de leer -- solo reintentar el envío.
+    let ultimoSincronizado = null
+    try { ultimoSincronizado = localStorage.getItem(PC_CARRITO_SYNCED_KEY) } catch {}
+    if (ultimoSincronizado !== null && ultimoSincronizado !== JSON.stringify(pc.carrito)) {
+      pcSincronizarCarritoServidorDebounced()
+      return
+    }
     pc._borradorServerId = borrador?.id || null
     pc.carrito = itemsServidor.map(i => {
       const v = i.variantes
@@ -2256,6 +2318,7 @@ async function pcRefrescarCarritoSiCambio() {
       }
     })
     try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
+    _pcMarcarSincronizado()
     if (typeof pcActualizarBadgeCarritoTopbar === 'function') pcActualizarBadgeCarritoTopbar()
     if (pc.tab === 'carrito') renderCarrito()
   } catch (e) { /* silencioso -- se reintenta en el siguiente ciclo */ }
@@ -2590,14 +2653,14 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
 
 window.pcQuitarDelCarrito = function(idx) {
   pc.carrito.splice(idx, 1)
-  pcGuardarCarrito()
+  pcGuardarCarrito(true)
   renderCarrito()
 }
 
 window.pcQuitarCorrida = function(key) {
   const [productoId, color] = key.split('|')
   pc.carrito = pc.carrito.filter(i => !(i.es_corrida && i.producto_id === productoId && i.color === color))
-  pcGuardarCarrito()
+  pcGuardarCarrito(true)
   renderCarrito()
 }
 
@@ -2646,7 +2709,7 @@ window.pcHacerPedido = async function() {
     })
     if (res.ok) {
       pc.carrito = []
-      pcGuardarCarrito()
+      pcGuardarCarrito(true)
       // Recargar pedidos (filtrando el borrador que respaldaba el carrito)
       if (pc.sesion?.cliente_id) {
         const rp = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`)
