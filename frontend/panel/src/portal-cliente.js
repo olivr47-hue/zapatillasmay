@@ -1869,6 +1869,11 @@ window.abrirLightboxPC = function(src, fotos, sku) {
   let idx = fotos.indexOf(src)
   if (idx < 0) idx = 0
 
+  // Modo selección múltiple: para compartir varias fotos del mismo modelo
+  // de un jalón, en vez de una por una.
+  let modoSeleccion = false
+  let seleccion = new Set()
+
   const lb = document.createElement('div')
   lb.id = 'pc-lightbox'
   lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:19999;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;user-select:none'
@@ -1891,18 +1896,31 @@ window.abrirLightboxPC = function(src, fotos, sku) {
 
   const render = () => {
     const total = fotos.length
+    const numSel = seleccion.size
     lb.innerHTML = `
       <button onclick="history.back()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;font-size:1.4rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">✕</button>
-      <button onclick="pcCompartirImagenLB()" title="Compartir esta foto" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
+      <button onclick="${numSel > 0 ? 'pcCompartirSeleccionLB()' : 'pcCompartirImagenLB()'}" title="${numSel > 0 ? 'Compartir ' + numSel + ' fotos' : 'Compartir esta foto'}" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,0.15);border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+        ${numSel > 0 ? `<span style="position:absolute;top:-4px;right:-4px;background:#E91E8C;color:white;border-radius:100px;min-width:17px;height:17px;font-size:0.62rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px">${numSel}</span>` : ''}
       </button>
       <button onclick="pcDescargarImagenLB()" title="Descargar esta foto" style="position:absolute;top:16px;left:68px;background:rgba(255,255,255,0.15);border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
       </button>
+      ${total > 1 ? `<button onclick="pcToggleModoSeleccionLB()" title="${modoSeleccion ? 'Cerrar selección' : 'Seleccionar varias fotos'}" style="position:absolute;top:16px;left:120px;background:${modoSeleccion ? 'rgba(233,30,140,0.55)' : 'rgba(255,255,255,0.15)'};border:none;color:white;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="12" height="12" rx="2"/><path d="M8 21h9a2 2 0 0 0 2-2V8"/></svg>
+      </button>` : ''}
       ${total > 1 ? `<button id="lb-prev" onclick="lbNav(-1)" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===0?0.3:1}">‹</button>` : ''}
       <img id="lb-img" src="${fotos[idx]}" style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,0.8);user-select:none;-webkit-user-drag:none;cursor:zoom-in;transition:transform 0.1s ease-out">
       ${total > 1 ? `<button id="lb-next" onclick="lbNav(1)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.12);border:none;color:white;font-size:1.6rem;width:44px;height:44px;border-radius:50%;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center;opacity:${idx===total-1?0.3:1}">›</button>` : ''}
-      ${total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px;z-index:2">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : ''}
+      ${modoSeleccion
+        ? `<div style="display:flex;gap:8px;margin-top:16px;z-index:2;max-width:92vw;overflow-x:auto;padding:4px 2px">${fotos.map((f,i)=>`
+            <div onclick="pcToggleSeleccionFotoLB(${i})" style="position:relative;flex-shrink:0;cursor:pointer">
+              <img src="${f}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:2px solid ${seleccion.has(i) ? '#E91E8C' : 'rgba(255,255,255,0.3)'};opacity:${seleccion.has(i) ? 1 : 0.55}">
+              ${seleccion.has(i) ? `<span style="position:absolute;top:-5px;right:-5px;background:#E91E8C;color:white;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;border:2px solid rgba(0,0,0,0.9)">✓</span>` : ''}
+            </div>`).join('')}</div>
+           <p style="color:rgba(255,255,255,0.6);font-size:0.72rem;margin:8px 0 0;z-index:2">Toca las fotos que quieres compartir</p>`
+        : (total > 1 ? `<div style="display:flex;gap:6px;margin-top:14px;z-index:2">${fotos.map((_,i)=>`<div onclick="lbGoto(${i})" style="width:${i===idx?'22px':'8px'};height:8px;border-radius:4px;background:${i===idx?'#E91E8C':'rgba(255,255,255,0.3)'};cursor:pointer;transition:all 0.2s"></div>`).join('')}</div>` : '')
+      }
     `
   }
 
@@ -1943,6 +1961,53 @@ window.abrirLightboxPC = function(src, fotos, sku) {
       if (typeof pcMostrarExito === 'function') pcMostrarExito('Imagen descargada')
     } catch (e) {
       window.open(url, '_blank')
+    }
+  }
+
+  window.pcToggleModoSeleccionLB = () => {
+    modoSeleccion = !modoSeleccion
+    if (modoSeleccion) seleccion.add(idx) // arranca con la foto que ya estabas viendo
+    else seleccion.clear()
+    render()
+    addGestures()
+  }
+
+  window.pcToggleSeleccionFotoLB = (i) => {
+    if (seleccion.has(i)) seleccion.delete(i)
+    else seleccion.add(i)
+    render()
+    addGestures()
+  }
+
+  window.pcCompartirSeleccionLB = async () => {
+    const urls = [...seleccion].sort((a, b) => a - b).map(i => fotos[i])
+    if (!urls.length) return
+    try {
+      const files = []
+      for (const url of urls) {
+        const resp = await fetch(url)
+        const blob = await resp.blob()
+        const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+        files.push(new File([blob], `zapatillasmay-${Date.now()}-${files.length}.${ext}`, { type: blob.type }))
+      }
+      if (navigator.canShare && navigator.canShare({ files })) {
+        await navigator.share({ files, title: 'Zapatillas May' })
+      } else if (navigator.share) {
+        await navigator.share({ url: urls[0] })
+      } else {
+        for (const f of files) {
+          const a = document.createElement('a')
+          a.href = URL.createObjectURL(f)
+          a.download = f.name
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          await new Promise(r => setTimeout(r, 300))
+        }
+        if (typeof pcMostrarExito === 'function') pcMostrarExito(`${files.length} fotos descargadas`)
+      }
+    } catch (e) {
+      if (e?.name !== 'AbortError' && typeof pcMostrarExito === 'function') pcMostrarExito('No se pudo compartir las fotos')
     }
   }
 
