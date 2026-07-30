@@ -3317,9 +3317,23 @@ function pcPedidoDetalle(p) {
             <p style="font-weight:700;color:var(--pc-text);margin:0;flex-shrink:0">${money((i.precio_unitario||0)*i.cantidad)}</p>
           </div>`).join('')}
       </div>` : ''}
+      ${['pendiente_pago','checkout_iniciado'].includes(p.status) ? `
+      <button onclick="pcContinuarPago('${p.id}')" class="pc-btn pc-btn-primary" style="width:100%;margin-top:14px;font-size:0.82rem">💳 Continuar pago</button>
+      <p style="font-size:0.72rem;color:var(--pc-muted);margin:6px 0 0;text-align:center">${p.status === 'checkout_iniciado' ? 'El link de pago anterior quedó a medias -- genera uno nuevo o paga por transferencia.' : 'Elige cómo pagar este pedido.'}</p>` : ''}
       ${items.length > 0 ? `
-      <button onclick="pcReordenar('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:14px;font-size:0.82rem">🔁 Pedir de nuevo</button>` : ''}
+      <button onclick="pcReordenar('${p.id}')" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:10px;font-size:0.82rem">🔁 Pedir de nuevo</button>` : ''}
     </div>`
+}
+
+window.pcContinuarPago = function(pedidoId) {
+  const p = (pc.pedidos || []).find(x => x.id === pedidoId)
+  if (!p) return
+  const items = p.pedido_items || []
+  const itemsParaMP = items.map(i => ({
+    nombre: i.variantes?.productos?.nombre || i.nombre || 'Producto',
+    cantidad: i.cantidad, precio: i.precio_unitario,
+  }))
+  pcAbrirPagoDirecto(pedidoId, parseFloat(p.total || 0), itemsParaMP)
 }
 
 window.pcReordenar = function(pedidoId) {
