@@ -3549,4 +3549,29 @@ function pcActualizarBadgeCarritoTopbar() {
       badge.style.display = 'none'
     }
   })
+  _pcActualizarBottomNavApartados()
+}
+
+// El ícono "Apartados" del bottom nav solo aparece cuando la clienta
+// realmente tiene pares apartados -- no siempre, para no llenar la barra
+// de algo que la mayoría de las visitas no necesita.
+function _pcActualizarBottomNavApartados() {
+  const nav = document.getElementById('pc-bottomnav')
+  if (!nav) return
+  const hayApartados = (pc.carrito || []).some(i => i.reservado)
+  let btn = document.getElementById('pc-bn-apartados')
+  if (hayApartados && !btn) {
+    const cuentaBtn = nav.querySelector('.pc-nav-item:last-child')
+    btn = document.createElement('button')
+    btn.id = 'pc-bn-apartados'
+    btn.className = 'pc-nav-item pc-bn-item' + (pc.tab === 'apartados' ? ' activo' : '')
+    btn.setAttribute('aria-label', 'Apartados')
+    btn.onclick = () => pcIrA('apartados')
+    btn.innerHTML = `<span style="font-size:1.15rem;line-height:1">🔒</span><span>Apartados</span>`
+    if (cuentaBtn) nav.insertBefore(btn, cuentaBtn); else nav.appendChild(btn)
+  } else if (!hayApartados && btn) {
+    btn.remove()
+  } else if (btn) {
+    btn.classList.toggle('activo', pc.tab === 'apartados')
+  }
 }

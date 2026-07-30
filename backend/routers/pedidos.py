@@ -662,6 +662,19 @@ def solicitar_apartado_items(id: str, datos: dict):
             r = supabase_patch(f"pedido_items?id=eq.{iid}&pedido_id=eq.{id}&reservado=eq.false", {"solicitud_apartar": True})
             if r:
                 marcados += 1
+        if marcados:
+            try:
+                from routers.push import enviar_push
+                pedido = supabase_get(f"pedidos?id=eq.{id}&select=*,clientes(nombre)")
+                nombre_cli = (pedido[0].get("clientes") or {}).get("nombre") if pedido else None
+                enviar_push(
+                    titulo="🙋 Solicitud de apartado",
+                    cuerpo=f"{nombre_cli or 'Una clienta'} pidió apartar {marcados} par(es)",
+                    url="/?modulo=carritos",
+                    sitio="panel",
+                )
+            except Exception as e_push:
+                print(f"[push] Error avisando solicitud de apartado: {e_push}")
         return {"ok": True, "items": marcados}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -676,6 +689,18 @@ def solicitar_liberacion_item(id: str, item_id: str):
         if not item_actual:
             return JSONResponse(status_code=404, content={"error": "Ítem no encontrado"})
         supabase_patch(f"pedido_items?id=eq.{item_id}", {"solicitud_liberar": True})
+        try:
+            from routers.push import enviar_push
+            pedido = supabase_get(f"pedidos?id=eq.{id}&select=*,clientes(nombre)")
+            nombre_cli = (pedido[0].get("clientes") or {}).get("nombre") if pedido else None
+            enviar_push(
+                titulo="⚠️ Solicitud de liberación",
+                cuerpo=f"{nombre_cli or 'Una clienta'} pidió quitar un par apartado",
+                url="/?modulo=carritos",
+                sitio="panel",
+            )
+        except Exception as e_push:
+            print(f"[push] Error avisando solicitud de liberación: {e_push}")
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

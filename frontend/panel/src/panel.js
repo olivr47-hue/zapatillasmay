@@ -25423,12 +25423,10 @@ window.aprobarApartadoCarrito = async (pedidoId) => {
     : '¿Aprobar este apartado? Se descontará el stock de todos los pares del carrito y la clienta ya no podrá quitarlos sin tu autorización.')) return
   const anticipoStr = prompt('¿Cuánto anticipo dio la clienta? (deja vacío o 0 si no dio nada)', window._carritoActivo?.pedidoData?.anticipo || '0')
   if (anticipoStr === null) return
-  const diasStr = prompt('¿Cuántos días le apartas los pares?', window._carritoActivo?.pedidoData?.dias_apartado || '3')
-  if (diasStr === null) return
   try {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/aprobar-apartado', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anticipo: parseFloat(anticipoStr) || 0, dias_apartado: parseInt(diasStr) || null })
+      body: JSON.stringify({ anticipo: parseFloat(anticipoStr) || 0 })
     })
     const data = await res.json()
     if (data.ok) {
