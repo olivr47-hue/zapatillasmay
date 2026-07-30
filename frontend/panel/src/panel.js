@@ -24124,14 +24124,16 @@ async function cargarCarritos() {
               const anticipo = parseFloat(p.anticipo || 0)
               const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
               const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
+              const nQuitar = (p.pedido_items || []).filter(i => i.reservado && i.solicitud_liberar).length
               return `
-                <div style="background:white;border-radius:14px;border:1px solid ${nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
                       <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
                       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+                        ${nQuitar > 0 ? `<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #dc2626;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🚫 ${nQuitar} quitar</span>` : ''}
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
                         ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
                         ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
@@ -24554,13 +24556,14 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const invItem = inventario.find(i => i.variante_id === item.variante_id && (sucursalId ? i.sucursal_id === sucursalId : true))
                 const stock = invItem ? invItem.cantidad : null
                 const pidioApartar = !item.reservado && item.solicitud_apartar
+                const pidioQuitar = item.reservado && item.solicitud_liberar
                 return `
-                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:${pidioApartar?'#fffbeb':'#f9f9f9'};border-radius:8px;margin-bottom:8px;border:1px solid ${pidioApartar?'#fbbf24':'#eee'};flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px;background:${pidioQuitar?'#fef2f2':pidioApartar?'#fffbeb':'#f9f9f9'};border-radius:8px;margin-bottom:8px;border:1px solid ${pidioQuitar?'#dc2626':pidioApartar?'#fbbf24':'#eee'};flex-wrap:wrap">
                     ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${item.reservado ? '🔒 ' : ''}${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
                       ${pidioApartar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">🙋 Clienta pidió apartar este par</p>` : ''}
-                      ${item.solicitud_liberar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">⚠️ Clienta pidió quitarlo</p>` : ''}
+                      ${pidioQuitar ? `<p style="font-size:0.7rem;color:#dc2626;font-weight:700;margin:2px 0 0">🚫 Clienta pidió quitarlo</p>` : ''}
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
