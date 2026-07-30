@@ -24044,8 +24044,10 @@ async function cargarCarritos() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
-    const [resBorradores, resClientes, resSucursales] = await Promise.all([
+    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales] = await Promise.all([
       fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
+      fetch(API + '/pedidos/apartados').then(r => r.json()).catch(() => []),
+      fetch(API + '/pedidos/solicitudes-liberacion').then(r => r.json()).catch(() => ({ total: 0 })),
       fetch(API + '/clientes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json())
     ])
@@ -24058,6 +24060,9 @@ async function cargarCarritos() {
           !p.canal || p.canal === 'sucursal' || p.canal === 'mayoreo' ||
           (p.canal === 'portal_mayoreo' && p.notas === '[carrito-respaldo]')))
       : []
+    const apartados = Array.isArray(resApartados) ? resApartados : []
+    const todos = [...apartados, ...borradores]
+    const numSolicitudes = resSolicitudes?.total || 0
 
     content.innerHTML = `
       <div style="padding:0 0 1rem">
@@ -24065,12 +24070,19 @@ async function cargarCarritos() {
           <div>
             <p style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Punto de venta</p>
             <h2 style="font-size:1.25rem;font-weight:700;color:#0f172a;margin:0">Carritos activos</h2>
-            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">El stock se reserva al confirmar la venta</p>
+            <p style="color:#94a3b8;font-size:0.78rem;margin:4px 0 0">El stock solo se reserva cuando apruebas un apartado</p>
           </div>
-          <button class="btn btn-primary" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${numSolicitudes > 0 ? `
+              <button class="btn btn-secondary" style="border-color:#f59e0b;color:#b45309;font-weight:700" onclick="verSolicitudesLiberacion()">
+                🔔 ${numSolicitudes} solicitud${numSolicitudes === 1 ? '' : 'es'} de liberación
+              </button>
+            ` : ''}
+            <button class="btn btn-primary" onclick="nuevoCarrito()">+ Nuevo carrito</button>
+          </div>
         </div>
 
-        ${borradores.length === 0 ? `
+        ${todos.length === 0 ? `
           <div class="table-card" style="padding:3rem;text-align:center">
             <p style="font-weight:700;color:#0f172a;font-size:1rem">Sin carritos abiertos</p>
             <p style="font-size:0.82rem;color:#94a3b8;margin-top:4px">Crea uno para agregar productos a un cliente</p>
@@ -24078,17 +24090,23 @@ async function cargarCarritos() {
           </div>
         ` : `
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
-            ${borradores.map(p => {
+            ${todos.map(p => {
               const cliente = p.clientes || {}
               const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+              const esApartado = p.status === 'apartado'
+              const anticipo = parseFloat(p.anticipo || 0)
+              const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
               return `
-                <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
-                     onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)';this.style.borderColor='#E91E8C'" onmouseleave="this.style.boxShadow='';this.style.borderColor='#e2e8f0'">
+                <div style="background:white;border-radius:14px;border:1px solid ${esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                     onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
                       <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
-                      ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;margin-top:5px;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Carrito del portal</span>` : ''}
+                      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
+                        ${esApartado ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🔒 Apartado</span>` : ''}
+                        ${p.canal === 'portal_mayoreo' ? `<span style="display:inline-block;background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🛒 Portal</span>` : ''}
+                      </div>
                     </div>
                     <span style="background:${dias === 0 ? '#f0fdf4' : dias <= 2 ? '#fffbeb' : '#fef2f2'};color:${dias === 0 ? '#065f46' : dias <= 2 ? '#b45309' : '#991b1b'};border:1px solid ${dias === 0 ? '#bbf7d0' : dias <= 2 ? '#fde68a' : '#fecaca'};border-radius:100px;padding:3px 10px;font-size:0.7rem;font-weight:700;white-space:nowrap">
                       ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
@@ -24097,6 +24115,10 @@ async function cargarCarritos() {
                   <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
                     <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
                     <p style="font-weight:700;font-size:1.35rem;color:#E91E8C;margin:0">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
+                    ${esApartado ? `<p style="font-size:0.75rem;color:#64748b;margin:4px 0 0">
+                      ${anticipo > 0 ? `Anticipo: <strong style="color:#0f172a">$${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}</strong>` : 'Sin anticipo registrado'}
+                      ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `<span style="color:#dc2626;font-weight:700">vencido hace ${-diasRestantes}d</span>`}` : ''}
+                    </p>` : ''}
                   </div>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${p.id}')">Abrir</button>
@@ -24299,6 +24321,10 @@ function renderCarritoAbierto(p) {
   const total = items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
   const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
   const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
+  const esApartado = p.status === 'apartado'
+  const hayNuevosSinReservar = esApartado && items.some(i => !i.reservado)
+  const anticipo = parseFloat(p.anticipo || 0)
+  const diasRestantes = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000) : null
 
   content.innerHTML = `
     <div style="max-width:860px">
@@ -24307,7 +24333,14 @@ function renderCarritoAbierto(p) {
         <div style="flex:1">
           <h3 style="margin:0">${cliente.nombre || 'Sin cliente'}</h3>
           <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${cliente.telefono || ''} · Abierto hace ${dias === 0 ? 'hoy' : dias + ' día(s)'}</p>
+          ${esApartado ? `<p style="font-size:0.78rem;color:#92400e;font-weight:600;margin:4px 0 0">🔒 Apartado
+            ${anticipo > 0 ? ` · Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}` : ' · Sin anticipo'}
+            ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `vencido hace ${-diasRestantes}d`}` : ''}
+            <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">editar</a></p>` : ''}
         </div>
+        <button class="btn btn-secondary" style="color:#92400e;border-color:#fbbf24;background:#fffbeb;font-weight:700" onclick="aprobarApartadoCarrito('${pedidoId}')">
+          🔒 ${esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
+        </button>
         <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
           ✅ Confirmar venta
         </button>
@@ -24315,7 +24348,7 @@ function renderCarritoAbierto(p) {
           📄 Cotización PDF
         </button>
         <button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="liberarCarrito('${pedidoId}')">
-          🗑 Liberar
+          🗑 ${esApartado ? 'Liberar apartado' : 'Liberar'}
         </button>
       </div>
 
@@ -24493,7 +24526,8 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                   <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f9f9f9;border-radius:8px;margin-bottom:8px;border:1px solid #eee;flex-wrap:wrap">
                     ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
-                      <p style="font-weight:600;font-size:0.85rem;margin:0">${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
+                      <p style="font-weight:600;font-size:0.85rem;margin:0">${item.reservado ? '🔒 ' : ''}${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
+                      ${item.solicitud_liberar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">⚠️ Clienta pidió quitarlo</p>` : ''}
                       ${stock !== null ? `<p style="font-size:0.72rem;color:${stock>0?'#2e7d32':'#c62828'};margin:2px 0 0">Stock: ${stock} pares</p>` : ''}
                     </div>
                     <div style="display:flex;align-items:center;gap:6px">
@@ -24920,8 +24954,12 @@ window.eliminarDeCarrito = async (itemId, idx) => {
     alert('Error: el ítem no tiene ID válido')
     return
   }
+  const itemActual = (window._carritoActivo.items || []).find(i => i.id === itemId)
+  const eraReservado = !!itemActual?.reservado
+  if (eraReservado && !confirm('Este par ya está apartado (el stock se descontó al aprobarlo). ¿Quitarlo de todos modos y devolver el stock?')) return
   try {
-    const res = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, { method: 'DELETE' })
+    const url = API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId + (eraReservado ? '?forzar=true' : '')
+    const res = await fetch(url, { method: 'DELETE' })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       alert('Error eliminando: ' + (err.error || res.status))
@@ -25345,13 +25383,105 @@ window.agregarCorridaAlCarritoActivo = async () => {
   await abrirCarrito(pedidoId)
 }
 
+window.aprobarApartadoCarrito = async (pedidoId) => {
+  const yaApartado = window._carritoActivo?.pedidoData?.status === 'apartado'
+  if (!confirm(yaApartado
+    ? '¿Apartar también los pares nuevos que se agregaron? Se descontará su stock.'
+    : '¿Aprobar este apartado? Se descontará el stock de todos los pares del carrito y la clienta ya no podrá quitarlos sin tu autorización.')) return
+  const anticipoStr = prompt('¿Cuánto anticipo dio la clienta? (deja vacío o 0 si no dio nada)', window._carritoActivo?.pedidoData?.anticipo || '0')
+  if (anticipoStr === null) return
+  const diasStr = prompt('¿Cuántos días le apartas los pares?', window._carritoActivo?.pedidoData?.dias_apartado || '3')
+  if (diasStr === null) return
+  try {
+    const res = await fetch(API + '/pedidos/' + pedidoId + '/aprobar-apartado', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anticipo: parseFloat(anticipoStr) || 0, dias_apartado: parseInt(diasStr) || null })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert(`✅ Apartado aprobado. ${data.items_reservados} par(es) reservado(s).`)
+      await abrirCarrito(pedidoId)
+    } else {
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.editarAnticipoCarrito = async (pedidoId) => {
+  const actual = window._carritoActivo?.pedidoData?.anticipo || 0
+  const nuevoStr = prompt('Anticipo de la clienta:', actual)
+  if (nuevoStr === null) return
+  try {
+    await fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ anticipo: parseFloat(nuevoStr) || 0 })
+    })
+    await abrirCarrito(pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.verSolicitudesLiberacion = async () => {
+  if (window._zmPushBack) window._zmPushBack(() => cargarCarritos())
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando solicitudes...</p>'
+  try {
+    const res = await fetch(API + '/pedidos/solicitudes-liberacion')
+    const data = await res.json()
+    const solicitudes = data.solicitudes || []
+    content.innerHTML = `
+      <div style="max-width:700px">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+          <button class="btn btn-secondary" onclick="cargarCarritos()">← Carritos</button>
+          <h3 style="margin:0">Solicitudes de liberación</h3>
+        </div>
+        ${solicitudes.length === 0 ? `
+          <div class="table-card" style="padding:2rem;text-align:center;color:#888">No hay solicitudes pendientes.</div>
+        ` : solicitudes.map(s => {
+          const v = s.variantes || {}
+          const pr = v.productos || {}
+          const ped = s.pedidos || {}
+          const cli = ped.clientes || {}
+          return `
+            <div class="table-card" style="padding:1rem;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+              ${pr.imagen_principal ? `<img src="${pr.imagen_principal}" style="width:48px;height:48px;object-fit:cover;border-radius:8px">` : ''}
+              <div style="flex:1">
+                <p style="font-weight:700;margin:0;font-size:0.88rem">${pr.nombre || s.nombre || 'Producto'} ${s.color ? '· '+s.color : ''} ${s.talla ? 'T'+s.talla : ''}</p>
+                <p style="font-size:0.78rem;color:#888;margin:2px 0 0">${cli.nombre || 'Clienta'} pide quitar ${s.cantidad} par(es)</p>
+              </div>
+              <button class="btn btn-secondary" style="color:#c62828;border-color:#fca5a5" onclick="rechazarLiberacionItem('${ped.id}','${s.id}')">Negar</button>
+              <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="aprobarLiberacionItem('${ped.id}','${s.id}')">Aprobar</button>
+            </div>
+          `
+        }).join('')}
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando solicitudes</p>'
+  }
+}
+
+window.aprobarLiberacionItem = async (pedidoId, itemId) => {
+  if (!confirm('¿Quitar este par y devolver el stock?')) return
+  try {
+    await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '?forzar=true', { method: 'DELETE' })
+    verSolicitudesLiberacion()
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.rechazarLiberacionItem = async (pedidoId, itemId) => {
+  try {
+    await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '/rechazar-liberacion', { method: 'POST' })
+    verSolicitudesLiberacion()
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
 window.liberarCarrito = async (pedidoId) => {
-  if (!confirm('¿Liberar este carrito? Los productos quedan disponibles para otros clientes.')) return
+  if (!confirm('¿Liberar este carrito? Si tenía pares apartados, su stock se devuelve al inventario.')) return
   try {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST' })
     const data = await res.json()
     if (data.ok) {
-      alert('Carrito liberado.')
+      alert(data.stock_devuelto ? 'Carrito liberado. Stock devuelto al inventario.' : 'Carrito liberado.')
       cargarCarritos()
     }
   } catch(e) { alert('Error: ' + e.message) }

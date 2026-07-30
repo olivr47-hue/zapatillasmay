@@ -2249,11 +2249,17 @@ async function _pcSincronizarCarritoServidorReal() {
   try {
     let huboError = false
     const actuales = await fetch(`${PC_API}/pedidos/${pedidoId}/items`).then(r => r.ok ? r.json() : [])
+    // Los ítems ya apartados (reservado=true) NUNCA se tocan aquí -- ni se
+    // borran ni se vuelven a crear. Ya tienen su stock descontado y su id
+    // real; borrarlos y recrearlos en cada sync los desreservaría solos y
+    // perdería el candado de "no se puede quitar sin autorización".
     for (const it of (Array.isArray(actuales) ? actuales : [])) {
+      if (it.reservado) continue
       const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE' }).catch(() => null)
       if (!r || !r.ok) huboError = true
     }
     for (const item of pc.carrito) {
+      if (item.reservado) continue  // ya existe en el servidor, no duplicar
       const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2313,10 +2319,11 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
     if (!v || !v.id) return
     const prod = pc.productos.find(x => x.id === v.producto_id)
     delServidor.push({
-      producto_id: v.producto_id, variante_id: v.id, nombre: v.productos?.nombre || i.nombre || 'Producto',
+      id: i.id, producto_id: v.producto_id, variante_id: v.id, nombre: v.productos?.nombre || i.nombre || 'Producto',
       sku: prod?.sku_interno || null, imagen: v.foto_url || v.productos?.imagen_principal || null,
       talla: v.talla || i.talla, color: v.color || i.color, cantidad: i.cantidad,
       precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
+      reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar,
     })
   })
   if (!delServidor.length) return
@@ -2359,8 +2366,8 @@ async function pcRefrescarCarritoSiCambio() {
     const ped = resPoll.ok ? await resPoll.json() : null
     const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA)
     const itemsServidor = borrador?.pedido_items || []
-    const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario]))
-    const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario]))
+    const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar]))
+    const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar]))
     if (antes === despues) return  // sin cambios, no tocar el DOM
     // Si lo local todavía no se confirmó sincronizado (ej. un "quitar" reciente
     // cuyo DELETE al servidor sigue en camino), no hay que pisarlo con el
@@ -2376,10 +2383,11 @@ async function pcRefrescarCarritoSiCambio() {
       const v = i.variantes
       const prod = pc.productos.find(x => x.id === v?.producto_id)
       return {
-        producto_id: v?.producto_id, variante_id: v?.id, nombre: v?.productos?.nombre || i.nombre || 'Producto',
+        id: i.id, producto_id: v?.producto_id, variante_id: v?.id, nombre: v?.productos?.nombre || i.nombre || 'Producto',
         sku: prod?.sku_interno || null, imagen: v?.foto_url || v?.productos?.imagen_principal || null,
         talla: v?.talla || i.talla, color: v?.color || i.color, cantidad: i.cantidad,
         precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
+        reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar,
       }
     })
     try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
@@ -2457,16 +2465,18 @@ function renderCarrito(el) {
           return `<div class="pc-card" style="margin-bottom:16px">
           ${normales.map((item) => {
             const idx = pc.carrito.indexOf(item)
-            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border)">
+            const pendiente = item.reservado && item.solicitud_liberar
+            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendiente ? 'opacity:0.45' : ''}">
               ${item.imagen ? `<img src="${esc(item.imagen)}" onclick="pcAbrirProducto('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${item.producto_id}')" style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
-                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(item.nombre || '').split(' ')[0])}</p>
+                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${item.reservado ? '🔒 ' : ''}${esc(String(item.nombre || '').split(' ')[0])}</p>
                 <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
+                ${pendiente ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:2px 0 0">Solicitud de liberación enviada — esperando aprobación</p>` : ''}
               </div>
               <div style="text-align:right;flex-shrink:0">
                 <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">${money(item.precio_unitario * item.cantidad)}</p>
                 <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${money(item.precio_unitario)} c/u</p>
-                <button onclick="pcQuitarDelCarrito(${idx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">✕ quitar</button>
+                ${pendiente ? '' : `<button onclick="pcQuitarDelCarrito(${idx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">${item.reservado ? '🔒 pedir quitar' : '✕ quitar'}</button>`}
               </div>
             </div>`
           }).join('')}
@@ -2716,7 +2726,24 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
   }
 }
 
+// Un par ya apartado (reservado=true) no se puede quitar directo -- el stock
+// ya se descontó al aprobarlo. En vez de borrarlo, se manda una solicitud de
+// liberación: el par se queda en el carrito (marcado como "pendiente") hasta
+// que la asesora la apruebe o la niegue desde el panel.
+window.pcSolicitarLiberacion = async function(item) {
+  if (!item || item.solicitud_liberar) return
+  item.solicitud_liberar = true
+  renderCarrito()
+  if (item.id && pc._borradorServerId) {
+    try {
+      await fetch(`${PC_API}/pedidos/${pc._borradorServerId}/items/${item.id}/solicitar-liberacion`, { method: 'POST' })
+    } catch (e) { /* se reintenta solo en el próximo poll si el servidor no quedó marcado */ }
+  }
+}
+
 window.pcQuitarDelCarrito = function(idx) {
+  const item = pc.carrito[idx]
+  if (item && item.reservado) { pcSolicitarLiberacion(item); return }
   pc.carrito.splice(idx, 1)
   pcGuardarCarrito(true)
   renderCarrito()
@@ -2724,8 +2751,14 @@ window.pcQuitarDelCarrito = function(idx) {
 
 window.pcQuitarCorrida = function(key) {
   const [productoId, color] = key.split('|')
-  pc.carrito = pc.carrito.filter(i => !(i.es_corrida && i.producto_id === productoId && i.color === color))
-  pcGuardarCarrito(true)
+  const delGrupo = pc.carrito.filter(i => i.es_corrida && i.producto_id === productoId && i.color === color)
+  const reservados = delGrupo.filter(i => i.reservado)
+  const libres = delGrupo.filter(i => !i.reservado)
+  reservados.forEach(i => pcSolicitarLiberacion(i))
+  if (libres.length) {
+    pc.carrito = pc.carrito.filter(i => !libres.includes(i))
+    pcGuardarCarrito(true)
+  }
   renderCarrito()
 }
 

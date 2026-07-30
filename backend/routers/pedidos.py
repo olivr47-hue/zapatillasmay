@@ -565,8 +565,12 @@ def actualizar_item(id: str, item_id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/{id}/items/{item_id}")
-def eliminar_item(id: str, item_id: str):
-    """Elimina un ítem del pedido. Si estaba confirmado devuelve el stock."""
+def eliminar_item(id: str, item_id: str, forzar: bool = False):
+    """Elimina un ítem del pedido. Si estaba confirmado o reservado (apartado) devuelve el stock.
+    Un ítem ya apartado (reservado=true) no se puede quitar sin pasar forzar=true --
+    esa es la autorización del panel; el portal del cliente nunca manda ese flag, así que
+    cuando la clienta intenta quitar un par ya apartado, esto la rechaza (409/RESERVADO) y
+    el portal debe usar /solicitar-liberacion en su lugar."""
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
@@ -575,11 +579,19 @@ def eliminar_item(id: str, item_id: str):
         if not item_actual:
             return JSONResponse(status_code=404, content={"error": "Ítem no encontrado"})
 
+        reservado = bool(item_actual[0].get("reservado"))
+        if reservado and not forzar:
+            return JSONResponse(status_code=409, content={
+                "error": "Este par ya está apartado y no se puede quitar sin autorización.",
+                "code": "RESERVADO"
+            })
+
         cantidad = item_actual[0].get("cantidad", 0)
         supabase_delete(f"pedido_items?id=eq.{item_id}")
 
-        # Devolver stock si ya estaba confirmado
-        if pedido[0].get("status") in ("confirmado", "pagado"):
+        # Devolver stock si ya estaba confirmado/pagado, o si el ítem estaba
+        # reservado por un apartado aprobado (el stock se descontó al aprobar).
+        if pedido[0].get("status") in ("confirmado", "pagado") or reservado:
             variante_id = item_actual[0].get("variante_id")
             sucursal_id = pedido[0].get("sucursal_id")
             if variante_id and sucursal_id and cantidad > 0:
@@ -591,10 +603,129 @@ def eliminar_item(id: str, item_id: str):
                         "variante_id": variante_id,
                         "sucursal_id": sucursal_id,
                         "cantidad": cantidad,
-                        "motivo": f"Eliminación ítem pedido {id}"
+                        "motivo": f"Eliminación ítem pedido {id}" + (" (apartado liberado)" if reservado else "")
                     })
 
         return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/{id}/items/{item_id}/solicitar-liberacion")
+def solicitar_liberacion_item(id: str, item_id: str):
+    """La clienta pide quitar un par ya apartado -- no se borra solo, queda
+    marcado para que el dueño lo autorice desde el panel."""
+    try:
+        item_actual = supabase_get(f"pedido_items?id=eq.{item_id}&pedido_id=eq.{id}")
+        if not item_actual:
+            return JSONResponse(status_code=404, content={"error": "Ítem no encontrado"})
+        supabase_patch(f"pedido_items?id=eq.{item_id}", {"solicitud_liberar": True})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/{id}/items/{item_id}/rechazar-liberacion")
+def rechazar_liberacion_item(id: str, item_id: str, _staff=Depends(require_staff)):
+    """El dueño niega la solicitud de la clienta -- el par se queda apartado."""
+    try:
+        supabase_patch(f"pedido_items?id=eq.{item_id}&pedido_id=eq.{id}", {"solicitud_liberar": False})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/solicitudes-liberacion")
+def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
+    """Ítems apartados que la clienta pidió quitar -- pendientes de aprobar/negar en el panel."""
+    try:
+        rows = supabase_get(
+            "pedido_items?solicitud_liberar=eq.true"
+            "&select=*,variantes(*,productos(nombre,imagen_principal)),"
+            "pedidos(id,nombre_cliente,cliente_id,clientes(nombre,telefono))"
+        ) or []
+        return {"solicitudes": rows, "total": len(rows)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/{id}/aprobar-apartado")
+def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
+    """Reserva de verdad el inventario de los pares del carrito: los descuenta
+    de `inventario` y los marca reservado=true en pedido_items. El pedido pasa
+    a status='apartado'. Si se llama de nuevo sobre un pedido ya apartado (p.ej.
+    la clienta agregó más pares después), solo procesa los ítems nuevos --
+    los ya reservados no se vuelven a descontar."""
+    try:
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        p = pedido[0]
+        if p.get("status") not in ("borrador", "apartado"):
+            return JSONResponse(status_code=400, content={
+                "error": "Solo se pueden aprobar carritos en borrador, o agregar más pares a uno ya apartado."
+            })
+
+        sucursal_id = p.get("sucursal_id")
+        if not sucursal_id:
+            suc = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
+            if not suc:
+                return JSONResponse(status_code=400, content={"error": "No hay ninguna sucursal activa configurada"})
+            sucursal_id = suc[0]["id"]
+
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}") or []
+        nuevos = [it for it in items if not it.get("reservado")]
+
+        faltantes = []
+        for it in nuevos:
+            variante_id = it.get("variante_id")
+            if not variante_id:
+                continue
+            cantidad = it.get("cantidad", 1) or 1
+            inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+            disponible = inv[0]["cantidad"] if inv else 0
+            if cantidad > disponible:
+                etiqueta = f"{it.get('nombre','Producto')} {it.get('color') or ''} talla {it.get('talla') or ''}".strip()
+                faltantes.append(f"{etiqueta} (disponibles: {disponible})")
+        if faltantes:
+            return JSONResponse(status_code=409, content={
+                "error": "No hay existencia suficiente para apartar: " + "; ".join(faltantes)
+            })
+
+        for it in nuevos:
+            variante_id = it.get("variante_id")
+            cantidad = it.get("cantidad", 1) or 1
+            if variante_id:
+                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+                if inv:
+                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
+                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_cantidad})
+                    supabase_post("movimientos_inventario", {
+                        "tipo": "apartado",
+                        "variante_id": variante_id,
+                        "sucursal_id": sucursal_id,
+                        "cantidad": -cantidad,
+                        "motivo": f"Apartado aprobado {id}"
+                    })
+            supabase_patch(f"pedido_items?id=eq.{it['id']}", {"reservado": True})
+
+        import datetime as _dt
+        update = {"status": "apartado", "sucursal_id": sucursal_id}
+        if "anticipo" in datos:
+            try:
+                update["anticipo"] = float(datos["anticipo"])
+            except Exception:
+                pass
+        dias = datos.get("dias_apartado")
+        if dias:
+            try:
+                dias = int(dias)
+                update["dias_apartado"] = dias
+                update["apartado_hasta"] = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(days=dias)).isoformat()
+            except Exception:
+                pass
+        supabase_patch(f"pedidos?id=eq.{id}", update)
+        return {"ok": True, "items_reservados": len(nuevos)}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -731,10 +862,15 @@ def cancelar_pedido(id: str):
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
         status_actual = pedido[0].get("status")
-        if status_actual in ["confirmado", "pagado"]:
+        if status_actual in ["confirmado", "pagado", "apartado"]:
             items = supabase_get(f"pedido_items?pedido_id=eq.{id}")
             sucursal_id = pedido[0].get("sucursal_id")
             for item in items:
+                # En un apartado solo hay que devolver los ítems que de verdad
+                # se habían reservado (descontado) -- si se agregó algo después
+                # sin volver a aprobar, ese nunca tocó el inventario.
+                if status_actual == "apartado" and not item.get("reservado"):
+                    continue
                 variante_id = item.get("variante_id")
                 cantidad = item.get("cantidad", 1)
                 if variante_id and sucursal_id:
@@ -752,8 +888,10 @@ def cancelar_pedido(id: str):
                             "cantidad": cantidad,
                             "motivo": f"Cancelacion pedido {id}"
                         })
+            if status_actual == "apartado":
+                supabase_patch(f"pedido_items?pedido_id=eq.{id}", {"reservado": False, "solicitud_liberar": False})
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
-        return {"ok": True, "stock_devuelto": status_actual in ["confirmado", "pagado"]}
+        return {"ok": True, "stock_devuelto": status_actual in ["confirmado", "pagado", "apartado"]}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
