@@ -157,6 +157,39 @@ def listar_apartados(_staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+
+# OJO: estas rutas de un solo segmento (/solicitudes-*) deben ir ANTES de
+# @router.get("/{id}") -- FastAPI hace match por orden de definicion, así
+# que si quedan después, "/pedidos/solicitudes-total" se interpreta como
+# id="solicitudes-total" y truena con "invalid input syntax for type uuid".
+# (Bug real que tuvo el badge de Carritos sin datos hasta este fix.)
+@router.get("/solicitudes-liberacion")
+def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
+    """Ítems apartados que la clienta pidió quitar -- pendientes de aprobar/negar en el panel."""
+    try:
+        rows = supabase_get(
+            "pedido_items?solicitud_liberar=eq.true"
+            "&select=*,variantes(*,productos(nombre,imagen_principal)),"
+            "pedidos(id,nombre_cliente,cliente_id,clientes(nombre,telefono))"
+        ) or []
+        return {"solicitudes": rows, "total": len(rows)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/solicitudes-total")
+def solicitudes_total(_staff=Depends(require_staff)):
+    """Conteo liviano de solicitudes pendientes (apartar + liberar) para el
+    badge de "Carritos" en el menú del panel -- se sondea cada rato desde
+    cualquier pantalla, así que no trae el detalle completo."""
+    try:
+        apartar = supabase_get("pedido_items?solicitud_apartar=eq.true&reservado=eq.false&select=id") or []
+        liberar = supabase_get("pedido_items?solicitud_liberar=eq.true&reservado=eq.true&select=id") or []
+        return {"total": len(apartar) + len(liberar)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/{id}/confirmar-deposito")
 def confirmar_deposito(id: str, datos: dict):
     """Convierte un apartado en pedido confirmado y descuenta inventario."""
@@ -715,32 +748,6 @@ def rechazar_liberacion_item(id: str, item_id: str, _staff=Depends(require_staff
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-
-@router.get("/solicitudes-liberacion")
-def listar_solicitudes_liberacion(_staff=Depends(require_staff)):
-    """Ítems apartados que la clienta pidió quitar -- pendientes de aprobar/negar en el panel."""
-    try:
-        rows = supabase_get(
-            "pedido_items?solicitud_liberar=eq.true"
-            "&select=*,variantes(*,productos(nombre,imagen_principal)),"
-            "pedidos(id,nombre_cliente,cliente_id,clientes(nombre,telefono))"
-        ) or []
-        return {"solicitudes": rows, "total": len(rows)}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
-@router.get("/solicitudes-total")
-def solicitudes_total(_staff=Depends(require_staff)):
-    """Conteo liviano de solicitudes pendientes (apartar + liberar) para el
-    badge de "Carritos" en el menú del panel -- se sondea cada rato desde
-    cualquier pantalla, así que no trae el detalle completo."""
-    try:
-        apartar = supabase_get("pedido_items?solicitud_apartar=eq.true&reservado=eq.false&select=id") or []
-        liberar = supabase_get("pedido_items?solicitud_liberar=eq.true&reservado=eq.true&select=id") or []
-        return {"total": len(apartar) + len(liberar)}
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.post("/{id}/aprobar-apartado")
