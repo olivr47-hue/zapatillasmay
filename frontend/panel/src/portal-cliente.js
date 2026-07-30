@@ -455,6 +455,7 @@ function pcIrA(tab, _fromBack) {
       case 'catalogo': renderCatalogo(content); break
       case 'catalogos': renderCatalogosDescarga(content); break
       case 'carrito':  renderCarrito(content); break
+      case 'apartados': renderApartados(content); break
       case 'pedidos':  renderMisPedidos(content); break
       case 'sugerencias': renderSugerencias(content); break
       case 'cuenta':   renderMiCuenta(content); break
@@ -2249,17 +2250,17 @@ async function _pcSincronizarCarritoServidorReal() {
   try {
     let huboError = false
     const actuales = await fetch(`${PC_API}/pedidos/${pedidoId}/items`).then(r => r.ok ? r.json() : [])
-    // Los ítems ya apartados (reservado=true) NUNCA se tocan aquí -- ni se
-    // borran ni se vuelven a crear. Ya tienen su stock descontado y su id
-    // real; borrarlos y recrearlos en cada sync los desreservaría solos y
-    // perdería el candado de "no se puede quitar sin autorización".
+    // Los ítems ya apartados (reservado=true) o con una solicitud de apartado
+    // pendiente (solicitud_apartar=true) NUNCA se tocan aquí -- ni se borran
+    // ni se vuelven a crear. Borrarlos y recrearlos en cada sync perdería la
+    // reserva de stock o la bandera de "esperando aprobación".
     for (const it of (Array.isArray(actuales) ? actuales : [])) {
-      if (it.reservado) continue
+      if (it.reservado || it.solicitud_apartar) continue
       const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items/${it.id}`, { method: 'DELETE' }).catch(() => null)
       if (!r || !r.ok) huboError = true
     }
     for (const item of pc.carrito) {
-      if (item.reservado) continue  // ya existe en el servidor, no duplicar
+      if (item.reservado || item.solicitud_apartar) continue  // ya existe en el servidor, no duplicar
       const r = await fetch(`${PC_API}/pedidos/${pedidoId}/items`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2330,7 +2331,7 @@ async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
       sku: prod?.sku_interno || null, imagen: v.foto_url || v.productos?.imagen_principal || null,
       talla: v.talla || i.talla, color: v.color || i.color, cantidad: i.cantidad,
       precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
-      reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar,
+      reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar, solicitud_apartar: !!i.solicitud_apartar,
     })
   })
   if (!delServidor.length) return
@@ -2375,8 +2376,8 @@ async function pcRefrescarCarritoSiCambio() {
     // esto puede engancharse a un carrito-respaldo ya cancelado.
     const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA && p.status === 'borrador')
     const itemsServidor = borrador?.pedido_items || []
-    const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar]))
-    const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar]))
+    const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar, !!i.solicitud_apartar]))
+    const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar, !!i.solicitud_apartar]))
     if (antes === despues) return  // sin cambios, no tocar el DOM
     // Si lo local todavía no se confirmó sincronizado (ej. un "quitar" reciente
     // cuyo DELETE al servidor sigue en camino), no hay que pisarlo con el
@@ -2396,7 +2397,7 @@ async function pcRefrescarCarritoSiCambio() {
         sku: prod?.sku_interno || null, imagen: v?.foto_url || v?.productos?.imagen_principal || null,
         talla: v?.talla || i.talla, color: v?.color || i.color, cantidad: i.cantidad,
         precio_unitario: i.precio_unitario || 0, es_corrida: !!i.es_corrida,
-        reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar,
+        reservado: !!i.reservado, solicitud_liberar: !!i.solicitud_liberar, solicitud_apartar: !!i.solicitud_apartar,
       }
     })
     try { localStorage.setItem(PC_CARRITO_KEY, JSON.stringify(pc.carrito)) } catch {}
@@ -2460,46 +2461,74 @@ function renderCarrito(el) {
 
       <!-- Items del carrito -->
       <div>
-        ${pc.carrito.length === 0 ? '' : (() => {
-          const normales = pc.carrito.filter(i => !i.es_corrida)
-          const corridas = pc.carrito.filter(i => i.es_corrida)
+        ${(() => {
+          const apartados = pc.carrito.filter(i => i.reservado)
+          const paresApartados = apartados.reduce((s,i)=>s+i.cantidad, 0)
+          const totalApartado = apartados.reduce((s,i)=>s+i.cantidad*i.precio_unitario, 0)
+          if (!paresApartados) return ''
+          return `<button onclick="pcIrA('apartados')" class="pc-card" style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;border:1px solid #fde68a;background:#fffbeb;padding:14px 16px;margin-bottom:14px;cursor:pointer">
+            <span style="font-size:0.88rem;font-weight:700;color:#92400e">🔒 ${paresApartados} par${paresApartados!==1?'es':''} apartado${paresApartados!==1?'s':''} · ${money(totalApartado)}</span>
+            <span style="font-size:0.78rem;color:#b45309;font-weight:700">Ver detalle →</span>
+          </button>`
+        })()}
+        ${pc.carrito.filter(i=>!i.reservado).length === 0 ? '' : (() => {
+          const normales = pc.carrito.filter(i => !i.es_corrida && !i.reservado)
+          const corridas = pc.carrito.filter(i => i.es_corrida && !i.reservado)
           // Agrupar corridas por producto+color
           const corridasAgrupadas = {}
           corridas.forEach(i => {
             const key = i.producto_id + '|' + i.color
-            if (!corridasAgrupadas[key]) corridasAgrupadas[key] = { nombre: i.nombre, sku: i.sku, color: i.color, producto_id: i.producto_id, imagen: i.imagen || null, tallas: [], subtotal: 0, precio_unitario: i.precio_unitario }
+            if (!corridasAgrupadas[key]) corridasAgrupadas[key] = { nombre: i.nombre, sku: i.sku, color: i.color, producto_id: i.producto_id, imagen: i.imagen || null, tallas: [], subtotal: 0, precio_unitario: i.precio_unitario, pendiente: i.solicitud_apartar }
             corridasAgrupadas[key].tallas.push({ talla: i.talla, cantidad: i.cantidad, variante_id: i.variante_id })
             corridasAgrupadas[key].subtotal += i.cantidad * i.precio_unitario
           })
+          const modoSel = !!pc._seleccionApartadoActivo
+          const sel = pc._seleccionApartado || new Set()
           return `<div class="pc-card" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+            <button onclick="pcToggleModoSeleccionApartado()" style="background:none;border:none;color:#E91E8C;font-weight:700;font-size:0.78rem;cursor:pointer">
+              ${modoSel ? 'Cancelar selección' : '🔒 Apartar pares específicos'}
+            </button>
+          </div>
           ${normales.map((item) => {
             const idx = pc.carrito.indexOf(item)
-            const pendiente = item.reservado && item.solicitud_liberar
-            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendiente ? 'opacity:0.45' : ''}">
+            const pendienteLiberar = item.reservado && item.solicitud_liberar
+            const pendienteApartar = !item.reservado && item.solicitud_apartar
+            const seleccionable = modoSel && !pendienteApartar
+            const marcado = sel.has(item.variante_id)
+            return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendienteLiberar || pendienteApartar ? 'opacity:0.55' : ''}">
+              ${seleccionable ? `<input type="checkbox" onchange="pcToggleSeleccionApartado('${item.variante_id}')" ${marcado?'checked':''} style="width:20px;height:20px;accent-color:#E91E8C;cursor:pointer;flex-shrink:0">` : ''}
               ${item.imagen ? `<img src="${esc(item.imagen)}" onclick="pcAbrirProducto('${item.producto_id}')" title="Ver producto / agregar más pares" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${item.producto_id}')" style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
-                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${item.reservado ? '🔒 ' : ''}${esc(String(item.nombre || '').split(' ')[0])}</p>
+                <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(item.nombre || '').split(' ')[0])}</p>
                 <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad !== 1 ? 'es' : ''}</p>
-                ${pendiente ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:2px 0 0">Solicitud de liberación enviada — esperando aprobación</p>` : ''}
+                ${pendienteLiberar ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:2px 0 0">Solicitud de liberación enviada — esperando aprobación</p>` : ''}
+                ${pendienteApartar ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:2px 0 0">🙋 Pidiendo apartar — esperando aprobación</p>` : ''}
               </div>
               <div style="text-align:right;flex-shrink:0">
                 <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">${money(item.precio_unitario * item.cantidad)}</p>
                 <p style="font-size:0.72rem;color:var(--pc-muted);margin:0">${money(item.precio_unitario)} c/u</p>
-                ${pendiente ? '' : `<button onclick="pcQuitarDelCarrito(${idx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">${item.reservado ? '🔒 pedir quitar' : '✕ quitar'}</button>`}
+                ${pendienteLiberar || pendienteApartar || modoSel ? '' : `<button onclick="pcQuitarDelCarrito(${idx})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0;margin-top:4px">✕ quitar</button>`}
               </div>
             </div>`
           }).join('')}
-          ${Object.entries(corridasAgrupadas).map(([key, corrida]) => `
-          <div style="padding:12px 0;border-bottom:1px solid var(--pc-border);background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px">
+          ${Object.entries(corridasAgrupadas).map(([key, corrida]) => {
+            const pendienteApartar = corrida.pendiente
+            const seleccionable = modoSel && !pendienteApartar
+            const marcado = sel.has('corrida:'+key)
+            return `
+          <div style="padding:12px 0;border-bottom:1px solid var(--pc-border);background:rgba(107,27,154,0.06);border-radius:8px;padding:12px;margin-bottom:4px;${pendienteApartar ? 'opacity:0.55' : ''}">
             <div style="display:flex;gap:10px;align-items:flex-start">
+              ${seleccionable ? `<input type="checkbox" onchange="pcToggleSeleccionApartado('corrida:${key}')" ${marcado?'checked':''} style="width:20px;height:20px;accent-color:#E91E8C;cursor:pointer;flex-shrink:0;margin-top:4px">` : ''}
               ${corrida.imagen ? `<img src="${esc(corrida.imagen)}" onclick="pcAbrirProducto('${corrida.producto_id}')" title="Ver producto / agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0;cursor:pointer">` : `<div onclick="pcAbrirProducto('${corrida.producto_id}')" style="width:52px;height:52px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0;cursor:pointer"></div>`}
               <div style="flex:1;min-width:0">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start">
                   <div style="flex:1;min-width:0">
                     <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(corrida.nombre || '').split(' ')[0])}</p>
                     <p style="font-size:0.75rem;color:#a855f7;font-weight:600;margin:0 0 6px">📦 Corrida · ${esc(corrida.color)}</p>
+                    ${pendienteApartar ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:0 0 6px">🙋 Pidiendo apartar — esperando aprobación</p>` : ''}
                   </div>
-                  <button onclick="pcQuitarCorrida('${key}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>
+                  ${pendienteApartar || modoSel ? '' : `<button onclick="pcQuitarCorrida('${key}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:0 4px;flex-shrink:0">✕</button>`}
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
                   <span style="font-size:0.75rem;color:var(--pc-text-4)">${money(corrida.precio_unitario)} c/u</span>
@@ -2514,9 +2543,14 @@ function renderCarrito(el) {
                 </div>
               </div>
             </div>
-          </div>`).join('')}
+          </div>`}).join('')}
         </div>`
         })()}
+        ${pc._seleccionApartadoActivo && (pc._seleccionApartado?.size || 0) > 0 ? `
+        <div style="position:sticky;bottom:12px;background:#0f172a;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.25)">
+          <span style="color:white;font-weight:700;font-size:0.85rem">${pc._seleccionApartado.size} seleccionado${pc._seleccionApartado.size!==1?'s':''}</span>
+          <button onclick="pcEnviarParaApartar()" class="pc-btn pc-btn-primary" style="font-size:0.85rem">🔒 Enviar para apartar</button>
+        </div>` : ''}
       </div>
 
       <!-- Resumen del pedido -->
@@ -2769,6 +2803,190 @@ window.pcQuitarCorrida = function(key) {
     pcGuardarCarrito(true)
   }
   renderCarrito()
+}
+
+// ── Selección para "Enviar para apartar" ────────────────────────────────
+window.pcToggleModoSeleccionApartado = function() {
+  pc._seleccionApartadoActivo = !pc._seleccionApartadoActivo
+  pc._seleccionApartado = new Set()
+  renderCarrito()
+}
+
+window.pcToggleSeleccionApartado = function(key) {
+  if (!pc._seleccionApartado) pc._seleccionApartado = new Set()
+  if (pc._seleccionApartado.has(key)) pc._seleccionApartado.delete(key)
+  else pc._seleccionApartado.add(key)
+  renderCarrito()
+}
+
+window.pcEnviarParaApartar = async function() {
+  const sel = pc._seleccionApartado
+  if (!sel || !sel.size) return
+  const btns = document.querySelectorAll('[onclick="pcEnviarParaApartar()"]')
+  btns.forEach(b => { b.disabled = true; b.textContent = 'Enviando...' })
+  try {
+    // Asegurar que el carrito esté sincronizado antes de mandar la solicitud
+    // -- si algo local todavía no tiene id real del servidor, la solicitud no
+    // podría anclarse al ítem correcto.
+    await _pcSincronizarCarritoServidorReal()
+    const pedidoId = pc._borradorServerId
+    if (!pedidoId) throw new Error('No se pudo sincronizar el carrito')
+    const frescos = await fetch(`${PC_API}/pedidos/${pedidoId}/items`).then(r => r.ok ? r.json() : [])
+    const idsAEnviar = []
+    for (const item of pc.carrito) {
+      const key = item.es_corrida ? ('corrida:' + item.producto_id + '|' + item.color) : item.variante_id
+      if (!sel.has(key)) continue
+      const match = (Array.isArray(frescos) ? frescos : []).find(f => f.variantes?.id === item.variante_id && !f.reservado)
+      if (match) idsAEnviar.push(match.id)
+    }
+    if (!idsAEnviar.length) throw new Error('No se encontraron los ítems en el servidor, intenta de nuevo')
+    const res = await fetch(`${PC_API}/pedidos/${pedidoId}/items/solicitar-apartado`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_ids: idsAEnviar })
+    })
+    const data = await res.json()
+    if (!data.ok) throw new Error(data.error || 'Error al enviar')
+    pc._seleccionApartadoActivo = false
+    pc._seleccionApartado = new Set()
+    // Refrescar desde el servidor para traer la bandera solicitud_apartar real
+    const pedRes = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
+    const ped = pedRes.ok ? await pedRes.json() : []
+    await pcRestaurarCarritoDeServidor(ped)
+    renderCarrito()
+  } catch (e) {
+    alert('Error: ' + e.message)
+  } finally {
+    btns.forEach(b => { b.disabled = false; b.textContent = '🔒 Enviar para apartar' })
+  }
+}
+
+// ── Sección "Apartados" ──────────────────────────────────────────────────
+async function renderApartados(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+  el.innerHTML = '<div style="padding:40px;text-align:center;color:var(--pc-muted)">Cargando...</div>'
+  try {
+    const pedRes = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
+    const ped = pedRes.ok ? await pedRes.json() : []
+    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA && p.status === 'apartado')
+    const items = (borrador?.pedido_items || []).filter(i => i.reservado)
+    const total = items.reduce((s,i)=>s+i.cantidad*i.precio_unitario, 0)
+    const totalPares = items.reduce((s,i)=>s+i.cantidad, 0)
+
+    if (!items.length) {
+      el.innerHTML = `
+        <div style="text-align:center;padding:60px 20px">
+          <p style="font-size:3rem;margin:0 0 16px">🔒</p>
+          <p style="font-size:1rem;font-weight:700;color:var(--pc-text-3);margin:0 0 8px">No tienes pares apartados</p>
+          <p style="color:var(--pc-muted);font-size:0.83rem;margin:0 0 24px">Selecciona pares en tu carrito y pide que se te aparten</p>
+          <button onclick="pcIrA('carrito')" class="pc-btn pc-btn-primary">Ir al carrito</button>
+        </div>`
+      return
+    }
+
+    el.innerHTML = `
+      <div style="margin-bottom:20px">
+        <h1 style="font-size:1.4rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">🔒 Apartados</h1>
+        <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">${totalPares} par${totalPares!==1?'es':''} · ${money(total)}</p>
+      </div>
+      <div class="pc-card" style="margin-bottom:16px">
+        ${items.map(item => {
+          const v = item.variantes || {}
+          const pr = v.productos || {}
+          const pendiente = item.solicitud_liberar
+          return `<div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--pc-border);${pendiente?'opacity:0.55':''}">
+            ${v.foto_url || pr.imagen_principal ? `<img src="${esc(v.foto_url || pr.imagen_principal)}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--pc-bg-elev);flex-shrink:0">` : `<div style="width:60px;height:60px;background:var(--pc-bg-elev);border-radius:8px;flex-shrink:0"></div>`}
+            <div style="flex:1;min-width:0">
+              <p style="font-size:0.95rem;font-weight:800;color:var(--pc-text);margin:0 0 4px">${esc(String(pr.nombre || item.nombre || '').split(' ')[0])}</p>
+              <p style="font-size:0.78rem;color:var(--pc-text-4);margin:0">Talla ${esc(v.talla || item.talla)} ${item.color ? '· '+esc(item.color) : ''} · ${item.cantidad} par${item.cantidad!==1?'es':''}</p>
+              ${pendiente ? `<p style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin:2px 0 0">Solicitud de liberación enviada — esperando aprobación</p>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">${money(item.precio_unitario * item.cantidad)}</p>
+              ${pendiente ? '' : `<button onclick="pcPedirQuitarApartado('${item.id}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:0.72rem;padding:2px 0">pedir quitar este par</button>`}
+            </div>
+          </div>`
+        }).join('')}
+      </div>
+      <button onclick="pcAbrirCerrarApartado('${borrador.id}', ${total})" class="pc-btn pc-btn-primary" style="width:100%;font-size:0.95rem;padding:14px">Cerrar pedido — ${money(total)}</button>
+      <div id="pc-cerrar-apartado-modal"></div>
+    `
+  } catch (e) {
+    el.innerHTML = `<div style="padding:40px;color:#ef4444;text-align:center">Error al cargar apartados</div>`
+  }
+}
+
+window.pcPedirQuitarApartado = async function(itemId) {
+  if (!confirm('¿Pedir que se quite este par de tu apartado?')) return
+  try {
+    const pedRes = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
+    const ped = pedRes.ok ? await pedRes.json() : []
+    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA && p.status === 'apartado')
+    if (!borrador) return
+    await fetch(`${PC_API}/pedidos/${borrador.id}/items/${itemId}/solicitar-liberacion`, { method: 'POST' })
+    renderApartados()
+  } catch (e) { alert('Error: ' + e.message) }
+}
+
+window.pcAbrirCerrarApartado = function(pedidoId, total) {
+  const modal = document.getElementById('pc-cerrar-apartado-modal')
+  if (!modal) return
+  modal.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) this.remove()">
+      <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
+        <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">Cerrar pedido — ${money(total)}</h3>
+        <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
+        <button onclick="pcCerrarApartadoConPago('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
+        <button onclick="pcCerrarApartadoConPago('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
+        <div id="pc-cerrar-apartado-resultado" style="margin-top:16px"></div>
+      </div>
+    </div>`
+}
+
+window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
+  const resultado = document.getElementById('pc-cerrar-apartado-resultado')
+  if (resultado) resultado.innerHTML = '<p style="text-align:center;color:var(--pc-muted);font-size:0.85rem">Un momento...</p>'
+  try {
+    const res = await fetch(`${PC_API}/pedidos/${pedidoId}/cerrar-apartado`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forma_pago: formaPago })
+    })
+    const data = await res.json()
+    if (!data.ok) throw new Error(data.error || 'Error al cerrar el pedido')
+
+    if (formaPago === 'transferencia') {
+      const cfg = await fetch(`${PC_API}/config/pago-transferencia`).then(r => r.json()).catch(() => ({}))
+      if (!cfg.clabe) {
+        if (resultado) resultado.innerHTML = `<p style="font-size:0.85rem;color:var(--pc-text)">Tu pedido quedó marcado como pendiente de pago. Contáctanos por WhatsApp para darte los datos de la transferencia.</p>`
+      } else if (resultado) {
+        resultado.innerHTML = `
+          <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px">
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transfiere a:</p>
+            <p style="font-size:0.85rem;margin:0 0 4px"><strong>Banco:</strong> ${esc(cfg.banco)}</p>
+            <p style="font-size:0.85rem;margin:0 0 4px"><strong>CLABE:</strong> ${esc(cfg.clabe)}</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+          </div>
+          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
+      }
+    } else {
+      const mpRes = await fetch(`${PC_API}/pagos/crear-preferencia`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pedido_id: pedidoId,
+          items: pc.carrito.filter(i => i.reservado).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario })),
+          cliente: { nombre: pc.clienteData?.nombre || '', email: pc.clienteData?.email || '' }
+        })
+      })
+      const mpData = await mpRes.json()
+      if (mpData.init_point && resultado) {
+        resultado.innerHTML = `<a href="${mpData.init_point}" target="_blank" class="pc-btn pc-btn-primary" style="width:100%;text-align:center;display:block">Ir a pagar con MercadoPago →</a>`
+      } else if (resultado) {
+        resultado.innerHTML = `<p style="font-size:0.85rem;color:#ef4444">No se pudo generar el link de pago. Intenta de nuevo o contáctanos.</p>`
+      }
+    }
+  } catch (e) {
+    if (resultado) resultado.innerHTML = `<p style="font-size:0.85rem;color:#ef4444">Error: ${e.message}</p>`
+  }
 }
 
 window.pcHacerPedido = async function() {

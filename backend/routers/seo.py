@@ -1200,6 +1200,46 @@ def save_config_envio(datos: dict):
         return {"error": str(e)}
 
 
+@router.get("/config/pago-transferencia")
+def get_config_pago_transferencia():
+    """Datos bancarios reales para mostrar al cliente cuando cierra un apartado
+    pagando por transferencia (portal mayorista)."""
+    cached = cache_get("config_pago_transferencia")
+    if cached is not None:
+        return cached
+    try:
+        rows = supabase_get("configuracion?clave=like.banco_*&select=clave,valor")
+        cfg = {"banco": "", "clabe": "", "titular": ""}
+        for r in rows:
+            clave = r["clave"].replace("banco_", "")
+            if clave in cfg:
+                cfg[clave] = r["valor"]
+        cache_set("config_pago_transferencia", cfg, ttl=3600)
+        return cfg
+    except Exception:
+        return {"banco": "", "clabe": "", "titular": ""}
+
+
+@router.post("/config/pago-transferencia")
+def save_config_pago_transferencia(datos: dict):
+    """Guarda los datos bancarios desde el panel."""
+    try:
+        for campo in ["banco", "clabe", "titular"]:
+            if campo not in datos:
+                continue
+            clave = f"banco_{campo}"
+            valor = str(datos[campo]).strip()
+            existente = supabase_get(f"configuracion?clave=eq.{clave}")
+            if existente:
+                supabase_patch(f"configuracion?clave=eq.{clave}", {"valor": valor})
+            else:
+                supabase_post("configuracion", {"clave": clave, "valor": valor})
+        cache_invalidate_prefix("config_pago_transferencia")
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/sitemap.xml")
 def sitemap():
     cached = cache_get("seo_sitemap")

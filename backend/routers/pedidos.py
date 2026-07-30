@@ -190,6 +190,28 @@ def confirmar_deposito(id: str, datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/{id}/cerrar-apartado")
+def cerrar_apartado(id: str, datos: dict):
+    """La clienta cierra su apartado desde el portal y elige cómo va a pagar.
+    No toca inventario (ya se descontó al aprobar el apartado) -- solo pasa el
+    pedido a pendiente_pago con la forma de pago elegida. El pago real se
+    confirma aparte: por transferencia el dueño lo checa manual, por tarjeta
+    el webhook de MercadoPago lo marca al aprobarse."""
+    try:
+        forma_pago = (datos.get("forma_pago") or "").strip()
+        if forma_pago not in ("transferencia", "tarjeta"):
+            return JSONResponse(status_code=400, content={"error": "forma_pago debe ser 'transferencia' o 'tarjeta'"})
+        pedido = supabase_get(f"pedidos?id=eq.{id}")
+        if not pedido:
+            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        if pedido[0].get("status") != "apartado":
+            return JSONResponse(status_code=400, content={"error": "Solo se puede cerrar un pedido que ya está apartado"})
+        supabase_patch(f"pedidos?id=eq.{id}", {"status": "pendiente_pago", "forma_pago": forma_pago})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/pendientes")
 def pedidos_pendientes():
     """Pedidos con pago pendiente (OXXO/SPEI) — para el panel de seguimiento."""
@@ -611,6 +633,26 @@ def eliminar_item(id: str, item_id: str, forzar: bool = False):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/{id}/items/solicitar-apartado")
+def solicitar_apartado_items(id: str, datos: dict):
+    """La clienta selecciona pares específicos del carrito y pide que se
+    aparten. NO descuenta stock ni reserva nada todavía -- solo marca esos
+    ítems para que el dueño los vea agrupados y decida aprobarlos desde el
+    panel (aprobar-apartado prioriza los que tengan esta bandera)."""
+    try:
+        item_ids = datos.get("item_ids") or []
+        if not item_ids:
+            return JSONResponse(status_code=400, content={"error": "No se enviaron ítems"})
+        marcados = 0
+        for iid in item_ids:
+            r = supabase_patch(f"pedido_items?id=eq.{iid}&pedido_id=eq.{id}&reservado=eq.false", {"solicitud_apartar": True})
+            if r:
+                marcados += 1
+        return {"ok": True, "items": marcados}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.post("/{id}/items/{item_id}/solicitar-liberacion")
 def solicitar_liberacion_item(id: str, item_id: str):
     """La clienta pide quitar un par ya apartado -- no se borra solo, queda
@@ -674,7 +716,14 @@ def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
             sucursal_id = suc[0]["id"]
 
         items = supabase_get(f"pedido_items?pedido_id=eq.{id}") or []
-        nuevos = [it for it in items if not it.get("reservado")]
+        sin_reservar = [it for it in items if not it.get("reservado")]
+        # Si la clienta pidió pares específicos ("Enviar para apartar" en el
+        # portal), aprobar solo esos -- deja el resto del carrito intacto para
+        # que siga decidiendo/agregando. Si no hay ninguna solicitud puntual
+        # (ej. un carrito armado a mano en el POS), se aprueba todo lo pendiente
+        # como antes.
+        solicitados = [it for it in sin_reservar if it.get("solicitud_apartar")]
+        nuevos = solicitados if solicitados else sin_reservar
 
         faltantes = []
         for it in nuevos:
@@ -707,7 +756,7 @@ def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
                         "cantidad": -cantidad,
                         "motivo": f"Apartado aprobado {id}"
                     })
-            supabase_patch(f"pedido_items?id=eq.{it['id']}", {"reservado": True})
+            supabase_patch(f"pedido_items?id=eq.{it['id']}", {"reservado": True, "solicitud_apartar": False})
 
         import datetime as _dt
         update = {"status": "apartado", "sucursal_id": sucursal_id}
