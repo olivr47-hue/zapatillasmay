@@ -2507,11 +2507,6 @@ function renderCarrito(el) {
           const modoSel = !!pc._seleccionApartadoActivo
           const sel = pc._seleccionApartado || new Set()
           return `<div class="pc-card" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
-            <button onclick="pcToggleModoSeleccionApartado()" style="background:none;border:none;color:#E91E8C;font-weight:700;font-size:0.78rem;cursor:pointer">
-              ${modoSel ? 'Cancelar selección' : '🔒 Apartar pares específicos'}
-            </button>
-          </div>
           ${normales.map((item) => {
             const idx = pc.carrito.indexOf(item)
             const pendienteLiberar = item.reservado && item.solicitud_liberar
@@ -2614,8 +2609,8 @@ function renderCarrito(el) {
           <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:6px">Notas del pedido</label>
           <textarea id="pc-notas" class="pc-input" style="height:70px;resize:none" placeholder="Color específico, urgencia, instrucciones..."></textarea>
         </div>
-        <button onclick="pcToggleModoSeleccionApartado()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px">
-          🔒 Apartar pares específicos
+        <button onclick="pcToggleModoSeleccionApartado()" class="pc-btn ${pc._seleccionApartadoActivo ? 'pc-btn-secondary' : 'pc-btn-primary'}" style="width:100%;margin-bottom:8px">
+          ${pc._seleccionApartadoActivo ? 'Cancelar selección' : '🔒 Apartar pares específicos'}
         </button>
         <div style="display:flex;gap:8px">
           <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
