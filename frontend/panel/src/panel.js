@@ -23600,9 +23600,15 @@ async function cargarAnalyticsGA() {
       </div>
 
       <!-- Top páginas -->
-      <div class="card" style="padding:1rem">
+      <div class="card" style="padding:1rem;margin-bottom:1rem">
         <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Top páginas hoy</div>
         <div id="ga-top-paginas"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
+      <!-- Tráfico desde IA (ChatGPT, Perplexity, Gemini...) -->
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">🤖 Tráfico desde IA (30 días)</div>
+        <div id="ga-ia"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
       </div>
 
       <!-- Setup guide si no está configurado -->
@@ -23642,6 +23648,7 @@ async function _gaCargarTodo() {
     _gaCargarHoy().catch(() => _gaSeccionError('ga-sesiones', '—')),
     _gaCargarSemana().catch(() => _gaSeccionError('ga-chart', null)),
     _gaCargarFuentes().catch(() => {}),
+    _gaCargarIA().catch(() => {}),
     _gaCargarCiudades().catch(() => {}),
     _gaCargarHorario().catch(() => {}),
   ]
@@ -23798,6 +23805,31 @@ async function _gaCargarFuentes() {
       </div>`
     }).join('')
   } catch(e) { console.warn('GA fuentes:', e.message) }
+}
+
+async function _gaCargarIA() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/ia-referrals`)
+    const d = await r.json()
+    const el = document.getElementById('ga-ia')
+    if (!el) return
+    if (!d.configurado || d.error || !d.referencias?.length) {
+      el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin visitas desde asistentes de IA en los últimos 30 días.</p>'
+      return
+    }
+    const iconos = { 'chatgpt.com':'💬', 'chat.openai.com':'💬', 'perplexity.ai':'🔎', 'gemini.google.com':'✨', 'copilot.microsoft.com':'🧭', 'claude.ai':'🟠' }
+    el.innerHTML = `<p style="color:#888;font-size:0.75rem;margin:0 0 0.6rem">${d.total_sesiones} sesiones totales · página a la que llegaron desde la respuesta de la IA</p>` +
+      d.referencias.map(f => {
+        const ico = iconos[f.source?.toLowerCase()] || '🤖'
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
+          <div style="min-width:0">
+            <div style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${f.source}</div>
+            <div style="font-size:0.72rem;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${f.landing_page}</div>
+          </div>
+          <span style="font-size:0.75rem;color:#888;white-space:nowrap;margin-left:8px">${f.sesiones} ses</span>
+        </div>`
+      }).join('')
+  } catch(e) { console.warn('GA ia-referrals:', e.message) }
 }
 
 async function _gaCargarCiudades() {

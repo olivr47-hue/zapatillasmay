@@ -563,6 +563,44 @@ def fuentes_trafico():
     return {"configurado": True, "total_sesiones": total, "fuentes": result[:12]}
 
 
+@router.get("/ia-referrals")
+def ia_referrals():
+    """Tráfico proveniente de asistentes de IA (ChatGPT, Perplexity, Gemini, Copilot...)
+    de los últimos 30 días -- GA4 ya los etiqueta con medium="ai-assistant" al
+    detectar el referrer. Desglosado por fuente + página de aterrizaje para saber
+    qué está citando/recomendando la IA de nuestro catálogo."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges":      [{"startDate": "30daysAgo", "endDate": "today"}],
+        "metrics":         [{"name": "sessions"}, {"name": "activeUsers"}],
+        "dimensions":      [{"name": "sessionSource"}, {"name": "landingPage"}],
+        "dimensionFilter": {"filter": {"fieldName": "sessionMedium",
+                             "stringFilter": {"matchType": "EXACT", "value": "ai-assistant"}}},
+        "orderBys":        [{"metric": {"metricName": "sessions"}, "desc": True}],
+        "limit":           50,
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos", "total_sesiones": 0, "referencias": []}
+
+    referencias = []
+    total = 0
+    for row in resp.get("rows", []):
+        dims     = row.get("dimensionValues", [])
+        metr     = row.get("metricValues", [])
+        source   = dims[0].get("value", "")  if len(dims) > 0 else ""
+        landing  = dims[1].get("value", "/") if len(dims) > 1 else "/"
+        sesiones = int(metr[0].get("value", 0)) if len(metr) > 0 else 0
+        usuarios = int(metr[1].get("value", 0)) if len(metr) > 1 else 0
+        referencias.append({"source": source, "landing_page": landing,
+                             "sesiones": sesiones, "usuarios": usuarios})
+        total += sesiones
+
+    return {"configurado": True, "total_sesiones": total, "referencias": referencias}
+
+
 @router.get("/ciudades")
 def top_ciudades():
     """Top ciudades de los últimos 7 días."""
