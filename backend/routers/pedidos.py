@@ -184,7 +184,11 @@ def confirmar_deposito(id: str, datos: dict):
                         "motivo": f"Confirmación apartado {id}"
                     })
         forma_pago = datos.get("forma_pago", pedido[0].get("forma_pago", "efectivo"))
-        supabase_patch(f"pedidos?id=eq.{id}", {"status": "confirmado", "forma_pago": forma_pago})
+        import datetime as _dt
+        supabase_patch(f"pedidos?id=eq.{id}", {
+            "status": "confirmado", "forma_pago": forma_pago,
+            "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        })
         _enviar_confirmacion_wa(pedido[0], items)
         return {"ok": True}
     except Exception as e:
@@ -820,9 +824,11 @@ def confirmar_pedido(id: str, datos: dict):
                         "cantidad": -cantidad,
                         "motivo": f"Cambio — devolución en pedido {id}" if es_cambio else f"Venta pedido {id}"
                     })
+        import datetime as _dt
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
-            "forma_pago": datos.get("forma_pago", "efectivo")
+            "forma_pago": datos.get("forma_pago", "efectivo"),
+            "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         })
 
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
@@ -982,9 +988,11 @@ def reconfirmar_pedido(id: str, datos: dict):
                         "cantidad": -cantidad,
                         "motivo": f"Reconfirmacion pedido {id}"
                     })
+        import datetime as _dt
         supabase_patch(f"pedidos?id=eq.{id}", {
             "status": "confirmado",
-            "forma_pago": datos.get("forma_pago", pedido[0].get("forma_pago", "efectivo"))
+            "forma_pago": datos.get("forma_pago", pedido[0].get("forma_pago", "efectivo")),
+            "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         })
         return {"ok": True}
     except Exception as e:

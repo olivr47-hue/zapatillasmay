@@ -830,9 +830,13 @@ async def webhook_mercadopago(request: Request):
                                         })
                                     except Exception as e_mov:
                                         print(f"[webhook MP] Error registrando movimiento de venta: {e_mov}")
+                            import datetime as _dt
                             supabase_patch(
                                 f"pedidos?id=eq.{pedido_id}",
-                                {"status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma}
+                                {
+                                    "status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma,
+                                    "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                                }
                             )
                             try:
                                 from routers.push import enviar_push
