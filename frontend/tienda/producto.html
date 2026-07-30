@@ -956,48 +956,6 @@ function renderProducto() {
   const precioDisplay = p.es_oferta ? parseFloat(p.precio_menudeo) : (parseFloat(p.precio_menudeo) + 80)
   document.title = construirTituloSeo(p)
 
-  // JSON-LD dinámico (para navegadores; el SSR ya lo inyecta para crawlers)
-  if (!document.querySelector('script[type="application/ld+json"]')) {
-    const ld = {
-      "@context": "https://schema.org/",
-      "@type": "Product",
-      "name": p.nombre,
-      "image": p.imagenes || (p.imagen ? [p.imagen] : []),
-      "description": (p.descripcion || '').substring(0, 300),
-      "sku": p.sku,
-      "brand": { "@type": "Brand", "name": "Zapatillas May" },
-      "offers": {
-        "@type": "Offer",
-        "url": window.location.href,
-        "priceCurrency": "MXN",
-        "price": precioDisplay.toString(),
-        "availability": "https://schema.org/InStock",
-        "seller": { "@type": "Organization", "name": "Zapatillas May" },
-        "shippingDetails": {
-          "@type": "OfferShippingDetails",
-          "shippingRate": { "@type": "MonetaryAmount", "value": "0", "currency": "MXN" },
-          "shippingDestination": { "@type": "DefinedRegion", "addressCountry": "MX" },
-          "deliveryTime": {
-            "@type": "ShippingDeliveryTime",
-            "handlingTime": { "@type": "QuantitativeValue", "minValue": 1, "maxValue": 2, "unitCode": "DAY" },
-            "transitTime": { "@type": "QuantitativeValue", "minValue": 3, "maxValue": 5, "unitCode": "DAY" }
-          }
-        },
-        "hasMerchantReturnPolicy": {
-          "@type": "MerchantReturnPolicy",
-          "applicableCountry": "MX",
-          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
-          "merchantReturnDays": 7,
-          "returnMethod": "https://schema.org/ReturnByMail",
-          "returnFees": "https://schema.org/FreeReturn"
-        }
-      }
-    }
-    const s = document.createElement('script')
-    s.type = 'application/ld+json'
-    s.textContent = JSON.stringify(ld)
-    document.head.appendChild(s)
-  }
   const sbNombre = document.getElementById('sb-nombre')
   const sbPrecio = document.getElementById('sb-precio')
   if (sbNombre) sbNombre.textContent = p.nombre
