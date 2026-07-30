@@ -309,6 +309,14 @@ def _producto_ssr_inner(sku: str, request: Request):
     except Exception:
         pass
 
+    # Costo de envío real (mismos valores configurables que usa el checkout) para
+    # el shippingDetails del schema -- tarifa base de 1 par, la aplicable a
+    # quien llega directo a esta ficha de producto.
+    try:
+        _envio_cfg = get_config_envio()
+    except Exception:
+        _envio_cfg = _ENVIO_DEFAULTS
+
     # JSON-LD del producto (con todas las imágenes) — generado de forma segura
     ld = {
         "@context": "https://schema.org/",
@@ -323,9 +331,44 @@ def _producto_ssr_inner(sku: str, request: Request):
             "@type": "Offer",
             "url": canonical,
             "priceCurrency": "MXN",
-            "price": str(precio),
+            # precio_display = el precio real que se muestra y se cobra en la página
+            # (precio_menudeo + $80 salvo ofertas). Usar "precio" a secas aquí
+            # generaba un mismatch de $80 contra el precio real -- Merchant Center
+            # y Rich Results lo detectan y pueden rechazar el listado por eso.
+            "price": str(precio_display),
             "availability": "https://schema.org/InStock",
             "seller": {"@type": "Organization", "name": "Zapatillas May"},
+            "shippingDetails": {
+                "@type": "OfferShippingDetails",
+                "shippingRate": {
+                    "@type": "MonetaryAmount",
+                    "value": str(_envio_cfg.get("tier1", 99)),
+                    "currency": "MXN",
+                },
+                "shippingDestination": {
+                    "@type": "DefinedRegion",
+                    "addressCountry": "MX",
+                },
+                "deliveryTime": {
+                    "@type": "ShippingDeliveryTime",
+                    "handlingTime": {
+                        "@type": "QuantitativeValue",
+                        "minValue": 0, "maxValue": 1, "unitCode": "DAY",
+                    },
+                    "transitTime": {
+                        "@type": "QuantitativeValue",
+                        "minValue": 1, "maxValue": 3, "unitCode": "DAY",
+                    },
+                },
+            },
+            "hasMerchantReturnPolicy": {
+                "@type": "MerchantReturnPolicy",
+                "applicableCountry": "MX",
+                "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+                "merchantReturnDays": 30,
+                "returnMethod": "https://schema.org/ReturnByMail",
+                "returnFees": "https://schema.org/ReturnShippingFees",
+            },
         },
     }
     if _rating_data:
