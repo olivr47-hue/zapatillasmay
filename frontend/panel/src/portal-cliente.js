@@ -220,6 +220,7 @@ function renderPC() {
         ${pcNavItem('catalogo', '👟', 'Productos')}
         ${pcNavItem('catalogos','📥', 'Catálogos')}
         ${pcNavItem('carrito',  '🛒', 'Carrito')}
+        ${pcNavItem('apartados','🔒', 'Apartados')}
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
         ${pcNavItem('sugerencias','💡', 'Sugerencias')}
         ${pcNavItem('cuenta',   '👤', 'Mi cuenta')}
@@ -2313,15 +2314,17 @@ async function _pcSincronizarCarritoServidorReal() {
 // vacío (ej. sesión nueva en otro dispositivo). `pedidosCrudos` es la
 // respuesta SIN filtrar de /auth/pedidos/{cliente_id} (incluye borradores).
 async function pcRestaurarCarritoDeServidor(pedidosCrudos) {
-  // OJO: debe filtrar también por status='borrador' -- si solo se busca por
-  // la marca de texto, un carrito-respaldo viejo que ya se liberó/canceló
-  // (status='cancelado') se sigue encontrando y reusando para siempre. Los
-  // pares que el cliente agregue después se guardan ahí, en un pedido muerto
-  // que el panel nunca lista (Carritos solo pide status=borrador/apartado) --
-  // así se ven pares "perdidos" que en realidad sí se guardaron, solo que en
-  // el carrito equivocado.
+  // OJO: debe filtrar por status='borrador' o 'apartado' -- son los dos
+  // estados en los que ese pedido sigue siendo "el carrito en vivo" (ver
+  // cerrar-apartado: solo al cerrarse de verdad se le quita la marca y dejan
+  // de contar). Si se restringe solo a 'borrador', en cuanto se aprueba un
+  // apartado esta función deja de encontrarlo -- el carrito se ve vacío al
+  // recargar aunque en el servidor sigan los pares (aprobados y sin aprobar).
+  // Tampoco debe encontrar un carrito-respaldo viejo ya liberado/cancelado
+  // (status='cancelado'): si solo se buscara por la marca de texto, ese
+  // carrito muerto se seguiría reusando para siempre.
   const borrador = (Array.isArray(pedidosCrudos) ? pedidosCrudos : [])
-    .find(p => p.notas === PC_BORRADOR_MARCA && p.status === 'borrador')
+    .find(p => p.notas === PC_BORRADOR_MARCA && (p.status === 'borrador' || p.status === 'apartado'))
   if (!borrador) return
   pc._borradorServerId = borrador.id
 
@@ -2397,9 +2400,9 @@ async function pcRefrescarCarritoSiCambio() {
     const resPoll = await fetch(`${PC_API}/auth/pedidos/${pc.sesion.cliente_id}`, { headers: pcAuthHeaders() })
     if (resPoll.status === 401 || resPoll.status === 403) { pcDetenerPollCarrito(); pcForzarRelogin(); return }
     const ped = resPoll.ok ? await resPoll.json() : null
-    // Mismo fix que en pcRestaurarCarritoDeServidor: sin el status='borrador'
-    // esto puede engancharse a un carrito-respaldo ya cancelado.
-    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA && p.status === 'borrador')
+    // Mismo criterio que en pcRestaurarCarritoDeServidor: borrador Y apartado
+    // cuentan como "el carrito en vivo" (ver el comentario ahí).
+    const borrador = (Array.isArray(ped) ? ped : []).find(p => p.notas === PC_BORRADOR_MARCA && (p.status === 'borrador' || p.status === 'apartado'))
     const itemsServidor = borrador?.pedido_items || []
     const antes = JSON.stringify(pc.carrito.map(i => [i.variante_id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar, !!i.solicitud_apartar]))
     const despues = JSON.stringify(itemsServidor.map(i => [i.variantes?.id, i.cantidad, i.precio_unitario, !!i.reservado, !!i.solicitud_liberar, !!i.solicitud_apartar]))
