@@ -701,6 +701,31 @@ function renderInicio(el) {
         </button>`).join('')}
     </div>
 
+    <!-- Instrucciones: cómo funciona el portal -->
+    <details class="pc-card" style="margin-bottom:28px;padding:16px 20px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--pc-text);font-size:0.92rem;list-style:none;display:flex;align-items:center;gap:8px">
+        <span>❓</span> Cómo funciona el portal
+      </summary>
+      <div style="margin-top:16px;font-size:0.83rem;color:var(--pc-text-3);line-height:1.6">
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">🛍️ Agregar pares al carrito</p>
+        <p style="margin:0 0 16px">Entra a un producto y toca la talla que quieras — se va guardando en un contador. Puedes tocar varias tallas y colores del mismo modelo antes de confirmar; al darle "Agregar al pedido" te quedas en el mismo producto (no se cierra) para que sigas agregando tallas si quieres. Puedes seguir agregando pares al carrito en cualquier momento, incluso después de mandar apartar algunos.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">🔒 Apartados</p>
+        <p style="margin:0 0 16px">En tu carrito, toca "Apartar pares específicos" para seleccionar exactamente cuáles pares quieres que te reservemos. Al enviarlos, quedan como "esperando aprobación" — nosotros revisamos y aprobamos el apartado; hasta ese momento se reserva el stock de verdad. Una vez aprobado, esos pares dejan de contarse como carrito normal y aparecen resumidos aparte; puedes seguir agregando pares nuevos al carrito y volver a apartar cuantas veces quieras.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">📦 Ver y cerrar tus apartados</p>
+        <p style="margin:0 0 16px">Cuando tienes pares apartados, aparece un acceso a "Apartados" (en el menú, o el banner en tu carrito) donde ves el desglose completo. Desde ahí puedes pedir que se quite un par específico (queda pendiente hasta que lo autoricemos) o darle "Cerrar pedido" cuando ya quieras pagar todo lo apartado — eliges <strong>Transferencia</strong> (te mostramos los datos bancarios) o <strong>Tarjeta</strong> (te generamos un link de pago). Ojo: una vez que cierras con una forma de pago, no se puede cambiar sola desde el portal — si necesitas cambiarla, escríbenos por WhatsApp.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">⚡ Cerrar pedido directo</p>
+        <p style="margin:0 0 16px">Si no quieres apartar por partes, en tu carrito también está el botón "Cerrar pedido" para pagar de una vez todo lo que llevas, sin pasar por la aprobación de apartado.</p>
+
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 6px">📸 Compartir o descargar fotos</p>
+        <p style="margin:0 0 16px">Dentro de la ficha de un producto, toca cualquier foto para verla en grande. Ahí puedes compartir esa foto sola, o activar "seleccionar varias" para elegir varias fotos del mismo modelo y compartirlas o descargarlas juntas de una vez. También puedes compartir las fotos de portada de varios productos sin entrar a cada uno: en el catálogo, selecciona los modelos/colores que quieras y compártelos juntos por WhatsApp. No hay un límite fijo de cuántas fotos puedes seleccionar — el límite real depende de la app a la que las compartas (por ejemplo, WhatsApp).</p>
+
+      </div>
+    </details>
+
     <!-- Sugerencias: más vendidos del mes + modelos al azar (rotan cada sesión) -->
     ${pc.modelosSugeridos.length ? `
     <div style="margin-bottom:28px">
@@ -2965,8 +2990,8 @@ window.pcAbrirCerrarApartado = function(pedidoId, total) {
       <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
         <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">Cerrar pedido — ${money(total)}</h3>
         <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
-        <button onclick="pcCerrarApartadoConPago('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
-        <button onclick="pcCerrarApartadoConPago('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
+        <button id="pc-pago-btn-transferencia" onclick="pcCerrarApartadoConPago('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
+        <button id="pc-pago-btn-tarjeta" onclick="pcCerrarApartadoConPago('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
         <div id="pc-cerrar-apartado-resultado" style="margin-top:16px"></div>
       </div>
     </div>`
@@ -2975,13 +3000,31 @@ window.pcAbrirCerrarApartado = function(pedidoId, total) {
 window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
   const resultado = document.getElementById('pc-cerrar-apartado-resultado')
   if (resultado) resultado.innerHTML = '<p style="text-align:center;color:var(--pc-muted);font-size:0.85rem">Un momento...</p>'
+  // Deshabilitar los dos botones de inmediato -- antes se podía dar clic en
+  // "Transferencia" DESPUÉS de ya haber cerrado con "Tarjeta" (o viceversa),
+  // lo que tronaba con "solo se puede cerrar un pedido que ya está apartado"
+  // porque el pedido ya había dejado de estar en status='apartado'.
+  ;['pc-pago-btn-transferencia', 'pc-pago-btn-tarjeta'].forEach(id => {
+    const b = document.getElementById(id)
+    if (b) { b.disabled = true; b.style.opacity = '0.5'; b.style.pointerEvents = 'none' }
+  })
+  // Los items para MercadoPago se toman ANTES de vaciar pc.carrito más abajo
+  // -- si no, se manda un array vacío (el backend igual lo resuelve por
+  // pedido_id como respaldo, pero no hay que depender de eso).
+  const itemsParaMP = pc.carrito.filter(i => i.reservado).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario }))
   try {
     const res = await fetch(`${PC_API}/pedidos/${pedidoId}/cerrar-apartado`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ forma_pago: formaPago })
     })
     const data = await res.json()
-    if (!data.ok) throw new Error(data.error || 'Error al cerrar el pedido')
+    if (!data.ok) {
+      if (/ya está apartado/i.test(data.error || '')) {
+        if (resultado) resultado.innerHTML = `<p style="font-size:0.85rem;color:var(--pc-text)">Este pedido ya se cerró antes. Si necesitas cambiar la forma de pago, escríbenos por WhatsApp.</p>`
+        return
+      }
+      throw new Error(data.error || 'Error al cerrar el pedido')
+    }
 
     // El pedido que se acaba de cerrar YA NO es "el carrito en vivo" (el
     // backend le quitó la marca de carrito-respaldo) -- si se sigue usando
@@ -3022,7 +3065,7 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           pedido_id: pedidoId,
-          items: pc.carrito.filter(i => i.reservado).map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario })),
+          items: itemsParaMP,
           cliente: { nombre: pc.clienteData?.nombre || '', email: pc.clienteData?.email || '' }
         })
       })
