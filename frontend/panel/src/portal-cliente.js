@@ -3134,11 +3134,14 @@ window.pcCerrarPedidoDirecto = async function() {
         comentarios: notas,
         direccion_envio: direccionEnvio,
         items: pc.carrito.map(i => ({
-          producto_id: i.producto_id,
+          variante_id: i.variante_id,
+          nombre: i.nombre,
           talla: i.talla,
           color: i.color,
           cantidad: i.cantidad,
           precio_unitario: i.precio_unitario,
+          subtotal: i.cantidad * i.precio_unitario,
+          es_corrida: !!i.es_corrida,
         }))
       })
     })
