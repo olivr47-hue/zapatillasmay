@@ -12,6 +12,14 @@
     <meta name="apple-mobile-web-app-title" content="Zapatillas May" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Zapatillas May</title>
+    <!-- Google Analytics 4 -- solo se activa (gtag config) para sesiones del
+         portal de clientes mayoristas, nunca para el panel de administración.
+         Ver _pcInitAnalytics() en portal-cliente.js. -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+    </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QX8MK3D4RY"></script>
   </head>
   <body>
     <div id="app"></div>

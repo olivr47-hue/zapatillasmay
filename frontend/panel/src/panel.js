@@ -23606,9 +23606,15 @@ async function cargarAnalyticsGA() {
       </div>
 
       <!-- Tráfico desde IA (ChatGPT, Perplexity, Gemini...) -->
-      <div class="card" style="padding:1rem">
+      <div class="card" style="padding:1rem;margin-bottom:1rem">
         <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">🤖 Tráfico desde IA (30 días)</div>
         <div id="ga-ia"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
+      <!-- Visitas al portal de mayoreo -->
+      <div class="card" style="padding:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">🛍️ Portal de mayoristas (30 días)</div>
+        <div id="ga-portal"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
       </div>
 
       <!-- Setup guide si no está configurado -->
@@ -23649,6 +23655,7 @@ async function _gaCargarTodo() {
     _gaCargarSemana().catch(() => _gaSeccionError('ga-chart', null)),
     _gaCargarFuentes().catch(() => {}),
     _gaCargarIA().catch(() => {}),
+    _gaCargarPortal().catch(() => {}),
     _gaCargarCiudades().catch(() => {}),
     _gaCargarHorario().catch(() => {}),
   ]
@@ -23830,6 +23837,26 @@ async function _gaCargarIA() {
         </div>`
       }).join('')
   } catch(e) { console.warn('GA ia-referrals:', e.message) }
+}
+
+async function _gaCargarPortal() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/portal-visitas`)
+    const d = await r.json()
+    const el = document.getElementById('ga-portal')
+    if (!el) return
+    if (!d.configurado || d.error) { el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>'; return }
+    if (!d.total_sesiones) {
+      el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin visitas registradas todavía — la medición se acaba de activar.</p>'
+      return
+    }
+    const dias = (d.dias || []).filter(x => x.sesiones > 0)
+    el.innerHTML = `<p style="color:#333;font-size:1.1rem;font-weight:700;margin:0 0 2px">${d.total_sesiones} sesiones</p>
+      <p style="color:#888;font-size:0.75rem;margin:0 0 0.6rem">últimos 30 días</p>` +
+      (dias.length ? dias.slice(-7).reverse().map(x => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.78rem;color:#555">
+        <span>${x.fecha.slice(4,6)}/${x.fecha.slice(6,8)}</span><span>${x.sesiones} ses · ${x.usuarios} usuarios${x.nuevos ? ` (${x.nuevos} nuevos)` : ''}</span>
+      </div>`).join('') : '')
+  } catch(e) { console.warn('GA portal-visitas:', e.message) }
 }
 
 async function _gaCargarCiudades() {

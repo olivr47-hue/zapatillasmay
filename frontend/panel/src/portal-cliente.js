@@ -99,6 +99,7 @@ window.pcToggleTema = () => {
 // ── Entry point ──────────────────────────────────────────────
 export function renderPortalCliente(sesionData) {
   pc.sesion = sesionData
+  _pcInitAnalytics()
   // Tema: claro por defecto; recuerda la última elección del cliente.
   try { pcAplicarTema(localStorage.getItem('pc_tema') === 'dark' ? 'dark' : 'light') } catch {}
   try { pc.carrito = JSON.parse(localStorage.getItem(PC_CARRITO_KEY) || '[]') } catch { pc.carrito = [] }
@@ -114,6 +115,23 @@ export function renderPortalCliente(sesionData) {
   }
   cargarDatosPC()
   _pcInitPush()
+}
+
+// Antes no había ninguna forma de medir cuánta gente entra al portal
+// mayorista -- GA4 solo estaba instalado en la tienda pública. Se activa
+// aquí (no en el HTML) para que el uso del panel de administración (mismo
+// bundle) nunca se mezcle con las métricas de las clientas.
+let _pcAnalyticsInit = false
+function _pcInitAnalytics() {
+  if (_pcAnalyticsInit || typeof gtag !== 'function') return
+  _pcAnalyticsInit = true
+  try {
+    gtag('js', new Date())
+    gtag('config', 'G-QX8MK3D4RY', {
+      page_title: 'Portal mayorista',
+      page_path: '/portal-mayoreo',
+    })
+  } catch (e) { /* si falla GA4 no debe tumbar el portal */ }
 }
 
 // ── Notificaciones push (avisos de pedido/promos, como WhatsApp) ──────
@@ -384,7 +402,6 @@ function renderPC() {
   window.pcCerrarSesion = pcCerrarSesion
   window.pcToggleSidebar = pcToggleSidebar
   window.pcQuitarDelCarrito = pcQuitarDelCarrito
-  window.pcHacerPedido = pcHacerPedido
   window.pcFiltrarCat = (c) => { pc.filtroCat = c; pc.filtroNuevos = false; renderCatalogo() }
   window.pcFiltrarNuevos = () => { pc.filtroNuevos = !pc.filtroNuevos; pc.filtroCat = ''; renderCatalogo() }
   window.pcToggleFiltroTalla = (t) => {
@@ -439,6 +456,7 @@ function pcIrA(tab, _fromBack) {
   }
   pc.tab = tab
   try { localStorage.setItem('pc_active_tab_admin', tab) } catch {}
+  try { if (typeof gtag === 'function') gtag('event', 'page_view', { page_title: 'Portal mayorista', page_path: '/portal-mayoreo/' + tab }) } catch {}
   // Actualizar nav items
   document.querySelectorAll('.pc-nav-item').forEach(el => {
     const t = el.getAttribute('onclick')?.match(/'(\w+)'/)?.[1]
@@ -1658,10 +1676,14 @@ window.pcConfirmarModal = (prodId) => {
   })
 
   if (agregados === 0) { alert('Agrega al menos una talla'); return }
-  history.back()
-  window._pcBuffer = {}
   pcGuardarCarrito()
-  renderCatalogo()
+  // Antes esto cerraba el producto y regresaba al catálogo (history.back())
+  // -- molesto para quien quiere agregar varias tallas del mismo modelo, porque
+  // tenía que volver a abrir el producto cada vez. Ahora se queda en el mismo
+  // producto (buffer limpio, listo para seguir eligiendo) y solo se avisa con
+  // un toast que sí se agregó.
+  pcMostrarExito(`✅ ${agregados > 1 ? agregados + ' tallas agregadas' : '1 talla agregada'} al carrito`)
+  pcAbrirProducto(prodId)
 }
 
 // ── Corrida mode ──────────────────────────────────────────────────────────────
@@ -2592,13 +2614,19 @@ function renderCarrito(el) {
           <label style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--pc-muted);display:block;margin-bottom:6px">Notas del pedido</label>
           <textarea id="pc-notas" class="pc-input" style="height:70px;resize:none" placeholder="Color específico, urgencia, instrucciones..."></textarea>
         </div>
-        <button onclick="pcHacerPedido()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
-          Enviar pedido →
+        <button onclick="pcToggleModoSeleccionApartado()" class="pc-btn pc-btn-primary" style="width:100%;margin-bottom:8px">
+          🔒 Apartar pares específicos
         </button>
-        <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="width:100%;font-size:0.78rem">
-          Vaciar carrito
-        </button>
+        <div style="display:flex;gap:8px">
+          <button onclick="pcCerrarPedidoDirecto()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem" ${(pc.clienteData?.direccion || '').trim() ? '' : 'disabled'}>
+            Cerrar pedido
+          </button>
+          <button onclick="if(confirm('¿Vaciar el carrito?'))pcVaciarCarrito()" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.78rem">
+            Vaciar carrito
+          </button>
+        </div>
         <p id="pc-pedido-err" style="color:#ef4444;font-size:0.78rem;margin-top:8px;display:none"></p>
+        <div id="pc-pago-directo-modal"></div>
       </div>` : ''}
     </div>
   `
@@ -2989,22 +3017,28 @@ window.pcCerrarApartadoConPago = async function(pedidoId, formaPago) {
   }
 }
 
-window.pcHacerPedido = async function() {
+// "Cerrar pedido" desde el carrito directo (sin pasar por apartado/aprobación
+// manual) -- para la clienta que no quiere apartar par por par, sino pagar
+// de una vez todo lo que lleva. Crea el pedido igual que antes, pero en vez
+// de solo avisar "te contactaremos" ahora le abre las opciones de pago
+// (transferencia/tarjeta) al instante, igual que en Apartados.
+window.pcCerrarPedidoDirecto = async function() {
   const notas = document.getElementById('pc-notas')?.value?.trim() || ''
   const errEl = document.getElementById('pc-pedido-err')
   if (pc.carrito.length === 0) return
   if (!pc.sesion?.cliente_id) { if (errEl) { errEl.textContent = 'Sin sesión activa'; errEl.style.display = 'block' } return }
   const direccion = (pc.clienteData?.direccion || '').trim()
   if (!direccion) {
-    if (errEl) { errEl.textContent = 'Agrega tu dirección de envío en Mi cuenta antes de enviar el pedido'; errEl.style.display = 'block' }
+    if (errEl) { errEl.textContent = 'Agrega tu dirección de envío en Mi cuenta antes de cerrar el pedido'; errEl.style.display = 'block' }
     return
   }
   const direccionEnvio = `${direccion}${pc.clienteData?.codigo_postal ? ', CP '+pc.clienteData.codigo_postal : ''}${pc.clienteData?.ciudad ? ', '+pc.clienteData.ciudad : ''}${pc.clienteData?.estado ? ', '+pc.clienteData.estado : ''}`
 
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
+  const itemsParaMP = pc.carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario }))
   const descripcion = pc.carrito.map(i => `${i.sku} T${i.talla}${i.color ? ' '+i.color : ''} x${i.cantidad}`).join(', ')
 
-  const btn = document.querySelector('[onclick="pcHacerPedido()"]')
+  const btn = document.querySelector('[onclick="pcCerrarPedidoDirecto()"]')
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true }
 
   try {
@@ -3033,6 +3067,8 @@ window.pcHacerPedido = async function() {
       })
     })
     if (res.ok) {
+      const data = await res.json()
+      const nuevoPedidoId = Array.isArray(data) ? data[0]?.id : data?.id
       pc.carrito = []
       pcGuardarCarrito(true)
       // Recargar pedidos (filtrando el borrador que respaldaba el carrito)
@@ -3043,16 +3079,78 @@ window.pcHacerPedido = async function() {
           pc.pedidos = Array.isArray(todos) ? todos.filter(p => p.notas !== PC_BORRADOR_MARCA) : todos
         }
       }
-      pcMostrarExito('¡Pedido enviado! Te contactaremos para coordinar el pago y envío.')
-      pcIrA('pedidos')
+      if (nuevoPedidoId) pcAbrirPagoDirecto(nuevoPedidoId, total, itemsParaMP)
+      else pcMostrarExito('¡Pedido enviado! Te contactaremos para coordinar el pago y envío.')
+      if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
     } else {
       const d = await res.json()
       if (errEl) { errEl.textContent = d.error || 'Error al enviar el pedido'; errEl.style.display = 'block' }
-      if (btn) { btn.textContent = 'Enviar pedido →'; btn.disabled = false }
+      if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
     }
   } catch(e) {
     if (errEl) { errEl.textContent = 'Error conectando con el servidor'; errEl.style.display = 'block' }
-    if (btn) { btn.textContent = 'Enviar pedido →'; btn.disabled = false }
+    if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
+  }
+}
+
+// Opciones de pago para un pedido recién creado directo desde el carrito
+// (ya nace en pendiente_pago -- a diferencia de Apartados, aquí no hay que
+// llamar cerrar-apartado, solo guardar la forma de pago elegida).
+window.pcAbrirPagoDirecto = function(pedidoId, total, itemsParaMP) {
+  window._pcItemsParaMPTemp = itemsParaMP  // evita tener que serializar el array dentro de un onclick
+  let modal = document.getElementById('pc-pago-directo-modal')
+  if (!modal) { modal = document.createElement('div'); modal.id = 'pc-pago-directo-modal'; document.body.appendChild(modal) }
+  modal.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) this.remove()">
+      <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
+        <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">¡Pedido enviado! — ${money(total)}</h3>
+        <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
+        <button onclick="pcElegirPagoDirecto('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia — te doy los datos bancarios</button>
+        <button onclick="pcElegirPagoDirecto('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
+        <div id="pc-pago-directo-resultado" style="margin-top:16px"></div>
+      </div>
+    </div>`
+}
+
+window.pcElegirPagoDirecto = async function(pedidoId, formaPago) {
+  const itemsParaMP = window._pcItemsParaMPTemp || []
+  const resultado = document.getElementById('pc-pago-directo-resultado')
+  if (resultado) resultado.innerHTML = '<p style="text-align:center;color:var(--pc-muted);font-size:0.85rem">Un momento...</p>'
+  try {
+    await fetch(`${PC_API}/pedidos/${pedidoId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ forma_pago: formaPago })
+    })
+    if (formaPago === 'transferencia') {
+      const cfg = await fetch(`${PC_API}/config/pago-transferencia`).then(r => r.json()).catch(() => ({}))
+      if (!cfg.clabe) {
+        if (resultado) resultado.innerHTML = `<p style="font-size:0.85rem;color:var(--pc-text)">Contáctanos por WhatsApp para darte los datos de la transferencia.</p>`
+      } else if (resultado) {
+        resultado.innerHTML = `
+          <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px">
+            <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 8px">Transfiere a:</p>
+            <p style="font-size:0.85rem;margin:0 0 4px"><strong>Banco:</strong> ${esc(cfg.banco)}</p>
+            <p style="font-size:0.85rem;margin:0 0 4px"><strong>CLABE:</strong> ${esc(cfg.clabe)}</p>
+            <p style="font-size:0.85rem;margin:0"><strong>Titular:</strong> ${esc(cfg.titular)}</p>
+          </div>
+          <p style="font-size:0.78rem;color:var(--pc-muted);margin:10px 0 0">Cuando hagas la transferencia, mándanos el comprobante por WhatsApp.</p>`
+      }
+    } else {
+      const mpRes = await fetch(`${PC_API}/pagos/crear-preferencia`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pedido_id: pedidoId, items: itemsParaMP,
+          cliente: { nombre: pc.clienteData?.nombre || '', email: pc.clienteData?.email || '' }
+        })
+      })
+      const mpData = await mpRes.json()
+      if (mpData.init_point && resultado) {
+        resultado.innerHTML = `<a href="${mpData.init_point}" target="_blank" class="pc-btn pc-btn-primary" style="width:100%;text-align:center;display:block">Ir a pagar con MercadoPago →</a>`
+      } else if (resultado) {
+        resultado.innerHTML = `<p style="font-size:0.85rem;color:#ef4444">No se pudo generar el link de pago. Intenta de nuevo o contáctanos.</p>`
+      }
+    }
+  } catch (e) {
+    if (resultado) resultado.innerHTML = `<p style="font-size:0.85rem;color:#ef4444">Error: ${e.message}</p>`
   }
 }
 

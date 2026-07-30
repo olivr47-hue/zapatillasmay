@@ -563,6 +563,43 @@ def fuentes_trafico():
     return {"configurado": True, "total_sesiones": total, "fuentes": result[:12]}
 
 
+@router.get("/portal-visitas")
+def portal_visitas():
+    """Sesiones y usuarios del portal de clientes mayoristas (últimos 30 días).
+    GA4 solo se activa ahí para sesiones de clientes reales, nunca para el
+    panel de administración -- se filtra por pagePath para no mezclarlo con
+    las métricas de la tienda pública, que comparten la misma propiedad GA4."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges":      [{"startDate": "30daysAgo", "endDate": "today"}],
+        "metrics":         [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "newUsers"}],
+        "dimensions":      [{"name": "date"}],
+        "dimensionFilter": {"filter": {"fieldName": "pagePath",
+                             "stringFilter": {"matchType": "BEGINS_WITH", "value": "/portal-mayoreo"}}},
+        "orderBys":        [{"dimension": {"dimensionName": "date"}}],
+        "limit":           35,
+    })
+
+    if not resp:
+        return {"configurado": True, "error": "No se pudo obtener datos", "total_sesiones": 0, "dias": []}
+
+    dias = []
+    total = 0
+    for row in resp.get("rows", []):
+        dims = row.get("dimensionValues", [])
+        metr = row.get("metricValues", [])
+        fecha    = dims[0].get("value", "") if len(dims) > 0 else ""
+        sesiones = int(metr[0].get("value", 0)) if len(metr) > 0 else 0
+        usuarios = int(metr[1].get("value", 0)) if len(metr) > 1 else 0
+        nuevos   = int(metr[2].get("value", 0)) if len(metr) > 2 else 0
+        dias.append({"fecha": fecha, "sesiones": sesiones, "usuarios": usuarios, "nuevos": nuevos})
+        total += sesiones
+
+    return {"configurado": True, "total_sesiones": total, "dias": dias}
+
+
 @router.get("/ia-referrals")
 def ia_referrals():
     """Tráfico proveniente de asistentes de IA (ChatGPT, Perplexity, Gemini, Copilot...)
