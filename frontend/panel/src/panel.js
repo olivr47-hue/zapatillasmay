@@ -12868,68 +12868,116 @@ window.limpiarCarritoPOS = () => {
 // Manda el monto a la terminal fisica y espera a que el cliente pague (o
 // a que se cancele). Regresa una Promise<boolean> -- true si se completo
 // el pago en la terminal, false si se canceló o falló.
+// OJO: un NIP capturado mal en la terminal cancela ESE intento de cobro,
+// pero antes esta función lo trataba como fallo definitivo -- el llamador
+// (cobrarPOS, etc.) entonces cancelaba el PEDIDO completo y el cajero tenía
+// que empezar de cero (carrito, pedido, item, nuevo intento). Eso fue justo
+// lo que pasó con un pedido real: 3 NIP mal capturados = 3 pedidos
+// cancelados, y cuando el 4to intento sí funcionó en la terminal física, ya
+// no había ningún pedido/intento vivo en el ERP rastreándolo -- la venta se
+// cobró de verdad pero nunca quedó registrada. Ahora, si el intento se
+// cancela o da error, se ofrece "Reintentar" (manda un intento nuevo a la
+// terminal sin tocar el pedido ni los items ya creados); solo se resuelve
+// false -- y el llamador cancela el pedido -- si el cajero elige no
+// reintentar.
 window.cobrarConTerminalYEsperar = (deviceId, monto, pedidoId) => {
-  return new Promise(async (resolve) => {
+  return new Promise((resolve) => {
     let intentId = null
-    try {
-      const res = await fetch(API + '/pagos/terminal/cobrar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: deviceId, monto, pedido_id: pedidoId })
-      })
-      const data = await res.json()
-      if (data.error || !data.id) {
-        alert('No se pudo enviar el cobro a la terminal:\n' + JSON.stringify(data.error || data))
-        resolve(false)
-        return
-      }
-      intentId = data.id
-    } catch (e) {
-      alert('Error conectando con la terminal')
-      resolve(false)
-      return
-    }
+    let resuelto = false
 
     const modal = document.createElement('div')
     modal.id = 'modal-esperando-terminal'
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem'
-    modal.innerHTML = `
-      <div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:100%;text-align:center">
-        <div style="font-size:2.5rem;margin-bottom:12px">💳</div>
-        <p style="font-weight:700;font-size:1.05rem;margin-bottom:6px">Esperando la terminal...</p>
-        <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Pide al cliente que pase o inserte su tarjeta.<br>Monto: $${monto.toFixed(2)}</p>
-        <button class="btn btn-secondary" style="width:100%;color:#c62828;border-color:#ef9a9a" onclick="window._cancelarEsperaTerminal=true">Cancelar cobro</button>
-      </div>
-    `
     document.body.appendChild(modal)
-    window._cancelarEsperaTerminal = false
+
+    const resolverUnaVez = (valor) => {
+      if (resuelto) return
+      resuelto = true
+      modal.remove()
+      resolve(valor)
+    }
+
+    const renderEsperando = () => {
+      modal.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:100%;text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:12px">💳</div>
+          <p style="font-weight:700;font-size:1.05rem;margin-bottom:6px">Esperando la terminal...</p>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">Pide al cliente que pase o inserte su tarjeta.<br>Monto: $${monto.toFixed(2)}</p>
+          <button class="btn btn-secondary" style="width:100%;color:#c62828;border-color:#ef9a9a" onclick="window._cancelarEsperaTerminal=true">Cancelar cobro</button>
+        </div>
+      `
+    }
+
+    const renderFalloConReintentar = (estado) => {
+      modal.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:2rem;max-width:360px;width:100%;text-align:center">
+          <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+          <p style="font-weight:700;font-size:1.05rem;margin-bottom:6px">El cobro no se completó</p>
+          <p style="color:#888;font-size:0.85rem;margin-bottom:1.5rem">La terminal reportó: ${esc(String(estado))}. Si fue por un NIP mal capturado, puedes reintentar sin perder el pedido.<br>Monto: $${monto.toFixed(2)}</p>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="window._reintentarCobroTerminal=true">🔁 Reintentar</button>
+          <button class="btn btn-secondary" style="width:100%;color:#c62828;border-color:#ef9a9a" onclick="window._cancelarEsperaTerminal=true">Cancelar pedido</button>
+        </div>
+      `
+    }
+
+    const esperarDecisionReintento = () => {
+      if (resuelto) return
+      if (window._reintentarCobroTerminal) { enviarCobro(); return }
+      if (window._cancelarEsperaTerminal) { resolverUnaVez(false); return }
+      setTimeout(esperarDecisionReintento, 300)
+    }
 
     const revisar = async () => {
-      if (!document.getElementById('modal-esperando-terminal')) return  // ya se resolvió
+      if (resuelto) return
       if (window._cancelarEsperaTerminal) {
         try { await fetch(API + '/pagos/terminal/' + deviceId + '/cobrar/' + intentId, { method: 'DELETE' }) } catch (e) {}
-        modal.remove()
-        resolve(false)
+        resolverUnaVez(false)
         return
       }
       try {
         const res = await fetch(API + '/pagos/terminal/estado/' + intentId)
         const data = await res.json()
         if (data.state === 'FINISHED') {
-          modal.remove()
-          resolve(true)
+          resolverUnaVez(true)
           return
         }
         if (data.state === 'CANCELED' || data.state === 'ERROR') {
-          modal.remove()
-          alert('El cobro no se completó en la terminal (' + data.state + ').')
-          resolve(false)
+          window._cancelarEsperaTerminal = false
+          window._reintentarCobroTerminal = false
+          renderFalloConReintentar(data.state)
+          esperarDecisionReintento()
           return
         }
       } catch (e) {}
       setTimeout(revisar, 2500)
     }
-    revisar()
+
+    const enviarCobro = async () => {
+      window._cancelarEsperaTerminal = false
+      window._reintentarCobroTerminal = false
+      renderEsperando()
+      try {
+        const res = await fetch(API + '/pagos/terminal/cobrar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId, monto, pedido_id: pedidoId })
+        })
+        const data = await res.json()
+        if (data.error || !data.id) {
+          alert('No se pudo enviar el cobro a la terminal:\n' + JSON.stringify(data.error || data))
+          resolverUnaVez(false)
+          return
+        }
+        intentId = data.id
+      } catch (e) {
+        alert('Error conectando con la terminal')
+        resolverUnaVez(false)
+        return
+      }
+      revisar()
+    }
+
+    enviarCobro()
   })
 }
 
