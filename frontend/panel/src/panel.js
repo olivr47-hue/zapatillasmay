@@ -2869,9 +2869,20 @@ async function cargarAnalisis() {
     // y nos deja saber a quién se le vendió y poder abrir el pedido real.
     const pedidosPorProducto = {}
     pedidos.forEach(ped => {
-      if (ped.status === 'cancelado') return
+      // "borrador" es el carrito de un cliente (o el arranque del checkout de
+      // POS) -- todavía no es una intención confirmada por nosotros, así que
+      // no cuenta como nota aunque traiga items. Sin este filtro, un modelo
+      // podía verse "rotando bien" solo porque 2-3 mayoristas lo traían en su
+      // carrito sin haberlo apartado ni comprado nunca.
+      if (ped.status === 'cancelado' || ped.status === 'borrador') return
       const porProducto = {}
       ;(ped.pedido_items || []).forEach(it => {
+        // En un apartado, solo cuentan los pares que YA aprobamos y
+        // reservamos de verdad (reservado=true) -- lo que el cliente pidió
+        // apartar pero seguimos sin aprobar, o lo que agregó después sin
+        // volver a pedir aprobación, no es una intención confirmada por
+        // nosotros todavía.
+        if (ped.status === 'apartado' && !it.reservado) return
         const variante = varianteMap[it.variante_id]
         if (!variante) return
         const pid = variante.producto_id
