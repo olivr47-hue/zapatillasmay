@@ -3674,6 +3674,20 @@ window.addEventListener('load', () => {
     window._pendingPurchase = null
   }
 
+  // Nivel superior (no anidado en cargarConfigSEO) para que también lo pueda
+  // usar _zmAplicarOverridesEditables() cuando se re-aplica después de
+  // renderCategorias() o en un resize (ver más abajo).
+  function _zmCargarGoogleFont(nombre, pesos) {
+    if (!nombre) return
+    const id = 'zm-font-' + nombre.replace(/\s+/g, '-').toLowerCase()
+    if (document.getElementById(id)) return
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@${pesos}&display=swap`
+    document.head.appendChild(link)
+  }
+
   async function cargarConfigSEO() {
   try {
     const res = await fetch('https://zapatillasmay-production.up.railway.app/seo/config')
@@ -3872,16 +3886,6 @@ if (config.hero_titulo_sombra) {
 // FUENTES_DISPONIBLES en el panel) para titulos (--font-display) y texto
 // (--font-body). Se carga el <link> de Google Fonts solo si hace falta
 // (nunca la fuente default, que ya viene precargada en el <head>).
-function _zmCargarGoogleFont(nombre, pesos) {
-  if (!nombre) return
-  const id = 'zm-font-' + nombre.replace(/\s+/g, '-').toLowerCase()
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@${pesos}&display=swap`
-  document.head.appendChild(link)
-}
 if (config.font_display && config.font_display !== 'Cormorant Garamond') {
   _zmCargarGoogleFont(config.font_display, '300;400;500;600;700')
   document.documentElement.style.setProperty('--font-display', `'${config.font_display}', 'Cormorant Fallback', Georgia, serif`)
@@ -3905,22 +3909,13 @@ if (config.cat_texto_tamano) {
   document.documentElement.style.setProperty('--cat-name-size', config.cat_texto_tamano + 'rem')
 }
 
-// Color/tamaño personalizados por campo (puestos desde la barra de formato
-// del Editor visual) -- genérico, no hace falta código nuevo por cada campo
-// [data-editable] que se agregue a futuro.
-document.querySelectorAll('[data-editable]').forEach((el) => {
-  const clave = el.getAttribute('data-editable')
-  if (config[clave + '_color']) el.style.color = config[clave + '_color']
-  if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
-  if (config[clave + '_font']) {
-    _zmCargarGoogleFont(config[clave + '_font'], '300;400;500;600;700')
-    el.style.fontFamily = `'${config[clave + '_font']}'`
-  }
-  if (config[clave + '_transform']) {
-    const p = config[clave + '_transform'].split(',').map(Number)
-    el.style.transform = `translate(${p[0]||0}px, ${p[1]||0}px) scale(${p[2]||1})`
-  }
-})
+// Color/tamaño/posición personalizados por campo (puestos desde la barra de
+// formato o los mangos de mover/redimensionar del Editor visual) -- genérico,
+// no hace falta código nuevo por cada campo [data-editable] que se agregue a
+// futuro. Ver _zmAplicarOverridesEditables() más abajo (se re-usa también
+// después de renderCategorias() y en cada resize, para que la vista móvil
+// use su propia posición si se guardó una).
+_zmAplicarOverridesEditables()
 
 // Scroll parallax manejado por el bloque 3D al final del body
 if (config.favicon_url) {
@@ -3937,6 +3932,52 @@ if (config.favicon_url) {
     console.log('Config SEO no disponible')
   }
 }
+
+// Aplica color/tamaño/fuente/posición guardados a cualquier elemento
+// editable ya presente en el DOM. Se llama al cargar la config, otra vez
+// después de renderCategorias() (las tarjetas de categoría se crean después,
+// vía JS) y en cada resize (para que un elemento con posición guardada solo
+// para móvil ("{clave}_transform_movil") se vea bien tanto en el editor
+// (cuando el panel cambia el ancho del iframe a "Móvil") como para una
+// visitante real que gira su teléfono o cambia de pantalla.
+// No pisa un campo que se está arrastrando/editando ahora mismo sin guardar
+// (clase "zm-sin-guardar") para no perder la vista previa de un cambio
+// pendiente.
+function _zmAplicarOverridesEditables() {
+  const config = window._zmSeoConfig || {}
+  const esMovil = window.matchMedia('(max-width: 768px)').matches
+  function transformDe(clave) {
+    if (esMovil && config[clave + '_transform_movil']) return config[clave + '_transform_movil']
+    return config[clave + '_transform']
+  }
+  function aplicarTransform(el, clave) {
+    const t = transformDe(clave)
+    if (!t) return
+    const p = t.split(',').map(Number)
+    el.style.transform = `translate(${p[0]||0}px, ${p[1]||0}px) scale(${p[2]||1})`
+  }
+  document.querySelectorAll('[data-editable]').forEach((el) => {
+    if (el.classList.contains('zm-sin-guardar')) return
+    const clave = el.getAttribute('data-editable')
+    if (config[clave + '_color']) el.style.color = config[clave + '_color']
+    if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
+    if (config[clave + '_font']) {
+      _zmCargarGoogleFont(config[clave + '_font'], '300;400;500;600;700')
+      el.style.fontFamily = `'${config[clave + '_font']}'`
+    }
+    aplicarTransform(el, clave)
+  })
+  document.querySelectorAll('[data-editable-image], [data-editable-image-multi], [data-editable-move]').forEach((el) => {
+    if (el.classList.contains('zm-sin-guardar')) return
+    const clave = el.getAttribute('data-editable-image') || el.getAttribute('data-editable-image-multi') || el.getAttribute('data-editable-move')
+    aplicarTransform(el, clave)
+  })
+}
+let _zmResizeTimer = null
+window.addEventListener('resize', () => {
+  clearTimeout(_zmResizeTimer)
+  _zmResizeTimer = setTimeout(_zmAplicarOverridesEditables, 200)
+})
 
 cargarConfigSEO()
 
@@ -4012,6 +4053,23 @@ cargarConfigSEO()
     barra.style.display = 'flex'
   }
 
+  // Cualquier elemento seleccionable (texto, imagen, o una caja que solo se
+  // puede mover/redimensionar) guarda su cambio bajo la clave de su propio
+  // atributo -- así "iniciarArrastre" funciona igual sin importar cuál de
+  // los tres tipos sea.
+  function _zmClaveDe(el) {
+    return el.getAttribute('data-editable') || el.getAttribute('data-editable-image') || el.getAttribute('data-editable-image-multi') || el.getAttribute('data-editable-move')
+  }
+
+  // Selecciona una caja (imagen o contenedor puro, sin texto que formatear)
+  // para poder moverla/redimensionarla -- sin mostrar la barra de color/
+  // tamaño/fuente, que solo tiene sentido para texto.
+  function seleccionarParaMover(el) {
+    elActivo = el
+    barra.style.display = 'none'
+    posicionarMangos(el)
+  }
+
   function mostrarBarraPara(el) {
     elActivo = el
     const colorInput = document.getElementById('zm-tb-color')
@@ -4070,7 +4128,7 @@ cargarConfigSEO()
       ev.preventDefault()
       ev.stopPropagation()
       const el = elActivo
-      const clave = el.getAttribute('data-editable')
+      const clave = _zmClaveDe(el)
       const t0 = leerTransform(el)
       const startX = ev.clientX, startY = ev.clientY
       const anchoInicial = el.getBoundingClientRect().width
@@ -4093,7 +4151,12 @@ cargarConfigSEO()
       function soltar() {
         window.removeEventListener('pointermove', mover)
         window.removeEventListener('pointerup', soltar)
-        marcarPendiente(clave + '_transform', el.dataset.zmTransform)
+        // Si el panel tiene el iframe angosto (vista "Móvil"), la posición
+        // se guarda aparte -- así no se pisa la posición de escritorio y
+        // una visitante real ve la que le toca según su pantalla (ver
+        // _zmAplicarOverridesEditables()).
+        const sufijo = window.matchMedia('(max-width: 768px)').matches ? '_transform_movil' : '_transform'
+        marcarPendiente(clave + sufijo, el.dataset.zmTransform)
         el.classList.add('zm-sin-guardar')
       }
       window.addEventListener('pointermove', mover)
@@ -4162,6 +4225,7 @@ cargarConfigSEO()
     marcarPendiente(clave + '_size', '')
     marcarPendiente(clave + '_font', '')
     marcarPendiente(clave + '_transform', '')
+    marcarPendiente(clave + '_transform_movil', '')
     elActivo.classList.add('zm-sin-guardar')
     posicionarMangos(elActivo)
   })
@@ -4204,7 +4268,16 @@ cargarConfigSEO()
       input.click()
       return
     }
-    if (barra.style.display !== 'none' && !ev.target.closest('#zm-toolbar') && !ev.target.closest('#zm-handle-move') && !ev.target.closest('#zm-handle-resize')) ocultarBarra()
+    // Cajas/contenedores que no tienen texto ni foto propia (ej. la tarjeta
+    // completa de una categoría) -- solo se pueden mover/redimensionar.
+    const elMove = ev.target.closest('[data-editable-move]')
+    if (elMove) {
+      ev.preventDefault()
+      ev.stopPropagation()
+      seleccionarParaMover(elMove)
+      return
+    }
+    if (!ev.target.closest('#zm-toolbar') && !ev.target.closest('#zm-handle-move') && !ev.target.closest('#zm-handle-resize')) ocultarBarra()
   }, true)
 
   async function _zmSubirImagenes(clave, el, files, multi) {
@@ -4296,8 +4369,8 @@ cargarConfigSEO()
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            const claveBase = clave.replace(/_(color|size|font|transform)$/, '')
-            document.querySelectorAll(`[data-editable="${claveBase}"], [data-editable-image="${claveBase}"], [data-editable-image-multi="${claveBase}"]`).forEach(el => {
+            const claveBase = clave.replace(/_(color|size|font|transform|transform_movil)$/, '')
+            document.querySelectorAll(`[data-editable="${claveBase}"], [data-editable-image="${claveBase}"], [data-editable-image-multi="${claveBase}"], [data-editable-move="${claveBase}"]`).forEach(el => {
               if (el.hasAttribute('data-editable')) el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')
             })
@@ -4316,6 +4389,8 @@ cargarConfigSEO()
     [data-editable].zm-sin-guardar:not(.zm-editing) { outline: 2px dashed #f59e0b !important; background: rgba(245,158,11,0.08) !important; }
     html.zm-modo-edicion [data-editable-image], html.zm-modo-edicion [data-editable-image-multi] { outline: 2px dashed transparent; cursor: pointer; transition: outline-color .15s; }
     html.zm-modo-edicion [data-editable-image]:hover, html.zm-modo-edicion [data-editable-image-multi]:hover { outline-color: rgba(233,30,140,0.7); }
+    html.zm-modo-edicion [data-editable-move] { outline: 2px dashed transparent; cursor: move; transition: outline-color .15s; }
+    html.zm-modo-edicion [data-editable-move]:hover { outline-color: rgba(59,130,246,0.7); }
     html.zm-modo-edicion .zm-btn-cambiar-foto { display: inline-flex !important; align-items: center; gap: 6px; background: #E91E8C; color: #fff; border: none; padding: 8px 14px; border-radius: 100px; font: 600 12.5px/1 -apple-system,sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     html.zm-modo-edicion .zm-btn-cambiar-foto:hover { background: #c9187a; }
     #zm-toolbar { display:none; position:fixed; z-index:99999; background:#1f2937; color:#fff; padding:8px 10px; border-radius:10px; gap:12px; align-items:center; font:13px/1.2 -apple-system,sans-serif; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
@@ -4448,24 +4523,32 @@ cargarConfigSEO()
   }
   // Overrides desde el panel (SEO y Sitio -> Categorías): foto e icono por
   // categoría, guardados como JSON en configuracion_seo bajo "categorias_estilo".
+  // También se puede editar cada tarjeta directo desde el Editor visual
+  // (clic en la imagen/ícono/texto, o arrastrar la tarjeta completa) --
+  // esos cambios quedan en claves sueltas "cat_{categoria}_..." que
+  // _zmAplicarOverridesEditables() aplica genéricamente (color/tamaño/
+  // fuente/posición) justo después de armar el HTML de abajo.
   let _catOverrides = {}
   try { _catOverrides = JSON.parse((window._zmSeoConfig && window._zmSeoConfig.categorias_estilo) || '{}') || {} } catch(e) {}
+  const _cfgCat = window._zmSeoConfig || {}
   grid.innerHTML = cats.map(c => {
     const ov = _catOverrides[c] || {}
     const imagen = ov.imagen || IMG_CATS[c] || ''
-    const icono = ov.icono || ICONOS_CATS[c] || '👠'
+    const icono = _cfgCat['cat_' + c + '_icono'] || ov.icono || ICONOS_CATS[c] || '👠'
+    const nombre = _cfgCat['cat_' + c + '_texto'] || (c.charAt(0).toUpperCase() + c.slice(1))
     return `
     <div class="cat-wrap" role="button" tabindex="0" onclick="filtrarCategoria('${c}')" onkeydown="if(event.key==='Enter'||event.key===' ') filtrarCategoria('${c}')">
-      <div class="cat-card">
-        <img src="${imagen}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
+      <div class="cat-card" data-editable-move="cat_${c}_caja">
+        <img src="${imagen}" data-editable-image="cat_${c}_imagen" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
         <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(90,30,45,0.75) 0%, rgba(180,100,100,0.15) 60%, transparent 100%)"></div>
         <div style="position:absolute;bottom:16px;left:16px;right:16px">
-          <span style="font-size:1.4rem;display:block;margin-bottom:4px">${icono}</span>
-          <div class="cat-name">${c.charAt(0).toUpperCase() + c.slice(1)}</div>
+          <span data-editable="cat_${c}_icono" style="font-size:1.4rem;display:block;margin-bottom:4px">${icono}</span>
+          <div class="cat-name" data-editable="cat_${c}_texto">${nombre}</div>
         </div>
       </div>
     </div>
   `}).join('')
+  if (typeof _zmAplicarOverridesEditables === 'function') _zmAplicarOverridesEditables()
 }
 
   // ── Scroll infinito ──────────────────────────────────────────────────────────

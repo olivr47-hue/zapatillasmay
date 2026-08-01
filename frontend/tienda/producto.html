@@ -1626,6 +1626,44 @@ function mostrarToast(msg) {
 
 // ── PIXELS ────────────────────────────────────────────────────────
 
+// Aplica color/tamaño/fuente/posición guardados a cualquier [data-editable]
+// ya presente en el DOM. Se llama al cargar la config y otra vez en cada
+// resize, para que un texto con posición guardada solo para móvil
+// ("{clave}_transform_movil") se vea bien tanto en el editor (cuando el
+// panel cambia el ancho del iframe a "Móvil") como para una visitante real
+// que gira su teléfono. No pisa un campo que se está arrastrando/editando
+// ahora mismo sin guardar (clase "zm-sin-guardar").
+function _zmAplicarOverridesEditables() {
+  const config = window._zmSeoConfig || {}
+  const esMovil = window.matchMedia('(max-width: 768px)').matches
+  document.querySelectorAll('[data-editable]').forEach((el) => {
+    if (el.classList.contains('zm-sin-guardar')) return
+    const clave = el.getAttribute('data-editable')
+    if (config[clave + '_color']) el.style.color = config[clave + '_color']
+    if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
+    if (config[clave + '_font']) {
+      const nombre = config[clave + '_font']
+      const id = 'zm-font-' + nombre.replace(/\s+/g,'-').toLowerCase()
+      if (!document.getElementById(id)) {
+        const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
+        l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@300;400;500;600;700&display=swap`
+        document.head.appendChild(l)
+      }
+      el.style.fontFamily = `'${nombre}'`
+    }
+    const t = (esMovil && config[clave + '_transform_movil']) ? config[clave + '_transform_movil'] : config[clave + '_transform']
+    if (t) {
+      const p = t.split(',').map(Number)
+      el.style.transform = `translate(${p[0]||0}px, ${p[1]||0}px) scale(${p[2]||1})`
+    }
+  })
+}
+let _zmResizeTimerProd = null
+window.addEventListener('resize', () => {
+  clearTimeout(_zmResizeTimerProd)
+  _zmResizeTimerProd = setTimeout(_zmAplicarOverridesEditables, 200)
+})
+
 async function cargarConfig() {
   try {
     const res = await fetch(`${API}/seo/config`)
@@ -1687,26 +1725,10 @@ async function cargarConfig() {
       if (el) el.textContent = config[clave]
     })
 
-    // Color/tamaño/fuente personalizados por campo (barra de formato del Editor visual)
-    document.querySelectorAll('[data-editable]').forEach((el) => {
-      const clave = el.getAttribute('data-editable')
-      if (config[clave + '_color']) el.style.color = config[clave + '_color']
-      if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
-      if (config[clave + '_font']) {
-        const nombre = config[clave + '_font']
-        const id = 'zm-font-' + nombre.replace(/\s+/g,'-').toLowerCase()
-        if (!document.getElementById(id)) {
-          const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
-          l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@300;400;500;600;700&display=swap`
-          document.head.appendChild(l)
-        }
-        el.style.fontFamily = `'${nombre}'`
-      }
-      if (config[clave + '_transform']) {
-        const p = config[clave + '_transform'].split(',').map(Number)
-        el.style.transform = `translate(${p[0]||0}px, ${p[1]||0}px) scale(${p[2]||1})`
-      }
-    })
+    // Color/tamaño/fuente/posición personalizados por campo (barra de formato
+    // y mangos de mover/redimensionar del Editor visual) -- ver
+    // _zmAplicarOverridesEditables() (nivel superior, reusada en cada resize).
+    _zmAplicarOverridesEditables()
 
     if (localStorage.getItem('zm_consent') === 'accepted') {
       _cargarPixelesMarketing(config)
@@ -2746,7 +2768,8 @@ function renderSearchResults(data, containerId) {
       function soltar() {
         window.removeEventListener('pointermove', mover)
         window.removeEventListener('pointerup', soltar)
-        marcarPendiente(clave + '_transform', el.dataset.zmTransform)
+        const sufijo = window.matchMedia('(max-width: 768px)').matches ? '_transform_movil' : '_transform'
+        marcarPendiente(clave + sufijo, el.dataset.zmTransform)
         el.classList.add('zm-sin-guardar')
       }
       window.addEventListener('pointermove', mover)
@@ -2809,6 +2832,7 @@ function renderSearchResults(data, containerId) {
     marcarPendiente(clave + '_size', '')
     marcarPendiente(clave + '_font', '')
     marcarPendiente(clave + '_transform', '')
+    marcarPendiente(clave + '_transform_movil', '')
     elActivo.classList.add('zm-sin-guardar')
     posicionarMangos(elActivo)
   })
@@ -2886,7 +2910,7 @@ function renderSearchResults(data, containerId) {
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            const claveBase = clave.replace(/_(color|size|font|transform)$/, '')
+            const claveBase = clave.replace(/_(color|size|font|transform|transform_movil)$/, '')
             document.querySelectorAll(`[data-editable="${claveBase}"]`).forEach(el => {
               el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')

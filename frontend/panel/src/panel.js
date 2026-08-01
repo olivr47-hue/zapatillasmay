@@ -19344,6 +19344,26 @@ window.guardarCambiosEditorVisual = () => {
   _editorVisualPostMsg('guardar-cambios')
 }
 
+// Vista PC / Móvil: solo cambia el ancho del contenedor del iframe -- el
+// sitio ya es responsivo, así que se reacomoda solo (igual que las
+// herramientas de "modo responsivo" de un navegador). El iframe dispara su
+// propio evento "resize" al cambiar de ancho, y el editor del sitio (dentro
+// del iframe) lo escucha para re-aplicar posiciones guardadas aparte para
+// móvil ("{clave}_transform_movil") -- ver _zmAplicarOverridesEditables en
+// index.html/producto.html.
+window._editorVisualVista = 'pc'
+window._editorVisualCambiarVista = (vista) => {
+  window._editorVisualVista = vista
+  const wrap = document.getElementById('editor-visual-iframe-wrap')
+  const frame = document.getElementById('editor-visual-iframe')
+  if (wrap) wrap.style.maxWidth = vista === 'movil' ? '400px' : 'none'
+  if (frame) frame.style.borderRadius = vista === 'movil' ? '24px' : '12px'
+  const btnPc = document.getElementById('editor-visual-btn-pc')
+  const btnMovil = document.getElementById('editor-visual-btn-movil')
+  if (btnPc) btnPc.className = vista === 'pc' ? 'btn btn-primary' : 'btn btn-secondary'
+  if (btnMovil) btnMovil.className = vista === 'movil' ? 'btn btn-primary' : 'btn btn-secondary'
+}
+
 // Navegación del Editor visual entre la home y una página de producto --
 // carga la lista de productos una sola vez (nombre + slug) para el
 // autocompletar; al elegir uno, cambia el src del iframe.
@@ -19402,6 +19422,7 @@ function _editorVisualRenderBotones() {
 async function cargarEditorVisual() {
   window._editorVisualModoEdicion = false
   window._editorVisualPendientes = 0
+  window._editorVisualVista = 'pc'
   const content = document.getElementById('content')
   content.innerHTML = `
     <div style="display:flex;flex-direction:column;height:calc(100vh - 100px)">
@@ -19422,9 +19443,14 @@ async function cargarEditorVisual() {
         <input class="form-input" id="editor-visual-buscar-producto" list="editor-visual-productos-lista" placeholder="Buscar un producto para editar su página..." style="flex:1;min-width:220px;font-size:0.82rem" onchange="_editorVisualIrAProducto()">
         <datalist id="editor-visual-productos-lista"></datalist>
         <span style="font-size:0.72rem;color:var(--text-muted)">Escribe el nombre y elige de la lista</span>
+        <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+        <button id="editor-visual-btn-pc" class="btn btn-primary" onclick="_editorVisualCambiarVista('pc')">🖥️ PC</button>
+        <button id="editor-visual-btn-movil" class="btn btn-secondary" onclick="_editorVisualCambiarVista('movil')">📱 Móvil</button>
       </div>
-      <iframe id="editor-visual-iframe" src="https://zapatillasmay.mx/?zmEditor=1"
-        style="flex:1;width:100%;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+      <div id="editor-visual-iframe-wrap" style="flex:1;min-height:0;display:flex;margin:0 auto;width:100%;max-width:none;transition:max-width .2s">
+        <iframe id="editor-visual-iframe" src="https://zapatillasmay.mx/?zmEditor=1"
+          style="flex:1;width:100%;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
+      </div>
     </div>
   `
   _editorVisualCargarProductos()
