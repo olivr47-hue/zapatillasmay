@@ -23675,7 +23675,7 @@ function _ohRenderLista() {
   lista.innerHTML = visibles.map(p => {
     const i = _ordenHomeList.indexOf(p)  // posición real en la lista completa
     const pos = i + 1
-    const foto = p.foto_principal || (p.imagenes && p.imagenes[0]) || ''
+    const foto = p.imagen_principal || ''
     const imgHtml = foto
       ? `<img class="oh-img" src="${foto}" alt="" loading="lazy" onerror="this.style.display='none'">`
       : `<div class="oh-img" style="display:flex;align-items:center;justify-content:center;font-size:1.1rem">👠</div>`
