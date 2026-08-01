@@ -18759,6 +18759,13 @@ window.guardarEnvio = async function() {
   }
 }
 
+// Lista corta a propósito (curada) -- Google Fonts tiene miles, pero para
+// una marca de moda solo estas combinan bien como fuente de títulos
+// (elegante/serif) o de texto (limpia/sans). El default ('Cormorant
+// Garamond' / 'Outfit') ya viene precargado en el <head> del sitio.
+const _ZM_FUENTES_DISPLAY = ['Cormorant Garamond', 'Playfair Display', 'Marcellus', 'Cormorant', 'Libre Baskerville', 'Prata', 'DM Serif Display']
+const _ZM_FUENTES_BODY = ['Outfit', 'Poppins', 'Inter', 'Nunito Sans', 'Work Sans', 'Jost', 'Manrope']
+
 async function cargarSEO() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:var(--text-muted)">Cargando...</p>'
@@ -19044,6 +19051,40 @@ async function cargarSEO() {
         </div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">Tipografía</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+            Fuentes gratuitas de Google Fonts. "Títulos" es la fuente elegante que se usa en encabezados grandes; "Texto" es la fuente del cuerpo del sitio (botones, párrafos, precios).
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Fuente de títulos</label>
+              <select class="form-input" id="font-display-select">
+                ${_ZM_FUENTES_DISPLAY.map(f => `<option value="${f}" ${(config.font_display||'Cormorant Garamond')===f?'selected':''} style="font-family:'${f}'">${f}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Fuente de texto</label>
+              <select class="form-input" id="font-body-select">
+                ${_ZM_FUENTES_BODY.map(f => `<option value="${f}" ${(config.font_body||'Outfit')===f?'selected':''} style="font-family:'${f}'">${f}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">Estilo de tarjetas de producto</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+            Qué tan redondeadas se ven las esquinas de las fotos de producto en el catálogo.
+          </p>
+          <select class="form-input" id="tarjeta-radio-select" style="max-width:280px">
+            <option value="4" ${(config.tarjeta_radio||'12')==='4'?'selected':''}>Casi cuadrado</option>
+            <option value="12" ${(config.tarjeta_radio||'12')==='12'?'selected':''}>Redondeado suave (actual)</option>
+            <option value="24" ${(config.tarjeta_radio||'12')==='24'?'selected':''}>Muy redondeado</option>
+            <option value="9999" ${(config.tarjeta_radio||'12')==='9999'?'selected':''}>Estilo píldora / circular</option>
+          </select>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
             <div>
@@ -19121,6 +19162,9 @@ window.guardarSEO = async () => {
     hero_boton1_texto: document.getElementById('hero-boton1').value,
     hero_boton2_texto: document.getElementById('hero-boton2').value,
     color_primario: document.getElementById('color-primario-hex').value,
+    font_display: document.getElementById('font-display-select').value,
+    font_body: document.getElementById('font-body-select').value,
+    tarjeta_radio: document.getElementById('tarjeta-radio-select').value,
     meta_titulo_home: document.getElementById('seo-titulo').value,
     meta_descripcion_home: document.getElementById('seo-desc').value,
     google_analytics_id: document.getElementById('seo-ga').value,

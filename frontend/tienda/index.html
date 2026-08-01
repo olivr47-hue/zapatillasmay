@@ -685,7 +685,7 @@
       text-decoration: none;
       color: inherit;
       overflow: hidden;
-      border-radius: 12px;
+      border-radius: var(--card-radius, 12px);
     }
     .product-card.card-scroll {
       animation: none !important;
@@ -703,7 +703,7 @@
     .product-img-wrap {
   position: relative;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--card-radius, 12px);
   background: var(--gray-100);
   aspect-ratio: 1/1;
   margin-bottom: 12px;
@@ -3814,6 +3814,35 @@ if (config.color_primario && /^#[0-9a-fA-F]{6}$/.test(config.color_primario)) {
   root.setProperty('--pink-light', `rgba(${base.r},${base.g},${base.b},0.09)`)
   root.setProperty('--pink-glow', `rgba(${base.r},${base.g},${base.b},0.28)`)
 }
+
+// Tipografia — el dueño elige entre una lista corta de Google Fonts (ver
+// FUENTES_DISPONIBLES en el panel) para titulos (--font-display) y texto
+// (--font-body). Se carga el <link> de Google Fonts solo si hace falta
+// (nunca la fuente default, que ya viene precargada en el <head>).
+function _zmCargarGoogleFont(nombre, pesos) {
+  if (!nombre) return
+  const id = 'zm-font-' + nombre.replace(/\s+/g, '-').toLowerCase()
+  if (document.getElementById(id)) return
+  const link = document.createElement('link')
+  link.id = id
+  link.rel = 'stylesheet'
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@${pesos}&display=swap`
+  document.head.appendChild(link)
+}
+if (config.font_display && config.font_display !== 'Cormorant Garamond') {
+  _zmCargarGoogleFont(config.font_display, '300;400;500;600;700')
+  document.documentElement.style.setProperty('--font-display', `'${config.font_display}', 'Cormorant Fallback', Georgia, serif`)
+}
+if (config.font_body && config.font_body !== 'Outfit') {
+  _zmCargarGoogleFont(config.font_body, '300;400;500;600;700')
+  document.documentElement.style.setProperty('--font-body', `'${config.font_body}', 'Outfit Fallback', Arial, sans-serif`)
+}
+
+// Estilo de tarjetas de producto (que tan redondeadas se ven)
+if (config.tarjeta_radio) {
+  document.documentElement.style.setProperty('--card-radius', config.tarjeta_radio + 'px')
+}
+
 // Scroll parallax manejado por el bloque 3D al final del body
 if (config.favicon_url) {
   let favicon = document.querySelector('link[rel="icon"]')
