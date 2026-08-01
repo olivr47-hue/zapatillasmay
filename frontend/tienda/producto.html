@@ -1687,6 +1687,13 @@ async function cargarConfig() {
       if (el) el.textContent = config[clave]
     })
 
+    // Color/tamaño personalizados por campo (barra de formato del Editor visual)
+    document.querySelectorAll('[data-editable]').forEach((el) => {
+      const clave = el.getAttribute('data-editable')
+      if (config[clave + '_color']) el.style.color = config[clave + '_color']
+      if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
+    })
+
     if (localStorage.getItem('zm_consent') === 'accepted') {
       _cargarPixelesMarketing(config)
     } else if (!localStorage.getItem('zm_consent')) {
@@ -2607,16 +2614,93 @@ function renderSearchResults(data, containerId) {
     try { if (window.parent) window.parent.postMessage(Object.assign({ origen: 'zm-editor' }, msg), '*') } catch(e) {}
   }
 
+  function marcarPendiente(clave, valor) {
+    cambiosPendientes[clave] = valor
+    avisarPanel({ tipo: 'pendientes', total: Object.keys(cambiosPendientes).length })
+  }
+
+  // Barra flotante de formato (color + tamaño) -- mismo mecanismo que index.html.
+  const barra = document.createElement('div')
+  barra.id = 'zm-toolbar'
+  barra.innerHTML = `
+    <label>Color <input type="color" id="zm-tb-color"></label>
+    <label>Tamaño
+      <select id="zm-tb-size">
+        <option value="">Normal</option>
+        <option value="0.75">Pequeño</option>
+        <option value="1.25">Grande</option>
+        <option value="1.6">Muy grande</option>
+        <option value="2">Enorme</option>
+      </select>
+    </label>
+    <button type="button" id="zm-tb-reset" title="Quitar color y tamaño personalizados">↺ Restablecer</button>
+  `
+  document.body.appendChild(barra)
+  let elActivo = null
+
+  function posicionarBarra(el) {
+    const r = el.getBoundingClientRect()
+    barra.style.top = Math.max(8, r.top - 46 + window.scrollY) + 'px'
+    barra.style.left = Math.min(Math.max(8, r.left + window.scrollX), window.innerWidth - 260) + 'px'
+    barra.style.display = 'flex'
+  }
+  function mostrarBarraPara(el) {
+    elActivo = el
+    const colorActual = el.style.color
+    document.getElementById('zm-tb-color').value = colorActual && colorActual.startsWith('#') ? colorActual : '#000000'
+    document.getElementById('zm-tb-size').value = el.dataset.zmSizeFactor || ''
+    posicionarBarra(el)
+  }
+  function ocultarBarra() { barra.style.display = 'none'; elActivo = null }
+
+  document.getElementById('zm-tb-color').addEventListener('input', function() {
+    if (!elActivo) return
+    const clave = elActivo.getAttribute('data-editable')
+    elActivo.style.color = this.value
+    marcarPendiente(clave + '_color', this.value)
+    elActivo.classList.add('zm-sin-guardar')
+  })
+  document.getElementById('zm-tb-size').addEventListener('change', function() {
+    if (!elActivo) return
+    const clave = elActivo.getAttribute('data-editable')
+    if (this.value) {
+      elActivo.style.fontSize = this.value + 'em'
+      elActivo.dataset.zmSizeFactor = this.value
+      marcarPendiente(clave + '_size', this.value)
+    } else {
+      elActivo.style.fontSize = ''
+      delete elActivo.dataset.zmSizeFactor
+      marcarPendiente(clave + '_size', '')
+    }
+    elActivo.classList.add('zm-sin-guardar')
+  })
+  document.getElementById('zm-tb-reset').addEventListener('click', function() {
+    if (!elActivo) return
+    const clave = elActivo.getAttribute('data-editable')
+    elActivo.style.color = ''
+    elActivo.style.fontSize = ''
+    delete elActivo.dataset.zmSizeFactor
+    document.getElementById('zm-tb-color').value = '#000000'
+    document.getElementById('zm-tb-size').value = ''
+    marcarPendiente(clave + '_color', '')
+    marcarPendiente(clave + '_size', '')
+    elActivo.classList.add('zm-sin-guardar')
+  })
+
   document.addEventListener('click', (ev) => {
     if (!modoEdicion) return
     const el = ev.target.closest('[data-editable]')
-    if (!el) return
+    if (!el) {
+      if (barra.style.display !== 'none' && !ev.target.closest('#zm-toolbar')) ocultarBarra()
+      return
+    }
     ev.preventDefault()
     ev.stopPropagation()
     if (el.isContentEditable) return
     if (el.dataset.zmPrev === undefined) el.dataset.zmPrev = el.textContent
     el.setAttribute('contenteditable', 'true')
     el.classList.add('zm-editing')
+    mostrarBarraPara(el)
     requestAnimationFrame(() => {
       el.focus()
       const rango = document.createRange()
@@ -2640,13 +2724,13 @@ function renderSearchResults(data, containerId) {
     if (!el.hasAttribute || !el.hasAttribute('data-editable') || !el.isContentEditable) return
     el.removeAttribute('contenteditable')
     el.classList.remove('zm-editing')
+    if (!ev.relatedTarget || !ev.relatedTarget.closest || !ev.relatedTarget.closest('#zm-toolbar')) ocultarBarra()
     const clave = el.getAttribute('data-editable')
     let valor = el.textContent.trim()
     const original = el.dataset.zmPrev
     if (!valor) { valor = original; el.textContent = valor }
     if (valor === original) {
       delete cambiosPendientes[clave]
-      el.classList.remove('zm-sin-guardar')
     } else {
       cambiosPendientes[clave] = valor
       el.classList.add('zm-sin-guardar')
@@ -2662,6 +2746,7 @@ function renderSearchResults(data, containerId) {
     } else if (ev.data.tipo === 'desactivar-edicion') {
       modoEdicion = false
       document.documentElement.classList.remove('zm-modo-edicion')
+      ocultarBarra()
     } else if (ev.data.tipo === 'guardar-cambios') {
       const claves = Object.keys(cambiosPendientes)
       if (!claves.length) { avisarPanel({ tipo: 'guardado' }); return }
@@ -2675,7 +2760,8 @@ function renderSearchResults(data, containerId) {
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            document.querySelectorAll(`[data-editable="${clave}"]`).forEach(el => {
+            const claveBase = clave.replace(/_(color|size)$/, '')
+            document.querySelectorAll(`[data-editable="${claveBase}"]`).forEach(el => {
               el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')
             })
@@ -2692,6 +2778,10 @@ function renderSearchResults(data, containerId) {
     html.zm-modo-edicion [data-editable]:hover { outline-color: rgba(233,30,140,0.55); background: rgba(233,30,140,0.08); }
     [data-editable].zm-editing { outline: 2px solid #E91E8C !important; background: rgba(233,30,140,0.1) !important; }
     [data-editable].zm-sin-guardar:not(.zm-editing) { outline: 2px dashed #f59e0b !important; background: rgba(245,158,11,0.08) !important; }
+    #zm-toolbar { display:none; position:fixed; z-index:99999; background:#1f2937; color:#fff; padding:8px 10px; border-radius:10px; gap:12px; align-items:center; font:13px/1.2 -apple-system,sans-serif; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+    #zm-toolbar label { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+    #zm-toolbar select, #zm-toolbar button { font:inherit; border-radius:6px; border:1px solid #4b5563; background:#374151; color:#fff; padding:3px 6px; cursor:pointer; }
+    #zm-toolbar input[type=color] { width:26px; height:26px; border:none; padding:0; background:none; cursor:pointer; }
   `
   document.head.appendChild(estilos)
   avisarPanel({ tipo: 'listo' })
