@@ -19150,17 +19150,63 @@ window.guardarSEO = async () => {
 }
 
 // ── Editor visual (clic-para-editar sobre el sitio real) ────────────────
+// Modo edición explícito + guardado explícito: mientras "Modo edición" está
+// apagado, el iframe se comporta como el sitio normal (clics navegan, nada
+// se puede tocar). Al activarlo, los campos resaltados se pueden editar,
+// pero los cambios se quedan en el iframe (nunca llegan a /seo/config) hasta
+// que se le da clic a "Guardar cambios" -- así nunca hay dudas de si algo
+// ya se publicó o no.
+function _editorVisualPostMsg(tipo) {
+  const frame = document.getElementById('editor-visual-iframe')
+  if (frame && frame.contentWindow) frame.contentWindow.postMessage({ origen: 'zm-panel', tipo }, '*')
+}
+
+window.toggleModoEdicionVisual = () => {
+  window._editorVisualModoEdicion = !window._editorVisualModoEdicion
+  _editorVisualPostMsg(window._editorVisualModoEdicion ? 'activar-edicion' : 'desactivar-edicion')
+  _editorVisualRenderBotones()
+}
+
+window.guardarCambiosEditorVisual = () => {
+  _editorVisualPostMsg('guardar-cambios')
+}
+
+function _editorVisualRenderBotones() {
+  const btnModo = document.getElementById('editor-visual-btn-modo')
+  const btnGuardar = document.getElementById('editor-visual-btn-guardar')
+  if (btnModo) {
+    if (window._editorVisualModoEdicion) {
+      btnModo.textContent = '🔓 Modo edición: ACTIVO'
+      btnModo.className = 'btn btn-primary'
+    } else {
+      btnModo.textContent = '✏️ Activar modo edición'
+      btnModo.className = 'btn btn-secondary'
+    }
+  }
+  if (btnGuardar) {
+    const n = window._editorVisualPendientes || 0
+    btnGuardar.disabled = n === 0
+    btnGuardar.style.opacity = n === 0 ? '0.5' : '1'
+    btnGuardar.style.cursor = n === 0 ? 'not-allowed' : 'pointer'
+    btnGuardar.textContent = n > 0 ? `💾 Guardar cambios (${n})` : '💾 Guardar cambios'
+  }
+}
+
 async function cargarEditorVisual() {
+  window._editorVisualModoEdicion = false
+  window._editorVisualPendientes = 0
   const content = document.getElementById('content')
   content.innerHTML = `
     <div style="display:flex;flex-direction:column;height:calc(100vh - 100px)">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:0.75rem;flex-wrap:wrap">
         <div>
           <h2 style="margin:0 0 2px;font-size:1.1rem">🖌️ Editor visual</h2>
-          <p style="margin:0;font-size:0.8rem;color:var(--text-muted)">Pasa el mouse sobre un texto resaltado del hero y haz clic para editarlo directo aquí. Se guarda solo al salir del campo (clic afuera o Tab). Presiona <kbd style="font-size:0.72rem;background:var(--bg-secondary);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">Esc</kbd> para cancelar un cambio.</p>
+          <p style="margin:0;font-size:0.8rem;color:var(--text-muted)">Activa el modo edición, haz clic en un texto resaltado para editarlo, y da clic en "Guardar cambios" cuando termines -- mientras no le des a Guardar, nada cambia en el sitio real. Presiona <kbd style="font-size:0.72rem;background:var(--bg-secondary);padding:1px 5px;border-radius:4px;border:1px solid var(--border)">Esc</kbd> para deshacer un campo mientras lo editas.</p>
         </div>
-        <div style="display:flex;align-items:center;gap:0.75rem">
+        <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
           <span id="editor-visual-estado" style="font-size:0.8rem;font-weight:600;min-height:1.2em"></span>
+          <button id="editor-visual-btn-modo" class="btn btn-secondary" onclick="toggleModoEdicionVisual()">✏️ Activar modo edición</button>
+          <button id="editor-visual-btn-guardar" class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed" onclick="guardarCambiosEditorVisual()">💾 Guardar cambios</button>
           <button class="btn btn-secondary" onclick="document.getElementById('editor-visual-iframe').src=document.getElementById('editor-visual-iframe').src">↻ Recargar</button>
         </div>
       </div>
@@ -19172,10 +19218,27 @@ async function cargarEditorVisual() {
   window._editorVisualListener = (ev) => {
     if (!ev.data || ev.data.origen !== 'zm-editor') return
     const estado = document.getElementById('editor-visual-estado')
-    if (!estado) return
-    if (ev.data.tipo === 'guardando') { estado.style.color = 'var(--text-muted)'; estado.textContent = 'Guardando…' }
-    else if (ev.data.tipo === 'guardado') { estado.style.color = '#16a34a'; estado.textContent = '✓ Guardado'; setTimeout(() => { if (estado.textContent === '✓ Guardado') estado.textContent = '' }, 2500) }
-    else if (ev.data.tipo === 'error') { estado.style.color = '#c62828'; estado.textContent = '❌ No se pudo guardar' }
+    if (ev.data.tipo === 'listo') {
+      // El iframe se acaba de (re)cargar -- siempre arranca en modo lectura.
+      window._editorVisualModoEdicion = false
+      window._editorVisualPendientes = 0
+      _editorVisualRenderBotones()
+    } else if (ev.data.tipo === 'pendientes') {
+      window._editorVisualPendientes = ev.data.total || 0
+      _editorVisualRenderBotones()
+    } else if (ev.data.tipo === 'guardando') {
+      if (estado) { estado.style.color = 'var(--text-muted)'; estado.textContent = 'Guardando…' }
+    } else if (ev.data.tipo === 'guardado') {
+      window._editorVisualPendientes = 0
+      _editorVisualRenderBotones()
+      if (estado) {
+        estado.style.color = '#16a34a'
+        estado.textContent = '✓ Guardado'
+        setTimeout(() => { if (estado.textContent === '✓ Guardado') estado.textContent = '' }, 2500)
+      }
+    } else if (ev.data.tipo === 'error') {
+      if (estado) { estado.style.color = '#c62828'; estado.textContent = '❌ No se pudo guardar' }
+    }
   }
   window.addEventListener('message', window._editorVisualListener)
 }

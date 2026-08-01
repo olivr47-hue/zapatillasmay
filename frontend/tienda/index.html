@@ -3835,35 +3835,31 @@ cargarConfigSEO()
 // ── Editor visual (clic-para-editar) del panel ──────────────────────────────
 // Se activa SOLO con ?zmEditor=1 en la URL — el panel abre el sitio así
 // dentro de un iframe. Nunca se activa para un visitante normal. Los
-// elementos marcados con [data-editable="clave"] (hoy: textos del hero) se
-// vuelven editables con un clic; el cambio se guarda solo al salir del campo
-// (blur), reusando el mismo endpoint /seo/config que ya usa el panel.
+// elementos marcados con [data-editable="clave"] se vuelven editables con un
+// clic, pero SOLO mientras el panel tiene activado "Modo edición" (se manda
+// por postMessage desde afuera) -- y los cambios quedan en memoria nada más;
+// no se mandan a /seo/config hasta que el panel pide "guardar-cambios"
+// explícitamente. Así nada cambia de verdad para un visitante real hasta que
+// el dueño le da clic a Guardar.
 ;(function () {
   if (new URLSearchParams(location.search).get('zmEditor') !== '1') return
   const API_EDIT = 'https://zapatillasmay-production.up.railway.app'
+
+  let modoEdicion = false
+  const cambiosPendientes = {}
 
   function avisarPanel(msg) {
     try { if (window.parent) window.parent.postMessage(Object.assign({ origen: 'zm-editor' }, msg), '*') } catch(e) {}
   }
 
-  function guardarCampo(clave, valor) {
-    avisarPanel({ tipo: 'guardando', clave })
-    fetch(`${API_EDIT}/seo/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [clave]: valor })
-    })
-      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); avisarPanel({ tipo: 'guardado', clave, valor }) })
-      .catch(() => avisarPanel({ tipo: 'error', clave }))
-  }
-
   document.addEventListener('click', (ev) => {
+    if (!modoEdicion) return
     const el = ev.target.closest('[data-editable]')
     if (!el) return
     ev.preventDefault()
     ev.stopPropagation()
     if (el.isContentEditable) return
-    el.dataset.zmPrev = el.textContent
+    if (el.dataset.zmPrev === undefined) el.dataset.zmPrev = el.textContent
     el.setAttribute('contenteditable', 'true')
     el.classList.add('zm-editing')
     // Un tick de más: en algunos navegadores el foco no agarra si se pide
@@ -3882,7 +3878,7 @@ cargarConfigSEO()
     if (ev.key !== 'Escape') return
     const el = ev.target.closest && ev.target.closest('[data-editable]')
     if (!el || !el.isContentEditable) return
-    el.textContent = el.dataset.zmPrev || el.textContent
+    el.textContent = el.dataset.zmPrev
     el.blur()
   })
 
@@ -3893,15 +3889,57 @@ cargarConfigSEO()
     el.classList.remove('zm-editing')
     const clave = el.getAttribute('data-editable')
     let valor = el.textContent.trim()
-    if (!valor) { valor = el.dataset.zmPrev || ''; el.textContent = valor }
-    if (valor !== el.dataset.zmPrev) guardarCampo(clave, valor)
+    const original = el.dataset.zmPrev
+    if (!valor) { valor = original; el.textContent = valor }
+    if (valor === original) {
+      // Volvió al valor original -- ya no cuenta como pendiente.
+      delete cambiosPendientes[clave]
+      el.classList.remove('zm-sin-guardar')
+    } else {
+      cambiosPendientes[clave] = valor
+      el.classList.add('zm-sin-guardar')
+    }
+    avisarPanel({ tipo: 'pendientes', total: Object.keys(cambiosPendientes).length })
+  })
+
+  window.addEventListener('message', (ev) => {
+    if (!ev.data || ev.data.origen !== 'zm-panel') return
+    if (ev.data.tipo === 'activar-edicion') {
+      modoEdicion = true
+      document.documentElement.classList.add('zm-modo-edicion')
+    } else if (ev.data.tipo === 'desactivar-edicion') {
+      modoEdicion = false
+      document.documentElement.classList.remove('zm-modo-edicion')
+    } else if (ev.data.tipo === 'guardar-cambios') {
+      const claves = Object.keys(cambiosPendientes)
+      if (!claves.length) { avisarPanel({ tipo: 'guardado' }); return }
+      avisarPanel({ tipo: 'guardando' })
+      fetch(`${API_EDIT}/seo/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cambiosPendientes)
+      })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          claves.forEach(clave => {
+            delete cambiosPendientes[clave]
+            document.querySelectorAll(`[data-editable="${clave}"]`).forEach(el => {
+              el.dataset.zmPrev = el.textContent
+              el.classList.remove('zm-sin-guardar')
+            })
+          })
+          avisarPanel({ tipo: 'guardado' })
+        })
+        .catch(() => avisarPanel({ tipo: 'error' }))
+    }
   })
 
   const estilos = document.createElement('style')
   estilos.textContent = `
-    [data-editable] { outline: 2px dashed transparent; outline-offset: 3px; cursor: text; transition: outline-color .15s, background-color .15s; border-radius: 4px; }
-    [data-editable]:hover { outline-color: rgba(233,30,140,0.55); background: rgba(233,30,140,0.08); }
+    html.zm-modo-edicion [data-editable] { outline: 2px dashed transparent; outline-offset: 3px; cursor: text; transition: outline-color .15s, background-color .15s; border-radius: 4px; }
+    html.zm-modo-edicion [data-editable]:hover { outline-color: rgba(233,30,140,0.55); background: rgba(233,30,140,0.08); }
     [data-editable].zm-editing { outline: 2px solid #E91E8C !important; background: rgba(233,30,140,0.1) !important; }
+    [data-editable].zm-sin-guardar:not(.zm-editing) { outline: 2px dashed #f59e0b !important; background: rgba(245,158,11,0.08) !important; }
   `
   document.head.appendChild(estilos)
   avisarPanel({ tipo: 'listo' })
