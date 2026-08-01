@@ -2958,6 +2958,14 @@ if (!window.fbq){
     </div>
     <p class="hero-offer" data-editable="hero_offer_texto" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.8rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25);max-width:min(92vw,420px)">🏷️ 3+ pares: -$60/par · 🚚 Envío gratis desde $1,299</p>
   </div>
+
+  <!-- Botones del Editor visual para cambiar fotos -- se muestran solo en
+       modo edición (ver estilos "html.zm-modo-edicion" del editor IIFE).
+       Botones dedicados en vez de depender del clic directo en la imagen,
+       porque el fondo y el 360 tienen varias capas encima (contenido,
+       spotlight, el propio arrastre del visor) que se roban el clic. -->
+  <button type="button" id="zm-btn-cambiar-hero" class="zm-btn-cambiar-foto" data-editable-image="hero_imagen" style="display:none;position:absolute;top:14px;right:14px;z-index:50">📷 Cambiar foto de fondo</button>
+  <button type="button" id="zm-btn-cambiar-360" class="zm-btn-cambiar-foto" data-editable-image-multi="hero_360_frames" style="display:none;position:absolute;top:58px;right:14px;z-index:50">📷 Cambiar fotos del giro 360°</button>
 </section>
 
 <!-- STRIP PRUEBA SOCIAL -->
@@ -3904,6 +3912,10 @@ document.querySelectorAll('[data-editable]').forEach((el) => {
   const clave = el.getAttribute('data-editable')
   if (config[clave + '_color']) el.style.color = config[clave + '_color']
   if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
+  if (config[clave + '_font']) {
+    _zmCargarGoogleFont(config[clave + '_font'], '300;400;500;600;700')
+    el.style.fontFamily = `'${config[clave + '_font']}'`
+  }
 })
 
 // Scroll parallax manejado por el bloque 3D al final del body
@@ -3953,6 +3965,18 @@ cargarConfigSEO()
   // editando ahora mismo. Los cambios se guardan como claves compañeras
   // ("{clave}_color", "{clave}_size") -- al cargar la página, cargarConfigSEO()
   // ya las aplica de forma genérica a cualquier [data-editable] que las tenga.
+  const _ZM_FUENTES = ['Cormorant Garamond', 'Playfair Display', 'Marcellus', 'Cormorant', 'Libre Baskerville', 'Prata', 'DM Serif Display', 'Outfit', 'Poppins', 'Inter', 'Nunito Sans', 'Work Sans', 'Jost', 'Manrope']
+  function _zmCargarFontEditor(nombre) {
+    if (!nombre) return
+    const id = 'zm-font-' + nombre.replace(/\s+/g, '-').toLowerCase()
+    if (document.getElementById(id)) return
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@300;400;500;600;700&display=swap`
+    document.head.appendChild(link)
+  }
+
   const barra = document.createElement('div')
   barra.id = 'zm-toolbar'
   barra.innerHTML = `
@@ -3966,7 +3990,13 @@ cargarConfigSEO()
         <option value="2">Enorme</option>
       </select>
     </label>
-    <button type="button" id="zm-tb-reset" title="Quitar color y tamaño personalizados">↺ Restablecer</button>
+    <label>Fuente
+      <select id="zm-tb-font">
+        <option value="">Normal</option>
+        ${_ZM_FUENTES.map(f => `<option value="${f}">${f}</option>`).join('')}
+      </select>
+    </label>
+    <button type="button" id="zm-tb-reset" title="Quitar color, tamaño y fuente personalizados">↺ Restablecer</button>
   `
   document.body.appendChild(barra)
   let elActivo = null
@@ -3982,9 +4012,11 @@ cargarConfigSEO()
     elActivo = el
     const colorInput = document.getElementById('zm-tb-color')
     const sizeSelect = document.getElementById('zm-tb-size')
+    const fontSelect = document.getElementById('zm-tb-font')
     const colorActual = el.style.color
     colorInput.value = colorActual && colorActual.startsWith('#') ? colorActual : '#000000'
     sizeSelect.value = el.dataset.zmSizeFactor || ''
+    fontSelect.value = el.dataset.zmFont || ''
     posicionarBarra(el)
   }
 
@@ -4014,16 +4046,35 @@ cargarConfigSEO()
     }
     elActivo.classList.add('zm-sin-guardar')
   })
+  document.getElementById('zm-tb-font').addEventListener('change', function() {
+    if (!elActivo) return
+    const clave = elActivo.getAttribute('data-editable')
+    if (this.value) {
+      _zmCargarFontEditor(this.value)
+      elActivo.style.fontFamily = `'${this.value}'`
+      elActivo.dataset.zmFont = this.value
+      marcarPendiente(clave + '_font', this.value)
+    } else {
+      elActivo.style.fontFamily = ''
+      delete elActivo.dataset.zmFont
+      marcarPendiente(clave + '_font', '')
+    }
+    elActivo.classList.add('zm-sin-guardar')
+  })
   document.getElementById('zm-tb-reset').addEventListener('click', function() {
     if (!elActivo) return
     const clave = elActivo.getAttribute('data-editable')
     elActivo.style.color = ''
     elActivo.style.fontSize = ''
+    elActivo.style.fontFamily = ''
     delete elActivo.dataset.zmSizeFactor
+    delete elActivo.dataset.zmFont
     document.getElementById('zm-tb-color').value = '#000000'
     document.getElementById('zm-tb-size').value = ''
+    document.getElementById('zm-tb-font').value = ''
     marcarPendiente(clave + '_color', '')
     marcarPendiente(clave + '_size', '')
+    marcarPendiente(clave + '_font', '')
     elActivo.classList.add('zm-sin-guardar')
   })
 
@@ -4082,9 +4133,18 @@ cargarConfigSEO()
         if (data.url) urls.push(data.url)
       }
       if (!urls.length) { avisarPanel({ tipo: 'error' }); return }
+      // El botón que se clickeó (el) es solo el disparador -- el elemento
+      // visual real a actualizar puede ser otro (fondo del hero, o el
+      // visor 360 completo, que además necesita reiniciar su rotación).
       if (multi) {
         marcarPendiente(clave, JSON.stringify(urls))
-        el.src = urls[0]
+        if (typeof window._zm360SetFrames === 'function') window._zm360SetFrames(urls)
+        const imgVisor = document.getElementById('hero-shoe-img')
+        if (imgVisor) imgVisor.src = urls[0]
+      } else if (clave === 'hero_imagen') {
+        marcarPendiente(clave, urls[0])
+        const bg = document.getElementById('hero-bg')
+        if (bg) bg.style.backgroundImage = `url('${urls[0]}')`
       } else {
         marcarPendiente(clave, urls[0])
         if (el.tagName === 'IMG') el.src = urls[0]
@@ -4148,7 +4208,7 @@ cargarConfigSEO()
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            const claveBase = clave.replace(/_(color|size)$/, '')
+            const claveBase = clave.replace(/_(color|size|font)$/, '')
             document.querySelectorAll(`[data-editable="${claveBase}"], [data-editable-image="${claveBase}"], [data-editable-image-multi="${claveBase}"]`).forEach(el => {
               if (el.hasAttribute('data-editable')) el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')
@@ -4168,6 +4228,8 @@ cargarConfigSEO()
     [data-editable].zm-sin-guardar:not(.zm-editing) { outline: 2px dashed #f59e0b !important; background: rgba(245,158,11,0.08) !important; }
     html.zm-modo-edicion [data-editable-image], html.zm-modo-edicion [data-editable-image-multi] { outline: 2px dashed transparent; cursor: pointer; transition: outline-color .15s; }
     html.zm-modo-edicion [data-editable-image]:hover, html.zm-modo-edicion [data-editable-image-multi]:hover { outline-color: rgba(233,30,140,0.7); }
+    html.zm-modo-edicion .zm-btn-cambiar-foto { display: inline-flex !important; align-items: center; gap: 6px; background: #E91E8C; color: #fff; border: none; padding: 8px 14px; border-radius: 100px; font: 600 12.5px/1 -apple-system,sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+    html.zm-modo-edicion .zm-btn-cambiar-foto:hover { background: #c9187a; }
     #zm-toolbar { display:none; position:fixed; z-index:99999; background:#1f2937; color:#fff; padding:8px 10px; border-radius:10px; gap:12px; align-items:center; font:13px/1.2 -apple-system,sans-serif; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
     #zm-toolbar label { display:flex; align-items:center; gap:5px; white-space:nowrap; }
     #zm-toolbar select, #zm-toolbar button { font:inherit; border-radius:6px; border:1px solid #4b5563; background:#374151; color:#fff; padding:3px 6px; cursor:pointer; }
@@ -8010,6 +8072,16 @@ function zmRechazarCookies() {
     };
     temp.src = src;
   });
+
+  /* Expuesto para el Editor visual (panel) -- al subir fotos nuevas del
+     giro, reemplaza FRAMES en caliente sin recargar la página. */
+  window._zm360SetFrames = function(nuevos) {
+    if (!Array.isArray(nuevos) || !nuevos.length) return;
+    FRAMES = nuevos;
+    total = FRAMES.length;
+    frame = 0;
+    img.src = FRAMES[0];
+  };
 })();
 </script>
 <script src="/push-subscribe.js" defer></script>

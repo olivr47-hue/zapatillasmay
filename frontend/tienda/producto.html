@@ -1687,11 +1687,21 @@ async function cargarConfig() {
       if (el) el.textContent = config[clave]
     })
 
-    // Color/tamaño personalizados por campo (barra de formato del Editor visual)
+    // Color/tamaño/fuente personalizados por campo (barra de formato del Editor visual)
     document.querySelectorAll('[data-editable]').forEach((el) => {
       const clave = el.getAttribute('data-editable')
       if (config[clave + '_color']) el.style.color = config[clave + '_color']
       if (config[clave + '_size']) el.style.fontSize = config[clave + '_size'] + 'em'
+      if (config[clave + '_font']) {
+        const nombre = config[clave + '_font']
+        const id = 'zm-font-' + nombre.replace(/\s+/g,'-').toLowerCase()
+        if (!document.getElementById(id)) {
+          const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
+          l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@300;400;500;600;700&display=swap`
+          document.head.appendChild(l)
+        }
+        el.style.fontFamily = `'${nombre}'`
+      }
     })
 
     if (localStorage.getItem('zm_consent') === 'accepted') {
@@ -2619,7 +2629,18 @@ function renderSearchResults(data, containerId) {
     avisarPanel({ tipo: 'pendientes', total: Object.keys(cambiosPendientes).length })
   }
 
-  // Barra flotante de formato (color + tamaño) -- mismo mecanismo que index.html.
+  // Barra flotante de formato (color + tamaño + fuente) -- mismo mecanismo que index.html.
+  const _ZM_FUENTES = ['Cormorant Garamond', 'Playfair Display', 'Marcellus', 'Cormorant', 'Libre Baskerville', 'Prata', 'DM Serif Display', 'Outfit', 'Poppins', 'Inter', 'Nunito Sans', 'Work Sans', 'Jost', 'Manrope']
+  function _zmCargarFontEditor(nombre) {
+    if (!nombre) return
+    const id = 'zm-font-' + nombre.replace(/\s+/g, '-').toLowerCase()
+    if (document.getElementById(id)) return
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(nombre)}:wght@300;400;500;600;700&display=swap`
+    document.head.appendChild(link)
+  }
   const barra = document.createElement('div')
   barra.id = 'zm-toolbar'
   barra.innerHTML = `
@@ -2633,7 +2654,13 @@ function renderSearchResults(data, containerId) {
         <option value="2">Enorme</option>
       </select>
     </label>
-    <button type="button" id="zm-tb-reset" title="Quitar color y tamaño personalizados">↺ Restablecer</button>
+    <label>Fuente
+      <select id="zm-tb-font">
+        <option value="">Normal</option>
+        ${_ZM_FUENTES.map(f => `<option value="${f}">${f}</option>`).join('')}
+      </select>
+    </label>
+    <button type="button" id="zm-tb-reset" title="Quitar color, tamaño y fuente personalizados">↺ Restablecer</button>
   `
   document.body.appendChild(barra)
   let elActivo = null
@@ -2649,6 +2676,7 @@ function renderSearchResults(data, containerId) {
     const colorActual = el.style.color
     document.getElementById('zm-tb-color').value = colorActual && colorActual.startsWith('#') ? colorActual : '#000000'
     document.getElementById('zm-tb-size').value = el.dataset.zmSizeFactor || ''
+    document.getElementById('zm-tb-font').value = el.dataset.zmFont || ''
     posicionarBarra(el)
   }
   function ocultarBarra() { barra.style.display = 'none'; elActivo = null }
@@ -2674,16 +2702,35 @@ function renderSearchResults(data, containerId) {
     }
     elActivo.classList.add('zm-sin-guardar')
   })
+  document.getElementById('zm-tb-font').addEventListener('change', function() {
+    if (!elActivo) return
+    const clave = elActivo.getAttribute('data-editable')
+    if (this.value) {
+      _zmCargarFontEditor(this.value)
+      elActivo.style.fontFamily = `'${this.value}'`
+      elActivo.dataset.zmFont = this.value
+      marcarPendiente(clave + '_font', this.value)
+    } else {
+      elActivo.style.fontFamily = ''
+      delete elActivo.dataset.zmFont
+      marcarPendiente(clave + '_font', '')
+    }
+    elActivo.classList.add('zm-sin-guardar')
+  })
   document.getElementById('zm-tb-reset').addEventListener('click', function() {
     if (!elActivo) return
     const clave = elActivo.getAttribute('data-editable')
     elActivo.style.color = ''
     elActivo.style.fontSize = ''
+    elActivo.style.fontFamily = ''
     delete elActivo.dataset.zmSizeFactor
+    delete elActivo.dataset.zmFont
     document.getElementById('zm-tb-color').value = '#000000'
     document.getElementById('zm-tb-size').value = ''
+    document.getElementById('zm-tb-font').value = ''
     marcarPendiente(clave + '_color', '')
     marcarPendiente(clave + '_size', '')
+    marcarPendiente(clave + '_font', '')
     elActivo.classList.add('zm-sin-guardar')
   })
 
@@ -2760,7 +2807,7 @@ function renderSearchResults(data, containerId) {
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            const claveBase = clave.replace(/_(color|size)$/, '')
+            const claveBase = clave.replace(/_(color|size|font)$/, '')
             document.querySelectorAll(`[data-editable="${claveBase}"]`).forEach(el => {
               el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')
