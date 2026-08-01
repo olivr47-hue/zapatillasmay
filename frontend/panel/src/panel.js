@@ -19047,11 +19047,44 @@ async function cargarSEO() {
           <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
             Cambia el color principal y todo el sitio (botones, acentos, hero) se ajusta junto — no hace falta tocar cada sección por separado.
           </p>
-          <div style="display:flex;align-items:center;gap:1rem">
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
             <input type="color" id="color-primario" value="${(config.color_primario||'#9c5a52')}" style="width:56px;height:44px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:var(--bg-primary)"
               oninput="document.getElementById('color-primario-hex').value=this.value">
             <input class="form-input" id="color-primario-hex" value="${(config.color_primario||'#9c5a52').replace(/"/g,'')}" placeholder="#9c5a52" style="max-width:140px;font-family:monospace"
               oninput="const c=document.getElementById('color-primario'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+            Fondo y texto general del sitio. Cuidado: si eliges colores muy parecidos entre sí, el texto puede quedar difícil de leer.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Color de fondo</label>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <input type="color" id="color-fondo" value="${(config.color_fondo||'#F5ECE2')}" style="width:48px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:var(--bg-primary)"
+                  oninput="document.getElementById('color-fondo-hex').value=this.value">
+                <input class="form-input" id="color-fondo-hex" value="${(config.color_fondo||'#F5ECE2').replace(/"/g,'')}" style="max-width:120px;font-family:monospace"
+                  oninput="const c=document.getElementById('color-fondo'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Color de texto</label>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <input type="color" id="color-texto" value="${(config.color_texto||'#2A1A0E')}" style="width:48px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:var(--bg-primary)"
+                  oninput="document.getElementById('color-texto-hex').value=this.value">
+                <input class="form-input" id="color-texto-hex" value="${(config.color_texto||'#2A1A0E').replace(/"/g,'')}" style="max-width:120px;font-family:monospace"
+                  oninput="const c=document.getElementById('color-texto'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:1.25rem">
+            <label class="form-label">Sombra del título destacado del hero</label>
+            <select class="form-input" id="hero-sombra-select" style="max-width:280px">
+              <option value="ninguna" ${(config.hero_titulo_sombra||'actual')==='ninguna'?'selected':''}>Sin sombra</option>
+              <option value="suave" ${(config.hero_titulo_sombra||'actual')==='suave'?'selected':''}>Suave</option>
+              <option value="actual" ${(config.hero_titulo_sombra||'actual')==='actual'?'selected':''}>Actual</option>
+              <option value="fuerte" ${(config.hero_titulo_sombra||'actual')==='fuerte'?'selected':''}>Fuerte</option>
+            </select>
+            <p style="font-size:0.72rem;color:var(--text-muted);margin-top:4px">Aplica al nombre de la ciudad en el título grande del hero (ej. "León, Gto").</p>
           </div>
         </div>
 
@@ -19239,6 +19272,9 @@ window.guardarSEO = async () => {
     hero_boton1_texto: document.getElementById('hero-boton1').value,
     hero_boton2_texto: document.getElementById('hero-boton2').value,
     color_primario: document.getElementById('color-primario-hex').value,
+    color_fondo: document.getElementById('color-fondo-hex').value,
+    color_texto: document.getElementById('color-texto-hex').value,
+    hero_titulo_sombra: document.getElementById('hero-sombra-select').value,
     font_display: document.getElementById('font-display-select').value,
     font_body: document.getElementById('font-body-select').value,
     tarjeta_radio: document.getElementById('tarjeta-radio-select').value,
