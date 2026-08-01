@@ -3916,6 +3916,10 @@ document.querySelectorAll('[data-editable]').forEach((el) => {
     _zmCargarGoogleFont(config[clave + '_font'], '300;400;500;600;700')
     el.style.fontFamily = `'${config[clave + '_font']}'`
   }
+  if (config[clave + '_transform']) {
+    const p = config[clave + '_transform'].split(',').map(Number)
+    el.style.transform = `translate(${p[0]||0}px, ${p[1]||0}px) scale(${p[2]||1})`
+  }
 })
 
 // Scroll parallax manejado por el bloque 3D al final del body
@@ -4018,11 +4022,91 @@ cargarConfigSEO()
     sizeSelect.value = el.dataset.zmSizeFactor || ''
     fontSelect.value = el.dataset.zmFont || ''
     posicionarBarra(el)
+    posicionarMangos(el)
   }
+
+  // ── Mangos de mover y redimensionar (arrastrar tipo Photoshop) ──────────
+  // Un solo transform combinado (translate + scale) por campo, guardado como
+  // "{clave}_transform" = "x,y,escala". No afecta el flujo del documento
+  // (por eso mover un botón puede encimarlo con su vecino -- es el mismo
+  // trade-off que cualquier herramienta de "mover libremente").
+  const mangoMover = document.createElement('div')
+  mangoMover.id = 'zm-handle-move'
+  mangoMover.title = 'Arrastrar para mover'
+  mangoMover.textContent = '✥'
+  document.body.appendChild(mangoMover)
+
+  const mangoResize = document.createElement('div')
+  mangoResize.id = 'zm-handle-resize'
+  mangoResize.title = 'Arrastrar para cambiar el tamaño'
+  document.body.appendChild(mangoResize)
+
+  function leerTransform(el) {
+    const t = el.dataset.zmTransform
+    if (!t) return { x: 0, y: 0, s: 1 }
+    const p = t.split(',').map(Number)
+    return { x: p[0] || 0, y: p[1] || 0, s: p[2] || 1 }
+  }
+  function aplicarTransform(el, t) {
+    el.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.s})`
+    el.dataset.zmTransform = `${t.x},${t.y},${t.s}`
+  }
+  function posicionarMangos(el) {
+    const r = el.getBoundingClientRect()
+    mangoMover.style.top = (r.top + window.scrollY - 12) + 'px'
+    mangoMover.style.left = (r.left + window.scrollX - 12) + 'px'
+    mangoMover.style.display = 'flex'
+    mangoResize.style.top = (r.bottom + window.scrollY - 8) + 'px'
+    mangoResize.style.left = (r.right + window.scrollX - 8) + 'px'
+    mangoResize.style.display = 'block'
+  }
+  function ocultarMangos() {
+    mangoMover.style.display = 'none'
+    mangoResize.style.display = 'none'
+  }
+  function iniciarArrastre(handle, tipo) {
+    handle.addEventListener('pointerdown', (ev) => {
+      if (!elActivo) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      const el = elActivo
+      const clave = el.getAttribute('data-editable')
+      const t0 = leerTransform(el)
+      const startX = ev.clientX, startY = ev.clientY
+      const anchoInicial = el.getBoundingClientRect().width
+      try { handle.setPointerCapture(ev.pointerId) } catch(e) {}
+
+      function mover(ev2) {
+        const dx = ev2.clientX - startX
+        const dy = ev2.clientY - startY
+        let nuevo
+        if (tipo === 'mover') {
+          nuevo = { x: t0.x + dx, y: t0.y + dy, s: t0.s }
+        } else {
+          const factor = Math.max(0.4, Math.min(3, 1 + dx / Math.max(40, anchoInicial)))
+          nuevo = { x: t0.x, y: t0.y, s: Math.round(factor * 100) / 100 }
+        }
+        aplicarTransform(el, nuevo)
+        posicionarMangos(el)
+        posicionarBarra(el)
+      }
+      function soltar() {
+        window.removeEventListener('pointermove', mover)
+        window.removeEventListener('pointerup', soltar)
+        marcarPendiente(clave + '_transform', el.dataset.zmTransform)
+        el.classList.add('zm-sin-guardar')
+      }
+      window.addEventListener('pointermove', mover)
+      window.addEventListener('pointerup', soltar)
+    })
+  }
+  iniciarArrastre(mangoMover, 'mover')
+  iniciarArrastre(mangoResize, 'resize')
 
   function ocultarBarra() {
     barra.style.display = 'none'
     elActivo = null
+    ocultarMangos()
   }
 
   document.getElementById('zm-tb-color').addEventListener('input', function() {
@@ -4067,15 +4151,19 @@ cargarConfigSEO()
     elActivo.style.color = ''
     elActivo.style.fontSize = ''
     elActivo.style.fontFamily = ''
+    elActivo.style.transform = ''
     delete elActivo.dataset.zmSizeFactor
     delete elActivo.dataset.zmFont
+    delete elActivo.dataset.zmTransform
     document.getElementById('zm-tb-color').value = '#000000'
     document.getElementById('zm-tb-size').value = ''
     document.getElementById('zm-tb-font').value = ''
     marcarPendiente(clave + '_color', '')
     marcarPendiente(clave + '_size', '')
     marcarPendiente(clave + '_font', '')
+    marcarPendiente(clave + '_transform', '')
     elActivo.classList.add('zm-sin-guardar')
+    posicionarMangos(elActivo)
   })
 
   document.addEventListener('click', (ev) => {
@@ -4116,7 +4204,7 @@ cargarConfigSEO()
       input.click()
       return
     }
-    if (barra.style.display !== 'none' && !ev.target.closest('#zm-toolbar')) ocultarBarra()
+    if (barra.style.display !== 'none' && !ev.target.closest('#zm-toolbar') && !ev.target.closest('#zm-handle-move') && !ev.target.closest('#zm-handle-resize')) ocultarBarra()
   }, true)
 
   async function _zmSubirImagenes(clave, el, files, multi) {
@@ -4208,7 +4296,7 @@ cargarConfigSEO()
           if (!r.ok) throw new Error('HTTP ' + r.status)
           claves.forEach(clave => {
             delete cambiosPendientes[clave]
-            const claveBase = clave.replace(/_(color|size|font)$/, '')
+            const claveBase = clave.replace(/_(color|size|font|transform)$/, '')
             document.querySelectorAll(`[data-editable="${claveBase}"], [data-editable-image="${claveBase}"], [data-editable-image-multi="${claveBase}"]`).forEach(el => {
               if (el.hasAttribute('data-editable')) el.dataset.zmPrev = el.textContent
               el.classList.remove('zm-sin-guardar')
@@ -4234,6 +4322,9 @@ cargarConfigSEO()
     #zm-toolbar label { display:flex; align-items:center; gap:5px; white-space:nowrap; }
     #zm-toolbar select, #zm-toolbar button { font:inherit; border-radius:6px; border:1px solid #4b5563; background:#374151; color:#fff; padding:3px 6px; cursor:pointer; }
     #zm-toolbar input[type=color] { width:26px; height:26px; border:none; padding:0; background:none; cursor:pointer; }
+    #zm-handle-move, #zm-handle-resize { display:none; position:fixed; z-index:99998; background:#E91E8C; border:2px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,0.4); touch-action:none; }
+    #zm-handle-move { width:24px; height:24px; border-radius:50%; align-items:center; justify-content:center; color:#fff; font-size:13px; cursor:move; }
+    #zm-handle-resize { width:16px; height:16px; border-radius:4px; cursor:nwse-resize; }
   `
   document.head.appendChild(estilos)
   avisarPanel({ tipo: 'listo' })
