@@ -19021,19 +19021,28 @@ async function cargarSEO() {
     </p>
   </div>
 
-  <!-- ── VISOR 360° (info) ── -->
+  <!-- ── VISOR 360° ── -->
   <div style="padding:1.25rem;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
       <span style="font-size:1rem">🔄</span>
-      <h4 style="font-size:0.88rem;font-weight:700;margin:0;color:var(--text-primary)">Visor 360° (lado derecho)</h4>
-      <span style="font-size:0.7rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:100px;font-weight:600">Requiere deploy</span>
+      <h4 style="font-size:0.88rem;font-weight:700;margin:0;color:var(--text-primary)">Visor 360° (lado derecho del hero)</h4>
     </div>
-    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem">
-      El visor usa <b>17 fotos</b> del zapato en distintos ángulos para el efecto de rotación.
-      Para cambiar el modelo, procesa las fotos y actualiza el array <code style="background:var(--border);padding:1px 5px;border-radius:4px">FRAMES</code> en el código.
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.75rem">
+      El visor usa <b>varias fotos</b> del zapato en distintos ángulos, tomadas girándolo (idealmente 17, en el mismo orden en que giró). Selecciona todas las fotos de una vez, en orden.
     </p>
-    <p style="font-size:0.72rem;color:var(--text-muted)">
-      Archivos actuales: <code style="font-size:0.7rem">images/360/_DSC0846 … _DSC0862-Editar.webp</code>
+    <input type="file" accept="image/*" multiple id="visor360-file" style="display:none" onchange="_visor360SubirFotos(this.files)">
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('visor360-file').click()">📷 Subir fotos del giro</button>
+    <button type="button" class="btn btn-secondary" style="margin-left:0.5rem" onclick="_visor360Restaurar()">↩️ Restaurar fotos originales</button>
+    <div id="visor360-bar" style="display:none;margin-top:0.75rem">
+      <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div id="visor360-bar-fill" style="height:100%;width:0%;background:#7c3aed;transition:width 0.3s;border-radius:2px"></div>
+      </div>
+      <p id="visor360-bar-label" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px">Subiendo...</p>
+    </div>
+    <div id="visor360-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:0.75rem"></div>
+    <input type="hidden" id="visor360-frames-json" value='${(config.hero_360_frames||'').replace(/'/g,"&#39;")}'>
+    <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.5rem">
+      ${config.hero_360_frames ? '✓ Usando fotos subidas desde el panel.' : 'Usando las 17 fotos originales del sitio (images/360/).'}
     </p>
   </div>
 </div>
@@ -19227,6 +19236,9 @@ async function cargarSEO() {
     document.getElementById('seo-desc').addEventListener('input', function() {
       document.getElementById('seo-desc-count').textContent = this.value.length
     })
+    if (config.hero_360_frames) {
+      try { _visor360RenderPreview(JSON.parse(config.hero_360_frames)) } catch(e) {}
+    }
 
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
@@ -19265,6 +19277,7 @@ window.guardarSEO = async () => {
   const campos = {
     favicon_url: document.getElementById('seo-favicon').value,
     hero_imagen: document.getElementById('seo-hero-img').value,
+    hero_360_frames: document.getElementById('visor360-frames-json').value,
     hero_eyebrow: document.getElementById('hero-eyebrow').value,
     hero_titulo_linea1: document.getElementById('hero-titulo1').value,
     hero_titulo_destacado: document.getElementById('hero-titulo2').value,
@@ -19434,6 +19447,63 @@ async function _heroSubirArchivo(file) {
   } catch (e) {
     if (label) label.textContent = '✗ Error de conexión'
   }
+}
+
+// ── VISOR 360 UPLOAD ────────────────────────────────
+// Sube cada foto a Cloudinary (mismo endpoint que el hero) y guarda el
+// arreglo de URLs, en el orden en que se seleccionaron, como JSON en el
+// campo oculto -- se persiste junto con el resto al darle "Guardar
+// configuracion" (igual que la imagen del hero, no se guarda sola).
+window._visor360SubirFotos = async (fileList) => {
+  const files = Array.from(fileList || [])
+  if (!files.length) return
+  if (files.length < 6) {
+    if (!confirm(`Solo seleccionaste ${files.length} foto(s). Para que el giro se vea bien se recomiendan al menos 12-17. ¿Continuar de todas formas?`)) return
+  }
+  const bar = document.getElementById('visor360-bar')
+  const fill = document.getElementById('visor360-bar-fill')
+  const label = document.getElementById('visor360-bar-label')
+  if (bar) bar.style.display = 'block'
+  const urls = []
+  try {
+    for (let i = 0; i < files.length; i++) {
+      if (label) label.textContent = `Subiendo ${i + 1} de ${files.length}...`
+      if (fill) fill.style.width = Math.round(((i) / files.length) * 100) + '%'
+      const formData = new FormData()
+      formData.append('archivo', files[i])
+      formData.append('carpeta', 'hero360')
+      const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.url) urls.push(data.url)
+    }
+    if (fill) fill.style.width = '100%'
+    if (!urls.length) {
+      if (label) label.textContent = '✗ No se pudo subir ninguna foto'
+      return
+    }
+    document.getElementById('visor360-frames-json').value = JSON.stringify(urls)
+    _visor360RenderPreview(urls)
+    if (label) label.textContent = `✓ ${urls.length} fotos listas — dale a "Guardar configuración" abajo para publicarlas`
+    setTimeout(() => { if (bar) bar.style.display = 'none' }, 4000)
+  } catch (e) {
+    if (label) label.textContent = '✗ Error de conexión subiendo las fotos'
+  }
+}
+
+window._visor360Restaurar = () => {
+  document.getElementById('visor360-frames-json').value = ''
+  _visor360RenderPreview([])
+  const p = document.querySelector('#visor360-preview')?.parentElement?.querySelector('p:last-child')
+  if (p) p.textContent = 'Se restaurarán las 17 fotos originales del sitio al guardar.'
+}
+
+function _visor360RenderPreview(urls) {
+  const wrap = document.getElementById('visor360-preview')
+  if (!wrap) return
+  wrap.innerHTML = urls.map((u, i) => {
+    const thumb = u.replace('/image/upload/', '/image/upload/w_80,h_80,c_fill,f_auto,q_auto/')
+    return `<div style="position:relative"><img src="${thumb}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"><span style="position:absolute;bottom:1px;right:1px;background:rgba(0,0,0,0.6);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:3px">${i+1}</span></div>`
+  }).join('')
 }
 
 function _heroActualizarPreview(url) {

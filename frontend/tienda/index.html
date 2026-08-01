@@ -7716,7 +7716,10 @@ function zmRechazarCookies() {
 <!-- ════ VISOR 360° — para cambiar frames edita el array FRAMES ════ -->
 <script id="zm-hero-360">
 (function() {
-  /* ✏️  FRAMES DEL VISOR 360 — cambiar rutas aquí si se reprocesa el zapato */
+  /* ✏️  FRAMES DEL VISOR 360 — default. Se puede sobreescribir desde el panel
+     (SEO y Sitio -> Visor 360°), guardado como JSON en config.hero_360_frames
+     -- ver window._zmSeoConfig, ya cargado por cargarConfigSEO() antes de que
+     este script corra (va al final del <body>). */
   var FRAMES = [
     'images/360/_DSC0846-Editar.webp',
     'images/360/_DSC0847-Editar.webp',
@@ -7736,6 +7739,19 @@ function zmRechazarCookies() {
     'images/360/_DSC0861-Editar.webp',
     'images/360/_DSC0862-Editar.webp'
   ];
+  try {
+    var _cfg360 = (window._zmSeoConfig && window._zmSeoConfig.hero_360_frames) || ''
+    if (_cfg360) {
+      var _frames360 = JSON.parse(_cfg360)
+      if (Array.isArray(_frames360) && _frames360.length) {
+        FRAMES = _frames360.map(function(u) {
+          return u.indexOf('/image/upload/') !== -1
+            ? u.replace('/image/upload/', '/image/upload/w_1300,h_1300,c_fill,f_auto,q_auto/')
+            : u
+        })
+      }
+    }
+  } catch (e) {}
   var PX_PER_FRAME = 5; /* sensibilidad: px de drag por frame */
 
   var img = document.getElementById('hero-shoe-img');
