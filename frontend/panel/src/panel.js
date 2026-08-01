@@ -9116,7 +9116,7 @@ function _renderFilaPedido(p) {
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${guiaInfo}
       </td>
-      <td>${p.created_at ? new Date(new Date(p.created_at).getTime() - 6*60*60*1000).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
+      <td>${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
         ${accionEnvio}
@@ -9743,7 +9743,7 @@ window.abrirPreviewPedido = async (id) => {
           </div>
           <div style="background:#f9f9f9;border-radius:8px;padding:10px">
             <p style="font-size:0.72rem;color:#888;margin-bottom:2px">Fecha</p>
-            <p style="font-weight:600;font-size:0.82rem">${p.created_at ? new Date(new Date(p.created_at).getTime()-6*60*60*1000).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</p>
+            <p style="font-weight:600;font-size:0.82rem">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</p>
           </div>
         </div>
 

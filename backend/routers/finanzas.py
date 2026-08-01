@@ -233,8 +233,8 @@ def recibir_mercancia(datos: dict):
             "notas": notas,
         }
         if pagada:
-            from datetime import datetime
-            orden_payload["fecha_pago"] = datetime.now().isoformat()
+            from datetime import datetime, timezone
+            orden_payload["fecha_pago"] = datetime.now(timezone.utc).isoformat()
         if dias_credito is not None:
             orden_payload["dias_credito"] = int(dias_credito)
         orden = supabase_post("ordenes_compra", orden_payload)
@@ -718,11 +718,11 @@ def crear_cuenta_por_pagar_manual(datos: dict):
 @router.post("/ordenes/{id}/marcar-pagada")
 def marcar_orden_pagada(id: str):
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone
         supabase_patch(f"ordenes_compra?id=eq.{id}", {
             "status": "pagada",
             "saldo_pendiente": 0,
-            "fecha_pago": datetime.now().isoformat()
+            "fecha_pago": datetime.now(timezone.utc).isoformat()
         })
         return {"ok": True}
     except Exception as e:
@@ -756,9 +756,9 @@ def registrar_abono_orden(id: str, datos: dict):
 
         patch = {"saldo_pendiente": saldo_nuevo}
         if saldo_nuevo <= 0:
-            from datetime import datetime
+            from datetime import datetime, timezone
             patch["status"] = "pagada"
-            patch["fecha_pago"] = datetime.now().isoformat()
+            patch["fecha_pago"] = datetime.now(timezone.utc).isoformat()
         supabase_patch(f"ordenes_compra?id=eq.{id}", patch)
 
         return {"ok": True, "saldo_pendiente": saldo_nuevo, "pagada": saldo_nuevo <= 0}
