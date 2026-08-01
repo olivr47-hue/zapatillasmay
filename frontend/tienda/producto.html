@@ -619,7 +619,7 @@
 <!-- INFO CARDS -->
 <div id="desc-card" style="display:none" class="info-card">
   <div class="info-card-header" onclick="toggleCard('desc')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('desc')">
-    <span class="info-card-title">Descripción</span>
+    <span class="info-card-title" data-editable="prod_tab_descripcion">Descripción</span>
     <svg class="info-card-chevron" id="desc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
   <div class="info-card-body open" id="desc-body"></div>
@@ -627,7 +627,7 @@
 
 <div id="details-card" style="display:none" class="info-card">
   <div class="info-card-header" onclick="toggleCard('details')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('details')">
-    <span class="info-card-title">Detalles del producto</span>
+    <span class="info-card-title" data-editable="prod_tab_detalles">Detalles del producto</span>
     <svg class="info-card-chevron" id="details-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
   <div class="info-card-body open" id="details-body"></div>
@@ -636,14 +636,14 @@
 <!-- POLÍTICA DE DEVOLUCIÓN EXPANDIBLE -->
 <div class="info-card" style="border-left:1px solid #10b981">
   <div class="info-card-header" onclick="toggleCard('devolucion')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ') toggleCard('devolucion')">
-    <span class="info-card-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">↩</span> Garantía y devoluciones</span>
+    <span class="info-card-title" style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">↩</span> <span data-editable="prod_tab_devolucion">Garantía y devoluciones</span></span>
     <svg class="info-card-chevron" id="devolucion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
   <div class="info-card-body" id="devolucion-body">
     <div style="font-size:0.82rem;color:#555;line-height:1.6">
-      <p style="margin:0 0 10px"><strong style="color:#10b981">✓ 30 días para devolución</strong> — Si el producto llega con defecto de fábrica o no es lo que pediste, te lo cambiamos sin costo.</p>
-      <p style="margin:0 0 10px"><strong style="color:#C8967A">✓ Garantía 22 días</strong> — Cubrimos defectos de costura y materiales en uso normal.</p>
-      <p style="margin:0 0 10px">📦 Para iniciar un cambio escríbenos por WhatsApp con tu número de orden y una foto del producto.</p>
+      <p data-editable="prod_devolucion_texto1" style="margin:0 0 10px">✓ 30 días para devolución — Si el producto llega con defecto de fábrica o no es lo que pediste, te lo cambiamos sin costo.</p>
+      <p data-editable="prod_devolucion_texto2" style="margin:0 0 10px">✓ Garantía 22 días — Cubrimos defectos de costura y materiales en uso normal.</p>
+      <p data-editable="prod_devolucion_texto3" style="margin:0 0 10px">📦 Para iniciar un cambio escríbenos por WhatsApp con tu número de orden y una foto del producto.</p>
       <p style="margin:0"><a href="https://wa.me/5214792244560?text=Hola, quiero iniciar una devolución" target="_blank" rel="noopener" style="color:#C8967A;font-weight:600;text-decoration:none">→ Iniciar devolución por WhatsApp</a></p>
     </div>
   </div>
@@ -1634,6 +1634,59 @@ async function cargarConfig() {
     data.forEach(item => config[item.clave] = item.valor || '')
 
     window._zmSeoConfig = config
+
+    // Paleta/tipografia/tarjetas -- mismos overrides que aplica index.html
+    // (ver "SEO y Sitio" en el panel), para que esta pagina no se vea
+    // desincronizada del resto del sitio si el dueño personaliza algo.
+    try {
+      const root = document.documentElement.style
+      if (config.color_primario && /^#[0-9a-fA-F]{6}$/.test(config.color_primario)) {
+        const hx = (h) => ({ r: parseInt(h.slice(1,3),16), g: parseInt(h.slice(3,5),16), b: parseInt(h.slice(5,7),16) })
+        const mx = (c, t, a) => ({ r: Math.round(c.r+(t.r-c.r)*a), g: Math.round(c.g+(t.g-c.g)*a), b: Math.round(c.b+(t.b-c.b)*a) })
+        const th = (c) => '#' + [c.r,c.g,c.b].map(v => v.toString(16).padStart(2,'0')).join('')
+        const base = hx(config.color_primario), white = {r:255,g:255,b:255}, black = {r:0,g:0,b:0}
+        root.setProperty('--pink', config.color_primario)
+        root.setProperty('--pink-soft', th(mx(base, white, 0.35)))
+        root.setProperty('--pink-dark', th(mx(base, black, 0.12)))
+      }
+      if (config.color_fondo && /^#[0-9a-fA-F]{6}$/.test(config.color_fondo)) root.setProperty('--cream', config.color_fondo)
+      if (config.color_texto && /^#[0-9a-fA-F]{6}$/.test(config.color_texto)) root.setProperty('--black', config.color_texto)
+      if (config.font_display && config.font_display !== 'Cormorant Garamond') {
+        const id = 'zm-font-' + config.font_display.replace(/\s+/g,'-').toLowerCase()
+        if (!document.getElementById(id)) {
+          const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
+          l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(config.font_display)}:wght@300;400;500;600;700&display=swap`
+          document.head.appendChild(l)
+        }
+        root.setProperty('--font-display', `'${config.font_display}', Georgia, serif`)
+      }
+      if (config.font_body && config.font_body !== 'Outfit') {
+        const id = 'zm-font-' + config.font_body.replace(/\s+/g,'-').toLowerCase()
+        if (!document.getElementById(id)) {
+          const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
+          l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(config.font_body)}:wght@300;400;500;600;700&display=swap`
+          document.head.appendChild(l)
+        }
+        root.setProperty('--font-body', `'${config.font_body}', Arial, sans-serif`)
+      }
+      if (config.tarjeta_radio) root.setProperty('--card-radius', config.tarjeta_radio + 'px')
+    } catch(e) {}
+
+    // Textos editables (Editor visual) -- mismo mecanismo que index.html:
+    // solo textContent, nunca innerHTML.
+    ;[
+      ['prod_tab_descripcion', '[data-editable="prod_tab_descripcion"]'],
+      ['prod_tab_detalles', '[data-editable="prod_tab_detalles"]'],
+      ['prod_tab_devolucion', '[data-editable="prod_tab_devolucion"]'],
+      ['prod_devolucion_texto1', '[data-editable="prod_devolucion_texto1"]'],
+      ['prod_devolucion_texto2', '[data-editable="prod_devolucion_texto2"]'],
+      ['prod_devolucion_texto3', '[data-editable="prod_devolucion_texto3"]'],
+    ].forEach(([clave, sel]) => {
+      if (!config[clave]) return
+      const el = document.querySelector(sel)
+      if (el) el.textContent = config[clave]
+    })
+
     if (localStorage.getItem('zm_consent') === 'accepted') {
       _cargarPixelesMarketing(config)
     } else if (!localStorage.getItem('zm_consent')) {
@@ -2537,6 +2590,112 @@ function renderSearchResults(data, containerId) {
   }).join('')
   el.classList.add('show')
 }
+</script>
+
+<!-- ── Editor visual (clic-para-editar) del panel -- mismo protocolo que
+     index.html: solo se activa con ?zmEditor=1, y los cambios solo se
+     guardan cuando el panel manda "guardar-cambios" por postMessage. ── -->
+<script>
+;(function () {
+  if (new URLSearchParams(location.search).get('zmEditor') !== '1') return
+  const API_EDIT = 'https://zapatillasmay-production.up.railway.app'
+
+  let modoEdicion = false
+  const cambiosPendientes = {}
+
+  function avisarPanel(msg) {
+    try { if (window.parent) window.parent.postMessage(Object.assign({ origen: 'zm-editor' }, msg), '*') } catch(e) {}
+  }
+
+  document.addEventListener('click', (ev) => {
+    if (!modoEdicion) return
+    const el = ev.target.closest('[data-editable]')
+    if (!el) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    if (el.isContentEditable) return
+    if (el.dataset.zmPrev === undefined) el.dataset.zmPrev = el.textContent
+    el.setAttribute('contenteditable', 'true')
+    el.classList.add('zm-editing')
+    requestAnimationFrame(() => {
+      el.focus()
+      const rango = document.createRange()
+      rango.selectNodeContents(el)
+      const sel = window.getSelection()
+      sel.removeAllRanges()
+      sel.addRange(rango)
+    })
+  }, true)
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return
+    const el = ev.target.closest && ev.target.closest('[data-editable]')
+    if (!el || !el.isContentEditable) return
+    el.textContent = el.dataset.zmPrev
+    el.blur()
+  })
+
+  document.addEventListener('focusout', (ev) => {
+    const el = ev.target
+    if (!el.hasAttribute || !el.hasAttribute('data-editable') || !el.isContentEditable) return
+    el.removeAttribute('contenteditable')
+    el.classList.remove('zm-editing')
+    const clave = el.getAttribute('data-editable')
+    let valor = el.textContent.trim()
+    const original = el.dataset.zmPrev
+    if (!valor) { valor = original; el.textContent = valor }
+    if (valor === original) {
+      delete cambiosPendientes[clave]
+      el.classList.remove('zm-sin-guardar')
+    } else {
+      cambiosPendientes[clave] = valor
+      el.classList.add('zm-sin-guardar')
+    }
+    avisarPanel({ tipo: 'pendientes', total: Object.keys(cambiosPendientes).length })
+  })
+
+  window.addEventListener('message', (ev) => {
+    if (!ev.data || ev.data.origen !== 'zm-panel') return
+    if (ev.data.tipo === 'activar-edicion') {
+      modoEdicion = true
+      document.documentElement.classList.add('zm-modo-edicion')
+    } else if (ev.data.tipo === 'desactivar-edicion') {
+      modoEdicion = false
+      document.documentElement.classList.remove('zm-modo-edicion')
+    } else if (ev.data.tipo === 'guardar-cambios') {
+      const claves = Object.keys(cambiosPendientes)
+      if (!claves.length) { avisarPanel({ tipo: 'guardado' }); return }
+      avisarPanel({ tipo: 'guardando' })
+      fetch(`${API_EDIT}/seo/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cambiosPendientes)
+      })
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status)
+          claves.forEach(clave => {
+            delete cambiosPendientes[clave]
+            document.querySelectorAll(`[data-editable="${clave}"]`).forEach(el => {
+              el.dataset.zmPrev = el.textContent
+              el.classList.remove('zm-sin-guardar')
+            })
+          })
+          avisarPanel({ tipo: 'guardado' })
+        })
+        .catch(() => avisarPanel({ tipo: 'error' }))
+    }
+  })
+
+  const estilos = document.createElement('style')
+  estilos.textContent = `
+    html.zm-modo-edicion [data-editable] { outline: 2px dashed transparent; outline-offset: 3px; cursor: text; transition: outline-color .15s, background-color .15s; border-radius: 4px; }
+    html.zm-modo-edicion [data-editable]:hover { outline-color: rgba(233,30,140,0.55); background: rgba(233,30,140,0.08); }
+    [data-editable].zm-editing { outline: 2px solid #E91E8C !important; background: rgba(233,30,140,0.1) !important; }
+    [data-editable].zm-sin-guardar:not(.zm-editing) { outline: 2px dashed #f59e0b !important; background: rgba(245,158,11,0.08) !important; }
+  `
+  document.head.appendChild(estilos)
+  avisarPanel({ tipo: 'listo' })
+})()
 </script>
 <script src="/push-subscribe.js" defer></script>
 </body>

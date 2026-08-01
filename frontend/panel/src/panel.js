@@ -19344,6 +19344,40 @@ window.guardarCambiosEditorVisual = () => {
   _editorVisualPostMsg('guardar-cambios')
 }
 
+// Navegación del Editor visual entre la home y una página de producto --
+// carga la lista de productos una sola vez (nombre + slug) para el
+// autocompletar; al elegir uno, cambia el src del iframe.
+window._editorVisualProductosMap = {}
+async function _editorVisualCargarProductos() {
+  try {
+    const res = await fetch(API + '/productos/?activo=eq.true')
+    const productos = await res.json()
+    const lista = document.getElementById('editor-visual-productos-lista')
+    if (!lista || !Array.isArray(productos)) return
+    window._editorVisualProductosMap = {}
+    lista.innerHTML = productos.map(p => {
+      const etiqueta = `${p.nombre} — ${p.sku_interno || ''}`.trim()
+      window._editorVisualProductosMap[etiqueta] = p.slug || p.sku_interno || p.id
+      return `<option value="${etiqueta.replace(/"/g,'')}"></option>`
+    }).join('')
+  } catch(e) {}
+}
+
+window._editorVisualIrAProducto = () => {
+  const input = document.getElementById('editor-visual-buscar-producto')
+  const slug = window._editorVisualProductosMap[input?.value]
+  if (!slug) return
+  const frame = document.getElementById('editor-visual-iframe')
+  if (frame) frame.src = `https://zapatillasmay.mx/producto/${slug}?zmEditor=1`
+}
+
+window._editorVisualIrAHome = () => {
+  const input = document.getElementById('editor-visual-buscar-producto')
+  if (input) input.value = ''
+  const frame = document.getElementById('editor-visual-iframe')
+  if (frame) frame.src = 'https://zapatillasmay.mx/?zmEditor=1'
+}
+
 function _editorVisualRenderBotones() {
   const btnModo = document.getElementById('editor-visual-btn-modo')
   const btnGuardar = document.getElementById('editor-visual-btn-guardar')
@@ -19383,10 +19417,17 @@ async function cargarEditorVisual() {
           <button class="btn btn-secondary" onclick="document.getElementById('editor-visual-iframe').src=document.getElementById('editor-visual-iframe').src">↻ Recargar</button>
         </div>
       </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="_editorVisualIrAHome()">🏠 Home</button>
+        <input class="form-input" id="editor-visual-buscar-producto" list="editor-visual-productos-lista" placeholder="Buscar un producto para editar su página..." style="flex:1;min-width:220px;font-size:0.82rem" onchange="_editorVisualIrAProducto()">
+        <datalist id="editor-visual-productos-lista"></datalist>
+        <span style="font-size:0.72rem;color:var(--text-muted)">Escribe el nombre y elige de la lista</span>
+      </div>
       <iframe id="editor-visual-iframe" src="https://zapatillasmay.mx/?zmEditor=1"
         style="flex:1;width:100%;border:1px solid var(--border);border-radius:12px;background:#fff"></iframe>
     </div>
   `
+  _editorVisualCargarProductos()
   window._editorVisualListener && window.removeEventListener('message', window._editorVisualListener)
   window._editorVisualListener = (ev) => {
     if (!ev.data || ev.data.origen !== 'zm-editor') return
