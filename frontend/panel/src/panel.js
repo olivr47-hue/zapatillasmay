@@ -18765,6 +18765,9 @@ window.guardarEnvio = async function() {
 // Garamond' / 'Outfit') ya viene precargado en el <head> del sitio.
 const _ZM_FUENTES_DISPLAY = ['Cormorant Garamond', 'Playfair Display', 'Marcellus', 'Cormorant', 'Libre Baskerville', 'Prata', 'DM Serif Display']
 const _ZM_FUENTES_BODY = ['Outfit', 'Poppins', 'Inter', 'Nunito Sans', 'Work Sans', 'Jost', 'Manrope']
+// Mismas claves que ICONOS_CATS/IMG_CATS en frontend/tienda/index.html --
+// si se agrega una categoría nueva ahí, agregarla aquí también.
+const _ZM_CATEGORIAS = ['tacones', 'sandalias', 'botas', 'botines', 'flats', 'plataformas', 'tenis', 'nina', 'accesorios']
 
 async function cargarSEO() {
   const content = document.getElementById('content')
@@ -18774,6 +18777,8 @@ async function cargarSEO() {
     const data = await res.json()
     const config = {}
     data.forEach(item => config[item.clave] = item.valor || '')
+    let _zmCategoriasEstilo = {}
+    try { _zmCategoriasEstilo = JSON.parse(config.categorias_estilo || '{}') || {} } catch(e) {}
 
     content.innerHTML = `
       <div style="max-width:800px">
@@ -19085,6 +19090,50 @@ async function cargarSEO() {
         </div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+          <h3 style="margin-bottom:0.25rem">Categorías (portada de "Explora por categoría")</h3>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.25rem">
+            Foto e ícono de cada categoría en la home. El nombre que se muestra sale directo del campo "Categoría" de cada producto, no se edita aquí.
+          </p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1.5rem">
+            ${_ZM_CATEGORIAS.map(c => {
+              const ov = _zmCategoriasEstilo[c] || {}
+              return `
+              <div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--border);border-radius:8px">
+                <img id="cat-img-preview-${c}" src="${(ov.imagen||'').replace(/"/g,'')}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;background:var(--bg-secondary);flex-shrink:0" onerror="this.style.visibility='hidden'">
+                <div style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <p style="font-weight:600;font-size:0.85rem;margin:0;text-transform:capitalize;min-width:90px">${c}</p>
+                  <input type="file" accept="image/*" id="cat-img-file-${c}" style="display:none" onchange="_categoriaSubirImagen('${c}', this.files[0])">
+                  <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="document.getElementById('cat-img-file-${c}').click()">📷 Subir foto</button>
+                  <input class="form-input" id="cat-img-url-${c}" value="${(ov.imagen||'').replace(/"/g,'')}" placeholder="o pega una URL" style="flex:1;min-width:160px;font-size:0.78rem;font-family:monospace" oninput="document.getElementById('cat-img-preview-${c}').src=this.value">
+                  <input class="form-input" id="cat-icono-${c}" value="${(ov.icono||'').replace(/"/g,'')}" placeholder="👠" maxlength="4" style="width:56px;text-align:center;font-size:1.1rem">
+                </div>
+              </div>
+            `}).join('')}
+          </div>
+          <h4 style="font-size:0.85rem;margin-bottom:0.75rem">Texto de las categorías</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div>
+              <label class="form-label">Color del texto</label>
+              <div style="display:flex;align-items:center;gap:0.75rem">
+                <input type="color" id="cat-texto-color" value="${(config.cat_texto_color||'#ffffff')}" style="width:48px;height:38px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px;background:var(--bg-primary)"
+                  oninput="document.getElementById('cat-texto-color-hex').value=this.value">
+                <input class="form-input" id="cat-texto-color-hex" value="${(config.cat_texto_color||'#ffffff').replace(/"/g,'')}" style="max-width:120px;font-family:monospace"
+                  oninput="const c=document.getElementById('cat-texto-color'); if(/^#[0-9a-fA-F]{6}$/.test(this.value)) c.value=this.value">
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Tamaño del texto</label>
+              <select class="form-input" id="cat-texto-tamano-select">
+                <option value="0.68" ${(config.cat_texto_tamano||'0.78')==='0.68'?'selected':''}>Pequeño</option>
+                <option value="0.78" ${(config.cat_texto_tamano||'0.78')==='0.78'?'selected':''}>Normal (actual)</option>
+                <option value="0.92" ${(config.cat_texto_tamano||'0.78')==='0.92'?'selected':''}>Grande</option>
+                <option value="1.1" ${(config.cat_texto_tamano||'0.78')==='1.1'?'selected':''}>Muy grande</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">Redes Sociales</h3>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
             <div>
@@ -19151,7 +19200,35 @@ async function cargarSEO() {
   }
 }
 
+window._categoriaSubirImagen = async (categoria, file) => {
+  if (!file) return
+  if (file.size > 10 * 1024 * 1024) { alert('La imagen pesa más de 10 MB. Comprimela y vuelve a intentar.'); return }
+  const preview = document.getElementById(`cat-img-preview-${categoria}`)
+  const urlInput = document.getElementById(`cat-img-url-${categoria}`)
+  try {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    formData.append('carpeta', 'categorias')
+    const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+    const data = await res.json()
+    if (data.url) {
+      if (urlInput) urlInput.value = data.url
+      if (preview) { preview.src = data.url; preview.style.visibility = '' }
+    } else {
+      alert('No se pudo subir la imagen de "' + categoria + '"')
+    }
+  } catch (e) {
+    alert('Error de conexión subiendo la imagen de "' + categoria + '"')
+  }
+}
+
 window.guardarSEO = async () => {
+  const categoriasEstilo = {}
+  _ZM_CATEGORIAS.forEach(c => {
+    const imagen = document.getElementById(`cat-img-url-${c}`)?.value?.trim() || ''
+    const icono = document.getElementById(`cat-icono-${c}`)?.value?.trim() || ''
+    if (imagen || icono) categoriasEstilo[c] = { imagen, icono }
+  })
   const campos = {
     favicon_url: document.getElementById('seo-favicon').value,
     hero_imagen: document.getElementById('seo-hero-img').value,
@@ -19165,6 +19242,9 @@ window.guardarSEO = async () => {
     font_display: document.getElementById('font-display-select').value,
     font_body: document.getElementById('font-body-select').value,
     tarjeta_radio: document.getElementById('tarjeta-radio-select').value,
+    categorias_estilo: JSON.stringify(categoriasEstilo),
+    cat_texto_color: document.getElementById('cat-texto-color-hex').value,
+    cat_texto_tamano: document.getElementById('cat-texto-tamano-select').value,
     meta_titulo_home: document.getElementById('seo-titulo').value,
     meta_descripcion_home: document.getElementById('seo-desc').value,
     google_analytics_id: document.getElementById('seo-ga').value,

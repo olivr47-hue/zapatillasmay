@@ -639,11 +639,11 @@
     }
 
     .cat-name {
-      font-size: 0.78rem;
+      font-size: var(--cat-name-size, 0.78rem);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 1px;
-      color: var(--white);
+      color: var(--cat-name-color, var(--white));
     }
 
     /* ── FILTROS ── */
@@ -3843,6 +3843,15 @@ if (config.tarjeta_radio) {
   document.documentElement.style.setProperty('--card-radius', config.tarjeta_radio + 'px')
 }
 
+// Texto de las categorias (color y tamaño) -- las fotos/iconos por
+// categoria se leen directo de config.categorias_estilo en renderCategorias()
+if (config.cat_texto_color) {
+  document.documentElement.style.setProperty('--cat-name-color', config.cat_texto_color)
+}
+if (config.cat_texto_tamano) {
+  document.documentElement.style.setProperty('--cat-name-size', config.cat_texto_tamano + 'rem')
+}
+
 // Scroll parallax manejado por el bloque 3D al final del body
 if (config.favicon_url) {
   let favicon = document.querySelector('link[rel="icon"]')
@@ -4090,18 +4099,26 @@ cargarConfigSEO()
     nina:        'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=400&q=80',
     accesorios:  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&q=80'
   }
-  grid.innerHTML = cats.map(c => `
+  // Overrides desde el panel (SEO y Sitio -> Categorías): foto e icono por
+  // categoría, guardados como JSON en configuracion_seo bajo "categorias_estilo".
+  let _catOverrides = {}
+  try { _catOverrides = JSON.parse((window._zmSeoConfig && window._zmSeoConfig.categorias_estilo) || '{}') || {} } catch(e) {}
+  grid.innerHTML = cats.map(c => {
+    const ov = _catOverrides[c] || {}
+    const imagen = ov.imagen || IMG_CATS[c] || ''
+    const icono = ov.icono || ICONOS_CATS[c] || '👠'
+    return `
     <div class="cat-wrap" role="button" tabindex="0" onclick="filtrarCategoria('${c}')" onkeydown="if(event.key==='Enter'||event.key===' ') filtrarCategoria('${c}')">
       <div class="cat-card">
-        <img src="${IMG_CATS[c] || ''}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
+        <img src="${imagen}" alt="${c}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 0.5s">
         <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(90,30,45,0.75) 0%, rgba(180,100,100,0.15) 60%, transparent 100%)"></div>
         <div style="position:absolute;bottom:16px;left:16px;right:16px">
-          <span style="font-size:1.4rem;display:block;margin-bottom:4px">${ICONOS_CATS[c] || '👠'}</span>
+          <span style="font-size:1.4rem;display:block;margin-bottom:4px">${icono}</span>
           <div class="cat-name">${c.charAt(0).toUpperCase() + c.slice(1)}</div>
         </div>
       </div>
     </div>
-  `).join('')
+  `}).join('')
 }
 
   // ── Scroll infinito ──────────────────────────────────────────────────────────
