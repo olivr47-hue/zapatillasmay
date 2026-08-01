@@ -2944,7 +2944,7 @@ if (!window.fbq){
         alt="Calzado de moda para dama — Zapatillas May León Guanajuato" draggable="false">
       <div class="hero-shoe-shadow"></div>
     </div>
-    <div class="viewer-360-badge" aria-hidden="true">360°</div>
+    <div class="viewer-360-badge" data-editable="hero_360_badge" aria-hidden="true">360°</div>
   </div>
 
   <div class="hero-content fade-in" id="hero-content">
@@ -2955,7 +2955,7 @@ if (!window.fbq){
       <button class="btn-primary" style="padding:16px 44px;font-size:0.88rem" onclick="scrollToProductos()" data-editable="hero_boton1_texto">Ver novedades</button>
       <button class="btn-outline" style="padding:15px 28px;font-size:0.78rem;opacity:0.85" onclick="mostrarOfertas()" data-editable="hero_boton2_texto">Ver ofertas</button>
     </div>
-    <p class="hero-offer" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.8rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25);max-width:min(92vw,420px)">🏷️ <strong>3+ pares:</strong> <strong style="color:#7CFFB2">-$60/par</strong> · 🚚 <strong style="color:#7CFFB2">Envío gratis</strong> desde $1,299</p>
+    <p class="hero-offer" data-editable="hero_offer_texto" style="display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px;padding:9px 16px;background:linear-gradient(135deg,rgba(156,90,82,0.95),rgba(166,121,95,0.92));border:1px solid rgba(232,196,160,0.55);border-radius:100px;font-size:0.8rem;font-weight:600;color:#fff;box-shadow:0 4px 14px rgba(120,70,60,0.25);max-width:min(92vw,420px)">🏷️ 3+ pares: -$60/par · 🚚 Envío gratis desde $1,299</p>
   </div>
 </section>
 
@@ -3793,6 +3793,14 @@ if (config.popup_subtitulo) {
 if (config.popup_boton_texto) {
   const el = document.querySelector('#zm-email-popup button[data-editable="popup_boton_texto"]')
   if (el) el.textContent = config.popup_boton_texto
+}
+if (config.hero_360_badge) {
+  const el = document.querySelector('.viewer-360-badge')
+  if (el) el.textContent = config.hero_360_badge
+}
+if (config.hero_offer_texto) {
+  const el = document.querySelector('.hero-offer')
+  if (el) el.textContent = config.hero_offer_texto
 }
 
 // Color de marca — un solo color base, las variantes (claro/oscuro/transparencias)
