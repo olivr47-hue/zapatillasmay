@@ -2753,14 +2753,14 @@ if (!window.fbq){
 <!-- HEADER -->
  <div id="promo-banner" style="background:linear-gradient(90deg,#b5687a 0%,#c8967a 40%,#b5687a 70%,#9e5468 100%);color:white;text-align:center;padding:8px 0;font-size:0.78rem;font-weight:600;letter-spacing:0.5px;position:fixed;top:0;left:0;right:0;z-index:101;overflow:hidden;height:36px;display:flex;align-items:center">
   <div style="display:flex;gap:0;animation:bannerSlide 20s linear infinite;white-space:nowrap">
-    <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
-    <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
-    <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
-    <span style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
-    <span style="padding:0 40px">✨ Nuevos modelos cada semana</span>
-    <span style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
-    <span style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+    <span data-editable="promo_msg_1" style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
+    <span data-editable="promo_msg_2" style="padding:0 40px">✨ Nuevos modelos cada semana</span>
+    <span data-editable="promo_msg_3" style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
+    <span data-editable="promo_msg_4" style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
+    <span data-editable="promo_msg_1" style="padding:0 40px">🚚 Envío GRATIS desde $1,299</span>
+    <span data-editable="promo_msg_2" style="padding:0 40px">✨ Nuevos modelos cada semana</span>
+    <span data-editable="promo_msg_3" style="padding:0 40px">💬 Te asesoramos por WhatsApp</span>
+    <span data-editable="promo_msg_4" style="padding:0 40px">👠 Calzado hecho en León, Guanajuato</span>
   </div>
 </div>
 <header>
@@ -3825,6 +3825,13 @@ if (config.hero_offer_texto) {
   const el = document.querySelector('.hero-offer')
   if (el) el.textContent = config.hero_offer_texto
 }
+// El banner que gira arriba de todo repite cada mensaje 2 veces en el HTML
+// (para el efecto de scroll infinito) -- por eso querySelectorAll en vez de
+// querySelector, así se actualizan las dos copias de cada mensaje.
+;['promo_msg_1', 'promo_msg_2', 'promo_msg_3', 'promo_msg_4'].forEach((clave) => {
+  if (!config[clave]) return
+  document.querySelectorAll(`#promo-banner [data-editable="${clave}"]`).forEach(el => { el.textContent = config[clave] })
+})
 
 // Color de marca — un solo color base, las variantes (claro/oscuro/transparencias)
 // se derivan aquí para que todo el sitio (botones, acentos, hero) cambie junto.
@@ -4253,13 +4260,21 @@ cargarConfigSEO()
       })
       return
     }
-    // Imágenes editables: foto del hero (1 archivo) y visor 360 (varias).
+    // Imágenes editables: foto del hero (1 archivo), visor 360 (varias) y
+    // fotos de categoría. El botón que se clickea (ej. los botones dedicados
+    // del hero) puede no ser el elemento visual real -- por eso también se
+    // selecciona el real para poder moverlo/redimensionarlo con los mismos
+    // mangos, además de abrir el selector de archivo para cambiar la foto.
     const elImg = ev.target.closest('[data-editable-image], [data-editable-image-multi]')
     if (elImg) {
       ev.preventDefault()
       ev.stopPropagation()
       const multi = elImg.hasAttribute('data-editable-image-multi')
       const clave = elImg.getAttribute(multi ? 'data-editable-image-multi' : 'data-editable-image')
+      const realTarget = clave === 'hero_imagen' ? document.getElementById('hero-bg')
+                        : clave === 'hero_360_frames' ? document.getElementById('hero-shoe-img')
+                        : elImg
+      if (realTarget) seleccionarParaMover(realTarget)
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'
@@ -4344,6 +4359,11 @@ cargarConfigSEO()
       cambiosPendientes[clave] = valor
       el.classList.add('zm-sin-guardar')
     }
+    // Si la misma clave se repite en más de un elemento (ej. el banner que
+    // gira arriba, duplicado para el efecto de scroll infinito), se refleja
+    // ahí también -- si no, la copia duplicada se quedaría con el texto
+    // viejo hasta recargar la página.
+    document.querySelectorAll(`[data-editable="${clave}"]`).forEach(sib => { if (sib !== el) sib.textContent = valor })
     avisarPanel({ tipo: 'pendientes', total: Object.keys(cambiosPendientes).length })
   })
 
@@ -4393,6 +4413,13 @@ cargarConfigSEO()
     html.zm-modo-edicion [data-editable-move]:hover { outline-color: rgba(59,130,246,0.7); }
     html.zm-modo-edicion .zm-btn-cambiar-foto { display: inline-flex !important; align-items: center; gap: 6px; background: #E91E8C; color: #fff; border: none; padding: 8px 14px; border-radius: 100px; font: 600 12.5px/1 -apple-system,sans-serif; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
     html.zm-modo-edicion .zm-btn-cambiar-foto:hover { background: #c9187a; }
+    /* En móvil el banner+header+buscador fijos ocupan ~144px arriba y tapan
+       estos botones si se quedan en su top original (pensado para desktop,
+       donde no hay ese stack encima del hero). */
+    @media (max-width: 768px) {
+      html.zm-modo-edicion #zm-btn-cambiar-hero { top: 150px !important; font-size: 11.5px; padding: 7px 12px; }
+      html.zm-modo-edicion #zm-btn-cambiar-360 { top: 192px !important; font-size: 11.5px; padding: 7px 12px; }
+    }
     #zm-toolbar { display:none; position:fixed; z-index:99999; background:#1f2937; color:#fff; padding:8px 10px; border-radius:10px; gap:12px; align-items:center; font:13px/1.2 -apple-system,sans-serif; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
     #zm-toolbar label { display:flex; align-items:center; gap:5px; white-space:nowrap; }
     #zm-toolbar select, #zm-toolbar button { font:inherit; border-radius:6px; border:1px solid #4b5563; background:#374151; color:#fff; padding:3px 6px; cursor:pointer; }
