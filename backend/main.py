@@ -125,6 +125,7 @@ app.include_router(emails.router)
 
 # ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
 import threading, time as _time
+import datetime as _dt
 
 def _loop_carritos_abandonados():
     # Espera inicial para no correr justo al arrancar
@@ -207,6 +208,38 @@ def _loop_correo_nuevo():
             print(f"[correo-nuevo] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_reporte_semanal():
+    """Cada lunes ~9am (hora Mexico, UTC-6) manda un push a los admins del
+    panel con el resumen de la semana: sesiones/usuarios de GA4 y gasto/
+    compras/ROAS de Meta Ads -- para no tener que entrar al panel a
+    revisarlo. Revisa cada 30 min y solo dispara una vez por semana
+    (guarda la fecha del último envío en memoria)."""
+    _time.sleep(240)
+    ultimo_envio = None
+    while True:
+        try:
+            ahora_mx = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if ahora_mx.weekday() == 0 and 9 <= ahora_mx.hour < 10 and ultimo_envio != ahora_mx.date():
+                semana = analytics.metricas_semana()
+                dias = (semana.get("dias") or [])[-7:]
+                sesiones_semana = sum(d.get("sesiones", 0) for d in dias)
+                usuarios_semana = sum(d.get("usuarios", 0) for d in dias)
+                meta = analytics.meta_ads(periodo="last_7d")
+                if meta.get("configurado") and not meta.get("error"):
+                    gasto   = meta.get("total_gasto", 0)
+                    compras = meta.get("total_compras", 0)
+                    roas    = meta.get("roas_promedio", 0)
+                    cuerpo  = f"{sesiones_semana} sesiones, {usuarios_semana} usuarios · Meta: ${gasto:,.0f} gastados, {compras} compras, ROAS {roas}x"
+                else:
+                    cuerpo = f"{sesiones_semana} sesiones, {usuarios_semana} usuarios · Meta Ads no disponible"
+                push.enviar_push("📊 Resumen semanal", cuerpo, url="/", sitio="panel")
+                ultimo_envio = ahora_mx.date()
+                print(f"[reporte-semanal] Enviado: {cuerpo}")
+        except Exception as e:
+            print(f"[reporte-semanal] Error en loop: {e}")
+        _time.sleep(30 * 60)  # revisa cada 30 minutos
+
+
 @app.on_event("startup")
 def _iniciar_hilos():
     # Carrito abandonado
@@ -229,6 +262,10 @@ def _iniciar_hilos():
     t5 = threading.Thread(target=_loop_secuencias_wa, daemon=True)
     t5.start()
     print("[secuencias-wa] Hilo de secuencias de WhatsApp iniciado (cada 15 min)")
+    # Reporte semanal (GA4 + Meta Ads) por push a los admins del panel
+    t6 = threading.Thread(target=_loop_reporte_semanal, daemon=True)
+    t6.start()
+    print("[reporte-semanal] Hilo de reporte semanal iniciado (lunes 9am)")
 
 @app.get("/")
 def inicio():
