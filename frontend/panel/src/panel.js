@@ -13386,6 +13386,11 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         <span>Total pares:</span>
         <span>${totalPares}</span>
       </div>
+      ${parseFloat(pedido.costo_envio || 0) > 0 ? `
+      <div class="row">
+        <span>Envío 📦</span>
+        <span>$${parseFloat(pedido.costo_envio).toFixed(2)}</span>
+      </div>` : ''}
       <div class="total-row">
         <span>TOTAL:</span>
         <span>$${total.toFixed(2)}</span>
@@ -25157,7 +25162,7 @@ function renderCarritoAbierto(p) {
         </div>
 
         ${items.length > 0 ? `
-          <div id="c-envio-wrap" style="display:none;margin-top:1rem;padding:1rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
+          <div id="c-envio-wrap" style="margin-top:1rem;padding:1rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
             <p style="font-weight:700;color:#333;margin:0 0 10px;font-size:0.9rem">📦 Envío</p>
 
             <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px">
@@ -25895,12 +25900,15 @@ window.actualizarPrecioCorridaCarrito = async (idsStr, nuevoPrecio) => {
 window.confirmarVentaCarrito = async (pedidoId) => {
   const formaPagoEl = document.getElementById('c-forma-pago')
   const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
-  if (!confirm(`¿Confirmar la venta? Se descontará el stock del inventario.`)) return
+  const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
+  if (!confirm(`¿Confirmar la venta${envio > 0 ? ` (incluye $${envio} MXN de envío)` : ''}? Se descontará el stock del inventario.`)) return
 
   // Igual que en POS: si es tarjeta, el cobro tiene que pasar de verdad por
   // la terminal física antes de confirmar la venta -- si no, un empleado
   // podría cerrar como "tarjeta" sin cobrar nada realmente en la terminal.
-  const total = parseFloat((document.getElementById('carrito-total-monto')?.textContent || '0').replace(/,/g, '')) || 0
+  // El envío se suma aquí también, si no la terminal cobraría de menos.
+  const totalProductos = parseFloat((document.getElementById('carrito-total-monto')?.textContent || '0').replace(/,/g, '')) || 0
+  const total = totalProductos + envio
   if (formaPago === 'tarjeta') {
     const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
     if (!terminalDeviceId) {
@@ -25921,7 +25929,7 @@ window.confirmarVentaCarrito = async (pedidoId) => {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ forma_pago: formaPago })
+      body: JSON.stringify({ forma_pago: formaPago, envio })
     })
     const data = await res.json()
     if (data.ok) {
@@ -26031,14 +26039,16 @@ window.cambiarFormaPagoCarrito = (pedidoId) => {
   const envioWrap = document.getElementById('c-envio-wrap')
   const btn = document.getElementById('c-btn-confirmar-pago')
   if (!btn) return
+  // El envío (calculado o por cobrar) aplica sin importar la forma de pago
+  // -- antes solo se preguntaba con "Link de pago", así que un pedido
+  // pagado por transferencia/tarjeta/etc. se cerraba sin cobrar el envío.
+  if (envioWrap) envioWrap.style.display = 'block'
   if (val === 'link_mp') {
-    if (envioWrap) envioWrap.style.display = 'block'
     btn.innerHTML = '🔗 Generar link de pago'
     btn.style.background = '#E91E8C'
     btn.style.borderColor = '#E91E8C'
     btn.onclick = () => generarLinkPagoCarrito(pedidoId)
   } else {
-    if (envioWrap) envioWrap.style.display = 'none'
     const totalActual = document.getElementById('carrito-total-monto')?.textContent || '0.00'
     btn.innerHTML = `✅ Confirmar venta — $<span id="carrito-total-btn">${totalActual}</span>`
     btn.style.background = '#2e7d32'

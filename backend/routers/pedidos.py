@@ -870,11 +870,21 @@ def confirmar_pedido(id: str, datos: dict):
                         "motivo": f"Cambio — devolución en pedido {id}" if es_cambio else f"Venta pedido {id}"
                     })
         import datetime as _dt
-        supabase_patch(f"pedidos?id=eq.{id}", {
+        patch_data = {
             "status": "confirmado",
             "forma_pago": datos.get("forma_pago", "efectivo"),
             "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-        })
+        }
+        # Envío del portal mayorista (calculado por peso, o 0 si es "por
+        # cobrar") -- se guarda aparte del total de productos, no como un
+        # pedido_item falso (eso rompería el descuento de inventario de
+        # arriba, que solo mira items con variante_id real).
+        envio = float(datos.get("envio", 0) or 0)
+        if envio > 0:
+            total_actual = float(pedido[0].get("total") or 0)
+            patch_data["costo_envio"] = envio
+            patch_data["total"] = total_actual + envio
+        supabase_patch(f"pedidos?id=eq.{id}", patch_data)
 
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
         _enviar_confirmacion_wa(pedido[0], items)

@@ -530,10 +530,15 @@ def crear_preferencia(datos: dict):
         if "id" in preference:
             # checkout_iniciado = se generó el link y se mandó a MP, pero aún no elige
             # forma de pago ni paga. Si abandona, queda aquí (≠ pendiente_pago real de SPEI/OXXO).
-            supabase_patch(
-                f"pedidos?id=eq.{pedido_id}",
-                {"mp_preference_id": preference["id"], "status": "checkout_iniciado"}
-            )
+            patch_pedido = {"mp_preference_id": preference["id"], "status": "checkout_iniciado"}
+            # Envío del portal mayorista: viene como un item más ("Envío") en
+            # vez de un campo aparte -- se guarda también en costo_envio para
+            # que el ticket/reportes lo muestren sin tener que adivinar cuál
+            # item del link era el envío.
+            envio_item = next((i for i in items if (i.get("nombre") or "") == "Envío"), None)
+            if envio_item:
+                patch_pedido["costo_envio"] = float(envio_item.get("precio", 0) or 0)
+            supabase_patch(f"pedidos?id=eq.{pedido_id}", patch_pedido)
             return {
                 "preference_id": preference["id"],
                 "init_point": preference["init_point"],
