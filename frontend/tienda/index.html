@@ -4687,12 +4687,12 @@ cargarConfigSEO()
     entries.forEach(entry => {
       const wrap = entry.target
       if (entry.isIntersecting) {
-        if (wrap._fotoRotTimer) return
+        if (wrap._fotoRotTimer || wrap._fotoRotDelay) return
         let fotos = []
         try { fotos = JSON.parse(decodeURIComponent(wrap.dataset.fotos || '[]')) } catch(e) {}
         if (fotos.length < 2) return
         let idx = 0
-        wrap._fotoRotTimer = setInterval(() => {
+        const rotar = () => {
           idx = (idx + 1) % fotos.length
           const img = wrap.querySelector('img')
           if (!img) return
@@ -4708,10 +4708,20 @@ cargarConfigSEO()
             img.src = zmImg(fotos[idx], 600)
             img.style.opacity = '1'
           }, 180)
-        }, 2600)
-      } else if (wrap._fotoRotTimer) {
-        clearInterval(wrap._fotoRotTimer)
-        wrap._fotoRotTimer = null
+        }
+        // Arranque con retraso al azar -- si no, todas las tarjetas que
+        // entran a pantalla juntas (ej. al cargar la página) cambian de
+        // foto exactamente al mismo tiempo, se ve como que "parpadea toda
+        // la pantalla". Con el retraso, cada una queda desfasada de las
+        // demás, y como el intervalo después es igual para todas, el
+        // desfase se mantiene sin necesidad de nada más.
+        wrap._fotoRotDelay = setTimeout(() => {
+          wrap._fotoRotDelay = null
+          wrap._fotoRotTimer = setInterval(rotar, 2600)
+        }, Math.random() * 2600)
+      } else {
+        if (wrap._fotoRotDelay) { clearTimeout(wrap._fotoRotDelay); wrap._fotoRotDelay = null }
+        if (wrap._fotoRotTimer) { clearInterval(wrap._fotoRotTimer); wrap._fotoRotTimer = null }
       }
     })
   }, { threshold: 0.25 }) : null
