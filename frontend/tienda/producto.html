@@ -6,7 +6,8 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
-    var _zm_granted = localStorage.getItem('zm_consent') === 'accepted';
+    // Default "granted" salvo rechazo explícito -- ver nota en index.html.
+    var _zm_granted = localStorage.getItem('zm_consent') !== 'rejected';
     gtag('consent', 'default', {
       analytics_storage:  _zm_granted ? 'granted' : 'denied',
       ad_storage:         _zm_granted ? 'granted' : 'denied',

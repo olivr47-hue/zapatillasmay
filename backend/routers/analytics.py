@@ -519,7 +519,8 @@ def fuentes_trafico():
 
     resp = _ga4_post("runReport", {
         "dateRanges": [{"startDate": "7daysAgo", "endDate": "today"}],
-        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "newUsers"}],
+        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "newUsers"},
+                        {"name": "transactions"}, {"name": "purchaseRevenue"}],
         "dimensions": [{"name": "sessionSource"}, {"name": "sessionMedium"}],
         "orderBys":   [{"metric": {"metricName": "sessions"}, "desc": True}],
         "limit":      15,
@@ -538,6 +539,8 @@ def fuentes_trafico():
         sesiones = int(metr[0].get("value", 0))     if len(metr) > 0 else 0
         usuarios = int(metr[1].get("value", 0))     if len(metr) > 1 else 0
         nuevos   = int(metr[2].get("value", 0))     if len(metr) > 2 else 0
+        compras  = int(float(metr[3].get("value", 0))) if len(metr) > 3 else 0
+        ingreso  = round(float(metr[4].get("value", 0)), 2) if len(metr) > 4 else 0.0
         if source == "(not set)": continue
         fuentes.append({
             "source":   source,
@@ -545,6 +548,8 @@ def fuentes_trafico():
             "sesiones": sesiones,
             "usuarios": usuarios,
             "nuevos":   nuevos,
+            "compras":  compras,
+            "ingreso":  ingreso,
         })
         total += sesiones
 
@@ -554,10 +559,16 @@ def fuentes_trafico():
         key = f["source"]
         if key not in agrupado:
             agrupado[key] = {"source": key, "medium": f["medium"],
-                             "sesiones": 0, "usuarios": 0, "nuevos": 0}
+                             "sesiones": 0, "usuarios": 0, "nuevos": 0,
+                             "compras": 0, "ingreso": 0.0}
         agrupado[key]["sesiones"] += f["sesiones"]
         agrupado[key]["usuarios"] += f["usuarios"]
         agrupado[key]["nuevos"]   += f["nuevos"]
+        agrupado[key]["compras"]  += f["compras"]
+        agrupado[key]["ingreso"]  += f["ingreso"]
+
+    for v in agrupado.values():
+        v["ingreso"] = round(v["ingreso"], 2)
 
     result = sorted(agrupado.values(), key=lambda x: -x["sesiones"])
     return {"configurado": True, "total_sesiones": total, "fuentes": result[:12]}
@@ -636,6 +647,105 @@ def ia_referrals():
         total += sesiones
 
     return {"configurado": True, "total_sesiones": total, "referencias": referencias}
+
+
+@router.get("/embudo")
+def embudo_compra(dias: int = 30):
+    """Embudo de compra: cuántas veces se dispararon los eventos view_item ->
+    add_to_cart -> begin_checkout -> purchase en el sitio (conteo de eventos,
+    no de personas únicas -- GA4 Data API estándar no calcula "usuarios únicos
+    por paso" sin la API de exploraciones de embudo, que es más compleja; este
+    conteo ya sirve para ver en qué escalón se cae la mayor parte del tráfico)."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges":      [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "metrics":         [{"name": "eventCount"}],
+        "dimensions":      [{"name": "eventName"}],
+        "dimensionFilter": {"filter": {"fieldName": "eventName",
+                             "inListFilter": {"values": ["view_item", "add_to_cart", "begin_checkout", "purchase"]}}},
+    })
+
+    if not resp:
+        return {"configurado": True, "error": _last_ga4_error, "pasos": []}
+
+    conteos = {"view_item": 0, "add_to_cart": 0, "begin_checkout": 0, "purchase": 0}
+    for row in resp.get("rows", []):
+        nombre = row["dimensionValues"][0]["value"]
+        valor  = int(float(row["metricValues"][0]["value"]))
+        if nombre in conteos:
+            conteos[nombre] = valor
+
+    etiquetas = {
+        "view_item":      "Vieron un producto",
+        "add_to_cart":    "Agregaron al carrito",
+        "begin_checkout": "Iniciaron el pago",
+        "purchase":       "Compraron",
+    }
+    base = conteos["view_item"] or 1
+    pasos = []
+    for clave in ["view_item", "add_to_cart", "begin_checkout", "purchase"]:
+        pasos.append({
+            "paso":       clave,
+            "etiqueta":   etiquetas[clave],
+            "eventos":    conteos[clave],
+            "pct_del_total": round(conteos[clave] / base * 100, 1),
+        })
+
+    return {"configurado": True, "dias": dias, "pasos": pasos}
+
+
+@router.get("/dispositivos")
+def dispositivos(dias: int = 30):
+    """Sesiones, ingresos y tasa de rebote por tipo de dispositivo
+    (mobile/desktop/tablet), más las páginas con más rebote."""
+    if not _esta_configurado():
+        return _no_credenciales()
+
+    resp = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "sessions"}, {"name": "activeUsers"},
+                        {"name": "transactions"}, {"name": "purchaseRevenue"}],
+        "dimensions": [{"name": "deviceCategory"}],
+        "orderBys":   [{"metric": {"metricName": "sessions"}, "desc": True}],
+    })
+
+    dispositivos_lista = []
+    if resp:
+        for row in resp.get("rows", []):
+            dims = row.get("dimensionValues", [])
+            metr = row.get("metricValues", [])
+            dispositivos_lista.append({
+                "dispositivo": dims[0].get("value", "?") if dims else "?",
+                "sesiones":    int(float(metr[0].get("value", 0))) if len(metr) > 0 else 0,
+                "usuarios":    int(float(metr[1].get("value", 0))) if len(metr) > 1 else 0,
+                "compras":     int(float(metr[2].get("value", 0))) if len(metr) > 2 else 0,
+                "ingreso":     round(float(metr[3].get("value", 0)), 2) if len(metr) > 3 else 0.0,
+            })
+
+    # Páginas con más tráfico y su tasa de rebote, para ver cuáles hacen que
+    # la gente se vaya más rápido (bounceRate SÍ se puede pedir por página,
+    # a diferencia del promedio general -- ver nota en /hoy).
+    resp_paginas = _ga4_post("runReport", {
+        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "metrics":    [{"name": "screenPageViews"}, {"name": "bounceRate"}],
+        "dimensions": [{"name": "pagePath"}],
+        "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
+        "limit":      10,
+    })
+    paginas_rebote = []
+    if resp_paginas:
+        for row in resp_paginas.get("rows", []):
+            dims = row.get("dimensionValues", [])
+            metr = row.get("metricValues", [])
+            paginas_rebote.append({
+                "pagina": dims[0].get("value", "/") if dims else "/",
+                "vistas": int(float(metr[0].get("value", 0))) if len(metr) > 0 else 0,
+                "rebote": round(float(metr[1].get("value", 0)) * 100, 1) if len(metr) > 1 else 0.0,
+            })
+
+    return {"configurado": True, "dispositivos": dispositivos_lista, "paginas_rebote": paginas_rebote}
 
 
 @router.get("/ciudades")
@@ -725,6 +835,84 @@ def producto_popularidad():
     resultado = {"configurado": True, "niveles": niveles}
     _pop_cache["data"], _pop_cache["expira"] = resultado, now + 3600
     return resultado
+
+
+META_ACCESS_TOKEN  = os.getenv("META_ACCESS_TOKEN", "")
+META_AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID", "454211741318261")
+_META_GRAPH = "https://graph.facebook.com/v21.0"
+
+
+@router.get("/meta-ads")
+def meta_ads(periodo: str = "last_30d"):
+    """Gasto, compras y ROAS de las campañas activas de Meta Ads, para verlas
+    junto a las métricas de GA4 sin salir del panel. Usa el mismo
+    META_ACCESS_TOKEN que ya existe para las Conversions API (Conversiones)
+    -- si ese token no tiene permiso ads_read, Meta responde con un error que
+    se regresa tal cual para poder diagnosticarlo."""
+    if not META_ACCESS_TOKEN:
+        return {"configurado": False, "mensaje": "Falta META_ACCESS_TOKEN en las variables de entorno."}
+
+    params = urllib.parse.urlencode({
+        "access_token": META_ACCESS_TOKEN,
+        "level":        "campaign",
+        "date_preset":  periodo,
+        "fields":       "campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,purchase_roas",
+        "filtering":    json.dumps([{"field": "effective_status", "operator": "IN", "value": ["ACTIVE"]}]),
+        "limit":        50,
+    })
+    url = f"{_META_GRAPH}/act_{META_AD_ACCOUNT_ID}/insights?{params}"
+
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            data = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode(errors="replace")[:500]
+        return {"configurado": True, "error": f"HTTP {e.code}: {detalle}"}
+    except Exception as e:
+        return {"configurado": True, "error": str(e)}
+
+    campanas = []
+    total_gasto = 0.0
+    total_compras = 0
+    total_ingreso = 0.0
+    for row in data.get("data", []):
+        gasto = float(row.get("spend", 0) or 0)
+        compras = 0
+        ingreso = 0.0
+        for a in row.get("actions", []) or []:
+            if a.get("action_type") == "omni_purchase":
+                compras = int(float(a.get("value", 0)))
+        for a in row.get("action_values", []) or []:
+            if a.get("action_type") == "omni_purchase":
+                ingreso = float(a.get("value", 0))
+        roas = 0.0
+        for r_ in row.get("purchase_roas", []) or []:
+            if r_.get("action_type") == "omni_purchase":
+                roas = float(r_.get("value", 0))
+        campanas.append({
+            "nombre":      row.get("campaign_name", ""),
+            "gasto":       round(gasto, 2),
+            "impresiones": int(row.get("impressions", 0) or 0),
+            "clics":       int(row.get("clicks", 0) or 0),
+            "ctr":         round(float(row.get("ctr", 0) or 0), 2),
+            "cpm":         round(float(row.get("cpm", 0) or 0), 2),
+            "compras":     compras,
+            "ingreso":     round(ingreso, 2),
+            "roas":        round(roas, 2),
+        })
+        total_gasto   += gasto
+        total_compras += compras
+        total_ingreso += ingreso
+
+    return {
+        "configurado":    True,
+        "periodo":        periodo,
+        "total_gasto":    round(total_gasto, 2),
+        "total_compras":  total_compras,
+        "total_ingreso":  round(total_ingreso, 2),
+        "roas_promedio":  round(total_ingreso / total_gasto, 2) if total_gasto else 0,
+        "campanas":       campanas,
+    }
 
 
 @router.get("/horario")

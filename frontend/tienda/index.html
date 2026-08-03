@@ -8,7 +8,13 @@
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     var _zm_consent = localStorage.getItem('zm_consent');
-    var _zm_granted = _zm_consent === 'accepted';
+    // Negocio 100% México, sin obligación de opt-in previo tipo GDPR --
+    // default "granted" salvo que la visitante explícitamente rechace
+    // ("Solo necesarias"). Antes el default era "denied" hasta aceptar, lo
+    // que impedía a GA4 enlazar las páginas vistas de una misma sesión
+    // (sin analytics_storage no hay cookie de sesión) y mostraba ~100% de
+    // rebote aunque la gente sí navegara varias páginas.
+    var _zm_granted = _zm_consent !== 'rejected';
     gtag('consent', 'default', {
       analytics_storage:   _zm_granted ? 'granted' : 'denied',
       ad_storage:          _zm_granted ? 'granted' : 'denied',
