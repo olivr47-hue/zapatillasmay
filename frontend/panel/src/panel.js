@@ -18646,9 +18646,18 @@ async function cargarEnvio() {
   try {
     const res = await fetch(API + '/config/envio')
     const cfg = await res.json()
+    window._envioCfgActual = cfg
 
     content.innerHTML = `
       <div style="max-width:560px">
+        <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:1rem">
+          <button id="envio-tab-btn-tienda" onclick="_envioCambiarTab('tienda')"
+            style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">🏬 Tienda web</button>
+          <button id="envio-tab-btn-mayoreo" onclick="_envioCambiarTab('mayoreo')"
+            style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:white;color:#888;font-weight:600">📦 Portal mayorista</button>
+        </div>
+
+        <div id="envio-tab-tienda">
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:0.25rem">🚚 Configuración de Envíos</h3>
           <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
@@ -18729,6 +18738,40 @@ async function cargarEnvio() {
             ¿Quieres calcular tarifas automáticas por código postal? Podemos integrar la API de Estafeta o FedEx en el futuro.
           </p>
         </div>
+        </div>
+
+        <div id="envio-tab-mayoreo" style="display:none">
+          <div class="table-card" style="padding:2rem;margin-bottom:1rem">
+            <h3 style="margin-bottom:0.25rem">📦 Envío calculado — Portal mayorista</h3>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
+              Tarifa por caja según el peso (suma de los pesos de cada producto en el carrito, en kilos). Si un pedido pesa más de ${cfg.mayoreo_tiers[cfg.mayoreo_tiers.length-1].max_kg}kg, se reparte en varias cajas y se suma la tarifa de cada una.
+            </p>
+            <div style="display:grid;gap:10px">
+              ${cfg.mayoreo_tiers.map((t, i) => `
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">De</span>
+                  <input type="number" id="envio-mayoreo-${i}-min" value="${t.min_kg}" min="0" step="0.1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.85rem;width:70px">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">a</span>
+                  <input type="number" id="envio-mayoreo-${i}-max" value="${t.max_kg}" min="0" step="0.1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.85rem;width:70px">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">kg →</span>
+                  <span style="color:var(--text-muted)">$</span>
+                  <input type="number" id="envio-mayoreo-${i}-precio" value="${t.precio}" min="0" step="1"
+                    style="border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:0.85rem;width:90px">
+                  <span style="font-size:0.82rem;color:var(--text-muted)">MXN por caja</span>
+                </div>
+              `).join('')}
+            </div>
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-top:14px">
+              Paqueterías disponibles para envío calculado: Estafeta y FedEx (el precio es el mismo para ambas, tú eliges la mejor para el destino al generar el envío).
+            </p>
+            <div id="envio-msg-mayoreo" style="display:none;padding:10px 14px;border-radius:8px;font-size:0.85rem;margin-top:1rem"></div>
+            <div style="margin-top:1rem">
+              <button class="btn btn-primary" onclick="guardarEnvio()">💾 Guardar configuración</button>
+            </div>
+          </div>
+        </div>
       </div>`
 
     // Preview en vivo
@@ -18746,33 +18789,64 @@ async function cargarEnvio() {
   }
 }
 
+window._envioCambiarTab = function(tab) {
+  const btnTienda = document.getElementById('envio-tab-btn-tienda')
+  const btnMayoreo = document.getElementById('envio-tab-btn-mayoreo')
+  document.getElementById('envio-tab-tienda').style.display = tab === 'tienda' ? '' : 'none'
+  document.getElementById('envio-tab-mayoreo').style.display = tab === 'mayoreo' ? '' : 'none'
+  btnTienda.style.background = tab === 'tienda' ? '#E91E8C' : 'white'
+  btnTienda.style.color = tab === 'tienda' ? 'white' : '#888'
+  btnMayoreo.style.background = tab === 'mayoreo' ? '#E91E8C' : 'white'
+  btnMayoreo.style.color = tab === 'mayoreo' ? 'white' : '#888'
+}
+
 window.guardarEnvio = async function() {
   const tier1 = parseFloat(document.getElementById('envio-tier1').value)
   const tier2 = parseFloat(document.getElementById('envio-tier2').value)
   const tier3 = parseFloat(document.getElementById('envio-tier3').value)
   const gratis_desde = parseFloat(document.getElementById('envio-gratis-desde').value)
   if ([tier1, tier2, tier3, gratis_desde].some(isNaN)) return
-  const msg = document.getElementById('envio-msg')
+
+  // Tarifas por kilo del portal mayorista -- el número de filas viene de lo
+  // que ya se cargó (window._envioCfgActual.mayoreo_tiers), no está fijo en
+  // el código, así que si algún día se agrega/quita un escalón esto lo sigue
+  // leyendo bien.
+  const nTiers = (window._envioCfgActual?.mayoreo_tiers || []).length
+  const mayoreo_tiers = []
+  for (let i = 0; i < nTiers; i++) {
+    const min_kg = parseFloat(document.getElementById(`envio-mayoreo-${i}-min`)?.value)
+    const max_kg = parseFloat(document.getElementById(`envio-mayoreo-${i}-max`)?.value)
+    const precio = parseFloat(document.getElementById(`envio-mayoreo-${i}-precio`)?.value)
+    if ([min_kg, max_kg, precio].some(isNaN)) continue
+    mayoreo_tiers.push({ min_kg, max_kg, precio })
+  }
+
+  const msgs = [document.getElementById('envio-msg'), document.getElementById('envio-msg-mayoreo')].filter(Boolean)
   try {
     const res = await fetch(API + '/config/envio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tier1, tier2, tier3, gratis_desde })
+      body: JSON.stringify({ tier1, tier2, tier3, gratis_desde, mayoreo_tiers })
     })
     const data = await res.json()
-    msg.style.display = ''
-    if (data.ok) {
-      msg.style.background = '#e8f5e9'; msg.style.color = '#2e7d32'
-      msg.textContent = '✅ Configuración guardada correctamente'
-    } else {
-      msg.style.background = '#fdecea'; msg.style.color = '#c62828'
-      msg.textContent = '❌ Error: ' + (data.error || 'desconocido')
-    }
-    setTimeout(() => { msg.style.display = 'none' }, 3000)
+    msgs.forEach(msg => {
+      msg.style.display = ''
+      if (data.ok) {
+        msg.style.background = '#e8f5e9'; msg.style.color = '#2e7d32'
+        msg.textContent = '✅ Configuración guardada correctamente'
+      } else {
+        msg.style.background = '#fdecea'; msg.style.color = '#c62828'
+        msg.textContent = '❌ Error: ' + (data.error || 'desconocido')
+      }
+    })
+    if (data.ok) window._envioCfgActual = { ...window._envioCfgActual, tier1, tier2, tier3, gratis_desde, mayoreo_tiers }
+    setTimeout(() => { msgs.forEach(msg => { msg.style.display = 'none' }) }, 3000)
   } catch(e) {
-    msg.style.display = ''
-    msg.style.background = '#fdecea'; msg.style.color = '#c62828'
-    msg.textContent = '❌ Error al guardar'
+    msgs.forEach(msg => {
+      msg.style.display = ''
+      msg.style.background = '#fdecea'; msg.style.color = '#c62828'
+      msg.textContent = '❌ Error al guardar'
+    })
   }
 }
 
@@ -24954,12 +25028,13 @@ window.abrirCarrito = async (pedidoId) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carrito...</p>'
   try {
-    const [resPedido, resItems, resVariantes, resProductos, resInv] = await Promise.all([
+    const [resPedido, resItems, resVariantes, resProductos, resInv, resEnvioCfg] = await Promise.all([
       fetch(API + '/pedidos/' + pedidoId).then(r => r.json()),
       fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()),
       fetch(API + '/variantes/?activa=eq.true').then(r => r.json()),
       fetch(API + '/productos/').then(r => r.json()),
-      fetch(API + '/inventario/').then(r => r.json()).catch(() => [])
+      fetch(API + '/inventario/').then(r => r.json()).catch(() => []),
+      fetch(API + '/config/envio').then(r => r.json()).catch(() => null)
     ])
 
     const p = Array.isArray(resPedido) ? resPedido[0] : resPedido
@@ -24971,7 +25046,8 @@ window.abrirCarrito = async (pedidoId) => {
       variantes: resVariantes,
       productos: resProductos,
       inventario: resInv,
-      sucursalId: p.sucursal_id
+      sucursalId: p.sucursal_id,
+      envioMayoreoTiers: resEnvioCfg?.mayoreo_tiers || null
     }
 
     renderCarritoAbierto(p)
@@ -25081,6 +25157,36 @@ function renderCarritoAbierto(p) {
         </div>
 
         ${items.length > 0 ? `
+          <div id="c-envio-wrap" style="display:none;margin-top:1rem;padding:1rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
+            <p style="font-weight:700;color:#333;margin:0 0 10px;font-size:0.9rem">📦 Envío</p>
+
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px">
+              <p style="font-size:0.8rem;font-weight:600;color:#333;margin:0 0 8px">1. Envío calculado (por peso)</p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select id="c-envio-paqueteria-calc" class="form-input" style="width:130px">
+                  <option value="Estafeta">Estafeta</option>
+                  <option value="FedEx">FedEx</option>
+                </select>
+                <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="_calcularEnvioMayoreoCarrito()">🧮 Calcular</button>
+                <button type="button" class="btn btn-primary" id="c-btn-usar-calculado" style="font-size:0.78rem;padding:6px 12px;display:none" onclick="_usarEnvioCalculadoCarrito()">✅ Usar este envío</button>
+              </div>
+              <p id="c-envio-calc-resultado" style="font-size:0.78rem;color:#555;margin:8px 0 0"></p>
+            </div>
+
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px">
+              <p style="font-size:0.8rem;font-weight:600;color:#333;margin:0 0 8px">2. Enviar por cobrar (el cliente paga a la paquetería)</p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input class="form-input" id="c-envio-paqueteria-cobrar" placeholder="¿Cuál paquetería?" style="width:180px">
+                <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="_usarEnvioPorCobrarCarrito('${pedidoId}')">Usar por cobrar</button>
+              </div>
+            </div>
+
+            <input type="hidden" id="c-envio-monto" value="0">
+            <p id="c-envio-elegido" style="margin:10px 0 0;font-size:0.82rem;color:#166534;font-weight:600"></p>
+          </div>
+        ` : ''}
+
+        ${items.length > 0 ? `
           <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem;flex-wrap:wrap">
             <div style="display:flex;align-items:center;gap:8px">
               <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
@@ -25092,10 +25198,6 @@ function renderCarritoAbierto(p) {
                 <option value="credito">Crédito</option>
                 <option value="link_mp">Link de pago (Mercado Pago)</option>
               </select>
-            </div>
-            <div id="c-envio-wrap" style="display:none;align-items:center;gap:6px">
-              <label style="font-size:0.85rem;color:#333">Envío $</label>
-              <input type="number" id="c-envio-monto" min="0" step="1" value="${_envioSugeridoCarrito(total, totalPares)}" style="width:80px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:6px">
             </div>
             <button id="c-btn-confirmar-pago" class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
               ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
@@ -25831,14 +25933,97 @@ window.confirmarVentaCarrito = async (pedidoId) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
-// Envío sugerido con la misma tarifa que ya se usa en la tienda/Link de
-// pago (1 par $99 · 2 $150 · 3-5 $199 · gratis desde $1,299) -- pero aquí
-// es solo un default editable, no un valor fijo.
-function _envioSugeridoCarrito(total, pares) {
-  if (total >= 1299) return 0
-  if (pares >= 3) return 199
-  if (pares >= 2) return 150
-  return 99
+// ── Envío calculado del portal mayorista (por peso) ──────────────────────
+// Suma el peso de cada línea del carrito (peso_gramos del producto ×
+// cantidad) y lo reparte en cajas de hasta el máximo del último escalón
+// (50kg por default) -- cada caja se cobra con la misma tabla de tarifas,
+// y se suman. Los pesos vienen de "Peso en kilos" en la ficha de cada
+// producto (Inventario → editar producto → Logística y SEO).
+function _pesoTotalCarritoKg() {
+  const { items, variantes, productos } = window._carritoActivo || {}
+  if (!items || !variantes || !productos) return 0
+  let gramos = 0
+  items.forEach(item => {
+    if ((item.cantidad || 0) <= 0) return  // no contar líneas de cambio/devolución
+    const v = variantes.find(vv => vv.id === item.variante_id)
+    const prod = v ? productos.find(p => p.id === v.producto_id) : null
+    gramos += (prod?.peso_gramos || 0) * item.cantidad
+  })
+  return gramos / 1000
+}
+
+function _tarifaPorCajaKg(pesoCajaKg, tiers) {
+  const orden = [...tiers].sort((a, b) => a.max_kg - b.max_kg)
+  for (const t of orden) {
+    if (pesoCajaKg <= t.max_kg) return t.precio
+  }
+  return orden.length ? orden[orden.length - 1].precio : 0
+}
+
+function _repartirEnCajas(pesoTotalKg, tiers) {
+  const maxCaja = Math.max(...tiers.map(t => t.max_kg))
+  let restante = pesoTotalKg
+  const cajas = []
+  while (restante > 0.001) {
+    const pesoCaja = Math.min(restante, maxCaja)
+    cajas.push({ peso: pesoCaja, precio: _tarifaPorCajaKg(pesoCaja, tiers) })
+    restante -= pesoCaja
+  }
+  return cajas
+}
+
+window._calcularEnvioMayoreoCarrito = () => {
+  const tiers = window._carritoActivo?.envioMayoreoTiers
+  const resultado = document.getElementById('c-envio-calc-resultado')
+  const btnUsar = document.getElementById('c-btn-usar-calculado')
+  if (!tiers || !tiers.length) {
+    resultado.style.color = '#c62828'
+    resultado.textContent = '❌ No se pudo cargar la configuración de tarifas.'
+    btnUsar.style.display = 'none'
+    return
+  }
+  const pesoKg = _pesoTotalCarritoKg()
+  if (pesoKg <= 0) {
+    resultado.style.color = '#c62828'
+    resultado.textContent = '❌ No se pudo calcular el peso -- revisa que los productos del carrito tengan "Peso en kilos" configurado en su ficha.'
+    btnUsar.style.display = 'none'
+    return
+  }
+  const cajas = _repartirEnCajas(pesoKg, tiers)
+  const total = cajas.reduce((s, c) => s + c.precio, 0)
+  window._carritoActivo._envioCalcActual = { pesoKg, cajas, total }
+  resultado.style.color = '#555'
+  resultado.innerHTML = `Peso total: <strong>${pesoKg.toFixed(2)}kg</strong> · ${cajas.length} caja${cajas.length !== 1 ? 's' : ''}: ` +
+    cajas.map((c, i) => `#${i+1} ${c.peso.toFixed(1)}kg → $${c.precio}`).join(' + ') +
+    ` = <strong>$${total} MXN</strong>`
+  btnUsar.style.display = ''
+}
+
+window._usarEnvioCalculadoCarrito = () => {
+  const calc = window._carritoActivo?._envioCalcActual
+  if (!calc) return
+  const paqueteria = document.getElementById('c-envio-paqueteria-calc').value
+  document.getElementById('c-envio-monto').value = calc.total
+  const elegido = document.getElementById('c-envio-elegido')
+  elegido.style.color = '#166534'
+  elegido.textContent = `✅ Envío calculado por ${paqueteria}: $${calc.total} MXN (se agrega al link de pago).`
+}
+
+window._usarEnvioPorCobrarCarrito = async (pedidoId) => {
+  const paqueteria = (document.getElementById('c-envio-paqueteria-cobrar').value || '').trim()
+  if (!paqueteria) { alert('Escribe el nombre de la paquetería.'); return }
+  document.getElementById('c-envio-monto').value = 0
+  const elegido = document.getElementById('c-envio-elegido')
+  elegido.style.color = '#166534'
+  elegido.textContent = `📦 Envío por cobrar vía ${paqueteria} -- el cliente paga directo a la paquetería, no se agrega al link de pago.`
+  // Nota en el pedido para que quede registrado qué se acordó.
+  try {
+    await fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comentarios: `Envío por cobrar vía ${paqueteria}` })
+    })
+  } catch(e) {}
 }
 
 window.cambiarFormaPagoCarrito = (pedidoId) => {
@@ -25847,7 +26032,7 @@ window.cambiarFormaPagoCarrito = (pedidoId) => {
   const btn = document.getElementById('c-btn-confirmar-pago')
   if (!btn) return
   if (val === 'link_mp') {
-    if (envioWrap) envioWrap.style.display = 'flex'
+    if (envioWrap) envioWrap.style.display = 'block'
     btn.innerHTML = '🔗 Generar link de pago'
     btn.style.background = '#E91E8C'
     btn.style.borderColor = '#E91E8C'

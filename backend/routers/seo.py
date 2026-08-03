@@ -1160,17 +1160,36 @@ def _titulo_feed(p):
 
 _ENVIO_DEFAULTS = {"tier1": 99, "tier2": 150, "tier3": 199, "gratis_desde": 1299}
 
+# Envío calculado del portal mayorista -- por caja (hasta 50kg cada una; si
+# el pedido pesa más, se reparte en varias cajas y se suma la tarifa de cada
+# una, la misma tabla para todas). Dictado por el dueño 2026-08-03, editable
+# desde el panel (Envíos → Portal mayorista).
+_ENVIO_MAYOREO_TIERS_DEFAULT = [
+    {"min_kg": 3,  "max_kg": 6,  "precio": 230},
+    {"min_kg": 6,  "max_kg": 12, "precio": 280},
+    {"min_kg": 12, "max_kg": 30, "precio": 360},
+    {"min_kg": 30, "max_kg": 50, "precio": 440},
+]
+
 @router.get("/config/envio")
 def get_config_envio():
-    """Devuelve configuración de envío escalonada por pares."""
+    """Devuelve configuración de envío escalonada por pares (tienda) y por
+    kilos (portal mayorista)."""
     cached = cache_get("config_envio")
     if cached is not None:
         return cached
     try:
         rows = supabase_get("configuracion?clave=like.envio_*&select=clave,valor")
         cfg = dict(_ENVIO_DEFAULTS)
+        cfg["mayoreo_tiers"] = _ENVIO_MAYOREO_TIERS_DEFAULT
         for r in rows:
             clave = r["clave"].replace("envio_", "")
+            if clave == "mayoreo_tiers":
+                try:
+                    cfg["mayoreo_tiers"] = json.loads(r["valor"])
+                except Exception:
+                    pass
+                continue
             try:
                 cfg[clave] = float(r["valor"])
             except Exception:
@@ -1178,7 +1197,9 @@ def get_config_envio():
         cache_set("config_envio", cfg, ttl=300)
         return cfg
     except Exception:
-        return _ENVIO_DEFAULTS
+        cfg = dict(_ENVIO_DEFAULTS)
+        cfg["mayoreo_tiers"] = _ENVIO_MAYOREO_TIERS_DEFAULT
+        return cfg
 
 @router.post("/config/envio")
 def save_config_envio(datos: dict):
@@ -1189,6 +1210,14 @@ def save_config_envio(datos: dict):
                 continue
             clave = f"envio_{campo}"
             valor = str(datos[campo])
+            existente = supabase_get(f"configuracion?clave=eq.{clave}")
+            if existente:
+                supabase_patch(f"configuracion?clave=eq.{clave}", {"valor": valor})
+            else:
+                supabase_post("configuracion", {"clave": clave, "valor": valor})
+        if "mayoreo_tiers" in datos:
+            clave = "envio_mayoreo_tiers"
+            valor = json.dumps(datos["mayoreo_tiers"])
             existente = supabase_get(f"configuracion?clave=eq.{clave}")
             if existente:
                 supabase_patch(f"configuracion?clave=eq.{clave}", {"valor": valor})
