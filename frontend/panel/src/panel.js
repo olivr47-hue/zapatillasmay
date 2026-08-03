@@ -24048,6 +24048,30 @@ async function cargarAnalyticsGA() {
         <canvas id="ga-chart" height="90"></canvas>
       </div>
 
+      <!-- Meta Ads junto a GA4 -->
+      <div class="card" style="padding:1rem;margin-bottom:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">📣 Meta Ads (últimos 30 días)</div>
+        <div id="ga-meta-ads"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
+      <!-- Embudo de compra + Dispositivos lado a lado -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem" class="ga-2col">
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Embudo de compra (30 días)</div>
+          <div id="ga-embudo"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+        <div class="card" style="padding:1rem">
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Dispositivo (30 días)</div>
+          <div id="ga-dispositivos"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+        </div>
+      </div>
+
+      <!-- Páginas con más rebote -->
+      <div class="card" style="padding:1rem;margin-bottom:1rem">
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Páginas con más tráfico y su rebote (30 días)</div>
+        <div id="ga-paginas-rebote"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
+      </div>
+
       <!-- Fuentes + Ciudades lado a lado -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem" class="ga-2col">
         <div class="card" style="padding:1rem">
@@ -24125,6 +24149,9 @@ async function _gaCargarTodo() {
     _gaCargarPortal().catch(() => {}),
     _gaCargarCiudades().catch(() => {}),
     _gaCargarHorario().catch(() => {}),
+    _gaCargarMetaAds().catch(() => {}),
+    _gaCargarEmbudo().catch(() => {}),
+    _gaCargarDispositivos().catch(() => {}),
   ]
   await Promise.allSettled(tareas)
   const el = document.getElementById('ga-ultima-act')
@@ -24270,15 +24297,112 @@ async function _gaCargarFuentes() {
     el.innerHTML = d.fuentes.map(f => {
       const pct = Math.round((f.sesiones / total) * 100)
       const ico = iconos[f.source?.toLowerCase()] || '🌐'
+      const ingresoTxt = f.ingreso ? ` · 💰 $${f.ingreso.toLocaleString('es-MX', {maximumFractionDigits:0})} (${f.compras})` : ''
       return `<div style="margin-bottom:0.55rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <span style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${f.source}</span>
-          <span style="font-size:0.75rem;color:#888">${f.sesiones} ses · ${pct}%</span>
+          <span style="font-size:0.75rem;color:#888">${f.sesiones} ses · ${pct}%${ingresoTxt}</span>
         </div>
         <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
       </div>`
     }).join('')
   } catch(e) { console.warn('GA fuentes:', e.message) }
+}
+
+async function _gaCargarMetaAds() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/meta-ads`)
+    const d = await r.json()
+    const el = document.getElementById('ga-meta-ads')
+    if (!el) return
+    if (!d.configurado) { el.innerHTML = `<p style="color:#bbb;font-size:0.82rem;margin:0">${d.mensaje || 'Meta Ads no configurado'}</p>`; return }
+    if (d.error) {
+      // Caso más probable: el token de Meta no tiene permiso ads_read (es un
+      // token de Conversions API, con otro alcance) -- se explica claro en
+      // vez de solo mostrar el error crudo de la API.
+      const esPermiso = /ads_read|ads_management|permission/i.test(d.error)
+      el.innerHTML = `<p style="color:#c62828;font-size:0.8rem;margin:0">${esPermiso
+        ? '⚠️ El token de Meta que ya tienes conectado no tiene permiso para leer datos de campañas (solo puede mandar conversiones). Hace falta un token con permiso "ads_read" sobre la cuenta publicitaria.'
+        : '⚠️ ' + d.error}</p>`
+      return
+    }
+    if (!d.campanas?.length) { el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin campañas activas</p>'; return }
+    el.innerHTML = `
+      <div class="ga-stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:0.8rem">
+        <div class="ga-stat"><div class="ga-stat-num" style="font-size:1.2rem">$${d.total_gasto.toLocaleString('es-MX',{maximumFractionDigits:0})}</div><div class="ga-stat-lbl">Gasto</div></div>
+        <div class="ga-stat"><div class="ga-stat-num" style="font-size:1.2rem">${d.total_compras}</div><div class="ga-stat-lbl">Compras</div></div>
+        <div class="ga-stat"><div class="ga-stat-num" style="font-size:1.2rem">$${d.total_ingreso.toLocaleString('es-MX',{maximumFractionDigits:0})}</div><div class="ga-stat-lbl">Ingreso</div></div>
+        <div class="ga-stat"><div class="ga-stat-num" style="font-size:1.2rem;color:${d.roas_promedio >= 2 ? '#16a34a' : '#c62828'}">${d.roas_promedio}x</div><div class="ga-stat-lbl">ROAS</div></div>
+      </div>
+      ${d.campanas.map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
+          <div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">
+            <span style="font-size:0.78rem;color:#333;font-weight:500">${c.nombre}</span>
+          </div>
+          <span style="font-size:0.75rem;color:#888;white-space:nowrap">$${c.gasto.toLocaleString('es-MX',{maximumFractionDigits:0})} · ${c.compras} compras · ROAS ${c.roas}x</span>
+        </div>
+      `).join('')}
+    `
+  } catch(e) { console.warn('GA meta-ads:', e.message) }
+}
+
+async function _gaCargarEmbudo() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/embudo`)
+    const d = await r.json()
+    const el = document.getElementById('ga-embudo')
+    if (!el) return
+    if (!d.configurado || d.error || !d.pasos?.length) { el.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>'; return }
+    const iconos = { view_item: '👁️', add_to_cart: '🛒', begin_checkout: '💳', purchase: '✅' }
+    el.innerHTML = d.pasos.map(p => `
+      <div style="margin-bottom:0.55rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[p.paso] || ''} ${p.etiqueta}</span>
+          <span style="font-size:0.75rem;color:#888">${p.eventos} · ${p.pct_del_total}%</span>
+        </div>
+        <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${p.pct_del_total}%"></div></div>
+      </div>
+    `).join('')
+  } catch(e) { console.warn('GA embudo:', e.message) }
+}
+
+async function _gaCargarDispositivos() {
+  try {
+    const r = await _gaFetchConTimeout(`${API}/analytics/dispositivos`)
+    const d = await r.json()
+    const elDisp = document.getElementById('ga-dispositivos')
+    const elPag  = document.getElementById('ga-paginas-rebote')
+    if (elDisp) {
+      if (!d.configurado || d.error || !d.dispositivos?.length) {
+        elDisp.innerHTML = '<p style="color:#bbb;font-size:0.82rem;margin:0">Sin datos</p>'
+      } else {
+        const iconos = { mobile: '📱', desktop: '💻', tablet: '📟' }
+        const totalSes = d.dispositivos.reduce((s,x)=>s+x.sesiones, 0) || 1
+        elDisp.innerHTML = d.dispositivos.map(x => {
+          const pct = Math.round(x.sesiones / totalSes * 100)
+          return `<div style="margin-bottom:0.55rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+              <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[x.dispositivo] || '📶'} ${x.dispositivo}</span>
+              <span style="font-size:0.75rem;color:#888">${x.sesiones} ses · ${pct}% · $${x.ingreso.toLocaleString('es-MX',{maximumFractionDigits:0})} (${x.compras})</span>
+            </div>
+            <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
+          </div>`
+        }).join('')
+      }
+    }
+    if (elPag) {
+      if (!d.configurado || d.error || !d.paginas_rebote?.length) {
+        elPag.innerHTML = '<p style="color:#888;font-size:0.85rem">Sin datos</p>'
+      } else {
+        elPag.innerHTML = d.paginas_rebote.map(p => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0">
+            <span style="font-size:0.78rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${p.pagina}</span>
+            <span style="font-size:0.75rem;color:${p.rebote >= 60 ? '#c62828' : '#888'}">${p.vistas} vistas · ${p.rebote}% rebote</span>
+          </div>
+        `).join('')
+      }
+    }
+  } catch(e) { console.warn('GA dispositivos:', e.message) }
 }
 
 async function _gaCargarIA() {

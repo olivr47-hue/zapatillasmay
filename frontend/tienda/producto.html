@@ -1456,6 +1456,15 @@ function irACarrito() {
   // Pixels
   if (window.fbq) fbq('track', 'AddToCart', { content_ids: [p.sku_interno || p.id], content_type: 'product', content_name: p.nombre, value: precioBase, currency: 'MXN' })
   if (window.ttq) ttq.track('AddToCart', { content_id: p.sku_interno || p.id, content_type: 'product', content_name: p.nombre, value: precioBase, price: precioBase, currency: 'MXN' })
+  // GA4: add_to_cart -- faltaba aquí (el botón real de "Agregar al carrito"
+  // de la ficha de producto, el camino principal); index.html sí lo tenía
+  // en su propio flujo de agregar, pero esta página nunca lo mandaba, así
+  // que el embudo de compra siempre mostraba 0 en este paso.
+  if (typeof gtag === 'function') gtag('event', 'add_to_cart', {
+    currency: 'MXN',
+    value: precioBase,
+    items: [{ item_id: p.sku_interno || p.id, item_name: p.nombre, item_category: p.categoria, price: precioBase, quantity: 1 }]
+  })
   // Meta CAPI: AddToCart server-side
   try {
     const _usuarioProd = (() => { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } })()
