@@ -4629,11 +4629,28 @@ cargarConfigSEO()
     // Descuento de 3+ pares: se queda visible en la tarjeta (el de 6+ ya solo
     // vive en panel/portal, aquí no se muestra).
     const _precioMay3 = (_precioMenu && !p.es_oferta) ? _precioMenu - 60 : null
+
+    // Fotos para ir rotando sola en la tarjeta (ver observador más abajo):
+    // primero se intenta con las fotos adicionales del mismo color de la
+    // portada (varios ángulos del mismo par); si no hay, se usa una foto
+    // por cada color distinto -- así casi todo producto tiene algo que
+    // rotar, no solo los que subieron múltiples ángulos.
+    const _vPortada = varsProd.find(v => (v.foto_url || '') === p.imagen_principal) || varsProd[0]
+    let _fotosRot = []
+    if (_vPortada && Array.isArray(_vPortada.imagenes) && _vPortada.imagenes.length) {
+      _fotosRot = [_vPortada.foto_url, ..._vPortada.imagenes].filter(Boolean)
+    }
+    if (_fotosRot.length < 2) {
+      _fotosRot = varsProd.map(v => v.foto_url).filter(Boolean)
+    }
+    _fotosRot = [...new Set([p.imagen_principal, ..._fotosRot].filter(Boolean))].slice(0, 6)
+    const _fotosAttr = _fotosRot.length > 1 ? ` data-fotos="${encodeURIComponent(JSON.stringify(_fotosRot))}"` : ''
+
     return `
       <a class="product-card fade-in" href="/producto/${p.slug||p.sku_interno||p.id}">
-        <div class="product-img-wrap">
+        <div class="product-img-wrap"${_fotosAttr}>
           ${p.imagen_principal
-            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy">`
+            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy" style="transition:opacity .35s">`
             : `<div class="product-placeholder">👠</div>`}
           ${esNuevo(p) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
@@ -4659,13 +4676,48 @@ cargarConfigSEO()
       </a>`
   }
 
+  // Rota sola la foto de cada tarjeta de producto mientras está visible en
+  // pantalla (deja de rotar en cuanto sale del viewport, para no gastar
+  // batería/datos en tarjetas que nadie está viendo). Un solo observer
+  // compartido para todas las tarjetas, en vez de un timer por tarjeta.
+  const _fotoRotObserver = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const wrap = entry.target
+      if (entry.isIntersecting) {
+        if (wrap._fotoRotTimer) return
+        let fotos = []
+        try { fotos = JSON.parse(decodeURIComponent(wrap.dataset.fotos || '[]')) } catch(e) {}
+        if (fotos.length < 2) return
+        let idx = 0
+        wrap._fotoRotTimer = setInterval(() => {
+          idx = (idx + 1) % fotos.length
+          const img = wrap.querySelector('img')
+          if (!img) return
+          img.style.opacity = '0'
+          setTimeout(() => {
+            img.src = zmImg(fotos[idx], 600)
+            img.style.opacity = '1'
+          }, 350)
+        }, 2600)
+      } else if (wrap._fotoRotTimer) {
+        clearInterval(wrap._fotoRotTimer)
+        wrap._fotoRotTimer = null
+      }
+    })
+  }, { threshold: 0.25 }) : null
+
   function _agregarLote() {
     const grid = document.getElementById('products-grid')
     const lote = _listaActual.slice(_mostrados, _mostrados + _BATCH)
     lote.forEach(p => {
       const wrap = document.createElement('div')
       wrap.innerHTML = _cardHTML(p).trim()
-      grid.appendChild(wrap.firstChild)
+      const card = wrap.firstChild
+      grid.appendChild(card)
+      if (_fotoRotObserver) {
+        const imgWrap = card.querySelector('.product-img-wrap[data-fotos]')
+        if (imgWrap) _fotoRotObserver.observe(imgWrap)
+      }
     })
     _mostrados += lote.length
     _actualizarSentinel()
