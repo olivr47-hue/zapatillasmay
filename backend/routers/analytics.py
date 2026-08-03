@@ -837,7 +837,7 @@ def producto_popularidad():
     return resultado
 
 
-META_ACCESS_TOKEN  = os.getenv("META_ACCESS_TOKEN", "")
+META_ACCESS_TOKEN  = os.getenv("META_ADS_READ_TOKEN", "") or os.getenv("META_ACCESS_TOKEN", "")
 META_AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID", "454211741318261")
 _META_GRAPH = "https://graph.facebook.com/v21.0"
 
