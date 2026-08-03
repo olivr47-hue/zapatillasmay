@@ -13305,17 +13305,25 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
   const itemsCompra = items.filter(i => (i.cantidad || 0) > 0)
   const itemsCambio = items.filter(i => (i.cantidad || 0) < 0)
 
-  const agrupar = (lista) => {
+  // Las corridas (todas las tallas de un modelo/color vendidas como bulto,
+  // a un precio parejo por par) se agrupan en UNA sola línea por modelo+color
+  // -- sin esto, un pedido mayorista con varios modelos a 5-6 tallas cada uno
+  // imprimía una línea por cada talla y el ticket salía kilométrico. Los
+  // pares sueltos (no corrida) sí se separan por talla como antes, y nunca
+  // se mezclan con una corrida del mismo modelo/color aunque compartan
+  // talla -- el precio no es el mismo, no deben sumarse en la misma línea.
+  const agrupar = (lista, porTalla) => {
     const grupos = {}
     lista.forEach(item => {
       const variante = item.variantes || {}
       const producto = variante.productos || {}
       const _clave = (producto.nombre || '—').split(' ')[0]
-      const key = _clave + '|' + (variante.color || '') + '|' + (variante.talla || '')
+      const key = _clave + '|' + (variante.color || '') + (porTalla ? '|' + (variante.talla || '') : '')
       if (!grupos[key]) {
         grupos[key] = {
           nombre: _clave,
           color: variante.color || '',
+          talla: porTalla ? (variante.talla || '') : '',
           precio: item.precio_unitario || 0,
           cantidad: 0,
           subtotal: 0
@@ -13327,7 +13335,8 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
     return grupos
   }
 
-  const gruposCompra = agrupar(itemsCompra)
+  const gruposCorrida = agrupar(itemsCompra.filter(i => i.es_corrida), false)
+  const gruposSueltos = agrupar(itemsCompra.filter(i => !i.es_corrida), true)
   let html = `
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <tr style="border-bottom:1px solid #000">
@@ -13336,10 +13345,18 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         <td style="text-align:right;padding-right:4px;font-weight:bold">P/U</td>
         <td style="text-align:right;font-weight:bold">Total</td>
       </tr>
-      ${Object.values(gruposCompra).map(g => `
+      ${Object.values(gruposCorrida).map(g => `
         <tr>
           <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
-          <td>${g.nombre}<br><span style="font-size:10px">${g.color}</span></td>
+          <td>${g.nombre}<br><span style="font-size:10px">${g.color} · CORRIDA COMPLETA</span></td>
+          <td style="text-align:right;padding-right:4px">$${parseFloat(g.precio).toFixed(2)}</td>
+          <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join('')}
+      ${Object.values(gruposSueltos).map(g => `
+        <tr>
+          <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
+          <td>${g.nombre}<br><span style="font-size:10px">${g.color}${g.talla ? ' · T' + g.talla : ''}</span></td>
           <td style="text-align:right;padding-right:4px">$${parseFloat(g.precio).toFixed(2)}</td>
           <td style="text-align:right;font-weight:bold">$${g.subtotal.toFixed(2)}</td>
         </tr>
@@ -13347,7 +13364,7 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
     </table>`
 
   if (itemsCambio.length > 0) {
-    const gruposCambio = agrupar(itemsCambio)
+    const gruposCambio = agrupar(itemsCambio, true)
     html += `
       <div class="divider"></div>
       <p style="font-size:11px">↩ CAMBIOS (se descuentan)</p>
@@ -13355,7 +13372,7 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         ${Object.values(gruposCambio).map(g => `
           <tr>
             <td style="width:24px;text-align:right;padding-right:4px">${g.cantidad}</td>
-            <td>${g.nombre}<br><span style="font-size:10px">${g.color}</span></td>
+            <td>${g.nombre}<br><span style="font-size:10px">${g.color}${g.talla ? ' · T' + g.talla : ''}</span></td>
             <td style="text-align:right;font-weight:bold">-$${g.subtotal.toFixed(2)}</td>
           </tr>
         `).join('')}
