@@ -4695,6 +4695,13 @@ cargarConfigSEO()
           if (!img) return
           img.style.opacity = '0'
           setTimeout(() => {
+            // El <img> trae srcset/sizes para elegir resolución -- si se
+            // deja, el navegador ignora el src nuevo y regresa solo a la
+            // imagen original del srcset (por eso "parpadeaba y volvía a
+            // aparecer la misma"). Se quitan al rotar; ya no hacen falta,
+            // la tarjeta se queda en un tamaño fijo de todos modos.
+            img.removeAttribute('srcset')
+            img.removeAttribute('sizes')
             img.src = zmImg(fotos[idx], 600)
             img.style.opacity = '1'
           }, 350)
