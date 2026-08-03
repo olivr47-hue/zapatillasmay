@@ -4631,18 +4631,21 @@ cargarConfigSEO()
     const _precioMay3 = (_precioMenu && !p.es_oferta) ? _precioMenu - 60 : null
 
     // Fotos para ir rotando sola en la tarjeta (ver observador más abajo):
-    // primero se intenta con las fotos adicionales del mismo color de la
-    // portada (varios ángulos del mismo par); si no hay, se usa una foto
-    // por cada color distinto -- así casi todo producto tiene algo que
-    // rotar, no solo los que subieron múltiples ángulos.
+    // primero los ángulos extra del color de portada, luego una foto de
+    // cada OTRO color distinto -- así se ve variedad real (no solo ángulos
+    // del mismo color) cuando el modelo viene en varios colores.
     const _vPortada = varsProd.find(v => (v.foto_url || '') === p.imagen_principal) || varsProd[0]
     let _fotosRot = []
     if (_vPortada && Array.isArray(_vPortada.imagenes) && _vPortada.imagenes.length) {
-      _fotosRot = [_vPortada.foto_url, ..._vPortada.imagenes].filter(Boolean)
+      _fotosRot.push(_vPortada.foto_url, ..._vPortada.imagenes)
     }
-    if (_fotosRot.length < 2) {
-      _fotosRot = varsProd.map(v => v.foto_url).filter(Boolean)
-    }
+    const _coloresVistos = new Set(_vPortada && _vPortada.color ? [_vPortada.color] : [])
+    varsProd.forEach(v => {
+      if (v.color && v.foto_url && !_coloresVistos.has(v.color)) {
+        _coloresVistos.add(v.color)
+        _fotosRot.push(v.foto_url)
+      }
+    })
     _fotosRot = [...new Set([p.imagen_principal, ..._fotosRot].filter(Boolean))].slice(0, 6)
     const _fotosAttr = _fotosRot.length > 1 ? ` data-fotos="${encodeURIComponent(JSON.stringify(_fotosRot))}"` : ''
 
@@ -4650,7 +4653,7 @@ cargarConfigSEO()
       <a class="product-card fade-in" href="/producto/${p.slug||p.sku_interno||p.id}">
         <div class="product-img-wrap"${_fotosAttr}>
           ${p.imagen_principal
-            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy" style="transition:opacity .35s">`
+            ? `<img src="${zmImg(p.imagen_principal, 600)}" srcset="${zmImg(p.imagen_principal, 300)} 300w, ${zmImg(p.imagen_principal, 400)} 400w, ${zmImg(p.imagen_principal, 500)} 500w, ${zmImg(p.imagen_principal, 600)} 600w" sizes="(max-width: 599px) 50vw, 300px" alt="${(p.nombre && p.nombre.split(' ').length > 2) ? `${p.nombre.trim()} — Zapatillas May` : `${p.nombre || 'Calzado'} ${p.categoria || ''} de moda — Zapatillas May`.replace(/\s+/g, ' ').trim()}" width="600" height="800" loading="lazy" style="transition:opacity .18s">`
             : `<div class="product-placeholder">👠</div>`}
           ${esNuevo(p) ? '<span class="product-badge badge-new">Nuevo</span>' : ''}
           ${p.es_oferta ? '<span class="product-badge badge-sale">Oferta</span>' : ''}
@@ -4704,7 +4707,7 @@ cargarConfigSEO()
             img.removeAttribute('sizes')
             img.src = zmImg(fotos[idx], 600)
             img.style.opacity = '1'
-          }, 350)
+          }, 180)
         }, 2600)
       } else if (wrap._fotoRotTimer) {
         clearInterval(wrap._fotoRotTimer)
