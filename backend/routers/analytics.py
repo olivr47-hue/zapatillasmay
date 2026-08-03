@@ -852,12 +852,16 @@ def meta_ads(periodo: str = "last_30d"):
     if not META_ACCESS_TOKEN:
         return {"configurado": False, "mensaje": "Falta META_ACCESS_TOKEN en las variables de entorno."}
 
+    # OJO: "effective_status" no es un campo filtrable en /insights (eso es
+    # de la edge /campaigns) -- se pidió antes y Meta lo rechazaba con
+    # HTTP 400. En su lugar se filtran campañas sin gasto ya del lado de
+    # Python (más abajo), que en la práctica logra lo mismo (ocultar las
+    # campañas viejas pausadas que no gastaron nada en el período).
     params = urllib.parse.urlencode({
         "access_token": META_ACCESS_TOKEN,
         "level":        "campaign",
         "date_preset":  periodo,
         "fields":       "campaign_name,spend,impressions,clicks,ctr,cpm,reach,frequency,actions,action_values,purchase_roas",
-        "filtering":    json.dumps([{"field": "effective_status", "operator": "IN", "value": ["ACTIVE"]}]),
         "limit":        50,
     })
     url = f"{_META_GRAPH}/act_{META_AD_ACCOUNT_ID}/insights?{params}"
@@ -877,6 +881,8 @@ def meta_ads(periodo: str = "last_30d"):
     total_ingreso = 0.0
     for row in data.get("data", []):
         gasto = float(row.get("spend", 0) or 0)
+        if gasto <= 0:
+            continue  # campañas viejas pausadas sin gasto en el período -- no interesan aquí
         compras = 0
         ingreso = 0.0
         for a in row.get("actions", []) or []:
