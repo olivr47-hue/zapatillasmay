@@ -37,6 +37,13 @@ _NOTIF_EMAIL   = os.getenv("NOTIF_EMAIL", "olivr47@gmail.com")
 _HORAS_ESPERA  = float(os.getenv("CARRITO_HORAS_ESPERA", "1"))   # esperar 1h de inactividad
 _SITE          = "https://zapatillasmay.mx"
 
+# Dominios de correo sintéticos usados por bots que simulan un checkout real
+# (ej. Storebot-Google, el crawler de Merchant Center que ya dejamos pasar en
+# robots.txt -- llena el formulario con datos falsos tipo "John Smith" para
+# probar que el flujo de compra funciona). Sin este filtro, cada visita del
+# bot genera un "carrito abandonado" y le manda un recordatorio a nadie real.
+_DOMINIOS_BOT = {"storebotmail.joonix.net"}
+
 
 def _now_iso():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -49,6 +56,8 @@ def guardar(datos: dict):
     email = (datos.get("email") or "").strip().lower()
     if not email or "@" not in email:
         return {"ok": False, "motivo": "email_invalido"}
+    if email.rsplit("@", 1)[-1] in _DOMINIOS_BOT:
+        return {"ok": False, "motivo": "bot_detectado"}
 
     # Si viene convertido=True, solo marcar como convertido y salir
     if datos.get("convertido"):
