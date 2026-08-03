@@ -3185,16 +3185,30 @@ window.pcAbrirPagoDirecto = function(pedidoId, total, itemsParaMP) {
   window._pcItemsParaMPTemp = itemsParaMP  // evita tener que serializar el array dentro de un onclick
   let modal = document.getElementById('pc-pago-directo-modal')
   if (!modal) { modal = document.createElement('div'); modal.id = 'pc-pago-directo-modal'; document.body.appendChild(modal) }
+  // Cerrar este modal (por la X, el fondo, o "pagar después") manda a "Mis
+  // pedidos" en vez de solo desaparecer -- antes, si la clienta se
+  // arrepentía de elegir forma de pago y cerraba el modal, su carrito ya
+  // estaba vacío (se vació antes de abrir este modal) y no había ninguna
+  // pista de que su pedido sí se guardó, solo que ya no estaba en el
+  // carrito -- tenía que adivinar que ahora vivía en "Mis pedidos".
   modal.innerHTML = `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) this.remove()">
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) pcCerrarPagoDirecto()">
       <div class="pc-card" style="max-width:400px;width:100%;padding:24px">
-        <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">¡Pedido enviado! — ${money(total)}</h3>
+        <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">✅ ¡Pedido guardado! — ${money(total)}</h3>
+        <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 4px">Tu carrito se vació porque este pedido ya quedó registrado -- lo vas a encontrar en <strong>Mis pedidos</strong> aunque cierres esta ventana sin elegir forma de pago todavía.</p>
         <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 18px">¿Cómo vas a pagar?</p>
         <button onclick="pcElegirPagoDirecto('${pedidoId}','transferencia')" class="pc-btn pc-btn-secondary" style="width:100%;margin-bottom:10px;text-align:left;padding:14px">🏦 Transferencia o pago en OXXO</button>
         <button onclick="pcElegirPagoDirecto('${pedidoId}','tarjeta')" class="pc-btn pc-btn-secondary" style="width:100%;text-align:left;padding:14px">💳 Tarjeta — te genero un link de pago</button>
         <div id="pc-pago-directo-resultado" style="margin-top:16px"></div>
+        <button onclick="pcCerrarPagoDirecto()" class="pc-btn pc-btn-secondary" style="width:100%;margin-top:14px;background:none">Pagar después — ver mi pedido</button>
       </div>
     </div>`
+}
+
+window.pcCerrarPagoDirecto = function() {
+  const modal = document.getElementById('pc-pago-directo-modal')
+  if (modal) modal.remove()
+  pcIrA('pedidos')
 }
 
 window.pcElegirPagoDirecto = async function(pedidoId, formaPago) {
