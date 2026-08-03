@@ -311,11 +311,14 @@
          en 1:1 (las fotos se suben cuadradas) en vez de estirarse a todo el
          panel -- forzar aspect-ratio:unset aqui la recortaba/deformaba mal en
          varios modelos. El panel fijo se queda igual, solo cambia cómo se ve
-         la imagen dentro (cuadrada y completa, no un rectángulo recortado). */
+         la imagen dentro (cuadrada y completa, no un rectángulo recortado).
+         Ancho bajado de 52% a 42%: a 52% en pantallas grandes la foto se veía
+         demasiado grande/recortada -- las fotos no están pensadas para ocupar
+         medio monitor. */
       .gallery {
         position: fixed;
         top: 108px; left: 0;
-        width: 52%;
+        width: 42%;
         height: calc(100vh - 108px);
         overflow: hidden;
         background: #f5f0eb;
@@ -357,7 +360,7 @@
 
       /* Right column: scrollable content */
       .product-section {
-        margin-left: 52% !important;
+        margin-left: 42% !important;
         max-width: 100% !important;
         padding: 40px 64px 40px !important;
         background: #faf8f6;
@@ -374,7 +377,7 @@
       }
 
       .info-card {
-        margin-left: calc(52% + 0px) !important;
+        margin-left: calc(42% + 0px) !important;
         max-width: 100% !important;
         margin-right: 0 !important;
         border-radius: 0 !important;
@@ -388,7 +391,7 @@
       .info-card-body { padding: 0 0 16px !important; }
 
       .similares-section {
-        margin-left: 52% !important;
+        margin-left: 42% !important;
         max-width: 100% !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
@@ -410,7 +413,7 @@
       /* Sticky bar anchored to right column */
       .sticky-bar {
         bottom: 0;
-        left: 52%;
+        left: 42%;
         background: rgba(250,248,246,0.97);
         backdrop-filter: blur(24px);
         border-top: 1px solid rgba(200,150,122,0.15);
@@ -432,14 +435,14 @@
 
       .sticky-bar-info { display: flex; }
 
-      #stock-urgency { left: 52%; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
+      #stock-urgency { left: 42%; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); }
 
       /* 3D hover on gallery image */
       .gallery { perspective: 1200px; }
       .gallery-main { transform-style: preserve-3d; will-change: transform; }
 
       /* Footer aligned to right column */
-      footer { margin-left: 52%; }
+      footer { margin-left: 42%; }
     }
 
     /* ── FOOTER ── */
