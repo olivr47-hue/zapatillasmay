@@ -24054,21 +24054,31 @@ async function cargarAnalyticsGA() {
         <div id="ga-meta-ads"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
       </div>
 
+      <!-- Selector de período para embudo/dispositivos/páginas -->
+      <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:0.6rem">
+        <button id="ga-dtab-1" onclick="window._gaSetDiasEmbudo(1)"
+          style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">Hoy</button>
+        <button id="ga-dtab-7" onclick="window._gaSetDiasEmbudo(7)"
+          style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">7 días</button>
+        <button id="ga-dtab-30" onclick="window._gaSetDiasEmbudo(30)"
+          style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #3483fa;background:#3483fa;color:white;cursor:pointer">30 días</button>
+      </div>
+
       <!-- Embudo de compra + Dispositivos lado a lado -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem" class="ga-2col">
         <div class="card" style="padding:1rem">
-          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Embudo de compra (30 días)</div>
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Embudo de compra</div>
           <div id="ga-embudo"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
         </div>
         <div class="card" style="padding:1rem">
-          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Dispositivo (30 días)</div>
-          <div id="ga-dispositivos"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
+          <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Dispositivo</div>
+          <div id="ga-dispositivos-30d"><p style="color:#bbb;font-size:0.82rem;margin:0">Cargando...</p></div>
         </div>
       </div>
 
       <!-- Páginas con más rebote -->
       <div class="card" style="padding:1rem;margin-bottom:1rem">
-        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Páginas con más tráfico y su rebote (30 días)</div>
+        <div style="font-size:0.7rem;font-weight:600;color:#888;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:.05em">Páginas con más tráfico y su rebote</div>
         <div id="ga-paginas-rebote"><p style="color:#888;font-size:0.85rem">Cargando...</p></div>
       </div>
 
@@ -24254,6 +24264,22 @@ window._gaSetPeriodo = async function(p) {
   else await _gaCargarMes()
 }
 
+// ── Toggle Hoy / 7 días / 30 días para embudo + dispositivos + páginas ──
+window._gaDiasActivo = 30
+window._gaSetDiasEmbudo = async function(dias) {
+  window._gaDiasActivo = dias
+  const tabs = { 1: 'ga-dtab-1', 7: 'ga-dtab-7', 30: 'ga-dtab-30' }
+  Object.entries(tabs).forEach(([d, id]) => {
+    const btn = document.getElementById(id)
+    if (!btn) return
+    const activo = Number(d) === dias
+    btn.style.background   = activo ? '#3483fa' : 'white'
+    btn.style.color        = activo ? 'white'   : '#888'
+    btn.style.borderColor  = activo ? '#3483fa' : '#ddd'
+  })
+  await Promise.allSettled([_gaCargarEmbudo(dias), _gaCargarDispositivos(dias)])
+}
+
 async function _gaCargarMes() {
   try {
     const r = await _gaFetchConTimeout(`${API}/analytics/mes`)
@@ -24346,9 +24372,9 @@ async function _gaCargarMetaAds() {
   } catch(e) { console.warn('GA meta-ads:', e.message) }
 }
 
-async function _gaCargarEmbudo() {
+async function _gaCargarEmbudo(dias = 30) {
   try {
-    const r = await _gaFetchConTimeout(`${API}/analytics/embudo`)
+    const r = await _gaFetchConTimeout(`${API}/analytics/embudo?dias=${dias}`)
     const d = await r.json()
     const el = document.getElementById('ga-embudo')
     if (!el) return
@@ -24366,11 +24392,11 @@ async function _gaCargarEmbudo() {
   } catch(e) { console.warn('GA embudo:', e.message) }
 }
 
-async function _gaCargarDispositivos() {
+async function _gaCargarDispositivos(dias = 30) {
   try {
-    const r = await _gaFetchConTimeout(`${API}/analytics/dispositivos`)
+    const r = await _gaFetchConTimeout(`${API}/analytics/dispositivos?dias=${dias}`)
     const d = await r.json()
-    const elDisp = document.getElementById('ga-dispositivos')
+    const elDisp = document.getElementById('ga-dispositivos-30d')
     const elPag  = document.getElementById('ga-paginas-rebote')
     if (elDisp) {
       if (!d.configurado || d.error || !d.dispositivos?.length) {

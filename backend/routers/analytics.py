@@ -649,6 +649,14 @@ def ia_referrals():
     return {"configurado": True, "total_sesiones": total, "referencias": referencias}
 
 
+def _rango_dias(dias: int) -> dict:
+    """"dias=1" debe ser SOLO hoy, no "1daysAgo" (que en GA4 incluye ayer +
+    hoy, 2 días) -- para cualquier otro valor sí se resta directo."""
+    if dias <= 1:
+        return {"startDate": "today", "endDate": "today"}
+    return {"startDate": f"{dias}daysAgo", "endDate": "today"}
+
+
 @router.get("/embudo")
 def embudo_compra(dias: int = 30):
     """Embudo de compra: cuántas veces se dispararon los eventos view_item ->
@@ -660,7 +668,7 @@ def embudo_compra(dias: int = 30):
         return _no_credenciales()
 
     resp = _ga4_post("runReport", {
-        "dateRanges":      [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "dateRanges":      [_rango_dias(dias)],
         "metrics":         [{"name": "eventCount"}],
         "dimensions":      [{"name": "eventName"}],
         "dimensionFilter": {"filter": {"fieldName": "eventName",
@@ -704,7 +712,7 @@ def dispositivos(dias: int = 30):
         return _no_credenciales()
 
     resp = _ga4_post("runReport", {
-        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "dateRanges": [_rango_dias(dias)],
         "metrics":    [{"name": "sessions"}, {"name": "activeUsers"},
                         {"name": "transactions"}, {"name": "purchaseRevenue"}],
         "dimensions": [{"name": "deviceCategory"}],
@@ -728,7 +736,7 @@ def dispositivos(dias: int = 30):
     # la gente se vaya más rápido (bounceRate SÍ se puede pedir por página,
     # a diferencia del promedio general -- ver nota en /hoy).
     resp_paginas = _ga4_post("runReport", {
-        "dateRanges": [{"startDate": f"{dias}daysAgo", "endDate": "today"}],
+        "dateRanges": [_rango_dias(dias)],
         "metrics":    [{"name": "screenPageViews"}, {"name": "bounceRate"}],
         "dimensions": [{"name": "pagePath"}],
         "orderBys":   [{"metric": {"metricName": "screenPageViews"}, "desc": True}],
