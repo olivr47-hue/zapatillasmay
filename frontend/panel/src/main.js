@@ -2,6 +2,15 @@ import './style.css'
 document.querySelector('#app').style.cssText = 'display:flex;min-height:100vh;width:100%;flex:1'
 import { renderPanel } from './panel.js'
 import { renderPortalCliente } from './portal-cliente.js'
+import { renderEstiloPublico } from './estilo-publico.js'
+
+// ── Página pública del QR de etiquetas de caja ──────────────────────────────
+// Se revisa ANTES que cualquier lógica de sesión: quien escanea la caja no
+// tiene cuenta en el ERP ni debe necesitar una. Ver estilo-publico.js.
+const _skuEstiloPublico = new URLSearchParams(location.search).get('estilo')
+if (_skuEstiloPublico) {
+  renderEstiloPublico(_skuEstiloPublico)
+}
 
 // ── Interceptor global de fetch ─────────────────────────────────────────────
 // Adjunta el JWT (erp_token) a TODA llamada a /api sin tener que tocar las ~325
@@ -508,6 +517,11 @@ window.authHeaders = () => {
                : { 'Content-Type': 'application/json' }
 }
 
+// Todo lo que sigue (sesión, banner de instalar app, trampa del botón atrás)
+// es exclusivo de la app con login -- la página pública del QR (estilo-publico.js)
+// ya renderizó su contenido arriba y no debe ser pisado ni interferido por esto.
+if (!_skuEstiloPublico) {
+
 const sesion = localStorage.getItem(SESSION_KEY)
 const sesionCliente = localStorage.getItem(PC_SESSION_KEY)
 
@@ -620,3 +634,5 @@ window._zmPushBack = (restoreFn) => {
     setTimeout(() => toast.remove(), 1800)
   })
 })()
+
+} // fin if (!_skuEstiloPublico)

@@ -66,6 +66,17 @@ def variantes_producto_todas(producto_id: str):
     para poder gestionar colores (ocultar/mostrar en el sitio)."""
     return supabase_get(f"variantes?producto_id=eq.{producto_id}&select=id,color,color_hex,talla,activa,foto_url")
 
+@router.get("/sku/{sku}")
+def variante_por_sku(sku: str):
+    """Público (sin login): usado por el QR de las etiquetas de caja para
+    mostrar los datos del estilo a clientes zapaterias que escanean la caja."""
+    data = supabase_get(
+        f"variantes?sku=eq.{sku}&select=id,color,color_hex,talla,sku,foto_url,imagenes,producto_id,"
+        "productos(nombre,sku_interno,categoria,material,imagen_principal,"
+        "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida)"
+    )
+    return data
+
 @router.post("/toggle-color")
 def toggle_color(datos: dict, _staff=Depends(require_staff)):
     """Activa o desactiva TODAS las variantes de un color de un producto (mostrar/ocultar en el sitio)."""

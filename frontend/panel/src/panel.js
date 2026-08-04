@@ -1,3 +1,5 @@
+import QRCode from 'qrcode'
+
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
 // tardar bastante -- el rewrite de Vercel (/api -> Railway) tiene su propio
@@ -5869,6 +5871,7 @@ async function cargarInventario() {
       <button class="btn btn-primary" onclick="mostrarFormInventario()">+ Agregar stock</button>
       <button class="btn btn-secondary" onclick="mostrarAlertas()" style="background:#fff8e1;border-color:#f57f17;color:#f57f17">⚠ Alertas</button>
       <button class="btn btn-secondary" onclick="mostrarInventarioMasivo()" style="background:#f3e5f5;border-color:#6a1b9a;color:#6a1b9a">📋 Masivo</button>
+      <button class="btn btn-secondary" onclick="mostrarImpresionEtiquetas()" style="background:#eceff1;border-color:#37474f;color:#37474f">🏷️ Etiquetas</button>
       <button class="btn btn-secondary" onclick="mostrarEntrada()" style="background:#e8f5e9;border-color:#2e7d32;color:#2e7d32">+ Entrada</button>
       <button class="btn btn-secondary" onclick="mostrarRecibirMercancia()" style="background:#fce4ec;border-color:#E91E8C;color:#E91E8C">📥 Recibir mercancía</button>
       <button class="btn btn-secondary" onclick="mostrarSalida()" style="background:#ffebee;border-color:#c62828;color:#c62828">− Salida</button>
@@ -6072,6 +6075,225 @@ window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+
+// ── Etiquetas para caja (impresión por lote, térmica directa 3x2") ─────────
+// El QR de cada etiqueta apunta a una página pública (ver estilo-publico.js /
+// main.js) con los datos del estilo -- NUNCA al sitio de venta al público,
+// porque estas cajas van a clientes zapatería, no a consumidor final.
+window._etiquetasCola = window._etiquetasCola || []
+
+window.mostrarImpresionEtiquetas = () => {
+  const { productos } = window._invData
+  const content = document.getElementById('content')
+  const productosOrdenados = [...productos].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''))
+  content.innerHTML = `
+    <div style="margin-bottom:1.5rem">
+      <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
+      <h3 style="margin-top:1rem">🏷️ Imprimir etiquetas para caja</h3>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:0">Elige un producto, marca los colores/tallas y cuántas cajas de cada uno, agrégalos a la cola y al final imprime todas las etiquetas juntas. Etiqueta térmica directa, 3x2" (impresora Zebra ZD420).</p>
+    </div>
+    <div class="table-card" style="padding:1.5rem;margin-bottom:1.5rem">
+      <label class="form-label">Producto</label>
+      <select class="form-input" id="et-producto" onchange="_etiquetasCargarVariantes(this.value)" style="margin-bottom:1rem">
+        <option value="">Selecciona un producto...</option>
+        ${productosOrdenados.map(p => `<option value="${p.id}">${p.nombre}${p.sku_interno ? ' (' + p.sku_interno + ')' : ''}</option>`).join('')}
+      </select>
+      <div id="et-variantes"></div>
+    </div>
+    <div class="table-card" style="padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:10px">
+        <h4 style="margin:0">Cola de impresión (<span id="et-cola-total">0</span> etiquetas)</h4>
+        <button class="btn btn-primary" onclick="imprimirEtiquetas()" id="et-btn-imprimir" disabled>🖨️ Imprimir etiquetas</button>
+      </div>
+      <div id="et-cola-lista"><p style="color:#888;font-size:0.85rem">Aún no has agregado nada a la cola.</p></div>
+    </div>
+  `
+  _etiquetasRenderCola()
+}
+
+window._etiquetasCargarVariantes = (productoId) => {
+  const div = document.getElementById('et-variantes')
+  if (!productoId) { div.innerHTML = ''; return }
+  const { variantes } = window._invData
+  const vars = variantes.filter(v => v.producto_id === productoId && v.activa !== false)
+  if (vars.length === 0) {
+    div.innerHTML = '<p style="color:#888;font-size:0.85rem">Este producto no tiene variantes activas.</p>'
+    return
+  }
+  const porColor = {}
+  vars.forEach(v => {
+    const c = v.color || 'Sin color'
+    if (!porColor[c]) porColor[c] = []
+    porColor[c].push(v)
+  })
+  div.innerHTML = `
+    <div style="border:1px solid #eee;border-radius:8px;padding:12px;margin-bottom:12px;max-height:320px;overflow-y:auto">
+      ${Object.entries(porColor).map(([color, lista]) => `
+        <div style="margin-bottom:10px">
+          <p style="font-weight:700;font-size:0.85rem;margin:0 0 6px">${_etEsc(color)}</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${lista.sort((a, b) => (a.talla || '').localeCompare(b.talla || '', undefined, { numeric: true })).map(v => `
+              <label style="display:flex;align-items:center;gap:4px;border:1px solid #ddd;border-radius:6px;padding:4px 8px;font-size:0.8rem;cursor:pointer">
+                <input type="checkbox" class="et-check" data-variante-id="${v.id}">
+                T${_etEsc(v.talla)}
+                <input type="number" class="et-cantidad" data-variante-id="${v.id}" value="1" min="1" style="width:42px;padding:2px 4px;font-size:0.78rem" onclick="event.stopPropagation()">
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <button class="btn btn-secondary" onclick="_etiquetasAgregarCola('${productoId}')">+ Agregar seleccionadas a la cola</button>
+  `
+}
+
+window._etiquetasAgregarCola = (productoId) => {
+  const { productos, variantes } = window._invData
+  const producto = productos.find(p => p.id === productoId)
+  const checks = document.querySelectorAll('#et-variantes .et-check:checked')
+  if (checks.length === 0) { alert('Marca al menos un color/talla'); return }
+  checks.forEach(chk => {
+    const varianteId = chk.dataset.varianteId
+    const variante = variantes.find(v => v.id === varianteId)
+    const cantInput = document.querySelector(`.et-cantidad[data-variante-id="${varianteId}"]`)
+    const cantidad = Math.max(1, parseInt(cantInput.value) || 1)
+    if (!variante || !producto) return
+    window._etiquetasCola.push({
+      producto_id: producto.id,
+      codigo: (producto.nombre || '').split(' ')[0] || producto.sku_interno || '',
+      material: producto.material || '',
+      color: variante.color || '',
+      talla: variante.talla || '',
+      sku: variante.sku || '',
+      cantidad
+    })
+  })
+  _etiquetasRenderCola()
+  // Limpiar la selección para no arriesgar que se agregue dos veces sin querer
+  const sel = document.getElementById('et-producto')
+  if (sel) sel.value = ''
+  const div = document.getElementById('et-variantes')
+  if (div) div.innerHTML = ''
+}
+
+window._etiquetasQuitarCola = (idx) => {
+  window._etiquetasCola.splice(idx, 1)
+  _etiquetasRenderCola()
+}
+
+function _etiquetasRenderCola() {
+  const lista = document.getElementById('et-cola-lista')
+  const total = document.getElementById('et-cola-total')
+  const btn = document.getElementById('et-btn-imprimir')
+  if (!lista || !total || !btn) return
+  const cola = window._etiquetasCola
+  const totalEtiquetas = cola.reduce((s, it) => s + it.cantidad, 0)
+  total.textContent = totalEtiquetas
+  btn.disabled = totalEtiquetas === 0
+  if (cola.length === 0) {
+    lista.innerHTML = '<p style="color:#888;font-size:0.85rem">Aún no has agregado nada a la cola.</p>'
+    return
+  }
+  lista.innerHTML = cola.map((it, idx) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;flex-wrap:wrap;gap:6px">
+      <div style="font-size:0.85rem"><b>${_etEsc(it.codigo)}</b> — ${_etEsc(it.color)}${it.material ? ' · ' + _etEsc(it.material) : ''} · Talla ${_etEsc(it.talla)}</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="color:#888;font-size:0.82rem">${it.cantidad} caja${it.cantidad === 1 ? '' : 's'}</span>
+        <button onclick="_etiquetasQuitarCola(${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1rem" title="Quitar">✕</button>
+      </div>
+    </div>
+  `).join('')
+}
+
+function _etEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
+function _etiquetaHTML(it, qrDataUrl) {
+  return `
+    <div class="etiqueta">
+      <div style="text-align:center;font-weight:900;font-size:11px;letter-spacing:1.2px;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:5px">ZAPATILLAS MAY</div>
+      <div style="display:flex;flex:1;gap:6px">
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0">
+          <div>
+            <div style="font-size:8px;font-weight:800;letter-spacing:0.5px">CÓDIGO</div>
+            <div style="font-size:21px;font-weight:900;line-height:1.05;word-break:break-word">${_etEsc(it.codigo)}</div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:800;text-transform:uppercase">${_etEsc(it.color)}</div>
+            ${it.material ? `<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#111">${_etEsc(it.material)}</div>` : ''}
+          </div>
+        </div>
+        ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:0.72in;height:0.72in;flex-shrink:0">` : ''}
+      </div>
+      <div style="text-align:center;font-weight:900;font-size:24px;border:2px solid #000;border-radius:5px;padding:1px 0;margin-top:4px;letter-spacing:0.5px">TALLA ${_etEsc(it.talla)}</div>
+    </div>
+  `
+}
+
+window.imprimirEtiquetas = async () => {
+  const cola = window._etiquetasCola
+  if (!cola || cola.length === 0) return
+
+  // OJO: abrir la ventana ANTES de los await de generación de QR -- si se abre
+  // después, el navegador ya no lo considera gesto directo del usuario y
+  // bloquea el pop-up en silencio (mismo problema documentado en imprimirTicketPOS).
+  const ventana = window.open('', '_blank', 'width=500,height=700')
+  if (!ventana) {
+    alert('El navegador bloqueó la ventana de etiquetas (pop-up). Permite las ventanas emergentes para este sitio e intenta de nuevo.')
+    return
+  }
+  ventana.document.write('<p style="font-family:Arial,sans-serif;padding:20px">Generando etiquetas…</p>')
+
+  const qrCache = {}
+  for (const it of cola) {
+    if (qrCache[it.sku] || !it.sku) continue
+    const url = `${location.origin}/?estilo=${encodeURIComponent(it.sku)}`
+    try {
+      qrCache[it.sku] = await QRCode.toDataURL(url, { margin: 1, width: 220 })
+    } catch (e) {
+      qrCache[it.sku] = ''
+    }
+  }
+
+  const labelsHtml = []
+  cola.forEach(it => {
+    for (let i = 0; i < it.cantidad; i++) labelsHtml.push(_etiquetaHTML(it, qrCache[it.sku] || ''))
+  })
+
+  ventana.document.open()
+  ventana.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Etiquetas</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #000; }
+        .etiqueta {
+          width: 3in; height: 2in; padding: 0.12in;
+          display: flex; flex-direction: column;
+          page-break-after: always;
+          overflow: hidden;
+        }
+        .etiqueta:last-child { page-break-after: auto; }
+        @media print {
+          @page { size: 3in 2in; margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      ${labelsHtml.join('')}
+      <script>window.onload = () => { window.print() }<\/script>
+    </body>
+    </html>
+  `)
+  ventana.document.close()
+
+  window._etiquetasCola = []
+  _etiquetasRenderCola()
 }
 
 window.mostrarFormInventario = async () => {
