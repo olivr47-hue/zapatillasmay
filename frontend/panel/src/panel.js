@@ -7138,7 +7138,7 @@ function renderVariante(i, datos) {
           <input class="form-input" id="v${i}-nombre"
                  placeholder="Nombre del color (ej: Negro, Nude, Carey...)"
                  value="${d.color || ''}" style="flex:1;min-width:130px"
-                 oninput="actualizarTablaStock();var lbl=document.getElementById('v${i}-header-label');if(lbl)lbl.textContent=this.value||'Color ${i+1}'">
+                 oninput="var lbl=document.getElementById('v${i}-header-label');if(lbl)lbl.textContent=this.value||'Color ${i+1}'">
         </div>
 
         <div style="background:white;border-radius:10px;padding:0.875rem;border:1px dashed #ddd">
@@ -7200,8 +7200,6 @@ window.eliminarColorVariante = async (idx, btn) => {
     })
     delete window._variantesFotos[idx]
   }
-
-  actualizarTablaStock()
 }
 
 window.actualizarVistaPreviews = (idx) => {
@@ -7291,7 +7289,6 @@ window.mostrarFormProducto = (datos) => {
     // nuevo -- sobrescribiendo nombre/fotos del producto viejo por accidente.
     window._productoEditandoId = null
     window._coloresExistentes = null
-    window._variantesEditandoActuales = null
   }
   varianteCount = window._coloresExistentes && window._coloresExistentes.length > 0
   ? window._coloresExistentes.length 
@@ -7524,20 +7521,6 @@ window.mostrarFormProducto = (datos) => {
       </div>
 
       <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
-        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">${d.id ? 'Agregar resurtido' : 'Stock inicial'}</p>
-        <p style="font-size:0.8rem;color:#888;margin-bottom:1rem">${d.id ? 'Los pares que captures aquí se suman al inventario actual como entrada de mercancía.' : 'Captura cuantos pares tienes disponibles. Se asignarán a la sucursal seleccionada.'}</p>
-        <div style="margin-bottom:1rem">
-          <label class="form-label">Asignar a sucursal</label>
-          <select class="form-input" id="f-sucursal-stock" style="max-width:280px">
-            <option value="">Cargando sucursales...</option>
-          </select>
-        </div>
-        <div id="stock-inicial-container">
-          <p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>
-        </div>
-      </div>
-
-      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
           <div>
             <p style="font-weight:600;color:#333;margin-bottom:2px">Logistica y SEO</p>
@@ -7611,12 +7594,6 @@ window.mostrarFormProducto = (datos) => {
       </div>
     </div>
   `
-
-  fetch(API + '/sucursales/').then(r => r.json()).then(sucursales => {
-    const sel = document.getElementById('f-sucursal-stock')
-    if (sel) sel.innerHTML = sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')
-      setTimeout(() => actualizarTablaStock(), 100)
-  })
 }
 window.seleccionarColorPortada = (idx) => {
   if (!window._coloresExistentes) return
@@ -7843,7 +7820,6 @@ window.seleccionarColor = (idx, hex, nombre) => {
     const lbl = document.getElementById('v' + idx + '-header-label')
     if (lbl) lbl.textContent = nombre
   }
-  actualizarTablaStock()
 }
 
 window.toggleVariante = (i) => {
@@ -7940,69 +7916,6 @@ window.toggleTalla = (input) => {
     label.style.borderColor = 'transparent'
     label.style.background = '#f5f5f5'
   }
-  actualizarTablaStock()
-}
-
-window.actualizarTablaStock = () => {
-  const TALLAS_ORDEN = ['22','22.5','23','23.5','24','24.5','25','25.5','26','26.5','27','Unica']
-  const tallas = [...document.querySelectorAll('.talla-label input:checked')]
-    .map(i => i.value)
-    .sort((a, b) => TALLAS_ORDEN.indexOf(a) - TALLAS_ORDEN.indexOf(b))
-  const variantesEls = document.querySelectorAll('.variante-item')
-  const colores = []
-  variantesEls.forEach(v => {
-    const id = v.id.replace('variante-', '')
-    const nombre = document.getElementById('v' + id + '-nombre')
-    const hex = document.getElementById('v' + id + '-hex')
-    if (nombre && nombre.value) colores.push({ nombre: nombre.value, hex: hex ? hex.value : '#000', id })
-  })
-  const contenedor = document.getElementById('stock-inicial-container')
-  if (!contenedor) return
-  if (tallas.length === 0 || colores.length === 0) {
-    contenedor.innerHTML = '<p style="color:#888;font-size:0.85rem">Selecciona tallas y agrega colores para ver la tabla de stock inicial</p>'
-    return
-  }
-
-  contenedor.innerHTML = colores.map(c => `
-    <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem">
-        <div style="width:14px;height:14px;border-radius:50%;background:${c.hex};border:1px solid #ddd;flex-shrink:0"></div>
-        <span style="font-size:0.9rem;font-weight:600">${c.nombre}</span>
-        <span style="margin-left:auto;font-size:0.82rem;color:#E91E8C;font-weight:700">Total: <span id="total-color-${c.id}">0</span> pares</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
-        ${tallas.map(t => {
-          const varExistente = window._variantesEditandoActuales
-            ? window._variantesEditandoActuales.find(v => v.color === c.nombre && v.talla === t)
-            : null
-          return `
-          <div style="display:flex;flex-direction:column;gap:2px">
-            <div style="display:flex;align-items:center;gap:6px;background:white;padding:6px 8px;border-radius:8px;border:1px solid #eee">
-              <span style="font-size:0.85rem;font-weight:600;color:#555;min-width:32px">T${t}</span>
-              <button type="button"
-                      onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=Math.max(0,(parseInt(el.value)||0)-1);actualizarTotalColor('${c.id}')"
-                      style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">−</button>
-              <input type="number" min="0" placeholder="0"
-                     id="stock-ini-${c.id}-${t.replace('.','_')}"
-                     oninput="actualizarTotalColor('${c.id}')"
-                     style="flex:1;text-align:center;padding:5px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;font-weight:700;min-width:0">
-              <button type="button"
-                      onclick="const el=document.getElementById('stock-ini-${c.id}-${t.replace('.','_')}');el.value=(parseInt(el.value)||0)+1;actualizarTotalColor('${c.id}')"
-                      style="background:#f0f0f0;border:none;border-radius:6px;width:32px;height:32px;cursor:pointer;font-size:1.1rem;font-weight:700;touch-action:manipulation;flex-shrink:0">+</button>
-            </div>
-            ${varExistente && varExistente.sku ? `<span style="font-size:0.62rem;color:#aaa;font-family:monospace;padding-left:2px">${varExistente.sku}</span>` : ''}
-          </div>
-        `}).join('')}
-      </div>
-    </div>
-  `).join('')
-}
-window.actualizarTotalColor = (colorId) => {
-  const inputs = document.querySelectorAll('[id^="stock-ini-' + colorId + '-"]')
-  let total = 0
-  inputs.forEach(input => total += parseInt(input.value) || 0)
-  const totalEl = document.getElementById('total-color-' + colorId)
-  if (totalEl) totalEl.textContent = total
 }
 
 async function subirImagenesVariantes() {
@@ -8277,82 +8190,13 @@ if (erroresVariante.length > 0) {
 }
 console.log('Colores:', colores)
 console.log('Tallas:', tallas)
-const sucursalStock = document.getElementById('f-sucursal-stock') ? document.getElementById('f-sucursal-stock').value : ''
-// Verificar si hay cantidades capturadas en la tabla (aunque sea una)
-const hayStockCapturado = colores.some(c =>
-  (tallas.length > 0 ? tallas : (window._productoEditandoId ? [] : ['Unica'])).some(t => {
-    const el = document.getElementById('stock-ini-' + c.id + '-' + t.replace('.','_'))
-    return el && parseInt(el.value) > 0
-  })
-)
-
-let stockGuardado = 0
-let stockErrores = []
-let stockSaltados = []
-
-if (hayStockCapturado && !sucursalStock) {
-  alert('⚠️ Capturaste cantidades de stock pero no hay sucursal seleccionada.\nEl producto se guardó, pero el inventario NO se guardó.\n\nVe a Inventario → Reabastecer para agregar las cantidades.')
-} else if (sucursalStock && pid) {
-  // Las variantes ya están guardadas (await Promise.all arriba): obtener IDs una sola vez
-  const varsActualizadas = await fetch(API + '/variantes/producto/' + pid).then(r => r.json())
-
-  const invActual = await fetch(API + '/inventario/').then(r => r.json())
-  const varIdsConInv = new Set(invActual.filter(i => i.sucursal_id === sucursalStock).map(i => i.variante_id))
-
-  // Construir todas las peticiones de stock en paralelo
-  const stockPromesas = []
-  for (const varMatch of varsActualizadas) {
-    const colorMatch = colores.find(c =>
-      c.nombre.trim().toLowerCase() === (varMatch.color || '').trim().toLowerCase()
-    )
-    if (!colorMatch) continue
-
-    const tallaId = String(varMatch.talla || '').replace('.', '_')
-    const inputStock = document.getElementById('stock-ini-' + colorMatch.id + '-' + tallaId)
-    const cantidad = inputStock ? parseInt(inputStock.value) || 0 : 0
-
-    if (cantidad > 0) {
-      stockPromesas.push(
-        fetch(API + '/movimientos/ajuste', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            variante_id: varMatch.id,
-            sucursal_id: sucursalStock,
-            cantidad,
-            motivo: window._productoEditandoId ? 'Resurtido desde edicion de producto' : 'Stock inicial'
-          })
-        }).then(r => {
-          if (!r.ok) { stockErrores.push(`${varMatch.color} T${varMatch.talla}`); return }
-          stockGuardado++
-          console.log(`[Stock] ✓ ${varMatch.color} T${varMatch.talla} +${cantidad}`)
-        }).catch(() => stockErrores.push(`${varMatch.color} T${varMatch.talla}`))
-      )
-    } else if (!varIdsConInv.has(varMatch.id)) {
-      stockPromesas.push(
-        fetch(API + '/movimientos/ajuste', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variante_id: varMatch.id, sucursal_id: sucursalStock, cantidad: 0, motivo: 'Registro inicial (sin stock)' })
-        }).then(() => console.log(`[Stock] Registro 0: ${varMatch.color} T${varMatch.talla}`))
-        .catch(() => {})
-      )
-    }
-  }
-  await Promise.all(stockPromesas)
-}
       if (prod && prod.error) {
         alert('Error: ' + prod.error)
         if (btn) { btn.textContent = 'Guardar producto'; btn.disabled = false }
         window._guardandoProducto = false
         return
       }
-      // Mensaje de resultado con detalle de stock
-      let msgFinal = 'Producto guardado correctamente'
-      if (stockGuardado > 0) msgFinal += `\n✅ Stock guardado: ${stockGuardado} variante(s)`
-      if (stockSaltados.length > 0) msgFinal += `\n⚠️ No se encontraron variantes para: ${stockSaltados.join(', ')}`
-      if (stockErrores.length > 0) msgFinal += `\n❌ Errores al guardar: ${stockErrores.join(', ')}`
-      alert(msgFinal)
+      alert('Producto guardado correctamente')
       window._productoEditandoId = null
       window._guardandoProducto = false
       navegarA('productos')
@@ -8406,7 +8250,6 @@ window.editarProducto = async (id) => {
 
     window._productoEditandoId = id
     window._coloresExistentes = coloresUnicos.length > 0 ? coloresUnicos : null
-    window._variantesEditandoActuales = variantes.filter(v => v.producto_id === id)
 
     // Derivar tallas disponibles desde las variantes (fuente de verdad)
     // Esto garantiza que los checkboxes estén correctamente marcados al editar
