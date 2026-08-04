@@ -346,24 +346,31 @@ function renderPC() {
         box-shadow: 0 -4px 24px rgba(0,0,0,0.12);
       }
       .pc-bn-item {
-        flex: 1; background: none; border: none; cursor: pointer;
-        display: flex; flex-direction: column; align-items: center; gap: 3px;
-        padding: 6px 2px; color: var(--pc-muted); font-family: inherit;
-        font-size: 0.62rem; font-weight: 600; text-decoration: none;
+        flex: 1; min-width: 0; background: none; border: none; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        padding: 6px 1px; color: var(--pc-muted); font-family: inherit;
+        font-size: 0.58rem; font-weight: 600; text-decoration: none;
         transition: color 0.18s, transform 0.18s;
         -webkit-tap-highlight-color: transparent;
       }
-      .pc-bn-item svg { width: 22px; height: 22px; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+      .pc-bn-item span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+      .pc-bn-item svg { width: 20px; height: 20px; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
       .pc-bn-item:active { transform: scale(0.92); }
       .pc-bn-item:active svg { transform: scale(1.12); }
       .pc-bn-item.activo { color: #E91E8C; background: none; }
       /* Botón Buscar destacado (centro) */
       .pc-bn-search svg {
         background: #E91E8C; color: white;
-        border-radius: 50%; padding: 7px; width: 36px; height: 36px;
-        box-shadow: 0 4px 14px rgba(233,30,140,0.45); margin-top: -14px;
+        border-radius: 50%; padding: 6px; width: 32px; height: 32px;
+        box-shadow: 0 4px 14px rgba(233,30,140,0.45); margin-top: -13px;
       }
       .pc-bn-search span:last-child { margin-top: 1px; }
+      /* Cuando aparece "Apartados" (7 iconos en vez de 6) se achica un poco
+         más para que quepan todos sin que "Cuenta" quede apretado -- ver
+         _pcActualizarBottomNavApartados, que agrega/quita esta clase. */
+      #pc-bottomnav.pc-bn-compacto .pc-bn-item { font-size: 0.52rem; padding: 6px 0; gap: 1px; }
+      #pc-bottomnav.pc-bn-compacto .pc-bn-item svg { width: 18px; height: 18px; }
+      #pc-bottomnav.pc-bn-compacto .pc-bn-search svg { width: 29px; height: 29px; padding: 5px; margin-top: -11px; }
       .pc-bn-cart-wrap { position: relative; display: inline-flex; }
       .pc-bn-badge {
         position: absolute; top: -6px; right: -8px;
@@ -3872,4 +3879,5 @@ function _pcActualizarBottomNavApartados() {
   } else if (btn) {
     btn.classList.toggle('activo', pc.tab === 'apartados')
   }
+  nav.classList.toggle('pc-bn-compacto', !!document.getElementById('pc-bn-apartados'))
 }
