@@ -292,6 +292,10 @@ function renderPC() {
       </span>
       <span>Carrito</span>
     </button>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'pedidos' ? ' activo' : ''}" onclick="pcIrA('pedidos')" aria-label="Mis pedidos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+      <span>Pedidos</span>
+    </button>
     <button class="pc-nav-item pc-bn-item${pc.tab === 'cuenta' ? ' activo' : ''}" onclick="pcIrA('cuenta')" aria-label="Mi cuenta">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
       <span>Cuenta</span>
@@ -3120,6 +3124,7 @@ window.pcCerrarPedidoDirecto = async function() {
 
   const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
   const itemsParaMP = pc.carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario }))
+  const carritoParaEnvio = pc.carrito.map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad }))
 
   const btn = document.querySelector('[onclick="pcCerrarPedidoDirecto()"]')
   if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true }
@@ -3164,7 +3169,7 @@ window.pcCerrarPedidoDirecto = async function() {
           pc.pedidos = Array.isArray(todos) ? todos.filter(p => p.notas !== PC_BORRADOR_MARCA) : todos
         }
       }
-      if (nuevoPedidoId) pcAbrirPagoDirecto(nuevoPedidoId, total, itemsParaMP)
+      if (nuevoPedidoId) pcAbrirPagoDirecto(nuevoPedidoId, total, itemsParaMP, carritoParaEnvio, 0)
       else pcMostrarExito('¡Pedido enviado! Te contactaremos para coordinar el pago y envío.')
       if (btn) { btn.textContent = 'Cerrar pedido'; btn.disabled = false }
     } else {
@@ -3178,10 +3183,174 @@ window.pcCerrarPedidoDirecto = async function() {
   }
 }
 
-// Opciones de pago para un pedido recién creado directo desde el carrito
-// (ya nace en pendiente_pago -- a diferencia de Apartados, aquí no hay que
-// llamar cerrar-apartado, solo guardar la forma de pago elegida).
-window.pcAbrirPagoDirecto = function(pedidoId, total, itemsParaMP) {
+// Entrada única para un pedido recién creado (o uno pendiente que se retoma
+// desde "Mis pedidos" vía pcContinuarPago): si todavía no tiene envío
+// elegido, primero pregunta envío (calculado por peso o "por cobrar");
+// si ya lo tiene (costoEnvioActual > 0), brinca directo a forma de pago.
+// Antes esto brincaba siempre directo a "¿cómo vas a pagar?" sin preguntar
+// nada de envío -- el envío con costo (calculado o "por cobrar") solo se
+// armó del lado del panel admin (Carritos), no en el propio portal del
+// cliente, así que una clienta que cerraba su pedido y elegía transferencia
+// nunca veía la pregunta de envío y el pedido se quedaba sin cobrarlo.
+window.pcAbrirPagoDirecto = function(pedidoId, total, itemsParaMP, carritoItems, costoEnvioActual) {
+  window._pcItemsParaMPTemp = itemsParaMP  // evita tener que serializar el array dentro de un onclick
+  if (costoEnvioActual > 0) {
+    pcMostrarPasoPago(pedidoId, total, itemsParaMP)
+  } else {
+    pcMostrarPasoEnvio(pedidoId, total, itemsParaMP, carritoItems || [])
+  }
+}
+
+// Mismo cálculo que el panel admin (ver _pesoTotalCarritoKg/_repartirEnCajas
+// en panel.js): peso_gramos de cada producto × cantidad, repartido en cajas
+// de hasta el máximo del último escalón, cada caja cobrada con la misma tabla.
+function _pcPesoTotalKg(items) {
+  if (!items || !pc.variantes || !pc.productos) return 0
+  let gramos = 0
+  items.forEach(item => {
+    if ((item.cantidad || 0) <= 0) return
+    const v = pc.variantes.find(vv => vv.id === item.variante_id)
+    const prod = v ? pc.productos.find(p => p.id === v.producto_id) : null
+    gramos += (prod?.peso_gramos || 0) * item.cantidad
+  })
+  return gramos / 1000
+}
+
+function _pcTarifaPorCajaKg(pesoCajaKg, tiers) {
+  const orden = [...tiers].sort((a, b) => a.max_kg - b.max_kg)
+  for (const t of orden) {
+    if (pesoCajaKg <= t.max_kg) return t.precio
+  }
+  return orden.length ? orden[orden.length - 1].precio : 0
+}
+
+function _pcRepartirEnCajas(pesoTotalKg, tiers) {
+  const maxCaja = Math.max(...tiers.map(t => t.max_kg))
+  let restante = pesoTotalKg
+  const cajas = []
+  while (restante > 0.001) {
+    const pesoCaja = Math.min(restante, maxCaja)
+    cajas.push({ peso: pesoCaja, precio: _pcTarifaPorCajaKg(pesoCaja, tiers) })
+    restante -= pesoCaja
+  }
+  return cajas
+}
+
+window.pcMostrarPasoEnvio = function(pedidoId, totalProductos, itemsParaMP, carritoItems) {
+  window._pcEnvioTemp = { pedidoId, totalProductos, itemsParaMP, carritoItems }
+  let modal = document.getElementById('pc-pago-directo-modal')
+  if (!modal) { modal = document.createElement('div'); modal.id = 'pc-pago-directo-modal'; document.body.appendChild(modal) }
+  modal.innerHTML = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this) pcCerrarPagoDirecto()">
+      <div class="pc-card" style="max-width:420px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+        <h3 style="margin:0 0 6px;font-size:1.1rem;color:var(--pc-text)">📦 ¿Cómo quieres tu envío?</h3>
+        <p style="font-size:0.82rem;color:var(--pc-muted);margin:0 0 16px">Tu pedido de ${money(totalProductos)} ya quedó guardado -- elige el envío antes de pagar.</p>
+
+        <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px;margin-bottom:12px">
+          <p style="font-size:0.85rem;font-weight:700;color:var(--pc-text);margin:0 0 8px">1. Envío calculado (por peso)</p>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <select id="pc-envio-paqueteria-calc" class="pc-input" style="flex:1">
+              <option value="Estafeta">Estafeta</option>
+              <option value="FedEx">FedEx</option>
+            </select>
+            <button onclick="pcCalcularEnvioDirecto()" class="pc-btn pc-btn-secondary" style="font-size:0.8rem;padding:10px 14px;white-space:nowrap">🧮 Calcular</button>
+          </div>
+          <p id="pc-envio-calc-resultado" style="font-size:0.78rem;color:var(--pc-muted);margin:0"></p>
+          <button id="pc-envio-usar-calc" onclick="pcUsarEnvioCalculadoDirecto()" class="pc-btn pc-btn-primary" style="width:100%;margin-top:10px;display:none">Usar este envío</button>
+        </div>
+
+        <div style="background:var(--pc-bg-elev);border-radius:10px;padding:14px;margin-bottom:16px">
+          <p style="font-size:0.85rem;font-weight:700;color:var(--pc-text);margin:0 0 8px">2. Enviar por cobrar</p>
+          <p style="font-size:0.76rem;color:var(--pc-muted);margin:0 0 8px">Pagas directo a la paquetería cuando llegue -- aquí no se te cobra nada por el envío.</p>
+          <div style="display:flex;gap:8px">
+            <input id="pc-envio-paqueteria-cobrar" class="pc-input" placeholder="¿Cuál paquetería?" style="flex:1">
+            <button onclick="pcUsarEnvioPorCobrarDirecto()" class="pc-btn pc-btn-secondary" style="font-size:0.8rem;padding:10px 14px;white-space:nowrap">Usar</button>
+          </div>
+        </div>
+
+        <p id="pc-envio-elegido" style="font-size:0.8rem;margin:0 0 14px"></p>
+
+        <button onclick="pcOmitirEnvioDirecto()" style="background:none;border:none;color:var(--pc-muted);font-size:0.76rem;cursor:pointer;text-decoration:underline;width:100%;text-align:center;padding:6px">Coordinar el envío después →</button>
+      </div>
+    </div>`
+}
+
+window.pcCalcularEnvioDirecto = async function() {
+  const t = window._pcEnvioTemp
+  const resultado = document.getElementById('pc-envio-calc-resultado')
+  const btnUsar = document.getElementById('pc-envio-usar-calc')
+  if (!t || !resultado || !btnUsar) return
+  resultado.style.color = 'var(--pc-muted)'
+  resultado.textContent = 'Calculando...'
+  btnUsar.style.display = 'none'
+  try {
+    const cfg = await fetch(`${PC_API}/config/envio`).then(r => r.json())
+    const tiers = cfg.mayoreo_tiers
+    if (!tiers || !tiers.length) {
+      resultado.style.color = '#ef4444'
+      resultado.textContent = '❌ No se pudo cargar la configuración de tarifas.'
+      return
+    }
+    const pesoKg = _pcPesoTotalKg(t.carritoItems)
+    if (pesoKg <= 0) {
+      resultado.style.color = '#ef4444'
+      resultado.textContent = '❌ No se pudo calcular el peso de tu pedido. Escríbenos por WhatsApp para calcularlo a mano.'
+      return
+    }
+    const cajas = _pcRepartirEnCajas(pesoKg, tiers)
+    const total = cajas.reduce((s, c) => s + c.precio, 0)
+    t._envioCalcActual = { pesoKg, cajas, total }
+    resultado.style.color = 'var(--pc-muted)'
+    resultado.innerHTML = `Peso total: <strong>${pesoKg.toFixed(2)}kg</strong> · ${cajas.length} caja${cajas.length !== 1 ? 's' : ''}: ` +
+      cajas.map((c, i) => `#${i+1} ${c.peso.toFixed(1)}kg → $${c.precio}`).join(' + ') +
+      ` = <strong>$${total} MXN</strong>`
+    btnUsar.style.display = ''
+  } catch (e) {
+    resultado.style.color = '#ef4444'
+    resultado.textContent = 'Error calculando el envío.'
+  }
+}
+
+window.pcUsarEnvioCalculadoDirecto = async function() {
+  const t = window._pcEnvioTemp
+  if (!t || !t._envioCalcActual) return
+  const paqueteria = document.getElementById('pc-envio-paqueteria-calc').value
+  await pcConfirmarEnvioDirecto(t._envioCalcActual.total, `✅ Envío calculado por ${paqueteria}: $${t._envioCalcActual.total} MXN.`)
+}
+
+window.pcUsarEnvioPorCobrarDirecto = async function() {
+  const paqueteria = (document.getElementById('pc-envio-paqueteria-cobrar').value || '').trim()
+  if (!paqueteria) { alert('Escribe el nombre de la paquetería.'); return }
+  await pcConfirmarEnvioDirecto(0, `📦 Envío por cobrar vía ${paqueteria} -- pagas directo a la paquetería.`, `Envío por cobrar vía ${paqueteria}`)
+}
+
+window.pcOmitirEnvioDirecto = function() {
+  const t = window._pcEnvioTemp
+  if (!t) return
+  pcMostrarPasoPago(t.pedidoId, t.totalProductos, t.itemsParaMP)
+}
+
+async function pcConfirmarEnvioDirecto(envio, mensaje, comentarios) {
+  const t = window._pcEnvioTemp
+  if (!t) return
+  const elegido = document.getElementById('pc-envio-elegido')
+  if (elegido) { elegido.style.color = '#166534'; elegido.textContent = mensaje }
+  const nuevoTotal = t.totalProductos + envio
+  const patch = { costo_envio: envio, total: nuevoTotal }
+  if (comentarios) patch.comentarios = comentarios
+  try {
+    await fetch(`${PC_API}/pedidos/${t.pedidoId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch)
+    })
+  } catch (e) {}
+  const itemsConEnvio = envio > 0 ? [...t.itemsParaMP, { nombre: 'Envío', cantidad: 1, precio: envio }] : t.itemsParaMP
+  setTimeout(() => pcMostrarPasoPago(t.pedidoId, nuevoTotal, itemsConEnvio), 700)
+}
+
+// Pantalla de forma de pago (transferencia/tarjeta) para un pedido que ya
+// nace en pendiente_pago -- a diferencia de Apartados, aquí no hay que
+// llamar cerrar-apartado, solo guardar la forma de pago elegida.
+window.pcMostrarPasoPago = function(pedidoId, total, itemsParaMP) {
   window._pcItemsParaMPTemp = itemsParaMP  // evita tener que serializar el array dentro de un onclick
   let modal = document.getElementById('pc-pago-directo-modal')
   if (!modal) { modal = document.createElement('div'); modal.id = 'pc-pago-directo-modal'; document.body.appendChild(modal) }
@@ -3392,7 +3561,12 @@ window.pcContinuarPago = function(pedidoId) {
     nombre: i.variantes?.productos?.nombre || i.nombre || 'Producto',
     cantidad: i.cantidad, precio: i.precio_unitario,
   }))
-  pcAbrirPagoDirecto(pedidoId, parseFloat(p.total || 0), itemsParaMP)
+  const carritoItems = items.map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad }))
+  const costoEnvioActual = parseFloat(p.costo_envio || 0)
+  // Si ya tiene envío elegido, p.total ya lo incluye y se usa tal cual como
+  // total a mostrar/cobrar. Si no, p.total todavía es solo productos (el
+  // envío se suma después, al elegirlo en el paso de envío).
+  pcAbrirPagoDirecto(pedidoId, parseFloat(p.total || 0), itemsParaMP, carritoItems, costoEnvioActual)
 }
 
 window.pcReordenar = function(pedidoId) {
