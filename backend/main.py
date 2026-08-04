@@ -1,6 +1,7 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from security import limiter
 from database import supabase_get
 from cache import cache_stats, cache_invalidate_prefix
@@ -87,6 +88,26 @@ async def _security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP
     return response
+
+# DIAGNÓSTICO TEMPORAL (v2): el log estándar de uvicorn solo muestra la IP
+# interna de Railway (100.64.x.x), no la IP real de quien conecta -- Railway
+# sí la manda en X-Forwarded-For/X-Real-Ip aunque no aparezca en el access
+# log. La v1 de este diagnóstico (referer/user-agent) ya descartó que sea
+# el portal, un cron de Railway, o algo corriendo en esta máquina -- esta
+# version agrega la IP real para saber por fin quién es. Quitar una vez
+# identificado el origen.
+@app.api_route("/seo/config/envio", methods=["GET", "POST"])
+async def _diagnostico_seo_config_envio_v2(request: Request):
+    print(
+        f"[diagnostico 404 v2] /seo/config/envio -- "
+        f"x-forwarded-for={request.headers.get('x-forwarded-for')!r} "
+        f"x-real-ip={request.headers.get('x-real-ip')!r} "
+        f"referer={request.headers.get('referer')!r} "
+        f"origin={request.headers.get('origin')!r} "
+        f"user-agent={request.headers.get('user-agent')!r} "
+        f"todos_los_headers={dict(request.headers)!r}"
+    )
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 app.include_router(productos.router)
 app.include_router(sucursales.router)
