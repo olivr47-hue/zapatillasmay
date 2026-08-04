@@ -80,7 +80,7 @@ export async function renderEstiloPublico(sku) {
 
         <div style="background:#161625;border:1.5px solid #1e1e30;border-radius:16px;overflow:hidden">
           ${fotos.length ? `
-            <img id="estilo-foto-principal" src="${_escHtml(fotos[0])}" alt="${_escHtml(nombre)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+            <img id="estilo-foto-principal" src="${_escHtml(fotos[0])}" alt="${_escHtml(nombre)}" style="width:100%;aspect-ratio:1;object-fit:contain;background:#0f0f1c;display:block">
             ${fotos.length > 1 ? `
               <div style="display:flex;gap:6px;padding:10px;overflow-x:auto;border-top:1px solid #1e1e30">
                 ${fotos.map((url, i) => `
@@ -95,18 +95,18 @@ export async function renderEstiloPublico(sku) {
             <p style="color:white;font-size:1.7rem;font-weight:800;margin:0 0 14px;letter-spacing:-0.01em;text-transform:uppercase">${_escHtml(codigo)}</p>
             <p style="color:#8888aa;font-size:0.85rem;margin:0 0 16px;text-transform:uppercase">${_escHtml(nombre)}</p>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px">
               ${filas.map(([k, v]) => `
-                <div>
+                <div style="min-width:0">
                   <p style="color:#4a4a6a;font-size:0.65rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin:0 0 3px">${k}</p>
-                  <p style="color:white;font-size:0.95rem;font-weight:700;margin:0;text-transform:uppercase">${_escHtml(v)}</p>
+                  <p style="color:white;font-size:0.95rem;font-weight:700;margin:0;text-transform:uppercase;overflow-wrap:break-word">${_escHtml(v)}</p>
                 </div>
               `).join('')}
             </div>
           </div>
         </div>
 
-        <p style="text-align:center;color:#3a3a5c;font-size:0.72rem;margin-top:16px">León, Guanajuato · México · zapatillasmay.mx</p>
+        <p style="text-align:center;color:#3a3a5c;font-size:0.72rem;margin-top:16px">León, Guanajuato · México</p>
       </div>
     </div>
   `

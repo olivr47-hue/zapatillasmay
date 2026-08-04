@@ -6319,12 +6319,16 @@ window.imprimirEtiquetas = async () => {
     <body>
       ${labelsHtml.join('')}
       <script>
-        // Espera a que Montserrat termine de cargar antes de imprimir -- si no,
-        // el diálogo de impresión puede alcanzar a abrir con la tipografía de
-        // respaldo (Arial) todavía puesta. Con límite de 1.5s por si la fuente
-        // no carga (sin internet, etc.) para no dejar la impresión colgada.
-        const _listo = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve()
-        Promise.race([_listo, new Promise(r => setTimeout(r, 1500))]).then(() => window.print())
+        // Espera a que Montserrat Y el logo (imagen, no data-URI) terminen de
+        // cargar antes de imprimir -- si no, el diálogo de impresión alcanza a
+        // abrir con la etiqueta a medio pintar (sin logo, con la tipografía de
+        // respaldo). Límite de 3s por si algo no carga (sin internet, etc.)
+        // para no dejar la impresión colgada.
+        const _fuentesListas = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve()
+        const _imagenesListas = Promise.all(Array.from(document.images).map(img =>
+          img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res })
+        ))
+        Promise.race([Promise.all([_fuentesListas, _imagenesListas]), new Promise(r => setTimeout(r, 3000))]).then(() => window.print())
       <\/script>
     </body>
     </html>
@@ -7010,16 +7014,54 @@ window.guardarRecibirMercancia = async () => {
     })
     const data = await res.json()
     if (data.ok) {
-      alert(pagada
-        ? `Mercancía recibida — $${data.total.toFixed(0)} registrados como pagados de contado.`
-        : `Mercancía recibida — se agregaron $${data.total.toFixed(0)} a Cuentas por pagar (vence en ${dias_credito} días).`)
-      navegarA('inventario')
+      _mostrarConfirmacionRecepcion(data, pagada, dias_credito)
     } else {
       alert('Error: ' + JSON.stringify(data))
     }
   } catch(e) {
     alert('Error conectando con el servidor')
   }
+}
+
+function _mostrarConfirmacionRecepcion(data, pagada, dias_credito) {
+  const content = document.getElementById('content')
+  const totalPares = (window._recibirItems || []).reduce((s, i) => s + (i.cantidad || 0), 0)
+  content.innerHTML = `
+    <div class="table-card" style="padding:2.5rem 2rem;max-width:480px;margin:0 auto;text-align:center">
+      <p style="font-size:2.2rem;margin:0 0 0.5rem">✅</p>
+      <h3 style="margin-bottom:0.5rem">Mercancía recibida</h3>
+      <p style="color:#888;font-size:0.88rem;margin-bottom:1.75rem;line-height:1.5">
+        ${pagada
+          ? `$${data.total.toFixed(0)} registrados como pagados de contado.`
+          : `Se agregaron $${data.total.toFixed(0)} a Cuentas por pagar (vence en ${dias_credito} días).`}
+        <br>${totalPares} par${totalPares === 1 ? '' : 'es'} en total.
+      </p>
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="navegarA('inventario')">Ir a Inventario</button>
+        <button class="btn btn-primary" onclick="_generarEtiquetasDeRecepcion()" style="background:#37474f;border-color:#37474f">🏷️ Generar etiquetas</button>
+      </div>
+    </div>
+  `
+}
+
+window._generarEtiquetasDeRecepcion = () => {
+  const items = window._recibirItems || []
+  const variantes = window._recibirVariantes || []
+  const productos = window._recibirProductos || []
+  window._etiquetasCola = items.map(item => {
+    const variante = variantes.find(v => v.id === item.variante_id)
+    const producto = productos.find(p => p.id === item.producto_id)
+    return {
+      producto_id: item.producto_id,
+      codigo: (item.nombre || '').split(' ')[0] || (producto && producto.sku_interno) || '',
+      material: (producto && producto.material) || '',
+      color: item.color || '',
+      talla: item.talla || '',
+      sku: (variante && variante.sku) || '',
+      cantidad: item.cantidad || 1
+    }
+  }).filter(it => it.sku)
+  window.mostrarImpresionEtiquetas()
 }
 
 function renderVariante(i, datos) {
