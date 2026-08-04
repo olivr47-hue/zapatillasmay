@@ -12,6 +12,10 @@ const HORMA_LABELS = { normal: 'Normal - talla real', reducida: 'Reducida - corr
 const TACON_LABELS = { aguja: 'Aguja', bloque: 'Bloque', cuna: 'Cuña', plataforma: 'Plataforma', sin_tacon: 'Sin tacón' }
 
 export async function renderEstiloPublico(sku) {
+  // Quien escanea la caja no debe recibir el prompt de "instalar app" del
+  // navegador (el manifest.json aplica a todo el sitio, incluida esta página).
+  window.addEventListener('beforeinstallprompt', (e) => e.preventDefault())
+
   const app = document.querySelector('#app')
   app.innerHTML = `
     <div style="min-height:100vh;width:100vw;background:#0f0f1c;display:flex;align-items:center;justify-content:center;padding:24px;font-family:DM Sans,sans-serif">
@@ -44,7 +48,10 @@ export async function renderEstiloPublico(sku) {
   const producto = data.productos || {}
   const codigo = (producto.nombre || '').split(' ')[0] || producto.sku_interno || data.sku
   const nombre = producto.nombre || '—'
-  const foto = data.foto_url || producto.imagen_principal || ''
+  // Todas las fotos de ESTE color (variante), no solo la de portada
+  const fotos = Array.isArray(data.imagenes) && data.imagenes.length
+    ? data.imagenes
+    : (data.foto_url ? [data.foto_url] : (producto.imagen_principal ? [producto.imagen_principal] : []))
 
   let taconTexto = TACON_LABELS[producto.tipo_tacon] || producto.tipo_tacon || ''
   if (producto.altura_tacon) taconTexto += (taconTexto ? ' · ' : '') + producto.altura_tacon + ' cm'
@@ -72,7 +79,17 @@ export async function renderEstiloPublico(sku) {
         </div>
 
         <div style="background:#161625;border:1.5px solid #1e1e30;border-radius:16px;overflow:hidden">
-          ${foto ? `<img src="${_escHtml(foto)}" alt="${_escHtml(nombre)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">` : ''}
+          ${fotos.length ? `
+            <img id="estilo-foto-principal" src="${_escHtml(fotos[0])}" alt="${_escHtml(nombre)}" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">
+            ${fotos.length > 1 ? `
+              <div style="display:flex;gap:6px;padding:10px;overflow-x:auto;border-top:1px solid #1e1e30">
+                ${fotos.map((url, i) => `
+                  <img src="${_escHtml(url)}" onclick="document.getElementById('estilo-foto-principal').src=this.src"
+                    style="width:52px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;flex-shrink:0;border:1.5px solid ${i === 0 ? '#E91E8C' : '#2a2a40'}">
+                `).join('')}
+              </div>
+            ` : ''}
+          ` : ''}
           <div style="padding:22px">
             <p style="color:#4a4a6a;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px">Código</p>
             <p style="color:white;font-size:1.7rem;font-weight:800;margin:0 0 14px;letter-spacing:-0.01em;text-transform:uppercase">${_escHtml(codigo)}</p>
