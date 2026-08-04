@@ -3224,8 +3224,15 @@ function _pcTarifaPorCajaKg(pesoCajaKg, tiers) {
   return orden.length ? orden[orden.length - 1].precio : 0
 }
 
-function _pcRepartirEnCajas(pesoTotalKg, tiers) {
-  const maxCaja = Math.max(...tiers.map(t => t.max_kg))
+// FedEx no acepta cajas de más de 30kg (a diferencia de Estafeta, que sí
+// cubre el escalón de 30-50kg en una sola caja) -- si el pedido pesa más de
+// 30kg y se manda por FedEx, se reparte en varias cajas de máximo 30kg cada
+// una, cada una cobrada con la misma tabla de tarifas.
+const PC_FEDEX_MAX_KG_POR_CAJA = 30
+
+function _pcRepartirEnCajas(pesoTotalKg, tiers, paqueteria) {
+  const maxCajaTiers = Math.max(...tiers.map(t => t.max_kg))
+  const maxCaja = paqueteria === 'FedEx' ? Math.min(PC_FEDEX_MAX_KG_POR_CAJA, maxCajaTiers) : maxCajaTiers
   let restante = pesoTotalKg
   const cajas = []
   while (restante > 0.001) {
@@ -3297,7 +3304,8 @@ window.pcCalcularEnvioDirecto = async function() {
       resultado.textContent = '❌ No se pudo calcular el peso de tu pedido. Escríbenos por WhatsApp para calcularlo a mano.'
       return
     }
-    const cajas = _pcRepartirEnCajas(pesoKg, tiers)
+    const paqueteria = document.getElementById('pc-envio-paqueteria-calc').value
+    const cajas = _pcRepartirEnCajas(pesoKg, tiers, paqueteria)
     const total = cajas.reduce((s, c) => s + c.precio, 0)
     t._envioCalcActual = { pesoKg, cajas, total }
     resultado.style.color = 'var(--pc-muted)'
