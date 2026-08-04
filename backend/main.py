@@ -1,6 +1,7 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from security import limiter
 from database import supabase_get
 from cache import cache_stats, cache_invalidate_prefix
@@ -87,6 +88,22 @@ async def _security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP
     return response
+
+# DIAGNÓSTICO TEMPORAL: esta ruta no existe en ningún código del repo (front
+# ni back) pero aparece repetida cada pocos segundos en los logs de Railway
+# como 404 -- para saber de dónde sale de verdad (extensión de Chrome, tab
+# vieja, bot) se loguea el Referer/User-Agent antes de responder 404 igual
+# que antes. Quitar una vez identificado el origen.
+@app.api_route("/seo/config/envio", methods=["GET", "POST"])
+async def _diagnostico_seo_config_envio(request: Request):
+    print(
+        f"[diagnostico 404] /seo/config/envio -- "
+        f"referer={request.headers.get('referer')!r} "
+        f"origin={request.headers.get('origin')!r} "
+        f"user-agent={request.headers.get('user-agent')!r} "
+        f"client={request.client.host if request.client else None!r}"
+    )
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 app.include_router(productos.router)
 app.include_router(sucursales.router)
