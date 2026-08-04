@@ -6084,21 +6084,17 @@ window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
 window._etiquetasCola = window._etiquetasCola || []
 
 window.mostrarImpresionEtiquetas = () => {
-  const { productos } = window._invData
   const content = document.getElementById('content')
-  const productosOrdenados = [...productos].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''))
   content.innerHTML = `
     <div style="margin-bottom:1.5rem">
       <button class="btn btn-secondary" onclick="navegarA('inventario')">← Volver</button>
       <h3 style="margin-top:1rem">🏷️ Imprimir etiquetas para caja</h3>
-      <p style="font-size:0.85rem;color:#888;margin-bottom:0">Elige un producto, marca los colores/tallas y cuántas cajas de cada uno, agrégalos a la cola y al final imprime todas las etiquetas juntas. Etiqueta térmica directa, 3x2" (impresora Zebra ZD420).</p>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:0">Busca un producto, marca los colores/tallas y cuántas cajas de cada uno, agrégalos a la cola y al final imprime todas las etiquetas juntas. Etiqueta térmica directa, 3x2" (impresora Zebra ZD420).</p>
     </div>
     <div class="table-card" style="padding:1.5rem;margin-bottom:1.5rem">
       <label class="form-label">Producto</label>
-      <select class="form-input" id="et-producto" onchange="_etiquetasCargarVariantes(this.value)" style="margin-bottom:1rem">
-        <option value="">Selecciona un producto...</option>
-        ${productosOrdenados.map(p => `<option value="${p.id}">${p.nombre}${p.sku_interno ? ' (' + p.sku_interno + ')' : ''}</option>`).join('')}
-      </select>
+      <input class="form-input" id="et-buscar-prod" placeholder="🔍 Buscar producto por nombre o SKU..." oninput="_etiquetasBuscarProducto(this.value)" autocomplete="off">
+      <div id="et-resultados-prod" style="margin-top:6px;max-height:280px;overflow-y:auto;border:1px solid #eee;border-radius:8px"></div>
       <div id="et-variantes"></div>
     </div>
     <div class="table-card" style="padding:1.5rem">
@@ -6110,6 +6106,42 @@ window.mostrarImpresionEtiquetas = () => {
     </div>
   `
   _etiquetasRenderCola()
+}
+
+window._etiquetasBuscarProducto = (texto) => {
+  const resultadosDiv = document.getElementById('et-resultados-prod')
+  if (!resultadosDiv) return
+  if (!texto || texto.trim().length < 2) { resultadosDiv.innerHTML = ''; return }
+  const { productos } = window._invData
+  const term = texto.trim().toLowerCase()
+  const encontrados = productos
+    .filter(p => (p.nombre || '').toLowerCase().includes(term) || (p.sku_interno || '').toLowerCase().includes(term))
+    .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''))
+    .slice(0, 15)
+  if (encontrados.length === 0) {
+    resultadosDiv.innerHTML = '<p style="padding:0.75rem;text-align:center;color:#888;font-size:0.82rem">Sin resultados</p>'
+    return
+  }
+  resultadosDiv.innerHTML = encontrados.map(p => `
+    <div onclick="_etiquetasSeleccionarProducto('${p.id}')" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f5f5f5;cursor:pointer" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
+      ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:32px;height:32px;object-fit:contain;border-radius:6px;background:#f8f8f8;flex-shrink:0">` : ''}
+      <div style="min-width:0">
+        <p style="margin:0;font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_etEsc(p.nombre)}</p>
+        ${p.sku_interno ? `<p style="margin:0;font-size:0.72rem;color:#888">${_etEsc(p.sku_interno)}</p>` : ''}
+      </div>
+    </div>
+  `).join('')
+}
+
+window._etiquetasSeleccionarProducto = (productoId) => {
+  const { productos } = window._invData
+  const producto = productos.find(p => p.id === productoId)
+  if (!producto) return
+  const buscar = document.getElementById('et-buscar-prod')
+  if (buscar) buscar.value = `${producto.nombre}${producto.sku_interno ? ' (' + producto.sku_interno + ')' : ''}`
+  const resultadosDiv = document.getElementById('et-resultados-prod')
+  if (resultadosDiv) resultadosDiv.innerHTML = ''
+  _etiquetasCargarVariantes(productoId)
 }
 
 window._etiquetasCargarVariantes = (productoId) => {
@@ -6171,8 +6203,8 @@ window._etiquetasAgregarCola = (productoId) => {
   })
   _etiquetasRenderCola()
   // Limpiar la selección para no arriesgar que se agregue dos veces sin querer
-  const sel = document.getElementById('et-producto')
-  if (sel) sel.value = ''
+  const buscar = document.getElementById('et-buscar-prod')
+  if (buscar) buscar.value = ''
   const div = document.getElementById('et-variantes')
   if (div) div.innerHTML = ''
 }
@@ -6213,21 +6245,22 @@ function _etEsc(s) {
 function _etiquetaHTML(it, qrDataUrl) {
   return `
     <div class="etiqueta">
-      <div style="text-align:center;font-weight:900;font-size:11px;letter-spacing:1.2px;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:5px">ZAPATILLAS MAY</div>
-      <div style="display:flex;flex:1;gap:6px">
-        <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0">
-          <div>
-            <div style="font-size:8px;font-weight:800;letter-spacing:0.5px">CÓDIGO</div>
-            <div style="font-size:21px;font-weight:900;line-height:1.05;word-break:break-word">${_etEsc(it.codigo)}</div>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:800;text-transform:uppercase">${_etEsc(it.color)}</div>
-            ${it.material ? `<div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#111">${_etEsc(it.material)}</div>` : ''}
-          </div>
-        </div>
-        ${qrDataUrl ? `<img src="${qrDataUrl}" style="width:0.72in;height:0.72in;flex-shrink:0">` : ''}
+      <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:10px">
+        <img src="/logo-etiqueta-print.png" alt="Zapatillas May" style="height:0.56in;width:auto;display:inline-block">
       </div>
-      <div style="text-align:center;font-weight:900;font-size:24px;border:2px solid #000;border-radius:5px;padding:1px 0;margin-top:4px;letter-spacing:0.5px">TALLA ${_etEsc(it.talla)}</div>
+      <div style="display:flex;flex:1;gap:6px">
+        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+          <div style="font-size:8px;font-weight:800;letter-spacing:0.5px">CÓDIGO</div>
+          <div style="font-size:19px;font-weight:900;line-height:1.05;word-break:break-word">${_etEsc(it.codigo)}</div>
+          <div style="font-size:12px;font-weight:800;text-transform:uppercase;margin-top:3px">${_etEsc(it.color)}</div>
+          ${it.material ? `<div style="font-size:12px;font-weight:800;text-transform:uppercase">${_etEsc(it.material)}</div>` : ''}
+          <div style="font-size:12px;font-weight:800;text-transform:uppercase">TALLA ${_etEsc(it.talla)}</div>
+        </div>
+        ${qrDataUrl ? `
+        <div style="display:flex;flex-direction:column;justify-content:center">
+          <img src="${qrDataUrl}" style="width:0.62in;height:0.62in;flex-shrink:0">
+        </div>` : ''}
+      </div>
     </div>
   `
 }
@@ -6269,9 +6302,12 @@ window.imprimirEtiquetas = async () => {
     <head>
       <meta charset="UTF-8">
       <title>Etiquetas</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; color: #000; }
+        body { font-family: 'Montserrat', Arial, Helvetica, sans-serif; color: #000; }
         .etiqueta {
           width: 3in; height: 2in; padding: 0.12in;
           display: flex; flex-direction: column;
@@ -6286,7 +6322,14 @@ window.imprimirEtiquetas = async () => {
     </head>
     <body>
       ${labelsHtml.join('')}
-      <script>window.onload = () => { window.print() }<\/script>
+      <script>
+        // Espera a que Montserrat termine de cargar antes de imprimir -- si no,
+        // el diálogo de impresión puede alcanzar a abrir con la tipografía de
+        // respaldo (Arial) todavía puesta. Con límite de 1.5s por si la fuente
+        // no carga (sin internet, etc.) para no dejar la impresión colgada.
+        const _listo = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve()
+        Promise.race([_listo, new Promise(r => setTimeout(r, 1500))]).then(() => window.print())
+      <\/script>
     </body>
     </html>
   `)

@@ -73,6 +73,7 @@ def variante_por_sku(sku: str):
     data = supabase_get(
         f"variantes?sku=eq.{sku}&select=id,color,color_hex,talla,sku,foto_url,imagenes,producto_id,"
         "productos(nombre,sku_interno,categoria,material,imagen_principal,"
+        "material_suela,forro,horma,altura_tacon,tipo_tacon,"
         "precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida)"
     )
     return data
