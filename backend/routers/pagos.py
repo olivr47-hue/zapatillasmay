@@ -707,6 +707,42 @@ def cancelar_intento_terminal(device_id: str, intent_id: str, _staff=Depends(req
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.get("/diag-ga4")
+def diag_ga4():
+    """TEMPORAL: confirma si GA4_API_SECRET esta configurado en este proceso
+    y si la llamada real a Measurement Protocol se completa sin excepcion.
+    Quitar una vez diagnosticado el problema de conversiones en 0."""
+    api_secret = os.getenv("GA4_API_SECRET", "")
+    measurement_id = os.getenv("GA4_MEASUREMENT_ID", "G-QX8MK3D4RY")
+    resultado = {
+        "tiene_secret": bool(api_secret),
+        "secret_len": len(api_secret),
+        "secret_preview": (api_secret[:4] + "..." + api_secret[-4:]) if len(api_secret) > 8 else api_secret,
+        "measurement_id": measurement_id,
+    }
+    if not api_secret:
+        resultado["enviado"] = False
+        resultado["motivo"] = "GA4_API_SECRET vacio en este proceso"
+        return resultado
+    try:
+        body = {
+            "client_id": "999999.diag",
+            "events": [{"name": "diag_backend_ga4", "params": {"origen": "railway"}}],
+        }
+        url = f"https://www.google-analytics.com/mp/collect?measurement_id={measurement_id}&api_secret={api_secret}"
+        req = urllib.request.Request(
+            url, data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json"}, method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=8) as r:
+            resultado["enviado"] = True
+            resultado["status_google"] = r.status
+    except Exception as e:
+        resultado["enviado"] = False
+        resultado["error"] = str(e)
+    return resultado
+
+
 @router.post("/procesar")
 def procesar_pago(datos: dict):
     """Cobro embebido (Checkout Bricks / Payments API). El navegador tokeniza la
