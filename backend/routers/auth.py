@@ -8,6 +8,7 @@ import os
 import secrets
 import json
 import urllib.request
+import datetime as _dt
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -133,6 +134,12 @@ async def login(request: Request, datos: dict):
                 supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
 
         token = create_token({"sub": u["id"], "email": u["email"], "tipo": u["tipo"], "cliente_id": cliente_id})
+        # Para poder ver en el panel quién entra al portal mayorista y cuándo
+        # (antes no se guardaba en ningún lado -- ver GET /clientes/portal-mayoreo).
+        try:
+            supabase_patch(f"usuarios?id=eq.{u['id']}", {"ultimo_login": _dt.datetime.now(_dt.timezone.utc).isoformat()})
+        except Exception:
+            pass
         return {
             "token": token,
             "id": u["id"],

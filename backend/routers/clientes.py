@@ -27,6 +27,23 @@ def listar_referidos(_staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/portal-mayoreo")
+def listar_accesos_portal_mayoreo(_staff=Depends(require_staff)):
+    """Cuentas (tabla usuarios) con acceso al portal mayorista -- para saber
+    quién está registrado y cuándo entró por última vez (ultimo_login se
+    guarda en /auth/login). El filtro real de "es mayorista" es el tipo del
+    cliente ligado, no el tipo del usuario -- por eso el !inner + filtro
+    sobre clientes.tipo en vez de usuarios.tipo."""
+    try:
+        return supabase_get_all(
+            "usuarios?select=id,nombre,email,activo,ultimo_login,created_at,"
+            "clientes!inner(id,nombre,telefono,ciudad,estado,tipo)"
+            "&clientes.tipo=in.(zapateria,mayoreo)"
+            "&order=ultimo_login.desc.nullslast"
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.get("/{id}")
 def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     if not cliente_autorizado(id, credentials):
