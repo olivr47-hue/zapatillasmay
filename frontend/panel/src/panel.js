@@ -12792,10 +12792,34 @@ window.limpiarCarritoPOS = () => {
 // terminal sin tocar el pedido ni los items ya creados); solo se resuelve
 // false -- y el llamador cancela el pedido -- si el cajero elige no
 // reintentar.
+// Traduce los codigos de rechazo mas comunes de Mercado Pago (status_detail
+// de un pago con status != approved) a un mensaje que un cajero entienda.
+function _traducirRechazoMP(codigo) {
+  const mapa = {
+    cc_rejected_insufficient_amount: 'Fondos insuficientes',
+    cc_rejected_bad_filled_security_code: 'CVV incorrecto',
+    cc_rejected_bad_filled_date: 'Fecha de vencimiento incorrecta',
+    cc_rejected_bad_filled_card_number: 'Número de tarjeta incorrecto',
+    cc_rejected_call_for_authorize: 'El banco pide autorizar el pago por teléfono',
+    cc_rejected_card_disabled: 'Tarjeta deshabilitada -- el cliente debe llamar a su banco',
+    cc_rejected_duplicated_payment: 'Pago duplicado -- ya se había cobrado ese monto',
+    cc_rejected_high_risk: 'El banco rechazó el pago por posible fraude',
+    cc_rejected_max_attempts: 'Se alcanzó el máximo de intentos con esa tarjeta',
+    cc_rejected_other_reason: 'El banco rechazó la tarjeta',
+    rejected: 'Pago rechazado por el banco',
+  }
+  return mapa[codigo] || ('Pago rechazado (' + codigo + ')')
+}
+
 window.cobrarConTerminalYEsperar = (deviceId, monto, pedidoId) => {
   return new Promise((resolve) => {
     let intentId = null
     let resuelto = false
+    // "esc" no existía en este scope -- renderFalloConReintentar tronaba
+    // (ReferenceError, silenciado por el catch de revisar()) cada vez que
+    // se intentaba mostrar la pantalla de rechazo, dejando la modal
+    // atorada en "Esperando la terminal..." para siempre.
+    const esc = (s) => String(s == null ? '' : s).replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
     const modal = document.createElement('div')
     modal.id = 'modal-esperando-terminal'
@@ -12850,6 +12874,17 @@ window.cobrarConTerminalYEsperar = (deviceId, monto, pedidoId) => {
         const res = await fetch(API + '/pagos/terminal/estado/' + intentId)
         const data = await res.json()
         if (data.state === 'FINISHED') {
+          // "FINISHED" solo dice que el intento terminó -- un rechazo del
+          // banco (fondos insuficientes, tarjeta declinada, etc.) TAMBIÉN
+          // llega como FINISHED. Antes esto se tomaba como pago exitoso sin
+          // más, y una venta rechazada por el banco se confirmaba igual.
+          if (data.payment_status && data.payment_status !== 'approved') {
+            window._cancelarEsperaTerminal = false
+            window._reintentarCobroTerminal = false
+            renderFalloConReintentar(_traducirRechazoMP(data.payment_status_detail || data.payment_status))
+            esperarDecisionReintento()
+            return
+          }
           resolverUnaVez(true)
           return
         }

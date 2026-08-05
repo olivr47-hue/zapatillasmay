@@ -664,9 +664,29 @@ def cobrar_con_terminal(datos: dict, _staff=Depends(require_staff)):
 @router.get("/terminal/estado/{intent_id}")
 def estado_intento_terminal(intent_id: str, _staff=Depends(require_staff)):
     """Consulta el estado del cobro en la terminal: OPEN (esperando
-    tarjeta), FINISHED (pagado), ERROR o CANCELED."""
+    tarjeta), FINISHED, ERROR o CANCELED.
+
+    OJO: "FINISHED" solo dice que el intento terminó su ciclo -- NO que el
+    banco aprobó la tarjeta. Un rechazo del banco (fondos insuficientes,
+    tarjeta declinada, etc.) también llega como FINISHED, y antes el
+    frontend lo tomaba como pago exitoso y confirmaba la venta igual. Para
+    saber el resultado real hay que consultar el pago (misma fuente de
+    verdad que usan los webhooks de MP) y revisar su status."""
     try:
         resultado = _mp_point_request("GET", f"/point/integration-api/payment-intents/{intent_id}")
+        if resultado.get("state") == "FINISHED":
+            payment_id = (
+                (resultado.get("payment") or {}).get("id")
+                or resultado.get("payment_id")
+                or ((resultado.get("payments") or [{}])[0] or {}).get("id")
+            )
+            if payment_id:
+                try:
+                    pago = sdk.payment().get(payment_id)["response"]
+                    resultado["payment_status"] = pago.get("status")
+                    resultado["payment_status_detail"] = pago.get("status_detail")
+                except Exception:
+                    pass
         return resultado
     except urllib.error.HTTPError as e:
         return JSONResponse(status_code=e.code, content={"error": e.read().decode()})
