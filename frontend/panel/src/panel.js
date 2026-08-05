@@ -2275,6 +2275,67 @@ function _renderHistorialOrdenes() {
   `
 }
 
+// Misma idea que _renderHistorialOrdenes pero embebida como pestaña dentro
+// de Análisis (sin header/botón "volver" propios) -- así Análisis puede
+// abrir directo aquí sin esperar el cálculo pesado de Rotación/Tallas/Variantes.
+window._renderHistorialEnAnalisis = async () => {
+  const container = document.getElementById('analisis-tab-content')
+  if (!container) return
+  container.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
+  try {
+    const ordenes = await fetch(API + '/finanzas/ordenes').then(r => r.json())
+    window._historialAnalisisData = Array.isArray(ordenes) ? ordenes : []
+    window._historialAnalisisFiltro = window._historialAnalisisFiltro || 'todos'
+    _pintarHistorialEnAnalisis()
+  } catch(e) {
+    container.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window._filtrarHistorialAnalisis = (id) => {
+  window._historialAnalisisFiltro = id
+  _pintarHistorialEnAnalisis()
+}
+
+function _pintarHistorialEnAnalisis() {
+  const container = document.getElementById('analisis-tab-content')
+  if (!container) return
+  const todas = window._historialAnalisisData || []
+  const filtro = window._historialAnalisisFiltro
+  const lista = filtro === 'todos' ? todas : todas.filter(o => o.status === filtro)
+  const tabs = [
+    { id: 'todos', label: 'Todas' },
+    { id: 'borrador', label: 'Borradores' },
+    { id: 'recibida', label: 'Recibidas (por pagar)' },
+    { id: 'pagada', label: 'Pagadas' },
+    { id: 'cancelada', label: 'Canceladas' },
+  ]
+  container.innerHTML = `
+    <div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+        ${tabs.map(t => `
+          <button class="btn btn-secondary" style="font-size:0.78rem;${filtro === t.id ? 'background:#333;border-color:#333;color:white' : ''}" onclick="window._filtrarHistorialAnalisis('${t.id}')">
+            ${t.label}${t.id !== 'todos' ? ` (${todas.filter(o => o.status === t.id).length})` : ` (${todas.length})`}
+          </button>`).join('')}
+      </div>
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        ${lista.length === 0 ? '<div style="padding:2rem;text-align:center;color:#888">Sin órdenes en esta categoría</div>' : lista.map(o => {
+          const b = _ORD_BADGES[o.status] || { bg: '#f5f5f5', color: '#888', txt: o.status }
+          return `
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer" onclick="window.verOrdenDetalle('${o.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <div style="flex:1;min-width:160px">
+              <p style="font-weight:600;font-size:0.88rem;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}${o.numero ? ` · #${String(o.numero).padStart(4,'0')}` : ''}</p>
+              <p style="font-size:0.72rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}${o.notas ? ' · ' + o.notas : ''} · ${o.sucursales?.nombre || ''}</p>
+            </div>
+            <p style="font-weight:700;color:#333;font-size:0.95rem;margin:0">$${parseFloat(o.total || 0).toFixed(0)}</p>
+            <span style="font-size:0.68rem;padding:3px 10px;border-radius:100px;background:${b.bg};color:${b.color};font-weight:700">${b.txt}</span>
+          </div>`
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
 window.verOrdenDetalle = async (ordenId) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando orden...</p>'
@@ -3163,19 +3224,14 @@ window.editarProveedor = async (id) => {
   if (proveedor) mostrarFormProveedor(proveedor)
 }
 
-async function cargarAnalisis() {
+// El cálculo de rotación (productos, variantes, movimientos, inventario,
+// pedidos -- tablas grandes) es lo que hacía tardar la entrada a Análisis,
+// aunque el usuario solo quisiera ver otra pestaña. Ahora esto SOLO corre
+// cuando de verdad se necesita (pestañas Rotación/Tallas/Variantes), nunca
+// como parte de abrir el módulo -- ver cargarAnalisis() más abajo, que
+// entra directo a Historial (liviano) y deja esto para _asegurarDatosAnalisisPesados().
+async function _cargarDatosAnalisisPesados() {
   const content = document.getElementById('content')
-  content.innerHTML = `
-    <div style="margin-bottom:1.5rem">
-      <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
-      <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0 0 4px;letter-spacing:-0.3px">Análisis</h2>
-      <p style="color:#94a3b8;font-size:0.82rem">Cargando datos...</p>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:1.5rem">
-      ${['rotacion','tallas','variantes'].map(t => `<div style="height:36px;width:110px;background:#f1f5f9;border-radius:8px;animation:pulse 1.5s infinite"></div>`).join('')}
-    </div>
-    <div style="background:#f8fafc;border-radius:14px;height:300px;animation:pulse 1.5s infinite"></div>
-    <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}</style>`
 
   try {
     const [resProductos, resVariantes, resMovimientos, resInventario, resPedidos] = await Promise.all([
@@ -3695,72 +3751,118 @@ async function cargarAnalisis() {
     window._renderTabVariantes = renderTabVariantes
     window._renderDetalleProducto = renderDetalleProducto
     window._renderPedidosList = renderPedidosList
+    window._analisisDatosListos = true
 
-    content.innerHTML = `
-      <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
-        <div>
-          <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
-          <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Análisis</h2>
-        </div>
-      </div>
+    // Los KPIs de arriba y la pestaña activa ya viven en el DOM (los pintó
+    // cargarAnalisis()) -- aquí solo se rellenan/actualizan, no se
+    // reconstruye toda la página (eso volvería a perder la pestaña
+    // Historial que ya estaba mostrándose).
+    const kpiEl = (id) => document.getElementById(id)
+    if (kpiEl('kpi-total30')) kpiEl('kpi-total30').textContent = total30
+    if (kpiEl('kpi-total90')) kpiEl('kpi-total90').textContent = total90
+    if (kpiEl('kpi-rotan')) kpiEl('kpi-rotan').textContent = rotan
+    if (kpiEl('kpi-puntuales')) kpiEl('kpi-puntuales').textContent = puntuales
+    if (kpiEl('kpi-muertos')) kpiEl('kpi-muertos').textContent = muertos
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem">
-        <div style="background:linear-gradient(135deg,#fff0f8,#ffe4f2);border:1px solid #f9a8d4;border-radius:14px;padding:1rem 1.1rem">
-          <p style="font-size:1.5rem;font-weight:800;color:#be185d;line-height:1;margin-bottom:3px">${total30}</p>
-          <p style="font-size:0.67rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:0.06em">Pares 30 días</p>
-        </div>
-        <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1.1rem">
-          <p style="font-size:1.5rem;font-weight:800;color:#6d28d9;line-height:1;margin-bottom:3px">${total90}</p>
-          <p style="font-size:0.67rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em">Pares 90 días</p>
-        </div>
-        <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;padding:1rem 1.1rem">
-          <p style="font-size:1.5rem;font-weight:800;color:#15803d;line-height:1;margin-bottom:3px">${rotan}</p>
-          <p style="font-size:0.67rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em">Rotan bien</p>
-        </div>
-        <div style="background:linear-gradient(135deg,#faf5ff,#f3e8ff);border:1px solid #d8b4fe;border-radius:14px;padding:1rem 1.1rem">
-          <p style="font-size:1.5rem;font-weight:800;color:#6b21a8;line-height:1;margin-bottom:3px">${puntuales}</p>
-          <p style="font-size:0.67rem;font-weight:700;color:#6b21a8;text-transform:uppercase;letter-spacing:0.06em">Venta puntual</p>
-        </div>
-        <div style="background:linear-gradient(135deg,#fff1f2,#fee2e2);border:1px solid #fca5a5;border-radius:14px;padding:1rem 1.1rem">
-          <p style="font-size:1.5rem;font-weight:800;color:#b91c1c;line-height:1;margin-bottom:3px">${muertos}</p>
-          <p style="font-size:0.67rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em">Sin movimiento</p>
-        </div>
-      </div>
-
-      <div style="display:flex;gap:0;margin-bottom:1.25rem;background:#f1f5f9;border-radius:10px;padding:3px;width:fit-content">
-        <button id="tab-rotacion" onclick="switchTabAnalisis('rotacion')"
-          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:white;color:#E91E8C;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
-          Rotación
-        </button>
-        <button id="tab-tallas" onclick="switchTabAnalisis('tallas')"
-          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
-          Tallas
-        </button>
-        <button id="tab-variantes" onclick="switchTabAnalisis('variantes')"
-          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
-          Variantes
-        </button>
-        <button id="tab-ordenes" onclick="switchTabAnalisis('ordenes')"
-          style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
-          🛒 Órdenes de compra
-        </button>
-      </div>
-
-      <div id="analisis-tab-content">
-        ${renderTabRotacion()}
-      </div>
-    `
-
-    window._analisisTabActivo = 'rotacion'
+    const tabContainer = document.getElementById('analisis-tab-content')
+    const tabActivo = window._analisisTabActivo
+    if (tabContainer && tabActivo === 'rotacion') tabContainer.innerHTML = renderTabRotacion()
+    else if (tabContainer && tabActivo === 'tallas') tabContainer.innerHTML = renderTabTallas()
+    else if (tabContainer && tabActivo === 'variantes') tabContainer.innerHTML = renderTabVariantes()
 
   } catch(e) {
-    content.innerHTML = '<p style="padding:2rem;color:red">Error cargando análisis</p>'
     console.error(e)
+    const tabContainer = document.getElementById('analisis-tab-content')
+    const tabActivo = window._analisisTabActivo
+    if (tabContainer && ['rotacion','tallas','variantes'].includes(tabActivo)) {
+      tabContainer.innerHTML = '<p style="padding:2rem;color:red">Error cargando análisis</p>'
+    }
   }
 }
 
+// Memoiza la promesa del cálculo pesado -- si dos pestañas lo piden casi
+// al mismo tiempo (o el usuario hace doble click), no se recalcula dos
+// veces ni se duplican los fetches.
+window._analisisDatosPromise = null
+async function _asegurarDatosAnalisisPesados() {
+  if (!window._analisisDatosPromise) {
+    window._analisisDatosPromise = _cargarDatosAnalisisPesados()
+  }
+  return window._analisisDatosPromise
+}
+
+// Entry point real del módulo -- entra directo a Historial (solo pide
+// /finanzas/ordenes, rápido) en vez de Rotación (que antes se calculaba
+// SIEMPRE al abrir Análisis, tablas grandes de por medio, aunque el
+// usuario solo quisiera ver otra pestaña). Rotación/Tallas/Variantes se
+// calculan bajo demanda, solo si se les da click -- ver switchTabAnalisis.
+async function cargarAnalisis() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+      <div>
+        <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Inteligencia de negocio</p>
+        <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Análisis</h2>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem">
+      <div style="background:linear-gradient(135deg,#fff0f8,#ffe4f2);border:1px solid #f9a8d4;border-radius:14px;padding:1rem 1.1rem">
+        <p id="kpi-total30" style="font-size:1.5rem;font-weight:800;color:#be185d;line-height:1;margin-bottom:3px">—</p>
+        <p style="font-size:0.67rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:0.06em">Pares 30 días</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:1rem 1.1rem">
+        <p id="kpi-total90" style="font-size:1.5rem;font-weight:800;color:#6d28d9;line-height:1;margin-bottom:3px">—</p>
+        <p style="font-size:0.67rem;font-weight:700;color:#6d28d9;text-transform:uppercase;letter-spacing:0.06em">Pares 90 días</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:14px;padding:1rem 1.1rem">
+        <p id="kpi-rotan" style="font-size:1.5rem;font-weight:800;color:#15803d;line-height:1;margin-bottom:3px">—</p>
+        <p style="font-size:0.67rem;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.06em">Rotan bien</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#faf5ff,#f3e8ff);border:1px solid #d8b4fe;border-radius:14px;padding:1rem 1.1rem">
+        <p id="kpi-puntuales" style="font-size:1.5rem;font-weight:800;color:#6b21a8;line-height:1;margin-bottom:3px">—</p>
+        <p style="font-size:0.67rem;font-weight:700;color:#6b21a8;text-transform:uppercase;letter-spacing:0.06em">Venta puntual</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#fff1f2,#fee2e2);border:1px solid #fca5a5;border-radius:14px;padding:1rem 1.1rem">
+        <p id="kpi-muertos" style="font-size:1.5rem;font-weight:800;color:#b91c1c;line-height:1;margin-bottom:3px">—</p>
+        <p style="font-size:0.67rem;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:0.06em">Sin movimiento</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0;margin-bottom:1.25rem;background:#f1f5f9;border-radius:10px;padding:3px;width:fit-content;flex-wrap:wrap">
+      <button id="tab-historial" onclick="switchTabAnalisis('historial')"
+        style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:white;color:#E91E8C;box-shadow:0 1px 4px rgba(0,0,0,0.1)">
+        📑 Historial
+      </button>
+      <button id="tab-rotacion" onclick="switchTabAnalisis('rotacion')"
+        style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+        Rotación
+      </button>
+      <button id="tab-tallas" onclick="switchTabAnalisis('tallas')"
+        style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+        Tallas
+      </button>
+      <button id="tab-variantes" onclick="switchTabAnalisis('variantes')"
+        style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+        Variantes
+      </button>
+      <button id="tab-ordenes" onclick="switchTabAnalisis('ordenes')"
+        style="padding:7px 18px;border-radius:8px;font-size:0.8rem;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;background:transparent;color:#64748b">
+        🛒 Órdenes de compra
+      </button>
+    </div>
+
+    <div id="analisis-tab-content"><p style="padding:2rem;color:#888">Cargando...</p></div>
+  `
+
+  window._analisisTabActivo = 'historial'
+  window._analisisDatosListos = false
+  window._analisisDatosPromise = null
+  await window._renderHistorialEnAnalisis()
+}
+
 window.switchTabAnalisis = async (tab) => {
-  const tabs = ['rotacion','tallas','variantes','ordenes']
+  const tabs = ['historial','rotacion','tallas','variantes','ordenes']
   tabs.forEach(t => {
     const btn = document.getElementById('tab-' + t)
     if (!btn) return
@@ -3777,16 +3879,29 @@ window.switchTabAnalisis = async (tab) => {
   const container = document.getElementById('analisis-tab-content')
   if (!container) return
   window._analisisTabActivo = tab
-  if (tab === 'rotacion') container.innerHTML = window._renderTabRotacion()
-  else if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
-  else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
-  else if (tab === 'ordenes') await cargarOrdenes('analisis-tab-content')
+  if (tab === 'historial') { await window._renderHistorialEnAnalisis(); return }
+  if (tab === 'ordenes') { await cargarOrdenes('analisis-tab-content'); return }
+  if (tab === 'rotacion' || tab === 'tallas' || tab === 'variantes') {
+    // Rotación/Tallas/Variantes necesitan el cálculo pesado (tablas grandes
+    // de movimientos/pedidos) -- solo se dispara aquí, la primera vez que
+    // de verdad se pide una de estas pestañas, no al entrar a Análisis.
+    if (!window._analisisDatosListos) {
+      container.innerHTML = '<p style="padding:2rem;color:#888">Calculando rotación... esto puede tardar unos segundos</p>'
+      await _asegurarDatosAnalisisPesados()
+      // El usuario pudo cambiar de pestaña mientras esperaba -- solo pintar
+      // el resultado si sigue queriendo ver esta misma pestaña.
+      if (window._analisisTabActivo !== tab) return
+    }
+    if (tab === 'rotacion') container.innerHTML = window._renderTabRotacion()
+    else if (tab === 'tallas') container.innerHTML = window._renderTabTallas()
+    else if (tab === 'variantes') container.innerHTML = window._renderTabVariantes()
+  }
 }
 
 window.verDetalleProducto = (productoId) => {
   const container = document.getElementById('analisis-tab-content')
   if (!container || !window._renderDetalleProducto) return
-  ;['rotacion','tallas','variantes','ordenes'].forEach(t => {
+  ;['historial','rotacion','tallas','variantes','ordenes'].forEach(t => {
     const btn = document.getElementById('tab-' + t)
     if (btn) { btn.style.background = 'transparent'; btn.style.color = '#64748b'; btn.style.boxShadow = 'none' }
   })
