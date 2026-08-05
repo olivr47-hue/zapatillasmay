@@ -583,6 +583,15 @@ async function cargarDatosPC() {
     _safeFetch(`${PC_API}/productos/mas-vendidos`),
   ])
 
+  if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
+  // Prefijos del nombre del modelo que este cliente en particular no debe
+  // ver (ej. "PV") -- se configura por cliente en su ficha del panel admin,
+  // campo "Modelos ocultos". No es un filtro global, solo aplica a quien lo
+  // tenga configurado.
+  const _prefijosOcultos = (pc.clienteData?.prefijos_ocultos || '')
+    .split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+  const _tienePrefijoOculto = (p) => _prefijosOcultos.some(pre => (p.nombre || '').toUpperCase().startsWith(pre))
+
   if (Array.isArray(prod)) {
     // El orden del catálogo se queda tal cual viene del panel (orden_home) --
     // no tocar. La rotación de exposición para modelos menos vistos vive
@@ -590,13 +599,14 @@ async function cargarDatosPC() {
     // Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se
     // ofrecen a clientes mayoristas, aunque existan en el ERP para otros canales.
     pc.productos = prod.filter(p => p.activo !== false
-      && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
+      && !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || '')
+      && !_tienePrefijoOculto(p))
   }
   if (Array.isArray(vari)) pc.variantes = vari
   if (Array.isArray(inv)) pc.inventario = inv
-  if (cli) pc.clienteData = Array.isArray(cli) ? cli[0] : cli
   if (Array.isArray(masVend)) pc.masVendidos = masVend.filter(p =>
-    !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
+    !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || '')
+    && !_tienePrefijoOculto(p))
   // Sugerencias de Inicio: mezcla de más vendidos + modelos al azar, para que
   // productos menos vistos también tengan oportunidad de aparecer -- sin
   // tocar el orden real del catálogo (eso se queda como está en el panel).

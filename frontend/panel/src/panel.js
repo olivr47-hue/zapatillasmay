@@ -82,7 +82,6 @@ const modulos = [
   { id: 'carritos', icon: '🛒', label: 'Carritos', section: 'Ventas' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
-  { id: 'portal-accesos', icon: '🔑', label: 'Accesos portal', section: 'Ventas', soloAdmin: true },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
   { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
@@ -574,7 +573,6 @@ async function cargarModulo(id) {
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break
     case 'clientes': await cargarClientes(); break
-    case 'portal-accesos': await cargarPortalAccesos(); break
     case 'carritos': await cargarCarritos(); break
     case 'pedidos': await cargarPedidos(); window._limpiarBadgePedidos?.(); break
     case 'sucursales': await cargarSucursales(); break
@@ -5635,6 +5633,14 @@ async function cargarClientes() {
     window._clientesData = clientesEnriquecidos
 
     content.innerHTML = `
+      <div style="display:flex;gap:0;border:1px solid #eee;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:1rem">
+        <button id="cli-tab-btn-lista" onclick="_cliCambiarTab('lista')"
+          style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">👥 Clientes</button>
+        <button id="cli-tab-btn-accesos" onclick="_cliCambiarTab('accesos')"
+          style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:white;color:#888;font-weight:600">🔑 Accesos portal</button>
+      </div>
+
+      <div id="cli-tab-lista">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
         <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center;cursor:pointer" onclick="filtrarClientesSeg('todos')">
           <p style="font-size:1.8rem;font-weight:700;color:#333">${clientes.length}</p>
@@ -5714,9 +5720,41 @@ async function cargarClientes() {
           `).join('')}
         </div>
       </div>
+      </div>
+
+      <div id="cli-tab-accesos" style="display:none">
+        <p style="padding:2rem;color:#888;text-align:center">Cargando...</p>
+      </div>
     `
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
+  }
+}
+
+window._cliTabAccesosCargado = false
+window._cliCambiarTab = function(tab) {
+  const btnLista = document.getElementById('cli-tab-btn-lista')
+  const btnAccesos = document.getElementById('cli-tab-btn-accesos')
+  const elLista = document.getElementById('cli-tab-lista')
+  const elAccesos = document.getElementById('cli-tab-accesos')
+  if (!btnLista || !btnAccesos || !elLista || !elAccesos) return
+  const activo = 'background:#E91E8C;color:white;font-weight:600'
+  const inactivo = 'background:white;color:#888;font-weight:600'
+  const base = 'padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;'
+  if (tab === 'accesos') {
+    btnLista.style.cssText = base + inactivo
+    btnAccesos.style.cssText = base + activo
+    elLista.style.display = 'none'
+    elAccesos.style.display = ''
+    if (!window._cliTabAccesosCargado) {
+      window._cliTabAccesosCargado = true
+      cargarPortalAccesos(elAccesos)
+    }
+  } else {
+    btnLista.style.cssText = base + activo
+    btnAccesos.style.cssText = base + inactivo
+    elLista.style.display = ''
+    elAccesos.style.display = 'none'
   }
 }
 
@@ -8435,6 +8473,12 @@ ${d.telefono ? '<a href="https://wa.me/' + (d.lada || '52') + d.telefono.replace
         <textarea class="form-input" id="cli-comentarios" rows="3" placeholder="Ej: Cliente puntual, prefiere envio por Fedex, no le gusta el color cafe...">${d.comentarios_internos || ''}</textarea>
       </div>
 
+      <div style="border-top:1px solid #eee;padding-top:1rem;margin-bottom:1rem">
+        <p style="font-weight:600;margin-bottom:0.5rem;color:#333">Modelos ocultos (portal mayorista)</p>
+        <p style="font-size:0.8rem;color:#888;margin-bottom:0.75rem">Prefijos del nombre del modelo que este cliente NO debe ver en su catálogo (separados por coma). Ej: "PV" oculta modelos como "PV1105 Tabi Flats...". Solo aplica en el portal mayorista, no en la tienda ni el POS.</p>
+        <input class="form-input" id="cli-prefijos-ocultos" placeholder="Ej: PV, OI" value="${d.prefijos_ocultos || ''}">
+      </div>
+
       <div style="display:flex;gap:1rem;justify-content:flex-end;margin-top:1.5rem">
         <button class="btn btn-secondary" onclick="navegarA('clientes')">Cancelar</button>
         <button class="btn btn-primary" id="btn-cli-guardar" onclick="guardarCliente('${id || ''}')">Guardar cliente</button>
@@ -8465,6 +8509,7 @@ window.guardarCliente = async (id) => {
     limite_credito: parseFloat(document.getElementById('cli-credito').value) || 0,
     dias_credito: parseInt(document.getElementById('cli-dias').value) || 0,
     comentarios_internos: document.getElementById('cli-comentarios').value || null,
+    prefijos_ocultos: document.getElementById('cli-prefijos-ocultos').value || null,
     activo: true
   }
 
@@ -24610,8 +24655,8 @@ window.filtrarReferidos = function(q) {
 // portal mayorista ni cuándo entró por última vez -- este endpoint junta
 // usuarios (tabla de cuentas/login) con su cliente ligado, filtrado a
 // zapateria/mayoreo, con ultimo_login actualizado en cada login exitoso.
-async function cargarPortalAccesos() {
-  const content = document.getElementById('content')
+async function cargarPortalAccesos(targetEl) {
+  const content = targetEl || document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando accesos...</p>'
   try {
     const res = await fetch(API + '/clientes/portal-mayoreo')
