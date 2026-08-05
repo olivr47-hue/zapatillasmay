@@ -941,6 +941,31 @@ window.recargarOrdenes = async (sucursalId) => {
   cargarOrdenes(window._ordenesData?.containerId, sucursalId)
 }
 
+// El input de cantidad en la tarjeta del producto (fuera del modal) solo
+// mostraba un total editable, pero el modal de "Generar orden" volvía a
+// calcular la sugerencia por talla desde cero -- si el usuario cambiaba el
+// total ahí afuera, esa edición se perdía por completo y lo que terminaba
+// guardándose era la sugerencia original del algoritmo (de la que el
+// usuario no tenía forma de saber de dónde salía). Aquí se reparte el
+// total que el usuario haya dejado en la tarjeta entre las variantes,
+// respetando las proporciones de la sugerencia original (o parejo entre
+// todas si no había ninguna sugerencia de por sí).
+function _distribuirCantidadPorVariante(variantes, totalDeseado) {
+  const total = Math.max(0, parseInt(totalDeseado) || 0)
+  if (total === 0 || variantes.length === 0) return variantes.map(() => 0)
+  const pesos = variantes.map(v => v.sugerido || (v.sin_stock ? 1 : 0))
+  const sumaPesos = pesos.reduce((s, w) => s + w, 0)
+  const exactos = sumaPesos > 0
+    ? pesos.map(w => (w / sumaPesos) * total)
+    : variantes.map(() => total / variantes.length)
+  const bases = exactos.map(Math.floor)
+  const faltan = total - bases.reduce((s, b) => s + b, 0)
+  const orden = exactos.map((e, i) => ({ i, resto: e - bases[i] })).sort((a, b) => b.resto - a.resto)
+  const resultado = [...bases]
+  for (let k = 0; k < faltan; k++) resultado[orden[k % orden.length].i]++
+  return resultado
+}
+
 window.generarOrden = () => {
   const { sugerencias, proveedores, sucursalId } = window._ordenesData
   const seleccionados = sugerencias.filter(p => window._ordenSeleccion[p.producto_id])
@@ -1006,6 +1031,12 @@ window.generarOrden = () => {
       ${seleccionados.map(p => {
         // Ya vienen ordenadas por sugerido desc / sin_stock desde cargarOrdenes()
         const allVars = p.variantes || []
+        // Si el usuario editó el total en la tarjeta de afuera antes de abrir
+        // este modal, ese total manda -- se reparte entre las variantes en
+        // vez de ignorarlo y usar la sugerencia original del algoritmo.
+        const totalEditadoRaw = document.getElementById('qty-orden-' + p.producto_id)?.value
+        const totalDeseado = totalEditadoRaw !== undefined && totalEditadoRaw !== '' ? parseInt(totalEditadoRaw) : p.cantidad_sugerida
+        const distribucion = _distribuirCantidadPorVariante(allVars, totalDeseado)
         return `
         <div style="background:#f9f9f9;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #eee">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -1028,8 +1059,8 @@ window.generarOrden = () => {
               </tr>
             </thead>
             <tbody>
-              ${allVars.map(v => {
-                const sugerido = v.sugerido || (v.sin_stock ? 1 : 0)
+              ${allVars.map((v, idx) => {
+                const sugerido = distribucion[idx]
                 const marcado = sugerido > 0
                 return `
               <tr style="border-bottom:1px solid #f0f0f0;${v.sin_stock ? 'background:#fff8f8' : ''}">
@@ -1051,7 +1082,7 @@ window.generarOrden = () => {
                 </td>
               </tr>`}).join('')}
             </tbody>
-          </table>` : `<p style="font-size:0.8rem;color:#aaa;margin-top:4px">Sin variantes registradas — pedir ${p.cantidad_sugerida} pares en total</p>`}
+          </table>` : `<p style="font-size:0.8rem;color:#aaa;margin-top:4px">Sin variantes registradas — pedir ${totalDeseado} pares en total</p>`}
         </div>`
       }).join('')}
 
