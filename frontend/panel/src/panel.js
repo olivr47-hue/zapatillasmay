@@ -987,8 +987,19 @@ window.generarOrden = () => {
         </div>
       </div>
 
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Tipo de caja</label>
+          <input class="form-input" type="text" id="orden-tipo-caja" placeholder="Ej. Caja estándar de cartón, reforzada, etc.">
+        </div>
+        <div>
+          <label class="form-label">Amarres y empaque</label>
+          <input class="form-input" type="text" id="orden-amarres" placeholder="Ej. Rafia doble, flejado de plástico, etc.">
+        </div>
+      </div>
+
       <div style="margin-bottom:1.25rem">
-        <label class="form-label">Notas</label>
+        <label class="form-label">Notas y condiciones adicionales</label>
         <textarea class="form-input" id="orden-notas" rows="2" placeholder="Cualquier otra condición o comentario para el proveedor..."></textarea>
       </div>
 
@@ -1065,7 +1076,8 @@ window.generarOrden = () => {
 
 window.guardarOrdenCompra = async (proveedoresStr) => {
   const fecha = document.getElementById('orden-fecha')?.value
-  const notas = document.getElementById('orden-notas')?.value || ''
+  const notas = _construirNotasOrden()
+
   const sucursalId = window._ordenesData.sucursalId
 
   try {
@@ -1149,6 +1161,21 @@ function _condicionPagoLabel(dias) {
   return d === 0 ? 'Contado' : d + ' días'
 }
 
+// Junta Tipo de caja + Amarres/empaque + Notas libres en un solo texto --
+// usado en los 4 lugares que muestran/guardan las notas de la orden
+// (Imprimir, Generar PDF, y las dos funciones de Guardar) para que ninguno
+// se quede mostrando solo las notas libres y "pierda" lo de caja/amarres.
+function _construirNotasOrden() {
+  const tipoCaja = document.getElementById('orden-tipo-caja')?.value || ''
+  const amarres = document.getElementById('orden-amarres')?.value || ''
+  const notasAdicionales = document.getElementById('orden-notas')?.value || ''
+  const partes = []
+  if (tipoCaja) partes.push(`Caja: ${tipoCaja}`)
+  if (amarres) partes.push(`Amarres: ${amarres}`)
+  if (notasAdicionales) partes.push(notasAdicionales)
+  return partes.join(' | ')
+}
+
 // El "código" que se muestra en la orden es el modelo del proveedor (ej.
 // "JV160"), que va como primera palabra del nombre del producto ("Jv160
 // Flats con tacon de bloque...") -- NO el sku_interno propio del sistema
@@ -1199,7 +1226,7 @@ window.imprimirOrden = () => {
   if (!seleccionados) return
   const fecha = document.getElementById('orden-fecha')?.value || ''
   const condicionPago = _condicionPagoLabel(document.getElementById('orden-condicion-pago')?.value)
-  const notas = document.getElementById('orden-notas')?.value || ''
+  const notas = _construirNotasOrden()
   const hoy = new Date().toLocaleDateString('es-MX')
 
   const grupos = _agruparItemsOrdenParaDocumento(seleccionados)
@@ -1219,8 +1246,8 @@ window.imprimirOrden = () => {
 <html><head><meta charset="utf-8"><title>Orden de compra</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 12px; padding: 24px; color: #222; }
-  .encabezado { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
-  .encabezado img { width: 110px; height: 110px; object-fit: contain; }
+  .encabezado { display: flex; align-items: center; gap: 28px; margin-bottom: 14px; }
+  .encabezado img { width: 170px; height: 170px; object-fit: contain; }
   h1 { font-size: 18px; margin: 0 0 2px; }
   .meta { color: #444; font-size: 11.5px; margin-bottom: 20px; line-height: 1.7; }
   .meta strong { color: #222; }
@@ -1309,15 +1336,21 @@ async function _dibujarPdfOrden({ grupos, numeroOrden, fechaPedidoTexto, fechaMa
 
   const dibujarEncabezado = () => {
     if (logoDataUrl) {
-      try { pdf.addImage(logoDataUrl, 'PNG', marginX, y - 16, 24, 24) } catch (e) {}
+      try { pdf.addImage(logoDataUrl, 'PNG', marginX, y - 16, 42, 42) } catch (e) {}
     }
-    const xTexto = logoDataUrl ? marginX + 28 : marginX
+    const xTexto = logoDataUrl ? marginX + 45 : marginX
     pdf.setFontSize(15); pdf.setFont(undefined, 'bold')
-    pdf.text('Orden de compra' + (numeroOrden ? ' #' + String(numeroOrden).padStart(4, '0') : ''), xTexto, y - 4)
+    const tituloY = logoDataUrl ? y + 2 : y - 4
+    pdf.text('Orden de compra' + (numeroOrden ? ' #' + String(numeroOrden).padStart(4, '0') : ''), xTexto, tituloY)
     pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); pdf.setTextColor(120)
-    pdf.text('Zapatillas May', xTexto, y)
+    const subtituloY = logoDataUrl ? y + 8 : y
+    pdf.text('Zapatillas May', xTexto, subtituloY)
     pdf.setTextColor(0)
-    y += 8
+    if (logoDataUrl) {
+      y = 54
+    } else {
+      y += 8
+    }
     pdf.setFontSize(9)
     let meta = `Fecha de pedido: ${fechaPedidoTexto}`
     if (fechaMaximaISO) meta += `   |   Fecha máxima de recepción: ${new Date(fechaMaximaISO + 'T00:00:00').toLocaleDateString('es-MX')}`
@@ -1382,7 +1415,7 @@ window.generarPDFOrden = async () => {
   if (!seleccionados) return
   const fecha = document.getElementById('orden-fecha')?.value || ''
   const condicionPago = _condicionPagoLabel(document.getElementById('orden-condicion-pago')?.value)
-  const notas = document.getElementById('orden-notas')?.value || ''
+  const notas = _construirNotasOrden()
   const hoy = new Date().toLocaleDateString('es-MX')
 
   const grupos = _agruparItemsOrdenParaDocumento(seleccionados)
@@ -1493,7 +1526,8 @@ window.guardarOrdenCompra2 = async () => {
   const { seleccionados, sucursalId } = window._ordenModal || {}
   if (!seleccionados) return
   const fecha = document.getElementById('orden-fecha')?.value
-  const notas = document.getElementById('orden-notas')?.value || ''
+  const notas = _construirNotasOrden()
+
   const diasCredito = parseInt(document.getElementById('orden-condicion-pago')?.value) || 0
 
   // Agrupar por proveedor
@@ -2245,8 +2279,12 @@ window.verOrdenDetalle = async (ordenId) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando orden...</p>'
   try {
+    // Siempre se pide la lista fresca -- reusar window._historialOrdenesData
+    // (que solo se actualiza al visitar "Ver historial completo") hacía que
+    // una orden recién creada mostrara "no encontrada" hasta que esa caché
+    // se refrescara por otro lado.
     const [ordenesRaw, itemsRaw] = await Promise.all([
-      window._historialOrdenesData ? Promise.resolve(window._historialOrdenesData) : fetch(API + '/finanzas/ordenes').then(r => r.json()),
+      fetch(API + '/finanzas/ordenes').then(r => r.json()),
       fetch(API + '/finanzas/ordenes/' + ordenId + '/items').then(r => r.json())
     ])
     const orden = (Array.isArray(ordenesRaw) ? ordenesRaw : []).find(o => o.id === ordenId)
