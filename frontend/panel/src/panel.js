@@ -24055,6 +24055,8 @@ async function cargarAnalyticsGA() {
       <div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:0.6rem">
         <button id="ga-dtab-1" onclick="window._gaSetDiasEmbudo(1)"
           style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">Hoy</button>
+        <button id="ga-dtab-0" onclick="window._gaSetDiasEmbudo(0)"
+          style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">Ayer</button>
         <button id="ga-dtab-7" onclick="window._gaSetDiasEmbudo(7)"
           style="font-size:0.7rem;padding:3px 10px;border-radius:20px;border:1px solid #ddd;background:white;color:#888;cursor:pointer">7 días</button>
         <button id="ga-dtab-30" onclick="window._gaSetDiasEmbudo(30)"
@@ -24265,7 +24267,7 @@ window._gaSetPeriodo = async function(p) {
 window._gaDiasActivo = 30
 window._gaSetDiasEmbudo = async function(dias) {
   window._gaDiasActivo = dias
-  const tabs = { 1: 'ga-dtab-1', 7: 'ga-dtab-7', 30: 'ga-dtab-30' }
+  const tabs = { 1: 'ga-dtab-1', 0: 'ga-dtab-0', 7: 'ga-dtab-7', 30: 'ga-dtab-30' }
   Object.entries(tabs).forEach(([d, id]) => {
     const btn = document.getElementById(id)
     if (!btn) return

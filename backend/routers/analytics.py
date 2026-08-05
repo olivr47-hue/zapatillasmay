@@ -651,7 +651,10 @@ def ia_referrals():
 
 def _rango_dias(dias: int) -> dict:
     """"dias=1" debe ser SOLO hoy, no "1daysAgo" (que en GA4 incluye ayer +
-    hoy, 2 días) -- para cualquier otro valor sí se resta directo."""
+    hoy, 2 días) -- para cualquier otro valor sí se resta directo. "dias=0"
+    es un valor especial para "Ayer" (un solo día, el anterior a hoy)."""
+    if dias == 0:
+        return {"startDate": "yesterday", "endDate": "yesterday"}
     if dias <= 1:
         return {"startDate": "today", "endDate": "today"}
     return {"startDate": f"{dias}daysAgo", "endDate": "today"}
