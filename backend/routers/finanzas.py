@@ -201,7 +201,60 @@ def agregar_item_orden(id: str, item: dict):
 @router.get("/ordenes/{id}/items")
 def items_orden(id: str):
     try:
-        return supabase_get(f"ordenes_compra_items?orden_id=eq.{id}&select=*,variantes(*,productos(nombre))")
+        return supabase_get(f"ordenes_compra_items?orden_id=eq.{id}&select=*,variantes(*,productos(nombre,sku_interno))")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/ordenes/{id}/recibir")
+def recibir_orden_existente(id: str):
+    """Marca una orden ya guardada (creada en 'borrador' desde Órdenes de
+    compra) como recibida: sube el inventario de cada item que YA tiene
+    guardado esa orden y cambia su status. A diferencia de /ordenes/recibir
+    (que crea una orden nueva desde cero para remisiones que nunca se
+    capturaron como borrador), este actúa sobre una que ya existe -- para
+    no terminar con dos registros distintos por la misma compra."""
+    try:
+        orden = supabase_get(f"ordenes_compra?id=eq.{id}")
+        if not orden:
+            return JSONResponse(status_code=404, content={"error": "Orden no encontrada"})
+        orden = orden[0]
+        if orden.get("status") != "borrador":
+            return JSONResponse(status_code=400, content={"error": "Solo se puede recibir una orden en borrador"})
+        sucursal_id = orden.get("sucursal_id")
+        items = supabase_get(f"ordenes_compra_items?orden_id=eq.{id}") or []
+        if not sucursal_id:
+            return JSONResponse(status_code=400, content={"error": "La orden no tiene sucursal asignada"})
+
+        for i in items:
+            variante_id = i.get("variante_id")
+            cantidad = int(i.get("cantidad") or 0)
+            if not variante_id or cantidad <= 0:
+                continue
+            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
+            cantidad_nueva = cantidad_anterior + cantidad
+            if inv_actual:
+                supabase_patch(
+                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                    {"cantidad": cantidad_nueva}
+                )
+            else:
+                supabase_post("inventario", {
+                    "variante_id": variante_id, "sucursal_id": sucursal_id,
+                    "cantidad": cantidad_nueva, "stock_minimo": 3
+                })
+            supabase_post("movimientos_inventario", {
+                "tipo": "entrada",
+                "variante_id": variante_id,
+                "sucursal_id": sucursal_id,
+                "cantidad": cantidad,
+                "cantidad_anterior": cantidad_anterior,
+                "motivo": f"Recepcion de mercancia - orden {id}",
+            })
+
+        total = float(orden.get("total") or 0)
+        supabase_patch(f"ordenes_compra?id=eq.{id}", {"status": "recibida", "saldo_pendiente": total})
+        return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -635,14 +688,18 @@ def sugerencias_recompra(sucursal_id: str):
 # ─── CUENTAS POR PAGAR (proveedores) ──────────────
 @router.get("/cuentas-por-pagar")
 def cuentas_por_pagar():
-    """Ordenes de compra que todavia no se han pagado, con su fecha de
-    vencimiento calculada a partir de los dias de credito del proveedor,
-    su saldo pendiente (puede ya traer abonos parciales) y el historial
-    de abonos registrados."""
+    """Ordenes de compra YA RECIBIDAS que todavia no se han pagado (deuda
+    real con el proveedor), con su fecha de vencimiento calculada a partir
+    de los dias de credito, su saldo pendiente (puede ya traer abonos
+    parciales) y el historial de abonos registrados. Las 'borrador' NO
+    entran aqui -- todavia no llego nada ni se debe nada, se verian
+    mezcladas con deuda real y esta vista se llenaria de basura conforme
+    creciera el volumen (ver Ordenes de compra > Ordenes guardadas para
+    esas, y /ordenes/{id}/recibir para pasarlas de borrador a esta lista)."""
     try:
         from datetime import datetime, timedelta
         ordenes = supabase_get_all(
-            "ordenes_compra?status=not.in.(pagada,cancelada)"
+            "ordenes_compra?status=eq.recibida"
             "&order=created_at.asc&select=*,proveedores(nombre,telefono,dias_credito)"
         )
         hoy = date.today()

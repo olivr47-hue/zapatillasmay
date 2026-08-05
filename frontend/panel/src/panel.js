@@ -707,13 +707,13 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
       <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1.5rem">
         <div style="padding:0.9rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <p style="font-weight:700;font-size:0.85rem;margin:0">📑 Órdenes guardadas recientemente</p>
-          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="window.irACuentasPorPagar()">Ver todas en Cuentas por pagar →</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="window.mostrarHistorialOrdenes()">Ver historial completo →</button>
         </div>
         ${ordenesGuardadas.map(o => {
-          const badges = { borrador: {bg:'#f3e5f5',color:'#6a1b9a',txt:'Borrador'}, pendiente: {bg:'#fff8e1',color:'#f57f17',txt:'Pendiente'}, recibida: {bg:'#e3f2fd',color:'#1565c0',txt:'Recibida'}, pagada: {bg:'#e8f5e9',color:'#2e7d32',txt:'Pagada'}, cancelada: {bg:'#ffebee',color:'#c62828',txt:'Cancelada'} }
+          const badges = { borrador: {bg:'#f3e5f5',color:'#6a1b9a',txt:'Borrador'}, recibida: {bg:'#fff8e1',color:'#f57f17',txt:'Recibida (por pagar)'}, pagada: {bg:'#e8f5e9',color:'#2e7d32',txt:'Pagada'}, cancelada: {bg:'#ffebee',color:'#c62828',txt:'Cancelada'} }
           const b = badges[o.status] || {bg:'#f5f5f5',color:'#888',txt:o.status}
           return `
-          <div style="padding:0.7rem 1.25rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="padding:0.7rem 1.25rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer" onclick="window.verOrdenDetalle('${o.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
             <div style="flex:1;min-width:140px">
               <p style="font-size:0.82rem;font-weight:600;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}</p>
               <p style="font-size:0.7rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}${o.notas ? ' · ' + o.notas : ''}</p>
@@ -964,7 +964,7 @@ window.generarOrden = () => {
         <button onclick="document.getElementById('modal-orden').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
         <div>
           <label class="form-label">Sucursal destino</label>
           <select class="form-input" id="orden-sucursal">
@@ -972,14 +972,24 @@ window.generarOrden = () => {
           </select>
         </div>
         <div>
-          <label class="form-label">Fecha de entrega estimada</label>
+          <label class="form-label">Fecha máxima de recepción</label>
           <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+        </div>
+        <div>
+          <label class="form-label">Condición de pago</label>
+          <select class="form-input" id="orden-condicion-pago">
+            <option value="0">Contado</option>
+            <option value="15">15 días</option>
+            <option value="30" selected>30 días</option>
+            <option value="45">45 días</option>
+            <option value="60">60 días</option>
+          </select>
         </div>
       </div>
 
       <div style="margin-bottom:1.25rem">
         <label class="form-label">Notas</label>
-        <textarea class="form-input" id="orden-notas" rows="2" placeholder="Condiciones de entrega, forma de pago..."></textarea>
+        <textarea class="form-input" id="orden-notas" rows="2" placeholder="Cualquier otra condición o comentario para el proveedor..."></textarea>
       </div>
 
       ${seleccionados.map(p => {
@@ -1130,49 +1140,79 @@ window.ordenRecalcTotal = () => {
   if (el) el.textContent = '$' + total.toFixed(0)
 }
 
-window.imprimirOrden = () => {
-  const { seleccionados } = window._ordenModal || {}
-  if (!seleccionados) return
-  const fecha = document.getElementById('orden-fecha')?.value || ''
-  const notas = document.getElementById('orden-notas')?.value || ''
-  const hoy = new Date().toLocaleDateString('es-MX')
+// Logo de Zapatillas May para el encabezado de la orden (impresa y PDF) --
+// mismo que usa la tienda (frontend/tienda/vercel.json → /logo.png).
+const _LOGO_ZM_URL = 'https://res.cloudinary.com/dybdtehhs/image/upload/w_512,h_512,c_fit,f_png/v1776836428/Proyecto_nuevo_wpdwus.png'
 
-  let rows = ''
-  let total = 0
+function _condicionPagoLabel(dias) {
+  const d = parseInt(dias) || 0
+  return d === 0 ? 'Contado' : d + ' días'
+}
+
+// Antes cada talla/color aparecía en su propia fila, repitiendo el nombre
+// completo del modelo -- ahora se agrupa por código+color (una fila por
+// cada uno, con el desglose de tallas y cantidades adentro), y solo se
+// muestra el código, no el nombre largo del modelo.
+function _agruparItemsOrdenParaDocumento(seleccionados) {
+  const grupos = {}
+  const orden = []
   seleccionados.forEach(p => {
     const vars = p.variantes || []
     if (vars.length === 0) {
       const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
-      const sub = qty * p.costo_unitario
-      total += sub
-      rows += `<tr><td>${p.nombre}</td><td>${p.sku||''}</td><td>—</td><td>—</td><td style="text-align:center">${qty}</td><td style="text-align:right">$${sub.toFixed(0)}</td></tr>`
+      if (qty <= 0) return
+      const key = (p.sku || p.nombre) + '|—'
+      if (!grupos[key]) { grupos[key] = { sku: p.sku || p.nombre || '', color: '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
+      grupos[key].tallas.push({ talla: '—', cantidad: qty })
     } else {
       vars.forEach(v => {
         const chk = document.getElementById('chk-var-' + v.id)
         if (!chk?.checked) return
         const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
         if (qty <= 0) return
-        const sub = qty * p.costo_unitario
-        total += sub
-        rows += `<tr style="${v.sin_stock ? 'background:#fff5f5' : ''}">
-          <td style="font-weight:${v.sin_stock?'bold':'normal'}">${p.nombre}</td>
-          <td style="color:#777">${p.sku||''}</td>
-          <td>${v.talla||'—'}</td>
-          <td>${v.color||'—'}</td>
-          <td style="text-align:center;font-weight:bold">${qty}</td>
-          <td style="text-align:right">$${sub.toFixed(0)}</td>
-        </tr>`
+        const key = (p.sku || p.nombre) + '|' + (v.color || '—')
+        if (!grupos[key]) { grupos[key] = { sku: p.sku || p.nombre || '', color: v.color || '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
+        grupos[key].tallas.push({ talla: v.talla || '—', cantidad: qty })
       })
     }
   })
+  return orden.map(k => {
+    const g = grupos[k]
+    const cantidad = g.tallas.reduce((s, t) => s + t.cantidad, 0)
+    return { ...g, cantidad, subtotal: cantidad * g.costo, tallasTexto: g.tallas.map(t => `${t.talla} (${t.cantidad})`).join(', ') }
+  })
+}
+
+window.imprimirOrden = () => {
+  const { seleccionados } = window._ordenModal || {}
+  if (!seleccionados) return
+  const fecha = document.getElementById('orden-fecha')?.value || ''
+  const condicionPago = _condicionPagoLabel(document.getElementById('orden-condicion-pago')?.value)
+  const notas = document.getElementById('orden-notas')?.value || ''
+  const hoy = new Date().toLocaleDateString('es-MX')
+
+  const grupos = _agruparItemsOrdenParaDocumento(seleccionados)
+  const total = grupos.reduce((s, g) => s + g.subtotal, 0)
+  const rows = grupos.map(g => `
+    <tr>
+      <td style="font-weight:700">${g.sku}</td>
+      <td>${g.color}</td>
+      <td>${g.tallasTexto}</td>
+      <td style="text-align:center;font-weight:bold">${g.cantidad}</td>
+      <td style="text-align:right">$${g.costo.toFixed(0)}</td>
+      <td style="text-align:right">$${g.subtotal.toFixed(0)}</td>
+    </tr>`).join('')
 
   const win = window.open('', '_blank')
   win.document.write(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Orden de compra</title>
 <style>
   body { font-family: Arial, sans-serif; font-size: 12px; padding: 24px; color: #222; }
-  h1 { font-size: 18px; margin-bottom: 4px; }
-  .meta { color: #666; font-size: 11px; margin-bottom: 20px; }
+  .encabezado { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .encabezado img { width: 60px; height: 60px; object-fit: contain; }
+  h1 { font-size: 18px; margin: 0 0 2px; }
+  .meta { color: #444; font-size: 11.5px; margin-bottom: 20px; line-height: 1.7; }
+  .meta strong { color: #222; }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; }
   th { background: #f0f0f0; padding: 7px 10px; text-align: left; font-weight: 700; border-bottom: 2px solid #ddd; }
   td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
@@ -1183,24 +1223,30 @@ window.imprimirOrden = () => {
   }
 </style>
 </head><body>
-  <h1>📋 Orden de compra</h1>
+  <div class="encabezado">
+    <img src="${_LOGO_ZM_URL}" alt="Zapatillas May">
+    <div>
+      <h1>Orden de compra</h1>
+      <p style="margin:0;color:#888;font-size:11px">Zapatillas May</p>
+    </div>
+  </div>
   <div class="meta">
-    Fecha de emisión: ${hoy}
-    ${fecha ? ' &nbsp;|&nbsp; Entrega estimada: ' + fecha : ''}
-    ${notas ? ' &nbsp;|&nbsp; Notas: ' + notas : ''}
+    <strong>Fecha de pedido:</strong> ${hoy}
+    ${fecha ? ` &nbsp;|&nbsp; <strong>Fecha máxima de recepción:</strong> ${new Date(fecha + 'T00:00:00').toLocaleDateString('es-MX')}` : ''}
+    &nbsp;|&nbsp; <strong>Condición de pago:</strong> ${condicionPago}
+    ${notas ? `<br><strong>Notas:</strong> ${notas}` : ''}
   </div>
   <table>
     <thead>
       <tr>
-        <th>Modelo</th><th>SKU</th><th>Talla</th><th>Color</th>
-        <th style="text-align:center">Pares</th><th style="text-align:right">Subtotal</th>
+        <th>Código</th><th>Color</th><th>Tallas (cantidad)</th>
+        <th style="text-align:center">Total pares</th><th style="text-align:right">Costo/par</th><th style="text-align:right">Subtotal</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
     <tfoot>
       <tr class="total-row">
-        <td colspan="4">TOTAL GENERAL</td>
-        <td></td>
+        <td colspan="5">TOTAL GENERAL</td>
         <td style="text-align:right">$${total.toFixed(0)}</td>
       </tr>
     </tfoot>
@@ -1210,115 +1256,163 @@ window.imprimirOrden = () => {
   win.document.close()
 }
 
+let _logoZMDataURL = null
+async function _obtenerLogoZMDataURL() {
+  if (_logoZMDataURL) return _logoZMDataURL
+  try {
+    const blob = await fetch(_LOGO_ZM_URL).then(r => r.blob())
+    _logoZMDataURL = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch (e) {
+    _logoZMDataURL = null
+  }
+  return _logoZMDataURL
+}
+
+// Dibuja el PDF de una orden de compra a partir de datos ya listos (grupos
+// código+color+tallas) -- compartido entre generarPDFOrden (mientras se
+// arma la orden, lee el DOM del modal) y generarPDFOrdenGuardada (una orden
+// ya guardada, vuelta a abrir desde el historial).
+async function _dibujarPdfOrden({ grupos, fechaPedidoTexto, fechaMaximaISO, condicionPago, notas, nombreArchivo }) {
+  if (!window.jspdf) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script')
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+      s.onload = resolve; s.onerror = reject
+      document.head.appendChild(s)
+    })
+  }
+  const logoDataUrl = await _obtenerLogoZMDataURL()
+  const { jsPDF } = window.jspdf
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
+  const pageW = 210, pageH = 297, marginX = 14
+  // Código, Color, Tallas (cantidad), Total pares, Costo/par, Subtotal
+  const cols = [marginX, marginX + 41, marginX + 64, marginX + 131, marginX + 146, marginX + 164]
+  const headers = ['Código', 'Color', 'Tallas (cantidad)', 'Pares', 'Costo/par', 'Subtotal']
+  let y = 20
+  const total = grupos.reduce((s, g) => s + g.subtotal, 0)
+
+  const dibujarEncabezado = () => {
+    if (logoDataUrl) {
+      try { pdf.addImage(logoDataUrl, 'PNG', marginX, y - 12, 16, 16) } catch (e) {}
+    }
+    const xTexto = logoDataUrl ? marginX + 20 : marginX
+    pdf.setFontSize(15); pdf.setFont(undefined, 'bold')
+    pdf.text('Orden de compra', xTexto, y - 4)
+    pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); pdf.setTextColor(120)
+    pdf.text('Zapatillas May', xTexto, y)
+    pdf.setTextColor(0)
+    y += 8
+    pdf.setFontSize(9)
+    let meta = `Fecha de pedido: ${fechaPedidoTexto}`
+    if (fechaMaximaISO) meta += `   |   Fecha máxima de recepción: ${new Date(fechaMaximaISO + 'T00:00:00').toLocaleDateString('es-MX')}`
+    meta += `   |   Condición de pago: ${condicionPago}`
+    const metaWrap = pdf.splitTextToSize(meta, pageW - marginX * 2)
+    pdf.text(metaWrap, marginX, y)
+    y += metaWrap.length * 4.5
+    if (notas) {
+      const notasWrap = pdf.splitTextToSize('Notas: ' + notas, pageW - marginX * 2)
+      pdf.text(notasWrap, marginX, y)
+      y += notasWrap.length * 4.5
+    }
+    y += 3
+    pdf.setFillColor(240, 240, 240)
+    pdf.rect(marginX, y - 4.5, pageW - marginX * 2, 7, 'F')
+    pdf.setFont(undefined, 'bold'); pdf.setFontSize(9)
+    headers.forEach((h, i) => pdf.text(h, cols[i], y))
+    y += 6
+    pdf.setFont(undefined, 'normal')
+  }
+
+  dibujarEncabezado()
+
+  grupos.forEach(g => {
+    if (y > pageH - 25) {
+      pdf.addPage()
+      y = 20
+      dibujarEncabezado()
+    }
+    pdf.setFontSize(8.5)
+    const tallasWrap = pdf.splitTextToSize(g.tallasTexto, cols[3] - cols[2] - 3)
+    tallasWrap.forEach((linea, i) => pdf.text(linea, cols[2], y + i * 3.8))
+    pdf.setFont(undefined, 'bold')
+    pdf.text(g.sku, cols[0], y)
+    pdf.setFont(undefined, 'normal')
+    pdf.text(g.color, cols[1], y)
+    pdf.text(String(g.cantidad), cols[3], y)
+    pdf.text('$' + g.costo.toFixed(0), cols[4], y)
+    pdf.text('$' + g.subtotal.toFixed(0), cols[5], y)
+    pdf.setDrawColor(230)
+    const altoFila = Math.max(tallasWrap.length * 3.8, 5)
+    pdf.line(marginX, y + altoFila - 1.5, pageW - marginX, y + altoFila - 1.5)
+    y += altoFila + 1.5
+  })
+
+  if (y > pageH - 20) { pdf.addPage(); y = 20 }
+  pdf.setDrawColor(50)
+  pdf.line(marginX, y, pageW - marginX, y)
+  y += 6
+  pdf.setFont(undefined, 'bold'); pdf.setFontSize(11)
+  pdf.text('TOTAL GENERAL', marginX, y)
+  pdf.text('$' + total.toFixed(0), cols[5], y)
+
+  pdf.save(nombreArchivo)
+}
+
 window.generarPDFOrden = async () => {
   const { seleccionados } = window._ordenModal || {}
   if (!seleccionados) return
   const fecha = document.getElementById('orden-fecha')?.value || ''
+  const condicionPago = _condicionPagoLabel(document.getElementById('orden-condicion-pago')?.value)
   const notas = document.getElementById('orden-notas')?.value || ''
   const hoy = new Date().toLocaleDateString('es-MX')
 
-  const filas = []
-  let total = 0
-  seleccionados.forEach(p => {
-    const vars = p.variantes || []
-    if (vars.length === 0) {
-      const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
-      const sub = qty * p.costo_unitario
-      total += sub
-      filas.push([p.nombre, p.sku || '', '—', '—', String(qty), '$' + sub.toFixed(0)])
-    } else {
-      vars.forEach(v => {
-        const chk = document.getElementById('chk-var-' + v.id)
-        if (!chk?.checked) return
-        const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
-        if (qty <= 0) return
-        const sub = qty * p.costo_unitario
-        total += sub
-        filas.push([p.nombre, p.sku || '', v.talla || '—', v.color || '—', String(qty), '$' + sub.toFixed(0)])
-      })
-    }
-  })
-
-  if (filas.length === 0) {
+  const grupos = _agruparItemsOrdenParaDocumento(seleccionados)
+  if (grupos.length === 0) {
     alert('No hay productos incluidos en la orden.')
     return
   }
 
   const btn = document.querySelector('[onclick="generarPDFOrden()"]')
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando...' }
-
   try {
-    if (!window.jspdf) {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script')
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
-        s.onload = resolve; s.onerror = reject
-        document.head.appendChild(s)
-      })
-    }
-    const { jsPDF } = window.jspdf
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4' })
-    const pageW = 210, pageH = 297, marginX = 14
-    const cols = [marginX, 90, 128, 148, 172, 188]  // x de cada columna
-    const headers = ['Modelo', 'SKU', 'Talla', 'Color', 'Pares', 'Subtotal']
-    let y = 20
-
-    const dibujarEncabezado = () => {
-      pdf.setFontSize(15); pdf.setFont(undefined, 'bold')
-      pdf.text('Orden de compra — Zapatillas May', marginX, y)
-      y += 7
-      pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); pdf.setTextColor(100)
-      let meta = `Fecha de emisión: ${hoy}`
-      if (fecha) meta += `   |   Entrega estimada: ${fecha}`
-      pdf.text(meta, marginX, y)
-      y += 5
-      if (notas) {
-        const notasWrap = pdf.splitTextToSize('Notas: ' + notas, pageW - marginX * 2)
-        pdf.text(notasWrap, marginX, y)
-        y += notasWrap.length * 4.5
-      }
-      pdf.setTextColor(0)
-      y += 3
-      pdf.setFillColor(240, 240, 240)
-      pdf.rect(marginX, y - 4.5, pageW - marginX * 2, 7, 'F')
-      pdf.setFont(undefined, 'bold'); pdf.setFontSize(9)
-      headers.forEach((h, i) => pdf.text(h, cols[i], y))
-      y += 6
-      pdf.setFont(undefined, 'normal')
-    }
-
-    dibujarEncabezado()
-
-    filas.forEach(fila => {
-      if (y > pageH - 25) {
-        pdf.addPage()
-        y = 20
-        dibujarEncabezado()
-      }
-      pdf.setFontSize(8.5)
-      const nombreWrap = pdf.splitTextToSize(fila[0], cols[1] - cols[0] - 3)
-      nombreWrap.forEach((linea, i) => pdf.text(linea, cols[0], y + i * 3.8))
-      pdf.text(fila[1], cols[1], y)
-      pdf.text(fila[2], cols[2], y)
-      pdf.text(fila[3], cols[3], y)
-      pdf.text(fila[4], cols[4], y)
-      pdf.text(fila[5], cols[5], y)
-      pdf.setDrawColor(230)
-      const altoFila = Math.max(nombreWrap.length * 3.8, 5)
-      pdf.line(marginX, y + altoFila - 1.5, pageW - marginX, y + altoFila - 1.5)
-      y += altoFila + 1.5
+    await _dibujarPdfOrden({
+      grupos, fechaPedidoTexto: hoy, fechaMaximaISO: fecha, condicionPago, notas,
+      nombreArchivo: `orden_compra_${hoy.replace(/\//g, '-')}.pdf`
     })
+  } catch(e) {
+    console.error('Error generando PDF:', e)
+    alert('Error al generar el PDF: ' + e.message)
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📄 Generar PDF' }
+  }
+}
 
-    if (y > pageH - 20) { pdf.addPage(); y = 20 }
-    pdf.setDrawColor(50)
-    pdf.line(marginX, y, pageW - marginX, y)
-    y += 6
-    pdf.setFont(undefined, 'bold'); pdf.setFontSize(11)
-    pdf.text('TOTAL GENERAL', marginX, y)
-    pdf.text('$' + total.toFixed(0), cols[5], y)
-
-    const nombreArchivo = `orden_compra_${hoy.replace(/\//g, '-')}.pdf`
-    pdf.save(nombreArchivo)
+// Vuelve a generar el PDF de una orden YA GUARDADA -- se llama desde el
+// detalle de la orden (verOrdenDetalle), que deja los datos listos en
+// window._ordenDetalleActual. Antes de esto, una vez cerrado el modal de
+// creación, no había forma de volver a descargar el PDF de una orden.
+window.generarPDFOrdenGuardada = async () => {
+  const datos = window._ordenDetalleActual
+  if (!datos) return
+  const { orden, filas } = datos
+  if (!filas.length) { alert('Esta orden no tiene productos.'); return }
+  const diasCredito = orden.dias_credito != null ? orden.dias_credito : (orden.proveedores?.dias_credito || 0)
+  const btn = document.querySelector('[onclick="window.generarPDFOrdenGuardada()"]')
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando...' }
+  try {
+    await _dibujarPdfOrden({
+      grupos: filas,
+      fechaPedidoTexto: new Date(orden.created_at).toLocaleDateString('es-MX'),
+      fechaMaximaISO: orden.fecha_entrega_estimada || '',
+      condicionPago: _condicionPagoLabel(diasCredito),
+      notas: orden.notas || '',
+      nombreArchivo: `orden_compra_${orden.id.slice(0, 8)}.pdf`
+    })
   } catch(e) {
     console.error('Error generando PDF:', e)
     alert('Error al generar el PDF: ' + e.message)
@@ -1385,6 +1479,7 @@ window.guardarOrdenCompra2 = async () => {
   if (!seleccionados) return
   const fecha = document.getElementById('orden-fecha')?.value
   const notas = document.getElementById('orden-notas')?.value || ''
+  const diasCredito = parseInt(document.getElementById('orden-condicion-pago')?.value) || 0
 
   // Agrupar por proveedor
   const porProveedor = {}
@@ -1420,6 +1515,7 @@ window.guardarOrdenCompra2 = async () => {
           status: 'borrador',
           total,
           notas,
+          dias_credito: diasCredito,
           fecha_entrega_estimada: fecha || null
         })
       })
@@ -1435,7 +1531,7 @@ window.guardarOrdenCompra2 = async () => {
       }
     }
     document.getElementById('modal-orden')?.remove()
-    alert('✅ Orden de compra guardada -- la vas a ver aquí mismo en "Órdenes guardadas recientemente", y también en Finanzas > Cuentas por pagar.')
+    alert('✅ Orden de compra guardada como borrador -- la vas a ver aquí mismo en "Órdenes guardadas recientemente". Cuando llegue la mercancía, ábrela y márcala como recibida para subir el inventario y que pase a Cuentas por pagar.')
     cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   } catch(e) {
     alert('Error guardando orden: ' + e.message)
@@ -2055,6 +2151,213 @@ window.irACuentasPorPagar = async () => {
   navegarA('finanzas')
   await cargarFinanzas()
   window.mostrarTabFinanzas('cxp')
+}
+
+const _ORD_BADGES = {
+  borrador: { bg: '#f3e5f5', color: '#6a1b9a', txt: 'Borrador' },
+  recibida: { bg: '#fff8e1', color: '#f57f17', txt: 'Recibida (por pagar)' },
+  pagada:   { bg: '#e8f5e9', color: '#2e7d32', txt: 'Pagada' },
+  cancelada:{ bg: '#ffebee', color: '#c62828', txt: 'Cancelada' },
+}
+
+// ── Historial de órdenes de compra: antes solo se podía "guardar" una orden
+// sin ninguna forma de volver a encontrarla o abrirla -- y Cuentas por pagar
+// mezclaba borradores (nada recibido, nada debido todavía) con órdenes ya
+// recibidas (deuda real), lo que se vuelve inmanejable con volumen. Aquí se
+// ven TODAS con filtro por estado, y cada una se puede abrir para ver sus
+// items (código/color/tallas/costo) y avanzar su estado.
+window.mostrarHistorialOrdenes = async () => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
+  try {
+    const ordenes = await fetch(API + '/finanzas/ordenes').then(r => r.json())
+    window._historialOrdenesData = Array.isArray(ordenes) ? ordenes : []
+    window._historialOrdenesFiltro = window._historialOrdenesFiltro || 'todos'
+    _renderHistorialOrdenes()
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window._filtrarHistorialOrdenes = (id) => {
+  window._historialOrdenesFiltro = id
+  _renderHistorialOrdenes()
+}
+
+function _renderHistorialOrdenes() {
+  const content = document.getElementById('content')
+  const todas = window._historialOrdenesData || []
+  const filtro = window._historialOrdenesFiltro
+  const lista = filtro === 'todos' ? todas : todas.filter(o => o.status === filtro)
+  const tabs = [
+    { id: 'todos', label: 'Todas' },
+    { id: 'borrador', label: 'Borradores' },
+    { id: 'recibida', label: 'Recibidas (por pagar)' },
+    { id: 'pagada', label: 'Pagadas' },
+    { id: 'cancelada', label: 'Canceladas' },
+  ]
+  content.innerHTML = `
+    <div style="max-width:920px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+        <button class="btn btn-secondary" onclick="cargarOrdenes()">← Volver</button>
+        <h3 style="margin:0">📑 Historial de órdenes de compra</h3>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+        ${tabs.map(t => `
+          <button class="btn btn-secondary" style="font-size:0.78rem;${filtro === t.id ? 'background:#333;border-color:#333;color:white' : ''}" onclick="window._filtrarHistorialOrdenes('${t.id}')">
+            ${t.label}${t.id !== 'todos' ? ` (${todas.filter(o => o.status === t.id).length})` : ` (${todas.length})`}
+          </button>`).join('')}
+      </div>
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        ${lista.length === 0 ? '<div style="padding:2rem;text-align:center;color:#888">Sin órdenes en esta categoría</div>' : lista.map(o => {
+          const b = _ORD_BADGES[o.status] || { bg: '#f5f5f5', color: '#888', txt: o.status }
+          return `
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer" onclick="window.verOrdenDetalle('${o.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
+            <div style="flex:1;min-width:160px">
+              <p style="font-weight:600;font-size:0.88rem;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}</p>
+              <p style="font-size:0.72rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}${o.notas ? ' · ' + o.notas : ''} · ${o.sucursales?.nombre || ''}</p>
+            </div>
+            <p style="font-weight:700;color:#333;font-size:0.95rem;margin:0">$${parseFloat(o.total || 0).toFixed(0)}</p>
+            <span style="font-size:0.68rem;padding:3px 10px;border-radius:100px;background:${b.bg};color:${b.color};font-weight:700">${b.txt}</span>
+          </div>`
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
+window.verOrdenDetalle = async (ordenId) => {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando orden...</p>'
+  try {
+    const [ordenesRaw, itemsRaw] = await Promise.all([
+      window._historialOrdenesData ? Promise.resolve(window._historialOrdenesData) : fetch(API + '/finanzas/ordenes').then(r => r.json()),
+      fetch(API + '/finanzas/ordenes/' + ordenId + '/items').then(r => r.json())
+    ])
+    const orden = (Array.isArray(ordenesRaw) ? ordenesRaw : []).find(o => o.id === ordenId)
+    const items = Array.isArray(itemsRaw) ? itemsRaw : []
+    if (!orden) { content.innerHTML = '<p style="padding:2rem;color:red">Orden no encontrada</p>'; return }
+
+    // Mismo agrupado que en el PDF/impresión: una fila por código+color,
+    // con el desglose de tallas y cantidades adentro.
+    const grupos = {}
+    const ordenKeys = []
+    items.forEach(i => {
+      const sku = i.variantes?.productos?.sku_interno || i.variantes?.productos?.nombre || '—'
+      const color = i.variantes?.color || '—'
+      const key = sku + '|' + color
+      if (!grupos[key]) { grupos[key] = { sku, color, costo: parseFloat(i.costo_unitario || 0), tallas: [] }; ordenKeys.push(key) }
+      grupos[key].tallas.push({ talla: i.variantes?.talla || '—', cantidad: i.cantidad })
+    })
+    const filas = ordenKeys.map(k => {
+      const g = grupos[k]
+      const cantidad = g.tallas.reduce((s, t) => s + t.cantidad, 0)
+      return { ...g, cantidad, subtotal: cantidad * g.costo, tallasTexto: g.tallas.map(t => `${t.talla} (${t.cantidad})`).join(', ') }
+    })
+
+    const b = _ORD_BADGES[orden.status] || { bg: '#f5f5f5', color: '#888', txt: orden.status }
+    const total = parseFloat(orden.total || 0)
+    const saldo = orden.saldo_pendiente != null ? parseFloat(orden.saldo_pendiente) : total
+    const diasCredito = orden.dias_credito != null ? orden.dias_credito : (orden.proveedores?.dias_credito || 0)
+
+    // Para poder volver a descargar el PDF de esta orden sin tener que
+    // rearmarla desde cero (ver generarPDFOrdenGuardada).
+    window._ordenDetalleActual = { orden, filas }
+
+    content.innerHTML = `
+      <div style="max-width:820px">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="window.mostrarHistorialOrdenes()">← Volver al historial</button>
+          <span style="font-size:0.7rem;padding:3px 10px;border-radius:100px;background:${b.bg};color:${b.color};font-weight:700">${b.txt}</span>
+        </div>
+        <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+          <h3 style="margin:0 0 12px">🏭 ${orden.proveedores?.nombre || 'Sin proveedor'}</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;font-size:0.85rem;color:#555">
+            <p style="margin:0"><strong>Fecha de pedido:</strong><br>${new Date(orden.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            ${orden.fecha_entrega_estimada ? `<p style="margin:0"><strong>Fecha máx. recepción:</strong><br>${new Date(orden.fecha_entrega_estimada + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}</p>` : ''}
+            <p style="margin:0"><strong>Condición de pago:</strong><br>${diasCredito === 0 ? 'Contado' : diasCredito + ' días'}</p>
+            <p style="margin:0"><strong>Sucursal:</strong><br>${orden.sucursales?.nombre || '—'}</p>
+          </div>
+          ${orden.notas ? `<p style="font-size:0.82rem;color:#888;margin:10px 0 0">📝 ${orden.notas}</p>` : ''}
+        </div>
+
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow-x:auto;margin-bottom:1rem">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;min-width:560px">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:1px solid #eee">
+                <th style="padding:10px 12px;text-align:left">Código</th>
+                <th style="padding:10px 12px;text-align:left">Color</th>
+                <th style="padding:10px 12px;text-align:left">Tallas (cantidad)</th>
+                <th style="padding:10px 12px;text-align:center">Pares</th>
+                <th style="padding:10px 12px;text-align:right">Costo/par</th>
+                <th style="padding:10px 12px;text-align:right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filas.map(f => `
+                <tr style="border-bottom:1px solid #f5f5f5">
+                  <td style="padding:8px 12px;font-weight:700">${f.sku}</td>
+                  <td style="padding:8px 12px">${f.color}</td>
+                  <td style="padding:8px 12px;color:#555">${f.tallasTexto}</td>
+                  <td style="padding:8px 12px;text-align:center;font-weight:700">${f.cantidad}</td>
+                  <td style="padding:8px 12px;text-align:right">$${f.costo.toFixed(0)}</td>
+                  <td style="padding:8px 12px;text-align:right">$${f.subtotal.toFixed(0)}</td>
+                </tr>`).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="border-top:2px solid #333">
+                <td colspan="5" style="padding:10px 12px;font-weight:700">${orden.status === 'recibida' && saldo < total ? 'SALDO PENDIENTE' : 'TOTAL'}</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:700;color:#E91E8C">$${(orden.status === 'recibida' ? saldo : total).toFixed(0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn btn-secondary" style="background:#fce4ec;border-color:#E91E8C;color:#c2185b" onclick="window.generarPDFOrdenGuardada()">📄 Generar PDF</button>
+          ${orden.status === 'borrador' ? `
+            <button class="btn btn-secondary" style="color:#c62828;border-color:#ef9a9a" onclick="window._ordenDetalleCancelar('${orden.id}')">✕ Cancelar</button>
+            <button class="btn btn-primary" onclick="window._ordenDetalleMarcarRecibida('${orden.id}')">📥 Marcar como recibida</button>
+          ` : ''}
+          ${orden.status === 'recibida' ? `
+            <button class="btn btn-secondary" style="color:#c62828;border-color:#ef9a9a" onclick="window._ordenDetalleCancelar('${orden.id}')">✕ Cancelar</button>
+            <button class="btn btn-secondary" onclick="window.irACuentasPorPagar()">Ver en Cuentas por pagar →</button>
+            <button class="btn btn-secondary" style="color:#1565c0;border-color:#90caf9" onclick="window.mostrarFormAbono('${orden.id}', ${saldo}, ${JSON.stringify(orden.proveedores?.nombre || 'Sin proveedor')})">💵 Abonar</button>
+            <button class="btn btn-primary" onclick="window._ordenDetalleMarcarPagada('${orden.id}')">✅ Marcar pagada</button>
+          ` : ''}
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = '<p style="padding:2rem;color:red">Error: ' + e.message + '</p>'
+  }
+}
+
+window._ordenDetalleMarcarRecibida = async (id) => {
+  if (!confirm('¿Marcar esta orden como recibida? Esto suma el stock de cada talla/color a tu inventario y la pasa a Cuentas por pagar.')) return
+  try {
+    const res = await fetch(API + '/finanzas/ordenes/' + id + '/recibir', { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok || data.error) { alert('Error: ' + (data.error || res.status)); return }
+    alert('✅ Orden recibida -- el inventario ya se actualizó y ahora aparece en Cuentas por pagar.')
+    window.verOrdenDetalle(id)
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window._ordenDetalleMarcarPagada = async (id) => {
+  if (!confirm('¿Confirmar que esta orden ya se pagó al proveedor?')) return
+  try {
+    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-pagada', { method: 'POST' })
+    window.verOrdenDetalle(id)
+  } catch(e) { alert('Error marcando la orden como pagada') }
+}
+
+window._ordenDetalleCancelar = async (id) => {
+  if (!confirm('¿Cancelar esta orden de compra?')) return
+  try {
+    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-cancelada', { method: 'POST' })
+    window.mostrarHistorialOrdenes()
+  } catch(e) { alert('Error cancelando la orden') }
 }
 
 window.mostrarCxP = () => {
