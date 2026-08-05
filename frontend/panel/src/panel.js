@@ -14735,7 +14735,7 @@ window.mostrarPipelineWA = async function() {
   chats.forEach(c => { window._chatsData[c.telefono] = { ...(window._chatsData[c.telefono] || {}), ...c } })
 
   const chatsTotal = chats
-  if (window._waKbSoloMayoristas) chats = chats.filter(c => window._esMayoristaWA(c.telefono))
+  if (window._waKbSoloMayoristas) chats = chats.filter(c => window._esMayoristaWA(c))
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const porEtapa = (id) => chats.filter(c => (c.etiqueta || 'sin_etiqueta') === id)
@@ -14751,7 +14751,7 @@ window.mostrarPipelineWA = async function() {
       const preview = esc(rawTxt.toString().replace(/^\[[^\]]+\]:\s*/, '').replace(/\s+/g, ' ').slice(0, 46))
       const fecha = window._waKbFecha(c.ultimo_mensaje)
       const noLeidos = c.no_leidos || 0
-      const esMay = window._esMayoristaWA(c.telefono)
+      const esMay = window._esMayoristaWA(c)
       return `
         <div class="wa-kb-card" draggable="true"
              ondragstart="window._waKbDragStart(event,'${c.telefono}')"
@@ -15738,10 +15738,34 @@ window._asegurarClientesWA = async () => {
   return window._clientesTelMapWA
 }
 
-window._esMayoristaWA = (telefono) => {
+// Mayorista = marcado manual en la conversación (chat.mayorista, para gente
+// que pregunta por mayoreo pero aún no está registrada como cliente) O el
+// tipo real del cliente ya registrado (mayoreo/zapateria) -- lo que aplique.
+window._esMayoristaWA = (chat) => {
+  if (!chat) return false
+  if (chat.mayorista) return true
   const mapa = window._clientesTelMapWA || {}
-  const tipo = mapa[window._ultimos10WA(telefono)]
+  const tipo = mapa[window._ultimos10WA(chat.telefono)]
   return tipo === 'mayoreo' || tipo === 'zapateria'
+}
+
+window.marcarMayoristaWA = async (telefono, valor) => {
+  try {
+    await fetch(API + '/chatbot/chats/' + telefono + '/mayorista', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mayorista: valor })
+    })
+    if (window._chatsData[telefono]) window._chatsData[telefono].mayorista = valor
+    const btn = document.getElementById('wa-btn-mayorista')
+    if (btn) {
+      btn.classList.toggle('wa-btn-on', valor)
+      btn.textContent = valor ? '🏢 Mayorista ✓' : '🏢 Marcar mayorista'
+      btn.setAttribute('onclick', `window.marcarMayoristaWA('${telefono}', ${!valor})`)
+    }
+  } catch (e) {
+    alert('Error guardando: ' + e.message)
+  }
 }
 
 window._htmlCanalTabsWA = (chats) => {
@@ -15775,7 +15799,7 @@ window._htmlChatItems = (chats) => {
   if (!chats || chats.length === 0) {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
-  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c.telefono); return `
+  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); return `
               <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}"
                    onclick="abrirChat('${c.telefono}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
@@ -16078,6 +16102,9 @@ area.style.minHeight = '0'
         <option value="espera" ${chat.estado==='espera' ? 'selected' : ''}>🟡 En espera</option>
         <option value="cerrado" ${chat.estado==='cerrado' ? 'selected' : ''}>⚫ Cerrado</option>
       </select>
+      <button id="wa-btn-mayorista" onclick="window.marcarMayoristaWA('${telefono}', ${chat.mayorista ? 'false' : 'true'})" class="wa-btn${chat.mayorista ? ' wa-btn-on' : ''}" title="Marcar esta conversación como cliente/lead mayorista, aunque todavía no compre">
+        ${chat.mayorista ? '🏢 Mayorista ✓' : '🏢 Marcar mayorista'}
+      </button>
     </div>
 
     <!-- Mensajes -->

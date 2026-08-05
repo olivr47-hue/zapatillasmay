@@ -1890,12 +1890,15 @@ async def listar_chats():
             chat['nombre'] = nombre
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
-            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado")
+            control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista")
         except Exception:
             try:
-                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado")
             except Exception:
-                control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
+                try:
+                    control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision")
+                except Exception:
+                    control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta")
         for c in control:
             if c['telefono'] in chats:
                 chats[c['telefono']]['en_control'] = c.get('en_control', False)
@@ -1905,6 +1908,7 @@ async def listar_chats():
                 chats[c['telefono']]['cliente_entrego_at'] = c.get('cliente_entrego_at')
                 chats[c['telefono']]['pendiente_revision'] = c.get('pendiente_revision', False)
                 chats[c['telefono']]['estado'] = c.get('estado', 'abierto')
+                chats[c['telefono']]['mayorista'] = c.get('mayorista', False)
         result = list(chats.values())
         cache_set("chats_lista", result, ttl=20)
         return result
@@ -2027,6 +2031,24 @@ async def cambiar_etiqueta(telefono: str, datos: dict):
         else:
             supabase_post("chats_control", {"telefono": telefono, "etiqueta": etiqueta})
         _inscribir_en_secuencias(telefono, etiqueta)
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/chats/{telefono}/mayorista")
+async def marcar_mayorista(telefono: str, datos: dict):
+    """Marca/desmarca manualmente una conversación como mayorista -- para gente
+    que pregunta por mayoreo pero todavía no está registrada como cliente
+    tipo mayoreo/zapateria (esa detección automática por tipo de cliente vive
+    en el frontend, pero deja fuera a los leads que aún no compran)."""
+    try:
+        from database import supabase_post, supabase_patch
+        mayorista = bool(datos.get("mayorista", True))
+        existente = supabase_get(f"chats_control?telefono=eq.{telefono}")
+        if existente:
+            supabase_patch(f"chats_control?telefono=eq.{telefono}", {"mayorista": mayorista})
+        else:
+            supabase_post("chats_control", {"telefono": telefono, "mayorista": mayorista})
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
