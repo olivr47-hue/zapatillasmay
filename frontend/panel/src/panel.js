@@ -14574,11 +14574,12 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     const productos = Array.isArray(productosRaw) ? productosRaw : []
     const configWA = await fetch(API + '/chatbot/config').then(r => r.json()).catch(() => ({}))
     window._mayaActivaGlobal = configWA.bot_activo !== 'false'
+    await window._asegurarClientesWA()  // mapa telefono→tipo, para saber quién es mayorista
 
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
     window._productosWA = productos.filter(p => p.activo)
-    window._waFiltros = { canal: '', estado: '', etiqueta: '', texto: '' }
+    window._waFiltros = { canal: '', estado: '', etiqueta: '', mayorista: false, texto: '' }
 
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
@@ -14632,6 +14633,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             <button onclick="filtrarEtiqueta('comprador')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#10b981;display:inline-block;flex-shrink:0"></span> Comprador</button>
             <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span> Seguim.</button>
             <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span> Frecuente</button>
+            <button onclick="window.filtrarMayoristaWA(this)" class="wa-pill" title="Mostrar solo conversaciones de clientes mayoristas/zapaterías">🏢 Mayoristas</button>
           </div>
         </div>
         <div class="wa-chat-list">
@@ -14728,8 +14730,12 @@ window.mostrarPipelineWA = async function() {
     const raw = await fetch(API + '/chatbot/chats').then(r => r.json()).catch(() => [])
     chats = Array.isArray(raw) ? raw : []
   } catch (e) { chats = [] }
+  await window._asegurarClientesWA()  // mapa telefono→tipo, para saber quién es mayorista
   window._chatsData = window._chatsData || {}
   chats.forEach(c => { window._chatsData[c.telefono] = { ...(window._chatsData[c.telefono] || {}), ...c } })
+
+  const chatsTotal = chats
+  if (window._waKbSoloMayoristas) chats = chats.filter(c => window._esMayoristaWA(c.telefono))
 
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const porEtapa = (id) => chats.filter(c => (c.etiqueta || 'sin_etiqueta') === id)
@@ -14745,6 +14751,7 @@ window.mostrarPipelineWA = async function() {
       const preview = esc(rawTxt.toString().replace(/^\[[^\]]+\]:\s*/, '').replace(/\s+/g, ' ').slice(0, 46))
       const fecha = window._waKbFecha(c.ultimo_mensaje)
       const noLeidos = c.no_leidos || 0
+      const esMay = window._esMayoristaWA(c.telefono)
       return `
         <div class="wa-kb-card" draggable="true"
              ondragstart="window._waKbDragStart(event,'${c.telefono}')"
@@ -14755,6 +14762,7 @@ window.mostrarPipelineWA = async function() {
             <span class="wa-kb-name">${esc(c.nombre || c.telefono)}</span>
             ${noLeidos > 0 ? `<span class="wa-kb-unread">${noLeidos}</span>` : ''}
           </div>
+          ${esMay ? `<span style="font-size:0.6rem;font-weight:700;color:#7c3aed;background:#ede7f6;border-radius:100px;padding:1px 6px;display:inline-block;margin-top:3px">🏢 Mayorista</span>` : ''}
           ${preview ? `<div class="wa-kb-prev">${preview}</div>` : ''}
           ${fecha ? `<div class="wa-kb-fecha">${fecha}</div>` : ''}
         </div>`
@@ -14781,10 +14789,18 @@ window.mostrarPipelineWA = async function() {
           <p style="font-size:0.6rem;font-weight:700;letter-spacing:0.08em;color:#E91E8C;text-transform:uppercase;margin:0 0 2px">WhatsApp · CRM</p>
           <span style="font-weight:700;color:var(--text-1);font-size:1rem">Embudo de ventas</span>
         </div>
-        <span style="font-size:0.75rem;color:var(--text-3)">Arrastra una tarjeta entre columnas para cambiar su etapa · ${chats.length} conversaciones</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button onclick="window._waKbToggleMayoristas()" class="wa-pill${window._waKbSoloMayoristas ? ' activa' : ''}" title="Mostrar solo conversaciones de clientes mayoristas/zapaterías">🏢 Mayoristas</button>
+          <span style="font-size:0.75rem;color:var(--text-3)">Arrastra una tarjeta entre columnas para cambiar su etapa · ${chats.length}${window._waKbSoloMayoristas ? ` de ${chatsTotal.length}` : ''} conversaciones</span>
+        </div>
       </div>
       <div class="wa-kb-board">${columnas}</div>
     </div>`
+}
+
+window._waKbToggleMayoristas = async () => {
+  window._waKbSoloMayoristas = !window._waKbSoloMayoristas
+  await window.mostrarPipelineWA()
 }
 
 window._waKbFecha = (iso) => {
@@ -14835,9 +14851,16 @@ window._aplicarFiltrosWA = () => {
     const ok = (!f.canal || el.dataset.canal === f.canal) &&
                (!f.estado || (el.dataset.estado || 'abierto') === f.estado) &&
                (!f.etiqueta || (el.dataset.etiqueta || '') === f.etiqueta) &&
+               (!f.mayorista || el.dataset.mayorista === '1') &&
                (!f.texto || (el.dataset.nombre || '').includes(f.texto) || (el.dataset.tel || '').includes(f.texto))
     el.style.display = ok ? '' : 'none'
   })
+}
+
+window.filtrarMayoristaWA = (btn) => {
+  window._waFiltros.mayorista = !window._waFiltros.mayorista
+  btn.classList.toggle('activa', window._waFiltros.mayorista)
+  window._aplicarFiltrosWA()
 }
 
 window.filtrarCanalWA = (canal, btn) => {
@@ -15693,6 +15716,34 @@ window._grupoCanalWA = (canal) => {
   if (canal === 'messenger' || canal === 'instagram') return canal
   return 'whatsapp'
 }
+// ── Identificar conversaciones de clientes mayoristas (tipo mayoreo/zapateria) ──
+// El teléfono de conversaciones_whatsapp trae el código de país (ej.
+// "524444131146"), pero el de clientes se guarda sin él (ej. "4444131146") --
+// se comparan los últimos 10 dígitos para no depender del prefijo.
+window._ultimos10WA = (tel) => String(tel || '').replace(/\D/g, '').slice(-10)
+
+window._asegurarClientesWA = async () => {
+  if (window._clientesTelMapWA) return window._clientesTelMapWA
+  try {
+    const clientes = await fetch(API + '/clientes/').then(r => r.json())
+    const mapa = {}
+    ;(Array.isArray(clientes) ? clientes : []).forEach(c => {
+      const key = window._ultimos10WA(c.telefono)
+      if (key) mapa[key] = c.tipo
+    })
+    window._clientesTelMapWA = mapa
+  } catch (e) {
+    window._clientesTelMapWA = {}
+  }
+  return window._clientesTelMapWA
+}
+
+window._esMayoristaWA = (telefono) => {
+  const mapa = window._clientesTelMapWA || {}
+  const tipo = mapa[window._ultimos10WA(telefono)]
+  return tipo === 'mayoreo' || tipo === 'zapateria'
+}
+
 window._htmlCanalTabsWA = (chats) => {
   const conteo = { whatsapp: 0, messenger: 0, instagram: 0, comentario_ig: 0, comentario_fb: 0 }
   ;(chats || []).forEach(c => { conteo[window._grupoCanalWA(c.canal)]++ })
@@ -15724,8 +15775,8 @@ window._htmlChatItems = (chats) => {
   if (!chats || chats.length === 0) {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
-  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}"
+  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c.telefono); return `
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}"
                    onclick="abrirChat('${c.telefono}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._letraAvatarWA(c.nombre || c.telefono)}
@@ -15735,6 +15786,7 @@ window._htmlChatItems = (chats) => {
                 <div class="wa-chat-info">
                   <div class="wa-chat-name">${c.nombre || c.telefono}
                     ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-dot-inline ${c.estado}" title="${c.estado==='espera'?'En espera':'Cerrado'}"></span>` : ''}
+                    ${esMay ? `<span style="font-size:0.6rem;font-weight:700;color:#7c3aed;background:#ede7f6;border-radius:100px;padding:1px 6px;margin-left:4px;vertical-align:middle">Mayorista</span>` : ''}
                   </div>
                   <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.length > 40 ? mm.substring(0,40)+'…' : (mm || 'Sin mensajes') })()}</div>
                 </div>
@@ -15743,7 +15795,7 @@ window._htmlChatItems = (chats) => {
                   ${c.no_leidos > 0 ? `<span class="wa-unread">${c.no_leidos}</span>` : ''}
                 </div>
               </div>
-            `).join('')
+            `}).join('')
 }
 
 // Re-renderiza la barra lateral de chats en vivo (sin perder búsqueda/filtros ni el chat abierto)
