@@ -626,11 +626,17 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
     const sucursales = await resSucursales.json()
     const sucursalId = sucursalIdForzada || sucursales[0]?.id
 
-    const [resSugerencias, resProveedores] = await Promise.all([
+    const [resSugerencias, resProveedores, resOrdenes] = await Promise.all([
       fetch(API + '/finanzas/sugerencias-recompra/' + sucursalId),
-      fetch(API + '/finanzas/proveedores')
+      fetch(API + '/finanzas/proveedores'),
+      fetch(API + '/finanzas/ordenes').catch(() => null)
     ])
     const sugerencias = await resSugerencias.json()
+    // Órdenes ya guardadas (generarOrden/guardarOrdenCompra2 las crea aquí,
+    // pero antes no se veían en ningún lado de este tab -- solo aparecían
+    // en Finanzas > Cuentas por pagar, sin ningún aviso de que ahí quedaban).
+    const ordenesGuardadasRaw = resOrdenes ? await resOrdenes.json().catch(() => []) : []
+    const ordenesGuardadas = (Array.isArray(ordenesGuardadasRaw) ? ordenesGuardadasRaw : []).slice(0, 6)
     const proveedores = await resProveedores.json()
 
     // Enriquecer cada variante con su propia velocidad de venta (viene de
@@ -695,6 +701,28 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
           <button class="btn btn-primary" onclick="generarOrden()">📋 Generar orden</button>
         </div>
       </div>
+
+      ${ordenesGuardadas.length > 0 ? `
+      <!-- Órdenes ya guardadas -- antes no se veían en ningún lado de este tab -->
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1.5rem">
+        <div style="padding:0.9rem 1.25rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <p style="font-weight:700;font-size:0.85rem;margin:0">📑 Órdenes guardadas recientemente</p>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px" onclick="window.irACuentasPorPagar()">Ver todas en Cuentas por pagar →</button>
+        </div>
+        ${ordenesGuardadas.map(o => {
+          const badges = { borrador: {bg:'#f3e5f5',color:'#6a1b9a',txt:'Borrador'}, pendiente: {bg:'#fff8e1',color:'#f57f17',txt:'Pendiente'}, recibida: {bg:'#e3f2fd',color:'#1565c0',txt:'Recibida'}, pagada: {bg:'#e8f5e9',color:'#2e7d32',txt:'Pagada'}, cancelada: {bg:'#ffebee',color:'#c62828',txt:'Cancelada'} }
+          const b = badges[o.status] || {bg:'#f5f5f5',color:'#888',txt:o.status}
+          return `
+          <div style="padding:0.7rem 1.25rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:140px">
+              <p style="font-size:0.82rem;font-weight:600;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}</p>
+              <p style="font-size:0.7rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}${o.notas ? ' · ' + o.notas : ''}</p>
+            </div>
+            <p style="font-weight:700;color:#333;font-size:0.9rem;margin:0">$${parseFloat(o.total||0).toFixed(0)}</p>
+            <span style="font-size:0.66rem;padding:2px 9px;border-radius:100px;background:${b.bg};color:${b.color};font-weight:700">${b.txt}</span>
+          </div>`
+        }).join('')}
+      </div>` : ''}
 
       <!-- KPIs -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:1.5rem">
@@ -1407,7 +1435,7 @@ window.guardarOrdenCompra2 = async () => {
       }
     }
     document.getElementById('modal-orden')?.remove()
-    alert('Orden de compra guardada')
+    alert('✅ Orden de compra guardada -- la vas a ver aquí mismo en "Órdenes guardadas recientemente", y también en Finanzas > Cuentas por pagar.')
     cargarOrdenes(window._ordenesData?.containerId, window._ordenesData?.sucursalId)
   } catch(e) {
     alert('Error guardando orden: ' + e.message)
@@ -2017,6 +2045,16 @@ window.mostrarCxC = () => {
         }).join('')}
     </div>
   `
+}
+
+window.irACuentasPorPagar = async () => {
+  // navegarA no espera a que cargarFinanzas termine (no la awaitea
+  // internamente) -- si cambiáramos de pestaña justo después, mostrarCxP()
+  // leería window._finanzasData antes de que existiera. Se vuelve a cargar
+  // aquí mismo, ya con await, antes de cambiar a la pestaña de CxP.
+  navegarA('finanzas')
+  await cargarFinanzas()
+  window.mostrarTabFinanzas('cxp')
 }
 
 window.mostrarCxP = () => {
