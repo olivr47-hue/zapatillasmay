@@ -82,6 +82,7 @@ const modulos = [
   { id: 'carritos', icon: '🛒', label: 'Carritos', section: 'Ventas' },
   { id: 'pedidos', icon: '🛍️', label: 'Pedidos', section: 'Ventas' },
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
+  { id: 'portal-accesos', icon: '🔑', label: 'Accesos portal', section: 'Ventas', soloAdmin: true },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
   { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
@@ -573,6 +574,7 @@ async function cargarModulo(id) {
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break
     case 'clientes': await cargarClientes(); break
+    case 'portal-accesos': await cargarPortalAccesos(); break
     case 'carritos': await cargarCarritos(); break
     case 'pedidos': await cargarPedidos(); window._limpiarBadgePedidos?.(); break
     case 'sucursales': await cargarSucursales(); break
@@ -24600,6 +24602,118 @@ window.filtrarReferidos = function(q) {
   const lq = q.toLowerCase()
   rows.forEach(row => {
     row.style.display = row.textContent.toLowerCase().includes(lq) ? '' : 'none'
+  })
+}
+
+// ── Accesos al portal mayorista ──────────────────────────────────────────
+// Antes no había forma de ver en el panel quién está registrado para el
+// portal mayorista ni cuándo entró por última vez -- este endpoint junta
+// usuarios (tabla de cuentas/login) con su cliente ligado, filtrado a
+// zapateria/mayoreo, con ultimo_login actualizado en cada login exitoso.
+async function cargarPortalAccesos() {
+  const content = document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando accesos...</p>'
+  try {
+    const res = await fetch(API + '/clientes/portal-mayoreo')
+    const cuentas = await res.json()
+    if (!Array.isArray(cuentas)) throw new Error(cuentas.error || 'Respuesta inesperada del servidor')
+
+    const hoy = new Date()
+    const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
+    const totalRegistrados = cuentas.length
+    const nuncaEntraron = cuentas.filter(c => !c.ultimo_login).length
+    const entraronAlgunaVez = totalRegistrados - nuncaEntraron
+    const activos7d = cuentas.filter(c => c.ultimo_login && new Date(c.ultimo_login) >= hace7).length
+
+    window._portalAccesosData = cuentas
+
+    content.innerHTML = `
+      <div style="padding:1rem;max-width:960px">
+        <h2 style="margin:0 0 1rem;font-size:1.1rem">🔑 Accesos al Portal Mayorista</h2>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+          <div style="background:white;border-radius:12px;padding:1rem;border:1px solid #eee;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#333">${totalRegistrados}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Registrados</p>
+          </div>
+          <div style="background:#e8f5e9;border-radius:12px;padding:1rem;border:1px solid #a5d6a7;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#2e7d32">${activos7d}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Entraron últ. 7 días</p>
+          </div>
+          <div style="background:#e3f2fd;border-radius:12px;padding:1rem;border:1px solid #90caf9;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#1565c0">${entraronAlgunaVez}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Entraron alguna vez</p>
+          </div>
+          <div style="background:#ffebee;border-radius:12px;padding:1rem;border:1px solid #ffcdd2;text-align:center">
+            <p style="font-size:1.8rem;font-weight:700;color:#c62828">${nuncaEntraron}</p>
+            <p style="font-size:0.72rem;color:#888;text-transform:uppercase;letter-spacing:0.5px">Nunca entraron</p>
+          </div>
+        </div>
+
+        <input id="pa-buscar" type="text" placeholder="Buscar por nombre, correo o ciudad..." oninput="filtrarPortalAccesos(this.value)"
+          style="width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:0.88rem;margin-bottom:1rem;outline:none">
+
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.83rem;min-width:640px">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:1px solid #eee">
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Cliente</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Contacto</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Tipo</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Registrado</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Último acceso</th>
+              </tr>
+            </thead>
+            <tbody id="pa-tbody">
+              ${cuentas.map(c => _rowPortalAcceso(c)).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `
+  } catch(e) {
+    content.innerHTML = `<p style="padding:2rem;color:red">Error cargando accesos del portal: ${e.message}</p>`
+  }
+}
+
+function _fmtFechaHoraPA(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' +
+    d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+}
+
+function _rowPortalAcceso(c) {
+  const cli = c.clientes || {}
+  const contacto = [cli.telefono, c.email].filter(Boolean).join(' · ')
+  const ciudad = [cli.ciudad, cli.estado].filter(Boolean).join(', ')
+  const ultimo = _fmtFechaHoraPA(c.ultimo_login)
+  const registrado = _fmtFechaHoraPA(c.created_at)
+  const busqueda = `${cli.nombre || c.nombre || ''} ${c.email || ''} ${ciudad}`.toLowerCase()
+  return `
+    <tr style="border-bottom:1px solid #f5f5f5" data-search="${busqueda}">
+      <td style="padding:10px 12px">
+        <p style="font-weight:600;margin:0">${cli.nombre || c.nombre || '—'}</p>
+        ${ciudad ? `<p style="font-size:0.75rem;color:#999;margin:1px 0 0">${ciudad}</p>` : ''}
+      </td>
+      <td style="padding:10px 12px;color:#555">${contacto || '—'}</td>
+      <td style="padding:10px 12px">
+        <span style="font-size:0.68rem;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:100px;background:${cli.tipo === 'zapateria' ? '#ede7f6' : '#e1f5fe'};color:${cli.tipo === 'zapateria' ? '#5e35b1' : '#0277bd'}">${cli.tipo || ''}</span>
+      </td>
+      <td style="padding:10px 12px;color:#777;font-size:0.8rem">${registrado || '—'}</td>
+      <td style="padding:10px 12px">
+        ${ultimo
+          ? `<span style="color:#2e7d32;font-weight:600">${ultimo}</span>`
+          : `<span style="color:#c62828;font-weight:600">Nunca entró</span>`}
+      </td>
+    </tr>`
+}
+
+window.filtrarPortalAccesos = function(valor) {
+  const q = (valor || '').toLowerCase().trim()
+  document.querySelectorAll('#pa-tbody tr').forEach(tr => {
+    const texto = tr.getAttribute('data-search') || ''
+    tr.style.display = texto.includes(q) ? '' : 'none'
   })
 }
 
