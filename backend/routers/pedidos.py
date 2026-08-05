@@ -574,11 +574,27 @@ def actualizar_pedido(id: str, pedido: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+def _recalcular_total_pedido(pedido_id):
+    """Recalcula pedidos.total/subtotal desde la suma real de pedido_items --
+    se llama después de agregar/editar/quitar un ítem para que no se quede
+    desincronizado. La tarjeta de la lista general de Carritos (cargarCarritos
+    en el panel) lee pedidos.total directo, sin sumar los items en vivo --
+    si esto no corre, esa tarjeta se queda mostrando $0 aunque el carrito
+    en detalle sí tenga pares (que sí se calcula en vivo ahí)."""
+    try:
+        items = supabase_get(f"pedido_items?pedido_id=eq.{pedido_id}&select=cantidad,precio_unitario") or []
+        total = sum(float(i.get("cantidad") or 0) * float(i.get("precio_unitario") or 0) for i in items)
+        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"total": round(total, 2), "subtotal": round(total, 2)})
+    except Exception:
+        pass
+
 @router.post("/{id}/items")
 def agregar_item(id: str, item: dict):
     try:
         item["pedido_id"] = id
-        return supabase_post("pedido_items", item)
+        resultado = supabase_post("pedido_items", item)
+        _recalcular_total_pedido(id)
+        return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -629,6 +645,7 @@ def actualizar_item(id: str, item_id: str, datos: dict):
                         "motivo": f"Edición pedido {id}"
                     })
 
+        _recalcular_total_pedido(id)
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -675,6 +692,7 @@ def eliminar_item(id: str, item_id: str, forzar: bool = False):
                         "motivo": f"Eliminación ítem pedido {id}" + (" (apartado liberado)" if reservado else "")
                     })
 
+        _recalcular_total_pedido(id)
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
