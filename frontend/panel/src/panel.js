@@ -715,7 +715,7 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
           return `
           <div style="padding:0.7rem 1.25rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer" onclick="window.verOrdenDetalle('${o.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
             <div style="flex:1;min-width:140px">
-              <p style="font-size:0.82rem;font-weight:600;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}</p>
+              <p style="font-size:0.82rem;font-weight:600;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}${o.numero ? ` · #${String(o.numero).padStart(4,'0')}` : ''}</p>
               <p style="font-size:0.7rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})}${o.notas ? ' · ' + o.notas : ''}</p>
             </div>
             <p style="font-weight:700;color:#333;font-size:0.9rem;margin:0">$${parseFloat(o.total||0).toFixed(0)}</p>
@@ -1149,6 +1149,15 @@ function _condicionPagoLabel(dias) {
   return d === 0 ? 'Contado' : d + ' días'
 }
 
+// El "código" que se muestra en la orden es el modelo del proveedor (ej.
+// "JV160"), que va como primera palabra del nombre del producto ("Jv160
+// Flats con tacon de bloque...") -- NO el sku_interno propio del sistema
+// (ej. "J-FLT-0108"), que es un código interno distinto y no dice nada al
+// proveedor cuando se le manda la orden.
+function _codigoModeloDesdeNombre(nombre) {
+  return (nombre || '').trim().split(/\s+/)[0]?.toUpperCase() || ''
+}
+
 // Antes cada talla/color aparecía en su propia fila, repitiendo el nombre
 // completo del modelo -- ahora se agrupa por código+color (una fila por
 // cada uno, con el desglose de tallas y cantidades adentro), y solo se
@@ -1157,12 +1166,13 @@ function _agruparItemsOrdenParaDocumento(seleccionados) {
   const grupos = {}
   const orden = []
   seleccionados.forEach(p => {
+    const codigo = _codigoModeloDesdeNombre(p.nombre) || p.sku || ''
     const vars = p.variantes || []
     if (vars.length === 0) {
       const qty = parseInt(document.getElementById('qty-orden-' + p.producto_id)?.value || p.cantidad_sugerida)
       if (qty <= 0) return
-      const key = (p.sku || p.nombre) + '|—'
-      if (!grupos[key]) { grupos[key] = { sku: p.sku || p.nombre || '', color: '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
+      const key = codigo + '|—'
+      if (!grupos[key]) { grupos[key] = { sku: codigo, color: '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
       grupos[key].tallas.push({ talla: '—', cantidad: qty })
     } else {
       vars.forEach(v => {
@@ -1170,8 +1180,8 @@ function _agruparItemsOrdenParaDocumento(seleccionados) {
         if (!chk?.checked) return
         const qty = parseInt(document.getElementById('qty-var-' + v.id)?.value || 0)
         if (qty <= 0) return
-        const key = (p.sku || p.nombre) + '|' + (v.color || '—')
-        if (!grupos[key]) { grupos[key] = { sku: p.sku || p.nombre || '', color: v.color || '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
+        const key = codigo + '|' + (v.color || '—')
+        if (!grupos[key]) { grupos[key] = { sku: codigo, color: v.color || '—', costo: p.costo_unitario, tallas: [] }; orden.push(key) }
         grupos[key].tallas.push({ talla: v.talla || '—', cantidad: qty })
       })
     }
@@ -1179,7 +1189,8 @@ function _agruparItemsOrdenParaDocumento(seleccionados) {
   return orden.map(k => {
     const g = grupos[k]
     const cantidad = g.tallas.reduce((s, t) => s + t.cantidad, 0)
-    return { ...g, cantidad, subtotal: cantidad * g.costo, tallasTexto: g.tallas.map(t => `${t.talla} (${t.cantidad})`).join(', ') }
+    const tallasLineas = g.tallas.map(t => `${t.talla} (${t.cantidad})`)
+    return { ...g, cantidad, subtotal: cantidad * g.costo, tallasLineas, tallasTexto: tallasLineas.join(', ') }
   })
 }
 
@@ -1197,7 +1208,7 @@ window.imprimirOrden = () => {
     <tr>
       <td style="font-weight:700">${g.sku}</td>
       <td>${g.color}</td>
-      <td>${g.tallasTexto}</td>
+      <td style="line-height:1.6">${g.tallasLineas.join('<br>')}</td>
       <td style="text-align:center;font-weight:bold">${g.cantidad}</td>
       <td style="text-align:right">$${g.costo.toFixed(0)}</td>
       <td style="text-align:right">$${g.subtotal.toFixed(0)}</td>
@@ -1209,7 +1220,7 @@ window.imprimirOrden = () => {
 <style>
   body { font-family: Arial, sans-serif; font-size: 12px; padding: 24px; color: #222; }
   .encabezado { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
-  .encabezado img { width: 60px; height: 60px; object-fit: contain; }
+  .encabezado img { width: 110px; height: 110px; object-fit: contain; }
   h1 { font-size: 18px; margin: 0 0 2px; }
   .meta { color: #444; font-size: 11.5px; margin-bottom: 20px; line-height: 1.7; }
   .meta strong { color: #222; }
@@ -1277,7 +1288,7 @@ async function _obtenerLogoZMDataURL() {
 // código+color+tallas) -- compartido entre generarPDFOrden (mientras se
 // arma la orden, lee el DOM del modal) y generarPDFOrdenGuardada (una orden
 // ya guardada, vuelta a abrir desde el historial).
-async function _dibujarPdfOrden({ grupos, fechaPedidoTexto, fechaMaximaISO, condicionPago, notas, nombreArchivo }) {
+async function _dibujarPdfOrden({ grupos, numeroOrden, fechaPedidoTexto, fechaMaximaISO, condicionPago, notas, nombreArchivo }) {
   if (!window.jspdf) {
     await new Promise((resolve, reject) => {
       const s = document.createElement('script')
@@ -1293,16 +1304,16 @@ async function _dibujarPdfOrden({ grupos, fechaPedidoTexto, fechaMaximaISO, cond
   // Código, Color, Tallas (cantidad), Total pares, Costo/par, Subtotal
   const cols = [marginX, marginX + 41, marginX + 64, marginX + 131, marginX + 146, marginX + 164]
   const headers = ['Código', 'Color', 'Tallas (cantidad)', 'Pares', 'Costo/par', 'Subtotal']
-  let y = 20
+  let y = 26
   const total = grupos.reduce((s, g) => s + g.subtotal, 0)
 
   const dibujarEncabezado = () => {
     if (logoDataUrl) {
-      try { pdf.addImage(logoDataUrl, 'PNG', marginX, y - 12, 16, 16) } catch (e) {}
+      try { pdf.addImage(logoDataUrl, 'PNG', marginX, y - 16, 24, 24) } catch (e) {}
     }
-    const xTexto = logoDataUrl ? marginX + 20 : marginX
+    const xTexto = logoDataUrl ? marginX + 28 : marginX
     pdf.setFontSize(15); pdf.setFont(undefined, 'bold')
-    pdf.text('Orden de compra', xTexto, y - 4)
+    pdf.text('Orden de compra' + (numeroOrden ? ' #' + String(numeroOrden).padStart(4, '0') : ''), xTexto, y - 4)
     pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); pdf.setTextColor(120)
     pdf.text('Zapatillas May', xTexto, y)
     pdf.setTextColor(0)
@@ -1330,15 +1341,18 @@ async function _dibujarPdfOrden({ grupos, fechaPedidoTexto, fechaMaximaISO, cond
 
   dibujarEncabezado()
 
+  // En cascada: cada talla/cantidad en su propia línea dentro de la fila,
+  // para que al proveedor no le quede duda de qué se está pidiendo (antes
+  // iba todo junto en una sola línea separado por comas).
   grupos.forEach(g => {
     if (y > pageH - 25) {
       pdf.addPage()
-      y = 20
+      y = 26
       dibujarEncabezado()
     }
     pdf.setFontSize(8.5)
-    const tallasWrap = pdf.splitTextToSize(g.tallasTexto, cols[3] - cols[2] - 3)
-    tallasWrap.forEach((linea, i) => pdf.text(linea, cols[2], y + i * 3.8))
+    const lineasTallas = (g.tallasLineas && g.tallasLineas.length ? g.tallasLineas : [g.tallasTexto || ''])
+    lineasTallas.forEach((linea, i) => pdf.text(linea, cols[2], y + i * 4.2))
     pdf.setFont(undefined, 'bold')
     pdf.text(g.sku, cols[0], y)
     pdf.setFont(undefined, 'normal')
@@ -1347,7 +1361,7 @@ async function _dibujarPdfOrden({ grupos, fechaPedidoTexto, fechaMaximaISO, cond
     pdf.text('$' + g.costo.toFixed(0), cols[4], y)
     pdf.text('$' + g.subtotal.toFixed(0), cols[5], y)
     pdf.setDrawColor(230)
-    const altoFila = Math.max(tallasWrap.length * 3.8, 5)
+    const altoFila = Math.max(lineasTallas.length * 4.2, 6)
     pdf.line(marginX, y + altoFila - 1.5, pageW - marginX, y + altoFila - 1.5)
     y += altoFila + 1.5
   })
@@ -1407,6 +1421,7 @@ window.generarPDFOrdenGuardada = async () => {
   try {
     await _dibujarPdfOrden({
       grupos: filas,
+      numeroOrden: orden.numero,
       fechaPedidoTexto: new Date(orden.created_at).toLocaleDateString('es-MX'),
       fechaMaximaISO: orden.fecha_entrega_estimada || '',
       condicionPago: _condicionPagoLabel(diasCredito),
@@ -2214,7 +2229,7 @@ function _renderHistorialOrdenes() {
           return `
           <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer" onclick="window.verOrdenDetalle('${o.id}')" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
             <div style="flex:1;min-width:160px">
-              <p style="font-weight:600;font-size:0.88rem;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}</p>
+              <p style="font-weight:600;font-size:0.88rem;margin:0">🏭 ${o.proveedores?.nombre || 'Sin proveedor'}${o.numero ? ` · #${String(o.numero).padStart(4,'0')}` : ''}</p>
               <p style="font-size:0.72rem;color:#888;margin:0">${new Date(o.created_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}${o.notas ? ' · ' + o.notas : ''} · ${o.sucursales?.nombre || ''}</p>
             </div>
             <p style="font-weight:700;color:#333;font-size:0.95rem;margin:0">$${parseFloat(o.total || 0).toFixed(0)}</p>
@@ -2243,7 +2258,7 @@ window.verOrdenDetalle = async (ordenId) => {
     const grupos = {}
     const ordenKeys = []
     items.forEach(i => {
-      const sku = i.variantes?.productos?.sku_interno || i.variantes?.productos?.nombre || '—'
+      const sku = _codigoModeloDesdeNombre(i.variantes?.productos?.nombre) || i.variantes?.productos?.sku_interno || '—'
       const color = i.variantes?.color || '—'
       const key = sku + '|' + color
       if (!grupos[key]) { grupos[key] = { sku, color, costo: parseFloat(i.costo_unitario || 0), tallas: [] }; ordenKeys.push(key) }
@@ -2252,7 +2267,8 @@ window.verOrdenDetalle = async (ordenId) => {
     const filas = ordenKeys.map(k => {
       const g = grupos[k]
       const cantidad = g.tallas.reduce((s, t) => s + t.cantidad, 0)
-      return { ...g, cantidad, subtotal: cantidad * g.costo, tallasTexto: g.tallas.map(t => `${t.talla} (${t.cantidad})`).join(', ') }
+      const tallasLineas = g.tallas.map(t => `${t.talla} (${t.cantidad})`)
+      return { ...g, cantidad, subtotal: cantidad * g.costo, tallasLineas, tallasTexto: tallasLineas.join(', ') }
     })
 
     const b = _ORD_BADGES[orden.status] || { bg: '#f5f5f5', color: '#888', txt: orden.status }
@@ -2268,6 +2284,7 @@ window.verOrdenDetalle = async (ordenId) => {
       <div style="max-width:820px">
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap">
           <button class="btn btn-secondary" onclick="window.mostrarHistorialOrdenes()">← Volver al historial</button>
+          ${orden.numero ? `<span style="font-size:0.78rem;color:#888;font-weight:600">Orden #${String(orden.numero).padStart(4, '0')}</span>` : ''}
           <span style="font-size:0.7rem;padding:3px 10px;border-radius:100px;background:${b.bg};color:${b.color};font-weight:700">${b.txt}</span>
         </div>
         <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
@@ -2298,7 +2315,7 @@ window.verOrdenDetalle = async (ordenId) => {
                 <tr style="border-bottom:1px solid #f5f5f5">
                   <td style="padding:8px 12px;font-weight:700">${f.sku}</td>
                   <td style="padding:8px 12px">${f.color}</td>
-                  <td style="padding:8px 12px;color:#555">${f.tallasTexto}</td>
+                  <td style="padding:8px 12px;color:#555;line-height:1.6">${f.tallasLineas.join('<br>')}</td>
                   <td style="padding:8px 12px;text-align:center;font-weight:700">${f.cantidad}</td>
                   <td style="padding:8px 12px;text-align:right">$${f.costo.toFixed(0)}</td>
                   <td style="padding:8px 12px;text-align:right">$${f.subtotal.toFixed(0)}</td>
