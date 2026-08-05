@@ -984,48 +984,56 @@ window.generarOrden = () => {
 
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;padding:2rem;max-width:780px;width:100%;max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <h3 style="font-size:1.1rem;font-weight:700">📋 Orden de compra</h3>
         <button onclick="document.getElementById('modal-orden').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div>
-          <label class="form-label">Sucursal destino</label>
-          <select class="form-input" id="orden-sucursal">
-            <option value="${sucursalId}">Sucursal actual</option>
-          </select>
+      <!-- Fija arriba (sticky) y con fondo/borde propio -- antes esto se
+      perdía visualmente entre decenas de tarjetas de producto al hacer
+      scroll y la gente ni se enteraba de que existía, terminaba guardando
+      la orden con la fecha/condición por default y sin notas para el
+      proveedor sin haberlo decidido. -->
+      <div style="position:sticky;top:-2rem;background:#fdf2f8;border:1.5px solid #fbcfe8;border-radius:12px;padding:1rem 1.25rem;margin:0 -0.25rem 1.25rem;z-index:5;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <p style="font-size:0.78rem;font-weight:700;color:#c2185b;margin:0 0 0.75rem;text-transform:uppercase;letter-spacing:0.04em">📝 Datos de la orden -- revisa antes de guardar</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="form-label">Sucursal destino</label>
+            <select class="form-input" id="orden-sucursal">
+              <option value="${sucursalId}">Sucursal actual</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Fecha máxima de recepción</label>
+            <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
+          </div>
+          <div>
+            <label class="form-label">Condición de pago</label>
+            <select class="form-input" id="orden-condicion-pago">
+              <option value="0">Contado</option>
+              <option value="15">15 días</option>
+              <option value="30" selected>30 días</option>
+              <option value="45">45 días</option>
+              <option value="60">60 días</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label class="form-label">Fecha máxima de recepción</label>
-          <input class="form-input" type="date" id="orden-fecha" value="${new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]}">
-        </div>
-        <div>
-          <label class="form-label">Condición de pago</label>
-          <select class="form-input" id="orden-condicion-pago">
-            <option value="0">Contado</option>
-            <option value="15">15 días</option>
-            <option value="30" selected>30 días</option>
-            <option value="45">45 días</option>
-            <option value="60">60 días</option>
-          </select>
-        </div>
-      </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div>
-          <label class="form-label">Tipo de caja</label>
-          <input class="form-input" type="text" id="orden-tipo-caja" placeholder="Ej. Caja estándar de cartón, reforzada, etc.">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+          <div>
+            <label class="form-label">Tipo de caja</label>
+            <input class="form-input" type="text" id="orden-tipo-caja" placeholder="Ej. Caja estándar de cartón, reforzada, etc.">
+          </div>
+          <div>
+            <label class="form-label">Amarres y empaque</label>
+            <input class="form-input" type="text" id="orden-amarres" placeholder="Ej. Rafia doble, flejado de plástico, etc.">
+          </div>
         </div>
-        <div>
-          <label class="form-label">Amarres y empaque</label>
-          <input class="form-input" type="text" id="orden-amarres" placeholder="Ej. Rafia doble, flejado de plástico, etc.">
-        </div>
-      </div>
 
-      <div style="margin-bottom:1.25rem">
-        <label class="form-label">Notas y condiciones adicionales</label>
-        <textarea class="form-input" id="orden-notas" rows="2" placeholder="Cualquier otra condición o comentario para el proveedor..."></textarea>
+        <div>
+          <label class="form-label">Notas e indicaciones para el proveedor</label>
+          <textarea class="form-input" id="orden-notas" rows="2" placeholder="Cualquier otra condición o comentario para el proveedor..." style="width:100%"></textarea>
+        </div>
       </div>
 
       ${seleccionados.map(p => {
