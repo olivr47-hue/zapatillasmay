@@ -517,6 +517,7 @@ async def crear_pedido(pedido: dict, request: Request):
             "ga_client_id", "fbc", "fbp", "fbclid", "gclid",
             "client_user_agent", "client_ip_address",
             "ciudad_cliente", "estado_cliente", "cp_cliente",
+            "utm_source", "utm_medium", "utm_campaign", "referrer_origen",
         )
         atribucion_para_patch = None
         try:

@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <script src="/attribution.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Finalizar compra — Zapatillas May</title>
   <meta name="description" content="Completa tus datos de envío y finaliza tu compra en Zapatillas May.">
@@ -721,7 +722,11 @@ async function procesarPago() {
         // Purchase server-side recupere la fuente original de la sesión en GA4.
         ga_client_id: (function(){ try { return (document.cookie.match(/_ga=GA\d+\.\d+\.(\d+\.\d+)/)||[])[1] || '' } catch(e){ return '' } })(),
         gclid:  (function(){ try { return new URLSearchParams(location.search).get('gclid')  || localStorage.getItem('zm_gclid')  || '' } catch(e){ return '' } })(),
-        fbclid: (function(){ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })()
+        fbclid: (function(){ try { return new URLSearchParams(location.search).get('fbclid') || localStorage.getItem('zm_fbclid') || '' } catch(e){ return '' } })(),
+        utm_source:   (function(){ try { return localStorage.getItem('zm_utm_source')   || '' } catch(e){ return '' } })(),
+        utm_medium:   (function(){ try { return localStorage.getItem('zm_utm_medium')   || '' } catch(e){ return '' } })(),
+        utm_campaign: (function(){ try { return localStorage.getItem('zm_utm_campaign') || '' } catch(e){ return '' } })(),
+        referrer_origen: (function(){ try { return localStorage.getItem('zm_referrer') || '' } catch(e){ return '' } })()
       })
     })
     const pedido = await resPedido.json()
