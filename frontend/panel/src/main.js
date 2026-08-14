@@ -36,7 +36,14 @@ if (_skuEstiloPublico) {
       }
     }
     const res = await _fetch(input, init)
-    if (esApi && res.status === 401 && !_redirigiendo) {
+    // Los endpoints de login/registro devuelven 401 como respuesta NORMAL
+    // ante credenciales equivocadas -- el formulario necesita ese 401 para
+    // mostrar "contraseña incorrecta". Si el interceptor lo trata como sesión
+    // expirada, la alerta + recarga se disparan ANTES de que el formulario
+    // pueda leer la respuesta, y la clienta/empleado se queda en un loop de
+    // "sesión expiró" sin nunca ver el error real de su intento de login.
+    const esLoginEndpoint = /\/api\/(empleados\/login|auth\/(login|google|registro|recuperar)|portal\/(login(\/google)?|otp\/(solicitar|verificar)))(\?|$)/.test(url)
+    if (esApi && res.status === 401 && !esLoginEndpoint && !_redirigiendo) {
       _redirigiendo = true
       try {
         localStorage.removeItem('erp_token')
