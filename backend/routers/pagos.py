@@ -830,6 +830,11 @@ async def webhook_mercadopago(request: Request):
                                 cantidad = item.get("cantidad", 1)
                                 if not variante_id:
                                     continue
+                                # Los items "reservado" ya le bajaron su cantidad al
+                                # inventario cuando se aprobó el apartado -- si aquí se
+                                # vuelve a descontar, la pieza se resta dos veces.
+                                if item.get("reservado"):
+                                    continue
                                 # Mostrador trae sucursal_id; los pedidos WEB no → descontar
                                 # del inventario donde exista la variante (bodega online).
                                 if sucursal_id:

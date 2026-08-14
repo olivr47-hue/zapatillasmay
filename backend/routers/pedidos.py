@@ -868,6 +868,11 @@ def confirmar_pedido(id: str, datos: dict):
         for item in items:
             variante_id = item.get("variante_id")
             cantidad = item.get("cantidad", 1)
+            # Los items "reservado" ya le bajaron su cantidad al inventario cuando
+            # se aprobó el apartado (ver /{id}/apartar) -- si aquí se vuelve a
+            # descontar, la pieza se resta dos veces por la misma venta.
+            if item.get("reservado"):
+                continue
             if variante_id and sucursal_id:
                 inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
                 if inv:
