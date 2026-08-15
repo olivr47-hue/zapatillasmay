@@ -13014,7 +13014,11 @@ window.forzarMayoreoPOS = (nivel) => {
 // agrega como línea de cantidad NEGATIVA al carrito (se descuenta del
 // total) y al cobrar, el backend sube el inventario en vez de bajarlo. ───
 window.mostrarCambiosPOS = () => {
-  window._cambioTierSeleccionado = 'mayoreo3'
+  // Menudeo por default -- igual que el resto del POS, mayoreo es la
+  // excepción que hay que elegir a propósito, no lo que aplica de entrada
+  // (antes arrancaba en mayoreo x3, así que un cliente de menudeo que
+  // traía un cambio se le cobraba de menos sin que nadie lo decidiera).
+  window._cambioTierSeleccionado = 'menudeo'
   const modal = document.createElement('div')
   modal.id = 'modal-cambios-pos'
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem'
@@ -13029,7 +13033,8 @@ window.mostrarCambiosPOS = () => {
 
         <p style="font-size:0.78rem;font-weight:700;color:#333;margin-bottom:6px">Precio a aplicar al par que se lleva:</p>
         <div style="display:flex;gap:6px;margin-bottom:1rem">
-          <button onclick="seleccionarTierCambio('mayoreo3')" id="tier-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;opacity:0.9">-$30/par</span></button>
+          <button onclick="seleccionarTierCambio('menudeo')" id="tier-menudeo" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Menudeo<br><span style="font-size:0.66rem;opacity:0.9">precio normal</span></button>
+          <button onclick="seleccionarTierCambio('mayoreo3')" id="tier-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;color:#888">-$30/par</span></button>
           <button onclick="seleccionarTierCambio('mayoreo6')" id="tier-mayoreo6" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x6<br><span style="font-size:0.66rem;color:#888">-$70/par</span></button>
           <button onclick="seleccionarTierCambio('corrida')" id="tier-corrida" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Corrida<br><span style="font-size:0.66rem;color:#888">-$100/par</span></button>
         </div>
@@ -13061,7 +13066,7 @@ window.actualizarResumenCambiosPOS = () => {
 
 window.seleccionarTierCambio = (tier) => {
   window._cambioTierSeleccionado = tier
-  ;['mayoreo3', 'mayoreo6', 'corrida'].forEach(t => {
+  ;['menudeo', 'mayoreo3', 'mayoreo6', 'corrida'].forEach(t => {
     const btn = document.getElementById('tier-' + t)
     if (!btn) return
     const activo = t === tier
@@ -13097,7 +13102,7 @@ window.buscarCambioPOS = (texto) => {
       const varsColor = varsProducto.filter(v => v.color === color)
         .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
       const hex = varsColor[0]?.color_hex
-      const tierActual = window._cambioTierSeleccionado || 'mayoreo3'
+      const tierActual = window._cambioTierSeleccionado || 'menudeo'
       const chips = varsColor.map(v => {
         const enCambio = Math.abs((window._posCarrito || []).find(i => i.variante_id === v.id && i.es_cambio && i.tier_cambio === tierActual)?.cantidad || 0)
         return `
@@ -13124,13 +13129,14 @@ window.buscarCambioPOS = (texto) => {
 window.agregarCambioPOS = (varianteId, productoId, nombre, talla, color, imagen) => {
   const producto = (window._posData?.productos || []).find(p => p.id === productoId)
   if (!producto) return
-  const tier = window._cambioTierSeleccionado || 'mayoreo3'
+  const tier = window._cambioTierSeleccionado || 'menudeo'
   const precioMap = {
+    menudeo: producto.precio_menudeo,
     mayoreo3: producto.precio_mayoreo3 || (producto.precio_menudeo - 30),
     mayoreo6: producto.precio_mayoreo6 || (producto.precio_menudeo - 70),
     corrida: producto.precio_corrida || (producto.precio_menudeo - 100)
   }
-  const labelMap = { mayoreo3: 'precio mayoreo x3', mayoreo6: 'precio mayoreo x6', corrida: 'precio corrida' }
+  const labelMap = { menudeo: 'precio menudeo', mayoreo3: 'precio mayoreo x3', mayoreo6: 'precio mayoreo x6', corrida: 'precio corrida' }
   const precio = precioMap[tier]
 
   const existente = window._posCarrito.find(i => i.variante_id === varianteId && i.es_cambio && i.tier_cambio === tier)
