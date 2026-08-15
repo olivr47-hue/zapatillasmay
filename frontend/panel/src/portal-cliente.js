@@ -3139,7 +3139,10 @@ window.pcCerrarPedidoDirecto = async function() {
   }
   const direccionEnvio = `${direccion}${pc.clienteData?.codigo_postal ? ', CP '+pc.clienteData.codigo_postal : ''}${pc.clienteData?.ciudad ? ', '+pc.clienteData.ciudad : ''}${pc.clienteData?.estado ? ', '+pc.clienteData.estado : ''}`
 
-  const total = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
+  const totalBruto = pc.carrito.reduce((s, i) => s + (i.precio_unitario * i.cantidad), 0)
+  const creditoDisponible = parseFloat(pc.clienteData?.credito_disponible || 0)
+  const creditoAplicado = Math.max(0, Math.min(creditoDisponible, totalBruto))
+  const total = totalBruto - creditoAplicado
   const itemsParaMP = pc.carrito.map(i => ({ nombre: i.nombre, cantidad: i.cantidad, precio: i.precio_unitario }))
   const carritoParaEnvio = pc.carrito.map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad }))
 
@@ -3157,6 +3160,7 @@ window.pcCerrarPedidoDirecto = async function() {
       body: JSON.stringify({
         cliente_id: pc.sesion.cliente_id,
         total,
+        credito_aplicado: creditoAplicado,
         status: 'pendiente_pago',
         canal: 'portal_mayoreo',
         comentarios: notas,
@@ -3176,6 +3180,9 @@ window.pcCerrarPedidoDirecto = async function() {
     if (res.ok) {
       const data = await res.json()
       const nuevoPedidoId = Array.isArray(data) ? data[0]?.id : data?.id
+      if (creditoAplicado > 0 && pc.clienteData) {
+        pc.clienteData.credito_disponible = Math.max(0, creditoDisponible - creditoAplicado)
+      }
       pc.carrito = []
       pcGuardarCarrito(true)
       // Recargar pedidos (filtrando el borrador que respaldaba el carrito)

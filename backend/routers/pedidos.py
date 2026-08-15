@@ -420,6 +420,28 @@ async def crear_pedido(pedido: dict, request: Request):
                     pedido["cliente_id"] = token_payload["cliente_id"]
             except Exception:
                 pass  # token inválido/expirado -> se trata como anónimo, no se bloquea el checkout
+
+        # Aplicar saldo a favor (nota de credito / referidos) si el cliente lo
+        # pidio: el monto SIEMPRE se revalida aqui contra credito_disponible
+        # real en la BD -- nunca se confia en el numero que mande el frontend,
+        # para que nadie pueda descontarse mas credito del que en verdad tiene
+        # con solo cambiar el JSON. Antes esto se mostraba en el carrito del
+        # portal como descuento pero nunca se restaba del total que se cobraba
+        # de verdad -- era puramente decorativo.
+        _credito_aplicado = 0.0
+        _credito_cliente_id = pedido.get("cliente_id")
+        if _credito_cliente_id and pedido.get("credito_aplicado"):
+            try:
+                _solicitado = float(pedido.get("credito_aplicado") or 0)
+                _cli_rows = supabase_get(f"clientes?id=eq.{_credito_cliente_id}&select=credito_disponible")
+                _saldo_real = float((_cli_rows[0].get("credito_disponible") if _cli_rows else 0) or 0)
+                _credito_aplicado = max(0.0, min(_solicitado, _saldo_real, float(pedido.get("total") or 0)))
+                if _credito_aplicado > 0:
+                    pedido["total"] = float(pedido.get("total") or 0) - _credito_aplicado
+            except Exception:
+                _credito_aplicado = 0.0
+        pedido.pop("credito_aplicado", None)  # nunca es columna real de pedidos
+
         # Idempotencia del carrito-respaldo del portal: si ya existe un borrador
         # de este tipo para el cliente, se reusa en vez de crear uno duplicado.
         # Sin esto, dos dispositivos del mismo cliente que nunca se habían
@@ -543,6 +565,19 @@ async def crear_pedido(pedido: dict, request: Request):
             for item in items:
                 item["pedido_id"] = pedido_id
                 supabase_post("pedido_items", item)
+            if _credito_aplicado > 0:
+                try:
+                    _nuevo_saldo = _saldo_real - _credito_aplicado
+                    supabase_patch(f"clientes?id=eq.{_credito_cliente_id}", {"credito_disponible": _nuevo_saldo})
+                    supabase_post("clientes_creditos_historial", {
+                        "cliente_id": _credito_cliente_id,
+                        "monto": -_credito_aplicado,
+                        "tipo": "aplicado_pedido",
+                        "pedido_id": pedido_id,
+                        "saldo_despues": _nuevo_saldo,
+                    })
+                except Exception as e_credito:
+                    print(f"[pedidos] Error aplicando credito: {e_credito}")
             # Aviso push al panel. Los pedidos web (checkout) siempre nacen como
             # "borrador" hasta que el pago se confirma (eso avisa pagos.py); aquí
             # solo interesan los que YA llegan confirmados (mostrador/WhatsApp/

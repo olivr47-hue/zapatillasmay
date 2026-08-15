@@ -7634,6 +7634,211 @@ function _mostrarConfirmacionRecepcion(data, pagada, dias_credito) {
   `
 }
 
+// ── Nota de crédito de cliente ──────────────────────────────────────────
+// Para cuando un cliente devuelve pares defectuosos por correo (ej. se
+// despega la suela): en vez de reembolso/reenvío físico (paquetería cara en
+// ambos sentidos), los pares entran a inventario y se le da saldo a favor
+// para su siguiente pedido. Reutiliza el mismo patrón de búsqueda/chips de
+// "Recibir mercancía" pero con estado propio (window._ncItems) y precio de
+// venta como sugerencia en vez de costo de proveedor.
+window.mostrarNotaCreditoCliente = async (clienteId, clienteNombre) => {
+  const [resSucursales, resVariantes, resProductos] = await Promise.all([
+    fetch(API + '/sucursales/'),
+    fetch(API + '/variantes/'),
+    fetch(API + '/productos/')
+  ])
+  const sucursales = await resSucursales.json()
+  const variantes = await resVariantes.json()
+  const productos = await resProductos.json()
+  window._ncVariantes = variantes
+  window._ncProductos = productos
+  window._ncItems = []
+  window._ncMontoManual = false
+
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="table-card" style="padding:2rem;max-width:920px">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">
+        <button class="btn btn-secondary" onclick="verCliente('${clienteId}')">← Volver</button>
+        <h3>🧾 Nota de crédito — ${clienteNombre}</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#888;margin-bottom:1.5rem">
+        Para cuando el cliente regresa pares defectuosos por correo: entran a inventario y se le da saldo a favor
+        que se aplica solo en su siguiente pedido del portal mayorista. Si es solo un ajuste de dinero sin pares
+        físicos (ej. compensar un envío), deja la lista de productos vacía y captura el monto directo.
+      </p>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Sucursal donde entra la mercancía</label>
+        <select class="form-input" id="nc-sucursal">
+          ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1rem">
+        <div>
+          <label class="form-label">Buscar modelo devuelto</label>
+          <input class="form-input" id="nc-buscar" placeholder="🔍 Nombre o SKU..." oninput="buscarProductoNC(this.value)" autocomplete="off">
+          <div id="nc-resultados" style="margin-top:8px;max-height:380px;overflow-y:auto;border:1px solid #eee;border-radius:8px"></div>
+        </div>
+        <div>
+          <p style="font-weight:700;font-size:0.85rem;margin-bottom:10px">Pares devueltos</p>
+          <div id="nc-lista" style="max-height:420px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:0 12px"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1rem">
+        <label class="form-label">Motivo</label>
+        <input class="form-input" id="nc-motivo" placeholder="Ej: Se despegó la suela, cliente los regresó por correo">
+      </div>
+
+      <div style="margin-bottom:1.5rem;max-width:260px">
+        <label class="form-label">Monto de la nota de crédito</label>
+        <input class="form-input" id="nc-monto" type="number" step="0.01" min="0" value="0" oninput="window._ncMontoManual = true">
+        <p style="font-size:0.66rem;color:#aaa;margin-top:2px">Se sugiere solo al agregar pares, pero es libremente editable.</p>
+      </div>
+
+      <div style="display:flex;gap:1rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="verCliente('${clienteId}')">Cancelar</button>
+        <button class="btn btn-primary" onclick="guardarNotaCreditoCliente('${clienteId}')">Registrar nota de crédito</button>
+      </div>
+    </div>
+  `
+  renderListaNC()
+}
+
+window.buscarProductoNC = (texto) => {
+  const resultadosDiv = document.getElementById('nc-resultados')
+  if (!resultadosDiv) return
+  if (!texto || texto.length < 2) { resultadosDiv.innerHTML = ''; return }
+  const productos = window._ncProductos || []
+  const variantes = window._ncVariantes || []
+  const term = texto.toLowerCase()
+  const prodsFiltrados = productos.filter(p =>
+    (p.nombre || '').toLowerCase().includes(term) || (p.sku_interno || '').toLowerCase().includes(term)
+  ).slice(0, 8)
+
+  if (prodsFiltrados.length === 0) {
+    resultadosDiv.innerHTML = '<p style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Sin resultados</p>'
+    return
+  }
+
+  const TALLAS_ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+  resultadosDiv.innerHTML = prodsFiltrados.map(p => {
+    const varsProducto = variantes.filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProducto.map(v => v.color))]
+    const precioSugerido = p.precio_menudeo || p.precio_mayoreo3 || 0
+    return colores.map(color => {
+      const varsColor = varsProducto.filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+      const hex = varsColor[0]?.color_hex
+      const chips = varsColor.map(v => {
+        const yaAgregado = (window._ncItems || []).find(i => i.variante_id === v.id)?.cantidad || 0
+        return `
+        <button onclick="agregarProductoNC('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${precioSugerido})"
+          style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${yaAgregado > 0 ? '#2e7d32' : '#ddd'};border-radius:8px;background:${yaAgregado > 0 ? '#e8f5e9' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
+          ${yaAgregado > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#2e7d32;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${yaAgregado}</span>` : ''}
+        </button>
+      `}).join('')
+      return `
+        <div style="padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8">` : ''}
+            ${hex ? `<span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ddd"></span>` : ''}
+            <span style="font-size:0.85rem;font-weight:600">${p.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        </div>
+      `
+    }).join('')
+  }).join('')
+}
+
+window.agregarProductoNC = (varianteId, productoId, nombre, talla, color, imagen, precioSugerido) => {
+  const existente = window._ncItems.find(i => i.variante_id === varianteId)
+  if (existente) {
+    existente.cantidad += 1
+  } else {
+    window._ncItems.push({
+      variante_id: varianteId, producto_id: productoId, nombre, talla, color, imagen,
+      cantidad: 1, precio_sugerido: precioSugerido || 0
+    })
+  }
+  renderListaNC()
+  const buscador = document.getElementById('nc-buscar')
+  if (buscador) buscarProductoNC(buscador.value)
+}
+
+window.renderListaNC = () => {
+  const cont = document.getElementById('nc-lista')
+  if (!cont) return
+  const items = window._ncItems || []
+  cont.innerHTML = items.length === 0
+    ? '<p style="color:#aaa;font-size:0.85rem;text-align:center;padding:2rem 1rem">Busca un modelo a la izquierda y toca la talla para agregarlo</p>'
+    : items.map((item, idx) => `
+      <div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0">
+        ${item.imagen ? `<img src="${item.imagen}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8;flex-shrink:0">` : ''}
+        <div style="flex:1;min-width:0">
+          <p style="font-size:0.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.nombre}</p>
+          <p style="font-size:0.72rem;color:#888">${item.color} · T${item.talla}</p>
+        </div>
+        <input type="number" min="1" value="${item.cantidad}" oninput="actualizarCantidadNC(${idx}, this.value)"
+               title="Cantidad" style="width:50px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:0.85rem">
+        <button onclick="eliminarItemNC(${idx})" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:1.1rem">✕</button>
+      </div>
+    `).join('')
+  actualizarMontoSugeridoNC()
+}
+
+window.actualizarCantidadNC = (idx, valor) => {
+  const item = window._ncItems[idx]
+  if (!item) return
+  item.cantidad = parseInt(valor) || 1
+  actualizarMontoSugeridoNC()
+}
+
+window.eliminarItemNC = (idx) => {
+  window._ncItems.splice(idx, 1)
+  renderListaNC()
+}
+
+window.actualizarMontoSugeridoNC = () => {
+  if (window._ncMontoManual) return
+  const items = window._ncItems || []
+  const sugerido = items.reduce((s, i) => s + (i.cantidad * i.precio_sugerido), 0)
+  const el = document.getElementById('nc-monto')
+  if (el && sugerido > 0) el.value = sugerido
+}
+
+window.guardarNotaCreditoCliente = async (clienteId) => {
+  const sucursal_id = document.getElementById('nc-sucursal').value
+  const motivo = document.getElementById('nc-motivo').value.trim()
+  const monto = parseFloat(document.getElementById('nc-monto').value) || 0
+  if (monto <= 0) { alert('Captura el monto de la nota de crédito'); return }
+
+  const items = (window._ncItems || [])
+    .map(i => ({ variante_id: i.variante_id, cantidad: i.cantidad }))
+    .filter(i => i.cantidad > 0)
+
+  try {
+    const res = await fetch(API + `/clientes/${clienteId}/nota-credito`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto, motivo, sucursal_id: items.length ? sucursal_id : null, items })
+    })
+    const data = await res.json()
+    if (res.ok && data.ok) {
+      alert(`Nota de crédito registrada. Saldo a favor del cliente: $${data.credito_disponible.toLocaleString('es-MX', {maximumFractionDigits:0})}`)
+      verCliente(clienteId)
+    } else {
+      alert('Error: ' + (data.error || JSON.stringify(data)))
+    }
+  } catch(e) {
+    alert('Error conectando con el servidor')
+  }
+}
+
 window._generarEtiquetasDeRecepcion = () => {
   const items = window._recibirItems || []
   const variantes = window._recibirVariantes || []
@@ -9111,14 +9316,17 @@ window.verCliente = async (id) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   try {
-    const [resCli, resPed] = await Promise.all([
+    const [resCli, resPed, resCred] = await Promise.all([
       fetch(API + '/clientes/' + id),
-      fetch(API + '/pedidos/')
+      fetch(API + '/pedidos/'),
+      fetch(API + '/clientes/' + id + '/creditos-historial')
     ])
     const data = await resCli.json()
     const todosPedidos = await resPed.json()
+    const historialCredito = await resCred.json()
     if (!data || data.length === 0) { alert('Cliente no encontrado'); return }
     const c = data[0]
+    const saldoFavor = parseFloat(c.credito_disponible || 0)
     const pedidos = todosPedidos.filter(p => p.cliente_id === id)
     const pedidosConfirmados = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
     const totalGastado = pedidosConfirmados.reduce((s, p) => s + parseFloat(p.total || 0), 0)
@@ -9145,6 +9353,7 @@ window.verCliente = async (id) => {
             ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>` : ''}
             <button class="btn btn-secondary" onclick="mostrarFormCliente('${c.id}')">✏️ Editar</button>
             ${(c.tipo === 'zapateria' || c.tipo === 'mayoreo') ? `<button class="btn btn-secondary" onclick="darAccesoPortal('${c.id}')">🔑 Dar acceso al portal</button>` : ''}
+            <button class="btn btn-secondary" onclick="mostrarNotaCreditoCliente('${c.id}', '${c.nombre.replace(/'/g, "\\'")}')">🧾 Nota de crédito</button>
             <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
           </div>
         </div>
@@ -9191,8 +9400,12 @@ window.verCliente = async (id) => {
                 <span style="font-size:0.85rem;font-weight:600;text-align:right;max-width:180px">${c.direccion || '—'}</span>
               </div>
               <div style="display:flex;justify-content:space-between">
-                <span style="font-size:0.8rem;color:#888">Crédito</span>
+                <span style="font-size:0.8rem;color:#888">Crédito (fiado)</span>
                 <span style="font-size:0.85rem;font-weight:600">${c.limite_credito > 0 ? '$' + c.limite_credito + ' / ' + c.dias_credito + ' días' : 'Sin crédito'}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between">
+                <span style="font-size:0.8rem;color:#888">Saldo a favor</span>
+                <span style="font-size:0.85rem;font-weight:700;color:${saldoFavor > 0 ? '#2e7d32' : '#888'}">${saldoFavor > 0 ? '$' + saldoFavor.toLocaleString('es-MX', {maximumFractionDigits:0}) : '—'}</span>
               </div>
             </div>
           </div>
@@ -9208,6 +9421,26 @@ window.verCliente = async (id) => {
             </button>
           </div>
         </div>
+
+        ${(historialCredito && historialCredito.length > 0) ? `
+        <!-- HISTORIAL DE CRÉDITO -->
+        <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">
+          <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+            <p style="font-weight:700;font-size:0.9rem">🧾 Historial de saldo a favor</p>
+          </div>
+          ${historialCredito.map(h => {
+            const esPositivo = parseFloat(h.monto) > 0
+            const etiquetaTipo = { nota_credito: 'Nota de crédito', referido: 'Bono de referido', ajuste_manual: 'Ajuste manual', aplicado_pedido: 'Aplicado a pedido' }[h.tipo] || h.tipo
+            return `
+            <div style="padding:0.85rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;justify-content:space-between;align-items:center;gap:12px">
+              <div style="min-width:0">
+                <p style="font-size:0.82rem;font-weight:600;color:#333">${etiquetaTipo}${h.motivo ? ' — ' + h.motivo : ''}</p>
+                <p style="font-size:0.72rem;color:#888">${new Date(h.created_at).toLocaleDateString('es-MX', {day:'2-digit',month:'short',year:'numeric'})}${h.pedido_id ? ` · <a href="#" onclick="verPedido('${h.pedido_id}');return false" style="color:#E91E8C">Ver pedido</a>` : ''}</p>
+              </div>
+              <p style="font-weight:700;font-size:0.88rem;color:${esPositivo ? '#2e7d32' : '#c62828'};white-space:nowrap">${esPositivo ? '+' : ''}$${parseFloat(h.monto).toLocaleString('es-MX', {maximumFractionDigits:0})}</p>
+            </div>`
+          }).join('')}
+        </div>` : ''}
 
         <!-- HISTORIAL DE PEDIDOS -->
         <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden;margin-bottom:1rem">

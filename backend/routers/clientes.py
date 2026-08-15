@@ -81,6 +81,75 @@ def desactivar_cliente(id: str, _staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/{id}/creditos-historial")
+def historial_creditos_cliente(id: str, _staff=Depends(require_staff)):
+    try:
+        return supabase_get_all(f"clientes_creditos_historial?cliente_id=eq.{id}&order=created_at.desc")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/{id}/nota-credito")
+def nota_credito_cliente(id: str, datos: dict, _staff=Depends(require_staff)):
+    """Registra saldo a favor del cliente (ej. devolvio pares defectuosos por
+    correo y en vez de reembolso/reemplazo fisico -- caro en paqueteria en
+    ambos sentidos -- se le da credito para su siguiente pedido). Si vienen
+    items, entran a inventario igual que una recepcion de mercancia normal.
+    El monto SIEMPRE se SUMA al saldo existente (nunca lo reemplaza) y queda
+    un renglon de auditoria, a diferencia del ajuste manual viejo de
+    Referidos que sobreescribia el numero sin dejar rastro de motivo."""
+    try:
+        monto = float(datos.get("monto") or 0)
+        motivo = (datos.get("motivo") or "").strip()
+        sucursal_id = datos.get("sucursal_id")
+        items = datos.get("items") or []
+        if monto <= 0:
+            return JSONResponse(status_code=400, content={"error": "El monto debe ser mayor a 0"})
+
+        clientes_row = supabase_get(f"clientes?id=eq.{id}&select=id,credito_disponible")
+        if not clientes_row:
+            return JSONResponse(status_code=404, content={"error": "Cliente no encontrado"})
+        saldo_actual = float(clientes_row[0].get("credito_disponible") or 0)
+
+        for i in items:
+            variante_id = i.get("variante_id")
+            cantidad = int(i.get("cantidad") or 0)
+            if not variante_id or cantidad <= 0 or not sucursal_id:
+                continue
+            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
+            cantidad_nueva = cantidad_anterior + cantidad
+            if inv_actual:
+                supabase_patch(
+                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                    {"cantidad": cantidad_nueva}
+                )
+            else:
+                supabase_post("inventario", {
+                    "variante_id": variante_id, "sucursal_id": sucursal_id,
+                    "cantidad": cantidad_nueva, "stock_minimo": 3
+                })
+            supabase_post("movimientos_inventario", {
+                "tipo": "entrada",
+                "variante_id": variante_id,
+                "sucursal_id": sucursal_id,
+                "cantidad": cantidad,
+                "cantidad_anterior": cantidad_anterior,
+                "motivo": f"Devolucion cliente (nota de credito){' - ' + motivo if motivo else ''}",
+            })
+
+        nuevo_saldo = saldo_actual + monto
+        supabase_patch(f"clientes?id=eq.{id}", {"credito_disponible": nuevo_saldo})
+        supabase_post("clientes_creditos_historial", {
+            "cliente_id": id,
+            "monto": monto,
+            "tipo": "nota_credito",
+            "motivo": motivo or None,
+            "saldo_despues": nuevo_saldo,
+        })
+        return {"ok": True, "credito_disponible": nuevo_saldo}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.post("/{id}/dar-acceso")
 def dar_acceso_portal(id: str, _staff=Depends(require_staff)):
     """Crea (o resetea) el acceso al portal mayorista de un cliente.
