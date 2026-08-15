@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
-from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado
+from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado, require_staff
 from email_utils import enviar_email
 import os
 import secrets
@@ -282,7 +282,11 @@ async def recuperar_password(request: Request, datos: dict):
         if not email:
             return JSONResponse(status_code=400, content={"error": "Email requerido"})
 
-        usuarios = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre")
+        # ilike (no eq): el login ya busca así -- si aquí se compara exacto,
+        # una cuenta guardada con otra capitalización de letras (Laura@ vs
+        # laura@) nunca se encuentra, y la clienta jamás recibe el correo
+        # sin ningún error visible para nadie.
+        usuarios = supabase_get(f"usuarios?email=ilike.{email}&activo=eq.true&select=id,nombre")
         if not usuarios:
             # Respuesta genérica para no revelar si el email existe
             return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
@@ -335,6 +339,29 @@ async def recuperar_password(request: Request, datos: dict):
 
         return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
 
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
+
+@router.post("/admin/resetear-password-cliente")
+def resetear_password_cliente(datos: dict, _staff=Depends(require_staff)):
+    """El admin fija directamente una contraseña nueva para un usuario del
+    portal mayoreo, sin depender de que le llegue el correo de recuperación
+    -- útil cuando el correo no llega (spam, casillas mal escritas) o la
+    clienta ya no recuerda con qué correo se registró. Se le comunica la
+    contraseña nueva por fuera (WhatsApp/llamada), no por este endpoint."""
+    try:
+        usuario_id = datos.get("usuario_id")
+        password_nueva = datos.get("password_nueva")
+        if not usuario_id or not password_nueva:
+            return JSONResponse(status_code=400, content={"error": "Faltan datos"})
+        if len(password_nueva) < 6:
+            return JSONResponse(status_code=400, content={"error": "La contraseña debe tener al menos 6 caracteres"})
+        existente = supabase_get(f"usuarios?id=eq.{usuario_id}&select=id")
+        if not existente:
+            return JSONResponse(status_code=404, content={"error": "Usuario no encontrado"})
+        supabase_patch(f"usuarios?id=eq.{usuario_id}", {"password_hash": hash_password(password_nueva)})
+        return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 

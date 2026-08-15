@@ -25532,6 +25532,7 @@ async function cargarPortalAccesos(targetEl) {
                 <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Tipo</th>
                 <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Registrado</th>
                 <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Último acceso</th>
+                <th style="padding:10px 12px;text-align:left;font-weight:600;color:#555">Acciones</th>
               </tr>
             </thead>
             <tbody id="pa-tbody">
@@ -25576,7 +25577,29 @@ function _rowPortalAcceso(c) {
           ? `<span style="color:#2e7d32;font-weight:600">${ultimo}</span>`
           : `<span style="color:#c62828;font-weight:600">Nunca entró</span>`}
       </td>
+      <td style="padding:10px 12px">
+        <button onclick="restablecerPasswordCliente('${c.id}','${(cli.nombre || c.nombre || '').replace(/'/g, "\\'")}')"
+          style="padding:5px 10px;border-radius:6px;border:1px solid #ddd;background:white;font-size:0.75rem;cursor:pointer;white-space:nowrap">🔑 Restablecer</button>
+      </td>
     </tr>`
+}
+
+window.restablecerPasswordCliente = async function(usuarioId, nombre) {
+  const nueva = prompt(`Nueva contraseña para ${nombre || 'este cliente'} (mínimo 6 caracteres):\n\nSe la debes comunicar tú por WhatsApp o llamada -- no se envía ningún correo.`)
+  if (!nueva) return
+  if (nueva.length < 6) { alert('La contraseña debe tener al menos 6 caracteres'); return }
+  try {
+    const res = await fetch(API + '/auth/admin/resetear-password-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: usuarioId, password_nueva: nueva })
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Error al restablecer la contraseña')
+    alert(`Contraseña actualizada. Comunícasela a ${nombre || 'la clienta'}: ${nueva}`)
+  } catch(e) {
+    alert('Error: ' + e.message)
+  }
 }
 
 window.filtrarPortalAccesos = function(valor) {
