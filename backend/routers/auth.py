@@ -294,40 +294,44 @@ async def recuperar_password(request: Request, datos: dict):
         u = usuarios[0]
         nombre = u.get("nombre", "Cliente")
 
-        # Generar token temporal de 1 hora (no se envía la contraseña en texto plano)
+        # El frontend (mi-cuenta.html) ya promete "te enviaremos una contraseña
+        # temporal" -- antes este endpoint mandaba en cambio un link a
+        # /restablecer, una página que nunca se construyó en el sitio (siempre
+        # daba 404). Más simple y consistente con lo que el usuario ya ve:
+        # generar la contraseña temporal aquí mismo, fijarla de una vez y
+        # mandarla en texto plano por correo -- ya puede entrar con ella y
+        # cambiarla luego desde "Mi cuenta".
         import secrets
-        reset_token = secrets.token_urlsafe(32)
-        reset_hash = hash_password(reset_token)
+        import string
+        alfabeto = string.ascii_letters + string.digits
+        password_temporal = "".join(secrets.choice(alfabeto) for _ in range(10))
 
-        # Guardar hash del token y expiración en el usuario
-        import time
         supabase_patch(f"usuarios?id=eq.{u['id']}", {
-            "reset_token_hash": reset_hash,
-            "reset_token_exp": int(time.time()) + 3600
+            "password_hash": hash_password(password_temporal)
         })
-
-        reset_url = f"https://zapatillasmay.mx/restablecer?token={reset_token}&uid={u['id']}"
 
         enviar_email(
             email,
-            "Restablecer contraseña — Zapatillas May",
+            "Tu contraseña temporal — Zapatillas May",
             f"""
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff">
                 <div style="text-align:center;margin-bottom:24px">
                     <h1 style="font-size:1.4rem;color:#0A0A0A">Zapatillas <span style="color:#E91E8C">May</span></h1>
                 </div>
                 <h2 style="font-size:1.1rem;color:#0A0A0A;margin-bottom:8px">Hola, {nombre}</h2>
-                <p style="color:#555;font-size:0.9rem;line-height:1.6;margin-bottom:24px">
-                    Recibimos una solicitud para restablecer tu contraseña.
-                    Haz clic en el siguiente enlace (válido por 1 hora):
+                <p style="color:#555;font-size:0.9rem;line-height:1.6;margin-bottom:20px">
+                    Aquí está tu contraseña temporal. Úsala para iniciar sesión y,
+                    si quieres, cámbiala después desde "Mi cuenta → Contraseña".
                 </p>
-                <a href="{reset_url}"
+                <div style="text-align:center;background:#f7f0ea;border-radius:8px;padding:16px;margin-bottom:24px">
+                    <span style="font-family:monospace;font-size:1.3rem;font-weight:700;color:#0A0A0A;letter-spacing:1px">{password_temporal}</span>
+                </div>
+                <a href="https://zapatillasmay.mx/mi-cuenta"
                    style="display:block;text-align:center;background:#E91E8C;color:white;padding:14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-bottom:24px">
-                    Restablecer contraseña
+                    Iniciar sesión
                 </a>
                 <p style="color:#aaa;font-size:0.8rem;line-height:1.5">
-                    Si no solicitaste este cambio, ignora este correo.<br>
-                    El enlace expira en 1 hora.
+                    Si no solicitaste este cambio, escríbenos por WhatsApp.
                 </p>
                 <p style="text-align:center;color:#aaa;font-size:0.75rem;margin-top:24px">
                     León, Guanajuato · zapatillasmay.mx
