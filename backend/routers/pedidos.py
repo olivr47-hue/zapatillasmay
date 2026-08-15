@@ -894,20 +894,52 @@ def confirmar_pedido(id: str, datos: dict):
                         "motivo": f"Cambio — devolución en pedido {id}" if es_cambio else f"Venta pedido {id}"
                     })
         import datetime as _dt
+        # Pago combinado: la clienta paga con más de un método (ej. mitad
+        # efectivo, mitad tarjeta). `pagos` es una lista [{forma_pago, monto}, ...]
+        # -- si viene un solo renglón se guarda igual que siempre (forma_pago
+        # simple); si vienen varios, forma_pago queda como "combinado" y el
+        # desglose real se guarda en pagos_detalle para que caja/reportes lo
+        # puedan explotar.
+        pagos = datos.get("pagos")
         patch_data = {
             "status": "confirmado",
-            "forma_pago": datos.get("forma_pago", "efectivo"),
             "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         }
+        if isinstance(pagos, list) and len(pagos) > 0:
+            pagos_limpios = [
+                {"forma_pago": p.get("forma_pago"), "monto": float(p.get("monto") or 0)}
+                for p in pagos if p.get("forma_pago") and float(p.get("monto") or 0) > 0
+            ]
+            if len(pagos_limpios) == 1:
+                patch_data["forma_pago"] = pagos_limpios[0]["forma_pago"]
+                patch_data["pagos_detalle"] = None
+            elif len(pagos_limpios) > 1:
+                patch_data["forma_pago"] = "combinado"
+                patch_data["pagos_detalle"] = pagos_limpios
+            else:
+                patch_data["forma_pago"] = datos.get("forma_pago", "efectivo")
+        else:
+            patch_data["forma_pago"] = datos.get("forma_pago", "efectivo")
+
         # Envío del portal mayorista (calculado por peso, o 0 si es "por
         # cobrar") -- se guarda aparte del total de productos, no como un
         # pedido_item falso (eso rompería el descuento de inventario de
         # arriba, que solo mira items con variante_id real).
         envio = float(datos.get("envio", 0) or 0)
-        if envio > 0:
+        # Cargo adicional fuera de productos/envío -- ej. cuando llega
+        # mercancía de otra parte para empacar/consolidar aquí y se cobra un
+        # excedente por ese servicio. Igual que envío, no es un pedido_item
+        # real (no debe pasar por el descuento de inventario de arriba).
+        cargo_extra = float(datos.get("cargo_extra", 0) or 0)
+        cargo_extra_concepto = (datos.get("cargo_extra_concepto") or "").strip()
+        if envio > 0 or cargo_extra > 0:
             total_actual = float(pedido[0].get("total") or 0)
-            patch_data["costo_envio"] = envio
-            patch_data["total"] = total_actual + envio
+            if envio > 0:
+                patch_data["costo_envio"] = envio
+            if cargo_extra > 0:
+                patch_data["cargo_extra"] = cargo_extra
+                patch_data["cargo_extra_concepto"] = cargo_extra_concepto
+            patch_data["total"] = total_actual + envio + cargo_extra
         supabase_patch(f"pedidos?id=eq.{id}", patch_data)
 
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado

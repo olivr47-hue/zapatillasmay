@@ -11100,6 +11100,15 @@ async function cargarPOS() {
               <option value="spei">SPEI</option>
               <option value="credito">Credito</option>
             </select>
+            <label style="font-size:0.78rem;color:#333;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:8px">
+              <input type="checkbox" id="pos-pago-combinado-chk" onchange="_togglePagoCombinadoPOS('')">
+              Dividir el pago entre varios métodos
+            </label>
+            <div id="pos-pagos-combinado-wrap" style="display:none;margin-bottom:10px">
+              <div id="pos-pagos-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+              <button type="button" class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px;width:100%" onclick="_agregarRenglonPagoPOS()">+ Agregar método</button>
+              <p id="pos-pagos-resumen" style="font-size:0.78rem;margin:6px 0 0;font-weight:600"></p>
+            </div>
             <div style="background:#fff8e1;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #ffe082">
               <p style="font-size:0.78rem;font-weight:700;color:#f57f17;margin-bottom:6px">Descuento general</p>
               <div style="display:flex;align-items:center;gap:8px">
@@ -11172,6 +11181,15 @@ async function cargarPOS() {
             <option value="spei">SPEI</option>
             <option value="credito">Credito</option>
           </select>
+          <label style="font-size:0.82rem;color:#333;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:10px">
+            <input type="checkbox" id="pos-pago-combinado-chk-m" onchange="_togglePagoCombinadoPOS('-m')">
+            Dividir el pago entre varios métodos
+          </label>
+          <div id="pos-pagos-combinado-wrap-m" style="display:none;margin-bottom:12px">
+            <div id="pos-pagos-lista-m" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+            <button type="button" class="btn btn-secondary" style="font-size:0.8rem;padding:6px 10px;width:100%" onclick="_agregarRenglonPagoPOS()">+ Agregar método</button>
+            <p id="pos-pagos-resumen-m" style="font-size:0.82rem;margin:6px 0 0;font-weight:600"></p>
+          </div>
           <button onclick="cobrarPOSM()" class="btn btn-primary" style="width:100%;padding:14px;font-size:1rem;font-weight:700;margin-bottom:8px">💳 Cobrar</button>
           <button onclick="guardarCarritoPOS(true)" class="btn btn-secondary" style="width:100%;font-size:0.9rem;font-weight:600;margin-bottom:8px;border-color:#E91E8C;color:#E91E8C">💾 Guardar carrito</button>
           <button onclick="limpiarCarritoPOS();cerrarDrawerPOS()" class="btn btn-secondary" style="width:100%;font-size:0.9rem">🗑 Limpiar carrito</button>
@@ -13478,6 +13496,75 @@ window.cobrarConTerminalYEsperar = (deviceId, monto, pedidoId) => {
   })
 }
 
+// ── Pago combinado en POS (varios métodos en una sola venta) ─────────────
+// Comparte estado entre la vista de escritorio y el drawer móvil, igual que
+// pos-pago/pos-pago-m ya se sincronizan al cobrar desde cobrarPOSM().
+const _OPCIONES_PAGO_POS = [['efectivo', 'Efectivo'], ['tarjeta', 'Tarjeta'], ['spei', 'SPEI'], ['credito', 'Crédito']]
+
+window._togglePagoCombinadoPOS = (sufijoOrigen) => {
+  const chkOrigen = document.getElementById('pos-pago-combinado-chk' + sufijoOrigen)
+  const combinado = !!chkOrigen?.checked
+  ;['', '-m'].forEach(s => {
+    const chk = document.getElementById('pos-pago-combinado-chk' + s)
+    if (chk) chk.checked = combinado
+    const wrap = document.getElementById('pos-pagos-combinado-wrap' + s)
+    if (wrap) wrap.style.display = combinado ? 'block' : 'none'
+  })
+  if (combinado) {
+    window._posPagosCombinados = [{ forma_pago: 'efectivo', monto: '' }, { forma_pago: 'tarjeta', monto: '' }]
+    _renderPagosListaPOS()
+  }
+}
+
+window._agregarRenglonPagoPOS = () => {
+  if (!window._posPagosCombinados) window._posPagosCombinados = []
+  window._posPagosCombinados.push({ forma_pago: 'efectivo', monto: '' })
+  _renderPagosListaPOS()
+}
+
+window._eliminarRenglonPagoPOS = (idx) => {
+  window._posPagosCombinados.splice(idx, 1)
+  _renderPagosListaPOS()
+}
+
+window._actualizarPagoRenglonPOS = (idx, campo, valor) => {
+  const filas = window._posPagosCombinados
+  if (!filas || !filas[idx]) return
+  filas[idx][campo] = valor
+  _actualizarResumenPagosPOS()
+}
+
+function _renderPagosListaPOS() {
+  const filas = window._posPagosCombinados || []
+  const html = filas.map((f, idx) => `
+    <div style="display:flex;gap:6px;align-items:center">
+      <select class="form-input" style="flex:1;font-size:0.8rem" onchange="_actualizarPagoRenglonPOS(${idx}, 'forma_pago', this.value)">
+        ${_OPCIONES_PAGO_POS.map(([v, l]) => `<option value="${v}" ${f.forma_pago === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      <input class="form-input" type="number" min="0" step="0.01" placeholder="Monto" value="${f.monto}" style="width:90px;font-size:0.8rem"
+             oninput="_actualizarPagoRenglonPOS(${idx}, 'monto', this.value)">
+      <button type="button" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem" onclick="_eliminarRenglonPagoPOS(${idx})">✕</button>
+    </div>
+  `).join('')
+  ;['pos-pagos-lista', 'pos-pagos-lista-m'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html })
+  _actualizarResumenPagosPOS()
+}
+
+function _actualizarResumenPagosPOS() {
+  const total = (window._posCarrito || []).reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+  const filas = window._posPagosCombinados || []
+  const suma = filas.reduce((s, f) => s + (parseFloat(f.monto) || 0), 0)
+  const diff = Math.round((total - suma) * 100) / 100
+  let texto, color
+  if (Math.abs(diff) < 0.01) { texto = `✅ Suma correcta: $${suma.toFixed(2)} de $${total.toFixed(2)}`; color = '#166534' }
+  else if (diff > 0) { texto = `Falta cubrir $${diff.toFixed(2)}`; color = '#c62828' }
+  else { texto = `Te pasaste por $${Math.abs(diff).toFixed(2)}`; color = '#c62828' }
+  ;['pos-pagos-resumen', 'pos-pagos-resumen-m'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) { el.textContent = texto; el.style.color = color }
+  })
+}
+
 window.cobrarPOS = async () => {
   if (window._posCarrito.length === 0) { alert('El carrito esta vacio'); return }
 
@@ -13494,6 +13581,30 @@ window.cobrarPOS = async () => {
   const sucursalId = document.getElementById('pos-sucursal').value
   const formaPago = document.getElementById('pos-pago').value
   const total = window._posCarrito.reduce((sum, i) => sum + (i.cantidad * i.precio_unitario), 0)
+
+  // ── Pago combinado: si está activo, validar que los renglones sumen el
+  // total ANTES de crear nada -- si no cuadra, mejor que el cajero lo
+  // corrija de una vez que a mitad del proceso.
+  const pagoCombinadoActivo = document.getElementById('pos-pago-combinado-chk')?.checked
+  let filasPago = null
+  if (pagoCombinadoActivo) {
+    filasPago = (window._posPagosCombinados || [])
+      .map(f => ({ forma_pago: f.forma_pago, monto: parseFloat(f.monto) || 0 }))
+      .filter(f => f.monto > 0)
+    if (filasPago.length < 2) {
+      alert('Agrega al menos 2 métodos de pago con monto, o desmarca "Dividir el pago".')
+      window._cobrando = false
+      ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+      return
+    }
+    const suma = filasPago.reduce((s, f) => s + f.monto, 0)
+    if (Math.abs(total - suma) >= 0.01) {
+      alert('La suma de los métodos de pago no coincide con el total de la venta.')
+      window._cobrando = false
+      ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+      return
+    }
+  }
 
   // ── Validar stock antes de crear el pedido ──────────────────────
   if (window._posData?.inventario) {
@@ -13522,7 +13633,7 @@ window.cobrarPOS = async () => {
         cliente_id: clienteId,
         canal: 'sucursal',
         sucursal_id: sucursalId,
-        forma_pago: formaPago,
+        forma_pago: pagoCombinadoActivo ? 'combinado' : formaPago,
         total,
         subtotal: total,
         status: 'borrador'
@@ -13554,8 +13665,24 @@ window.cobrarPOS = async () => {
     // 2.5. Si es pago con tarjeta y hay una terminal configurada, mandarle
     // el monto y esperar a que el cliente pague ANTES de confirmar la
     // venta — si cancela o falla, no se descuenta inventario ni se cobra.
+    // En pago combinado, cada renglón "tarjeta" pasa por su PROPIO monto
+    // (no el total de la venta), uno tras otro si hay más de uno.
     const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
-    if (formaPago === 'tarjeta' && terminalDeviceId) {
+    if (pagoCombinadoActivo) {
+      const renglonesTarjeta = filasPago.filter(f => f.forma_pago === 'tarjeta')
+      if (renglonesTarjeta.length > 0 && terminalDeviceId) {
+        for (const fila of renglonesTarjeta) {
+          if (btnCobrar) btnCobrar.textContent = `Terminal ($${fila.monto})...`
+          const pagoTerminalOk = await cobrarConTerminalYEsperar(terminalDeviceId, fila.monto, pedidoId)
+          if (!pagoTerminalOk) {
+            try { await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) } catch (e2) {}
+            window._cobrando = false
+            ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+            return
+          }
+        }
+      }
+    } else if (formaPago === 'tarjeta' && terminalDeviceId) {
       const pagoTerminalOk = await cobrarConTerminalYEsperar(terminalDeviceId, total, pedidoId)
       if (!pagoTerminalOk) {
         try { await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }) } catch (e2) {}
@@ -13565,8 +13692,20 @@ window.cobrarPOS = async () => {
       }
     }
 
-    // 3. Confirmar (descuenta stock)
-    if (formaPago !== 'spei') {
+    // 3. Confirmar (descuenta stock). El pago combinado siempre se confirma
+    // de una vez (se está cobrando en persona, no es un link pendiente de
+    // pago como el SPEI puro).
+    if (pagoCombinadoActivo) {
+      const resConf = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pagos: filasPago })
+      })
+      if (!resConf.ok) {
+        const errConf = await resConf.json().catch(() => ({}))
+        throw new Error('Error confirmando: ' + JSON.stringify(errConf))
+      }
+    } else if (formaPago !== 'spei') {
       const resConf = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -13590,8 +13729,16 @@ window.cobrarPOS = async () => {
     window._posCarrito = []
     window._cobrando = false
     ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+    // Reiniciar el pago combinado para la siguiente venta
+    window._posPagosCombinados = []
+    ;['', '-m'].forEach(s => {
+      const chk = document.getElementById('pos-pago-combinado-chk' + s)
+      if (chk) chk.checked = false
+      const wrap = document.getElementById('pos-pagos-combinado-wrap' + s)
+      if (wrap) wrap.style.display = 'none'
+    })
     renderCarritoPOS()
-    imprimirTicketPOS(pedidoId, total, totalPares, formaPago)
+    imprimirTicketPOS(pedidoId, total, totalPares, pagoCombinadoActivo ? 'combinado' : formaPago)
 
     // 5. Refrescar inventario
     const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
@@ -13782,10 +13929,16 @@ window.imprimirTicketPOS = async (pedidoId, total, totalPares, formaPago) => {
         <span>Cliente:</span>
         <span>${cliente.nombre || 'General'}</span>
       </div>
+      ${Array.isArray(pedido.pagos_detalle) && pedido.pagos_detalle.length > 0 ? `
+      <div class="row"><span>Pago combinado:</span><span></span></div>
+      ${pedido.pagos_detalle.map(d => `<div class="row"><span>&nbsp;&nbsp;${(d.forma_pago||'').toUpperCase()}</span><span>$${Number(d.monto||0).toFixed(2)}</span></div>`).join('')}
+      ` : `
       <div class="row">
         <span>Pago:</span>
-        <span>${formaPago.toUpperCase()}</span>
+        <span>${(formaPago || '').toUpperCase()}</span>
       </div>
+      `}
+      ${pedido.cargo_extra > 0 ? `<div class="row"><span>${pedido.cargo_extra_concepto || 'Cargo adicional'}:</span><span>$${Number(pedido.cargo_extra).toFixed(2)}</span></div>` : ''}
       <div class="divider"></div>
       ${(() => {
   const itemsCompra = items.filter(i => (i.cantidad || 0) > 0)
@@ -25871,21 +26024,48 @@ function renderCarritoAbierto(p) {
         ` : ''}
 
         ${items.length > 0 ? `
-          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee;display:flex;justify-content:flex-end;align-items:center;gap:1rem;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px">
-              <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
-              <select id="c-forma-pago" class="form-input" style="width:190px" onchange="cambiarFormaPagoCarrito('${pedidoId}')">
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="spei">SPEI</option>
-                <option value="credito">Crédito</option>
-                <option value="link_mp">Link de pago (Mercado Pago)</option>
-              </select>
+          <div class="carrito-footer-pago" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #eee">
+            <div style="margin-bottom:12px">
+              <label style="font-size:0.82rem;color:#333;display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" id="c-cargo-extra-chk" onchange="_toggleCargoExtraCarrito('${pedidoId}')">
+                Agregar cargo adicional (ej. empaque/consolidación de mercancía de otra parte)
+              </label>
+              <div id="c-cargo-extra-wrap" style="display:none;gap:8px;margin-top:6px;flex-wrap:wrap;align-items:center">
+                <input class="form-input" id="c-cargo-extra-concepto" placeholder="Concepto (ej. Empaque y consolidación)" style="width:260px">
+                <input class="form-input" id="c-cargo-extra-monto" type="number" min="0" step="0.01" placeholder="Monto" style="width:110px" oninput="_recalcularTotalCarritoConExtras('${pedidoId}')">
+              </div>
             </div>
-            <button id="c-btn-confirmar-pago" class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
-              ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
-            </button>
+
+            <label style="font-size:0.82rem;color:#333;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:10px">
+              <input type="checkbox" id="c-pago-combinado-chk" onchange="_toggleCombinadoCarrito('${pedidoId}')">
+              Dividir el pago entre varios métodos
+            </label>
+
+            <div id="c-forma-pago-simple" style="display:flex;justify-content:flex-end;align-items:center;gap:1rem;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:0.85rem;color:#333">Forma de pago:</label>
+                <select id="c-forma-pago" class="form-input" style="width:190px" onchange="cambiarFormaPagoCarrito('${pedidoId}')">
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="spei">SPEI</option>
+                  <option value="credito">Crédito</option>
+                  <option value="link_mp">Link de pago (Mercado Pago)</option>
+                </select>
+              </div>
+              <button id="c-btn-confirmar-pago" class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarrito('${pedidoId}')">
+                ✅ Confirmar venta — $<span id="carrito-total-btn">${total.toFixed(2)}</span>
+              </button>
+            </div>
+
+            <div id="c-forma-pago-combinado" style="display:none;justify-content:flex-end;flex-direction:column;align-items:flex-end;gap:8px">
+              <div id="c-pagos-lista" style="width:100%;display:flex;flex-direction:column;gap:6px"></div>
+              <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:5px 12px" onclick="_agregarRenglonPagoCarrito('${pedidoId}')">+ Agregar método de pago</button>
+              <p id="c-pagos-resumen" style="font-size:0.82rem;margin:2px 0 0;font-weight:600"></p>
+              <button id="c-btn-confirmar-pago-combinado" class="btn btn-primary carrito-btn-confirmar" style="background:#2e7d32;border-color:#2e7d32;font-size:1rem;padding:10px 24px" onclick="confirmarVentaCarritoCombinado('${pedidoId}')">
+                ✅ Confirmar venta combinada
+              </button>
+            </div>
           </div>
         ` : ''}
       </div>
@@ -26576,18 +26756,127 @@ window.actualizarPrecioCorridaCarrito = async (idsStr, nuevoPrecio) => {
   } catch(e) { alert('Error: ' + e.message) }
 }
 
+// Total de productos + envío leídos del DOM, sin el cargo adicional --
+// usado como base antes de sumarle el cargo extra (ver _cargoExtraActualCarrito).
+function _totalBaseCarrito() {
+  const totalProductos = parseFloat((document.getElementById('carrito-total-monto')?.textContent || '0').replace(/,/g, '')) || 0
+  const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
+  return totalProductos + envio
+}
+
+function _cargoExtraActualCarrito() {
+  const activo = document.getElementById('c-cargo-extra-chk')?.checked
+  if (!activo) return { monto: 0, concepto: '' }
+  const monto = parseFloat(document.getElementById('c-cargo-extra-monto')?.value) || 0
+  const concepto = (document.getElementById('c-cargo-extra-concepto')?.value || '').trim()
+  return { monto, concepto }
+}
+
+window._toggleCargoExtraCarrito = (pedidoId) => {
+  const activo = document.getElementById('c-cargo-extra-chk')?.checked
+  const wrap = document.getElementById('c-cargo-extra-wrap')
+  if (wrap) wrap.style.display = activo ? 'flex' : 'none'
+  _recalcularTotalCarritoConExtras(pedidoId)
+}
+
+window._recalcularTotalCarritoConExtras = (pedidoId) => {
+  const total = _totalBaseCarrito() + _cargoExtraActualCarrito().monto
+  const btnTotal = document.getElementById('carrito-total-btn')
+  if (btnTotal) btnTotal.textContent = total.toFixed(2)
+  if (document.getElementById('c-pago-combinado-chk')?.checked) _actualizarResumenPagosCarrito(pedidoId)
+}
+
+// ── Pago combinado (varios métodos en una sola venta) ────────────────────
+window._toggleCombinadoCarrito = (pedidoId) => {
+  const combinado = document.getElementById('c-pago-combinado-chk')?.checked
+  const simpleWrap = document.getElementById('c-forma-pago-simple')
+  const combinadoWrap = document.getElementById('c-forma-pago-combinado')
+  if (simpleWrap) simpleWrap.style.display = combinado ? 'none' : 'flex'
+  if (combinadoWrap) combinadoWrap.style.display = combinado ? 'flex' : 'none'
+  if (combinado) {
+    window._carritoActivo.pagosCombinados = [{ forma_pago: 'efectivo', monto: '' }, { forma_pago: 'tarjeta', monto: '' }]
+    _renderPagosListaCarrito(pedidoId)
+  }
+}
+
+window._agregarRenglonPagoCarrito = (pedidoId) => {
+  if (!window._carritoActivo.pagosCombinados) window._carritoActivo.pagosCombinados = []
+  window._carritoActivo.pagosCombinados.push({ forma_pago: 'efectivo', monto: '' })
+  _renderPagosListaCarrito(pedidoId)
+}
+
+window._eliminarRenglonPagoCarrito = (pedidoId, idx) => {
+  window._carritoActivo.pagosCombinados.splice(idx, 1)
+  _renderPagosListaCarrito(pedidoId)
+}
+
+window._actualizarPagoRenglonCarrito = (pedidoId, idx, campo, valor) => {
+  const filas = window._carritoActivo.pagosCombinados
+  if (!filas || !filas[idx]) return
+  filas[idx][campo] = campo === 'monto' ? valor : valor
+  _actualizarResumenPagosCarrito(pedidoId)
+}
+
+const _OPCIONES_PAGO_CARRITO = [
+  ['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['tarjeta', 'Tarjeta'],
+  ['spei', 'SPEI'], ['credito', 'Crédito'],
+]
+
+function _renderPagosListaCarrito(pedidoId) {
+  const cont = document.getElementById('c-pagos-lista')
+  if (!cont) return
+  const filas = window._carritoActivo.pagosCombinados || []
+  cont.innerHTML = filas.map((f, idx) => `
+    <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end">
+      <select class="form-input" style="width:150px" onchange="_actualizarPagoRenglonCarrito('${pedidoId}', ${idx}, 'forma_pago', this.value)">
+        ${_OPCIONES_PAGO_CARRITO.map(([v, l]) => `<option value="${v}" ${f.forma_pago === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      <input class="form-input" type="number" min="0" step="0.01" placeholder="Monto" value="${f.monto}" style="width:110px"
+             oninput="_actualizarPagoRenglonCarrito('${pedidoId}', ${idx}, 'monto', this.value)">
+      <button type="button" class="btn btn-secondary" style="padding:5px 10px;font-size:0.78rem" onclick="_eliminarRenglonPagoCarrito('${pedidoId}', ${idx})">✕</button>
+    </div>
+  `).join('')
+  _actualizarResumenPagosCarrito(pedidoId)
+}
+
+function _actualizarResumenPagosCarrito(pedidoId) {
+  const resumen = document.getElementById('c-pagos-resumen')
+  const btn = document.getElementById('c-btn-confirmar-pago-combinado')
+  if (!resumen || !btn) return
+  const total = _totalBaseCarrito() + _cargoExtraActualCarrito().monto
+  const filas = window._carritoActivo.pagosCombinados || []
+  const suma = filas.reduce((s, f) => s + (parseFloat(f.monto) || 0), 0)
+  const diff = Math.round((total - suma) * 100) / 100
+  if (Math.abs(diff) < 0.01) {
+    resumen.style.color = '#166534'
+    resumen.textContent = `✅ Suma correcta: $${suma.toFixed(2)} de $${total.toFixed(2)}`
+    btn.disabled = false
+  } else if (diff > 0) {
+    resumen.style.color = '#c62828'
+    resumen.textContent = `Falta cubrir $${diff.toFixed(2)} (de $${total.toFixed(2)} total)`
+    btn.disabled = true
+  } else {
+    resumen.style.color = '#c62828'
+    resumen.textContent = `Te pasaste por $${Math.abs(diff).toFixed(2)} (de $${total.toFixed(2)} total)`
+    btn.disabled = true
+  }
+}
+
 window.confirmarVentaCarrito = async (pedidoId) => {
   const formaPagoEl = document.getElementById('c-forma-pago')
   const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
   const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
-  if (!confirm(`¿Confirmar la venta${envio > 0 ? ` (incluye $${envio} MXN de envío)` : ''}? Se descontará el stock del inventario.`)) return
+  const { monto: cargoExtra, concepto: cargoExtraConcepto } = _cargoExtraActualCarrito()
+  if (cargoExtra > 0 && !cargoExtraConcepto) { alert('Escribe el concepto del cargo adicional.'); return }
+  const extraTexto = [envio > 0 ? `$${envio} MXN de envío` : '', cargoExtra > 0 ? `$${cargoExtra} MXN de ${cargoExtraConcepto}` : ''].filter(Boolean).join(' + ')
+  if (!confirm(`¿Confirmar la venta${extraTexto ? ` (incluye ${extraTexto})` : ''}? Se descontará el stock del inventario.`)) return
 
   // Igual que en POS: si es tarjeta, el cobro tiene que pasar de verdad por
   // la terminal física antes de confirmar la venta -- si no, un empleado
   // podría cerrar como "tarjeta" sin cobrar nada realmente en la terminal.
-  // El envío se suma aquí también, si no la terminal cobraría de menos.
-  const totalProductos = parseFloat((document.getElementById('carrito-total-monto')?.textContent || '0').replace(/,/g, '')) || 0
-  const total = totalProductos + envio
+  // El envío y el cargo adicional se suman aquí también, si no la terminal
+  // cobraría de menos.
+  const total = _totalBaseCarrito() + cargoExtra
   if (formaPago === 'tarjeta') {
     const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
     if (!terminalDeviceId) {
@@ -26608,7 +26897,60 @@ window.confirmarVentaCarrito = async (pedidoId) => {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ forma_pago: formaPago, envio })
+      body: JSON.stringify({ forma_pago: formaPago, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
+    })
+    const data = await res.json()
+    if (data.ok) {
+      alert('✅ Venta confirmada. Stock descontado.')
+      cargarCarritos()
+    } else {
+      alert('Error: ' + JSON.stringify(data))
+    }
+  } catch(e) { alert('Error: ' + e.message) }
+}
+
+window.confirmarVentaCarritoCombinado = async (pedidoId) => {
+  const filas = (window._carritoActivo.pagosCombinados || [])
+    .map(f => ({ forma_pago: f.forma_pago, monto: parseFloat(f.monto) || 0 }))
+    .filter(f => f.monto > 0)
+  if (filas.length < 2) { alert('Agrega al menos 2 métodos de pago con monto, o desmarca "Dividir el pago".'); return }
+  const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
+  const { monto: cargoExtra, concepto: cargoExtraConcepto } = _cargoExtraActualCarrito()
+  if (cargoExtra > 0 && !cargoExtraConcepto) { alert('Escribe el concepto del cargo adicional.'); return }
+  const total = _totalBaseCarrito() + cargoExtra
+  const suma = filas.reduce((s, f) => s + f.monto, 0)
+  if (Math.abs(total - suma) >= 0.01) { alert('La suma de los métodos de pago no coincide con el total.'); return }
+  const desc = filas.map(f => `$${f.monto} en ${f.forma_pago}`).join(' + ')
+  if (!confirm(`¿Confirmar la venta combinada (${desc})? Se descontará el stock del inventario.`)) return
+
+  // Cada renglón "tarjeta" tiene que pasar de verdad por la terminal física,
+  // por SU monto (no el total de la venta) -- si hay más de un renglón de
+  // tarjeta (poco común pero posible), se cobran uno tras otro.
+  const rengonesTarjeta = filas.filter(f => f.forma_pago === 'tarjeta')
+  if (rengonesTarjeta.length > 0) {
+    const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
+    if (!terminalDeviceId) {
+      alert('No hay una terminal configurada en este equipo. Para cobrar con "Tarjeta" el cobro debe pasar por la terminal física -- configúrala primero en POS > Terminal.')
+      return
+    }
+    const btn = document.getElementById('c-btn-confirmar-pago-combinado')
+    for (const fila of rengonesTarjeta) {
+      if (btn) { btn.disabled = true; btn.textContent = `Esperando terminal ($${fila.monto})...` }
+      const pagoOk = await cobrarConTerminalYEsperar(terminalDeviceId, fila.monto, pedidoId)
+      if (!pagoOk) {
+        if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar venta combinada' }
+        alert(`El cobro de $${fila.monto} no se completó en la terminal. No se confirmó la venta.`)
+        return
+      }
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Confirmar venta combinada' }
+  }
+
+  try {
+    const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pagos: filas, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
     })
     const data = await res.json()
     if (data.ok) {

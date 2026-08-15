@@ -6,6 +6,18 @@ import json
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
 
+
+def _desglose_pago(pedido):
+    """[(forma_pago, monto), ...] de un pedido -- explota pagos_detalle si
+    es una venta con pago combinado (forma_pago='combinado'); si no, regresa
+    un solo renglón con el total completo bajo su forma_pago normal. Sin
+    esto, cerrar caja le atribuía el total completo a UN solo método aunque
+    la clienta hubiera pagado, por ejemplo, mitad efectivo y mitad tarjeta."""
+    detalle = pedido.get("pagos_detalle")
+    if isinstance(detalle, list) and detalle:
+        return [(d.get("forma_pago"), float(d.get("monto") or 0)) for d in detalle]
+    return [(pedido.get("forma_pago"), float(pedido.get("total") or 0))]
+
 # ─── CAJA ────────────────────────────────────────
 @router.get("/caja/hoy/{sucursal_id}")
 def caja_hoy(sucursal_id: str):
@@ -53,10 +65,11 @@ def cerrar_caja(id: str, datos: dict):
         hoy = date.today().isoformat()
         pedidos_hoy = [p for p in pedidos if (p.get('confirmado_at') or p['created_at'])[:10] == hoy]
         
-        ventas_efectivo = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'efectivo')
-        ventas_tarjeta = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'tarjeta')
-        ventas_spei = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'spei')
-        ventas_credito = sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'credito')
+        desgloses_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
+        ventas_efectivo = sum(m for fp, m in desgloses_hoy if fp == 'efectivo')
+        ventas_tarjeta = sum(m for fp, m in desgloses_hoy if fp == 'tarjeta')
+        ventas_spei = sum(m for fp, m in desgloses_hoy if fp == 'spei')
+        ventas_credito = sum(m for fp, m in desgloses_hoy if fp == 'credito')
         total_ventas = ventas_efectivo + ventas_tarjeta + ventas_spei + ventas_credito
         
         monto_cierre = datos.get("monto_cierre", 0)
@@ -525,12 +538,13 @@ def flujo_efectivo(sucursal_id: str):
         hoy_str = hoy.isoformat()
         pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hoy_str}T00:00:00")
 
+        desgloses_pago_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
         return {
             "hoy": {
-                "efectivo": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'efectivo'),
-                "tarjeta": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'tarjeta'),
-                "spei": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'spei'),
-                "credito": sum(float(p['total'] or 0) for p in pedidos_hoy if p.get('forma_pago') == 'credito'),
+                "efectivo": sum(m for fp, m in desgloses_pago_hoy if fp == 'efectivo'),
+                "tarjeta": sum(m for fp, m in desgloses_pago_hoy if fp == 'tarjeta'),
+                "spei": sum(m for fp, m in desgloses_pago_hoy if fp == 'spei'),
+                "credito": sum(m for fp, m in desgloses_pago_hoy if fp == 'credito'),
                 "total": sum(float(p['total'] or 0) for p in pedidos_hoy)
             },
             "semana": {
@@ -551,8 +565,25 @@ def flujo_efectivo(sucursal_id: str):
 @router.get("/cuentas-por-cobrar")
 def cuentas_por_cobrar():
     try:
-        pedidos = supabase_get("pedidos?forma_pago=eq.credito&status=in.(confirmado,pagado,entregado)&select=*,clientes(nombre,telefono)")
-        return pedidos
+        # Un pedido con pago combinado ("combinado") puede tener UN renglón a
+        # crédito sin que el resto lo sea -- si solo se buscara forma_pago=
+        # credito, esa deuda parcial nunca aparecería aquí. Se trae también
+        # "combinado" y se filtra/calcula el monto real a crédito en Python.
+        pedidos = supabase_get("pedidos?forma_pago=in.(credito,combinado)&status=in.(confirmado,pagado,entregado)&select=*,clientes(nombre,telefono)")
+        resultado = []
+        for p in pedidos:
+            if p.get("forma_pago") == "credito":
+                p["monto_credito"] = float(p.get("total") or 0)
+                resultado.append(p)
+            else:
+                monto_credito = sum(
+                    float(d.get("monto") or 0) for d in (p.get("pagos_detalle") or [])
+                    if d.get("forma_pago") == "credito"
+                )
+                if monto_credito > 0:
+                    p["monto_credito"] = monto_credito
+                    resultado.append(p)
+        return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
