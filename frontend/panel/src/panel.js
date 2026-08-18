@@ -23505,7 +23505,10 @@ window._sheinCargarResumenCatalogo = async () => {
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fdf2f4;border-radius:10px;margin-bottom:0.75rem">
         <p style="margin:0;font-size:0.88rem;color:#9d174d"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen foto y están marcados por default. Ajusta precio/título de cada uno y desmarca/marca lo que quieras cambiar.</p>
-        ${_sheinBtn('cart', `Publicar seleccionados`, 'window._sheinAbrirConfirmMasivo()', 'primary', 'shein-btn-catalogo-masivo')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_sheinBtn('refresh', 'Ver progreso', 'window._sheinVerLogCatalogoMasivo()', 'secondary')}
+          ${_sheinBtn('cart', `Publicar seleccionados`, 'window._sheinAbrirConfirmMasivo()', 'primary', 'shein-btn-catalogo-masivo')}
+        </div>
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:${_SHEIN_ACCENT}" onclick="window._sheinSelTodosCatalogo(true)">Seleccionar todos</label>
@@ -23527,8 +23530,14 @@ window._sheinCargarResumenCatalogo = async () => {
             <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
           </div>`).join('')}
       </div>
-      <div id="shein-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
+      <div id="shein-catalogo-masivo-log" style="margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
     `
+    // Si ya hay una publicacion masiva en curso o reciente (ej. el usuario
+    // le dio clic, se salio de la pantalla y volvio despues), mostrarla de
+    // una vez -- antes el log solo aparecia si "Publicar" se acababa de
+    // presionar en esa misma carga de pagina, y no habia forma de volver a
+    // verlo sin repetir la publicacion.
+    window._sheinVerLogCatalogoMasivo()
   } catch(e) {
     box.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
   }
