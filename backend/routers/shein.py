@@ -1360,7 +1360,16 @@ def _atributos_obligatorios(product_type_id: int) -> list:
             (v for v in valores if (v.get("attribute_value") or "").strip().lower() in ("ninguno", "none")),
             valores[0],
         )
-        resultado.append({"attribute_id": a["attribute_id"], "attribute_value_id": elegido["attribute_value_id"]})
+        # attribute_input_num > 1 en la plantilla (ej. 10 en "tenis") sugiere que
+        # SHEIN espera una lista de valores, no un solo attribute_value_id -- se
+        # mandan ambas formas (valor unico + lista de un elemento) porque la
+        # documentacion no deja claro cual usa el endpoint publishOrEdit, y un
+        # campo extra que SHEIN no lea se ignora sin romper el request.
+        resultado.append({
+            "attribute_id": a["attribute_id"],
+            "attribute_value_id": elegido["attribute_value_id"],
+            "attribute_value_id_list": [elegido["attribute_value_id"]],
+        })
     return resultado
 
 
