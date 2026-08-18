@@ -1337,6 +1337,33 @@ def _buscar_attribute_value_id(product_type_id: int, attribute_id: int, texto: s
     return None
 
 
+def _atributos_obligatorios(product_type_id: int) -> list:
+    """Atributos de plantilla que SHEIN marca como obligatorios
+    (attribute_status=3) para esta categoria. Antes se mandaba
+    product_attribute_list SIEMPRE vacio, asumiendo (confirmado en tacones)
+    que ninguna categoria de calzado tenia atributos obligatorios -- pero
+    "tenis" si trae uno ("Caracteristicas del Producto"), y sin el, SHEIN
+    rechaza el publish con "[product attributes] <nombre>: se requiere el
+    atributo de plantilla debajo de tipo". Se usa el primer valor disponible,
+    preferentemente uno literal "Ninguno"/"None" -- las plantillas de SHEIN a
+    veces son genericas de otras categorias (ej. tenis trae opciones de
+    wifi/bluetooth que no aplican a calzado)."""
+    infos = _attribute_template_cached(product_type_id)
+    resultado = []
+    for a in infos:
+        if a.get("attribute_status") != 3:
+            continue
+        valores = a.get("attribute_value_info_list") or []
+        if not valores:
+            continue
+        elegido = next(
+            (v for v in valores if (v.get("attribute_value") or "").strip().lower() in ("ninguno", "none")),
+            valores[0],
+        )
+        resultado.append({"attribute_id": a["attribute_id"], "attribute_value_id": elegido["attribute_value_id"]})
+    return resultado
+
+
 def _talla_a_attribute_value_id(product_type_id: int, talla: str) -> int | None:
     """SHEIN espera la talla como 'MX{numero}', ej. talla '22.5' -> 'MX22.5'."""
     talla_limpia = (talla or "").replace("_", ".").strip()
@@ -1610,7 +1637,7 @@ def _build_spu_payload(producto: dict, variantes: list, stock_map: dict,
         "product_type_id":          product_type_id,
         "multi_language_name_list": [{"language": idioma, "name": nombre[:100]}],
         "multi_language_desc_list": [{"language": idioma, "name": descripcion[:4000]}],
-        "product_attribute_list":   [],
+        "product_attribute_list":   _atributos_obligatorios(product_type_id),
         "site_list":                [{"main_site": "shein", "sub_site_list": [SITE_ABBR]}],
         "size_attribute_list":      [],
         "sale_attribute_sort_list": [],
