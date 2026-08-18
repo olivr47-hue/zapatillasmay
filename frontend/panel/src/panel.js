@@ -22308,7 +22308,10 @@ window._mlCargarResumenCatalogo = async () => {
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:0.9rem;background:#fffbeb;border-radius:10px;margin-bottom:0.75rem">
         <p style="margin:0;font-size:0.88rem;color:#92400e"><b>${d.total} modelo(s)</b> sin publicar — <b>${d.listos}</b> ya tienen 3+ fotos y están marcados por default. Ajusta precio/título de cada uno (recuerda sumar flete/comisión de ML) y desmarca/marca lo que quieras cambiar.</p>
-        ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${_mlBtn('refresh', 'Ver progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}
+          ${_mlBtn('cart', `Publicar seleccionados`, 'window._mlAbrirConfirmMasivo()', 'primary', 'ml-btn-catalogo-masivo')}
+        </div>
       </div>
       <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;font-size:0.78rem">
         <label style="cursor:pointer;color:#3483fa" onclick="window._mlSelTodosCatalogo(true)">Seleccionar todos</label>
@@ -22330,8 +22333,12 @@ window._mlCargarResumenCatalogo = async () => {
             <span style="color:#aaa;font-family:monospace;font-size:0.76rem">${p.sku_interno}</span>
           </div>`).join('')}
       </div>
-      <div id="ml-catalogo-masivo-log" style="display:none;margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
+      <div id="ml-catalogo-masivo-log" style="margin-top:1rem;padding:1rem;background:#f8f8f8;border-radius:8px;font-size:0.82rem"></div>
     `
+    // Igual que en SHEIN: mostrar de una vez si ya hay una publicacion masiva
+    // en curso o reciente, para no depender de que el usuario siga en la
+    // misma carga de pagina donde le dio "Publicar".
+    window._mlVerLogCatalogoMasivo()
   } catch(e) {
     box.innerHTML = `<p style="color:red;margin:0">Error: ${e.message}</p>`
   }

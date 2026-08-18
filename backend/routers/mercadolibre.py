@@ -1939,7 +1939,13 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
         productos = [p for p in pendientes if p["id"] in ids_set]
     else:
         productos = pendientes[:limite]
-    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": []}
+    resumen = {"ts": time.time(), "total_productos": len(productos), "publicados": 0, "con_error": 0, "detalle": [], "en_progreso": True}
+    # Guardar el resumen DESPUES DE CADA PRODUCTO (no solo al final): si el
+    # proceso se cae a la mitad (redeploy de Railway, reinicio, etc.) el log
+    # en cache ya tiene registrado hasta donde se alcanzo a publicar -- antes
+    # se perdia TODO el avance porque el cache_set solo corria una vez, al
+    # terminar el for (mismo bug que ya se habia corregido en SHEIN).
+    cache_set("ml_publicar_catalogo_log", resumen, ttl=3600)
     ya_publicados_ahora = set()  # sku_interno publicados en esta misma corrida
     for idx, p in enumerate(productos):
         sku_interno = _norm_sku(p.get("sku_interno") or "")
@@ -1980,9 +1986,11 @@ def _hacer_publicar_catalogo(listing_type: str, limite: int, producto_ids: list 
         except Exception as e:
             resumen["con_error"] += 1
             resumen["detalle"].append({"sku_interno": p.get("sku_interno"), "nombre": p.get("nombre"), "error": str(e)})
+        cache_set("ml_publicar_catalogo_log", resumen, ttl=3600)
         # Pausa entre modelos para no disparar la deteccion de spam/duplicados
         # de MercadoLibre al crear muchas publicaciones parecidas muy seguido.
         time.sleep(2)
+    resumen["en_progreso"] = False
     cache_set("ml_publicar_catalogo_log", resumen, ttl=3600)
 
 
