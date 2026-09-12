@@ -851,6 +851,49 @@ def subir_imagen_storage(img_bytes: bytes, filename: str, content_type: str = "i
         print(f"[storage] Error subiendo imagen: {e}")
         return ""
 
+@router.get("/debug-media")
+def debug_media():
+    """Diagnostico temporal: por que las imagenes/audios de clientes llegan sin
+    media_url. Prueba (1) que WHATSAPP_TOKEN siga siendo valido contra la Graph
+    API y (2) que la subida a Supabase Storage (bucket wa-media) funcione.
+    No expone el token ni ningun secreto en la respuesta."""
+    resultado = {}
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    resultado["whatsapp_token_configurado"] = bool(wa_token)
+    if wa_token:
+        try:
+            req = urllib.request.Request(
+                f"https://graph.facebook.com/v25.0/debug_token?input_token={wa_token}&access_token={wa_token}",
+                headers={}
+            )
+            with urllib.request.urlopen(req) as r:
+                data = json.loads(r.read())
+            resultado["whatsapp_token_valido"] = True
+            resultado["whatsapp_token_info"] = data.get("data", {})
+        except urllib.error.HTTPError as e:
+            try:
+                cuerpo = json.loads(e.read().decode())
+            except Exception:
+                cuerpo = {}
+            resultado["whatsapp_token_valido"] = False
+            resultado["whatsapp_token_error"] = cuerpo.get("error", {}).get("message", str(e))
+        except Exception as e:
+            resultado["whatsapp_token_valido"] = False
+            resultado["whatsapp_token_error"] = str(e)
+
+    resultado["supabase_url_configurado"] = bool(os.environ.get("SUPABASE_URL", ""))
+    resultado["supabase_key_configurado"] = bool(os.environ.get("SUPABASE_KEY", ""))
+    try:
+        test_url = subir_imagen_storage(b"test", "_debug_test.txt", content_type="text/plain")
+        resultado["storage_upload_ok"] = bool(test_url)
+        resultado["storage_upload_url"] = test_url
+    except Exception as e:
+        resultado["storage_upload_ok"] = False
+        resultado["storage_upload_error"] = str(e)
+
+    return resultado
+
+
 def _maya_activa_global() -> bool:
     """Interruptor general para pausar a Maya en TODOS los canales a la vez
     (a diferencia de 'en_control', que solo pausa una conversacion puntual).
