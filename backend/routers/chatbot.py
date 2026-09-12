@@ -1044,7 +1044,7 @@ def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
             media_data = json.loads(r.read())
         audio_url = media_data.get("url", "")
         if not audio_url:
-            return ("[Audio recibido]", "")
+            return (f"[Audio ERROR-DEBUG-TEMPORAL: sin url en media_data={media_data}]", "")
 
         audio_req = urllib.request.Request(audio_url, headers={"Authorization": f"Bearer {wa_token}"})
         with urllib.request.urlopen(audio_req) as r:
@@ -1080,7 +1080,7 @@ def _procesar_audio_wa(mensaje_data: dict, from_number: str) -> tuple:
 
     except Exception as e:
         print(f"[audio-wa] Error: {e}")
-        return ("[Audio de voz recibido]", "")
+        return (f"[Audio ERROR-DEBUG-TEMPORAL: {e}]", "")
 
 
 def _procesar_documento_wa(mensaje_data: dict, from_number: str) -> tuple:
