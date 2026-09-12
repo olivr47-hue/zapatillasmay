@@ -345,15 +345,24 @@ def mensajes(dias: int = 15):
 # ─── Listar todos los items con su SELLER_SKU ────────────────────────────────
 
 def _get_all_item_ids() -> list:
-    """Trae todos los IDs de items del vendedor."""
-    all_ids, offset = [], 0
+    """Trae todos los IDs de items del vendedor.
+    Usa paginacion por scroll_id (search_type=scan): la paginacion normal por
+    offset falla con "Invalid limit and offset values" en cuanto offset+limit
+    supera 1000, limite duro de la API de busqueda de MercadoLibre."""
+    all_ids = []
+    scroll_id = None
     while True:
-        resp = ml_get(f"/users/{ML_USER_ID}/items/search?limit=100&offset={offset}")
+        path = f"/users/{ML_USER_ID}/items/search?search_type=scan&limit=100"
+        if scroll_id:
+            path += f"&scroll_id={scroll_id}"
+        resp = ml_get(path)
         batch = resp.get("results", [])
-        all_ids.extend(batch)
-        if len(batch) < 100:
+        if not batch:
             break
-        offset += 100
+        all_ids.extend(batch)
+        scroll_id = resp.get("scroll_id")
+        if not scroll_id:
+            break
     return all_ids
 
 def _get_items_with_sku(all_ids: list) -> list:
