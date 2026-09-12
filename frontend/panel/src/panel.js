@@ -26207,6 +26207,9 @@ function renderCarritoAbierto(p) {
         <button class="btn btn-primary" style="background:#2e7d32;border-color:#2e7d32" onclick="confirmarVentaCarrito('${pedidoId}','${p.forma_pago || 'efectivo'}')">
           ✅ Confirmar venta
         </button>
+        <button class="btn btn-secondary" style="background:#ffebee;border:1px solid #ef9a9a;color:#c62828;font-weight:600" onclick="mostrarCambiosCarrito()">
+          ↔ Cambios
+        </button>
         <button class="btn btn-secondary" onclick="generarCotizacionCarrito('${pedidoId}')">
           📄 Cotización PDF
         </button>
@@ -26352,6 +26355,165 @@ function renderCarritoAbierto(p) {
   window._carritoActivo.pedidoData = p
   window._carritoActivo.varianteSeleccionada = null
   _iniciarPollCarritoActivo(pedidoId)
+}
+
+// ── Cambios dentro de un carrito (apartado o borrador) ───────────────────
+// Igual que en POS: el cliente devuelve un par y se lleva otro. Se agrega
+// como línea de cantidad NEGATIVA directo al pedido (pedido_items) -- al
+// confirmar la venta, /pedidos/{id}/confirmar ya sabe que cantidad<0 es un
+// "cambio" y sube el inventario en vez de bajarlo (misma lógica que POS).
+window.mostrarCambiosCarrito = () => {
+  if (!window._carritoActivo) return
+  window._cambioCarritoTier = 'menudeo'
+  const modal = document.createElement('div')
+  modal.id = 'modal-cambios-carrito'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:1.5rem 1.5rem 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+          <h3 style="margin:0">↔ Cambios</h3>
+          <button onclick="cerrarCambiosCarrito()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">✕</button>
+        </div>
+        <p style="font-size:0.82rem;color:#888;margin-bottom:1rem">Busca el modelo que la clienta se lleva a cambio y toca la talla. Se agrega directo a este carrito como línea de cambio (resta del total).</p>
+
+        <p style="font-size:0.78rem;font-weight:700;color:#333;margin-bottom:6px">Precio a aplicar al par que se lleva:</p>
+        <div style="display:flex;gap:6px;margin-bottom:1rem">
+          <button onclick="seleccionarTierCambioCarrito('menudeo')" id="tier-cc-menudeo" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #E91E8C;background:#E91E8C;color:white;cursor:pointer;text-align:center">Menudeo<br><span style="font-size:0.66rem;opacity:0.9">precio normal</span></button>
+          <button onclick="seleccionarTierCambioCarrito('mayoreo3')" id="tier-cc-mayoreo3" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x3<br><span style="font-size:0.66rem;color:#888">-$30/par</span></button>
+          <button onclick="seleccionarTierCambioCarrito('mayoreo6')" id="tier-cc-mayoreo6" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Mayoreo x6<br><span style="font-size:0.66rem;color:#888">-$70/par</span></button>
+          <button onclick="seleccionarTierCambioCarrito('corrida')" id="tier-cc-corrida" style="flex:1;padding:8px 4px;font-size:0.78rem;border-radius:8px;border:2px solid #ddd;background:white;color:#333;cursor:pointer;text-align:center">Corrida<br><span style="font-size:0.66rem;color:#888">-$100/par</span></button>
+        </div>
+
+        <input class="form-input" id="cambio-carrito-buscar" placeholder="🔍 Buscar modelo (nombre o SKU)..." oninput="buscarCambioCarrito(this.value)" autocomplete="off">
+      </div>
+      <div id="cambio-carrito-resultados" style="padding:0 1.5rem;overflow-y:auto;flex:1"></div>
+      <div style="padding:1rem 1.5rem;border-top:1px solid #eee;background:#fafafa">
+        <div id="cambio-carrito-resumen" style="font-size:0.9rem;margin-bottom:10px"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="cerrarCambiosCarrito()">Listo</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) cerrarCambiosCarrito() })
+  actualizarResumenCambiosCarrito()
+}
+
+window.cerrarCambiosCarrito = async () => {
+  document.getElementById('modal-cambios-carrito')?.remove()
+  // Refrescar el carrito para reflejar las líneas de cambio agregadas
+  if (window._carritoActivo?.pedidoId) await abrirCarrito(window._carritoActivo.pedidoId)
+}
+
+window.actualizarResumenCambiosCarrito = () => {
+  const resumen = document.getElementById('cambio-carrito-resumen')
+  if (!resumen) return
+  const cambios = (window._carritoActivo?.items || []).filter(i => i.cantidad < 0)
+  const pares = cambios.reduce((s, i) => s + Math.abs(i.cantidad), 0)
+  const total = cambios.reduce((s, i) => s + Math.abs(i.cantidad * i.precio_unitario), 0)
+  resumen.innerHTML = pares > 0
+    ? `<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600">${pares} par${pares === 1 ? '' : 'es'} en cambio</span><span style="font-weight:700;color:#c62828">-$${total.toFixed(2)}</span></div>`
+    : `<span style="color:#aaa">Ningún par agregado todavía</span>`
+}
+
+window.seleccionarTierCambioCarrito = (tier) => {
+  window._cambioCarritoTier = tier
+  ;['menudeo', 'mayoreo3', 'mayoreo6', 'corrida'].forEach(t => {
+    const btn = document.getElementById('tier-cc-' + t)
+    if (!btn) return
+    const activo = t === tier
+    btn.style.background = activo ? '#E91E8C' : 'white'
+    btn.style.color = activo ? 'white' : '#333'
+    btn.style.borderColor = activo ? '#E91E8C' : '#ddd'
+  })
+  const buscador = document.getElementById('cambio-carrito-buscar')
+  if (buscador) buscarCambioCarrito(buscador.value)
+}
+
+window.buscarCambioCarrito = (texto) => {
+  const resultadosDiv = document.getElementById('cambio-carrito-resultados')
+  if (!resultadosDiv) return
+  if (!texto || texto.length < 2) { resultadosDiv.innerHTML = ''; return }
+  const { productos, variantes, items } = window._carritoActivo || {}
+  const term = texto.toLowerCase()
+  const prodsFiltrados = (productos || []).filter(p =>
+    (p.nombre || '').toLowerCase().includes(term) || (p.sku_interno || '').toLowerCase().includes(term)
+  ).slice(0, 8)
+
+  if (prodsFiltrados.length === 0) {
+    resultadosDiv.innerHTML = '<p style="padding:1rem;text-align:center;color:#888;font-size:0.85rem">Sin resultados</p>'
+    return
+  }
+
+  const TALLAS_ORDEN = ['22', '22.5', '23', '23.5', '24', '24.5', '25', '25.5', '26', '26.5', '27', 'Unica']
+  resultadosDiv.innerHTML = prodsFiltrados.map(p => {
+    const varsProducto = (variantes || []).filter(v => v.producto_id === p.id)
+    const colores = [...new Set(varsProducto.map(v => v.color))]
+    return colores.map(color => {
+      const varsColor = varsProducto.filter(v => v.color === color)
+        .sort((a, b) => TALLAS_ORDEN.indexOf(a.talla) - TALLAS_ORDEN.indexOf(b.talla))
+      const hex = varsColor[0]?.color_hex
+      const chips = varsColor.map(v => {
+        const enCambio = Math.abs((items || []).filter(i => i.variante_id === v.id && i.cantidad < 0).reduce((s, i) => s + i.cantidad, 0))
+        return `
+        <button onclick="agregarCambioCarrito('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}')"
+          style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${enCambio > 0 ? '#c62828' : '#ddd'};border-radius:8px;background:${enCambio > 0 ? '#ffebee' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
+          ${enCambio > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#c62828;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${enCambio}</span>` : ''}
+        </button>
+      `}).join('')
+      return `
+        <div style="padding:10px;border-bottom:1px solid #f0f0f0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:36px;height:36px;object-fit:contain;border-radius:6px;background:#f8f8f8">` : ''}
+            ${hex ? `<span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ddd"></span>` : ''}
+            <span style="font-size:0.85rem;font-weight:600">${p.nombre}</span>
+            <span style="font-size:0.78rem;color:#888">· ${color}</span>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${chips}</div>
+        </div>
+      `
+    }).join('')
+  }).join('')
+}
+
+window.agregarCambioCarrito = async (varianteId, productoId, nombre, talla, color) => {
+  const ca = window._carritoActivo
+  if (!ca) return
+  const producto = (ca.productos || []).find(p => p.id === productoId)
+  if (!producto) return
+  const tier = window._cambioCarritoTier || 'menudeo'
+  const precioMap = {
+    menudeo: producto.precio_menudeo,
+    mayoreo3: producto.precio_mayoreo3 || (producto.precio_menudeo - 30),
+    mayoreo6: producto.precio_mayoreo6 || (producto.precio_menudeo - 70),
+    corrida: producto.precio_corrida || (producto.precio_menudeo - 100)
+  }
+  const precio = parseFloat(precioMap[tier]) || 0
+
+  try {
+    const existente = (ca.items || []).find(i => i.variante_id === varianteId && i.cantidad < 0)
+    if (existente) {
+      await fetch(API + '/pedidos/' + ca.pedidoId + '/items/' + existente.id, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cantidad: existente.cantidad - 1, precio_unitario: existente.precio_unitario })
+      })
+    } else {
+      await fetch(API + '/pedidos/' + ca.pedidoId + '/items', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variante_id: varianteId, cantidad: -1, precio_unitario: precio, subtotal: -precio, nombre: nombre || '', color: color || '', talla: talla || '' })
+      })
+    }
+    const its = await fetch(API + '/pedidos/' + ca.pedidoId + '/items').then(r => r.json())
+    ca.items = Array.isArray(its) ? its.map(i => (i.cantidad < 0 ? { ...i, _precio_manual: true } : i)) : []
+    const nuevoTotal = ca.items.reduce((s, i) => s + (i.cantidad * i.precio_unitario), 0)
+    await fetch(API + '/pedidos/' + ca.pedidoId, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total: nuevoTotal })
+    })
+    actualizarResumenCambiosCarrito()
+    const buscador = document.getElementById('cambio-carrito-buscar')
+    if (buscador) buscarCambioCarrito(buscador.value)
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 // ── Carrito en vivo ──────────────────────────────────────────────────────
@@ -26795,7 +26957,10 @@ window.cambiarCantidadCarrito = async (idx, delta) => {
 
 window.recalcularPreciosCarrito = async () => {
   const { pedidoId, items, variantes, productos } = window._carritoActivo
-  const totalPares = items.reduce((s, i) => s + i.cantidad, 0)
+  // Las líneas de cambio (cantidad negativa) no cuentan para el tier de
+  // mayoreo -- si no, un cambio bajaría el conteo de pares y le cobraría
+  // menudeo a una compra que sí calificaba para mayoreo.
+  const totalPares = items.reduce((s, i) => s + (i.cantidad < 0 ? 0 : i.cantidad), 0)
 
   // Determinar tier
   const tier = totalPares >= 6 ? 'mayoreo6' : totalPares >= 3 ? 'mayoreo3' : 'menudeo'
