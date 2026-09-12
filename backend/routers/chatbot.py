@@ -891,6 +891,26 @@ def debug_media():
         resultado["storage_upload_ok"] = False
         resultado["storage_upload_error"] = str(e)
 
+    # Probar el INSERT real con media_url, sin el catch que lo enmascara,
+    # para ver si conversaciones_whatsapp.media_url sigue con el cache de
+    # PostgREST desactualizado (mismo patron que ya paso con pedidos).
+    try:
+        from database import supabase_post, supabase_delete
+        test_row = supabase_post("conversaciones_whatsapp", {
+            "telefono": "0000000000_debug",
+            "mensaje": "[debug-media test]",
+            "tipo": "texto",
+            "media_url": "https://example.com/debug.jpg"
+        })
+        resultado["insert_media_url_ok"] = True
+        try:
+            supabase_delete("conversaciones_whatsapp?telefono=eq.0000000000_debug")
+        except Exception:
+            pass
+    except Exception as e:
+        resultado["insert_media_url_ok"] = False
+        resultado["insert_media_url_error"] = str(e)
+
     return resultado
 
 
