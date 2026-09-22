@@ -13,7 +13,7 @@ Variables de entorno necesarias (Railway):
   ZOHO_MAIL_ACCOUNT_ID   (opcional — si no está, se detecta solo vía /accounts)
 """
 
-import html
+import html as _html
 import os
 import json
 import re
@@ -209,7 +209,7 @@ def _reescribir_imagenes(html: str, base_url: str) -> str:
         # (p.ej. "&amp;" en vez de "&"), así que el "&" literal dentro de "&amp;"
         # se cuela como separador de query y rompe los parámetros (nmsgId, cid, etc.)
         # al reenviarlos a la API de Zoho -- hay que decodificar entidades primero.
-        src = html.unescape(src)
+        src = _html.unescape(src)
         proxied = f"{base_url.rstrip('/')}/emails/buzon/imagen?ruta=" + urllib.parse.quote(src, safe="")
         return f'src={comilla}{proxied}{comilla}'
     return _SRC_RE.sub(_reemplazar, html)
