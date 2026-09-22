@@ -9780,6 +9780,12 @@ function _renderFilaPedido(p) {
     ? `<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${p.paqueteria || ''} ${p.numero_guia}</span>`
     : ''
 
+  // La clienta eligió "coordinar el envío después" en su portal -- el pedido
+  // se quedó sin costo de envío a propósito, esperando que alguien lo agregue.
+  const avisoEnvioPendiente = p.envio_pendiente_coordinar
+    ? `<br><span style="font-size:0.68rem;color:#b45309;font-weight:700">⚠️ Envío pendiente de coordinar</span>`
+    : ''
+
   return `
     <tr style="${esPagadoOnline ? 'background:#f0f7ff' : ''}">
       <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
@@ -9799,6 +9805,7 @@ function _renderFilaPedido(p) {
       <td>
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${guiaInfo}
+        ${avisoEnvioPendiente}
       </td>
       <td>${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
       <td style="white-space:nowrap">
@@ -10568,6 +10575,16 @@ window.verPedido = async (id) => {
           </div>`
         })()}
 
+        ${p.envio_pendiente_coordinar ? `
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:1rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <p style="font-size:0.85rem;font-weight:700;color:#92400e;margin:0">⚠️ La clienta eligió "coordinar el envío después"</p>
+              <p style="font-size:0.78rem;color:#92400e;margin:4px 0 0">El total de este pedido no incluye costo de envío. Agrégalo (o confirma que va sin costo) y márcalo como resuelto.</p>
+            </div>
+            <button class="btn btn-secondary" style="background:white;color:#92400e;border-color:#fbbf24;font-weight:700;white-space:nowrap" onclick="marcarEnvioCoordinado('${p.id}')">✓ Ya coordiné el envío</button>
+          </div>
+        ` : ''}
+
         <div style="margin-bottom:1.5rem">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:1rem">
             <p style="font-weight:600;color:#333;margin:0">Productos</p>
@@ -11140,6 +11157,17 @@ window.recalcularTotalPedido = async (pedidoId, nuevoTotal) => {
 
 window.cancelarEdicionPedido = (pedidoId) => {
   verPedido(pedidoId)
+}
+
+window.marcarEnvioCoordinado = async (pedidoId) => {
+  try {
+    await fetch(API + '/pedidos/' + pedidoId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ envio_pendiente_coordinar: false })
+    })
+    verPedido(pedidoId)
+  } catch(e) { alert('Error: ' + e.message) }
 }
 
 window.cancelarPedido = async (id) => {

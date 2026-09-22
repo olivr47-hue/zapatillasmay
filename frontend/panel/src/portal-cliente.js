@@ -3356,9 +3356,18 @@ window.pcUsarEnvioPorCobrarDirecto = async function() {
   await pcConfirmarEnvioDirecto(0, `📦 Envío por cobrar vía ${paqueteria} -- pagas directo a la paquetería.`, `Envío por cobrar vía ${paqueteria}`)
 }
 
-window.pcOmitirEnvioDirecto = function() {
+window.pcOmitirEnvioDirecto = async function() {
   const t = window._pcEnvioTemp
   if (!t) return
+  // Se marca para que el panel avise que este pedido se quedó sin costo de
+  // envío a propósito (la clienta pidió coordinarlo después) y no se
+  // confunda con un pedido que simplemente nunca tuvo el paso de envío.
+  try {
+    await fetch(`${PC_API}/pedidos/${t.pedidoId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ envio_pendiente_coordinar: true })
+    })
+  } catch (e) {}
   pcMostrarPasoPago(t.pedidoId, t.totalProductos, t.itemsParaMP)
 }
 
@@ -3368,7 +3377,7 @@ async function pcConfirmarEnvioDirecto(envio, mensaje, comentarios) {
   const elegido = document.getElementById('pc-envio-elegido')
   if (elegido) { elegido.style.color = '#166534'; elegido.textContent = mensaje }
   const nuevoTotal = t.totalProductos + envio
-  const patch = { costo_envio: envio, total: nuevoTotal }
+  const patch = { costo_envio: envio, total: nuevoTotal, envio_pendiente_coordinar: false }
   if (comentarios) patch.comentarios = comentarios
   try {
     await fetch(`${PC_API}/pedidos/${t.pedidoId}`, {
