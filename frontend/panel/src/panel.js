@@ -2920,7 +2920,38 @@ window.mostrarProyeccion = async () => {
     }
     const primerNegativo = dias.find(d => d.saldo < 0)
 
+    // La tabla de arriba solo mete al cálculo las cuentas por pagar que vencen
+    // DENTRO de los 60 días proyectados -- una deuda a 90 días de crédito, o el
+    // saldo completo de un préstamo, nunca aparecía en ningún lado. Aquí se suma
+    // TODA la deuda pendiente (sin importar cuándo vence) contra el saldo actual,
+    // para responder directo "¿cuánto me queda después de pagar todo lo que debo?"
+    const cxpTodas = window._finanzasData?.cxp || []
+    const deudasTodas = window._finanzasData?.deudas || []
+    const totalCxpTodas = (Array.isArray(cxpTodas) ? cxpTodas : []).reduce((s,o) => s + parseFloat(o.saldo_pendiente ?? o.total ?? 0), 0)
+    const totalDeudasTodas = (Array.isArray(deudasTodas) ? deudasTodas : []).reduce((s,d) => s + parseFloat(d.saldo_actual || 0), 0)
+    const deudaTotalPendiente = totalCxpTodas + totalDeudasTodas
+    const finVentana = dias.length ? new Date(dias[dias.length - 1].fecha) : null
+    const cxpFueraVentana = (Array.isArray(cxpTodas) ? cxpTodas : []).filter(o => finVentana && o.fecha_vencimiento && new Date(o.fecha_vencimiento) > finVentana)
+    const totalCxpFueraVentana = cxpFueraVentana.reduce((s,o) => s + parseFloat(o.saldo_pendiente ?? o.total ?? 0), 0)
+    const saldoNetoTotal = (saldo.monto || 0) - deudaTotalPendiente
+
     container.innerHTML = `
+      <div style="background:${saldoNetoTotal < 0 ? '#ffebee' : '#e8f5e9'};border-radius:12px;border:1px solid ${saldoNetoTotal < 0 ? '#ffcdd2' : '#a5d6a7'};padding:1.25rem;margin-bottom:1rem">
+        <p style="font-weight:700;font-size:0.9rem;margin-bottom:8px">🧮 ¿Cuánto me queda después de pagar TODA mi deuda?</p>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <p style="font-size:1.6rem;font-weight:700;color:${saldoNetoTotal < 0 ? '#c62828' : '#2e7d32'}">$${saldoNetoTotal.toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+            <p style="font-size:0.68rem;color:#888;text-transform:uppercase">Saldo neto si pagaras todo hoy</p>
+          </div>
+          <div style="font-size:0.8rem;color:#666;line-height:1.7">
+            <p>Saldo actual: <strong>$${(saldo.monto||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></p>
+            <p>− Cuentas x pagar (proveedores, todas): <strong style="color:#c62828">$${totalCxpTodas.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></p>
+            <p>− Préstamos/deudas (saldo restante): <strong style="color:#c62828">$${totalDeudasTodas.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></p>
+          </div>
+        </div>
+        ${totalCxpFueraVentana > 0 ? `<p style="font-size:0.74rem;color:#b45309;margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px">⚠️ De esa deuda, <strong>$${totalCxpFueraVentana.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong> en cuentas x pagar vencen DESPUÉS de estos 60 días proyectados — por eso no aparecen en la tabla de abajo, pero sí ya te las descontamos aquí.</p>` : ''}
+      </div>
+
       <div style="background:white;border-radius:12px;border:1px solid #eee;padding:1.25rem;margin-bottom:1rem">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
