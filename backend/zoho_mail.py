@@ -29,6 +29,7 @@ ACCOUNT_ID_ENV = os.getenv("ZOHO_MAIL_ACCOUNT_ID", "")
 
 _TOKEN_URL = "https://accounts.zoho.com/oauth/v2/token"
 _API_BASE  = "https://mail.zoho.com/api"
+_MAIL_HOST = "https://mail.zoho.com"
 
 _cache = {"access_token": None, "expira": 0, "account_id": ACCOUNT_ID_ENV}
 
@@ -222,7 +223,10 @@ def descargar_recurso(ruta: str) -> tuple:
     if not (ruta.startswith("/") or "zoho.com" in ruta):
         raise ValueError("Ruta de recurso no permitida")
     token = _get_access_token()
-    url = ruta if ruta.startswith("http") else f"{_API_BASE}{ruta}"
+    # ruta viene tal cual del HTML de Zoho (p.ej. "/mail/ImageDisplay?..."), ya es
+    # una ruta absoluta desde la raíz de mail.zoho.com -- NO va bajo /api, que es
+    # solo el prefijo que nosotros mismos usamos para llamar a la REST API.
+    url = ruta if ruta.startswith("http") else f"{_MAIL_HOST}{ruta}"
     req = urllib.request.Request(url, headers={"Authorization": f"Zoho-oauthtoken {token}"})
     with urllib.request.urlopen(req, timeout=15) as r:
         content_type = r.headers.get("Content-Type", "application/octet-stream")
