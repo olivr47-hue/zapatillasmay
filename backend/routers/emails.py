@@ -131,7 +131,15 @@ def buzon_enviados(limit: int = 30, start: int = 1):
 @router.get("/buzon/mensaje/{folder_id}/{message_id}")
 def buzon_mensaje(folder_id: str, message_id: str, request: Request):
     try:
-        html = zoho_mail.obtener_contenido(message_id, folder_id, str(request.base_url))
+        # Railway termina TLS en su borde y reenvía por HTTP plano al contenedor,
+        # así que request.base_url reporta "http://" aunque el panel (https) esté
+        # cargando este proxy -- forzar el esquema real via X-Forwarded-Proto evita
+        # que el <img> quede como mixed content.
+        base_url = str(request.base_url)
+        proto = request.headers.get("x-forwarded-proto")
+        if proto:
+            base_url = base_url.replace("http://", f"{proto}://", 1)
+        html = zoho_mail.obtener_contenido(message_id, folder_id, base_url)
         try:
             zoho_mail.marcar_visto(message_id)
         except Exception:
