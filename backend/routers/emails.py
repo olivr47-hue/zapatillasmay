@@ -139,21 +139,22 @@ def buzon_mensaje(folder_id: str, message_id: str, request: Request):
         proto = request.headers.get("x-forwarded-proto")
         if proto:
             base_url = base_url.replace("http://", f"{proto}://", 1)
-        html = zoho_mail.obtener_contenido(message_id, folder_id, base_url)
+        resultado = zoho_mail.obtener_contenido(message_id, folder_id, base_url)
         try:
             zoho_mail.marcar_visto(message_id)
         except Exception:
             pass  # que un fallo aquí no impida ver el correo
-        return {"html": html}
+        return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@router.get("/buzon/imagen")
-def buzon_imagen(ruta: str):
-    """Proxy de imágenes embebidas en un correo del buzón — ver obtener_contenido()."""
+@router.get("/buzon/adjunto/{folder_id}/{message_id}/{attachment_id}")
+def buzon_adjunto(folder_id: str, message_id: str, attachment_id: str):
+    """Proxy de adjuntos (inline o archivo aparte) de un correo del buzón — ver
+    obtener_contenido() y _reescribir_imagenes()."""
     try:
-        contenido, content_type = zoho_mail.descargar_recurso(ruta)
+        contenido, content_type = zoho_mail.descargar_adjunto(folder_id, message_id, attachment_id)
         return Response(content=contenido, media_type=content_type)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

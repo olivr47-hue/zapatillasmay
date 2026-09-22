@@ -24609,9 +24609,10 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
         </div>
         <button onclick="document.getElementById('modal-buzon-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
       </div>
-      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:${puedeResponder ? '1rem' : '0'}">
+      <div style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:1rem">
         <iframe id="buzon-iframe-${messageId}" style="width:100%;height:420px;border:none"></iframe>
       </div>
+      <div id="buzon-adjuntos-${messageId}"></div>
       ${puedeResponder ? `<button class="btn btn-primary" onclick="window._buzonRedactar(${JSON.stringify(contacto).replace(/"/g,'&quot;')}, ${JSON.stringify('Re: ' + (asunto||'')).replace(/"/g,'&quot;')}, '${messageId}')">↩️ Responder</button>` : ''}
     </div>`
   document.body.appendChild(ov)
@@ -24620,6 +24621,16 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
     const data = await res.json()
     const iframe = document.getElementById(`buzon-iframe-${messageId}`)
     if (iframe) iframe.srcdoc = data.html || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
+    const cont = document.getElementById(`buzon-adjuntos-${messageId}`)
+    if (cont && data.adjuntos && data.adjuntos.length) {
+      cont.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem'
+      cont.innerHTML = data.adjuntos.map(a => {
+        const url = `${API}/emails/buzon/adjunto/${folderId}/${messageId}/${a.attachmentId}`
+        const nombre = a.attachmentName || 'archivo'
+        const kb = a.attachmentSize ? `${Math.round(a.attachmentSize / 1024)} KB` : ''
+        return `<a href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:0.78rem;color:#333;text-decoration:none">📎 ${nombre}${kb ? ` <span style="color:#999">(${kb})</span>` : ''}</a>`
+      }).join('')
+    }
   } catch (e) {
     const iframe = document.getElementById(`buzon-iframe-${messageId}`)
     if (iframe) iframe.srcdoc = '<p style="font-family:sans-serif;color:#888;padding:1rem">Error de conexión.</p>'

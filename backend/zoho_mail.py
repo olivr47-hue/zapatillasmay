@@ -29,7 +29,6 @@ ACCOUNT_ID_ENV = os.getenv("ZOHO_MAIL_ACCOUNT_ID", "")
 
 _TOKEN_URL = "https://accounts.zoho.com/oauth/v2/token"
 _API_BASE  = "https://mail.zoho.com/api"
-_MAIL_HOST = "https://mail.zoho.com"
 
 _cache = {"access_token": None, "expira": 0, "account_id": ACCOUNT_ID_ENV}
 
@@ -183,53 +182,101 @@ def listar_mensajes(carpeta: str = "Inbox", limite: int = 30, start: int = 1) ->
     return out
 
 
-def obtener_contenido(message_id: str, folder_id: str, base_url: str = "") -> str:
-    """HTML completo de un mensaje (los metadatos ya vienen del listado)."""
+def _info_adjuntos(message_id: str, folder_id: str) -> dict:
+    """Metadatos de adjuntos (incluye los embebidos inline en el cuerpo) de un
+    mensaje: {"attachments": [...], "inline": [...]}, cada uno con attachmentId,
+    attachmentName, attachmentSize y (los inline) cid."""
+    data = _request(
+        f"/accounts/{_account_id()}/folders/{folder_id}/messages/{message_id}/attachmentinfo",
+        {"includeInline": "true"},
+    )
+    return data.get("data", {}) or {}
+
+
+def obtener_contenido(message_id: str, folder_id: str, base_url: str = "") -> dict:
+    """HTML completo de un mensaje (los metadatos ya vienen del listado) más la
+    lista de adjuntos reales (no inline), para que el panel pueda mostrarlos."""
     data = _request(f"/accounts/{_account_id()}/folders/{folder_id}/messages/{message_id}/content")
-    html = data.get("data", {}).get("content") or ""
+    contenido = data.get("data", {}).get("content") or ""
+    try:
+        info = _info_adjuntos(message_id, folder_id)
+    except Exception:
+        info = {}
+    inline = info.get("inline", []) or []
+    adjuntos = info.get("attachments", []) or []
     if base_url:
-        html = _reescribir_imagenes(html, base_url)
-    return html
+        contenido = _reescribir_imagenes(contenido, base_url, folder_id, message_id, inline)
+    return {"html": contenido, "adjuntos": adjuntos}
 
 
 _SRC_RE = re.compile(r'''src\s*=\s*(["'])(.*?)\1''', re.IGNORECASE)
 
 
-def _reescribir_imagenes(html: str, base_url: str) -> str:
-    """Las imágenes embebidas en el correo (fotos que el cliente adjuntó dentro
-    del cuerpo, no como archivo aparte) vienen con una URL relativa a la API de
-    Zoho Mail que exige el token OAuth para descargarse — el navegador del panel
-    no lo tiene, así que se ven rotas (por eso había que entrar a mail.zoho.com
-    directo). Aquí se reescriben para pasar por nuestro propio proxy
-    (/emails/buzon/imagen), que sí tiene el token y las reenvía."""
+def _reescribir_imagenes(contenido: str, base_url: str, folder_id: str, message_id: str, inline: list) -> str:
+    """Las imágenes embebidas en el cuerpo del correo vienen en el HTML de Zoho
+    como un link a /mail/ImageDisplay -- una ruta interna del webmail que exige
+    la sesión de mail.zoho.com y NO acepta el token OAuth de la API (por más que
+    se le anteponga /api, Zoho responde 404, o con /mail solo, la página de
+    login). La única forma real de bajarlas con OAuth es la API de adjuntos
+    (attachmentinfo + /attachments/{attachmentId}), así que aquí se resuelve
+    cada <img> contra esa lista (matchea por cid, si no por nombre de archivo,
+    si no por orden de aparición) y se reescribe apuntando a nuestro proxy
+    /emails/buzon/adjunto/{folderId}/{messageId}/{attachmentId}."""
+    por_cid = {}
+    por_nombre = {}
+    for a in inline:
+        aid = a.get("attachmentId")
+        cid = (a.get("cid") or "").strip()
+        nombre = (a.get("attachmentName") or "").strip().lower()
+        if cid:
+            por_cid[cid] = aid
+        if nombre:
+            por_nombre.setdefault(nombre, aid)
+    usados = set()
+
     def _reemplazar(m):
         comilla, src = m.group(1), m.group(2)
         if src.startswith("data:") or (src.startswith("http") and "zoho.com" not in src):
             return m.group(0)  # ya es una imagen pública o embebida en base64, no tocar
         # El HTML de Zoho trae la query del src con entidades HTML sin decodificar
-        # (p.ej. "&amp;" en vez de "&"), así que el "&" literal dentro de "&amp;"
-        # se cuela como separador de query y rompe los parámetros (nmsgId, cid, etc.)
-        # al reenviarlos a la API de Zoho -- hay que decodificar entidades primero.
+        # (p.ej. "&amp;" en vez de "&"), hay que decodificarlas antes de leer
+        # sus parámetros (cid, f = nombre de archivo).
         src = _html.unescape(src)
-        proxied = f"{base_url.rstrip('/')}/emails/buzon/imagen?ruta=" + urllib.parse.quote(src, safe="")
+        qs = urllib.parse.parse_qs(urllib.parse.urlparse(src).query)
+        cid_val = (qs.get("cid") or [""])[0]
+        nombre_val = (qs.get("f") or [""])[0].strip().lower()
+        aid = None
+        if cid_val:
+            for k, v in por_cid.items():
+                if cid_val in k or k in cid_val:
+                    aid = v
+                    break
+        if not aid and nombre_val:
+            aid = por_nombre.get(nombre_val)
+        if not aid:
+            restantes = [a.get("attachmentId") for a in inline if a.get("attachmentId") not in usados]
+            if restantes:
+                aid = restantes[0]
+        if not aid:
+            return m.group(0)  # no se pudo resolver contra ningún inline conocido
+        usados.add(aid)
+        proxied = f"{base_url.rstrip('/')}/emails/buzon/adjunto/{folder_id}/{message_id}/{aid}"
         return f'src={comilla}{proxied}{comilla}'
-    return _SRC_RE.sub(_reemplazar, html)
+    return _SRC_RE.sub(_reemplazar, contenido)
 
 
-def descargar_recurso(ruta: str) -> tuple:
-    """Descarga una imagen/adjunto inline de la API de Zoho Mail con el token
-    OAuth del backend, para reenviarla al navegador del panel (que no tiene
-    ese token y no puede pedirla directo). Devuelve (bytes, content_type)."""
-    if not (ruta.startswith("/") or "zoho.com" in ruta):
-        raise ValueError("Ruta de recurso no permitida")
+def descargar_adjunto(folder_id: str, message_id: str, attachment_id: str) -> tuple:
+    """Descarga el contenido real de un adjunto (inline o archivo aparte) vía la
+    API de adjuntos de Zoho Mail, con el token OAuth del backend. Devuelve
+    (bytes, content_type)."""
     token = _get_access_token()
-    # ruta viene tal cual del HTML de Zoho (p.ej. "/mail/ImageDisplay?..."), ya es
-    # una ruta absoluta desde la raíz de mail.zoho.com -- NO va bajo /api, que es
-    # solo el prefijo que nosotros mismos usamos para llamar a la REST API.
-    url = ruta if ruta.startswith("http") else f"{_MAIL_HOST}{ruta}"
-    req = urllib.request.Request(url, headers={"Authorization": f"Zoho-oauthtoken {token}"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        content_type = r.headers.get("Content-Type", "application/octet-stream")
+    url = f"{_API_BASE}/accounts/{_account_id()}/folders/{folder_id}/messages/{message_id}/attachments/{attachment_id}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Zoho-oauthtoken {token}",
+        "Accept": "application/octet-stream",
+    })
+    with urllib.request.urlopen(req, timeout=20) as r:
+        content_type = r.headers.get("Content-Type") or "application/octet-stream"
         return r.read(), content_type
 
 
