@@ -603,7 +603,66 @@ def gastos_por_categoria(sucursal_id: str):
         return [{"categoria": k, "total": v} for k, v in sorted(categorias.items(), key=lambda x: -x[1])]
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-        # ─── SUGERENCIAS DE RECOMPRA ──────────────────────
+        # ─── VALOR DE INVENTARIO ───────────────────────────
+@router.get("/valor-inventario")
+def valor_inventario():
+    """Valor total del inventario (todas las sucursales) a costo y a precio de
+    venta de menudeo -- responde directo "cuánto tengo en inventario" sin
+    tener que sumarlo a mano. Usa supabase_get_all (no supabase_get) porque
+    inventario/variantes fácilmente pasan de las 1000 filas que pagina
+    PostgREST por default -- con supabase_get se perdían variantes enteras
+    del total sin ningún error visible."""
+    try:
+        inventario = supabase_get_all("inventario?cantidad=gt.0&select=cantidad,variante_id,sucursal_id")
+        variantes = supabase_get_all("variantes?select=id,producto_id")
+        productos = supabase_get_all("productos?select=id,costo,precio_menudeo")
+        sucursales = supabase_get_all("sucursales?select=id,nombre")
+
+        producto_de_variante = {v['id']: v['producto_id'] for v in variantes}
+        productos_map = {p['id']: p for p in productos}
+        sucursales_map = {s['id']: s.get('nombre') for s in sucursales}
+
+        total_pares = 0
+        valor_costo = 0.0
+        valor_venta = 0.0
+        variantes_con_stock = set()
+        por_sucursal = {}
+
+        for i in inventario:
+            cantidad = int(i.get('cantidad') or 0)
+            if cantidad <= 0:
+                continue
+            variante_id = i.get('variante_id')
+            producto_id = producto_de_variante.get(variante_id)
+            prod = productos_map.get(producto_id, {}) if producto_id else {}
+            costo = float(prod.get('costo') or 0)
+            precio = float(prod.get('precio_menudeo') or 0)
+
+            total_pares += cantidad
+            valor_costo += cantidad * costo
+            valor_venta += cantidad * precio
+            variantes_con_stock.add(variante_id)
+
+            suc_nombre = sucursales_map.get(i.get('sucursal_id')) or 'Sin sucursal'
+            s = por_sucursal.setdefault(suc_nombre, {"pares": 0, "valor_costo": 0.0, "valor_venta": 0.0})
+            s["pares"] += cantidad
+            s["valor_costo"] += cantidad * costo
+            s["valor_venta"] += cantidad * precio
+
+        return {
+            "pares_totales": total_pares,
+            "variantes_con_stock": len(variantes_con_stock),
+            "valor_costo": round(valor_costo, 2),
+            "valor_venta_menudeo": round(valor_venta, 2),
+            "por_sucursal": [
+                {"sucursal": k, "pares": v["pares"], "valor_costo": round(v["valor_costo"], 2), "valor_venta": round(v["valor_venta"], 2)}
+                for k, v in sorted(por_sucursal.items(), key=lambda x: -x[1]["valor_costo"])
+            ],
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ─── SUGERENCIAS DE RECOMPRA ──────────────────────
 @router.get("/sugerencias-recompra/{sucursal_id}")
 def sugerencias_recompra(sucursal_id: str):
     try:

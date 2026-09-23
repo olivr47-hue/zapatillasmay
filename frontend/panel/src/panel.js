@@ -1776,7 +1776,7 @@ async function cargarFinanzas() {
     const sucursales = await resSucursales.json()
     const sucursalId = sucursales[0]?.id
 
-    const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias, resCxP, resDeudas] = await Promise.all([
+    const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias, resCxP, resDeudas, resValorInv] = await Promise.all([
       fetch(API + '/finanzas/caja/hoy/' + sucursalId),
       fetch(API + '/finanzas/reporte/' + sucursalId),
       fetch(API + '/finanzas/gastos/' + sucursalId),
@@ -1785,7 +1785,8 @@ async function cargarFinanzas() {
       fetch(API + '/finanzas/cuentas-por-cobrar'),
       fetch(API + '/finanzas/gastos-categorias/' + sucursalId),
       fetch(API + '/finanzas/cuentas-por-pagar'),
-      fetch(API + '/finanzas/deudas')
+      fetch(API + '/finanzas/deudas'),
+      fetch(API + '/finanzas/valor-inventario')
     ])
 
     const cajas = await resCaja.json()
@@ -1797,6 +1798,7 @@ async function cargarFinanzas() {
     const categorias = await resCategorias.json()
     const cxp = await resCxP.json()
     const deudas = await resDeudas.json()
+    const valorInv = await resValorInv.json()
 
     const cajaActiva = cajas.find(c => c.status === 'abierta')
     const hoy = new Date().toISOString().split('T')[0]
@@ -1891,6 +1893,10 @@ async function cargarFinanzas() {
           <p style="font-size:1.5rem;font-weight:700;color:${cxpVencidas > 0 ? '#c62828' : '#6a1b9a'}">$${totalCxP.toFixed(0)}</p>
           <p style="font-size:0.68rem;color:${cxpVencidas > 0 ? '#c62828' : '#6a1b9a'};text-transform:uppercase;letter-spacing:0.5px">Cuentas x pagar${cxpVencidas > 0 ? ' · ' + cxpVencidas + ' vencida' + (cxpVencidas>1?'s':'') : ''}</p>
         </div>
+        <div style="background:#e0f2f1;border-radius:12px;padding:1.25rem;border:1px solid #80cbc4;text-align:center;cursor:pointer" onclick="mostrarTabFinanzas('inventario')" title="Valor a precio de venta: $${(valorInv.valor_venta_menudeo||0).toLocaleString('es-MX',{maximumFractionDigits:0})}">
+          <p style="font-size:1.5rem;font-weight:700;color:#00695c">$${(valorInv.valor_costo||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#00695c;text-transform:uppercase;letter-spacing:0.5px">Inventario (costo) · ${valorInv.pares_totales||0} pares</p>
+        </div>
       </div>
 
       <!-- TABS -->
@@ -1904,6 +1910,7 @@ async function cargarFinanzas() {
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxc')">📑 Cuentas x cobrar</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('cxp')">📥 Cuentas x pagar</button>
         <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('deudas')">💳 Deudas</button>
+        <button class="btn btn-secondary" style="font-size:0.82rem" onclick="mostrarTabFinanzas('inventario')">📦 Valor de inventario</button>
       </div>
 
       <div id="fin-tab-contenido"></div>
@@ -2188,6 +2195,71 @@ window.mostrarTabFinanzas = (tab) => {
     mostrarDeudas()
   } else if (tab === 'proyeccion') {
     mostrarProyeccion()
+  } else if (tab === 'inventario') {
+    mostrarValorInventario()
+  }
+}
+
+window.mostrarValorInventario = async () => {
+  const container = document.getElementById('fin-tab-contenido')
+  if (!container) return
+  container.innerHTML = '<p style="padding:2rem;color:#888">Calculando valor de inventario...</p>'
+  try {
+    const res = await fetch(API + '/finanzas/valor-inventario')
+    const v = await res.json()
+    const porSucursal = v.por_sucursal || []
+    const margenPotencial = (v.valor_venta_menudeo || 0) - (v.valor_costo || 0)
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:1.25rem">
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.4rem;font-weight:700;color:#333">${(v.pares_totales||0).toLocaleString('es-MX')}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase">Pares en stock</p>
+        </div>
+        <div style="background:white;border-radius:12px;padding:1.25rem;border:1px solid #eee;text-align:center">
+          <p style="font-size:1.4rem;font-weight:700;color:#333">${(v.variantes_con_stock||0).toLocaleString('es-MX')}</p>
+          <p style="font-size:0.68rem;color:#888;text-transform:uppercase">Talla/color distintos</p>
+        </div>
+        <div style="background:#e0f2f1;border-radius:12px;padding:1.25rem;border:1px solid #80cbc4;text-align:center">
+          <p style="font-size:1.4rem;font-weight:700;color:#00695c">$${(v.valor_costo||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#00695c;text-transform:uppercase">Valor a costo</p>
+        </div>
+        <div style="background:#e8f5e9;border-radius:12px;padding:1.25rem;border:1px solid #a5d6a7;text-align:center">
+          <p style="font-size:1.4rem;font-weight:700;color:#2e7d32">$${(v.valor_venta_menudeo||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
+          <p style="font-size:0.68rem;color:#2e7d32;text-transform:uppercase">Valor a precio de venta</p>
+        </div>
+      </div>
+      <p style="font-size:0.78rem;color:#666;margin-bottom:1.25rem">Si vendieras todo el stock actual a precio de menudeo (sin descuentos), tu utilidad bruta potencial sería de <strong style="color:#2e7d32">$${margenPotencial.toLocaleString('es-MX',{maximumFractionDigits:0})}</strong>.</p>
+      <div style="background:white;border-radius:12px;border:1px solid #eee;overflow:hidden">
+        <div style="padding:1rem 1.5rem;border-bottom:1px solid #eee">
+          <p style="font-weight:700;font-size:0.9rem">📦 Por sucursal</p>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.83rem">
+            <thead>
+              <tr style="background:#fafafa;border-bottom:2px solid #eee">
+                <th style="padding:8px 12px;text-align:left">Sucursal</th>
+                <th style="padding:8px 12px;text-align:right">Pares</th>
+                <th style="padding:8px 12px;text-align:right">Valor costo</th>
+                <th style="padding:8px 12px;text-align:right">Valor venta</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${porSucursal.length ? porSucursal.map(s => `
+                <tr style="border-bottom:1px solid #f5f5f5">
+                  <td style="padding:8px 12px">${s.sucursal}</td>
+                  <td style="padding:8px 12px;text-align:right">${s.pares.toLocaleString('es-MX')}</td>
+                  <td style="padding:8px 12px;text-align:right;font-weight:700;color:#00695c">$${s.valor_costo.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                  <td style="padding:8px 12px;text-align:right;color:#2e7d32">$${s.valor_venta.toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
+                </tr>
+              `).join('') : '<tr><td colspan="4" style="padding:1.5rem;text-align:center;color:#888">Sin inventario con stock</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p style="font-size:0.72rem;color:#aaa;margin-top:8px">Costo = "costo" capturado en cada producto × cantidad en stock. Valor de venta = precio de menudeo × cantidad, sin considerar descuentos, mayoreo ni envío.</p>
+    `
+  } catch(e) {
+    container.innerHTML = '<p style="padding:2rem;color:red">Error calculando el valor de inventario: ' + e.message + '</p>'
   }
 }
 
