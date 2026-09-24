@@ -44,6 +44,19 @@ def cache_invalidate_prefix(prefix: str) -> None:
         del _cache[k]
 
 
+def cache_cleanup_expired() -> int:
+    """Purga TODAS las claves ya vencidas, sin esperar a que alguien las vuelva
+    a pedir. cache_get() solo limpia una clave cuando esa MISMA clave se
+    vuelve a leer -- claves que nadie vuelve a pedir (ej. ssr_prod_{sku} de
+    un producto que un bot ya no visita) se quedaban en RAM para siempre
+    hasta el próximo redeploy. Devuelve cuántas se borraron."""
+    ahora = time.time()
+    vencidas = [k for k, (_, ts, ttl) in _cache.items() if ahora - ts >= ttl]
+    for k in vencidas:
+        del _cache[k]
+    return len(vencidas)
+
+
 def cache_stats() -> dict:
     """Resumen del estado del caché (para debugging)."""
     now = time.time()

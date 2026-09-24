@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from security import limiter
 from database import supabase_get
-from cache import cache_stats, cache_invalidate_prefix
+from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
 from routers import empleados
 from routers import seo
@@ -229,6 +229,24 @@ def _loop_correo_nuevo():
             print(f"[correo-nuevo] Error en loop: {e}")
         _time.sleep(15 * 60)  # cada 15 minutos
 
+def _loop_limpieza_cache():
+    """Purga entradas vencidas del caché en memoria cada 10 minutos. El
+    caché (cache.py) solo se limpia solo cuando alguien vuelve a pedir la
+    MISMA clave vencida -- claves de baja frecuencia (ej. ssr_prod_{sku} por
+    cada producto que visita un bot) se quedaban acumuladas en RAM sin
+    límite hasta el próximo redeploy, y eso es lo que hacía que el uso de
+    Memory en Railway subiera de forma constante durante días (ver Usage:
+    Memory era ~75% del costo del plan Hobby)."""
+    _time.sleep(300)  # espera inicial
+    while True:
+        try:
+            borradas = cache_cleanup_expired()
+            if borradas:
+                print(f"[limpieza-cache] {borradas} entrada(s) vencida(s) purgada(s)")
+        except Exception as e:
+            print(f"[limpieza-cache] Error en loop: {e}")
+        _time.sleep(10 * 60)  # cada 10 minutos
+
 def _loop_reporte_semanal():
     """Cada lunes ~9am (hora Mexico, UTC-6) manda un push a los admins del
     panel con el resumen de la semana: sesiones/usuarios de GA4 y gasto/
@@ -287,6 +305,10 @@ def _iniciar_hilos():
     t6 = threading.Thread(target=_loop_reporte_semanal, daemon=True)
     t6.start()
     print("[reporte-semanal] Hilo de reporte semanal iniciado (lunes 9am)")
+    # Limpieza periódica del caché en memoria (evita que crezca sin límite)
+    t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
+    t7.start()
+    print("[limpieza-cache] Hilo de limpieza de caché iniciado (cada 10 min)")
 
 @app.get("/")
 def inicio():
