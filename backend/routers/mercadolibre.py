@@ -1788,6 +1788,23 @@ def sincronizar_entregas():
     return _hacer_sync_entregas()
 
 
+@router.get("/shipment-debug/{order_id}")
+def shipment_debug(order_id: str):
+    """DIAGNOSTICO TEMPORAL. Quitar despues de verificar."""
+    orden = ml_get(f"/orders/{order_id}")
+    shipment_id = (orden.get("shipping") or {}).get("id")
+    if not shipment_id:
+        return {"error": "sin shipping.id"}
+    shipment = ml_get(f"/shipments/{shipment_id}")
+    return {
+        "shipment_id": shipment_id,
+        "status": shipment.get("status"),
+        "substatus": shipment.get("substatus"),
+        "substatus_history": shipment.get("substatus_history"),
+        "despachado": _fue_despachado(shipment),
+    }
+
+
 
 
 @router.get("/categoria-attrs/{category_id}")
