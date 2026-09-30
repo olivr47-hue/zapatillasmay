@@ -1704,6 +1704,45 @@ def size_charts(cat: str = "MLM193197"):
     return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
 
 
+_TALLAS_GUIA = [22, 22.5, 23, 23.5, 24, 24.5, 25, 25.5, 26, 26.5, 27]
+
+
+def _fmt_talla(t):
+    return str(int(t)) if t == int(t) else str(t)
+
+
+@router.post("/crear-guia-talles-temp")
+def crear_guia_talles_temp(domain_id: str, nombre: str):
+    """TEMPORAL: crea una guía de talles personalizada (SPECIFIC) para un
+    dominio de calzado -- MX_SIZE 22 a 27, GENDER Mujer, BRAND May. Solo
+    para las 2 categorias que hoy no tienen guia propia (MLM193324
+    tacones=HEELS_AND_WEDGES, MLM193197 flats=FLATS). Quitar una vez creadas
+    y confirmadas ambas guias."""
+    payload = {
+        "names": {"MLM": nombre},
+        "domain_id": domain_id,
+        "site_id": "MLM",
+        "main_attribute": {"attributes": [{"site_id": "MLM", "id": "MX_SIZE"}]},
+        "attributes": [
+            {"id": "GENDER", "values": [{"id": "339665", "name": "Mujer"}]},
+            {"id": "BRAND", "values": [{"name": "May"}]},
+        ],
+        "rows": [
+            {
+                "attributes": [
+                    {"id": "MX_SIZE", "values": [{"name": f"{_fmt_talla(t)} MX"}]},
+                    {"id": "FOOT_LENGTH", "values": [{"name": f"{_fmt_talla(t)} cm"}]},
+                ]
+            }
+            for t in _TALLAS_GUIA
+        ],
+    }
+    try:
+        return {"ok": True, "payload_enviado": payload, "respuesta": ml_post("/catalog/charts", payload)}
+    except Exception as e:
+        return {"ok": False, "payload_enviado": payload, "error": str(e)}
+
+
 # ─── Sincronizar estatus de envío (despacho a agencia ML) ─────────────────────
 
 def _fue_despachado(shipment: dict) -> bool:
