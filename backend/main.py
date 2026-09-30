@@ -162,7 +162,8 @@ def _loop_carritos_abandonados():
 
 def _loop_ml_ventas():
     """Descuenta inventario del ERP por ventas nuevas en MercadoLibre, y marca
-    como enviados los pedidos que ML ya reporta entregados, cada 10 minutos."""
+    como enviados los pedidos que el vendedor ya despachó en una agencia de
+    ML (no cuando le llega al cliente), cada 10 minutos."""
     _time.sleep(150)  # espera inicial
     while True:
         try:

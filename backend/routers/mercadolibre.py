@@ -1704,17 +1704,35 @@ def size_charts(cat: str = "MLM193197"):
     return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
 
 
-# ─── Sincronizar estatus de envío/entrega ─────────────────────────────────────
+# ─── Sincronizar estatus de envío (despacho a agencia ML) ─────────────────────
+
+def _fue_despachado(shipment: dict) -> bool:
+    """True si el vendedor YA entregó el paquete en una agencia/punto de
+    MercadoLibre -- substatus 'dropped_off' (o cualquier estado posterior:
+    picked_up, in_hub, shipped, delivered...). Este es el evento que le
+    manda el correo de confirmación a la tienda, NO cuando el paquete llega
+    al cliente final."""
+    if shipment.get("status") in ("shipped", "delivered"):
+        return True
+    if shipment.get("substatus") == "dropped_off":
+        return True
+    for h in (shipment.get("substatus_history") or []):
+        if h.get("substatus") == "dropped_off":
+            return True
+    return False
+
 
 def _hacer_sync_entregas() -> dict:
     """
-    Revisa los pedidos de MercadoLibre que todavía no están marcados como
-    enviados en el ERP (status pagado/confirmado) y consulta en ML el estado
-    real del envío. En cuanto ML lo marca como entregado, el ERP lo refleja
-    solo marcando el pedido como 'enviado' -- el panel no distingue un estado
-    "entregado" aparte, "enviado" es el estado final que ya usa el resto del
-    sistema (desaparece de "Por enviar", cuenta para reseñas, etc.), así el
-    vendedor no tiene que estar checando ML y dando click manual.
+    Revisa los pedidos de MercadoLibre que todavía siguen pendientes en el
+    ERP (status pagado/confirmado, o sea siguen en "Por enviar") y consulta
+    en ML el estado real del envío. En cuanto el vendedor entrega el paquete
+    en una agencia de MercadoLibre (substatus 'dropped_off' -- el mismo
+    momento en que a la tienda le llega el correo de ML confirmando la
+    entrega en agencia), el ERP marca el pedido como 'enviado' solo, sin
+    esperar a que el paquete le llegue al cliente final. Así "Por enviar"
+    siempre refleja de verdad los paquetes que TODAVÍA faltan por llevar a
+    la agencia, y no hay riesgo de que se le pase alguno al vendedor.
     """
     resultado = {"revisados": 0, "actualizados": 0, "pedidos": [], "errores": []}
     try:
@@ -1733,22 +1751,28 @@ def _hacer_sync_entregas() -> dict:
                 if not shipment_id:
                     continue
                 shipment = ml_get(f"/shipments/{shipment_id}")
-                estado_envio = shipment.get("status")
-                if estado_envio == "delivered":
-                    fecha_entrega = (
-                        (shipment.get("status_history") or {}).get("date_delivered")
+                if _fue_despachado(shipment):
+                    fecha_despacho = None
+                    for h in (shipment.get("substatus_history") or []):
+                        if h.get("substatus") == "dropped_off":
+                            fecha_despacho = h.get("date")
+                            break
+                    fecha_despacho = (
+                        fecha_despacho
+                        or (shipment.get("status_history") or {}).get("date_shipped")
                         or datetime.now(timezone.utc).isoformat()
                     )
                     supabase_patch(f"pedidos?id=eq.{p['id']}", {
                         "status":      "enviado",
                         "paqueteria":  "Mercado Envíos",
                         "numero_guia": str(shipment_id),
-                        "enviado_at":  fecha_entrega,
+                        "enviado_at":  fecha_despacho,
                     })
                     resultado["actualizados"] += 1
                     resultado["pedidos"].append({
                         "orden": order_id, "cliente": p.get("nombre_cliente"),
-                        "envio_status": estado_envio,
+                        "envio_status": shipment.get("status"),
+                        "envio_substatus": shipment.get("substatus"),
                     })
             except Exception as e:
                 resultado["errores"].append({"orden": order_id, "error": str(e)})
@@ -1759,8 +1783,8 @@ def _hacer_sync_entregas() -> dict:
 
 @router.post("/sync-entregas")
 def sincronizar_entregas():
-    """Trigger manual: marca como 'enviado' los pedidos de ML que ya aparecen
-    entregados según el estado real del envío en MercadoLibre."""
+    """Trigger manual: marca como 'enviado' los pedidos de ML que el vendedor
+    ya despachó en una agencia (substatus 'dropped_off' o posterior)."""
     return _hacer_sync_entregas()
 
 
