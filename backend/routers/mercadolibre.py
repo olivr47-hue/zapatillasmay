@@ -762,7 +762,16 @@ def _hacer_sync_ventas():
                 datos_pedido = {
                     "ml_order_id": order_id,
                     "canal":       "mercadolibre",
-                    "status":      "confirmado",
+                    # "pagado" (no "confirmado"): ML ya cobró al comprador, así que
+                    # para el ERP es equivalente a un pedido pagado por nuestro
+                    # checkout que sigue pendiente de surtir/enviar. Con
+                    # "confirmado" el pedido quedaba invisible para el badge de
+                    # notificaciones, el conteo "Por enviar" y el botón de
+                    # 🚚 Enviar -- todos esos solo miraban status=pagado, así que
+                    # el vendedor se enteraba de la venta por el correo de ML, no
+                    # por el panel (ver frontend/panel/src/panel.js, filtros de
+                    # "por_enviar" / esPagadoOnline).
+                    "status":      "pagado",
                     "tipo":        "online",
                     "total":       float(orden.get("total_amount") or 0),
                     "subtotal":    float(orden.get("total_amount") or 0),
