@@ -862,14 +862,17 @@ _TIPO_CALZADO = {
 #   MLM192062=Botas y Botines, MLM193197=Flats, MLM6585=Tenis
 _CATEGORY_ID = {
     "sandalia": "MLM192717", "sandalias": "MLM192717",
-    # Tacones, botines, flats y balerinas van todos a MLM192717 (Sandalias):
-    # es la categoría donde el vendedor siempre publicó su calzado. Tiene
-    # guía de tallas 487994 y envío me2 configurados. Las categorías "puras"
-    # (MLM193324 tacones, MLM193197 flats) exigen guías propias que la cuenta
-    # no tiene — ML responde cause 2613 (invalid.fashion_grid.grid_id.values).
-    "tacon": "MLM192717",    "tacones":   "MLM192717",
+    # Tacones y flats ya tienen guía de tallas propia (creada 2026-09-30,
+    # ver _SIZE_GRID) y publican en su categoría real -- antes iban a
+    # MLM192717 (Sandalias) porque las categorías "puras" exigían una guía
+    # que la cuenta no tenía (cause 2613 invalid.fashion_grid.grid_id.values).
+    # Publicar calzado cerrado como si fuera sandalia es justo lo que causó
+    # que ML eliminara RX509 y RX1102 por categoría incorrecta.
+    "tacon": "MLM193324",    "tacones":   "MLM193324",
+    # Botines y balerinas se quedan en Sandalias por ahora: no fueron parte
+    # de este arreglo (no tienen guía propia todavía).
     "botin": "MLM192717",    "botines":   "MLM192717",
-    "flat":  "MLM192717",    "flats":     "MLM192717",
+    "flat":  "MLM193197",    "flats":     "MLM193197",
     "balerina": "MLM192717", "balerinas": "MLM192717",
     "tenis": "MLM6585",
 }
@@ -888,12 +891,12 @@ _FOOTWEAR_BY_CAT = {
 
 # Categoría → SIZE_GRID_ID verificado en items existentes.
 # Las categorías que NO aparecen aquí publican SIZE como valor directo
-# ("23", "24.5") sin grid. MLM193324 (Zapatillas y Tacones, dominio
-# MLM-HEELS_AND_WEDGES) NO usa el grid de sandalias: lo rechaza
-# (cause 2613 invalid.fashion_grid.grid_id.values).
+# ("23", "24.5") sin grid.
 _SIZE_GRID = {
-    "MLM192717": "487994",   # Sandalias y Chanclas (también tacones, botines, flats)
-    "MLM192062": "356657",   # Botas y Botines
+    "MLM192717": "487994",    # Sandalias y Chanclas (también botines, balerinas)
+    "MLM192062": "356657",    # Botas y Botines
+    "MLM193324": "9285411",   # Zapatillas y Tacones -- guía propia MX_SIZE 22-27 (2026-09-30)
+    "MLM193197": "9285271",   # Flats -- guía propia MX_SIZE 22-27 (2026-09-30)
 }
 
 # Color ERP → (value_id ML, value_name estándar)
@@ -970,15 +973,24 @@ def _material_a_value_id(texto: str, tabla: dict) -> str | None:
     return None
 
 
+# grid_id → (talla base = row 1, cantidad de rows). Cada grid tiene su propio
+# arranque: 487994 (Sandalias, ya existía) arranca en talla 23; las guías
+# propias 9285411 (tacones) y 9285271 (flats), creadas 2026-09-30, arrancan
+# en 22 -- son el rango real de tallas de mujer del catálogo (22 a 27).
+_SIZE_GRID_BASE = {
+    "487994":  (23, 20),
+    "9285411": (22, 11),
+    "9285271": (22, 11),
+}
+
+
 def _talla_to_row(talla, grid_id: str = "487994") -> str | None:
-    """
-    Talla MX → SIZE_GRID_ROW_ID.
-    Grid 487994: base 23 = row 1, cada 0.5 = +1 row (verificado en items existentes).
-    """
+    """Talla MX → SIZE_GRID_ROW_ID, según la base y el tamaño de cada grid."""
+    base, max_rows = _SIZE_GRID_BASE.get(grid_id, (23, 20))
     try:
         t = float(str(talla).replace("_", "."))
-        row = int(round((t - 23) * 2)) + 1
-        if 1 <= row <= 20:
+        row = int(round((t - base) * 2)) + 1
+        if 1 <= row <= max_rows:
             return f"{grid_id}:{row}"
     except Exception:
         pass
@@ -1673,74 +1685,10 @@ def predecir_categoria(q: str = "sandalia mujer"):
     return ml_get(f"/sites/MLM/category_predictor/select?title={urllib.parse.quote(q)}")
 
 
-@router.get("/domain-technical-specs/{domain_id}")
-def domain_technical_specs(domain_id: str):
-    """DIAGNOSTICO TEMPORAL: ficha tecnica de guias de talles de un dominio
-    (sin el prefijo de sitio, ej. HEELS_AND_WEDGES no MLM-HEELS_AND_WEDGES),
-    para saber que atributos pide MELI al crear una guia de talles propia.
-    Quitar una vez resuelto lo de MLM193324/MLM193197."""
-    intentos = {}
-    try:
-        intentos["post_con_body"] = ml_post(
-            f"/domains/{domain_id}/technical_specs?section=grids",
-            {"site_id": "MLM"},
-        )
-    except Exception as e:
-        intentos["post_con_body_error"] = str(e)
-    try:
-        intentos["get_plano"] = ml_get(f"/domains/{domain_id}/technical_specs?site_id=MLM")
-    except Exception as e:
-        intentos["get_plano_error"] = str(e)
-    try:
-        intentos["get_grids"] = ml_get(f"/domains/{domain_id}/technical_specs?section=grids&site_id=MLM")
-    except Exception as e:
-        intentos["get_grids_error"] = str(e)
-    return intentos
-
-
 @router.get("/size-charts")
 def size_charts(cat: str = "MLM193197"):
     """Devuelve las guías de tallas válidas para una categoría de ML."""
     return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
-
-
-_TALLAS_GUIA = [22, 22.5, 23, 23.5, 24, 24.5, 25, 25.5, 26, 26.5, 27]
-
-
-def _fmt_talla(t):
-    return str(int(t)) if t == int(t) else str(t)
-
-
-@router.post("/crear-guia-talles-temp")
-def crear_guia_talles_temp(domain_id: str, nombre: str):
-    """TEMPORAL: crea una guía de talles personalizada (SPECIFIC) para un
-    dominio de calzado -- MX_SIZE 22 a 27, GENDER Mujer, BRAND May. Solo
-    para las 2 categorias que hoy no tienen guia propia (MLM193324
-    tacones=HEELS_AND_WEDGES, MLM193197 flats=FLATS). Quitar una vez creadas
-    y confirmadas ambas guias."""
-    payload = {
-        "names": {"MLM": nombre},
-        "domain_id": domain_id,
-        "site_id": "MLM",
-        "main_attribute": {"attributes": [{"site_id": "MLM", "id": "MX_SIZE"}]},
-        "attributes": [
-            {"id": "GENDER", "values": [{"id": "339665", "name": "Mujer"}]},
-            {"id": "BRAND", "values": [{"name": "May"}]},
-        ],
-        "rows": [
-            {
-                "attributes": [
-                    {"id": "MX_SIZE", "values": [{"name": f"{_fmt_talla(t)} MX"}]},
-                    {"id": "FOOT_LENGTH", "values": [{"name": f"{_fmt_talla(t)} cm"}]},
-                ]
-            }
-            for t in _TALLAS_GUIA
-        ],
-    }
-    try:
-        return {"ok": True, "payload_enviado": payload, "respuesta": ml_post("/catalog/charts", payload)}
-    except Exception as e:
-        return {"ok": False, "payload_enviado": payload, "error": str(e)}
 
 
 # ─── Sincronizar estatus de envío (despacho a agencia ML) ─────────────────────
