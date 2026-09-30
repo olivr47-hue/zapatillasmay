@@ -26451,11 +26451,19 @@ function renderCarritoAbierto(p) {
               <p id="c-envio-calc-resultado" style="font-size:0.78rem;color:#555;margin:8px 0 0"></p>
             </div>
 
-            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px">
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px">
               <p style="font-size:0.8rem;font-weight:600;color:#333;margin:0 0 8px">2. Enviar por cobrar (el cliente paga a la paquetería)</p>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <input class="form-input" id="c-envio-paqueteria-cobrar" placeholder="¿Cuál paquetería?" style="width:180px">
                 <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="_usarEnvioPorCobrarCarrito('${pedidoId}')">Usar por cobrar</button>
+              </div>
+            </div>
+
+            <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px">
+              <p style="font-size:0.8rem;font-weight:600;color:#333;margin:0 0 8px">3. Monto manual (ya lo acordaste con la clienta o el calculado no aplica)</p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input class="form-input" id="c-envio-manual-monto" type="number" min="0" step="0.01" placeholder="Costo de envío" style="width:140px">
+                <button type="button" class="btn btn-secondary" style="font-size:0.78rem;padding:6px 12px" onclick="_usarEnvioManualCarrito('${pedidoId}')">Usar este monto</button>
               </div>
             </div>
 
@@ -27649,6 +27657,16 @@ window._usarEnvioCalculadoCarrito = () => {
   elegido.textContent = `✅ Envío calculado por ${paqueteria}: $${calc.total} MXN (se agrega al link de pago).`
 }
 
+window._usarEnvioManualCarrito = (pedidoId) => {
+  const monto = parseFloat(document.getElementById('c-envio-manual-monto')?.value) || 0
+  if (monto <= 0) { alert('Escribe un monto de envío mayor a 0.'); return }
+  document.getElementById('c-envio-monto').value = monto
+  const elegido = document.getElementById('c-envio-elegido')
+  elegido.style.color = '#166534'
+  elegido.textContent = `✅ Envío manual: $${monto.toFixed(2)} MXN (se agrega al link de pago).`
+  _recalcularTotalCarritoConExtras(pedidoId)
+}
+
 window._usarEnvioPorCobrarCarrito = async (pedidoId) => {
   const paqueteria = (document.getElementById('c-envio-paqueteria-cobrar').value || '').trim()
   if (!paqueteria) { alert('Escribe el nombre de la paquetería.'); return }
@@ -27691,22 +27709,30 @@ window.cambiarFormaPagoCarrito = (pedidoId) => {
 
 window.generarLinkPagoCarrito = async (pedidoId) => {
   const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
+  // El cargo extra (empaque/consolidación) se sumaba al total mostrado en
+  // pantalla pero nunca se mandaba como item a Mercado Pago -- el link salía
+  // cobrando de menos. Ahora se manda igual que el envío.
+  const cargoExtra = _cargoExtraActualCarrito()
   const cliente = window._carritoActivo?.pedidoData?.clientes || {}
+  const total = _totalBaseCarrito() + cargoExtra.monto
   const btn = document.getElementById('c-btn-confirmar-pago')
   if (btn) { btn.disabled = true; btn.textContent = 'Generando...' }
   try {
+    const items = []
+    if (envio > 0) items.push({ nombre: 'Envío', precio: envio })
+    if (cargoExtra.monto > 0) items.push({ nombre: cargoExtra.concepto || 'Cargo adicional', precio: cargoExtra.monto })
     const res = await fetch(API + '/pagos/crear-preferencia', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pedido_id: pedidoId,
-        items: envio > 0 ? [{ nombre: 'Envío', precio: envio }] : [],
+        items,
         cliente: { nombre: cliente.nombre || '', email: cliente.email || '' }
       })
     })
     const data = await res.json()
     if (data.init_point) {
-      mostrarLinkGeneradoCarrito(data.init_point)
+      mostrarLinkGeneradoCarrito(data.init_point, { nombre: cliente.nombre, telefono: cliente.telefono, total })
     } else {
       alert('Error generando el link: ' + JSON.stringify(data.error || data))
     }
@@ -27717,19 +27743,27 @@ window.generarLinkPagoCarrito = async (pedidoId) => {
   }
 }
 
-window.mostrarLinkGeneradoCarrito = (link) => {
+window.mostrarLinkGeneradoCarrito = (link, info = {}) => {
+  const total = typeof info.total === 'number' ? info.total : null
+  const primerNombre = (info.nombre || '').trim().split(' ')[0]
+  let telWa = (info.telefono || '').replace(/\D/g, '')
+  if (telWa.length === 10) telWa = '52' + telWa
+  const msg = `¡Hola${primerNombre ? ' ' + primerNombre : ''}! 🥰 Aquí está tu link de pago de Zapatillas May${total != null ? `:\n💳 Total: $${total.toFixed(2)} MXN` : ':'}\n👉 ${link}\nAcepta tarjeta, transferencia y OXXO. En cuanto confirmes el pago, preparamos tu pedido 📦✨`
   const modal = document.createElement('div')
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem'
   modal.innerHTML = `
     <div style="background:white;border-radius:16px;padding:1.5rem;max-width:420px;width:100%;text-align:center">
       <p style="font-size:1.8rem;margin-bottom:6px">🔗</p>
-      <p style="font-weight:700;margin-bottom:4px">Link de pago generado</p>
+      <p style="font-weight:700;margin-bottom:4px">Link de pago generado${total != null ? ` — $${total.toFixed(2)} MXN` : ''}</p>
       <p style="font-size:0.78rem;color:#888;margin-bottom:12px">Este carrito pasó a "Pedidos" (checkout iniciado) mientras el cliente paga.</p>
       <input readonly value="${link}" onclick="this.select()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:8px;font-size:0.75rem;margin-bottom:12px;box-sizing:border-box">
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-secondary" style="flex:1" onclick="navigator.clipboard.writeText('${link}');this.textContent='¡Copiado!'">📋 Copiar</button>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="navigator.clipboard.writeText('${link}');this.textContent='¡Copiado!'">📋 Copiar link</button>
         <a href="${link}" target="_blank" class="btn btn-primary" style="flex:1;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center">Abrir</a>
       </div>
+      ${telWa
+        ? `<a href="https://wa.me/${telWa}?text=${encodeURIComponent(msg)}" target="_blank" class="btn btn-primary" style="width:100%;background:#25D366;border-color:#25D366;text-decoration:none;display:block;box-sizing:border-box">💬 Enviar por WhatsApp</a>`
+        : `<button class="btn btn-secondary" style="width:100%" onclick="navigator.clipboard.writeText(${JSON.stringify(msg)});this.textContent='¡Mensaje copiado!'">📋 Copiar mensaje para WhatsApp</button>`}
       <button onclick="this.closest('div[style*=position]').remove();cargarCarritos()" style="margin-top:14px;background:none;border:none;color:#888;cursor:pointer;font-size:0.85rem">Cerrar</button>
     </div>
   `

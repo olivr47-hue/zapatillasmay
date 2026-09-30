@@ -463,19 +463,23 @@ def _construir_items_validados(pedido_id, items_cliente):
                 "currency_id": "MXN",
             })
 
-        # Envío: tomar lo que mandó el cliente (no es vector de fraude), acotado.
+        # Extras (envío, cargo adicional de empaque/consolidación, etc.): lo
+        # que mande el cajero explícitamente en items_cliente -- no es vector
+        # de fraude porque lo captura el staff desde el panel, no el cliente
+        # final. Antes solo se reconocía un renglón cuyo nombre contuviera
+        # "env" y se descartaba cualquier otro extra (ej. el cargo adicional
+        # de Carritos nunca llegaba a Mercado Pago aunque se mostrara en el
+        # total en pantalla).
         for it in (items_cliente or []):
-            nom = (it.get("nombre") or "").lower()
-            if "env" in nom:
-                envio = float(it.get("precio", 0) or 0)
-                if 0 < envio <= 1000:
-                    construidos.append({
-                        "title": "Envío a domicilio",
-                        "quantity": 1,
-                        "unit_price": envio,
-                        "currency_id": "MXN",
-                    })
-                break
+            nombre_extra = (it.get("nombre") or "").strip()
+            monto_extra = float(it.get("precio", 0) or 0)
+            if nombre_extra and 0 < monto_extra <= 5000:
+                construidos.append({
+                    "title": nombre_extra[:255],
+                    "quantity": 1,
+                    "unit_price": monto_extra,
+                    "currency_id": "MXN",
+                })
 
         return construidos or None
     except Exception as e:
