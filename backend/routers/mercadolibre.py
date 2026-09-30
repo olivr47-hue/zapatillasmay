@@ -1764,17 +1764,6 @@ def sincronizar_entregas():
     return _hacer_sync_entregas()
 
 
-@router.get("/shipment-debug/{order_id}")
-def shipment_debug(order_id: str):
-    """DIAGNOSTICO TEMPORAL: ve el shipment real de una orden de ML, para
-    confirmar el nombre exacto del campo de estado antes de confiar en el
-    sync automatico de entregas. Quitar una vez verificado."""
-    orden = ml_get(f"/orders/{order_id}")
-    shipment_id = (orden.get("shipping") or {}).get("id")
-    if not shipment_id:
-        return {"error": "sin shipping.id", "orden_status": orden.get("status")}
-    shipment = ml_get(f"/shipments/{shipment_id}")
-    return {"shipment_id": shipment_id, "shipment": shipment}
 
 
 @router.get("/categoria-attrs/{category_id}")
