@@ -445,23 +445,44 @@ def _construir_items_validados(pedido_id, items_cliente):
             return None
 
         construidos = []
-        for it in db_items:
-            cant = int(it.get("cantidad", 1) or 1)
-            precio = float(it.get("precio_unitario", 0) or 0)
-            var = it.get("variantes") or {}
-            # Nota: no aplicamos piso aquí porque precio_corrida puede ser estimado
-            # (precio_menudeo - 100) cuando no está en catálogo, y quedaría
-            # por debajo del piso calculado con otros tiers → MP cobra de más.
-            nombre = "Producto"
-            prod = var.get("productos") if isinstance(var, dict) else None
-            if isinstance(prod, dict) and prod.get("nombre"):
-                nombre = str(prod["nombre"]).strip() or "Producto"
-            construidos.append({
-                "title": nombre[:255],
-                "quantity": cant,
-                "unit_price": precio,
-                "currency_id": "MXN",
-            })
+        # Un "cambio" (devolución de un par a cambio de otro, ver /confirmar)
+        # deja un renglón con cantidad NEGATIVA en pedido_items -- Mercado Pago
+        # rechaza la preferencia completa si algún item trae quantity < 1
+        # ("quantity invalid"), así que un carrito con cambio nunca podía
+        # generar link de pago. En ese caso se manda un solo renglón con el
+        # neto ya real (nuevos − crédito de lo devuelto) en vez de uno por
+        # variante, que es justo lo que ya se le cobra al cliente.
+        tiene_cambio = any(int(it.get("cantidad", 1) or 1) < 0 for it in db_items)
+        if tiene_cambio:
+            neto = sum(
+                float(it.get("precio_unitario", 0) or 0) * int(it.get("cantidad", 1) or 1)
+                for it in db_items
+            )
+            if neto > 0:
+                construidos.append({
+                    "title": "Pedido Zapatillas May (incluye cambio)",
+                    "quantity": 1,
+                    "unit_price": round(neto, 2),
+                    "currency_id": "MXN",
+                })
+        else:
+            for it in db_items:
+                cant = int(it.get("cantidad", 1) or 1)
+                precio = float(it.get("precio_unitario", 0) or 0)
+                var = it.get("variantes") or {}
+                # Nota: no aplicamos piso aquí porque precio_corrida puede ser estimado
+                # (precio_menudeo - 100) cuando no está en catálogo, y quedaría
+                # por debajo del piso calculado con otros tiers → MP cobra de más.
+                nombre = "Producto"
+                prod = var.get("productos") if isinstance(var, dict) else None
+                if isinstance(prod, dict) and prod.get("nombre"):
+                    nombre = str(prod["nombre"]).strip() or "Producto"
+                construidos.append({
+                    "title": nombre[:255],
+                    "quantity": cant,
+                    "unit_price": precio,
+                    "currency_id": "MXN",
+                })
 
         # Extras (envío, cargo adicional de empaque/consolidación, etc.): lo
         # que mande el cajero explícitamente en items_cliente -- no es vector
