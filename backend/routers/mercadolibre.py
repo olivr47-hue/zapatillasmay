@@ -1679,7 +1679,23 @@ def domain_technical_specs(domain_id: str):
     (sin el prefijo de sitio, ej. HEELS_AND_WEDGES no MLM-HEELS_AND_WEDGES),
     para saber que atributos pide MELI al crear una guia de talles propia.
     Quitar una vez resuelto lo de MLM193324/MLM193197."""
-    return ml_post(f"/domains/{domain_id}/technical_specs?section=grids", {})
+    intentos = {}
+    try:
+        intentos["post_con_body"] = ml_post(
+            f"/domains/{domain_id}/technical_specs?section=grids",
+            {"site_id": "MLM"},
+        )
+    except Exception as e:
+        intentos["post_con_body_error"] = str(e)
+    try:
+        intentos["get_plano"] = ml_get(f"/domains/{domain_id}/technical_specs?site_id=MLM")
+    except Exception as e:
+        intentos["get_plano_error"] = str(e)
+    try:
+        intentos["get_grids"] = ml_get(f"/domains/{domain_id}/technical_specs?section=grids&site_id=MLM")
+    except Exception as e:
+        intentos["get_grids_error"] = str(e)
+    return intentos
 
 
 @router.get("/size-charts")
