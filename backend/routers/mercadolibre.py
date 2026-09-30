@@ -1673,6 +1673,15 @@ def predecir_categoria(q: str = "sandalia mujer"):
     return ml_get(f"/sites/MLM/category_predictor/select?title={urllib.parse.quote(q)}")
 
 
+@router.get("/domain-technical-specs/{domain_id}")
+def domain_technical_specs(domain_id: str):
+    """DIAGNOSTICO TEMPORAL: ficha tecnica de guias de talles de un dominio
+    (sin el prefijo de sitio, ej. HEELS_AND_WEDGES no MLM-HEELS_AND_WEDGES),
+    para saber que atributos pide MELI al crear una guia de talles propia.
+    Quitar una vez resuelto lo de MLM193324/MLM193197."""
+    return ml_post(f"/domains/{domain_id}/technical_specs?section=grids", {})
+
+
 @router.get("/size-charts")
 def size_charts(cat: str = "MLM193197"):
     """Devuelve las guías de tallas válidas para una categoría de ML."""
