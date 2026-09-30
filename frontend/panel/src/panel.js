@@ -14815,25 +14815,86 @@ window.generarCotizacionCarrito = async (pedidoId) => {
   ventana.document.close()
 }
 
+const _HIST_TIPOS = {
+  'venta': { label: 'Venta', badge: 'badge-success' },
+  'entrada': { label: 'Entrada', badge: 'badge-info' },
+  'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
+  'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
+  'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
+  'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
+  'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+}
+
+// Varios "motivo" de movimientos_inventario traen el id del pedido u orden de
+// compra que los generó (ej. "Venta pedido {id}", "Recepcion de mercancia -
+// orden {id}") -- si lo encontramos, la fila se vuelve clickeable para ir
+// directo a ese detalle en vez de tener que buscarlo a mano.
+const _HIST_ID_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+function _refDeMotivoHistorial(motivo) {
+  if (!motivo) return null
+  const m = motivo.match(_HIST_ID_RE)
+  if (!m) return null
+  const texto = motivo.toLowerCase()
+  if (texto.includes('pedido')) return { id: m[1], tipo: 'pedido' }
+  if (texto.includes('orden')) return { id: m[1], tipo: 'orden' }
+  return null
+}
+window._abrirDesdeHistorial = (id, tipo) => {
+  if (tipo === 'orden') window.verOrdenDetalle(id)
+  else window.verPedido(id)
+}
+
+function _filaHistorial(m) {
+  const tipo_info = _HIST_TIPOS[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
+  const cantidad = m.cantidad || 0
+  const ref = _refDeMotivoHistorial(m.motivo)
+  const trAttrs = ref
+    ? `style="cursor:pointer" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background=''" onclick="window._abrirDesdeHistorial('${ref.id}','${ref.tipo}')" title="Ver ${ref.tipo === 'orden' ? 'orden de compra' : 'pedido'}"`
+    : ''
+  return `<tr ${trAttrs}>
+    <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
+    <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
+    <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+    <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
+    <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+    <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
+    <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
+    <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
+    <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}${ref ? ` <span style="color:#1565c0;font-weight:600;white-space:nowrap">🔗 ver ${ref.tipo}</span>` : ''}</td>
+    <td onclick="event.stopPropagation()">
+      ${m.tipo !== 'venta' && m.tipo !== 'ajuste' ? `
+      <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828"
+              onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
+        Cancelar
+      </button>` : ''}
+    </td>
+  </tr>`
+}
+
 async function cargarHistorial() {
   const content = document.getElementById('content')
+  const desdeInput = document.getElementById('hist-desde')
+  const hastaInput = document.getElementById('hist-hasta')
+  const hoy = new Date()
+  const hace30 = new Date(hoy); hace30.setDate(hace30.getDate() - 30)
+  const desde = (desdeInput && desdeInput.value) || hace30.toISOString().slice(0, 10)
+  const hasta = (hastaInput && hastaInput.value) || hoy.toISOString().slice(0, 10)
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
   try {
-    const res = await fetch(API + '/movimientos/')
+    const res = await fetch(API + '/movimientos/?desde=' + desde + '&hasta=' + hasta)
     const data = await res.json()
-    const tipos = {
-      'venta': { label: 'Venta', badge: 'badge-success' },
-      'entrada': { label: 'Entrada', badge: 'badge-info' },
-      'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
-      'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
-      'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
-      'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
-      'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
-    }
     content.innerHTML = `
       <div class="table-card">
         <div class="table-header">
           <h3>Historial de movimientos (${data.length})</h3>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <label style="font-size:0.78rem;color:var(--text-muted);display:flex;align-items:center;gap:4px">Desde
+              <input type="date" class="form-input" id="hist-desde" value="${desde}" style="max-width:150px">
+            </label>
+            <label style="font-size:0.78rem;color:var(--text-muted);display:flex;align-items:center;gap:4px">Hasta
+              <input type="date" class="form-input" id="hist-hasta" value="${hasta}" style="max-width:150px">
+            </label>
+            <button class="btn btn-primary" style="font-size:0.82rem" onclick="cargarHistorial()">Aplicar</button>
             <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
               <option value="">Todos los tipos</option>
               <option value="venta">Ventas</option>
@@ -14851,29 +14912,8 @@ async function cargarHistorial() {
           </thead>
           <tbody id="hist-tbody">
             ${data.length === 0
-              ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos registrados</td></tr>'
-              : data.map(m => {
-                  const tipo = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
-                  const cantidad = m.cantidad || 0
-                  return `<tr>
-                    <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
-                    <td><span class="badge ${tipo.badge}">${tipo.label}</span></td>
-                    <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
-                    <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
-                    <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
-                    <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
-                    <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
-                    <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
-<td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}</td>
-<td>
-  ${m.tipo !== 'venta' && m.tipo !== 'ajuste' ? `
-  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828" 
-          onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
-    Cancelar
-  </button>` : ''}
-</td>
-                  </tr>`
-                }).join('')}
+              ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos en ese rango de fechas</td></tr>'
+              : data.map(_filaHistorial).join('')}
           </tbody>
         </table>
       </div>`
@@ -14922,15 +14962,6 @@ window.filtrarHistorial = () => {
   const tipo = document.getElementById('hist-tipo').value
   const buscar = document.getElementById('hist-buscar').value.toLowerCase()
   const data = window._historialData || []
-  const tipos = {
-    'venta': { label: 'Venta', badge: 'badge-success' },
-    'entrada': { label: 'Entrada', badge: 'badge-info' },
-    'ajuste': { label: 'Ajuste', badge: 'badge-warning' },
-    'traspaso_salida': { label: 'Traspaso salida', badge: 'badge-danger' },
-    'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
-    'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
-    'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
-  }
   const filtrados = data.filter(m => {
     if (tipo && m.tipo !== tipo) return false
     if (buscar) {
@@ -14943,21 +14974,8 @@ window.filtrarHistorial = () => {
   const tbody = document.getElementById('hist-tbody')
   if (!tbody) return
   tbody.innerHTML = filtrados.length === 0
-    ? '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
-    : filtrados.map(m => {
-        const tipo_info = tipos[m.tipo] || { label: m.tipo, badge: 'badge-warning' }
-        const cantidad = m.cantidad || 0
-        return `<tr>
-          <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
-          <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
-          <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
-          <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
-          <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
-          <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
-          <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
-          <td style="font-size:0.82rem">${m.motivo || '—'}</td>
-        </tr>`
-      }).join('')
+    ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
+    : filtrados.map(_filaHistorial).join('')
 }
 
 async function cargarDashboard() {

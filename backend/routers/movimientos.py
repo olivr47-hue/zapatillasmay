@@ -7,9 +7,17 @@ from security import require_staff
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
 @router.get("/")
-def listar_movimientos(_staff=Depends(require_staff)):
+def listar_movimientos(desde: str = None, hasta: str = None, _staff=Depends(require_staff)):
+    """Sin desde/hasta trae TODA la tabla (13,000+ filas y creciendo) -- el
+    panel siempre manda un rango (30 días por default) para no tener que
+    paginar y renderizar todo el historial en cada carga."""
     try:
-        return supabase_get_all("movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)")
+        filtro = "movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)"
+        if desde:
+            filtro += f"&created_at=gte.{desde}T00:00:00"
+        if hasta:
+            filtro += f"&created_at=lte.{hasta}T23:59:59"
+        return supabase_get_all(filtro)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
