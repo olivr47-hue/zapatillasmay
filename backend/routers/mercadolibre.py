@@ -1704,6 +1704,79 @@ def size_charts(cat: str = "MLM193197"):
     return ml_get(f"/catalog_options/size_chart/search?category_id={cat}&site_id=MLM")
 
 
+# ─── Sincronizar estatus de envío/entrega ─────────────────────────────────────
+
+def _hacer_sync_entregas() -> dict:
+    """
+    Revisa los pedidos de MercadoLibre que todavía no están marcados como
+    enviados en el ERP (status pagado/confirmado) y consulta en ML el estado
+    real del envío. En cuanto ML lo marca como entregado, el ERP lo refleja
+    solo marcando el pedido como 'enviado' -- el panel no distingue un estado
+    "entregado" aparte, "enviado" es el estado final que ya usa el resto del
+    sistema (desaparece de "Por enviar", cuenta para reseñas, etc.), así el
+    vendedor no tiene que estar checando ML y dando click manual.
+    """
+    resultado = {"revisados": 0, "actualizados": 0, "pedidos": [], "errores": []}
+    try:
+        pendientes = supabase_get(
+            "pedidos?canal=eq.mercadolibre&status=in.(pagado,confirmado)"
+            "&select=id,ml_order_id,nombre_cliente,status"
+        )
+        for p in pendientes or []:
+            resultado["revisados"] += 1
+            order_id = p.get("ml_order_id")
+            if not order_id:
+                continue
+            try:
+                orden = ml_get(f"/orders/{order_id}")
+                shipment_id = (orden.get("shipping") or {}).get("id")
+                if not shipment_id:
+                    continue
+                shipment = ml_get(f"/shipments/{shipment_id}")
+                estado_envio = shipment.get("status")
+                if estado_envio == "delivered":
+                    fecha_entrega = (
+                        (shipment.get("status_history") or {}).get("date_delivered")
+                        or datetime.now(timezone.utc).isoformat()
+                    )
+                    supabase_patch(f"pedidos?id=eq.{p['id']}", {
+                        "status":      "enviado",
+                        "paqueteria":  "Mercado Envíos",
+                        "numero_guia": str(shipment_id),
+                        "enviado_at":  fecha_entrega,
+                    })
+                    resultado["actualizados"] += 1
+                    resultado["pedidos"].append({
+                        "orden": order_id, "cliente": p.get("nombre_cliente"),
+                        "envio_status": estado_envio,
+                    })
+            except Exception as e:
+                resultado["errores"].append({"orden": order_id, "error": str(e)})
+    except Exception as e:
+        resultado["errores"].append({"error_general": str(e)})
+    return resultado
+
+
+@router.post("/sync-entregas")
+def sincronizar_entregas():
+    """Trigger manual: marca como 'enviado' los pedidos de ML que ya aparecen
+    entregados según el estado real del envío en MercadoLibre."""
+    return _hacer_sync_entregas()
+
+
+@router.get("/shipment-debug/{order_id}")
+def shipment_debug(order_id: str):
+    """DIAGNOSTICO TEMPORAL: ve el shipment real de una orden de ML, para
+    confirmar el nombre exacto del campo de estado antes de confiar en el
+    sync automatico de entregas. Quitar una vez verificado."""
+    orden = ml_get(f"/orders/{order_id}")
+    shipment_id = (orden.get("shipping") or {}).get("id")
+    if not shipment_id:
+        return {"error": "sin shipping.id", "orden_status": orden.get("status")}
+    shipment = ml_get(f"/shipments/{shipment_id}")
+    return {"shipment_id": shipment_id, "shipment": shipment}
+
+
 @router.get("/categoria-attrs/{category_id}")
 def categoria_attrs(category_id: str):
     """Lista los atributos validos de una categoria de ML (para debug)."""

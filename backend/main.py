@@ -161,7 +161,8 @@ def _loop_carritos_abandonados():
         _time.sleep(15 * 60)  # cada 15 minutos
 
 def _loop_ml_ventas():
-    """Descuenta inventario del ERP por ventas nuevas en MercadoLibre cada 10 minutos."""
+    """Descuenta inventario del ERP por ventas nuevas en MercadoLibre, y marca
+    como enviados los pedidos que ML ya reporta entregados, cada 10 minutos."""
     _time.sleep(150)  # espera inicial
     while True:
         try:
@@ -171,6 +172,13 @@ def _loop_ml_ventas():
                 print(f"[ml-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
         except Exception as e:
             print(f"[ml-ventas] Error en loop: {e}")
+        try:
+            from routers.mercadolibre import _hacer_sync_entregas
+            res2 = _hacer_sync_entregas()
+            if res2.get("actualizados"):
+                print(f"[ml-entregas] Marcados como enviados: {res2['actualizados']} de {res2['revisados']} revisados")
+        except Exception as e:
+            print(f"[ml-entregas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
 def _loop_tiktok_sync():
