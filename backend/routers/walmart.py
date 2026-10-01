@@ -165,21 +165,22 @@ def walmart_ping():
 
 
 @router.get("/taxonomia-temp")
-def taxonomia_temp(version: str = "4.2"):
+def taxonomia_temp(feed_type: str = "MP_ITEM", version: str = "4.2"):
     """DIAGNOSTICO TEMPORAL: consulta la taxonomia real de product types de
     Walmart para encontrar el nombre exacto del product type de calzado.
-    Quitar una vez resuelta la migracion al feed JSON (MP_ITEM)."""
-    return walmart_get("/utilities/taxonomy", params={"feedType": "MP_ITEM", "version": version})
+    Quitar una vez resuelta la migracion al feed JSON."""
+    return walmart_get("/utilities/taxonomy", params={"feedType": feed_type, "version": version})
 
 
 @router.post("/item-spec-temp")
-def item_spec_temp(product_type: str, version: str = "4.2"):
+def item_spec_temp(product_type: str = None, feed_type: str = "MP_ITEM", version: str = "4.2"):
     """DIAGNOSTICO TEMPORAL: trae el schema real (POST /v3/items/spec) para un
     product type especifico -- cuidado, Walmart limita este endpoint a 3
     llamadas por minuto. Quitar una vez resuelta la migracion al feed JSON."""
-    return walmart_post("/items/spec", {
-        "feedType": "MP_ITEM", "version": version, "productTypes": [product_type],
-    })
+    body = {"feedType": feed_type, "version": version}
+    if product_type:
+        body["productTypes"] = [product_type]
+    return walmart_post("/items/spec", body)
 
 
 @router.get("/ordenes/test")
