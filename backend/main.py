@@ -182,6 +182,21 @@ def _loop_ml_ventas():
             print(f"[ml-entregas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
+def _loop_shein_ventas():
+    """Descuenta inventario del ERP por ventas nuevas en SHEIN cada 10 minutos
+    (antes solo corria si alguien entraba al panel y le daba clic manual al
+    boton de sincronizar -- las ventas se podian quedar sin descontar)."""
+    _time.sleep(200)  # espera inicial, escalonada contra los otros hilos
+    while True:
+        try:
+            from routers.shein import _hacer_sync_ventas_shein
+            res = _hacer_sync_ventas_shein()
+            if res.get("procesadas"):
+                print(f"[shein-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
+        except Exception as e:
+            print(f"[shein-ventas] Error en loop: {e}")
+        _time.sleep(10 * 60)  # cada 10 minutos
+
 def _loop_tiktok_sync():
     """Sincroniza inventario con TikTok Shop cada 30 minutos si hay token activo."""
     _time.sleep(180)  # espera 3 min al arrancar
@@ -302,6 +317,10 @@ def _iniciar_hilos():
     t3 = threading.Thread(target=_loop_ml_ventas, daemon=True)
     t3.start()
     print("[ml-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
+    # SHEIN: descontar inventario por ventas nuevas
+    t3b = threading.Thread(target=_loop_shein_ventas, daemon=True)
+    t3b.start()
+    print("[shein-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
     # Correo entrante: avisar a admins del panel
     t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
     t4.start()
