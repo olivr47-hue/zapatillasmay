@@ -582,13 +582,29 @@
             Volver
           </button>
           <h2 style="font-size:1.1rem;font-weight:600;margin-bottom:6px">Recuperar contraseña</h2>
-          <p style="font-size:0.82rem;color:var(--gray);margin-bottom:18px">Te enviaremos una contraseña temporal a tu correo.</p>
+          <p style="font-size:0.82rem;color:var(--gray);margin-bottom:18px">Te enviaremos un enlace a tu correo para elegir una contraseña nueva.</p>
           <div class="mc-field">
             <label class="mc-label" for="rec-email">Tu email</label>
             <input class="mc-input" type="email" id="rec-email" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')recuperar()">
           </div>
           <div id="msg-recuperar" class="mc-msg"></div>
-          <button class="mc-btn-primary" id="btn-recuperar" onclick="recuperar()">Enviar contraseña temporal</button>
+          <button class="mc-btn-primary" id="btn-recuperar" onclick="recuperar()">Enviar enlace</button>
+        </div>
+
+        <!-- Elegir contraseña nueva (llegan aquí desde el enlace del correo: /mi-cuenta?reset=TOKEN) -->
+        <div id="sec-reset" style="display:none">
+          <h2 style="font-size:1.1rem;font-weight:600;margin-bottom:6px">Elige tu nueva contraseña</h2>
+          <p style="font-size:0.82rem;color:var(--gray);margin-bottom:18px">Mínimo 8 caracteres.</p>
+          <div class="mc-field">
+            <label class="mc-label" for="rst-pass">Nueva contraseña</label>
+            <input class="mc-input" type="password" id="rst-pass" autocomplete="new-password">
+          </div>
+          <div class="mc-field">
+            <label class="mc-label" for="rst-pass2">Repite la contraseña</label>
+            <input class="mc-input" type="password" id="rst-pass2" autocomplete="new-password" onkeydown="if(event.key==='Enter')restablecer()">
+          </div>
+          <div id="msg-reset" class="mc-msg"></div>
+          <button class="mc-btn-primary" id="btn-reset" onclick="restablecer()">Guardar contraseña</button>
         </div>
       </div>
 
@@ -739,6 +755,43 @@ function cambiarTab(tab) {
   else initGoogleBtn('g-btn-container')
 }
 
+// ── Restablecer contraseña con el enlace del correo ─────────────────
+const _RESET_TOKEN = new URLSearchParams(location.search).get('reset') || ''
+function mostrarReset() {
+  document.getElementById('sec-cuenta').style.display = 'none'
+  document.getElementById('sec-auth').style.display = 'block'
+  document.querySelector('.mc-tabs').style.display = 'none'
+  ;['form-login','form-registro','sec-recuperar'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none' })
+  document.getElementById('sec-reset').style.display = 'block'
+  document.getElementById('rst-pass').focus()
+}
+async function restablecer() {
+  const p1 = document.getElementById('rst-pass').value
+  const p2 = document.getElementById('rst-pass2').value
+  limpiarMsg('msg-reset')
+  if (p1.length < 8) { mostrarMsg('msg-reset', 'La contraseña debe tener al menos 8 caracteres', 'error'); return }
+  if (p1 !== p2) { mostrarMsg('msg-reset', 'Las contraseñas no coinciden', 'error'); return }
+  setBtn('btn-reset', 'Guardando…', true)
+  try {
+    const res = await fetch(API + '/auth/restablecer', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ token: _RESET_TOKEN, password_nueva: p1 })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      mostrarMsg('msg-reset', 'Listo. Ya puedes iniciar sesión con tu nueva contraseña.', 'ok')
+      setBtn('btn-reset', 'Guardada ✓', true)
+      setTimeout(() => { location.href = '/mi-cuenta' }, 2200)
+    } else {
+      mostrarMsg('msg-reset', data.error || 'No se pudo cambiar la contraseña', 'error')
+      setBtn('btn-reset', 'Guardar contraseña', false)
+    }
+  } catch (e) {
+    mostrarMsg('msg-reset', 'Error conectando con el servidor', 'error')
+    setBtn('btn-reset', 'Guardar contraseña', false)
+  }
+}
+
 // ── Recuperar contraseña ─────────────────────────────────────────
 function mostrarRecuperar() {
   document.getElementById('form-login').style.display = 'none'
@@ -764,15 +817,15 @@ async function recuperar() {
     })
     const data = await res.json()
     if (res.ok) {
-      mostrarMsg('msg-recuperar', 'Te enviamos una contraseña temporal. Revisa tu correo.', 'ok')
+      mostrarMsg('msg-recuperar', 'Si existe una cuenta con ese correo, te enviamos un enlace. Revisa tu bandeja (y spam).', 'ok')
       setBtn('btn-recuperar', 'Enviado ✓', true)
     } else {
       mostrarMsg('msg-recuperar', data.error || 'No se encontró esa cuenta', 'error')
-      setBtn('btn-recuperar', 'Enviar contraseña temporal', false)
+      setBtn('btn-recuperar', 'Enviar enlace', false)
     }
   } catch(e) {
     mostrarMsg('msg-recuperar', 'Error conectando con el servidor', 'error')
-    setBtn('btn-recuperar', 'Enviar contraseña temporal', false)
+    setBtn('btn-recuperar', 'Enviar enlace', false)
   }
 }
 
@@ -1154,6 +1207,7 @@ async function init() {
 }
 
 init()
+if (_RESET_TOKEN) mostrarReset()
 
 function toggleNavDD() {
   const dd = document.getElementById('nav-dd-cat')

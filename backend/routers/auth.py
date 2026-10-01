@@ -306,46 +306,55 @@ async def google_login(request: Request, datos: dict):
         return JSONResponse(status_code=500, content={"error": "Error al verificar con Google"})
 
 
+_RESET_EXP_MIN = 60
+
+
+def _hash_token_reset(token: str) -> str:
+    import hashlib
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 @router.post("/recuperar")
 @limiter.limit("3/minute")
 async def recuperar_password(request: Request, datos: dict):
+    """Manda por correo un ENLACE de un solo uso (vence en 1 hora) para elegir contraseña nueva.
+    Antes fijaba al instante una contraseña temporal: cualquiera que supiera tu correo podía
+    dejarte fuera de tu cuenta con solo pedir la recuperación. Ahora pedirla no cambia nada
+    hasta que la dueña del correo abre el enlace."""
     try:
         email = (datos.get("email") or "").strip().lower()
         if not email:
             return JSONResponse(status_code=400, content={"error": "Email requerido"})
 
-        # ilike (no eq): el login ya busca así -- si aquí se compara exacto,
-        # una cuenta guardada con otra capitalización de letras (Laura@ vs
-        # laura@) nunca se encuentra, y la clienta jamás recibe el correo
-        # sin ningún error visible para nadie.
         usuarios = _usuarios_por_email(email, "id,nombre,email")
+        respuesta = {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
         if not usuarios:
-            # Respuesta genérica para no revelar si el email existe
-            return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
+            return respuesta  # respuesta genérica: no revela si el correo existe
 
         u = usuarios[0]
-        nombre = _html.escape(u.get("nombre") or "Cliente")
-        email = u["email"]  # SIEMPRE al correo guardado, nunca al texto que mandó quien pidió el reset
+        # Máximo un enlace por minuto por cuenta (evita llenar el buzón de alguien)
+        recientes = supabase_get(
+            f"password_resets?usuario_id=eq.{u['id']}&order=created_at.desc&limit=1&select=created_at"
+        ) or []
+        if recientes:
+            try:
+                t0 = _dt.datetime.fromisoformat(str(recientes[0]["created_at"]).replace("Z", "+00:00"))
+                if (_dt.datetime.now(_dt.timezone.utc) - t0).total_seconds() < 60:
+                    return respuesta
+            except Exception:
+                pass
 
-        # El frontend (mi-cuenta.html) ya promete "te enviaremos una contraseña
-        # temporal" -- antes este endpoint mandaba en cambio un link a
-        # /restablecer, una página que nunca se construyó en el sitio (siempre
-        # daba 404). Más simple y consistente con lo que el usuario ya ve:
-        # generar la contraseña temporal aquí mismo, fijarla de una vez y
-        # mandarla en texto plano por correo -- ya puede entrar con ella y
-        # cambiarla luego desde "Mi cuenta".
-        import secrets
-        import string
-        alfabeto = string.ascii_letters + string.digits
-        password_temporal = "".join(secrets.choice(alfabeto) for _ in range(10))
-
-        supabase_patch(f"usuarios?id=eq.{u['id']}", {
-            "password_hash": hash_password(password_temporal)
+        token = secrets.token_urlsafe(32)
+        expira = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(minutes=_RESET_EXP_MIN)).isoformat()
+        supabase_post("password_resets", {
+            "usuario_id": u["id"], "token_hash": _hash_token_reset(token), "expira_at": expira,
         })
 
+        nombre = _html.escape(u.get("nombre") or "Cliente")
+        enlace = f"https://zapatillasmay.mx/mi-cuenta?reset={token}"
         enviar_email(
-            email,
-            "Tu contraseña temporal — Zapatillas May",
+            u["email"],  # SIEMPRE al correo guardado, nunca al texto que mandó quien pidió el enlace
+            "Restablece tu contraseña — Zapatillas May",
             f"""
             <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#fff">
                 <div style="text-align:center;margin-bottom:24px">
@@ -353,18 +362,15 @@ async def recuperar_password(request: Request, datos: dict):
                 </div>
                 <h2 style="font-size:1.1rem;color:#0A0A0A;margin-bottom:8px">Hola, {nombre}</h2>
                 <p style="color:#555;font-size:0.9rem;line-height:1.6;margin-bottom:20px">
-                    Aquí está tu contraseña temporal. Úsala para iniciar sesión y,
-                    si quieres, cámbiala después desde "Mi cuenta → Contraseña".
+                    Recibimos una solicitud para restablecer tu contraseña. Toca el botón para elegir una nueva.
+                    El enlace funciona una sola vez y vence en {_RESET_EXP_MIN} minutos.
                 </p>
-                <div style="text-align:center;background:#f7f0ea;border-radius:8px;padding:16px;margin-bottom:24px">
-                    <span style="font-family:monospace;font-size:1.3rem;font-weight:700;color:#0A0A0A;letter-spacing:1px">{password_temporal}</span>
-                </div>
-                <a href="https://zapatillasmay.mx/mi-cuenta"
+                <a href="{enlace}"
                    style="display:block;text-align:center;background:#E91E8C;color:white;padding:14px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.9rem;margin-bottom:24px">
-                    Iniciar sesión
+                    Elegir nueva contraseña
                 </a>
                 <p style="color:#aaa;font-size:0.8rem;line-height:1.5">
-                    Si no solicitaste este cambio, escríbenos por WhatsApp.
+                    Si no lo pediste tú, ignora este correo: tu contraseña actual no cambió.
                 </p>
                 <p style="text-align:center;color:#aaa;font-size:0.75rem;margin-top:24px">
                     León, Guanajuato · zapatillasmay.mx
@@ -373,10 +379,49 @@ async def recuperar_password(request: Request, datos: dict):
             """,
             tipo="recuperar_password",
         )
-
-        return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
-
+        return respuesta
     except Exception as e:
+        print(f"[auth/recuperar] {e}")
+        return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
+
+
+@router.post("/restablecer")
+@limiter.limit("10/minute")
+async def restablecer_password(request: Request, datos: dict):
+    """Cambia la contraseña con el token del enlace del correo (un solo uso, vence en 1 hora)."""
+    try:
+        token = (datos.get("token") or "").strip()
+        nueva = datos.get("password_nueva") or ""
+        if not token or len(token) < 20:
+            return JSONResponse(status_code=400, content={"error": "El enlace no es válido. Pide uno nuevo."})
+        if len(nueva) < 8:
+            return JSONResponse(status_code=400, content={"error": "La contraseña debe tener al menos 8 caracteres"})
+
+        filas = supabase_get(
+            f"password_resets?token_hash=eq.{_hash_token_reset(token)}&select=id,usuario_id,expira_at,usado&limit=1"
+        ) or []
+        malo = JSONResponse(status_code=400, content={"error": "El enlace venció o ya se usó. Pide uno nuevo."})
+        if not filas or filas[0].get("usado"):
+            return malo
+        try:
+            if _dt.datetime.fromisoformat(str(filas[0]["expira_at"]).replace("Z", "+00:00")) < _dt.datetime.now(_dt.timezone.utc):
+                return malo
+        except Exception:
+            return malo
+
+        # Se "gasta" el token primero y de forma atómica (solo si seguía sin usar): dos clics simultáneos
+        # no pueden usarlo dos veces.
+        reclamado = supabase_patch(f"password_resets?id=eq.{filas[0]['id']}&usado=eq.false", {"usado": True})
+        if not reclamado:
+            return malo
+
+        uid = filas[0]["usuario_id"]
+        supabase_patch(f"usuarios?id=eq.{uid}", {"password_hash": hash_password(nueva)})
+        # cualquier otro enlace pendiente de esa cuenta deja de servir
+        supabase_patch(f"password_resets?usuario_id=eq.{uid}&usado=eq.false", {"usado": True})
+        return {"ok": True, "mensaje": "Listo. Ya puedes iniciar sesión con tu nueva contraseña."}
+    except Exception as e:
+        print(f"[auth/restablecer] {e}")
         return JSONResponse(status_code=500, content={"error": "Error interno del servidor"})
 
 
