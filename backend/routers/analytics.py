@@ -56,7 +56,7 @@ def _access_token_oauth2() -> str | None:
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:
             resp = json.loads(r.read())
         token = resp.get("access_token")
         _token_cache["token"]   = token
@@ -203,7 +203,10 @@ _SECRET_KEY   = os.environ["SECRET_KEY"]
 @router.get("/setup", include_in_schema=False)
 def analytics_setup(secret: str = ""):
     """Inicia el flujo OAuth2 para obtener el refresh token de GA4."""
-    if secret != _SECRET_KEY:
+    # Antes se pedía ?secret=<SECRET_KEY> (la llave que firma los JWT, viajando en la URL).
+    # Ahora usa un secreto propio y distinto; si no está configurado, el asistente de OAuth queda apagado.
+    _setup_secret = os.environ.get("ANALYTICS_SETUP_SECRET", "")
+    if not _setup_secret or secret != _setup_secret:
         return HTMLResponse("<h2>❌ Acceso denegado.</h2>", status_code=403)
 
     if not GA4_CLIENT_ID or not GA4_CLIENT_SECRET:
@@ -227,7 +230,8 @@ def analytics_setup(secret: str = ""):
 def analytics_setup_callback(code: str = "", error: str = ""):
     """Recibe el código de Google y muestra el refresh token."""
     if error:
-        return HTMLResponse(f"<h2>❌ Error: {error}</h2>", status_code=400)
+        import html as _html
+        return HTMLResponse(f"<h2>❌ Error: {_html.escape(error)}</h2>", status_code=400)
     if not code:
         return HTMLResponse("<h2>❌ No se recibió el código de autorización.</h2>", status_code=400)
 

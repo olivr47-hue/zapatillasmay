@@ -5,6 +5,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Timeout por defecto para TODAS las llamadas urllib del backend ───────────────────────────
+# urllib.request.urlopen no tiene timeout por defecto: si Meta/Google/MercadoLibre dejan una conexión
+# colgada, el hilo (y, con los candados de sincronización, la sync completa) se queda esperando
+# para siempre. ~50 llamadas del backend no pasaban timeout. Las que ya lo pasan no cambian.
+import socket as _socket
+_urlopen_original = urllib.request.urlopen
+
+
+def _urlopen_con_timeout(url, data=None, timeout=_socket._GLOBAL_DEFAULT_TIMEOUT, *args, **kwargs):
+    if timeout is _socket._GLOBAL_DEFAULT_TIMEOUT:
+        timeout = 90
+    return _urlopen_original(url, data, timeout, *args, **kwargs)
+
+
+urllib.request.urlopen = _urlopen_con_timeout
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 

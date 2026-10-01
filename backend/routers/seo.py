@@ -3,6 +3,7 @@ from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTM
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
 import urllib.request
+import urllib.parse
 import json
 import os
 import re
@@ -129,9 +130,9 @@ def _producto_ssr_inner(sku: str, request: Request):
     # 1. Buscar producto por slug (URL amigable para SEO) → SKU (links viejos
     #    ya compartidos/indexados) → id, solo si parece UUID (evita 400 de PostgREST)
     import re as _re
-    datos = supabase_get(f"productos?slug=eq.{sku}&activo=eq.true&limit=1")
+    datos = supabase_get(f"productos?slug=eq.{urllib.parse.quote(sku, safe='')}&activo=eq.true&limit=1")
     if not datos:
-        datos = supabase_get(f"productos?sku_interno=eq.{sku}&activo=eq.true&limit=1")
+        datos = supabase_get(f"productos?sku_interno=eq.{urllib.parse.quote(sku, safe='')}&activo=eq.true&limit=1")
     if not datos and _re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', sku, _re.I):
         try:
             datos = supabase_get(f"productos?id=eq.{sku}&activo=eq.true&limit=1")
