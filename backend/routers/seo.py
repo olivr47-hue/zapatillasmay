@@ -617,9 +617,9 @@ _PAGINAS_CONTENT = {
   <ul style="padding-left:20px">
     <li>1–2 pares: precio de menudeo</li>
     <li>3–5 pares: $60 MXN menos por par</li>
-    <li>6+ pares: $100 MXN menos por par</li>
+    <li>6+ pares y corridas: precios especiales de mayoreo en el <a href="https://portal.zapatillasmay.mx">Portal de Mayoristas</a></li>
   </ul>
-  <p>El descuento se aplica automáticamente al agregar pares al carrito — sin códigos ni trámites.</p>
+  <p>El descuento de 3 a 5 pares se aplica automáticamente al agregar pares al carrito — sin códigos ni trámites.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Envíos a todo México</h2>
   <p>Enviamos a toda la República Mexicana por paquetería en 1 a 3 días hábiles. También realizamos envíos a <strong>Estados Unidos y Canadá</strong>.</p>
   <p style="margin-top:24px">Más de 2,400 pedidos enviados a clientes satisfechas en toda la República.</p>
@@ -647,8 +647,8 @@ _PAGINAS_CONTENT = {
   <h2 style="font-size:1.2rem;margin-top:24px">Costos de envío</h2>
   <ul style="padding-left:20px">
     <li><strong>1 par:</strong> $99 MXN</li>
-    <li><strong>2–3 pares:</strong> $150 MXN</li>
-    <li><strong>4 o más pares:</strong> $199 MXN</li>
+    <li><strong>2 pares:</strong> $150 MXN</li>
+    <li><strong>3 o más pares:</strong> $199 MXN</li>
     <li><strong>Envío gratis</strong> en pedidos de $1,299 MXN o más</li>
   </ul>
   <h2 style="font-size:1.2rem;margin-top:28px">Tiempo de entrega</h2>
@@ -705,7 +705,7 @@ _PAGINAS_CONTENT = {
   <p>El descuento de mayoreo es automático — no necesitas registro, RFC ni código especial. Solo agrega 3 o más pares al carrito y el precio baja solo.</p>
   <ul style="padding-left:20px">
     <li>3–5 pares: $60 MXN menos por par</li>
-    <li>6+ pares: $100 MXN menos por par</li>
+    <li>6+ pares y corridas: precios especiales en el <a href="https://portal.zapatillasmay.mx">Portal de Mayoristas</a></li>
   </ul>
 </section>""",
     "mayoreo": """
@@ -1472,16 +1472,14 @@ def llms_txt():
             "",
             "## Precios de mayoreo",
             "- 1-2 pares: precio de menudeo (precio normal al público).",
-            "- 3-5 pares: precio de mayoreo — $60 MXN menos por par vs. menudeo.",
-            "- 6+ pares: mejor precio de mayoreo — $100 MXN menos por par vs. menudeo.",
-            "- 12+ pares (corrida completa): precio máximo mayoreo — hasta $180 MXN menos por par vs. menudeo.",
-            "- El descuento se aplica automáticamente al agregar pares al carrito, sin registro ni código especial.",
+            "- Desde 3 pares: $60 MXN menos por par vs. menudeo (descuento automático en el carrito de zapatillasmay.mx, sin registro ni código).",
+            "- 6+ pares y corrida completa: precios de mayoreo especiales solo en el Portal de Mayoristas (https://portal.zapatillasmay.mx); no se aplican en el carrito del sitio.",
             "- No se requiere registro, RFC, ni trámite para comprar a mayoreo.",
-            "- Ejemplo: si un modelo vale $650 menudeo, a 3 pares cuesta $590/par, a 6+ cuesta $550/par.",
+            "- Ejemplo: si un modelo vale $650 menudeo, a 3 o más pares cuesta $590/par en el carrito del sitio.",
             "",
             "## Envíos",
             "- Envíos a todo México por paquetería (1-3 días hábiles).",
-            "- Costo: $99 MXN por 1 par · $150 MXN por 2-3 pares · $199 MXN por 4+ pares.",
+            "- Costo: $99 MXN por 1 par · $150 MXN por 2 pares · $199 MXN por 3 o más pares.",
             "- **Envío gratis** en pedidos de $1,299 MXN o más.",
             "- [Más información sobre envíos](https://zapatillasmay.mx/envios)",
             "",
@@ -1650,12 +1648,12 @@ def feed_json():
             "envio": {
                 "nota": "Envíos a todo México por paquetería.",
                 "gratis_desde_mxn": 1299,
-                "tarifas_mxn": {"1_par": 99, "2_3_pares": 150, "4_mas_pares": 199},
+                "tarifas_mxn": {"1_par": 99, "2_pares": 150, "3_o_mas_pares": 199},
                 "tiempo_estimado": "1-3 días hábiles"
             },
             "devoluciones": "30 días. Más info: https://zapatillasmay.mx/politica-de-devoluciones",
             "mayoreo": {
-                "nota": "El precio baja automáticamente según cuántos pares hay en el carrito: 1-2 pares = menudeo; 3-5 pares = $60 menos/par; 6+ pares = $100 menos/par; 12+ pares (corrida) = hasta $180 menos/par.",
+                "nota": "El precio baja automáticamente a partir de 3 pares en el carrito: 1-2 pares = menudeo; 3 o más pares = $60 menos por par. Los precios de 6+ pares y corrida completa están solo en el Portal de Mayoristas (https://portal.zapatillasmay.mx).",
                 "sin_registro": True,
                 "minimo_pares_mayoreo": 3
             },
