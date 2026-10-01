@@ -296,6 +296,21 @@ def listar_pedidos(status: str = None, _staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/por-enviar-resumen")
+def por_enviar_resumen(_staff=Depends(require_staff)):
+    """Solo id, cliente y total de los pedidos pagados online/marketplace pendientes de surtir (lo que
+    necesita el badge/aviso del panel). El panel sondeaba cada 30 s `/pedidos/?status=pagado`, que trae
+    TODOS los pagados con sus renglones, clientes y sucursales: un payload que crece con el historial."""
+    try:
+        return supabase_get_all(
+            "pedidos?status=eq.pagado"
+            "&or=(mp_preference_id.not.is.null,mp_payment_id.not.is.null,canal.eq.mercadolibre,canal.eq.shein)"
+            "&select=id,nombre_cliente,total,canal&order=created_at.desc"
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 @router.get("/apartados")
 def listar_apartados(_staff=Depends(require_staff)):
     try:
@@ -552,7 +567,7 @@ def obtener_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/")
-async def crear_pedido(pedido: dict, request: Request):
+def crear_pedido(pedido: dict, request: Request):
     _credito_debitado = False   # para devolver el saldo si el pedido no llega a crearse
     _credito_cli_g = None
     _credito_monto_g = 0.0

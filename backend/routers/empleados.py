@@ -8,7 +8,7 @@ router = APIRouter(prefix="/empleados", tags=["Empleados"])
 
 @router.post("/login")
 @limiter.limit("10/minute")
-async def login(request: Request, datos: dict):
+def login(request: Request, datos: dict):
     try:
         email = datos.get("email")
         password = datos.get("password")

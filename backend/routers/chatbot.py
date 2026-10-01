@@ -1216,7 +1216,7 @@ def _procesar_video_wa(mensaje_data: dict, from_number: str) -> str:
 
 
 @router.post("/link-pago-manual")
-async def link_pago_manual(datos: dict):
+def link_pago_manual(datos: dict):
     """Genera un pedido manual + link de Mercado Pago con precio personalizado
     (ventas del admin, ej. cuando se cotizó un precio especial). El pago dispara
     Purchase a Meta/GA igual que cualquier pedido. Espera:
@@ -1706,7 +1706,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
 _WA_VERIFY_TOKEN = os.getenv("WA_VERIFY_TOKEN", "")
 
 @router.get("/whatsapp")
-async def verificar_webhook(request: Request):
+def verificar_webhook(request: Request):
     params = dict(request.query_params)
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
@@ -1725,7 +1725,7 @@ _FB_VERIFY_TOKEN = os.getenv("FB_VERIFY_TOKEN", "")
 FB_PAGE_ACCESS_TOKEN = os.getenv("FB_PAGE_ACCESS_TOKEN", "")
 
 @router.get("/meta")
-async def verificar_webhook_meta(request: Request):
+def verificar_webhook_meta(request: Request):
     params = dict(request.query_params)
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
@@ -1972,7 +1972,7 @@ async def recibir_webhook_meta(request: Request):
 
 
 @router.post("/mensaje")
-async def procesar_mensaje(datos: dict):
+def procesar_mensaje(datos: dict):
     try:
         mensaje = datos.get("mensaje", "")
         historial = datos.get("historial", [])
@@ -1986,7 +1986,7 @@ async def procesar_mensaje(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/chats")
-async def listar_chats():
+def listar_chats():
     # Caché 20s — el frontend poll cada 30s, así casi siempre lo sirve de memoria
     cached = cache_get("chats_lista")
     if cached is not None:
@@ -2060,7 +2060,7 @@ async def listar_chats():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/chats/{telefono}/mensajes")
-async def listar_mensajes_chat(telefono: str):
+def listar_mensajes_chat(telefono: str):
     """Historial individual de un chat (últimos 150 mensajes, con media_url)."""
     try:
         msgs = supabase_get(
@@ -2076,14 +2076,14 @@ async def listar_mensajes_chat(telefono: str):
 
 
 @router.get("/conversaciones")
-async def listar_conversaciones():
+def listar_conversaciones():
     try:
         return supabase_get("conversaciones_whatsapp?order=created_at.desc&limit=100")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/chats/{telefono}/control")
-async def tomar_control(telefono: str, datos: dict):
+def tomar_control(telefono: str, datos: dict):
     try:
         from database import supabase_post, supabase_patch
         en_control = datos.get("en_control", True)
@@ -2098,7 +2098,7 @@ async def tomar_control(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/chats/{telefono}/mensaje")
-async def enviar_mensaje_manual(telefono: str, datos: dict):
+def enviar_mensaje_manual(telefono: str, datos: dict):
     try:
         from database import supabase_post
         mensaje = datos.get("mensaje", "")
@@ -2137,7 +2137,7 @@ async def enviar_mensaje_manual(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/chats/{telefono}/imagen")
-async def enviar_imagen_manual(telefono: str, datos: dict):
+def enviar_imagen_manual(telefono: str, datos: dict):
     try:
         from database import supabase_post
         imagen_url = datos.get("imagen_url", "")
@@ -2156,7 +2156,7 @@ async def enviar_imagen_manual(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/chats/{telefono}/leido")
-async def marcar_leido(telefono: str):
+def marcar_leido(telefono: str):
     try:
         from database import supabase_patch
         supabase_patch(f"conversaciones_whatsapp?telefono=eq.{telefono}&leido=eq.false", {"leido": True})
@@ -2165,7 +2165,7 @@ async def marcar_leido(telefono: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/chats/{telefono}/etiqueta")
-async def cambiar_etiqueta(telefono: str, datos: dict):
+def cambiar_etiqueta(telefono: str, datos: dict):
     try:
         from database import supabase_post, supabase_patch
         etiqueta = datos.get("etiqueta", "sin_etiqueta")
@@ -2180,7 +2180,7 @@ async def cambiar_etiqueta(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/chats/{telefono}/mayorista")
-async def marcar_mayorista(telefono: str, datos: dict):
+def marcar_mayorista(telefono: str, datos: dict):
     """Marca/desmarca manualmente una conversación como mayorista -- para gente
     que pregunta por mayoreo pero todavía no está registrada como cliente
     tipo mayoreo/zapateria (esa detección automática por tipo de cliente vive
@@ -2198,7 +2198,7 @@ async def marcar_mayorista(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/diagnostico-claude")
-async def diagnostico_claude():
+def diagnostico_claude():
     """Temporal: prueba la conexión con la API de Claude y muestra el error exacto si falla."""
     key = get_api_key()
     resultado = {"api_key_configurada": bool(key), "api_key_prefix": (key[:12] + "...") if key else None}
@@ -2212,7 +2212,7 @@ async def diagnostico_claude():
     return resultado
 
 @router.get("/config")
-async def obtener_config():
+def obtener_config():
     try:
         config = supabase_get("whatsapp_config")
         return {c['clave']: c['valor'] for c in config}
@@ -2220,7 +2220,7 @@ async def obtener_config():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/config")
-async def guardar_config(datos: dict):
+def guardar_config(datos: dict):
     try:
         from database import supabase_patch, supabase_post
         for clave, valor in datos.items():
@@ -2236,14 +2236,14 @@ async def guardar_config(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/respuestas-rapidas")
-async def obtener_respuestas():
+def obtener_respuestas():
     try:
         return supabase_get("respuestas_rapidas?order=orden.asc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/respuestas-rapidas")
-async def crear_respuesta(datos: dict):
+def crear_respuesta(datos: dict):
     try:
         from database import supabase_post
         return supabase_post("respuestas_rapidas", {
@@ -2255,7 +2255,7 @@ async def crear_respuesta(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/respuestas-rapidas/{id}")
-async def actualizar_respuesta(id: str, datos: dict):
+def actualizar_respuesta(id: str, datos: dict):
     try:
         from database import supabase_patch
         supabase_patch(f"respuestas_rapidas?id=eq.{id}", datos)
@@ -2264,7 +2264,7 @@ async def actualizar_respuesta(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/respuestas-rapidas/{id}")
-async def eliminar_respuesta(id: str):
+def eliminar_respuesta(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"respuestas_rapidas?id=eq.{id}")
@@ -2274,14 +2274,14 @@ async def eliminar_respuesta(id: str):
 
 # ── FLUJOS DE AUTOMATIZACIÓN (respuestas por palabra clave, estilo ManyChat) ──
 @router.get("/flujos")
-async def listar_flujos():
+def listar_flujos():
     try:
         return supabase_get("wa_flujos?order=orden.asc,created_at.asc") or []
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/flujos")
-async def crear_flujo(datos: dict):
+def crear_flujo(datos: dict):
     try:
         from database import supabase_post
         return supabase_post("wa_flujos", {
@@ -2297,7 +2297,7 @@ async def crear_flujo(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/flujos/{id}")
-async def actualizar_flujo(id: str, datos: dict):
+def actualizar_flujo(id: str, datos: dict):
     try:
         from database import supabase_patch
         permitidos = {"nombre", "activo", "palabras_clave", "coincidencia", "respuesta", "solo_si_bot", "orden"}
@@ -2308,7 +2308,7 @@ async def actualizar_flujo(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/flujos/{id}")
-async def eliminar_flujo(id: str):
+def eliminar_flujo(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"wa_flujos?id=eq.{id}")
@@ -2345,14 +2345,14 @@ def _buscar_flujo(texto: str, en_control: bool):
 
 # ── SECUENCIAS DE MENSAJES (drip, disparadas por etapa del embudo) ──────────
 @router.get("/secuencias")
-async def listar_secuencias():
+def listar_secuencias():
     try:
         return supabase_get("wa_secuencias?order=created_at.asc") or []
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/secuencias")
-async def crear_secuencia(datos: dict):
+def crear_secuencia(datos: dict):
     try:
         from database import supabase_post
         pasos = datos.get("pasos") or []
@@ -2369,7 +2369,7 @@ async def crear_secuencia(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/secuencias/{id}")
-async def actualizar_secuencia(id: str, datos: dict):
+def actualizar_secuencia(id: str, datos: dict):
     try:
         from database import supabase_patch
         upd = {}
@@ -2387,7 +2387,7 @@ async def actualizar_secuencia(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/secuencias/{id}")
-async def eliminar_secuencia(id: str):
+def eliminar_secuencia(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"wa_secuencias?id=eq.{id}")
@@ -2486,14 +2486,14 @@ def procesar_secuencias_wa() -> dict:
 
 # ── SEGMENTOS (filtros guardados para targetear broadcasts) ─────────────────
 @router.get("/segmentos")
-async def listar_segmentos():
+def listar_segmentos():
     try:
         return supabase_get("wa_segmentos?order=created_at.asc") or []
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/segmentos")
-async def crear_segmento(datos: dict):
+def crear_segmento(datos: dict):
     try:
         from database import supabase_post
         return supabase_post("wa_segmentos", {
@@ -2505,7 +2505,7 @@ async def crear_segmento(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/segmentos/{id}")
-async def eliminar_segmento(id: str):
+def eliminar_segmento(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"wa_segmentos?id=eq.{id}")
@@ -2541,14 +2541,14 @@ def _actualizar_metrica_broadcast(wamid: str, status_type: str):
 
 
 @router.get("/notas/{telefono}")
-async def obtener_notas(telefono: str):
+def obtener_notas(telefono: str):
     try:
         return supabase_get(f"notas_contacto?telefono=eq.{telefono}&order=created_at.desc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/notas/{telefono}")
-async def crear_nota(telefono: str, datos: dict):
+def crear_nota(telefono: str, datos: dict):
     try:
         from database import supabase_post
         return supabase_post("notas_contacto", {
@@ -2560,7 +2560,7 @@ async def crear_nota(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/notas/{id}")
-async def eliminar_nota(id: str):
+def eliminar_nota(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"notas_contacto?id=eq.{id}")
@@ -2569,14 +2569,14 @@ async def eliminar_nota(id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/tareas/{telefono}")
-async def obtener_tareas(telefono: str):
+def obtener_tareas(telefono: str):
     try:
         return supabase_get(f"tareas_contacto?telefono=eq.{telefono}&order=created_at.asc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/tareas/{telefono}")
-async def crear_tarea(telefono: str, datos: dict):
+def crear_tarea(telefono: str, datos: dict):
     try:
         from database import supabase_post
         return supabase_post("tareas_contacto", {
@@ -2589,7 +2589,7 @@ async def crear_tarea(telefono: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/tareas/{id}")
-async def actualizar_tarea(id: str, datos: dict):
+def actualizar_tarea(id: str, datos: dict):
     try:
         from database import supabase_patch
         supabase_patch(f"tareas_contacto?id=eq.{id}", datos)
@@ -2598,7 +2598,7 @@ async def actualizar_tarea(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/tareas/{id}")
-async def eliminar_tarea(id: str):
+def eliminar_tarea(id: str):
     try:
         from database import supabase_delete
         supabase_delete(f"tareas_contacto?id=eq.{id}")
@@ -2607,7 +2607,7 @@ async def eliminar_tarea(id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/tareas-hoy")
-async def tareas_hoy():
+def tareas_hoy():
     try:
         from datetime import date
         hoy = date.today().isoformat()
@@ -2856,7 +2856,7 @@ async def listar_plantillas():
 
 
 @router.get("/plantillas-debug")
-async def plantillas_debug():
+def plantillas_debug():
     """Devuelve estructura RAW de plantillas + ejemplos de retailer_id del catálogo."""
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
@@ -2892,7 +2892,7 @@ async def plantillas_debug():
     return resultado
 
 @router.post("/autoresponder")
-async def autoresponder_webhook(datos: dict):
+def autoresponder_webhook(datos: dict):
     try:
         query = datos.get("query", {})
         mensaje = query.get("message", "")
@@ -2907,7 +2907,7 @@ async def autoresponder_webhook(datos: dict):
         return {"replies": [{"message": f"Error: {str(e)}"}]}
     
 @router.post("/wa-diagnostico")
-async def wa_diagnostico(datos: dict):
+def wa_diagnostico(datos: dict):
     """Envía UN mensaje de prueba a un número y devuelve la respuesta exacta de Meta."""
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
@@ -2982,7 +2982,7 @@ async def wa_diagnostico(datos: dict):
 
 
 @router.post("/crear-plantilla-pedido-confirmado")
-async def crear_plantilla_pedido_confirmado():
+def crear_plantilla_pedido_confirmado():
     """Crea la plantilla 'pedido_confirmado' en Meta WA Business (categoria UTILITY,
     no tiene restriccion de ventana de 24h) -- respaldo cuando el cliente no escribio
     en las ultimas 24h y el texto libre de confirmacion es rechazado por Meta
@@ -3045,7 +3045,7 @@ async def crear_plantilla_pedido_confirmado():
 
 
 @router.post("/crear-plantilla-pago")
-async def crear_plantilla_pago():
+def crear_plantilla_pago():
     """Crea la plantilla 'recordatorio_pago_pendiente' en Meta WA Business para recordatorios OXXO/SPEI."""
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
     waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
@@ -3168,7 +3168,7 @@ async def editar_boton_plantilla(datos: dict):
 
 
 @router.get("/plantilla-estado/{template_id}")
-async def plantilla_estado(template_id: str):
+def plantilla_estado(template_id: str):
     """Diagnóstico de solo lectura: consulta el estado y motivo de rechazo
     (si aplica) de una plantilla puntual por su ID."""
     wa_token = os.environ.get("WHATSAPP_TOKEN", "")
@@ -3215,7 +3215,7 @@ def _subir_media_handle_meta(wa_token: str, app_id: str, contenido: bytes, mime:
 
 
 @router.post("/crear-plantilla-portal-nuevos-modelos")
-async def crear_plantilla_portal_nuevos_modelos():
+def crear_plantilla_portal_nuevos_modelos():
     """
     Crea 'portal_nuevos_modelos' — igual que catalogo_completo pero con el
     botón apuntando al portal mayorista en vez de la home de la tienda.
@@ -3300,7 +3300,7 @@ async def crear_plantilla_portal_nuevos_modelos():
 
 
 @router.post("/crear-plantilla-catalogo")
-async def crear_plantilla_catalogo():
+def crear_plantilla_catalogo():
     """
     Crea la plantilla 'catalogo_disponible' en Meta WA Business con categoría UTILITY.
     Al ser UTILITY puede enviarse a contactos fríos sin restricción de 24h.
@@ -3517,7 +3517,7 @@ def envio_productos(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep
 # ─── Nuevos endpoints WhatsApp Cloud API ──────────────────────────────────────
 
 @router.post("/chats/{telefono}/documento")
-async def enviar_documento_manual(telefono: str, datos: dict):
+def enviar_documento_manual(telefono: str, datos: dict):
     try:
         doc_url  = datos.get("doc_url", "")
         filename = datos.get("filename", "documento.pdf")
@@ -3540,7 +3540,7 @@ async def enviar_documento_manual(telefono: str, datos: dict):
 
 
 @router.post("/chats/{telefono}/video")
-async def enviar_video_manual(telefono: str, datos: dict):
+def enviar_video_manual(telefono: str, datos: dict):
     try:
         video_url = datos.get("video_url", "")
         caption   = datos.get("caption", "")
@@ -3562,7 +3562,7 @@ async def enviar_video_manual(telefono: str, datos: dict):
 
 
 @router.post("/chats/{telefono}/reaccion")
-async def enviar_reaccion(telefono: str, datos: dict):
+def enviar_reaccion(telefono: str, datos: dict):
     try:
         message_id = datos.get("message_id", "")
         emoji      = datos.get("emoji", "👍")
@@ -3575,7 +3575,7 @@ async def enviar_reaccion(telefono: str, datos: dict):
 
 
 @router.patch("/chats/{telefono}/no-leido")
-async def marcar_no_leido(telefono: str):
+def marcar_no_leido(telefono: str):
     try:
         existing = supabase_get(f"chats_control?telefono=eq.{telefono}")
         if existing:
@@ -3589,7 +3589,7 @@ async def marcar_no_leido(telefono: str):
 
 
 @router.post("/chats/{telefono}/ubicacion")
-async def enviar_ubicacion_manual(telefono: str, datos: dict):
+def enviar_ubicacion_manual(telefono: str, datos: dict):
     try:
         lat    = datos.get("lat", "")
         lng    = datos.get("lng", "")
@@ -3613,7 +3613,7 @@ async def enviar_ubicacion_manual(telefono: str, datos: dict):
 
 
 @router.post("/chats/{telefono}/contacto")
-async def enviar_contacto_manual(telefono: str, datos: dict):
+def enviar_contacto_manual(telefono: str, datos: dict):
     try:
         nombre_c = datos.get("nombre", "Zapatillas May")
         tel_c    = datos.get("telefono_contacto", "")
@@ -3656,13 +3656,13 @@ def _get_waba_id() -> str:
     return ""
 
 @router.get("/templates/debug-env")
-async def debug_env():
+def debug_env():
     """Diagnóstico: qué variables WA están configuradas (sin mostrar valores sensibles)."""
     keys = ["WHATSAPP_TOKEN","WHATSAPP_PHONE_ID","WHATSAPP_WABA_ID","WABA_ID","WA_BUSINESS_ID","WHATSAPP_BUSINESS_ID"]
     return {k: ("✓ SET" if os.environ.get(k) else "✗ MISSING") for k in keys}
 
 @router.get("/templates")
-async def listar_templates():
+def listar_templates():
     try:
         waba_id = _get_waba_id()
         if not waba_id:
@@ -3673,7 +3673,7 @@ async def listar_templates():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/templates")
-async def crear_template(datos: dict):
+def crear_template(datos: dict):
     """Crea una plantilla en Meta. datos = {name, category, language, components}"""
     try:
         waba_id = _get_waba_id()
@@ -3688,7 +3688,7 @@ async def crear_template(datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/templates/{template_name}")
-async def eliminar_template(template_name: str):
+def eliminar_template(template_name: str):
     try:
         waba_id = _get_waba_id()
         result = _wa_graph(f"{waba_id}/message_templates?name={template_name}", method="DELETE")
@@ -3697,7 +3697,7 @@ async def eliminar_template(template_name: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/templates/enviar")
-async def enviar_template(datos: dict):
+def enviar_template(datos: dict):
     """Envía una plantilla aprobada a un teléfono con parámetros posicionales."""
     try:
         telefono  = datos.get("telefono", "")
@@ -3742,7 +3742,7 @@ async def enviar_template(datos: dict):
 
 
 @router.post("/templates/crear-predefinidas")
-async def crear_templates_predefinidos():
+def crear_templates_predefinidos():
     """Crea las 3 plantillas de utilidad para Zapatillas May."""
     try:
         waba_id = _get_waba_id()
@@ -3856,7 +3856,7 @@ async def crear_templates_predefinidos():
 # ═══════════════════════════════════════════════════════════════════
 
 @router.post("/chats/{telefono}/botones")
-async def enviar_botones_interactivos(telefono: str, datos: dict):
+def enviar_botones_interactivos(telefono: str, datos: dict):
     """Envía mensaje con hasta 3 botones. Siempre incluye 'Hablar con asesor'."""
     try:
         cuerpo      = datos.get("cuerpo", "¿En qué te puedo ayudar?")
@@ -3894,7 +3894,7 @@ async def enviar_botones_interactivos(telefono: str, datos: dict):
 
 
 @router.post("/chats/{telefono}/lista")
-async def enviar_lista_interactiva(telefono: str, datos: dict):
+def enviar_lista_interactiva(telefono: str, datos: dict):
     """Envía menu desplegable con secciones y opciones (hasta 10)."""
     try:
         cuerpo        = datos.get("cuerpo", "Selecciona una opcion:")
@@ -3935,7 +3935,7 @@ async def enviar_lista_interactiva(telefono: str, datos: dict):
 
 
 @router.post("/chats/{telefono}/carrusel")
-async def enviar_carrusel(telefono: str, datos: dict):
+def enviar_carrusel(telefono: str, datos: dict):
     """Envia multiples imagenes seguidas con caption (nombre + precio)."""
     try:
         cuerpo       = datos.get("cuerpo", "Mira estos modelos:")
@@ -4071,7 +4071,7 @@ def broadcast_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/slee
 
 
 @router.get("/broadcasts")
-async def listar_broadcasts():
+def listar_broadcasts():
     """Historial de broadcasts con sus métricas (para el panel)."""
     try:
         return supabase_get("wa_broadcasts?order=created_at.desc&limit=50") or []
@@ -4084,7 +4084,7 @@ async def listar_broadcasts():
 # ═══════════════════════════════════════════════════════════════════
 
 @router.patch("/chats/{telefono}/estado")
-async def cambiar_estado_chat(telefono: str, datos: dict):
+def cambiar_estado_chat(telefono: str, datos: dict):
     """Cambia el estado del chat: abierto | espera | cerrado."""
     try:
         estado = datos.get("estado", "abierto")

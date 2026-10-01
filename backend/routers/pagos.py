@@ -243,7 +243,7 @@ def enviar_evento_meta(event_name, pedido, payment):
 
 
 @router.post("/meta/evento")
-async def meta_evento_frontend(body: dict, request: Request):
+def meta_evento_frontend(body: dict, request: Request):
     """
     Recibe eventos del frontend (AddToCart, ViewContent, InitiateCheckout, etc.)
     y los reenvía a Meta CAPI con la IP real del cliente extraída del request.

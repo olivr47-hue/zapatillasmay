@@ -46,7 +46,7 @@ def _clientes_por_email(email: str, select: str = "id") -> list:
 
 @router.post("/registro")
 @limiter.limit("5/minute")
-async def registro(request: Request, datos: dict):
+def registro(request: Request, datos: dict):
     try:
         nombre = limpiar_texto(datos.get("nombre"))
         email = (datos.get("email") or "").strip().lower()
@@ -119,7 +119,7 @@ async def registro(request: Request, datos: dict):
 
 @router.post("/login")
 @limiter.limit("10/minute")
-async def login(request: Request, datos: dict):
+def login(request: Request, datos: dict):
     try:
         identificador = (datos.get("email") or "").strip().lower()
         password = datos.get("password")
@@ -229,7 +229,7 @@ def pedidos_cliente(cliente_id: str, credentials: HTTPAuthorizationCredentials =
 
 @router.post("/google")
 @limiter.limit("10/minute")
-async def google_login(request: Request, datos: dict):
+def google_login(request: Request, datos: dict):
     """Verifica un Google ID token y devuelve sesión, creando al usuario si no existe.
     Si se envía tipo=mayoreo/zapateria (desde el portal mayorista), la cuenta nueva
     se crea con ese tipo en vez del menudeo por defecto."""
@@ -316,7 +316,7 @@ def _hash_token_reset(token: str) -> str:
 
 @router.post("/recuperar")
 @limiter.limit("3/minute")
-async def recuperar_password(request: Request, datos: dict):
+def recuperar_password(request: Request, datos: dict):
     """Manda por correo un ENLACE de un solo uso (vence en 1 hora) para elegir contraseña nueva.
     Antes fijaba al instante una contraseña temporal: cualquiera que supiera tu correo podía
     dejarte fuera de tu cuenta con solo pedir la recuperación. Ahora pedirla no cambia nada
@@ -387,7 +387,7 @@ async def recuperar_password(request: Request, datos: dict):
 
 @router.post("/restablecer")
 @limiter.limit("10/minute")
-async def restablecer_password(request: Request, datos: dict):
+def restablecer_password(request: Request, datos: dict):
     """Cambia la contraseña con el token del enlace del correo (un solo uso, vence en 1 hora)."""
     try:
         token = (datos.get("token") or "").strip()

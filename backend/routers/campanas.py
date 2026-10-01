@@ -133,7 +133,7 @@ def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen
 
 
 @router.post("/campanas/enviar")
-async def enviar_campana(datos: dict, background_tasks: BackgroundTasks):
+def enviar_campana(datos: dict, background_tasks: BackgroundTasks):
     destinatarios     = datos.get("destinatarios", [])
     fotos_urls        = [u for u in (datos.get("fotos_urls") or []) if u]
     fotos_con_caption = datos.get("fotos_con_caption") or None  # [{url, caption}]

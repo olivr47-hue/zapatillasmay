@@ -78,7 +78,7 @@ def _num(v):
 # ── LOGIN: correo + contraseña ────────────────────────────────────────────────
 @router.post("/login")
 @limiter.limit("10/minute")
-async def login(request: Request, datos: dict):
+def login(request: Request, datos: dict):
     email = (datos.get("email") or "").strip().lower()
     password = datos.get("password") or ""
     if not email or not password:
@@ -106,7 +106,7 @@ async def login(request: Request, datos: dict):
 # ── LOGIN: Google (verifica id_token con Google, igual que el sitio) ───────────
 @router.post("/login/google")
 @limiter.limit("10/minute")
-async def login_google(request: Request, datos: dict):
+def login_google(request: Request, datos: dict):
     id_token = (datos.get("id_token") or "").strip()
     if not id_token:
         return JSONResponse(status_code=400, content={"error": "Token requerido"})
@@ -228,7 +228,7 @@ def _enviar_wa_codigo(tel10: str, codigo: str) -> bool:
 
 @router.post("/otp/solicitar")
 @limiter.limit("5/minute")
-async def otp_solicitar(request: Request, datos: dict):
+def otp_solicitar(request: Request, datos: dict):
     metodo = datos.get("metodo")
     valor = datos.get("valor") or ""
     if metodo not in ("telefono", "correo"):
@@ -271,7 +271,7 @@ async def otp_solicitar(request: Request, datos: dict):
 
 @router.post("/otp/verificar")
 @limiter.limit("10/minute")
-async def otp_verificar(request: Request, datos: dict):
+def otp_verificar(request: Request, datos: dict):
     metodo = datos.get("metodo")
     valor = datos.get("valor") or ""
     codigo = (datos.get("codigo") or "").strip()

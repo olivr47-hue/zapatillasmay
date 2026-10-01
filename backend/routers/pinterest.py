@@ -190,7 +190,7 @@ async def recibir_evento(request: Request):
 
 
 @router.post("/test")
-async def test_evento(request: Request):
+def test_evento(request: Request):
     """Envía un checkout de prueba a Pinterest (no registra el evento real)."""
     evento = {
         "event_name":       "checkout",

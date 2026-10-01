@@ -93,7 +93,7 @@ async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(
 
 
 @router.get("/pdf-viewer")
-async def pdf_viewer(url: str):
+def pdf_viewer(url: str):
     """Proxy para PDFs de Cloudinary con fallback a Google Docs Viewer (URLs legacy)."""
     if not url.startswith("https://res.cloudinary.com/"):
         return JSONResponse(status_code=400, content={"error": "URL no permitida"})

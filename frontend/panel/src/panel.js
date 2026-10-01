@@ -157,6 +157,7 @@ export function renderPanel() {
   // Interval global para notificaciones de WhatsApp
   if (window._conversacionesInterval) clearInterval(window._conversacionesInterval)
   window._conversacionesInterval = setInterval(async () => {
+    if (document.hidden) return  // pestaña oculta: sin sondeo (cada 8 s bajaba la lista de chats completa)
     // Guarda de "en vuelo": si la petición anterior sigue pendiente (red lenta),
     // NO disparar otra — sin esto se apilan requests hasta saturar el navegador.
     if (window._chatsPollEnVuelo) return
@@ -238,7 +239,8 @@ async function _pollPedidosPorEnviar() {
   if (window._pedidosPollEnVuelo) return  // no apilar requests si la red va lenta
   window._pedidosPollEnVuelo = true
   try {
-    const res = await fetch(API + '/pedidos/?status=pagado')
+    if (document.hidden) return  // pestaña en segundo plano: no gastar red/servidor
+    const res = await fetch(API + '/pedidos/por-enviar-resumen')
     if (!res.ok) return
     const pedidos = await res.json()
     // Pagados online (MercadoPago: preference/Checkout Pro o payment embebido)
@@ -247,7 +249,7 @@ async function _pollPedidosPorEnviar() {
     // por nuestro propio checkout. Antes solo se veían los de MercadoPago y un
     // pedido de ML se quedaba invisible aquí (sin badge, sin notificación, sin
     // botón de enviar) hasta que el vendedor se enteraba por el correo de ML.
-    const porEnviar = pedidos.filter(p => p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein')
+    const porEnviar = Array.isArray(pedidos) ? pedidos : []   // el servidor ya filtra (MercadoPago / ML / SHEIN)
     const count = porEnviar.length
 
     // Guardar en localStorage para mostrar al instante en la próxima carga
@@ -319,6 +321,12 @@ function _arrancarPollPedidos() {
 _arrancarPollPedidos()
 if (window._pedidosInterval) clearInterval(window._pedidosInterval)
 window._pedidosInterval = setInterval(_pollPedidosPorEnviar, 30000)
+if (!window._zmVisListener) {
+  window._zmVisListener = true
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { try { _pollPedidosPorEnviar(); _pollSolicitudesCarritos() } catch (e) {} }
+  })
+}
 
 // ── Polling: solicitudes pendientes en Carritos (apartar/liberar) ──────
 const _CARRITOS_BADGE_KEY = 'zm_badge_carritos'
@@ -332,6 +340,7 @@ function _setBadgeCarritos(count) {
 }
 
 async function _pollSolicitudesCarritos() {
+  if (document.hidden) return  // pestaña oculta: sin sondeo
   if (window._carritosPollEnVuelo) return
   window._carritosPollEnVuelo = true
   try {
@@ -372,6 +381,7 @@ const _CORREO_BADGE_KEY = 'zm_badge_correo'
 let _ultimoConteoCorreo = null
 
 async function _pollCorreoNoLeido() {
+  if (document.hidden) return  // pestaña oculta: sin sondeo
   if (window._correoPollEnVuelo) return
   window._correoPollEnVuelo = true
   try {
@@ -412,6 +422,7 @@ const _ML_PREG_BADGE_KEY = 'zm_badge_preguntas_ml'
 let _ultimoConteoPreguntasML = null
 
 async function _pollPreguntasML() {
+  if (document.hidden) return  // pestaña oculta: sin sondeo
   if (window._preguntasMlPollEnVuelo) return
   window._preguntasMlPollEnVuelo = true
   try {
@@ -452,6 +463,7 @@ window._preguntasMlInterval = setInterval(_pollPreguntasML, 60000)
 const _SHEIN_PEND_BADGE_KEY = 'zm_badge_pendientes_shein'
 
 async function _pollPendientesShein() {
+  if (document.hidden) return  // pestaña oculta: sin sondeo
   if (window._pendientesSheinPollEnVuelo) return
   window._pendientesSheinPollEnVuelo = true
   try {
@@ -487,6 +499,7 @@ window._pendientesSheinInterval = setInterval(_pollPendientesShein, 90000)
 const _WM_PEND_BADGE_KEY = 'zm_badge_pendientes_walmart'
 
 async function _pollPendientesWalmart() {
+  if (document.hidden) return  // pestaña oculta: sin sondeo
   if (window._pendientesWalmartPollEnVuelo) return
   window._pendientesWalmartPollEnVuelo = true
   try {

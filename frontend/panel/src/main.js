@@ -19,6 +19,16 @@ if (_skuEstiloPublico) {
 ;(() => {
   const _fetch = window.fetch.bind(window)
   let _redirigiendo = false
+
+  // Caché corta (25 s) de los catálogos grandes: cada pantalla del panel volvía a bajar variantes
+  // (~2.7 MB), productos, inventario y clientes completos. Se comparte la misma petición si hay varias
+  // a la vez y se vacía en cuanto este panel hace cualquier cambio (POST/PATCH/DELETE). `fresh=true`
+  // (POS) siempre va directo al servidor.
+  const _CACHE_TTL = 25000
+  const _CACHEABLE = /^\/api\/(variantes|productos|inventario|clientes|sucursales)\/?(\?.*)?$/
+  const _cache = new Map()
+  const _pathApi = (u) => { try { return u.startsWith('http') ? new URL(u).pathname + new URL(u).search : u } catch (e) { return u } }
+
   window.fetch = async (input, init) => {
     init = init || {}
     const url = typeof input === 'string' ? input : (input && input.url) || ''
@@ -35,6 +45,29 @@ if (_skuEstiloPublico) {
         init = { ...init, headers }
       }
     }
+    // ── caché de GET de catálogos ──
+    const metodo = ((init.method || (typeof input !== 'string' && input && input.method) || 'GET') + '').toUpperCase()
+    if (esApi && metodo !== 'GET' && metodo !== 'HEAD' && _cache.size) _cache.clear()   // hubo un cambio: nada viejo
+    const rutaApi = _pathApi(url)
+    // la caché va POR SESIÓN (token): al cambiar de usuario en el mismo navegador nunca se ve lo del anterior
+    const clave = (localStorage.getItem('erp_token') || '').slice(-24) + '|' + rutaApi
+    if (esApi && metodo === 'GET' && _CACHEABLE.test(rutaApi) && !/[?&]fresh=true/.test(rutaApi)) {
+      const hit = _cache.get(clave)
+      if (hit && Date.now() - hit.t < _CACHE_TTL) {
+        const r = await hit.p
+        if (r) return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json' } })
+      }
+      const p = (async () => {
+        const rr = await _fetch(input, init)
+        if (!rr.ok) { _cache.delete(clave); return null }
+        return { body: await rr.clone().text(), status: rr.status }
+      })()
+      _cache.set(clave, { t: Date.now(), p })
+      const r = await p.catch(() => { _cache.delete(clave); return null })
+      if (r) return new Response(r.body, { status: r.status, headers: { 'Content-Type': 'application/json' } })
+      // si falló, que lo resuelva el camino normal (maneja 401 y errores)
+    }
+
     const res = await _fetch(input, init)
     // Los endpoints de login/registro devuelven 401 como respuesta NORMAL
     // ante credenciales equivocadas -- el formulario necesita ese 401 para
