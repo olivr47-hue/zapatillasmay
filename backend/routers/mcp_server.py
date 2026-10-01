@@ -78,17 +78,18 @@ TOOLS = [
 
 # ─── Lógica de cada herramienta ─────────────────────────────────────────────
 
-def _precio_mayoreo(p, campo, descuento):
-    base = p.get("precio_menudeo")
+def _precios_web(p):
+    """Precios públicos del sitio (mismos que el checkout y las páginas SEO): menudeo = panel + $80
+    (salvo ofertas); mayoreo = precio web −$60 (3-5 pares) / −$100 (6+). Antes este servidor decía
+    el precio de panel (sin el +$80) y descuentos de $30/$70: los asistentes de IA citaban precios
+    equivocados a clientes reales."""
     try:
-        base_f = float(base) if base is not None else None
+        pm = float(p.get("precio_menudeo") or 0)
     except Exception:
-        base_f = None
-    v = p.get(campo)
-    try:
-        return float(v) if v is not None else (round(base_f - descuento) if base_f else None)
-    except Exception:
-        return None
+        pm = 0.0
+    oferta = bool(p.get("es_oferta"))
+    menudeo = pm if oferta else round(pm + 80)
+    return menudeo, (menudeo if oferta else menudeo - 60), (menudeo if oferta else menudeo - 100)
 
 
 def _tool_buscar_productos(args):
@@ -102,7 +103,7 @@ def _tool_buscar_productos(args):
 
     productos = supabase_get(
         "productos?activo=eq.true&select=id,nombre,sku_interno,categoria,"
-        "precio_menudeo,precio_mayoreo3,precio_mayoreo6,imagen_principal,material"
+        "precio_menudeo,es_oferta,imagen_principal,material"
     )
     if not isinstance(productos, list):
         return "No se pudo consultar el catálogo en este momento."
@@ -127,11 +128,10 @@ def _tool_buscar_productos(args):
     lineas = [f"Se encontraron {len(resultados)} modelo(s):", ""]
     for p in resultados:
         slug = p.get("sku_interno") or p.get("id", "")
-        menudeo = p.get("precio_menudeo")
-        may6 = _precio_mayoreo(p, "precio_mayoreo6", 70)
+        menudeo, _may3, may6 = _precios_web(p)
         lineas.append(
             f"• {p.get('nombre','')} ({p.get('categoria','')}) — "
-            f"Menudeo ${menudeo} MXN | Mayoreo 6+ ${may6} MXN/par. "
+            f"Menudeo ${menudeo:.0f} MXN | Mayoreo 3-5 ${_may3:.0f} | Mayoreo 6+ ${may6:.0f} MXN/par. "
             f"SKU: {p.get('sku_interno','')}. "
             f"Ver: https://zapatillasmay.mx/producto/{slug}"
         )
@@ -144,12 +144,14 @@ def _tool_consultar_producto(args):
         return "Indica el SKU o nombre del producto."
 
     # Buscar por SKU exacto primero, luego por nombre
+    import urllib.parse as _up
+    qe = _up.quote(q, safe="")   # evita que '&', '=' o ',' del texto inyecten filtros en la consulta
     productos = supabase_get(
-        f"productos?activo=eq.true&sku_interno=ilike.*{q}*&select=*"
+        f"productos?activo=eq.true&sku_interno=ilike.*{qe}*&select=*"
     )
     if not productos:
         productos = supabase_get(
-            f"productos?activo=eq.true&nombre=ilike.*{q}*&select=*"
+            f"productos?activo=eq.true&nombre=ilike.*{qe}*&select=*"
         )
     if not productos:
         return f"No se encontró ningún producto con '{q}'."
@@ -170,15 +172,14 @@ def _tool_consultar_producto(args):
         for i in inventario:
             stock_map[i.get("variante_id")] = stock_map.get(i.get("variante_id"), 0) + (i.get("cantidad") or 0)
 
-    may3 = _precio_mayoreo(p, "precio_mayoreo3", 30)
-    may6 = _precio_mayoreo(p, "precio_mayoreo6", 70)
+    menudeo_w, may3, may6 = _precios_web(p)
 
     lineas = [
         f"{p.get('nombre','')} (SKU: {p.get('sku_interno','')})",
         f"Categoría: {p.get('categoria','')}",
-        f"Precio menudeo: ${p.get('precio_menudeo')} MXN",
-        f"Mayoreo 3-5 pares: ${may3} MXN/par",
-        f"Mayoreo 6+ pares: ${may6} MXN/par",
+        f"Precio menudeo: ${menudeo_w:.0f} MXN",
+        f"Mayoreo 3-5 pares: ${may3:.0f} MXN/par",
+        f"Mayoreo 6+ pares: ${may6:.0f} MXN/par",
     ]
     if p.get("descripcion"):
         lineas.append(f"Descripción: {p.get('descripcion')}")
@@ -209,8 +210,8 @@ def _tool_precios_mayoreo(args):
     return (
         "Precios de mayoreo en Zapatillas May (se aplican automáticamente, sin registro especial):\n"
         "• 1-2 pares: precio de menudeo.\n"
-        "• 3-5 pares: precio de mayoreo (aprox. $30 menos por par).\n"
-        "• 6 o más pares: mejor precio de mayoreo (aprox. $70 menos por par).\n"
+        "• 3-5 pares: precio de mayoreo ($60 MXN menos por par).\n"
+        "• 6 o más pares: mejor precio de mayoreo ($100 MXN menos por par).\n"
         "• Media corrida / corrida completa de un mismo modelo: precio especial aún más bajo.\n\n"
         "Mientras más pares compres, menor es el precio por par. "
         "No se requiere registro ni mínimo especial: el descuento se aplica solo al agregar pares al carrito. "

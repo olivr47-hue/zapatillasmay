@@ -19,6 +19,24 @@ router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 def get_api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "")
 
+def precios_web(p) -> dict:
+    """Precios públicos vigentes del sitio para un producto: menudeo = precio de panel + $80
+    (salvo ofertas); mayoreo = precio web −$60 (3-5 pares) / −$100 (6+). Antes Maya y el MCP usaban
+    los precio_mayoreo3/6 crudos del panel, que ya no coinciden con el sitio (el descuento web es fijo
+    sobre el precio web): cotizaba menudeo $580 y mayoreo ~$470 en vez de $520."""
+    try:
+        pm = float(p.get("precio_menudeo") or 0)
+    except (TypeError, ValueError):
+        pm = 0.0
+    oferta = bool(p.get("es_oferta"))
+    menudeo = pm if oferta else round(pm + 80)
+    return {
+        "menudeo": menudeo,
+        "mayoreo3": menudeo if oferta else menudeo - 60,
+        "mayoreo6": menudeo if oferta else menudeo - 100,
+    }
+
+
 def construir_catalogo(productos):
     catalogo = ""
     for p in productos:
@@ -26,13 +44,10 @@ def construir_catalogo(productos):
         catalogo += f"- [SKU:{sku}] {p['nombre']}"
         if p.get('imagen_principal'):
             catalogo += f" [IMG:{p['imagen_principal']}]"
-        _pm = p.get('precio_menudeo') or 0
-        _menudeo_real = _pm if p.get('es_oferta') else round(_pm + 80)
-        catalogo += f": menudeo ${_menudeo_real}"
-        if p.get('precio_mayoreo3'):
-            catalogo += f", mayoreo 3-5pares ${p['precio_mayoreo3']}"
-        if p.get('precio_mayoreo6'):
-            catalogo += f", mayoreo 6+ ${p['precio_mayoreo6']}"
+        _pw = precios_web(p)
+        catalogo += f": menudeo ${_pw['menudeo']:.0f}"
+        if not p.get('es_oferta'):
+            catalogo += f", mayoreo 3-5pares ${_pw['mayoreo3']:.0f}, mayoreo 6+ ${_pw['mayoreo6']:.0f}"
         if p.get('precio_corrida') and p.get('corrida_activa'):
             catalogo += f", corrida ${p['precio_corrida']}"
         if p.get('nuevo'):
@@ -447,14 +462,13 @@ def _resolver_items_wa(items_entrada: list) -> tuple:
 
     # Nivel de precio según el total de pares del pedido completo (igual que el sitio web)
     for producto, variante, cantidad, etiqueta in resueltos:
-        pm = float(producto.get("precio_menudeo") or 0)
-        menudeo_real = pm if producto.get("es_oferta") else round(pm + 80)
-        if pares >= 6 and producto.get("precio_mayoreo6"):
-            precio_u = float(producto["precio_mayoreo6"])
-        elif pares >= 3 and producto.get("precio_mayoreo3"):
-            precio_u = float(producto["precio_mayoreo3"])
+        _pw = precios_web(producto)
+        if pares >= 6:
+            precio_u = float(_pw["mayoreo6"])
+        elif pares >= 3:
+            precio_u = float(_pw["mayoreo3"])
         else:
-            precio_u = menudeo_real
+            precio_u = float(_pw["menudeo"])
         pedido_items_db.append({
             "variante_id": variante["id"],
             "cantidad": cantidad,
