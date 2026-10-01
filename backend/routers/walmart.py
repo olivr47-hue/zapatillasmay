@@ -122,12 +122,12 @@ def walmart_post(path: str, data: dict) -> dict:
         raise HTTPException(e.code, f"Walmart API error: {detalle}")
 
 
-def walmart_post_file(path: str, params: dict, filename: str, content: bytes) -> dict:
+def walmart_post_file(path: str, params: dict, filename: str, content: bytes,
+                       mime: str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") -> dict:
     """POST multipart/form-data con un archivo en el campo 'file' -- usado por
     la Feeds API (carga masiva). Se arma el multipart a mano porque el resto
     del proyecto no usa la librería `requests`."""
     boundary = uuid.uuid4().hex
-    mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     parts = []
     parts.append(f"--{boundary}\r\n".encode())
     parts.append(
@@ -551,6 +551,143 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
     return fila
 
 
+# ─── Feed JSON (MP_ITEM_INTL) ──────────────────────────────────────────────
+# La plantilla XLSX de arriba (_fila_variante) ya NO se acepta -- la cuenta
+# quedo del lado del "Global Marketplace Platform" nuevo, que rechaza TODA
+# subida de item con feedType="item" (el de la plantilla vieja) con el error
+# REQUEST_CONTENT_DEPRECATED_VERSION.GMP_GATEWAY_API, confirmado con 7
+# intentos reales fallidos entre julio y octubre 2026 -- cambiar solo el
+# feedType a "MP_ITEM" (el de EE.UU.) tampoco sirve, sigue dando el mismo
+# error. El formato correcto para la cuenta de Mexico es un FEED JSON con
+# feedType="MP_ITEM_INTL", confirmado 3 formas:
+#   1. La documentacion mx-marketplace/item-spec-v4x menciona explicitamente
+#      "MX_MP_ITEM_INTL_SPEC.json" + feedType=MP_ITEM_INTL para Mexico.
+#   2. Al probar POST /v3/items/spec con feedType=MP_ITEM_INTL, Walmart YA NO
+#      devuelve el error de flujo obsoleto (si devuelve "no schema found" por
+#      el product type, pero eso es un error distinto y esperado al probar
+#      con un nombre de product type incorrecto).
+#   3. El archivo de schema real se descargo directo de Walmart
+#      (https://developer.walmart.com/file/mp/mx/MX_MP_ITEM_INTL_SPEC.json,
+#      ~4 MB, guardado como referencia) y de ahi se sacaron TODOS los campos,
+#      nombres y listas de valores de abajo -- no son una suposicion de un
+#      resumen de documentacion, son el schema real tal como lo entrega
+#      Walmart hoy. La version vigente segun ese archivo es "3.19" (no "4.2"
+#      ni "5.0", que son de los mercados de EE.UU./Canada, NO de Mexico).
+_WM_FEED_VERSION  = "3.19"
+_WM_SUBCATEGORY   = "footwear_other"   # unica subcategoria de calzado en el enum real
+_WM_PRODUCT_TYPE  = "Zapatos"          # nombre real (en español) de la key dentro de "Visible"
+
+
+def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
+    """Arma un objeto MPItem (Orderable + Visible.Zapatos) para una variante,
+    usando los nombres de campo reales del schema MX_MP_ITEM_INTL_SPEC.json
+    (no los de la plantilla XLSX vieja, que usaba otro feed por completo)."""
+    categoria = producto.get("categoria") or ""
+    nombre    = producto.get("nombre") or ""
+    sku       = variante.get("sku") or ""
+
+    import hashlib as _hashlib
+    sku_walmart = variante.get("sku_walmart")
+    if not sku_walmart:
+        sku_walmart = _hashlib.md5((variante.get("id") or sku).encode()).hexdigest()[:12]
+        if variante.get("id"):
+            try:
+                supabase_patch(f"variantes?id=eq.{variante['id']}", {"sku_walmart": sku_walmart})
+            except Exception:
+                pass
+
+    color = variante.get("color") or ""
+    talla = _talla_display(variante.get("talla"))
+    caja  = _CAJAS.get(categoria, _CAJAS["_default"])
+    clave_sat = _SAT_CLAVE_PRODSERV.get(categoria, _SAT_CLAVE_PRODSERV["_default"])
+
+    fotos = list(variante.get("imagenes") or [])
+    if not fotos and variante.get("foto_url"):
+        fotos = [variante["foto_url"]]
+    if not fotos and producto.get("imagen_principal"):
+        fotos = [producto["imagen_principal"]]
+    fotos = [f for f in fotos if f]
+    imagen_principal = _cloudinary_cuadrada(fotos[0]) if fotos else ""
+
+    color_categoria = _COLOR_CATEGORY.get(_normalizar(color), "Multicolor")
+    genero          = _GENERO_POR_CATEGORIA.get(categoria, "Mujer")
+    shoe_category   = _SHOE_CATEGORY_POR_CATEGORIA.get(categoria, "Zapatos de mujer")
+    age_group       = _AGE_GROUP_POR_CATEGORIA.get(categoria, "Adulto")
+    material        = producto.get("material") or "Sintético"
+    talla_walmart   = f"{talla} (MX)"
+
+    _hash_variante = int(_hashlib.md5((variante.get("id") or sku).encode()).hexdigest(), 16)
+    _cuerpo13 = str(_hash_variante % 10**13).zfill(13)
+    product_id = _gtin14_valido(_cuerpo13)
+
+    orderable = {
+        "sku": sku_walmart,
+        "productIdentifiers": {"productIdType": "GTIN", "productId": product_id},
+        "productName": f"{nombre} {color} Talla {talla} - Marca May"[:200],
+        "brand": "May",
+        "manufacturer": "May",
+        "mainImageUrl": imagen_principal,
+        "shortDescription": (f"Calzado {nombre} color {color}; Marca May; "
+                              f"talla {talla} (sistema mexicano)")[:4000],
+        "keyFeatures": [
+            f"Color {color}"[:4000],
+            f"Talla {talla} (sistema mexicano)"[:4000],
+            f"Material: {material}"[:4000],
+        ],
+        "price": float(producto.get("precio_menudeo") or 0),
+        "ProductTaxCode": int(clave_sat),
+        "condition": "Nuevo",
+        "hasNomCertification": "No",
+        "hazardousMaterialsInd": "No",
+        "msiEligible": "No",
+        "shippingDiscount": 0,
+        "sellerWarranty": "Garantía de 30 días por defectos de fabricación.",
+        "sellerWarrantyCondition": "Aplica por defectos de fabricación bajo uso normal del producto.",
+        "sellerWarrantyPeriod": 1,
+        "countryOfOriginAssembly": ["MX - México"],
+        "itemsIncluded": "1 par de zapatos",
+        "ShippingWeight":           {"measure": float(caja["weight"]), "unit": "kg"},
+        "ShippingDimensionsWidth":  {"measure": float(caja["width"]),  "unit": "cm"},
+        "ShippingDimensionsHeight": {"measure": float(caja["height"]), "unit": "cm"},
+        "ShippingDimensionsDepth":  {"measure": float(caja["depth"]),  "unit": "cm"},
+    }
+
+    visible_zapatos = {
+        "gender": genero,
+        "material": material,
+        "colorCategory": [color_categoria],
+        "activity": ["Uso diario"],
+        "countPerPack": 1,
+        "color": [color] if color else [color_categoria],
+        "shoeCategory": shoe_category,
+        "ageGroup": [age_group],
+        "variantGroupId": f"{producto.get('sku_interno','')}-{_normalizar(color)}"[:300],
+        "variantAttributeNames": ["Talla del Zapato"],
+        "isPrimaryVariant": "Sí" if es_primaria else "No",
+    }
+    if talla_walmart in _TALLAS_VALIDAS_MX:
+        visible_zapatos["shoeSize"] = talla_walmart
+
+    return {"Orderable": orderable, "Visible": {_WM_PRODUCT_TYPE: visible_zapatos}}
+
+
+def _generar_feed_json(items: list) -> bytes:
+    mp_items = [_item_json(it["producto"], it["variante"], it["es_primaria"]) for it in items]
+    feed = {
+        "MPItemFeedHeader": {
+            "version": _WM_FEED_VERSION,
+            "mart": "WALMART_MEXICO",
+            "locale": "es",
+            "subset": "EXTERNAL",
+            "sellingChannel": "marketplace",
+            "processMode": "REPLACE",
+            "subCategory": _WM_SUBCATEGORY,
+        },
+        "MPItem": mp_items,
+    }
+    return json.dumps(feed, ensure_ascii=False).encode("utf-8")
+
+
 def _variantes_publicables() -> list:
     """Productos activos (excepto 'accesorios', fuera del alcance de la
     categoría Zapatos aprobada) con sus variantes activas, listas para armar
@@ -810,13 +947,15 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
         items = [it for it in items if not _validar_fila(it)]
     if not items:
         raise HTTPException(400, "No hay variantes listas para incluir en el feed")
-    contenido = _generar_workbook(items)
+    # El feed XLSX (feedType "item" o "MP_ITEM") ya no se acepta para esta
+    # cuenta -- ver el comentario grande junto a _item_json. Se manda el feed
+    # JSON con feedType=MP_ITEM_INTL, el formato real para Mexico.
+    contenido = _generar_feed_json(items)
     try:
-        # "item" (minuscula) es el feedType viejo de la "mx-marketplace" docs --
-        # causaba REQUEST_CONTENT_DEPRECATED_VERSION.GMP_GATEWAY_API en TODOS
-        # los intentos (confirmado: 7 intentos reales fallidos). La cuenta ya
-        # esta del lado del Global Marketplace Platform, que espera "MP_ITEM".
-        resp = walmart_post_file("/feeds", {"feedType": "MP_ITEM"}, "walmart_zapatos.xlsx", contenido)
+        resp = walmart_post_file(
+            "/feeds", {"feedType": "MP_ITEM_INTL"}, "walmart_zapatos.json", contenido,
+            mime="application/json",
+        )
     except HTTPException as e:
         _registrar_publicaciones(items, exito=False, feed_id=None, error=str(e.detail)[:2000])
         raise
