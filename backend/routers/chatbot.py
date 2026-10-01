@@ -2430,7 +2430,7 @@ def procesar_secuencias_wa() -> dict:
     enviados, saltados, errores = 0, 0, 0
     try:
         pendientes = supabase_get(
-            f"wa_secuencia_envios?estado=eq.activa&proximo_envio_at=lte.{ahora.isoformat()}"
+            f"wa_secuencia_envios?estado=eq.activa&proximo_envio_at=lte.{urllib.parse.quote(ahora.isoformat())}"  # quote: el "+00:00" sin codificar daba HTTP 400 y ninguna secuencia salía nunca
         ) or []
     except Exception as e:
         return {"error": str(e)}
@@ -2620,7 +2620,7 @@ async def tareas_hoy():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/envio-masivo")
-async def envio_masivo(datos: dict):
+def envio_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep por contacto; en async congelaba todo el servidor
     try:
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
         phone_id = os.environ.get("WHATSAPP_PHONE_ID", "")
@@ -2747,7 +2747,7 @@ async def envio_masivo(datos: dict):
 
 
 @router.post("/envio-fotos")
-async def envio_fotos(datos: dict):
+def envio_fotos(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep por contacto; en async congelaba todo el servidor
     """
     Envía imágenes de variantes directamente (texto + fotos).
     Solo funciona dentro de la ventana de 24 h (el cliente escribió primero).
@@ -3371,7 +3371,7 @@ async def catalogo_info():
         return res.json()
 
 @router.post("/envio-productos")
-async def envio_productos(datos: dict):
+def envio_productos(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep por contacto; en async congelaba todo el servidor
     """Envía mensaje interactivo product_list de WhatsApp con hasta 30 productos del catálogo."""
     try:
         wa_token = os.environ.get("WHATSAPP_TOKEN", "")
@@ -3991,7 +3991,7 @@ async def enviar_carrusel(telefono: str, datos: dict):
 # ═══════════════════════════════════════════════════════════════════
 
 @router.post("/broadcast")
-async def broadcast_masivo(datos: dict):
+def broadcast_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep por contacto; en async congelaba todo el servidor
     """Envia un template aprobado a multiples telefonos y registra el broadcast +
     un envío por destinatario en wa_broadcasts / wa_broadcast_envios para métricas."""
     try:
