@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
 from security import limpiar_texto
 import urllib.request
@@ -20,10 +20,9 @@ def get_api_key():
     return os.environ.get("ANTHROPIC_API_KEY", "")
 
 def precios_web(p) -> dict:
-    """Precios públicos vigentes del sitio para un producto: menudeo = precio de panel + $80
-    (salvo ofertas); mayoreo = precio web −$60 (3-5 pares) / −$100 (6+). Antes Maya y el MCP usaban
-    los precio_mayoreo3/6 crudos del panel, que ya no coinciden con el sitio (el descuento web es fijo
-    sobre el precio web): cotizaba menudeo $580 y mayoreo ~$470 en vez de $520."""
+    """Precios públicos vigentes del SITIO para un producto: menudeo = precio de panel + $80
+    (salvo ofertas); desde 3 pares el sitio descuenta $60 por par (y $100 desde 6, según las
+    páginas SEO). Es lo que Maya cotiza a cualquier persona."""
     try:
         pm = float(p.get("precio_menudeo") or 0)
     except (TypeError, ValueError):
@@ -37,7 +36,47 @@ def precios_web(p) -> dict:
     }
 
 
-def construir_catalogo(productos):
+def precios_portal(p) -> dict:
+    """Precios del PORTAL MAYORISTA (mismos que calcula portal-cliente.js): tiers capturados en el
+    panel, o menudeo-$30 / -$70 / -$100 de respaldo cuando no están capturados."""
+    def _f(k):
+        try:
+            v = float(p.get(k))
+            return v if v > 0 else None
+        except (TypeError, ValueError):
+            return None
+    base = _f("precio_menudeo") or 0.0
+    return {
+        "mayoreo3": _f("precio_mayoreo3") or max(0.0, base - 30),
+        "mayoreo6": _f("precio_mayoreo6") or max(0.0, base - 70),
+        "corrida":  _f("precio_corrida") or max(0.0, base - 100),
+    }
+
+
+def _tel10(t) -> str:
+    return "".join(c for c in str(t or "") if c.isdigit())[-10:]
+
+
+def es_mayorista_registrado(telefono) -> bool:
+    """True si el número de WhatsApp pertenece a un cliente activo tipo mayoreo/zapatería (los que
+    pueden entrar al portal mayorista). Esos clientes reciben precios de PORTAL; todos los demás,
+    precios del sitio."""
+    tel = _tel10(telefono)
+    if len(tel) < 10:
+        return False
+    nums = cache_get("wa_mayoristas_tel")
+    if nums is None:
+        try:
+            filas = supabase_get_all("clientes?tipo=in.(mayoreo,zapateria)&activo=eq.true&select=telefono")
+        except Exception as e:
+            print(f"[maya] no se pudo consultar mayoristas: {e}")
+            return False
+        nums = {_tel10(c.get("telefono")) for c in filas if _tel10(c.get("telefono"))}
+        cache_set("wa_mayoristas_tel", nums, ttl=300)
+    return tel in nums
+
+
+def construir_catalogo(productos, mayorista=False):
     catalogo = ""
     for p in productos:
         sku = p.get('sku_interno') or p.get('id','')
@@ -47,9 +86,15 @@ def construir_catalogo(productos):
         _pw = precios_web(p)
         catalogo += f": menudeo ${_pw['menudeo']:.0f}"
         if not p.get('es_oferta'):
-            catalogo += f", mayoreo 3-5pares ${_pw['mayoreo3']:.0f}, mayoreo 6+ ${_pw['mayoreo6']:.0f}"
-        if p.get('precio_corrida') and p.get('corrida_activa'):
-            catalogo += f", corrida ${p['precio_corrida']}"
+            if mayorista:
+                # Cliente mayorista REGISTRADA: precios del portal
+                _pp = precios_portal(p)
+                catalogo += f", mayoreo 3-5pares ${_pp['mayoreo3']:.0f}, mayoreo 6+ ${_pp['mayoreo6']:.0f}"
+                if p.get('corrida_activa') or p.get('precio_corrida'):
+                    catalogo += f", corrida ${_pp['corrida']:.0f}"
+            else:
+                # Cualquier otra persona: solo el precio del sitio (desde 3 pares el sitio descuenta solo)
+                catalogo += f", 3+ pares ${_pw['mayoreo3']:.0f}"
         if p.get('nuevo'):
             catalogo += " 🆕NUEVO"
         if p.get('categoria'):
@@ -111,7 +156,28 @@ def _resumir_pedidos(pedidos: list) -> str:
         lineas.append(linea)
     return "\n".join(lineas)
 
-def construir_sistema(catalogo, pedidos_cliente=None):
+_PORTAL_URL = "https://portal.zapatillasmay.mx"
+
+
+def _seccion_precios(mayorista: bool) -> str:
+    if mayorista:
+        return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
+- Esta persona es CLIENTE MAYORISTA REGISTRADA en el portal: usa para ella los precios de PORTAL del catálogo.
+- Menudeo (1-2 pares): precio "menudeo" del catálogo (precio del sitio web).
+- Mayoreo variado 3-5 pares: precio "mayoreo 3-5pares" del catálogo (puede mezclar estilos y colores).
+- Mayoreo variado 6+ pares: precio "mayoreo 6+" del catálogo.
+- Corrida completa: precio "corrida" del catálogo (mismo estilo/color, tallas 23 al 26 con medios = 6 pares).
+- Puedes recordarle que también puede armar su carrito y apartar sus pares en su portal: {_PORTAL_URL}
+- Si un modelo no muestra precio de mayoreo/corrida en el catálogo, ofrece el de menudeo y di que confirmas el de mayoreo con una asesora."""
+    return f"""PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS del catálogo — NO los calcules, NO sumes ni restes nada):
+- Usa SIEMPRE los precios del sitio web que aparecen en el catálogo.
+- Menudeo (1-2 pares): precio "menudeo" del catálogo TAL CUAL.
+- Desde 3 pares (puede mezclar estilos y colores): precio "3+ pares" del catálogo (es el mismo descuento automático del sitio web).
+- MAYOREO FORMAL (6 o más pares, corridas, zapaterías, revendedoras) o si preguntan "precio de mayoreo": NO des precios de mayoreo ni de corrida por aquí. Explícale que los precios de mayoreo los ve registrándose en nuestro Portal Mayorista y mándale el link: {_PORTAL_URL} — ahí arma su carrito, aparta sus pares y ve sus precios.
+- Si dice que ya está registrada en el portal pero no la reconoces, dile que una asesora le confirma sus precios en un momento."""
+
+
+def construir_sistema(catalogo, pedidos_cliente=None, mayorista=False):
     seccion_pedidos = ""
     if pedidos_cliente:
         resumen = _resumir_pedidos(pedidos_cliente)
@@ -135,12 +201,7 @@ SOBRE ZAPATILLAS MAY:
 - Llegan modelos nuevos cada semana
 - Ubicación física (Bodega Cuautla): Calle Cuautla 211, Col. Killian, León, Guanajuato. Si preguntan dónde están, dónde pueden pasar a ver/recoger, o piden la ubicación: da SIEMPRE esta dirección completa, NUNCA respondas solo "León, Guanajuato"
 
-PRECIOS Y MAYOREO (USA SIEMPRE los precios EXACTOS que aparecen en el catálogo de cada modelo — NO los calcules, NO sumes ni restes nada):
-- Menudeo (1-2 pares): usa el precio "menudeo" del catálogo TAL CUAL (ya es el precio de venta al público del sitio web).
-- Mayoreo variado 3-5 pares: usa el precio "mayoreo 3-5pares" del catálogo (puedes mezclar estilos y colores).
-- Mayoreo variado 6+ pares: usa el precio "mayoreo 6+" del catálogo.
-- Corrida completa: usa el precio "corrida" del catálogo (mismo estilo/color, tallas 23 al 26 con medios = 6 pares).
-- Si un modelo no muestra precio de mayoreo/corrida en el catálogo, ofrece el de menudeo y di que confirmas el de mayoreo con una asesora.
+{_seccion_precios(mayorista)}
 
 ENVÍOS (costo exacto — úsalo al calcular totales):
 - 1 par: $99 | 2 pares: $150 | 3-5 pares: $199
@@ -199,7 +260,7 @@ Cuando tengas TODOS los datos (nombre completo + dirección + email + modelos + 
 - NUNCA mandes el link del sitio como primera respuesta, primero muestra productos
 - Si el cliente llega con un pedido del sitio web (lista de productos con SKU y precio), CONFÍA en esos datos — son reales aunque no estén en tu catálogo. Procesa el pedido sin cuestionar disponibilidad. Solo pide nombre, dirección y email para envío.
 - Si el cliente pide asesor humano: "Con gusto te comunico con una asesora, espera un momento 😊" y para de responder
-- Si preguntan por mayoreo o corrida: usa el precio exacto del catálogo para ese modelo y explica las opciones. NUNCA digas que no sabes el precio — siempre tienes el catálogo con precios de corrida.
+- Si preguntan por mayoreo o corrida: sigue la sección PRECIOS Y MAYOREO de arriba (si no es mayorista registrada, mándala al Portal Mayorista; si lo es, usa los precios de portal del catálogo). NUNCA inventes precios.
 - Sé diferente en cada mensaje, no repitas el mismo texto
 - Responde siempre en español mexicano natural
 
@@ -396,7 +457,7 @@ def mark_as_read_wa(message_id: str):
     except Exception:
         pass
 
-def _resolver_items_wa(items_entrada: list) -> tuple:
+def _resolver_items_wa(items_entrada: list, mayorista: bool = False) -> tuple:
     """Resuelve items {sku, color, talla, cantidad} de Maya contra productos/variantes/
     inventario REALES. Devuelve (pedido_items_db, faltantes, pares, subtotal).
 
@@ -412,7 +473,7 @@ def _resolver_items_wa(items_entrada: list) -> tuple:
     if not skus:
         return [], ["(sin SKU válido)"], 0, 0.0
     filtro_sku = ",".join(skus)
-    productos = supabase_get(f"productos?sku_interno=in.({filtro_sku})&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,es_oferta") or []
+    productos = supabase_get(f"productos?sku_interno=in.({filtro_sku})&select=id,sku_interno,nombre,precio_menudeo,precio_mayoreo3,precio_mayoreo6,precio_corrida,es_oferta") or []
     prod_por_sku = {p["sku_interno"]: p for p in productos}
     prod_ids = [p["id"] for p in productos]
 
@@ -463,10 +524,14 @@ def _resolver_items_wa(items_entrada: list) -> tuple:
     # Nivel de precio según el total de pares del pedido completo (igual que el sitio web)
     for producto, variante, cantidad, etiqueta in resueltos:
         _pw = precios_web(producto)
-        if pares >= 6:
-            precio_u = float(_pw["mayoreo6"])
+        if producto.get("es_oferta"):
+            precio_u = float(_pw["menudeo"])
+        elif mayorista and pares >= 6:
+            precio_u = float(precios_portal(producto)["mayoreo6"])      # precio de portal (cliente registrada)
+        elif mayorista and pares >= 3:
+            precio_u = float(precios_portal(producto)["mayoreo3"])
         elif pares >= 3:
-            precio_u = float(_pw["mayoreo3"])
+            precio_u = float(_pw["mayoreo3"])                            # descuento automático del sitio
         else:
             precio_u = float(_pw["menudeo"])
         pedido_items_db.append({
@@ -501,7 +566,7 @@ def generar_link_pago_wa(telefono: str, datos_pedido: dict) -> tuple:
         pedido_items_db = []
         if items_entrada and items_entrada[0].get("sku") and not items_entrada[0].get("variante_id"):
             # Formato de Maya: verificar existencia real antes de cotizar nada.
-            pedido_items_db, faltantes, pares, precio = _resolver_items_wa(items_entrada)
+            pedido_items_db, faltantes, pares, precio = _resolver_items_wa(items_entrada, es_mayorista_registrado(telefono))
             if faltantes:
                 return None, 0, None, faltantes
             descripcion = ", ".join(f"{it['nombre']} x{it['cantidad']}" for it in pedido_items_db)
@@ -1333,9 +1398,10 @@ async def _procesar_webhook_whatsapp(datos: dict):
             return {"status": "ok"}
 
         productos = cargar_catalogo()
-        catalogo = construir_catalogo(productos)
+        _es_mayorista = es_mayorista_registrado(from_number)
+        catalogo = construir_catalogo(productos, _es_mayorista)
         pedidos_cliente = obtener_pedidos_cliente(from_number)
-        sistema = construir_sistema(catalogo, pedidos_cliente)
+        sistema = construir_sistema(catalogo, pedidos_cliente, _es_mayorista)
         historial = obtener_historial(from_number)
 
         if tipo == "image":
@@ -1484,7 +1550,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
                     # Pasar a Maya como si fuera texto
                     from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": btn_title}]
-                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo(), es_mayorista_registrado(from_number)), obtener_pedidos_cliente(from_number), es_mayorista_registrado(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, btn_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")
@@ -1497,7 +1563,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
                 if not control:
                     from fastapi.concurrency import run_in_threadpool
                     mensajes_h = obtener_historial(from_number) + [{"role": "user", "content": row_title}]
-                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo()), obtener_pedidos_cliente(from_number)))
+                    respuesta_claude = await run_in_threadpool(llamar_claude, mensajes_h, construir_sistema(construir_catalogo(cargar_catalogo(), es_mayorista_registrado(from_number)), obtener_pedidos_cliente(from_number), es_mayorista_registrado(from_number)))
                     texto_guardado = procesar_y_enviar_respuesta(from_number, respuesta_claude)
                     guardar_conversacion(from_number, row_title, respuesta_claude, "texto", nombre_contacto)
                 cache_invalidate("chats_lista")

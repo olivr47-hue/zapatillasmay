@@ -131,7 +131,7 @@ def _tool_buscar_productos(args):
         menudeo, _may3, may6 = _precios_web(p)
         lineas.append(
             f"• {p.get('nombre','')} ({p.get('categoria','')}) — "
-            f"Menudeo ${menudeo:.0f} MXN | Mayoreo 3-5 ${_may3:.0f} | Mayoreo 6+ ${may6:.0f} MXN/par. "
+            f"Menudeo ${menudeo:.0f} MXN | 3 o más pares ${_may3:.0f} MXN/par. "
             f"SKU: {p.get('sku_interno','')}. "
             f"Ver: https://zapatillasmay.mx/producto/{slug}"
         )
@@ -178,8 +178,8 @@ def _tool_consultar_producto(args):
         f"{p.get('nombre','')} (SKU: {p.get('sku_interno','')})",
         f"Categoría: {p.get('categoria','')}",
         f"Precio menudeo: ${menudeo_w:.0f} MXN",
-        f"Mayoreo 3-5 pares: ${may3:.0f} MXN/par",
-        f"Mayoreo 6+ pares: ${may6:.0f} MXN/par",
+        f"3 o más pares: ${may3:.0f} MXN/par (descuento automático en el carrito)",
+        "Mayoreo formal (6+ pares, corridas): precios en el Portal Mayorista https://portal.zapatillasmay.mx",
     ]
     if p.get("descripcion"):
         lineas.append(f"Descripción: {p.get('descripcion')}")
@@ -208,13 +208,12 @@ def _tool_consultar_producto(args):
 
 def _tool_precios_mayoreo(args):
     return (
-        "Precios de mayoreo en Zapatillas May (se aplican automáticamente, sin registro especial):\n"
-        "• 1-2 pares: precio de menudeo.\n"
-        "• 3-5 pares: precio de mayoreo ($60 MXN menos por par).\n"
-        "• 6 o más pares: mejor precio de mayoreo ($100 MXN menos por par).\n"
-        "• Media corrida / corrida completa de un mismo modelo: precio especial aún más bajo.\n\n"
-        "Mientras más pares compres, menor es el precio por par. "
-        "No se requiere registro ni mínimo especial: el descuento se aplica solo al agregar pares al carrito. "
+        "Precios por volumen en Zapatillas May:\n"
+        "• 1-2 pares: precio de menudeo del sitio.\n"
+        "• Desde 3 pares: $60 MXN menos por par (descuento automático en el carrito del sitio, sin registro).\n"
+        "• Mayoreo formal (6 o más pares, corridas, zapaterías y revendedoras): los precios de mayoreo "
+        "se consultan registrándose en el Portal Mayorista: https://portal.zapatillasmay.mx "
+        "(ahí arman su carrito, apartan sus pares y ven sus precios).\n\n"
         "Más info: https://zapatillasmay.mx/mayoreo"
     )
 
