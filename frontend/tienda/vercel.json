@@ -5,6 +5,11 @@
       "has": [{ "type": "host", "value": "www.zapatillasmay.mx" }],
       "destination": "https://zapatillasmay.mx/:path*",
       "permanent": true
+    },
+    {
+      "source": "/zapatillas",
+      "destination": "/tacones",
+      "permanent": true
     }
   ],
   "headers": [

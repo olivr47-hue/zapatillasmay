@@ -536,13 +536,22 @@ def _producto_ssr_inner(sku: str, request: Request):
 
 
 # ── #3 — Títulos/descripciones únicos por categoría y páginas fijas (SSR) ──────
-_HOME_TITLE = "Calzado de Dama Mayoreo y Menudeo en León | Zapatillas May"
+# OJO: estos 2 valores deben ser IDÉNTICOS, carácter por carácter, al <title> y
+# al <meta name="description"> que está HOY en frontend/tienda/index.html — el
+# reemplazo de abajo es un .replace() de texto literal, así que si alguien edita
+# el título/descripción de la home en el HTML y no actualiza esto, el SSR de
+# categorías deja de funcionar en silencio (no truena, solo no reemplaza nada y
+# todas las páginas de categoría se quedan con el título genérico de la home).
+# Pasó exactamente eso entre 2026-07 y 2026-09-30: se corrigió comparando
+# contra el HTML real.
+_HOME_TITLE = "Calzado de Moda para Dama | Zapatillas May — León, Gto."
 _HOME_DESC = ("Calzado de dama con estilo, hecho en León, Gto. Pensado para sentirte bien, "
-              "no solo lucir bien. Mayoreo automático desde 3 pares, sin registro. Envíos a todo México.")
+              "no solo lucir bien. Tacones, sandalias, botas y botines. Envíos a todo México, "
+              "cambios de talla fáciles.")
 
 # H1 SEO visibles para crawlers por categoría (el hero genérico no tiene keywords de categoría)
 _PAGINAS_H1 = {
-    "tacones":     "Tacones de Dama Mayoreo León Guanajuato — Aguja, Bloque y Plataforma | Zapatillas May",
+    "tacones":     "Zapatillas y Tacones de Dama — Aguja, Bloque y Plataforma | Zapatillas May",
     "sandalias":   "Sandalias de Dama Mayoreo León Guanajuato — Casuales y de Fiesta | Zapatillas May",
     "botas":       "Botas de Dama Mayoreo León Guanajuato — Moda y Calidad | Zapatillas May",
     "botines":     "Botines de Dama Mayoreo León Guanajuato — Botines de Moda | Zapatillas May",
@@ -556,8 +565,8 @@ _PAGINAS_H1 = {
 }
 
 _PAGINAS_SEO = {
-    "tacones": ("Tacones de Dama — Mayoreo y Menudeo | Zapatillas May León",
-                "Tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México."),
+    "tacones": ("Zapatillas y Tacones de Dama | Zapatillas May — León",
+                "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México."),
     "sandalias": ("Sandalias de Dama — Mayoreo y Menudeo | Zapatillas May",
                   "Sandalias de moda para dama hechas en León, Guanajuato. Precios de mayoreo desde 3 pares, casuales y de fiesta. Envíos a todo México."),
     "botas": ("Botas de Dama — Mayoreo y Menudeo | Zapatillas May León",
@@ -950,13 +959,17 @@ def pagina_ssr(slug: str):
             f'<link rel="canonical" href="{canonical}">'
         )
         template = template.replace(
-            'content="Zapatillas May | Calzado de Moda Mayoreo y Menudeo — León, Guanajuato"',
+            'content="Zapatillas May — Calzado de Moda para Dama | León, Guanajuato"',
             f'content="{_esc_pagina(titulo)}"'
         )  # og:title si comparte el texto del title
         template = template.replace(
             '<meta property="og:url" content="https://zapatillasmay.mx/">',
             f'<meta property="og:url" content="{canonical}">'
         )
+        template = template.replace(
+            'content="Calzado de moda para dama. Tacones, sandalias, botas y botines. Hecho en León, Guanajuato. Envíos a todo México."',
+            f'content="{_esc_pagina(desc)}"'
+        )  # og:description
 
         # Inyectar contenido HTML visible para páginas informacionales.
         # Siempre visible: Google lo lee en el HTML inicial; el SPA lo deja intacto
@@ -984,7 +997,7 @@ def pagina_ssr(slug: str):
         # (soluciona "Duplicate, Google chose different canonical than user").
         # El JS carga el catálogo debajo; esta sección queda como acceso rápido.
         _CAT_DESCS = {
-            "tacones":     "Tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México.",
+            "tacones":     "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México.",
             "sandalias":   "Sandalias de dama hechas en León, Guanajuato: casuales, de fiesta y de cuña. Mayoreo desde 3 pares. Envíos a todo México.",
             "botas":       "Botas de moda para dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México.",
             "botines":     "Botines de dama de temporada fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
