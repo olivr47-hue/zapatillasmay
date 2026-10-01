@@ -793,7 +793,11 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
         raise HTTPException(400, "No hay variantes listas para incluir en el feed")
     contenido = _generar_workbook(items)
     try:
-        resp = walmart_post_file("/feeds", {"feedType": "item"}, "walmart_zapatos.xlsx", contenido)
+        # "item" (minuscula) es el feedType viejo de la "mx-marketplace" docs --
+        # causaba REQUEST_CONTENT_DEPRECATED_VERSION.GMP_GATEWAY_API en TODOS
+        # los intentos (confirmado: 7 intentos reales fallidos). La cuenta ya
+        # esta del lado del Global Marketplace Platform, que espera "MP_ITEM".
+        resp = walmart_post_file("/feeds", {"feedType": "MP_ITEM"}, "walmart_zapatos.xlsx", contenido)
     except HTTPException as e:
         _registrar_publicaciones(items, exito=False, feed_id=None, error=str(e.detail)[:2000])
         raise
