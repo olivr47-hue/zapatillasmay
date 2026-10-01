@@ -2,6 +2,7 @@ import os
 import json
 import urllib.request
 import re
+import urllib.parse as _up
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
@@ -288,11 +289,32 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
         print(f"WA confirmacion error (no critico): {e}")
 
 
+_SELECT_PEDIDOS_COMPLETO = "*,clientes(nombre,telefono,email),sucursales(nombre),pedido_items(*)"
+# Para pantallas que solo calculan totales/estadísticas (dashboard, CRM, clientes...): sin renglones ni sucursal.
+_SELECT_PEDIDOS_LIGERO = (
+    "id,cliente_id,status,total,created_at,confirmado_at,canal,forma_pago,mp_preference_id,mp_payment_id,"
+    "empleado,nombre_cliente,clientes(nombre)"
+)
+# Estados "abiertos": aunque el pedido sea viejo, hay que seguir viéndolo (cobrar, surtir, apartados...).
+_ESTADOS_ABIERTOS = "(pendiente_pago,pagado,apartado,checkout_iniciado,borrador)"
+
+
 @router.get("/")
-def listar_pedidos(status: str = None, _staff=Depends(require_staff)):
+def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, _staff=Depends(require_staff)):
+    """Lista de pedidos para el panel.
+    - ligero=true: solo los campos para estadísticas (sin renglones): decenas de veces menos datos.
+    - dias=N: pedidos de los últimos N días MÁS todos los abiertos (pendiente de pago, pagados por surtir,
+      apartados, a crédito) sin importar su antigüedad.
+    Antes devolvía TODO con supabase_get (tope silencioso de 1000 filas): con más de 1000 pedidos el panel
+    perdía los más viejos sin avisar; ahora pagina completo."""
     try:
-        filtro = f"&status=eq.{status}" if status else ""
-        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono,email),sucursales(nombre),pedido_items(*)")
+        filtro = f"&status=eq.{_up.quote(str(status), safe='')}" if status else ""
+        if dias:
+            import datetime as _dtm
+            corte = (_dtm.datetime.now(_dtm.timezone.utc) - _dtm.timedelta(days=int(dias))).strftime("%Y-%m-%dT%H:%M:%SZ")
+            filtro += f"&or=(created_at.gte.{corte},status.in.{_ESTADOS_ABIERTOS},forma_pago.eq.credito)"
+        sel = _SELECT_PEDIDOS_LIGERO if ligero else _SELECT_PEDIDOS_COMPLETO
+        return supabase_get_all(f"pedidos?order=created_at.desc{filtro}&select={sel}")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

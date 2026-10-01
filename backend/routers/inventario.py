@@ -77,11 +77,15 @@ def inventario_slim():
 
 
 @router.get("/alertas")
-def alertas_stock_bajo(_staff=Depends(require_staff)):
+def alertas_stock_bajo(conteo: bool = False, _staff=Depends(require_staff)):
+    """Filas de inventario en o bajo su mínimo. `conteo=true` devuelve solo {"total": N}: el dashboard solo
+    mostraba la cifra pero bajaba cada fila unida con su variante, producto y sucursal."""
     try:
-        data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno)),sucursales(nombre)")
-        alertas = [i for i in data if i.get("cantidad", 0) <= i.get("stock_minimo", 3)]
-        return alertas
+        sel = "cantidad,stock_minimo" if conteo else "*,variantes(*,productos(nombre,sku_interno)),sucursales(nombre)"
+        data = supabase_get_all(f"inventario?select={sel}")
+        # stock_minimo NULL antes tronaba la comparación (TypeError) y la alerta completa fallaba
+        alertas = [i for i in data if (i.get("cantidad") or 0) <= (i.get("stock_minimo") if i.get("stock_minimo") is not None else 3)]
+        return {"total": len(alertas)} if conteo else alertas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

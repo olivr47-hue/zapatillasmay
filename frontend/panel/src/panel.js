@@ -4132,7 +4132,7 @@ async function cargarCRM() {
   try {
     const [resCli, resPed, resSeg] = await Promise.all([
       fetch(API + '/clientes/'),
-      fetch(API + '/pedidos/'),
+      fetch(API + '/pedidos/?ligero=true'),
       fetch(API + '/crm/seguimientos/pendientes/todos')
     ])
     const clientes = await resCli.json()
@@ -5024,7 +5024,7 @@ window.mostrarCampanas = async () => {
   try {
     const [resCli, resPed] = await Promise.all([
       fetch(API + '/clientes/'),
-      fetch(API + '/pedidos/')
+      fetch(API + '/pedidos/?ligero=true')
     ])
     const clientes = await resCli.json()
     const pedidos = await resPed.json()
@@ -6253,7 +6253,7 @@ async function cargarClientes() {
   try {
     const [resCli, resPed] = await Promise.all([
       fetch(API + '/clientes/'),
-      fetch(API + '/pedidos/')
+      fetch(API + '/pedidos/?ligero=true')
     ])
     const clientes = await resCli.json()
     const pedidos = await resPed.json()
@@ -9439,7 +9439,7 @@ window.verCliente = async (id) => {
   try {
     const [resCli, resPed, resCred] = await Promise.all([
       fetch(API + '/clientes/' + id),
-      fetch(API + '/pedidos/'),
+      fetch(API + '/pedidos/?ligero=true'),
       fetch(API + '/clientes/' + id + '/creditos-historial')
     ])
     const data = await resCli.json()
@@ -9635,7 +9635,7 @@ window.verHistorialCliente = async (clienteId) => {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
   try {
-    const res = await fetch(API + '/pedidos/')
+    const res = await fetch(API + '/pedidos/?ligero=true')
     const todos = await res.json()
     const pedidos = todos.filter(p => p.cliente_id === clienteId)
     const cliente = pedidos.length > 0 && pedidos[0].clientes ? pedidos[0].clientes : {}
@@ -10031,7 +10031,7 @@ window.confirmarEnvio = async function(pedidoId) {
 async function cargarPedidos() {
   const content = document.getElementById('content')
   try {
-    const res = await fetch(API + '/pedidos/')
+    const res = await fetch(API + '/pedidos/' + (window._pedidosHistorialCompleto ? '' : '?dias=180'))
     const data = await res.json()
 
     const hoy = new Date()
@@ -10065,6 +10065,9 @@ async function cargarPedidos() {
           <div>
             <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;color:#E91E8C;text-transform:uppercase;margin:0 0 3px">Gestión de ventas</p>
             <h2 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-0.3px">Pedidos</h2>
+            <p style="font-size:0.68rem;color:#94a3b8;margin:3px 0 0">${window._pedidosHistorialCompleto
+              ? 'Historial completo · <a href="#" onclick="window._pedidosHistorialCompleto=false;cargarPedidos();return false" style="color:#E91E8C">ver solo recientes</a>'
+              : 'Últimos 180 días y todo lo pendiente · <a href="#" onclick="window._pedidosHistorialCompleto=true;cargarPedidos();return false" style="color:#E91E8C">ver historial completo</a>'}</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-secondary" onclick="mostrarFormLinkPago()" style="background:#ffe600;color:#333;border-color:#ffe600">💳 Crear link de pago</button>
@@ -14998,12 +15001,12 @@ window.filtrarHistorial = () => {
 
 async function cargarDashboard() {
   try {
-    const resPedidos = await fetch(API + '/pedidos/')
+    const resPedidos = await fetch(API + '/pedidos/?ligero=true')
     const pedidos = await resPedidos.json()
-    const resClientes = await fetch(API + '/clientes/')
+    const resClientes = await fetch(API + '/clientes/resumen')
     const clientes = await resClientes.json()
-    const resAlertas = await fetch(API + '/inventario/alertas')
-    const alertas = await resAlertas.json()
+    const resAlertas = await fetch(API + '/inventario/alertas?conteo=true')
+    const alertasTotal = ((await resAlertas.json()) || {}).total || 0
 
     const hoy = new Date(); hoy.setHours(0,0,0,0)
     const hace7 = new Date(hoy); hace7.setDate(hace7.getDate()-7)
@@ -15075,7 +15078,7 @@ async function cargarDashboard() {
     setKpi('kpi-ventas-7d',    '$'+ventas7.toLocaleString('es-MX',{maximumFractionDigits:0}), s7P.length+' pedidos')
     setKpi('kpi-ventas-30d',   '$'+ventas30.toLocaleString('es-MX',{maximumFractionDigits:0}), hace30P.length+' pedidos')
     setKpi('kpi-clientes-nuevos', clientesNuevos, 'últimos 30 días')
-    setKpi('kpi-stock-bajo',   alertas.length, alertas.length > 0 ? '⚠ reabastecer' : '✓ ok', alertas.length > 0 ? '#f59e0b' : '#10b981')
+    setKpi('kpi-stock-bajo',   alertasTotal, alertasTotal > 0 ? '⚠ reabastecer' : '✓ ok', alertasTotal > 0 ? '#f59e0b' : '#10b981')
     setKpi('kpi-mejor-dia',    diaMas ? diaMas[0] : '—', diaMas ? '$'+diaMas[1].toLocaleString('es-MX',{maximumFractionDigits:0}) : '')
     setKpi('kpi-total-clientes', clientes.length, 'registrados')
 

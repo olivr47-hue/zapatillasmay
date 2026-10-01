@@ -44,6 +44,15 @@ def listar_accesos_portal_mayoreo(_staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.get("/resumen")
+def resumen_clientes(_staff=Depends(require_staff)):
+    """Solo id y fecha de alta de TODOS los clientes (el dashboard únicamente cuenta y filtra por fecha;
+    antes bajaba la ficha completa de cada cliente)."""
+    try:
+        return supabase_get_all("clientes?select=id,created_at")
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @router.get("/{id}")
 def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     if not cliente_autorizado(id, credentials):
