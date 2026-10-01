@@ -194,6 +194,31 @@ def feed_json_preview_temp(sku_interno: str):
     return json.loads(contenido.decode("utf-8"))
 
 
+@router.post("/feed-test-gtin-temp")
+def feed_test_gtin_temp(sku_interno: str):
+    """DIAGNOSTICO TEMPORAL: sube UN SOLO item (el primero del producto) con
+    el GTIN de ejemplo oficial de Walmart (06104895314205) en vez del GTIN
+    generado, para probar si el "SKU is a required attribute" es en realidad
+    un error en cascada por el GTIN (patron ya visto antes con la plantilla
+    XLSX vieja: un problema de Product ID se reportaba como error de SKU)."""
+    items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
+    if not items:
+        raise HTTPException(404, "sin variantes")
+    item = _item_json(items[0]["producto"], items[0]["variante"], True)
+    item["Orderable"]["productIdentifiers"]["productId"] = "06104895314205"
+    feed = {
+        "MPItemFeedHeader": {
+            "version": _WM_FEED_VERSION, "mart": "WALMART_MEXICO", "locale": "es",
+            "subset": "EXTERNAL", "sellingChannel": "marketplace",
+            "processMode": "REPLACE", "subCategory": _WM_SUBCATEGORY,
+        },
+        "MPItem": [item],
+    }
+    contenido = json.dumps(feed, ensure_ascii=False).encode("utf-8")
+    resp = walmart_post_file("/feeds", {"feedType": "MP_ITEM_INTL"}, "test_gtin.json", contenido, mime="application/json")
+    return {"item_enviado": item, "respuesta": resp}
+
+
 @router.get("/ordenes/test")
 def walmart_ordenes_test():
     """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
