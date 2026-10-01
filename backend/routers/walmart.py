@@ -164,6 +164,24 @@ def walmart_ping():
     return {"ok": True, "respuesta": resp}
 
 
+@router.get("/taxonomia-temp")
+def taxonomia_temp(version: str = "4.2"):
+    """DIAGNOSTICO TEMPORAL: consulta la taxonomia real de product types de
+    Walmart para encontrar el nombre exacto del product type de calzado.
+    Quitar una vez resuelta la migracion al feed JSON (MP_ITEM)."""
+    return walmart_get("/utilities/taxonomy", params={"feedType": "MP_ITEM", "version": version})
+
+
+@router.post("/item-spec-temp")
+def item_spec_temp(product_type: str, version: str = "4.2"):
+    """DIAGNOSTICO TEMPORAL: trae el schema real (POST /v3/items/spec) para un
+    product type especifico -- cuidado, Walmart limita este endpoint a 3
+    llamadas por minuto. Quitar una vez resuelta la migracion al feed JSON."""
+    return walmart_post("/items/spec", {
+        "feedType": "MP_ITEM", "version": version, "productTypes": [product_type],
+    })
+
+
 @router.get("/ordenes/test")
 def walmart_ordenes_test():
     """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
