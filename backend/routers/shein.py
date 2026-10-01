@@ -491,7 +491,13 @@ def _hacer_sync_ventas_shein() -> dict:
 
                 total = sum(it["precio_unitario"] * it["cantidad"] for it in items_pedido)
                 datos_pedido = {
-                    "shein_order_id": order_id, "canal": "shein", "status": "confirmado",
+                    "shein_order_id": order_id, "canal": "shein",
+                    # "pagado" (no "confirmado"): SHEIN ya le cobro al comprador, asi
+                    # que para el ERP equivale a un pedido pagado pendiente de surtir.
+                    # Con "confirmado" el pedido quedaba invisible para el badge de
+                    # notificaciones, el conteo "Por enviar" y el boton de Enviar,
+                    # igual que paso con MercadoLibre (ver frontend/panel/src/panel.js).
+                    "status": "pagado",
                     "tipo": "online", "total": total, "subtotal": total, "forma_pago": "shein",
                     "nombre_cliente": "Comprador SHEIN",
                     "notas": f"Pedido generado automáticamente desde SHEIN (orden {order_id})" + (" — faltó match de algún SKU" if faltante else ""),

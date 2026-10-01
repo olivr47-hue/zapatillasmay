@@ -247,7 +247,7 @@ async function _pollPedidosPorEnviar() {
     // por nuestro propio checkout. Antes solo se veían los de MercadoPago y un
     // pedido de ML se quedaba invisible aquí (sin badge, sin notificación, sin
     // botón de enviar) hasta que el vendedor se enteraba por el correo de ML.
-    const porEnviar = pedidos.filter(p => p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre')
+    const porEnviar = pedidos.filter(p => p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein')
     const count = porEnviar.length
 
     // Guardar en localStorage para mostrar al instante en la próxima carga
@@ -9874,7 +9874,7 @@ function _renderFilaPedido(p) {
   }[p.status] || p.status
 
   // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
-  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre')
+  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein')
   const esEnviado = p.status === 'enviado'
 
   let accionEnvio = ''
@@ -10035,7 +10035,7 @@ async function cargarPedidos() {
     const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
     const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
-    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre')).length
+    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein')).length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
 
     const kpiCard = (valor, label, sub, color, bg, border, onclick) => `
@@ -10137,7 +10137,7 @@ window.cargarPedidosFiltro = (filtro) => {
   } else if (filtro === 'credito') {
     filtrados = data.filter(p => p.forma_pago === 'credito')
   } else if (filtro === 'por_enviar') {
-    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre'))
+    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein'))
   } else if (filtro) {
     // Igual que "Todos": un borrador/checkout_iniciado no es una venta real,
     // no debe aparecer mezclado al filtrar por canal (Web/Sucursal/WhatsApp/ML).
