@@ -183,6 +183,17 @@ def item_spec_temp(product_type: str = None, feed_type: str = "MP_ITEM", version
     return walmart_post("/items/spec", body)
 
 
+@router.get("/feed-json-preview-temp")
+def feed_json_preview_temp(sku_interno: str):
+    """DIAGNOSTICO TEMPORAL: arma el feed JSON en memoria SIN subirlo a
+    Walmart, para inspeccionar exactamente que se esta mandando."""
+    items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
+    if not items:
+        raise HTTPException(404, "sin variantes")
+    contenido = _generar_feed_json(items)
+    return json.loads(contenido.decode("utf-8"))
+
+
 @router.get("/ordenes/test")
 def walmart_ordenes_test():
     """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
