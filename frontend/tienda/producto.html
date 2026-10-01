@@ -559,9 +559,9 @@
         <textarea id="resena-comentario" rows="3" placeholder="¿Qué te pareció el producto?" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;resize:vertical;box-sizing:border-box"></textarea>
       </div>
       <div>
-        <label for="resena-token" style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Token de pedido *</label>
-        <p style="font-size:0.68rem;color:#aaa;margin:0 0 6px">Lo encuentras en el correo de confirmación de tu compra.</p>
-        <input id="resena-token" placeholder="Ej: abc123xyz" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;box-sizing:border-box">
+        <label for="resena-token" style="font-size:0.72rem;font-weight:600;color:#555;display:block;margin-bottom:4px">Correo de tu compra *</label>
+        <p style="font-size:0.68rem;color:#aaa;margin:0 0 6px">El mismo correo que usaste al comprar este modelo (así verificamos tu compra).</p>
+        <input id="resena-token" type="email" placeholder="tucorreo@ejemplo.com" style="width:100%;padding:10px 14px;border:1.5px solid #e8e0d8;border-radius:10px;font-size:0.9rem;font-family:inherit;box-sizing:border-box">
       </div>
       <p id="resena-msg" style="font-size:0.78rem;margin:0;min-height:18px"></p>
       <button id="btn-enviar-resena" onclick="enviarResena()" style="width:100%;padding:14px;background:linear-gradient(135deg,#C8967A,#b5687a);color:white;border:none;border-radius:50px;font-size:0.9rem;font-weight:700;font-family:inherit;cursor:pointer">
@@ -2290,7 +2290,7 @@ function cerrarGuiaTallas() {
       const res = await fetch(`${API}/resenas/producto/${sku}`, {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ calificacion: parseInt(cal), comentario, nombre, pedido_token: token })
+        body: JSON.stringify({ calificacion: parseInt(cal), comentario, nombre, email: token })
       })
       const data = await res.json()
       if (data.ok) {

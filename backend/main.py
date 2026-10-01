@@ -64,7 +64,7 @@ _PUBLICAS = [(m, _re.compile(r)) for m, r in (
     ("*",    r"/ml/(auth|callback)"), ("POST", r"/ml/notificaciones"),       # OAuth + webhook ML
     ("*",    r"/shein/(auth|callback)"), ("*", r"/tiktok/(authorize|callback)"),
     ("*",    r"/analytics/(setup|setup/callback)"), ("GET", r"/analytics/producto-popularidad"),
-    ("GET",  r"/catalogos(/.*)?"),
+    ("GET",  r"/catalogos(/(?!todos$).*)?"),   # /catalogos/todos (incluye inactivos) solo personal
     ("POST", r"/emails/contacto-web"),
     ("GET",  r"/push/public-key"), ("POST", r"/push/(suscribir|desuscribir)"),
     ("GET",  r"/imagenes/pdf-viewer"),
@@ -74,7 +74,7 @@ _PUBLICAS = [(m, _re.compile(r)) for m, r in (
     ("POST", r"/referidos/validar"),
     ("POST", r"/pinterest/event"),
     ("GET",  r"/seo/(producto|pagina)/[^/]+"), ("GET", r"/seo/config"),
-    ("GET",  r"/config/(envio|pago-transferencia)"),
+    ("GET",  r"/config/envio"),
     ("GET",  r"/feed/(meta\.xml|google\.xml|google-local\.xml|tiktok\.json)"),
 )]
 # Cualquier usuario con token válido (cliente de portal/tienda o personal); la
@@ -82,6 +82,7 @@ _PUBLICAS = [(m, _re.compile(r)) for m, r in (
 _CON_TOKEN = [(m, _re.compile(r)) for m, r in (
     ("GET",  r"/sugerencias/?"), ("POST", r"/sugerencias/?"),
     ("GET",  r"/referidos/(mi-codigo|stats)/[^/]+"),
+    ("GET",  r"/config/pago-transferencia"),   # CLABE/titular: solo con sesión (portal), no público
 )]
 
 

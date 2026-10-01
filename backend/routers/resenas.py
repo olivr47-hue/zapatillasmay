@@ -42,8 +42,11 @@ def get_resenas(sku: str):
 @router.post("/producto/{sku}")
 def crear_resena(sku: str, datos: dict):
     """
-    Recibe reseña de un cliente. Valida que el token de pedido sea real.
-    Body: { calificacion: 1-5, comentario: str, nombre: str, pedido_token: str }
+    Reseña de un cliente VERIFICADO: debe haber comprado ese modelo (pedido pagado/confirmado/
+    enviado/entregado con el mismo correo). Antes pedía un "token de pedido" que ningún proceso
+    generaba y consultaba columnas que no existen en `pedidos` (token_confirmacion, items), así que
+    NINGUNA reseña se pudo crear jamás. Queda pendiente de aprobación en el panel.
+    Body: { calificacion: 1-5, comentario: str, nombre: str, email: str }
     """
     try:
         cal = _validar_calificacion(datos.get("calificacion"))
@@ -52,44 +55,44 @@ def crear_resena(sku: str, datos: dict):
 
         comentario = limpiar_texto(str(datos.get("comentario") or "").strip()[:_MAX_COMMENT_LEN])
         nombre = limpiar_texto(str(datos.get("nombre") or "Cliente").strip()[:80])
-        pedido_token = _up.quote(str(datos.get("pedido_token") or "").strip(), safe="")
+        email = str(datos.get("email") or "").strip().lower()
+        if "@" not in email:
+            return {"error": "Escribe el correo con el que hiciste tu compra."}
 
-        # Verificar que el token de pedido exista y corresponda al SKU
-        pedido_rows = None
-        if pedido_token:
-            pedido_rows = supabase_get(
-                f"pedidos?token_confirmacion=eq.{pedido_token}&select=id,items&limit=1"
-            )
-
-        if not pedido_rows:
-            return {"error": "Token de pedido inválido. Solo clientes que compraron pueden dejar reseña."}
-
-        pedido = pedido_rows[0]
-        pedido_id = pedido["id"]
-
-        # Verificar que el pedido incluya el SKU del producto
-        items = pedido.get("items") or []
-        skus_pedido = [str(i.get("sku") or i.get("sku_interno") or "").strip() for i in (items if isinstance(items, list) else [])]
-        if sku not in skus_pedido:
-            return {"error": "Este producto no estaba en tu pedido."}
-
-        # Buscar producto_id
-        producto = supabase_get(f"productos?sku_interno=eq.{sku}&select=id&limit=1")
+        producto = supabase_get(f"productos?sku_interno=eq.{_up.quote(sku, safe='')}&select=id&limit=1")
         if not producto:
             return {"error": "Producto no encontrado."}
         pid = producto[0]["id"]
+
+        # Pedidos comprados con ese correo que incluyan este modelo
+        pedidos = supabase_get(
+            f"pedidos?email_cliente=ilike.{_up.quote(email, safe='')}"
+            f"&status=in.(pagado,confirmado,enviado,entregado)"
+            f"&select=id,email_cliente,pedido_items(variantes(producto_id))&order=created_at.desc&limit=50"
+        ) or []
+        pedido_id = None
+        for pd in pedidos:
+            if (pd.get("email_cliente") or "").strip().lower() != email:
+                continue
+            for it in pd.get("pedido_items") or []:
+                if ((it.get("variantes") or {}).get("producto_id")) == pid:
+                    pedido_id = pd["id"]
+                    break
+            if pedido_id:
+                break
+        if not pedido_id:
+            return {"error": "No encontramos una compra de este modelo con ese correo. Usa el mismo correo de tu pedido."}
 
         # Evitar reseñas duplicadas del mismo pedido para el mismo producto
         existing = supabase_get(
             f"resenas_producto?producto_id=eq.{pid}&pedido_id=eq.{pedido_id}&limit=1"
         )
         if existing:
-            # Actualizar en lugar de duplicar
             supabase_patch(
                 f"resenas_producto?producto_id=eq.{pid}&pedido_id=eq.{pedido_id}",
-                {"calificacion": cal, "comentario": comentario, "nombre_cliente": nombre, "aprobada": True}
+                {"calificacion": cal, "comentario": comentario, "nombre_cliente": nombre, "aprobada": False}
             )
-            return {"ok": True, "mensaje": "Tu reseña fue actualizada."}
+            return {"ok": True, "mensaje": "Tu reseña fue actualizada y se publicará cuando la revisemos."}
 
         supabase_post("resenas_producto", {
             "producto_id": pid,
@@ -97,11 +100,12 @@ def crear_resena(sku: str, datos: dict):
             "calificacion": cal,
             "comentario": comentario,
             "nombre_cliente": nombre,
-            "aprobada": True,
+            "aprobada": False,   # el panel (Reseñas) las aprueba antes de publicarse
         })
-        return {"ok": True, "mensaje": "¡Gracias por tu reseña!"}
+        return {"ok": True, "mensaje": "¡Gracias por tu reseña! Se publicará cuando la revisemos."}
     except Exception as e:
-        return {"error": str(e)}
+        print(f"[resenas] error: {e}")
+        return {"error": "No se pudo guardar tu reseña. Intenta de nuevo."}
 
 
 @router.get("/admin/pendientes")
