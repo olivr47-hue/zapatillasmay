@@ -672,13 +672,20 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
     material        = producto.get("material") or "Sintético"
     talla_walmart   = f"{talla} (MX)"
 
-    _hash_variante = int(_hashlib.md5((variante.get("id") or sku).encode()).hexdigest(), 16)
-    _cuerpo13 = str(_hash_variante % 10**13).zfill(13)
-    product_id = _gtin14_valido(_cuerpo13)
-
     orderable = {
         "sku": sku_walmart,
-        "productIdentifiers": {"productIdType": "GTIN", "productId": product_id},
+        # La cuenta YA TIENE aprobada la exencion de GTIN (confirmado por el
+        # dueño) -- "CUSTOM" es el valor reservado documentado para eso
+        # (productIdType se deja en "GTIN"). Antes se mandaba un GTIN-14
+        # inventado con digito verificador valido, pensando que cualquier
+        # numero "estructuralmente valido" bastaba: en la practica Walmart lo
+        # trato como un GTIN real y enganchó la oferta a la ficha de OTRO
+        # producto ya existente en su catalogo (una lampara ajena, con fotos y
+        # descripcion rotas) -- confirmado viendo el listado real en vivo.
+        # Con exencion de por medio, "CUSTOM" evita precisamente ese riesgo:
+        # crea una ficha nueva que el vendedor SI controla (fotos, descripcion,
+        # variantes), en vez de pelear por una ficha de catalogo ajena.
+        "productIdentifiers": {"productIdType": "GTIN", "productId": "CUSTOM"},
         "productName": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "brand": "May",
         "manufacturer": "May",
