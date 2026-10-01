@@ -349,6 +349,32 @@ def _loop_reporte_semanal():
         _time.sleep(30 * 60)  # revisa cada 30 minutos
 
 
+def _loop_apartados_vencidos():
+    """Cada mañana (~9am México) avisa por push al panel cuántos apartados ya vencieron. NO libera nada solo
+    (eso lo decide la dueña): antes un apartado vencido solo se marcaba en rojo dentro de Carritos y su stock
+    quedaba reservado indefinidamente sin que nadie se enterara."""
+    _time.sleep(260)
+    ultimo_aviso = None
+    while True:
+        try:
+            ahora_mx = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if 9 <= ahora_mx.hour < 10 and ultimo_aviso != ahora_mx.date():
+                import urllib.parse as _up
+                corte = _up.quote(_dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+                vencidos = supabase_get(f"pedidos?status=eq.apartado&apartado_hasta=lt.{corte}&select=id,nombre_cliente") or []
+                ultimo_aviso = ahora_mx.date()
+                if vencidos:
+                    push.enviar_push(
+                        "⏰ Apartados vencidos",
+                        f"{len(vencidos)} apartado(s) ya vencieron y siguen reservando stock. Revisa Carritos.",
+                        url="/?modulo=carritos", sitio="panel",
+                    )
+                    print(f"[apartados] aviso: {len(vencidos)} vencido(s)")
+        except Exception as e:
+            print(f"[apartados] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
+
 @app.on_event("startup")
 def _iniciar_hilos():
     # Carrito abandonado
@@ -379,6 +405,9 @@ def _iniciar_hilos():
     t6 = threading.Thread(target=_loop_reporte_semanal, daemon=True)
     t6.start()
     print("[reporte-semanal] Hilo de reporte semanal iniciado (lunes 9am)")
+    # Aviso diario de apartados vencidos
+    t8 = threading.Thread(target=_loop_apartados_vencidos, daemon=True)
+    t8.start()
     # Limpieza periódica del caché en memoria (evita que crezca sin límite)
     t7 = threading.Thread(target=_loop_limpieza_cache, daemon=True)
     t7.start()

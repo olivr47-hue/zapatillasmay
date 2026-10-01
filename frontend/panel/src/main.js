@@ -29,6 +29,20 @@ if (_skuEstiloPublico) {
   const _cache = new Map()
   const _pathApi = (u) => { try { return u.startsWith('http') ? new URL(u).pathname + new URL(u).search : u } catch (e) { return u } }
 
+  let _ultimoAvisoGuardado = 0
+  function _avisarFalloGuardado(motivo) {
+    const ahora = Date.now()
+    if (ahora - _ultimoAvisoGuardado < 4000) return
+    _ultimoAvisoGuardado = ahora
+    try {
+      const d = document.createElement('div')
+      d.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#b91c1c;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.85rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:100000;max-width:90vw;text-align:center'
+      d.textContent = '⚠ No se pudo guardar el último cambio: ' + motivo + '. Revisa antes de continuar.'
+      document.body.appendChild(d)
+      setTimeout(() => d.remove(), 7000)
+    } catch (e) {}
+  }
+
   window.fetch = async (input, init) => {
     init = init || {}
     const url = typeof input === 'string' ? input : (input && input.url) || ''
@@ -68,7 +82,18 @@ if (_skuEstiloPublico) {
       // si falló, que lo resuelva el camino normal (maneja 401 y errores)
     }
 
-    const res = await _fetch(input, init)
+    const _esEscritura = esApi && metodo !== 'GET' && metodo !== 'HEAD'
+    let res
+    try {
+      res = await _fetch(input, init)
+    } catch (errRed) {
+      if (_esEscritura) _avisarFalloGuardado('sin conexión con el servidor')
+      throw errRed
+    }
+    // Muchas pantallas muestran "guardado" sin revisar la respuesta. Si el SERVIDOR falla (5xx) en un cambio,
+    // se avisa aquí, una sola vez para todo el panel. Los 4xx (validaciones, 409 sin stock...) los explica
+    // cada pantalla con su propio mensaje.
+    if (_esEscritura && res.status >= 500) _avisarFalloGuardado('el servidor respondió con un error (' + res.status + ')')
     // Los endpoints de login/registro devuelven 401 como respuesta NORMAL
     // ante credenciales equivocadas -- el formulario necesita ese 401 para
     // mostrar "contraseña incorrecta". Si el interceptor lo trata como sesión

@@ -6735,21 +6735,23 @@ window.renderInventario = () => {
   if (contenido) contenido.innerHTML = html || '<div style="text-align:center;padding:3rem;color:#888"><p>No hay inventario registrado</p></div>'
 }
 window.cambiarStockInventario = async (varianteId, sucursalId, cantidadActual, minimo, delta) => {
-  const nuevaCantidad = Math.max(0, cantidadActual + delta)
+  let nuevaCantidad = Math.max(0, cantidadActual + delta)   // solo para el caso de que el servidor no la devuelva
   try {
-    // Usar /movimientos/ajuste que crea el registro si no existe (upsert)
+    // Cambio RELATIVO (delta) y atómico en el servidor: antes se mandaba la cantidad absoluta calculada con lo
+    // que se veía en pantalla, y una venta ocurrida entre tanto se perdía al sobrescribir el stock.
     const res = await fetch(API + '/movimientos/ajuste', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         variante_id: varianteId,
         sucursal_id: sucursalId,
-        cantidad: nuevaCantidad,
+        delta,
         stock_minimo: minimo,
         motivo: 'Ajuste desde inventario'
       })
     })
     if (res.ok) {
+      try { const d = await res.clone().json(); if (d && typeof d.cantidad_nueva === 'number') nuevaCantidad = d.cantidad_nueva } catch (e) {}
       // Actualizar el display sin re-renderizar todo
       const el = document.getElementById('stock-' + varianteId + '-' + sucursalId)
       if (el) {
@@ -10000,7 +10002,10 @@ window.confirmarEnvio = async function(pedidoId) {
 
     // Enviar template de aviso de envío por WhatsApp
     try {
-      const resPed = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
+      // GET /pedidos/{id} devuelve una LISTA: antes se leía resPed.telefono_cliente sobre el arreglo (undefined)
+      // y el aviso de envío por WhatsApp nunca se mandaba.
+      const _rp = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
+      const resPed = (Array.isArray(_rp) ? _rp[0] : _rp) || {}
       const tel = resPed.telefono_cliente
       const nombre = (resPed.nombre_cliente || 'Cliente').split(' ')[0]
       if (tel) {
@@ -13996,6 +14001,15 @@ window.cobrarPOS = async () => {
     }
   }
 
+  // ── Una venta a crédito sin cliente queda como deuda de nadie ──
+  const usaCredito = pagoCombinadoActivo ? (filasPago || []).some(f => f.forma_pago === 'credito') : formaPago === 'credito'
+  if (usaCredito && !clienteId) {
+    alert('Para vender a crédito selecciona primero al cliente.')
+    window._cobrando = false
+    ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+    return
+  }
+
   // ── Validar stock antes de crear el pedido ──────────────────────
   if (window._posData?.inventario) {
     const sinStock = []
@@ -14008,7 +14022,9 @@ window.cobrarPOS = async () => {
     }
     if (sinStock.length > 0) {
       alert('Sin stock suficiente:\n' + sinStock.join('\n'))
-      if (btnCobrar) { btnCobrar.disabled = false; btnCobrar.textContent = 'Cobrar' }
+      // (antes solo se reactivaba un botón y _cobrando se quedaba en true: el POS quedaba bloqueado hasta recargar)
+      window._cobrando = false
+      ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
       return
     }
   }
@@ -14130,10 +14146,15 @@ window.cobrarPOS = async () => {
     renderCarritoPOS()
     imprimirTicketPOS(pedidoId, total, totalPares, pagoCombinadoActivo ? 'combinado' : formaPago)
 
-    // 5. Refrescar inventario
-    const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
-    window._posData.inventario = await resInv.json()
-    renderProductosPOS(window._posData.productos)
+    // 5. Refrescar inventario. En su propio try: la venta YA está cobrada y confirmada; si solo falla este
+    // refresco (red, sesión), el catch de abajo NO debe cancelarla (antes lo hacía).
+    try {
+      const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+      if (resInv.ok) {
+        window._posData.inventario = await resInv.json()
+        renderProductosPOS(window._posData.productos)
+      }
+    } catch (eInv) { console.warn('No se pudo refrescar el inventario del POS:', eInv) }
 
   } catch(e) {
     console.error('Error procesando la venta:', e)
@@ -26058,10 +26079,11 @@ window.ajustarCredito = async function(clienteId, nombre, creditoActual) {
   const monto = parseFloat(nuevo)
   if (isNaN(monto) || monto < 0) return alert('Monto inválido')
   try {
-    const res = await fetch(API + '/clientes/' + clienteId, {
-      method: 'PATCH',
+    // endpoint con renglón de auditoría (antes: PATCH directo que sobrescribía el saldo sin dejar rastro)
+    const res = await fetch(API + '/clientes/' + clienteId + '/ajustar-credito', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credito_disponible: monto })
+      body: JSON.stringify({ nuevo_saldo: monto, motivo: 'Ajuste manual desde Referidos' })
     })
     if (res.ok) await cargarReferidos()
     else alert('Error actualizando crédito')

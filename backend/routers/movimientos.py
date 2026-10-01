@@ -23,38 +23,68 @@ def listar_movimientos(desde: str = None, hasta: str = None, _staff=Depends(requ
 
 @router.post("/ajuste")
 def ajuste_inventario(datos: dict, _staff=Depends(require_staff)):
+    """Ajuste manual de inventario.
+    - `delta` (+1/-1...): cambio RELATIVO y atómico. Los botones +/- del panel antes mandaban una cantidad
+      absoluta calculada con lo que había en pantalla: si mientras tanto hubo una venta, el stock quedaba mal.
+    - `cantidad`: fija una cantidad exacta (conteo físico).
+    - `stock_minimo` (opcional): alerta de reposición. Antes el panel lo mandaba pero este endpoint lo ignoraba,
+      así que "Stock mínimo de alerta" nunca se guardaba."""
     try:
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")
-        cantidad_nueva = datos.get("cantidad")
         motivo = datos.get("motivo", "Ajuste manual")
         usuario = datos.get("usuario", "Admin")
+        delta = datos.get("delta")
+        stock_minimo = datos.get("stock_minimo")
 
-        inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-        cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
+        try:
+            if delta is not None:
+                delta = int(delta)
+            else:
+                cantidad_nueva = int(datos.get("cantidad"))
+                if cantidad_nueva < 0:
+                    return JSONResponse(status_code=400, content={"error": "La cantidad no puede ser negativa"})
+            if stock_minimo is not None:
+                stock_minimo = int(stock_minimo)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=400, content={"error": "Cantidad o stock mínimo inválido"})
 
-        if inv_actual:
+        if delta is not None:
+            r = inventario_ajustar(variante_id, sucursal_id, delta, crear=True)
+            cantidad_anterior = r["anterior"] if r else 0
+            cantidad_nueva = r["nueva"] if r else max(0, delta)
+        else:
+            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
+            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
+            if inv_actual:
+                supabase_patch(
+                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
+                    {"cantidad": cantidad_nueva}
+                )
+            else:
+                supabase_post("inventario", {
+                    "variante_id": variante_id,
+                    "sucursal_id": sucursal_id,
+                    "cantidad": cantidad_nueva,
+                    "stock_minimo": stock_minimo if stock_minimo is not None else 3
+                })
+
+        if stock_minimo is not None:
             supabase_patch(
                 f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                {"cantidad": cantidad_nueva}
+                {"stock_minimo": stock_minimo}
             )
-        else:
-            supabase_post("inventario", {
+
+        if cantidad_nueva != cantidad_anterior:
+            supabase_post("movimientos_inventario", {
+                "tipo": "ajuste",
                 "variante_id": variante_id,
                 "sucursal_id": sucursal_id,
-                "cantidad": cantidad_nueva,
-                "stock_minimo": 3
+                "cantidad": cantidad_nueva - cantidad_anterior,
+                "cantidad_anterior": cantidad_anterior,
+                "motivo": motivo,
+                "usuario": usuario
             })
-
-        supabase_post("movimientos_inventario", {
-            "tipo": "ajuste",
-            "variante_id": variante_id,
-            "sucursal_id": sucursal_id,
-            "cantidad": cantidad_nueva - cantidad_anterior,
-            "cantidad_anterior": cantidad_anterior,
-            "motivo": motivo,
-            "usuario": usuario
-        })
 
         cache_invalidate_prefix("inventario")
         return {"ok": True, "cantidad_anterior": cantidad_anterior, "cantidad_nueva": cantidad_nueva}

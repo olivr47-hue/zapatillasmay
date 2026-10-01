@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, inventario_ajustar
 from security import hash_password, require_staff, bearer_opcional, cliente_autorizado, verify_token, es_personal, limpiar_dict
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
@@ -124,19 +124,9 @@ def nota_credito_cliente(id: str, datos: dict, _staff=Depends(require_staff)):
             cantidad = int(i.get("cantidad") or 0)
             if not variante_id or cantidad <= 0 or not sucursal_id:
                 continue
-            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
-            cantidad_nueva = cantidad_anterior + cantidad
-            if inv_actual:
-                supabase_patch(
-                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                    {"cantidad": cantidad_nueva}
-                )
-            else:
-                supabase_post("inventario", {
-                    "variante_id": variante_id, "sucursal_id": sucursal_id,
-                    "cantidad": cantidad_nueva, "stock_minimo": 3
-                })
+            # entrada ATÓMICA al inventario (crea la fila si no existía)
+            _aj = inventario_ajustar(variante_id, sucursal_id, cantidad, crear=True)
+            cantidad_anterior = _aj["anterior"] if _aj else 0
             supabase_post("movimientos_inventario", {
                 "tipo": "entrada",
                 "variante_id": variante_id,
@@ -146,8 +136,18 @@ def nota_credito_cliente(id: str, datos: dict, _staff=Depends(require_staff)):
                 "motivo": f"Devolucion cliente (nota de credito){' - ' + motivo if motivo else ''}",
             })
 
-        nuevo_saldo = saldo_actual + monto
-        supabase_patch(f"clientes?id=eq.{id}", {"credito_disponible": nuevo_saldo})
+        # Suma al saldo con compare-and-swap: dos notas de crédito simultáneas ya no pisan la otra
+        # (antes: leer, sumar y escribir sin condición).
+        nuevo_saldo = None
+        for _ in range(5):
+            nuevo_saldo = round(saldo_actual + monto, 2)
+            if supabase_patch(f"clientes?id=eq.{id}&credito_disponible=eq.{saldo_actual:.2f}", {"credito_disponible": nuevo_saldo}):
+                break
+            releido = supabase_get(f"clientes?id=eq.{id}&select=credito_disponible") or [{}]
+            saldo_actual = float(releido[0].get("credito_disponible") or 0)
+            nuevo_saldo = None
+        if nuevo_saldo is None:
+            return JSONResponse(status_code=409, content={"error": "El saldo cambió mientras se guardaba; intenta de nuevo"})
         supabase_post("clientes_creditos_historial", {
             "cliente_id": id,
             "monto": monto,
@@ -156,6 +156,31 @@ def nota_credito_cliente(id: str, datos: dict, _staff=Depends(require_staff)):
             "saldo_despues": nuevo_saldo,
         })
         return {"ok": True, "credito_disponible": nuevo_saldo}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@router.post("/{id}/ajustar-credito")
+def ajustar_credito_cliente(id: str, datos: dict, _staff=Depends(require_staff)):
+    """Fija el saldo a favor del cliente en un monto exacto (corrección manual) y deja renglón de auditoría con
+    la diferencia. Antes el panel hacía PATCH credito_disponible=<monto> directo: sobrescribía sin dejar rastro."""
+    try:
+        try:
+            nuevo = round(float(datos.get("nuevo_saldo")), 2)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=400, content={"error": "Monto inválido"})
+        if nuevo < 0:
+            return JSONResponse(status_code=400, content={"error": "El saldo no puede ser negativo"})
+        fila = supabase_get(f"clientes?id=eq.{id}&select=credito_disponible")
+        if not fila:
+            return JSONResponse(status_code=404, content={"error": "Cliente no encontrado"})
+        anterior = float(fila[0].get("credito_disponible") or 0)
+        supabase_patch(f"clientes?id=eq.{id}", {"credito_disponible": nuevo})
+        if round(nuevo - anterior, 2) != 0:
+            supabase_post("clientes_creditos_historial", {
+                "cliente_id": id, "monto": round(nuevo - anterior, 2), "tipo": "ajuste_manual",
+                "motivo": (datos.get("motivo") or "Ajuste manual desde el panel")[:200], "saldo_despues": nuevo,
+            })
+        return {"ok": True, "credito_disponible": nuevo, "anterior": anterior}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
