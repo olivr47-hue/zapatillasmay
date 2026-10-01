@@ -689,8 +689,11 @@ def _descontar_inventario_variante(variante_id: str, cantidad: int):
     supabase_post("movimientos_inventario", {
         "variante_id":  variante_id,
         "sucursal_id":  fila["sucursal_id"],
+        # Negativo: el inventario SI se resto bien arriba, pero este registro
+        # quedaba guardado en positivo -- en el historial una "salida" se ve
+        # como entrada, igual que "venta"/"apartado" (que si usan negativo).
         "tipo":         "salida",
-        "cantidad":     cantidad,
+        "cantidad":     -cantidad,
         "motivo":       "Venta MercadoLibre",
     })
     return True

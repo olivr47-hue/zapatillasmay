@@ -197,7 +197,10 @@ def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
     supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
     supabase_post("movimientos_inventario", {
         "variante_id": variante_id, "sucursal_id": fila["sucursal_id"],
-        "tipo": "salida", "cantidad": cantidad, "motivo": "Venta Walmart",
+        # Negativo: el inventario SI se resto bien arriba, pero este registro
+        # quedaba guardado en positivo -- en el historial una "salida" se ve
+        # como entrada, igual que "venta"/"apartado" (que si usan negativo).
+        "tipo": "salida", "cantidad": -cantidad, "motivo": "Venta Walmart",
     })
     return True
 
