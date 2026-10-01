@@ -228,6 +228,19 @@ export function renderPanel() {
 const _BADGE_KEY = 'zm_badge_pedidos'
 let _ultimosPedidosPorEnviar = new Set()
 
+// Escapa texto libre (nombres, direcciones...) para meterlo como argumento 'entre comillas simples'
+// dentro de un onclick="..." generado con plantillas. Sin esto, un cliente llamado D'Angelo rompe el botón
+// (error de JavaScript) y un nombre con comillas puede inyectar código al abrir la pantalla.
+function _ja(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/[\r\n]+/g, ' ')
+}
+window._ja = _ja
+
 function _setBadge(count) {
   const badge = document.getElementById('badge-pedidos-enviar')
   if (!badge) return
@@ -851,7 +864,7 @@ async function cargarOrdenes(containerId, sucursalIdForzada) {
                   </div>
                   <div style="text-align:center">
                     <p style="font-size:0.68rem;color:#888;margin-bottom:2px">⏸️</p>
-                    <button onclick="posponerProducto('${p.producto_id}', '${p.nombre.replace(/'/g, '')}')"
+                    <button onclick="posponerProducto('${p.producto_id}', '${_ja(p.nombre)}')"
                             title="Posponer — no aparecerá por un tiempo"
                             style="background:none;border:1px solid #e0e0e0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:0.78rem;color:#999">Posponer</button>
                   </div>
@@ -2848,7 +2861,7 @@ window.mostrarDeudas = () => {
               <p style="font-weight:700;color:#333;font-size:1rem">$${parseFloat(d.saldo_actual||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</p>
               <p style="font-size:0.65rem;color:#888">de $${parseFloat(d.monto_original||0).toLocaleString('es-MX',{maximumFractionDigits:0})} original</p>
             </div>
-            <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="mostrarFormPagoDeuda('${d.id}','${d.nombre.replace(/'/g,"\\'")}', ${d.pago_mensual||0})">💵 Registrar pago</button>
+            <button class="btn btn-primary" style="font-size:0.75rem;padding:6px 10px" onclick="mostrarFormPagoDeuda('${d.id}','${_ja(d.nombre)}', ${d.pago_mensual||0})">💵 Registrar pago</button>
           </div>
         `).join('')}
     </div>
@@ -3679,7 +3692,7 @@ async function _cargarDatosAnalisisPesados() {
                   : `<p style="font-size:0.72rem;color:#94a3b8">Sin ventas</p>`}
                 <p style="font-size:0.67rem;color:#64748b;margin-top:3px">${p.recomendacion}</p>
                 ${p.semaforo === 'verde'
-                  ? `<button onclick="irAPedirOrden('${p.nombre.replace(/'/g,"\\'")}')" style="margin-top:5px;font-size:0.67rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:3px 10px;cursor:pointer">🛒 Pedir ahora</button>`
+                  ? `<button onclick="irAPedirOrden('${_ja(p.nombre)}')" style="margin-top:5px;font-size:0.67rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:100px;padding:3px 10px;cursor:pointer">🛒 Pedir ahora</button>`
                   : ''}
               </div>
             </div>`
@@ -4448,7 +4461,7 @@ window.buscarClienteOportunidad = (texto) => {
   if (!filtrados.length) { res.style.display = 'none'; return }
   res.style.display = 'block'
   res.innerHTML = filtrados.map(c => `
-    <div onclick="seleccionarClienteOportunidad('${c.id}', '${c.nombre}')"
+    <div onclick="seleccionarClienteOportunidad('${c.id}', '${_ja(c.nombre)}')"
          style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
       ${c.nombre}
@@ -4614,7 +4627,7 @@ async function cargarProductos(categoriaFiltro, mostrarInactivos = false) {
                       <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
                       <td style="display:flex;gap:4px;flex-wrap:wrap">
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="editarProducto('${p.id}')">Editar</button>
-                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${p.id}','${(p.nombre||'').replace(/'/g,'')}')">🎨 Colores</button>
+                        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="gestionarColores('${p.id}','${_ja((p.nombre||''))}')">🎨 Colores</button>
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="duplicarProducto('${p.id}')">Duplicar</button>
                         <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:${p.activo ? '#c62828' : '#2e7d32'};border-color:${p.activo ? '#c62828' : '#2e7d32'}" onclick="toggleProducto('${p.id}', ${p.activo})">${p.activo ? 'Desactivar' : 'Activar'}</button>
                       </td>
@@ -6430,19 +6443,25 @@ window._cliCambiarTab = function(tab) {
 }
 
 window.filtrarClientes = () => {
-  const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase()
+  const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase().trim()
   const tipo   = document.getElementById('cli-tipo')?.value || ''
   const origen = document.getElementById('cli-origen')?.value || ''
+  let visible = 0
   document.querySelectorAll('.cli-item').forEach(el => {
-    const nombre  = el.dataset.nombre || ''
+    const nombre  = (el.dataset.nombre || '').toLowerCase()
     const tel     = el.dataset.tel || ''
     const tipoEl  = el.dataset.tipo || ''
     const origenEl = el.dataset.origen || ''
     const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
     const matchTipo   = !tipo   || tipoEl  === tipo
     const matchOrigen = !origen || origenEl === origen
-    el.style.display = matchBuscar && matchTipo && matchOrigen ? '' : 'none'
+    const show = matchBuscar && matchTipo && matchOrigen
+    el.style.display = show ? '' : 'none'
+    if (show) visible++
   })
+  // (había una segunda definición más abajo que pisaba esta e ignoraba el filtro de origen)
+  const countEl = document.getElementById('cli-count')
+  if (countEl) countEl.textContent = visible
 }
 
 window.filtrarClientesSeg = (seg) => {
@@ -7610,7 +7629,7 @@ window.buscarProductoRecibir = (texto) => {
       const chips = varsColor.map(v => {
         const yaAgregado = (window._recibirItems || []).find(i => i.variante_id === v.id)?.cantidad || 0
         return `
-        <button onclick="agregarProductoRecibir('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${p.costo || 0})"
+        <button onclick="agregarProductoRecibir('${v.id}','${p.id}','${_ja((p.nombre || ''))}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${p.costo || 0})"
           style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${yaAgregado > 0 ? '#2e7d32' : '#ddd'};border-radius:8px;background:${yaAgregado > 0 ? '#e8f5e9' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
           ${yaAgregado > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#2e7d32;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${yaAgregado}</span>` : ''}
         </button>
@@ -7856,7 +7875,7 @@ window.buscarProductoNC = (texto) => {
       const chips = varsColor.map(v => {
         const yaAgregado = (window._ncItems || []).find(i => i.variante_id === v.id)?.cantidad || 0
         return `
-        <button onclick="agregarProductoNC('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${precioSugerido})"
+        <button onclick="agregarProductoNC('${v.id}','${p.id}','${_ja((p.nombre || ''))}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}',${precioSugerido})"
           style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${yaAgregado > 0 ? '#2e7d32' : '#ddd'};border-radius:8px;background:${yaAgregado > 0 ? '#e8f5e9' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
           ${yaAgregado > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#2e7d32;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${yaAgregado}</span>` : ''}
         </button>
@@ -8037,7 +8056,7 @@ function renderVariante(i, datos) {
           <label style="font-size:0.76rem;font-weight:600;color:#888;display:block;margin-bottom:5px">Paleta rápida</label>
           <div style="display:flex;flex-wrap:wrap;gap:5px">
             ${COLORES_SUGERIDOS.map(c => `
-              <div onclick="seleccionarColor(${i}, '${c.hex}', '${c.nombre}')"
+              <div onclick="seleccionarColor(${i}, '${c.hex}', '${_ja(c.nombre)}')"
                    title="${c.nombre}"
                    style="width:24px;height:24px;background:${c.hex};border-radius:50%;cursor:pointer;border:2px solid #ddd;flex-shrink:0;transition:transform 0.15s"
                    onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
@@ -9232,26 +9251,6 @@ window.toggleProducto = async (id, activo) => {
     alert('Error conectando con el servidor')
   }
 }
-window.filtrarClientes = () => {
-  const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase().trim()
-  const tipo = document.getElementById('cli-tipo')?.value || ''
-  // Works with .cli-item card view (data attributes)
-  const items = document.querySelectorAll('.cli-item')
-  let visible = 0
-  items.forEach(el => {
-    const nombre = (el.dataset.nombre || '').toLowerCase()
-    const tel = el.dataset.tel || ''
-    const tipoEl = el.dataset.tipo || ''
-    const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
-    const matchTipo = !tipo || tipoEl === tipo
-    const show = matchBuscar && matchTipo
-    el.style.display = show ? '' : 'none'
-    if (show) visible++
-  })
-  // Update count label if present
-  const countEl = document.getElementById('cli-count')
-  if (countEl) countEl.textContent = visible
-}
 
 window.mostrarFormCliente = async (id) => {
   if (window._zmPushBack) window._zmPushBack(() => cargarModulo('clientes'))
@@ -9474,8 +9473,8 @@ window.verCliente = async (id) => {
             ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>` : ''}
             <button class="btn btn-secondary" onclick="mostrarFormCliente('${c.id}')">✏️ Editar</button>
             ${(c.tipo === 'zapateria' || c.tipo === 'mayoreo') ? `<button class="btn btn-secondary" onclick="darAccesoPortal('${c.id}')">🔑 Dar acceso al portal</button>` : ''}
-            <button class="btn btn-secondary" onclick="mostrarNotaCreditoCliente('${c.id}', '${c.nombre.replace(/'/g, "\\'")}')">🧾 Nota de crédito</button>
-            <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${c.nombre}')">+ Nuevo pedido</button>
+            <button class="btn btn-secondary" onclick="mostrarNotaCreditoCliente('${c.id}', '${_ja(c.nombre)}')">🧾 Nota de crédito</button>
+            <button class="btn btn-primary" onclick="nuevoPedidoCliente('${c.id}', '${_ja(c.nombre)}')">+ Nuevo pedido</button>
           </div>
         </div>
 
@@ -11747,7 +11746,7 @@ window.buscarClientePOSM = (texto) => {
   if (!filtrados.length) { res.style.display='none'; return }
   res.style.display = 'block'
   res.innerHTML = filtrados.map(c => `
-    <div onclick="seleccionarClientePOSM('${c.id}','${c.nombre}')"
+    <div onclick="seleccionarClientePOSM('${c.id}','${_ja(c.nombre)}')"
          style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
       <strong>${c.nombre}</strong>${c.telefono?' · '+c.telefono:''}
@@ -11847,7 +11846,7 @@ window.buscarClientePOS = (texto) => {
   }
 
   resultados.innerHTML = filtrados.map(c => `
-    <div onclick="seleccionarClientePOS('${c.id}', '${c.nombre.replace(/'/g, '')}')"
+    <div onclick="seleccionarClientePOS('${c.id}', '${_ja(c.nombre)}')"
          style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;font-size:0.85rem"
          onmouseover="this.style.background='#f5f5f5'"
          onmouseout="this.style.background='white'">
@@ -13491,7 +13490,7 @@ window.buscarCambioPOS = (texto) => {
       const chips = varsColor.map(v => {
         const enCambio = Math.abs((window._posCarrito || []).find(i => i.variante_id === v.id && i.es_cambio && i.tier_cambio === tierActual)?.cantidad || 0)
         return `
-        <button onclick="agregarCambioPOS('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}')"
+        <button onclick="agregarCambioPOS('${v.id}','${p.id}','${_ja((p.nombre || ''))}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}','${p.imagen_principal || ''}')"
           style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${enCambio > 0 ? '#c62828' : '#ddd'};border-radius:8px;background:${enCambio > 0 ? '#ffebee' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
           ${enCambio > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#c62828;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${enCambio}</span>` : ''}
         </button>
@@ -15275,7 +15274,7 @@ async function cargarDashboard() {
               <p style="font-size:0.85rem;font-weight:600;margin:0;${t.completada ? 'text-decoration:line-through;color:#aaa' : ''}">${t.titulo}</p>
               <p style="font-size:0.72rem;color:#888;margin:0">${t.nombre_contacto || t.telefono} · ${t.agente || 'Sin asignar'}</p>
             </div>
-            <button onclick="navegarA('conversaciones');setTimeout(()=>abrirChat('${t.telefono}'),800)"
+            <button onclick="navegarA('conversaciones');setTimeout(()=>abrirChat('${_ja(t.telefono)}'),800)"
                     style="background:#e3f2fd;border:none;border-radius:6px;padding:4px 8px;font-size:0.72rem;color:#1565c0;cursor:pointer">Ver chat</button>
           </div>
         `).join('')}
@@ -15331,7 +15330,7 @@ async function cargarEmpleados() {
                 <td style="display:flex;gap:4px">
                   <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="mostrarFormEmpleado('${e.id}')">Editar</button>
                   <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="toggleEmpleado('${e.id}',${e.activo})">${e.activo ? 'Desactivar' : 'Activar'}</button>
-                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#E91E8C;border-color:#E91E8C" onclick="resetearPassword('${e.id}','${e.nombre}')">🔑 Reset</button>
+                  <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#E91E8C;border-color:#E91E8C" onclick="resetearPassword('${e.id}','${_ja(e.nombre)}')">🔑 Reset</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -15903,7 +15902,7 @@ window.mostrarPipelineWA = async function() {
         <div class="wa-kb-card" draggable="true"
              ondragstart="window._waKbDragStart(event,'${c.telefono}')"
              ondragend="window._waKbDragEnd(event)"
-             onclick="window._waKbAbrir('${c.telefono}')">
+             onclick="window._waKbAbrir('${_ja(c.telefono)}')">
           <div class="wa-kb-card-top">
             <span class="wa-kb-ava" style="background:${et.color}">${esc(inicial)}</span>
             <span class="wa-kb-name">${esc(c.nombre || c.telefono)}</span>
@@ -16307,7 +16306,7 @@ window.mostrarConfigWA = async () => {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                   <p style="font-weight:600;font-size:0.85rem">⚡ ${r.titulo}</p>
                   <div style="display:flex;gap:6px">
-                    <button onclick="editarRespuesta('${r.id}','${r.titulo.replace(/'/g,"\\'")}','${r.mensaje.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" 
+                    <button onclick="editarRespuesta('${r.id}','${r.titulo.replace(/'/g,"\\'")}','${_ja(r.mensaje.replace(/'/g,"\\'").replace(/\n/g,'\\n'))}')" 
                             style="background:#f5f5f5;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer">✏️</button>
                     <button onclick="eliminarRespuesta('${r.id}')" 
                             style="background:#fce4ec;border:none;border-radius:6px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#c62828">🗑️</button>
@@ -16948,7 +16947,7 @@ window._htmlChatItems = (chats) => {
   }
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); return `
               <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}"
-                   onclick="abrirChat('${c.telefono}')">
+                   onclick="abrirChat('${_ja(c.telefono)}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._letraAvatarWA(c.nombre || c.telefono)}
                   ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
@@ -17136,7 +17135,7 @@ window._renderBurbujas = (chat) => {
     }
 
     // Botón reply en hover
-    const replyBtn = `<button class="wa-reply-btn" onclick="iniciarReply('${chat.telefono}','${(m.wa_message_id||'').replace(/'/g,'')}')" title="Responder">
+    const replyBtn = `<button class="wa-reply-btn" onclick="iniciarReply('${_ja(chat.telefono)}','${(m.wa_message_id||'').replace(/'/g,'')}')" title="Responder">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     </button>`
 
@@ -17220,11 +17219,11 @@ area.style.minHeight = '0'
       </div>
       <div class="wa-header-actions">
         ${chat.en_control
-          ? `<button onclick="toggleControl('${telefono}', false)" class="wa-btn wa-btn-on" title="Activar bot automático">Bot</button>`
-          : `<button onclick="toggleControl('${telefono}', true)" class="wa-btn wa-btn-off" title="Tomar control manual">Manual</button>`}
-        <button onclick="mostrarCatalogoWA('${telefono}')" class="wa-btn wa-btn-prod" title="Enviar producto">Catálogo</button>
-        <button onclick="mostrarRespuestasRapidas('${telefono}')" class="wa-btn wa-btn-quick" title="Respuestas rápidas">Rápidas</button>
-        <button onclick="marcarNoLeido('${telefono}')" class="wa-btn" style="background:rgba(245,127,23,0.08);color:#f57f17;border-color:rgba(245,127,23,0.25)" title="Marcar pendiente de revisión">
+          ? `<button onclick="toggleControl('${_ja(telefono)}', false)" class="wa-btn wa-btn-on" title="Activar bot automático">Bot</button>`
+          : `<button onclick="toggleControl('${_ja(telefono)}', true)" class="wa-btn wa-btn-off" title="Tomar control manual">Manual</button>`}
+        <button onclick="mostrarCatalogoWA('${_ja(telefono)}')" class="wa-btn wa-btn-prod" title="Enviar producto">Catálogo</button>
+        <button onclick="mostrarRespuestasRapidas('${_ja(telefono)}')" class="wa-btn wa-btn-quick" title="Respuestas rápidas">Rápidas</button>
+        <button onclick="marcarNoLeido('${_ja(telefono)}')" class="wa-btn" style="background:rgba(245,127,23,0.08);color:#f57f17;border-color:rgba(245,127,23,0.25)" title="Marcar pendiente de revisión">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         </button>
         <button onclick="window.cargarConversaciones()" class="wa-btn wa-btn-reload" title="Recargar">↺</button>
@@ -17236,7 +17235,7 @@ area.style.minHeight = '0'
       <span class="wa-bot-badge ${chat.en_control ? 'manual' : 'auto'}">
         ${chat.en_control ? 'Control manual' : 'Bot activo'}
       </span>
-      <select onchange="cambiarEtiqueta('${telefono}', this.value)" class="wa-label-select-sm">
+      <select onchange="cambiarEtiqueta('${_ja(telefono)}', this.value)" class="wa-label-select-sm">
         <option value="sin_etiqueta" ${!chat.etiqueta || chat.etiqueta==='sin_etiqueta' ? 'selected' : ''}>Sin etiqueta</option>
         <option value="solo_pregunta" ${chat.etiqueta==='solo_pregunta' ? 'selected' : ''}>Pregunta</option>
         <option value="posible_comprador" ${chat.etiqueta==='posible_comprador' ? 'selected' : ''}>Posible comprador</option>
@@ -17244,12 +17243,12 @@ area.style.minHeight = '0'
         <option value="seguimiento" ${chat.etiqueta==='seguimiento' ? 'selected' : ''}>Seguimiento</option>
         <option value="frecuente" ${chat.etiqueta==='frecuente' ? 'selected' : ''}>Frecuente</option>
       </select>
-      <select onchange="cambiarEstadoChat('${telefono}', this.value)" class="wa-label-select-sm" style="border-color:${(chat.estado||'abierto')==='espera'?'#f59e0b':(chat.estado==='cerrado'?'#64748b':'#10b981')}">
+      <select onchange="cambiarEstadoChat('${_ja(telefono)}', this.value)" class="wa-label-select-sm" style="border-color:${(chat.estado||'abierto')==='espera'?'#f59e0b':(chat.estado==='cerrado'?'#64748b':'#10b981')}">
         <option value="abierto" ${(!chat.estado||chat.estado==='abierto') ? 'selected' : ''}>🟢 Abierto</option>
         <option value="espera" ${chat.estado==='espera' ? 'selected' : ''}>🟡 En espera</option>
         <option value="cerrado" ${chat.estado==='cerrado' ? 'selected' : ''}>⚫ Cerrado</option>
       </select>
-      <button id="wa-btn-mayorista" onclick="window.marcarMayoristaWA('${telefono}', ${chat.mayorista ? 'false' : 'true'})" class="wa-btn${chat.mayorista ? ' wa-btn-on' : ''}" title="Marcar esta conversación como cliente/lead mayorista, aunque todavía no compre">
+      <button id="wa-btn-mayorista" onclick="window.marcarMayoristaWA('${_ja(telefono)}', ${chat.mayorista ? 'false' : 'true'})" class="wa-btn${chat.mayorista ? ' wa-btn-on' : ''}" title="Marcar esta conversación como cliente/lead mayorista, aunque todavía no compre">
         ${chat.mayorista ? '🏢 Mayorista ✓' : '🏢 Marcar mayorista'}
       </button>
     </div>
@@ -17270,34 +17269,34 @@ area.style.minHeight = '0'
         <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${telefono}').click()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
-        <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${telefono}',this)">
+        <input type="file" id="img-file-${telefono}" accept="image/*" style="display:none" onchange="subirImagenWA('${_ja(telefono)}',this)">
         <button class="wa-tool-btn" title="Adjuntar documento o PDF" onclick="document.getElementById('doc-file-${telefono}').click()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
         </button>
-        <input type="file" id="doc-file-${telefono}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${telefono}',this)">
+        <input type="file" id="doc-file-${telefono}" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none" onchange="subirDocumentoWA('${_ja(telefono)}',this)">
         <button class="wa-tool-btn" title="Adjuntar video" onclick="document.getElementById('vid-file-${telefono}').click()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
         </button>
-        <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${telefono}',this)">
-        <button class="wa-tool-btn" title="Enviar botones interactivos" onclick="mostrarModalBotones('${telefono}')">
+        <input type="file" id="vid-file-${telefono}" accept="video/*" style="display:none" onchange="subirVideoWA('${_ja(telefono)}',this)">
+        <button class="wa-tool-btn" title="Enviar botones interactivos" onclick="mostrarModalBotones('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="4" rx="2"/><rect x="2" y="13" width="20" height="4" rx="2"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Enviar lista interactiva" onclick="mostrarModalLista('${telefono}')">
+        <button class="wa-tool-btn" title="Enviar lista interactiva" onclick="mostrarModalLista('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="18" r="1"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${telefono}')">
+        <button class="wa-tool-btn" title="Enviar carrusel de productos" onclick="mostrarModalCarrusel('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="7" height="16" rx="1"/><rect x="10" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="7" height="16" rx="1"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${telefono}')">
+        <button class="wa-tool-btn" title="Enviar ubicación de la tienda" onclick="enviarUbicacionWA('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${telefono}')">
+        <button class="wa-tool-btn" title="Enviar tarjeta de contacto" onclick="mostrarEnviarContactoWA('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         </button>
-        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${telefono}','${(chat.nombre||'').replace(/'/g,'')}')">
+        <button class="wa-tool-btn" title="Crear link de pago" style="color:#16a34a" onclick="linkPagoDesdeChat('${_ja(telefono)}','${_ja((chat.nombre||''))}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </button>` : ''}
-        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${telefono}')">
+        <button class="wa-tool-btn" title="Respuestas rápidas" onclick="mostrarRespuestasRapidas('${_ja(telefono)}')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </button>
         <div style="flex:1"></div>
@@ -17307,8 +17306,8 @@ area.style.minHeight = '0'
       <div class="wa-input-row">
         <textarea id="msg-input-${telefono}" class="wa-textarea" placeholder="Escribe un mensaje..." rows="2"
                   oninput="const c=document.getElementById('char-count-${telefono}');if(c){c.textContent=this.value.length>0?this.value.length+'/1024':''}"
-                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${telefono}')}"></textarea>
-        <button onclick="enviarMensajeWA('${telefono}')" class="wa-send-btn" title="Enviar (Enter)">
+                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensajeWA('${_ja(telefono)}')}"></textarea>
+        <button onclick="enviarMensajeWA('${_ja(telefono)}')" class="wa-send-btn" title="Enviar (Enter)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
@@ -17327,7 +17326,7 @@ area.style.minHeight = '0'
         <div>
           <div class="wa-nt-header">
             <p class="wa-nt-title">📝 Notas</p>
-            <button onclick="agregarNota('${telefono}')" class="wa-nt-add">+ Agregar</button>
+            <button onclick="agregarNota('${_ja(telefono)}')" class="wa-nt-add">+ Agregar</button>
           </div>
           <div id="notas-lista-${telefono}" class="wa-nt-list">
             <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
@@ -17336,7 +17335,7 @@ area.style.minHeight = '0'
         <div>
           <div class="wa-nt-header">
             <p class="wa-nt-title">✅ Tareas</p>
-            <button onclick="agregarTarea('${telefono}')" class="wa-nt-add">+ Agregar</button>
+            <button onclick="agregarTarea('${_ja(telefono)}')" class="wa-nt-add">+ Agregar</button>
           </div>
           <div id="tareas-lista-${telefono}" class="wa-nt-list">
             <p style="font-size:0.75rem;color:var(--text-3);text-align:center;padding:8px">Cargando...</p>
@@ -17426,7 +17425,7 @@ window.mostrarRespuestasRapidas = async (telefono) => {
         <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer">✕</button>
       </div>
       ${rapidas.map(r => `
-        <div onclick="usarRespuestaRapida('${telefono}', \`${r.mensaje.replace(/`/g,'\\`')}\`)"
+        <div onclick="usarRespuestaRapida('${_ja(telefono)}', \`${r.mensaje.replace(/`/g,'\\`')}\`)"
              style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer"
              onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
           <p style="font-weight:600;font-size:0.85rem;margin-bottom:4px">⚡ ${r.titulo}</p>
@@ -17457,7 +17456,7 @@ window.cargarNotasTareas = async (telefono) => {
           <p>${n.nota}</p>
           <div style="display:flex;justify-content:space-between;align-items:center">
             <small>${n.agente} · ${new Date(n.created_at).toLocaleDateString('es-MX')}</small>
-            <button onclick="eliminarNota('${n.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
+            <button onclick="eliminarNota('${n.id}','${_ja(telefono)}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
           </div>
         </div>
       `).join('')
@@ -17473,13 +17472,13 @@ window.cargarNotasTareas = async (telefono) => {
           return `
             <div class="wa-tarea" style="${t.completada ? 'opacity:0.55' : ''}">
               <input type="checkbox" ${t.completada ? 'checked' : ''}
-                     onchange="completarTarea('${t.id}', this.checked, '${telefono}')"
+                     onchange="completarTarea('${t.id}', this.checked, '${_ja(telefono)}')"
                      style="width:14px;height:14px;cursor:pointer;accent-color:#25D366;flex-shrink:0">
               <div style="flex:1;min-width:0">
                 <p class="wa-tarea-title ${t.completada ? 'done' : ''}">${t.titulo}</p>
                 ${t.fecha_vence ? `<p class="wa-tarea-due" style="color:${vencida ? '#c62828' : venceHoy ? '#f57f17' : 'var(--text-3)'}">${vencida ? '⚠️ Vencida' : venceHoy ? '🔔 Vence hoy' : t.fecha_vence}</p>` : ''}
               </div>
-              <button onclick="eliminarTarea('${t.id}','${telefono}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
+              <button onclick="eliminarTarea('${t.id}','${_ja(telefono)}')" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:0.72rem;padding:0">🗑️</button>
             </div>
           `
         }).join('')
@@ -17586,7 +17585,7 @@ window.iniciarReply = (telefono, waId) => {
   const ctx = document.getElementById('reply-context-' + telefono)
   if (ctx) {
     ctx.style.display = 'inline-flex'
-    ctx.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Respondiendo &nbsp;<button onclick="cancelarReply('${telefono}')" style="border:none;background:none;cursor:pointer;color:#94a3b8;padding:0;font-size:0.75rem">✕</button>`
+    ctx.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg> Respondiendo &nbsp;<button onclick="cancelarReply('${_ja(telefono)}')" style="border:none;background:none;cursor:pointer;color:#94a3b8;padding:0;font-size:0.75rem">✕</button>`
   }
   document.getElementById('msg-input-' + telefono)?.focus()
 }
@@ -17730,7 +17729,7 @@ window.mostrarEnviarContactoWA = (telefono) => {
                 style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:0.9rem;color:#64748b">
           Cancelar
         </button>
-        <button onclick="enviarContactoWA('${telefono}')"
+        <button onclick="enviarContactoWA('${_ja(telefono)}')"
                 style="flex:1;padding:10px;border:none;border-radius:8px;background:#E91E8C;color:#fff;cursor:pointer;font-size:0.9rem;font-weight:600">
           Enviar
         </button>
@@ -17775,7 +17774,7 @@ window.mostrarModalBotones = (telefono) => {
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button onclick="document.getElementById('modal-botones-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
-      <button onclick="_enviarBotonesWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+      <button onclick="_enviarBotonesWA('${_ja(telefono)}')" style="${_btnPrimStyle()}">Enviar</button>
     </div>`)
   document.body.appendChild(m)
   setTimeout(() => document.getElementById('mbt-cuerpo')?.focus(), 50)
@@ -17810,7 +17809,7 @@ window.mostrarModalLista = (telefono) => {
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button onclick="document.getElementById('modal-lista-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
-      <button onclick="_enviarListaWA('${telefono}')" style="${_btnPrimStyle()}">Enviar</button>
+      <button onclick="_enviarListaWA('${_ja(telefono)}')" style="${_btnPrimStyle()}">Enviar</button>
     </div>`)
   document.body.appendChild(m)
   setTimeout(() => document.getElementById('mlt-cuerpo')?.focus(), 50)
@@ -17852,7 +17851,7 @@ window.mostrarModalCarrusel = async (telefono) => {
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button onclick="document.getElementById('modal-carrusel-wa').remove()" style="${_btnSecStyle()}">Cancelar</button>
-      <button onclick="_enviarCarruselWA('${telefono}')" style="${_btnPrimStyle()}">Enviar fotos</button>
+      <button onclick="_enviarCarruselWA('${_ja(telefono)}')" style="${_btnPrimStyle()}">Enviar fotos</button>
     </div>`)
   document.body.appendChild(m)
 
@@ -18052,7 +18051,7 @@ window.mostrarCatalogoWA = (telefono) => {
       <input class="form-input" placeholder="Buscar producto..." style="margin:1rem;font-size:0.85rem" oninput="filtrarProductosWA(this.value)">
       <div id="productos-wa-lista" style="overflow-y:auto;padding:0 1rem 1rem">
         ${productos.filter(p => p.activo).map(p => `
-  <div onclick="enviarProductoWA('${telefono}', '${(p.imagen_principal||"").replace(/'/g,"")}', window._buildCaption('${p.id}'))"
+  <div onclick="enviarProductoWA('${_ja(telefono)}', '${(p.imagen_principal||"").replace(/'/g,"")}', window._buildCaption('${p.id}'))"
        style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:background 0.15s"
        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
     ${p.imagen_principal ? `<img src="${p.imagen_principal}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;background:#f5f5f5;flex-shrink:0">` : '<div style="width:52px;height:52px;background:#f5f5f5;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center">👠</div>'}
@@ -18167,7 +18166,7 @@ window.cargarEnviosMasivos = async function() {
     const renderContactos = (lista) => lista.map(c => {
       const sel = window._envioSeleccionados?.has(c.telefono)
       return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${sel ? '#E91E8C' : '#f0f0f0'};background:${sel ? '#fff0f8' : 'white'}" id="envio-row-${c.telefono.replace(/\D/g,'')}">
-        <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${c.telefono}',this)"
+        <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${_ja(c.telefono)}',this)"
           style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
         <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
           ${(c.nombre||'?').charAt(0).toUpperCase()}
@@ -18588,7 +18587,7 @@ const _renderEnvioLista = (lista) => {
     const sel = window._envioSeleccionados?.has(c.telefono)
     const tel = c.telefono.replace(/\D/g, '')
     return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1.5px solid ${sel ? '#E91E8C' : '#f0f0f0'};background:${sel ? '#fff0f8' : 'white'}" id="envio-row-${tel}">
-      <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${c.telefono}',this)"
+      <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${_ja(c.telefono)}',this)"
         style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
       <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
         ${(c.nombre||'?').charAt(0).toUpperCase()}
@@ -18882,7 +18881,7 @@ window.filtrarModelosFotos = (q) => {
     return
   }
   lista.innerHTML = filtrados.map(p => `
-    <div onclick="seleccionarModeloFotos('${p.id}','${(p.nombre||p.sku_interno).replace(/'/g,"\\'")}')"
+    <div onclick="seleccionarModeloFotos('${p.id}','${_ja((p.nombre||p.sku_interno))}')"
          style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
          onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
       ${p.imagen_principal
@@ -18922,7 +18921,7 @@ window.seleccionarModeloFotos = async (productoId, nombre) => {
       const yaSelec = window._fotosSeleccionadas.some(f => f.url === cleanFotoUrl)
       return `
       <div id="fotovar-${encodeURIComponent(c.color)}"
-           onclick="${c.foto_url ? `toggleFotoVariante('${c.foto_url}','${c.color.replace(/'/g,"\\'")}','${nombre.replace(/'/g,"\\'")}',this)` : ''}"
+           onclick="${c.foto_url ? `toggleFotoVariante('${c.foto_url}','${c.color.replace(/'/g,"\\'")}','${_ja(nombre)}',this)` : ''}"
            style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1.5px solid ${yaSelec?'#25D366':'#eee'};background:${yaSelec?'#f0faf4':''};cursor:${c.foto_url?'pointer':'default'};opacity:${c.foto_url?'1':'0.4'};transition:all 0.15s">
         <div style="width:22px;height:22px;border-radius:50%;background:${c.color_hex||'#ccc'};border:2px solid rgba(0,0,0,0.12);flex-shrink:0"></div>
         <span style="flex:1;font-size:0.83rem;font-weight:600">${c.color}</span>
@@ -19060,7 +19059,7 @@ window.filtrarModelosEnvio = (q) => {
     return
   }
   lista.innerHTML = filtrados.map(p => `
-    <div onclick="seleccionarModeloEnvio('${p.id}', '${(p.nombre||p.sku_interno).replace(/'/g,"\'")}')"
+    <div onclick="seleccionarModeloEnvio('${p.id}', '${_ja((p.nombre||p.sku_interno))}')"
          style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background 0.1s"
          onmouseover="this.style.background='#fff0f8'" onmouseout="this.style.background=''">
       ${p.imagen_principal
@@ -20854,7 +20853,7 @@ async function cargarCatalogos() {
                 <p style="font-weight:600;font-size:0.95rem;margin-bottom:4px">${c.nombre}</p>
                 <p style="font-size:0.75rem;color:#888;margin-bottom:12px">${c.activo ? '✅ Visible' : '🔴 Oculto'}</p>
                 <div style="display:flex;flex-direction:column;gap:6px">
-                  <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${c.id}','${(c.nombre||'').replace(/'/g,"\\'")}')">📄 Gestionar páginas</button>
+                  <button class="btn btn-primary" style="padding:6px;font-size:0.8rem" onclick="gestionarPaginas('${c.id}','${_ja((c.nombre||''))}')">📄 Gestionar páginas</button>
                   <button class="btn btn-secondary" style="padding:6px;font-size:0.8rem" onclick="window.open('https://zapatillasmay.mx/catalogo?abrir=${c.id}','_blank')">👁 Vista previa</button>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-secondary" style="flex:1;padding:5px;font-size:0.75rem" onclick="mostrarFormCatalogo('${c.id}')">✏️ Editar</button>
@@ -25382,6 +25381,7 @@ async function cargarAnalyticsGA() {
 
   // Auto-refresh del tiempo real cada 30 segundos
   _gaRealtimeInterval = setInterval(async () => {
+    if (document.hidden) return
     if (document.getElementById('ga-activos')) await _gaActualizarRealtime()
     else { clearInterval(_gaRealtimeInterval); _gaRealtimeInterval = null }
   }, 30000)
@@ -25889,7 +25889,7 @@ function _rowReferido(c, mapCodigo) {
     <td style="padding:10px 12px;color:#555">${referidorNombre}</td>
     <td style="padding:10px 12px;text-align:right;font-weight:700;color:${creditoColor}">$${credito.toFixed(0)} MXN</td>
     <td style="padding:10px 12px;text-align:center">
-      <button onclick="ajustarCredito('${c.id}','${(c.nombre||'').replace(/'/g,"\\'")}',${credito})"
+      <button onclick="ajustarCredito('${c.id}','${_ja((c.nombre||''))}',${credito})"
         style="font-size:0.75rem;padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:white;cursor:pointer;color:#333">
         Ajustar
       </button>
@@ -26008,7 +26008,7 @@ function _rowPortalAcceso(c) {
           : `<span style="color:#c62828;font-weight:600">Nunca entró</span>`}
       </td>
       <td style="padding:10px 12px">
-        <button onclick="restablecerPasswordCliente('${c.id}','${(cli.nombre || c.nombre || '').replace(/'/g, "\\'")}')"
+        <button onclick="restablecerPasswordCliente('${c.id}','${_ja((cli.nombre || c.nombre || ''))}')"
           style="padding:5px 10px;border-radius:6px;border:1px solid #ddd;background:white;font-size:0.75rem;cursor:pointer;white-space:nowrap">🔑 Restablecer</button>
       </td>
     </tr>`
@@ -26647,7 +26647,7 @@ window.buscarCambioCarrito = (texto) => {
       const chips = varsColor.map(v => {
         const enCambio = Math.abs((items || []).filter(i => i.variante_id === v.id && i.cantidad < 0).reduce((s, i) => s + i.cantidad, 0))
         return `
-        <button onclick="agregarCambioCarrito('${v.id}','${p.id}','${(p.nombre || '').replace(/'/g, "\\'")}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}')"
+        <button onclick="agregarCambioCarrito('${v.id}','${p.id}','${_ja((p.nombre || ''))}','${(v.talla || '').replace(/'/g, "\\'")}','${(color || '').replace(/'/g, "\\'")}')"
           style="position:relative;min-width:42px;min-height:38px;padding:5px 10px;border:1.5px solid ${enCambio > 0 ? '#c62828' : '#ddd'};border-radius:8px;background:${enCambio > 0 ? '#ffebee' : 'white'};color:#333;font-size:0.85rem;font-weight:700;cursor:pointer">T${v.talla}
           ${enCambio > 0 ? `<span style="position:absolute;top:-7px;right:-7px;background:#c62828;color:#fff;border-radius:100px;min-width:18px;height:18px;font-size:0.62rem;display:flex;align-items:center;justify-content:center;font-weight:800;padding:0 3px">${enCambio}</span>` : ''}
         </button>
@@ -26730,6 +26730,7 @@ function _iniciarPollCarritoActivo(pedidoId) {
 }
 
 async function _refrescarCarritoActivoSiCambio(pedidoId) {
+  if (document.hidden) return  // pestaña oculta: el refresco vuelve solo al regresar (evento focus)
   // Sigue activo este carrito? (el admin pudo haber navegado a otra sección)
   if (!window._carritoActivo || window._carritoActivo.pedidoId !== pedidoId) { _detenerPollCarritoActivo(); return }
   if (!document.getElementById('carrito-items-lista')) { _detenerPollCarritoActivo(); return }
@@ -26795,7 +26796,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 const pidioQuitar = item.reservado && item.solicitud_liberar
                 return `
                   <div style="display:flex;align-items:center;gap:10px;padding:10px;background:${pidioQuitar?'#fef2f2':pidioApartar?'#fffbeb':'#f9f9f9'};border-radius:8px;margin-bottom:8px;border:1px solid ${pidioQuitar?'#dc2626':pidioApartar?'#fbbf24':'#eee'};flex-wrap:wrap">
-                    ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
+                    ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" style="width:52px;height:52px;background:#eee;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer">👟</div>`}
                     <div style="flex:1;min-width:120px">
                       <p style="font-weight:600;font-size:0.85rem;margin:0">${item.reservado ? '🔒 ' : ''}${g.nombre}${g.color ? ' · '+g.color : ''}${talla ? ' T'+talla : ''}</p>
                       ${pidioApartar ? `<p style="font-size:0.7rem;color:#b45309;font-weight:700;margin:2px 0 0">🙋 Clienta pidió apartar este par</p>` : ''}
@@ -26830,7 +26831,7 @@ function _construirListaCarritoHTML(items, inventario, sucursalId) {
                 return `
                   <div style="background:#fdf4ff;border-radius:8px;padding:12px;margin-bottom:8px;border:1px solid #e8d5f5">
                     <div style="display:flex;align-items:start;gap:10px;margin-bottom:8px">
-                      ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${(g.nombre||'').replace(/'/g,"\\'")}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
+                      ${imagen ? `<img src="${imagen}" onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" title="Buscar este producto para agregar más pares" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer">` : `<div onclick="reabrirBusquedaCarrito('${_ja((g.nombre||''))}')" style="width:52px;height:52px;background:#f3e5f5;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;cursor:pointer">👠</div>`}
                       <div style="flex:1">
                         <p style="font-weight:700;font-size:0.88rem;margin:0">${g.nombre}</p>
                         <p style="font-size:0.78rem;color:#6a1b9a;font-weight:600;margin:2px 0 4px">📦 Corrida · ${g.color}</p>

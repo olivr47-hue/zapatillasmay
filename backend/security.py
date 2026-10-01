@@ -249,20 +249,32 @@ def usuario_autorizado(usuario_id: str, credentials: HTTPAuthorizationCredential
 # '<' y '>' pasan a las comillas angulares tipográficas (‹ ›), visualmente casi iguales
 # (un "<3" sigue leyéndose) pero inertes para el HTML.
 _TRADUCE_ANGULOS = str.maketrans({"<": "‹", ">": "›"})
+# Para texto que acaba dentro de atributos HTML del panel (value="...", data-nombre="..."): una comilla doble
+# permitiría salirse del atributo e inyectar onmouseover=... aun sin '<'. Se cambia por la comilla tipográfica.
+_TRADUCE_ANGULOS_Y_COMILLAS = str.maketrans({"<": "‹", ">": "›", '"': "”"})
+# Campos donde NO se tocan las comillas (correos, URLs, identificadores de rastreo, user agent)
+_CLAVES_SIN_COMILLAS = {
+    "email", "email_cliente", "correo", "fbc", "fbp", "fbclid", "gclid", "ga_client_id", "client_user_agent",
+    "referrer_origen", "utm_source", "utm_medium", "utm_campaign", "url", "imagen", "foto_url", "password",
+    "password_nueva", "token", "client_ip_address",
+}
 
 
-def limpiar_texto(valor):
-    return valor.translate(_TRADUCE_ANGULOS) if isinstance(valor, str) else valor
+def limpiar_texto(valor, comillas: bool = False):
+    if not isinstance(valor, str):
+        return valor
+    return valor.translate(_TRADUCE_ANGULOS_Y_COMILLAS if comillas else _TRADUCE_ANGULOS)
 
 
 def limpiar_dict(d: dict) -> dict:
-    """Aplica limpiar_texto a los valores string de un dict (recursivo en dict/list)."""
-    def _l(v):
+    """Aplica limpiar_texto a los valores string de un dict (recursivo en dict/list). Los campos de nombre,
+    dirección, notas... también pierden la comilla doble; correos/URLs/rastreo solo pierden '<' y '>'."""
+    def _l(v, k=None):
         if isinstance(v, str):
-            return limpiar_texto(v)
+            return limpiar_texto(v, comillas=(k not in _CLAVES_SIN_COMILLAS))
         if isinstance(v, dict):
-            return {k: _l(x) for k, x in v.items()}
+            return {kk: _l(x, kk) for kk, x in v.items()}
         if isinstance(v, list):
-            return [_l(x) for x in v]
+            return [_l(x, k) for x in v]
         return v
-    return {k: _l(v) for k, v in d.items()}
+    return {k: _l(v, k) for k, v in d.items()}

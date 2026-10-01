@@ -54,7 +54,7 @@ def crear_resena(sku: str, datos: dict):
             return {"error": "calificacion debe ser entre 1 y 5"}
 
         comentario = limpiar_texto(str(datos.get("comentario") or "").strip()[:_MAX_COMMENT_LEN])
-        nombre = limpiar_texto(str(datos.get("nombre") or "Cliente").strip()[:80])
+        nombre = limpiar_texto(str(datos.get("nombre") or "Cliente").strip()[:80], comillas=True)
         email = str(datos.get("email") or "").strip().lower()
         if "@" not in email:
             return {"error": "Escribe el correo con el que hiciste tu compra."}

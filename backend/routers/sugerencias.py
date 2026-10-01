@@ -22,7 +22,7 @@ def crear_sugerencia(datos: dict):
             return JSONResponse(status_code=400, content={"error": "El mensaje es obligatorio"})
         return supabase_post("sugerencias_clientes", {
             "cliente_id": datos.get("cliente_id"),
-            "nombre_cliente": limpiar_texto(datos.get("nombre_cliente")),
+            "nombre_cliente": limpiar_texto(datos.get("nombre_cliente"), comillas=True),
             "tipo": limpiar_texto(datos.get("tipo", "sugerencia")),
             "mensaje": mensaje,
             "estado": "nueva",

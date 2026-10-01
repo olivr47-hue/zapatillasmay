@@ -48,7 +48,7 @@ def _clientes_por_email(email: str, select: str = "id") -> list:
 @limiter.limit("5/minute")
 def registro(request: Request, datos: dict):
     try:
-        nombre = limpiar_texto(datos.get("nombre"))
+        nombre = limpiar_texto(datos.get("nombre"), comillas=True)
         email = (datos.get("email") or "").strip().lower()
         password = datos.get("password")
         tipo = datos.get("tipo", "cliente")
@@ -249,7 +249,7 @@ def google_login(request: Request, datos: dict):
             info = json.loads(r.read())
 
         email = info.get("email", "").strip().lower()
-        nombre = limpiar_texto(info.get("name") or info.get("given_name") or "")
+        nombre = limpiar_texto(info.get("name") or info.get("given_name") or "", comillas=True)
         email_verified = info.get("email_verified") == "true"
         client_id_env = os.environ.get("GOOGLE_CLIENT_ID", "")
         aud = info.get("aud", "")
