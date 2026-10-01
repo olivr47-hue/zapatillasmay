@@ -8,6 +8,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+_TIMEOUT = 30  # segundos: sin timeout, un Supabase lento colgaba el hilo del request para siempre
+
 HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -19,7 +21,7 @@ def supabase_get(tabla):
     url = f"{SUPABASE_URL}/rest/v1/{tabla}"
     req = urllib.request.Request(url, headers=HEADERS)
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
@@ -38,16 +40,15 @@ def supabase_get_all(tabla_base, page_size=1000):
         }
         req = urllib.request.Request(url, headers=headers)
         try:
-            with urllib.request.urlopen(req) as response:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
                 chunk = json.loads(response.read())
         except urllib.error.HTTPError as e:
             if e.code == 416:
                 # 416 Range Not Satisfiable = ya no hay más registros
                 break
-            # Otro error HTTP — devolver lo que llevamos
-            break
-        except Exception:
-            break
+            # Antes se devolvía en silencio lo acumulado: un sync/reporte trabajaba con datos
+            # incompletos sin enterarse. Ahora el error se propaga.
+            raise Exception(f"HTTP {e.code}: {e.read().decode(errors='replace')}")
         if not isinstance(chunk, list):
             break
         todos.extend(chunk)
@@ -61,7 +62,7 @@ def supabase_post(tabla, data):
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
@@ -72,19 +73,24 @@ def supabase_patch(tabla, data):
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=HEADERS, method="PATCH")
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
             return json.loads(response.read())
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise Exception(f"HTTP {e.code}: {error_body}")
 
 def obtener_consecutivo(nombre):
-    resultado = supabase_get(f"consecutivos?id=eq.{nombre}")
-    if resultado and len(resultado) > 0:
+    """Siguiente consecutivo. El PATCH es condicional (compare-and-swap sobre el valor
+    leído): si otra petición lo incrementó en medio, reintenta en vez de entregar el
+    mismo número dos veces (antes duplicaba SKUs)."""
+    for _ in range(8):
+        resultado = supabase_get(f"consecutivos?id=eq.{nombre}")
+        if not resultado:
+            return 1
         valor = resultado[0]["valor"]
-        supabase_patch(f"consecutivos?id=eq.{nombre}", {"valor": valor + 1})
-        return valor
-    return 1
+        if supabase_patch(f"consecutivos?id=eq.{nombre}&valor=eq.{valor}", {"valor": valor + 1}):
+            return valor
+    raise Exception(f"No se pudo obtener el consecutivo '{nombre}' (contención)")
 
 def get_url():
     return SUPABASE_URL
@@ -97,7 +103,7 @@ def supabase_delete(tabla):
     headers = {**HEADERS, "Prefer": "return=minimal"}
     req = urllib.request.Request(url, headers=headers, method="DELETE")
     try:
-        with urllib.request.urlopen(req) as response:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
             return {"ok": True}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()

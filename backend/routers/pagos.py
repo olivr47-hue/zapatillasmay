@@ -608,7 +608,7 @@ def pagos_config(test: bool = False):
 
 # ─── TERMINAL POINT (Point Integration API) ────────────────────────
 @router.get("/terminal/dispositivos")
-def listar_dispositivos_point():
+def listar_dispositivos_point(_staff=Depends(require_staff)):
     """Diagnostico: lista las terminales Point vinculadas a la cuenta de MP
     y si estan en modo PDV (integrable por API) o STANDALONE (solo manual).
     Paso previo obligatorio antes de poder mandarle el monto a la terminal
@@ -848,6 +848,29 @@ async def webhook_mercadopago(request: Request):
                             if p.get("status") in ("pagado", "enviado", "confirmado"):
                                 print(f"[webhook] Pedido {pedido_id} ya procesado (status={p.get('status')}), ignorando.")
                                 return {"ok": True}
+                            # "Reclamar" el pedido de forma atómica ANTES de descontar inventario: el
+                            # PATCH solo afecta filas que todavía no están pagadas, así que si MP manda
+                            # el webhook dos veces a la vez, solo una de las dos corre el resto.
+                            import datetime as _dt
+                            reclamado = supabase_patch(
+                                f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
+                                {
+                                    "status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma,
+                                    "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                                }
+                            )
+                            if not reclamado:
+                                print(f"[webhook] Pedido {pedido_id} ya reclamado por otro webhook, ignorando.")
+                                return {"ok": True}
+                            try:
+                                monto_pagado = float(payment.get("transaction_amount") or 0)
+                                if monto_pagado + 1 < float(p.get("total") or 0):
+                                    from routers.push import enviar_push as _ep
+                                    _ep(titulo="⚠️ Pago menor al total",
+                                        cuerpo=f"Pedido {str(pedido_id)[:8]}: pagó ${monto_pagado:.0f} de ${float(p.get('total') or 0):.0f}",
+                                        url="/?modulo=pedidos", sitio="panel")
+                            except Exception as e_monto:
+                                print(f"[webhook] Error verificando monto: {e_monto}")
                             items = p.get("pedido_items", [])
                             sucursal_id = p.get("sucursal_id")
                             for item in items:
@@ -885,14 +908,6 @@ async def webhook_mercadopago(request: Request):
                                         })
                                     except Exception as e_mov:
                                         print(f"[webhook MP] Error registrando movimiento de venta: {e_mov}")
-                            import datetime as _dt
-                            supabase_patch(
-                                f"pedidos?id=eq.{pedido_id}",
-                                {
-                                    "status": "pagado", "mp_payment_id": str(payment_id), "forma_pago": _forma,
-                                    "confirmado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-                                }
-                            )
                             try:
                                 from routers.push import enviar_push
                                 nombre_cli = p.get("nombre_cliente") or "Cliente"
@@ -929,6 +944,11 @@ async def webhook_mercadopago(request: Request):
                                 marcar_convertido(email_cliente)
                             except Exception:
                                 pass
+                            try:
+                                from routers.referidos import otorgar_bono_referidor
+                                otorgar_bono_referidor(p.get("cliente_id"))
+                            except Exception as e_ref:
+                                print(f"[pagos] Error bono referido: {e_ref}")
 
                     elif status in ["rejected", "cancelled", "expired"]:
                         # "expired": el voucher de OXXO/SPEI venció sin pagarse (~3 días). Sin
@@ -936,12 +956,30 @@ async def webhook_mercadopago(request: Request):
                         # que nadie se enterara de que el cliente ya no va a pagar.
                         # Se guarda también forma_pago para que el registro quede completo
                         # (saber que fue un intento de OXXO/SPEI aunque no se haya concretado).
-                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "cancelado", "forma_pago": _forma})
+                        # Un webhook viejo (intento anterior rechazado) puede llegar DESPUÉS de uno
+                        # aprobado: nunca degradar un pedido ya pagado/confirmado/enviado.
+                        supabase_patch(
+                            f"pedidos?id=eq.{pedido_id}&status=not.in.(pagado,enviado,confirmado)",
+                            {"status": "cancelado", "forma_pago": _forma}
+                        )
+
+                    elif status in ["refunded", "charged_back"]:
+                        # Antes ni se enteraba nadie: avisar al panel para revisar el pedido/stock.
+                        try:
+                            from routers.push import enviar_push
+                            enviar_push(
+                                titulo="⚠️ Reembolso / contracargo en Mercado Pago" if status == "charged_back" else "⚠️ Pago reembolsado",
+                                cuerpo=f"Pedido {str(pedido_id)[:8]} ({status}). Revisa el pedido y el inventario.",
+                                url="/?modulo=pedidos", sitio="panel",
+                            )
+                        except Exception as e_push:
+                            print(f"[push] Error avisando reembolso: {e_push}")
 
                     elif status == "pending":
                         pedido = supabase_get(f"pedidos?id=eq.{pedido_id}&select=*,pedido_items(*)")
                         ya_era_pendiente = pedido and pedido[0].get("status") == "pendiente_pago"
-                        supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago", "forma_pago": _forma})
+                        if pedido and pedido[0].get("status") not in ("pagado", "enviado", "confirmado"):
+                            supabase_patch(f"pedidos?id=eq.{pedido_id}", {"status": "pendiente_pago", "forma_pago": _forma})
                         # Email SPEI/OXXO pendiente al cliente (solo la primera vez)
                         if pedido and not ya_era_pendiente:
                             p = pedido[0]

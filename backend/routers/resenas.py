@@ -1,4 +1,6 @@
 import re
+import urllib.parse as _up
+from security import limpiar_texto
 from fastapi import APIRouter
 from database import supabase_get, supabase_post, supabase_patch
 
@@ -48,9 +50,9 @@ def crear_resena(sku: str, datos: dict):
         if cal is None:
             return {"error": "calificacion debe ser entre 1 y 5"}
 
-        comentario = str(datos.get("comentario") or "").strip()[:_MAX_COMMENT_LEN]
-        nombre = str(datos.get("nombre") or "Cliente").strip()[:80]
-        pedido_token = str(datos.get("pedido_token") or "").strip()
+        comentario = limpiar_texto(str(datos.get("comentario") or "").strip()[:_MAX_COMMENT_LEN])
+        nombre = limpiar_texto(str(datos.get("nombre") or "Cliente").strip()[:80])
+        pedido_token = _up.quote(str(datos.get("pedido_token") or "").strip(), safe="")
 
         # Verificar que el token de pedido exista y corresponda al SKU
         pedido_rows = None

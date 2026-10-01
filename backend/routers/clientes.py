@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
-from security import hash_password, require_staff, bearer_opcional, cliente_autorizado, verify_token
+from security import hash_password, require_staff, bearer_opcional, cliente_autorizado, verify_token, es_personal, limpiar_dict
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
@@ -54,7 +54,7 @@ def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/")
-def crear_cliente(cliente: dict):
+def crear_cliente(cliente: dict, _staff=Depends(require_staff)):
     try:
         return supabase_post("clientes", cliente)
     except Exception as e:
@@ -65,11 +65,11 @@ def actualizar_cliente(id: str, cliente: dict, credentials: HTTPAuthorizationCre
     if not cliente_autorizado(id, credentials):
         raise HTTPException(status_code=403, detail="No autorizado")
     try:
-        es_staff = bool(credentials) and bool(verify_token(credentials.credentials).get("rol"))
+        es_staff = bool(credentials) and bool(es_personal(verify_token(credentials.credentials)))
         if not es_staff:
             # El cliente autoeditando su propia cuenta desde el portal solo puede
             # tocar datos de contacto/envío -- nunca crédito, límite, tipo ni activo.
-            cliente = {k: v for k, v in cliente.items() if k in _CAMPOS_CLIENTE_AUTOEDITABLES}
+            cliente = limpiar_dict({k: v for k, v in cliente.items() if k in _CAMPOS_CLIENTE_AUTOEDITABLES})
         return supabase_patch(f"clientes?id=eq.{id}", cliente)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

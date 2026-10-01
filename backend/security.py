@@ -164,19 +164,53 @@ def require_auth(
 AUTH_ENFORCE = os.getenv("AUTH_ENFORCE", "0") == "1"
 
 
+def es_personal(payload: dict) -> bool:
+    """True si el JWT es de un empleado. Los tokens del portal mayorista llevan
+    rol='cliente' (ver routers/portal.py) y NO cuentan como personal -- antes
+    cualquier 'rol' truthy pasaba, así que un cliente de mayoreo logueado
+    entraba como si fuera staff a todo lo protegido con require_staff."""
+    rol = (payload or {}).get("rol")
+    return bool(rol) and rol != "cliente"
+
+
 def require_staff(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
-    """Exige un token de personal (empleado; su JWT lleva 'rol'). Los clientes
-    (token con 'tipo', sin 'rol') quedan fuera. Gated por AUTH_ENFORCE."""
+    """Exige un token de personal (empleado). Los clientes (portal mayorista
+    rol='cliente', o tienda con 'tipo' sin 'rol') quedan fuera. Gated por AUTH_ENFORCE."""
     if not AUTH_ENFORCE:
         return {"_auth": "disabled"}
     if not credentials:
         raise HTTPException(status_code=401, detail="Autenticacion requerida")
     payload = verify_token(credentials.credentials)
-    if not payload.get("rol"):
+    if not es_personal(payload):
         raise HTTPException(status_code=403, detail="Se requiere acceso de personal")
     return payload
+
+
+def payload_opcional(credentials) -> dict | None:
+    """Payload del JWT si viene y es válido; None si no hay token o es inválido."""
+    if not credentials:
+        return None
+    try:
+        return verify_token(credentials.credentials)
+    except HTTPException:
+        return None
+
+
+def exigir_personal_o_dueno(cliente_id_recurso, credentials) -> dict:
+    """Personal, o el cliente dueño del recurso (cliente_id del token == cliente_id
+    del recurso). Lanza 401/403 si no. Respeta AUTH_ENFORCE (despliegue seguro)."""
+    if not AUTH_ENFORCE:
+        return {"_auth": "disabled"}
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Autenticacion requerida")
+    payload = verify_token(credentials.credentials)
+    if es_personal(payload):
+        return payload
+    if cliente_id_recurso and payload.get("cliente_id") == cliente_id_recurso:
+        return payload
+    raise HTTPException(status_code=403, detail="No autorizado")
 
 
 def cliente_autorizado(cliente_id: str, credentials: HTTPAuthorizationCredentials) -> bool:
@@ -190,7 +224,7 @@ def cliente_autorizado(cliente_id: str, credentials: HTTPAuthorizationCredential
         payload = verify_token(credentials.credentials)
     except HTTPException:
         return False
-    if payload.get("rol"):
+    if es_personal(payload):
         return True
     return payload.get("cliente_id") == cliente_id
 
@@ -203,6 +237,32 @@ def usuario_autorizado(usuario_id: str, credentials: HTTPAuthorizationCredential
         payload = verify_token(credentials.credentials)
     except HTTPException:
         return False
-    if payload.get("rol"):
+    if es_personal(payload):
         return True
     return payload.get("sub") == usuario_id
+
+
+# ── Texto que viene del público ───────────────────────────────────────────────
+# El panel pinta muchos datos de clientes con innerHTML sin escapar (nombres, notas,
+# mensajes de WhatsApp...). Para que un nombre como <img onerror=...> no se convierta en
+# XSS contra quien abra el panel, todo texto que ENTRA desde el público se neutraliza:
+# '<' y '>' pasan a las comillas angulares tipográficas (‹ ›), visualmente casi iguales
+# (un "<3" sigue leyéndose) pero inertes para el HTML.
+_TRADUCE_ANGULOS = str.maketrans({"<": "‹", ">": "›"})
+
+
+def limpiar_texto(valor):
+    return valor.translate(_TRADUCE_ANGULOS) if isinstance(valor, str) else valor
+
+
+def limpiar_dict(d: dict) -> dict:
+    """Aplica limpiar_texto a los valores string de un dict (recursivo en dict/list)."""
+    def _l(v):
+        if isinstance(v, str):
+            return limpiar_texto(v)
+        if isinstance(v, dict):
+            return {k: _l(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [_l(x) for x in v]
+        return v
+    return {k: _l(v) for k, v in d.items()}

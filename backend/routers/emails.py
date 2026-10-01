@@ -11,6 +11,7 @@ verificar ni en el proveedor ni en el panel).
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from database import supabase_get, supabase_get_all
+from security import limiter
 from email_utils import diagnostico_smtp, enviar_email, email_contacto_web, NEGOCIO_EMAIL
 import zoho_mail
 
@@ -18,7 +19,8 @@ router = APIRouter(prefix="/emails", tags=["Correo corporativo"])
 
 
 @router.post("/contacto-web")
-def contacto_web(body: dict):
+@limiter.limit("5/minute")
+def contacto_web(request: Request, body: dict):
     """Formulario publico de contacto del sitio -- SIEMPRE manda al correo del
     negocio (NEGOCIO_EMAIL), el visitante nunca controla el destinatario."""
     nombre  = (body.get("nombre") or "").strip()[:120]

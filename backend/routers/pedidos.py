@@ -1,13 +1,146 @@
 import os
 import json
 import urllib.request
-from fastapi import APIRouter, Request, Depends
+import re
+from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
-from security import require_staff, verify_token
+from security import (
+    require_staff, verify_token, bearer_opcional, es_personal,
+    payload_opcional, exigir_personal_o_dueno, limpiar_dict, AUTH_ENFORCE,
+)
 from cache import cache_get, cache_set, TTL_FEEDS
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+_UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
+
+# Campos que solo el personal puede fijar al crear/editar un pedido: pagos, envío,
+# marketplaces, apartados, etc. Un cliente (tienda anónima o portal) que los mande
+# se ignoran -- antes se guardaban tal cual (ej. status='pagado', total=1).
+_CAMPOS_SOLO_STAFF = {
+    "id", "created_at", "mp_preference_id", "mp_payment_id", "comprobante_url", "fecha_pago",
+    "confirmado_at", "anticipo", "dias_apartado", "apartado_hasta", "paqueteria", "numero_guia",
+    "tracking_url", "enviado_at", "ml_order_id", "walmart_order_id", "shein_order_id", "empleado",
+    "sucursal_id", "cargo_extra", "cargo_extra_concepto", "pagos_detalle", "monto_credito",
+    "recordatorio_pago_enviado_at", "tipo",
+}
+_STATUS_CLIENTE_OK = {"borrador", "pendiente_pago"}
+_CANALES_CLIENTE_OK = {"", "web", "portal_mayoreo"}
+_FORMAS_PAGO_CLIENTE_OK = {"transferencia", "tarjeta", "oxxo", "spei", "mercadopago"}
+_CAMPOS_ITEM_SOLO_STAFF = {"id", "pedido_id", "reservado", "solicitud_apartar", "solicitud_liberar"}
+# Estados en los que el cliente dueño todavía puede tocar/cancelar su pedido.
+_STATUS_EDITABLE_CLIENTE = {"borrador", "pendiente_pago", "checkout_iniciado", "apartado"}
+
+
+def _cliente_de_pedido(pedido_id):
+    if not _UUID_RE.match(str(pedido_id or "")):
+        return None
+    rows = supabase_get(f"pedidos?id=eq.{pedido_id}&select=cliente_id&limit=1")
+    return rows[0].get("cliente_id") if rows else None
+
+
+def _exigir_dueno_pedido(pedido_id, credentials):
+    """Personal, o el cliente dueño del pedido. Se llama ANTES del try de cada ruta
+    (el `except Exception` de las rutas convertiría el 401/403 en un 500)."""
+    if not AUTH_ENFORCE:
+        return {"_auth": "disabled"}
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Autenticacion requerida")
+    payload = verify_token(credentials.credentials)   # 401 si es inválido/expirado
+    if es_personal(payload):
+        return payload                                 # personal: sin consultar la BD
+    return exigir_personal_o_dueno(_cliente_de_pedido(pedido_id), credentials)
+
+
+def _es_staff_cred(credentials):
+    p = payload_opcional(credentials)
+    return bool(p) and es_personal(p)
+
+
+def _pisos_por_variante(variante_ids):
+    """variante_id -> precio mínimo legítimo (por par) de su producto: el menor entre
+    todos los precios del catálogo y menudeo-100 (la corrida estimada cuando no está
+    capturada). Ningún precio legítimo de tienda/portal queda por debajo de esto."""
+    ids = [v for v in {str(v) for v in variante_ids if v} if _UUID_RE.match(v)]
+    if not ids:
+        return {}
+    vs = supabase_get(f"variantes?id=in.({','.join(ids)})&select=id,producto_id") or []
+    prod_ids = list({v["producto_id"] for v in vs if v.get("producto_id")})
+    prods = {}
+    if prod_ids:
+        for pr in supabase_get(
+            f"productos?id=in.({','.join(prod_ids)})"
+            "&select=id,precio_menudeo,precio_mayoreo,precio_mayoreo3,precio_mayoreo6,precio_corrida"
+        ) or []:
+            prods[pr["id"]] = pr
+    pisos = {}
+    for v in vs:
+        pr = prods.get(v.get("producto_id"))
+        if not pr:
+            continue
+        tiers = []
+        for k in ("precio_menudeo", "precio_mayoreo", "precio_mayoreo3", "precio_mayoreo6", "precio_corrida"):
+            try:
+                fv = float(pr.get(k))
+                if fv > 0:
+                    tiers.append(fv)
+            except (TypeError, ValueError):
+                pass
+        try:
+            if float(pr.get("precio_menudeo")) > 100:
+                tiers.append(float(pr["precio_menudeo"]) - 100)
+        except (TypeError, ValueError):
+            pass
+        if tiers:
+            pisos[v["id"]] = max(1.0, min(tiers))
+    return pisos
+
+
+def _sanear_items_cliente(items):
+    """Items de un cliente (no personal): cantidad entera >= 1 y precio nunca por
+    debajo del piso del catálogo. Devuelve la lista limpia o lanza ValueError."""
+    pisos = _pisos_por_variante([it.get("variante_id") for it in items])
+    limpios = []
+    for it in items:
+        it = {k: v for k, v in dict(it).items() if k not in _CAMPOS_ITEM_SOLO_STAFF}
+        vid = it.get("variante_id")
+        try:
+            cant = int(it.get("cantidad") or 1)
+            precio = float(it.get("precio_unitario") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("Cantidad o precio inválido")
+        if cant < 1 or cant > 1000:
+            raise ValueError("Cantidad inválida")
+        piso = pisos.get(str(vid)) if vid else None
+        if piso is None:
+            raise ValueError("Producto no encontrado")
+        if precio < piso:
+            precio = piso
+        it = limpiar_dict(it)
+        it["cantidad"] = cant
+        it["precio_unitario"] = round(precio, 2)
+        if "subtotal" in it:
+            it["subtotal"] = round(cant * precio, 2)
+        limpios.append(it)
+    return limpios
+
+
+def _credito_aplicado_a_pedido(pedido_id):
+    try:
+        rows = supabase_get(f"clientes_creditos_historial?pedido_id=eq.{pedido_id}&tipo=eq.aplicado_pedido&select=monto") or []
+        return -sum(float(r.get("monto") or 0) for r in rows)
+    except Exception:
+        return 0.0
+
+
+def _otorgar_bono_referidor(cliente_id):
+    try:
+        from routers.referidos import otorgar_bono_referidor
+        otorgar_bono_referidor(cliente_id)
+    except Exception as e:
+        print(f"[pedidos] Error bono referido: {e}")
 
 
 @router.get("/pares-vendidos-total")
@@ -191,7 +324,7 @@ def solicitudes_total(_staff=Depends(require_staff)):
 
 
 @router.post("/{id}/confirmar-deposito")
-def confirmar_deposito(id: str, datos: dict):
+def confirmar_deposito(id: str, datos: dict, _staff=Depends(require_staff)):
     """Convierte un apartado en pedido confirmado y descuenta inventario."""
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
@@ -228,7 +361,7 @@ def confirmar_deposito(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/cerrar-apartado")
-def cerrar_apartado(id: str, datos: dict):
+def cerrar_apartado(id: str, datos: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     """La clienta cierra su apartado desde el portal y elige cómo va a pagar.
     No toca inventario (ya se descontó al aprobar el apartado) -- solo pasa el
     pedido a pendiente_pago con la forma de pago elegida. El pago real se
@@ -241,6 +374,7 @@ def cerrar_apartado(id: str, datos: dict):
     carrito activo (reutilizándolo para lo próximo que agregue la clienta) y
     a la vez el cliente lo vería listado en "Mis pedidos" con status
     desincronizado."""
+    _exigir_dueno_pedido(id, credentials)
     try:
         forma_pago = (datos.get("forma_pago") or "").strip()
         if forma_pago not in ("transferencia", "tarjeta"):
@@ -260,7 +394,7 @@ def cerrar_apartado(id: str, datos: dict):
 
 
 @router.get("/pendientes")
-def pedidos_pendientes():
+def pedidos_pendientes(_staff=Depends(require_staff)):
     """Pedidos con pago pendiente (OXXO/SPEI) — para el panel de seguimiento."""
     import datetime as _dt
     try:
@@ -298,7 +432,7 @@ def _marcar_recordatorio(id: str):
         pass
 
 @router.post("/{id}/recordatorio-email")
-def recordatorio_email(id: str, datos: dict = {}):
+def recordatorio_email(id: str, datos: dict = {}, _staff=Depends(require_staff)):
     """Envía recordatorio de pago por email. Acepta mensaje personalizado en datos.mensaje."""
     try:
         from email_utils import enviar_email, email_pedido_pendiente_spei, _base_html
@@ -330,7 +464,7 @@ def recordatorio_email(id: str, datos: dict = {}):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/recordatorio-whatsapp")
-def recordatorio_whatsapp(id: str, datos: dict = {}):
+def recordatorio_whatsapp(id: str, datos: dict = {}, _staff=Depends(require_staff)):
     """
     Envía recordatorio de pago por WhatsApp usando una plantilla UTILITY aprobada.
     Los mensajes de texto libre fallan con error 131047 si el cliente no respondió en 24h.
@@ -373,7 +507,7 @@ def recordatorio_whatsapp(id: str, datos: dict = {}):
 
 # Mantener endpoint combinado por compatibilidad
 @router.post("/{id}/recordatorio-pago")
-def enviar_recordatorio_pago(id: str):
+def enviar_recordatorio_pago(id: str, _staff=Depends(require_staff)):
     try:
         from email_utils import enviar_email, email_pedido_pendiente_spei
         p, err = _get_pedido_pendiente(id)
@@ -391,14 +525,15 @@ def enviar_recordatorio_pago(id: str):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/canal/{canal}")
-def pedidos_por_canal(canal: str):
+def pedidos_por_canal(canal: str, _staff=Depends(require_staff)):
     try:
         return supabase_get(f"pedidos?canal=eq.{canal}&select=*,clientes(nombre,telefono)")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/{id}")
-def obtener_pedido(id: str):
+def obtener_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    _exigir_dueno_pedido(id, credentials)
     try:
         return supabase_get(f"pedidos?id=eq.{id}&select=*,clientes(nombre,telefono,email),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,sku_interno,imagen_principal)))")
     except Exception as e:
@@ -406,6 +541,10 @@ def obtener_pedido(id: str):
 
 @router.post("/")
 async def crear_pedido(pedido: dict, request: Request):
+    _credito_debitado = False   # para devolver el saldo si el pedido no llega a crearse
+    _credito_cli_g = None
+    _credito_monto_g = 0.0
+    _credito_saldo_original = 0.0
     try:
         # Si viene un token de cliente válido (portal mayorista logueado), el
         # cliente_id SIEMPRE se toma del token, nunca de lo que mande el body --
@@ -413,13 +552,43 @@ async def crear_pedido(pedido: dict, request: Request):
         # cliente_id con solo cambiar el JSON. El checkout anónimo de la tienda
         # (menudeo, sin login) sigue igual: sin token, se respeta el body tal cual.
         auth_header = request.headers.get("authorization", "")
+        _es_staff = False
+        _cliente_verificado = False   # cliente_id respaldado por un token válido
         if auth_header.lower().startswith("bearer "):
             try:
                 token_payload = verify_token(auth_header[7:])
-                if token_payload.get("cliente_id"):
+                _es_staff = es_personal(token_payload)
+                if token_payload.get("cliente_id") and not _es_staff:
                     pedido["cliente_id"] = token_payload["cliente_id"]
+                    _cliente_verificado = True
             except Exception:
                 pass  # token inválido/expirado -> se trata como anónimo, no se bloquea el checkout
+
+        # Un cliente (tienda anónima o portal) nunca fija pagos/envío/marketplaces, ni crea
+        # pedidos ya "confirmados", ni se salta el chequeo de stock eligiendo otro canal,
+        # ni paga menos que el catálogo: se sanea todo aquí, en el servidor.
+        if not _es_staff:
+            for _k in list(pedido.keys()):
+                if _k in _CAMPOS_SOLO_STAFF:
+                    pedido.pop(_k, None)
+            if pedido.get("status") not in _STATUS_CLIENTE_OK:
+                pedido["status"] = "borrador"
+            if (pedido.get("canal") or "") not in _CANALES_CLIENTE_OK:
+                pedido["canal"] = "web"
+            if pedido.get("forma_pago") not in _FORMAS_PAGO_CLIENTE_OK:
+                pedido.pop("forma_pago", None)
+            _items_raw = pedido.pop("items", None)
+            pedido.update(limpiar_dict(pedido))
+            if _items_raw:
+                pedido["items"] = _items_raw
+            if pedido.get("items"):
+                try:
+                    pedido["items"] = _sanear_items_cliente(pedido["items"])
+                except ValueError as ve:
+                    return JSONResponse(status_code=400, content={"error": str(ve)})
+                _suma_items = sum(i["cantidad"] * i["precio_unitario"] for i in pedido["items"])
+                # el total puede ser MAYOR (envío) pero nunca menor que la suma real de ítems
+                pedido["total"] = round(max(float(pedido.get("total") or 0), _suma_items), 2)
 
         # Aplicar saldo a favor (nota de credito / referidos) si el cliente lo
         # pidio: el monto SIEMPRE se revalida aqui contra credito_disponible
@@ -430,14 +599,30 @@ async def crear_pedido(pedido: dict, request: Request):
         # de verdad -- era puramente decorativo.
         _credito_aplicado = 0.0
         _credito_cliente_id = pedido.get("cliente_id")
-        if _credito_cliente_id and pedido.get("credito_aplicado"):
+        _saldo_real = 0.0
+        # Solo con cliente_id respaldado por token (o personal): un anónimo que manda un
+        # cliente_id ajeno en el body NO puede gastar el saldo de esa persona.
+        if _credito_cliente_id and pedido.get("credito_aplicado") and (_cliente_verificado or _es_staff):
             try:
                 _solicitado = float(pedido.get("credito_aplicado") or 0)
                 _cli_rows = supabase_get(f"clientes?id=eq.{_credito_cliente_id}&select=credito_disponible")
                 _saldo_real = float((_cli_rows[0].get("credito_disponible") if _cli_rows else 0) or 0)
                 _credito_aplicado = max(0.0, min(_solicitado, _saldo_real, float(pedido.get("total") or 0)))
                 if _credito_aplicado > 0:
-                    pedido["total"] = float(pedido.get("total") or 0) - _credito_aplicado
+                    # Compare-and-swap: solo descuenta si el saldo sigue siendo el que leímos
+                    # (dos pedidos simultáneos ya no pueden gastar el mismo saldo dos veces).
+                    _cas = supabase_patch(
+                        f"clientes?id=eq.{_credito_cliente_id}&credito_disponible=eq.{_saldo_real:.2f}",
+                        {"credito_disponible": round(_saldo_real - _credito_aplicado, 2)},
+                    )
+                    if _cas:
+                        _credito_debitado = True
+                        _credito_cli_g = _credito_cliente_id
+                        _credito_monto_g = _credito_aplicado
+                        _credito_saldo_original = _saldo_real
+                        pedido["total"] = float(pedido.get("total") or 0) - _credito_aplicado
+                    else:
+                        _credito_aplicado = 0.0
             except Exception:
                 _credito_aplicado = 0.0
         pedido.pop("credito_aplicado", None)  # nunca es columna real de pedidos
@@ -567,8 +752,7 @@ async def crear_pedido(pedido: dict, request: Request):
                 supabase_post("pedido_items", item)
             if _credito_aplicado > 0:
                 try:
-                    _nuevo_saldo = _saldo_real - _credito_aplicado
-                    supabase_patch(f"clientes?id=eq.{_credito_cliente_id}", {"credito_disponible": _nuevo_saldo})
+                    _nuevo_saldo = round(_saldo_real - _credito_aplicado, 2)
                     supabase_post("clientes_creditos_historial", {
                         "cliente_id": _credito_cliente_id,
                         "monto": -_credito_aplicado,
@@ -595,18 +779,55 @@ async def crear_pedido(pedido: dict, request: Request):
                     )
                 except Exception as e_push:
                     print(f"[push] Error avisando pedido nuevo: {e_push}")
+            _credito_debitado = False  # el pedido existe: el descuento de saldo ya es definitivo
             return resultado[0]
         return JSONResponse(status_code=500, content={"error": "Error creando pedido"})
     except Exception as e:
+        if _credito_debitado and _credito_cli_g:
+            try:  # el pedido no se creó: devolver el saldo descontado
+                supabase_patch(f"clientes?id=eq.{_credito_cli_g}", {"credito_disponible": round(_credito_saldo_original, 2)})
+            except Exception as e_dev:
+                print(f"[pedidos] No se pudo devolver el crédito a {_credito_cli_g}: {e_dev}")
         print(f"ERROR crear_pedido: {str(e)}")
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/{id}")
-def actualizar_pedido(id: str, pedido: dict):
+def actualizar_pedido(id: str, pedido: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    _exigir_dueno_pedido(id, credentials)
     try:
-        return supabase_patch(f"pedidos?id=eq.{id}", pedido)
+        if _es_staff_cred(credentials) or not credentials:
+            # (sin credentials solo llega aquí con AUTH_ENFORCE=0: despliegue seguro)
+            return supabase_patch(f"pedidos?id=eq.{id}", pedido)
+        # Cliente dueño: solo datos de envío/pago de un pedido que aún no se cierra.
+        actual = supabase_get(f"pedidos?id=eq.{id}&select=status,costo_envio") or [{}]
+        if actual[0].get("status") not in _STATUS_EDITABLE_CLIENTE:
+            return JSONResponse(status_code=403, content={"error": "El pedido ya no se puede modificar"})
+        permitido = {k: v for k, v in pedido.items() if k in (
+            "total", "costo_envio", "envio_pendiente_coordinar", "comentarios",
+            "direccion_envio", "notas", "forma_pago")}
+        if "forma_pago" in permitido and permitido["forma_pago"] not in _FORMAS_PAGO_CLIENTE_OK:
+            permitido.pop("forma_pago")
+        if "costo_envio" in permitido:
+            try:
+                permitido["costo_envio"] = max(0.0, float(permitido["costo_envio"] or 0))
+            except (TypeError, ValueError):
+                permitido.pop("costo_envio")
+        if "total" in permitido:
+            # El total nunca baja de (suma real de ítems + envío − crédito ya aplicado).
+            items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=cantidad,precio_unitario") or []
+            suma = sum(float(i.get("cantidad") or 0) * float(i.get("precio_unitario") or 0) for i in items)
+            envio = float(permitido.get("costo_envio", actual[0].get("costo_envio")) or 0)
+            piso = round(suma + envio - _credito_aplicado_a_pedido(id), 2)
+            try:
+                permitido["total"] = round(max(float(permitido["total"] or 0), piso), 2)
+            except (TypeError, ValueError):
+                permitido["total"] = piso
+        permitido = limpiar_dict(permitido)
+        if not permitido:
+            return {"ok": True}
+        return supabase_patch(f"pedidos?id=eq.{id}", permitido)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -625,8 +846,14 @@ def _recalcular_total_pedido(pedido_id):
         pass
 
 @router.post("/{id}/items")
-def agregar_item(id: str, item: dict):
+def agregar_item(id: str, item: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    _exigir_dueno_pedido(id, credentials)
     try:
+        if not _es_staff_cred(credentials):
+            try:
+                item = _sanear_items_cliente([item])[0]
+            except ValueError as ve:
+                return JSONResponse(status_code=400, content={"error": str(ve)})
         item["pedido_id"] = id
         resultado = supabase_post("pedido_items", item)
         _recalcular_total_pedido(id)
@@ -635,14 +862,15 @@ def agregar_item(id: str, item: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/{id}/items")
-def obtener_items(id: str):
+def obtener_items(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    _exigir_dueno_pedido(id, credentials)
     try:
         return supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre,sku_interno,imagen_principal))")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.patch("/{id}/items/{item_id}")
-def actualizar_item(id: str, item_id: str, datos: dict):
+def actualizar_item(id: str, item_id: str, datos: dict, _staff=Depends(require_staff)):
     """Modifica cantidad y/o precio de un ítem. Si el pedido está confirmado ajusta inventario."""
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
@@ -687,12 +915,15 @@ def actualizar_item(id: str, item_id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.delete("/{id}/items/{item_id}")
-def eliminar_item(id: str, item_id: str, forzar: bool = False):
+def eliminar_item(id: str, item_id: str, forzar: bool = False, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     """Elimina un ítem del pedido. Si estaba confirmado o reservado (apartado) devuelve el stock.
     Un ítem ya apartado (reservado=true) no se puede quitar sin pasar forzar=true --
     esa es la autorización del panel; el portal del cliente nunca manda ese flag, así que
     cuando la clienta intenta quitar un par ya apartado, esto la rechaza (409/RESERVADO) y
     el portal debe usar /solicitar-liberacion en su lugar."""
+    _exigir_dueno_pedido(id, credentials)
+    if forzar and not _es_staff_cred(credentials):
+        forzar = False  # solo el personal puede forzar; un cliente nunca
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
@@ -735,11 +966,12 @@ def eliminar_item(id: str, item_id: str, forzar: bool = False):
 
 
 @router.post("/{id}/items/solicitar-apartado")
-def solicitar_apartado_items(id: str, datos: dict):
+def solicitar_apartado_items(id: str, datos: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     """La clienta selecciona pares específicos del carrito y pide que se
     aparten. NO descuenta stock ni reserva nada todavía -- solo marca esos
     ítems para que el dueño los vea agrupados y decida aprobarlos desde el
     panel (aprobar-apartado prioriza los que tengan esta bandera)."""
+    _exigir_dueno_pedido(id, credentials)
     try:
         item_ids = datos.get("item_ids") or []
         if not item_ids:
@@ -768,9 +1000,10 @@ def solicitar_apartado_items(id: str, datos: dict):
 
 
 @router.post("/{id}/items/{item_id}/solicitar-liberacion")
-def solicitar_liberacion_item(id: str, item_id: str):
+def solicitar_liberacion_item(id: str, item_id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     """La clienta pide quitar un par ya apartado -- no se borra solo, queda
     marcado para que el dueño lo autorice desde el panel."""
+    _exigir_dueno_pedido(id, credentials)
     try:
         item_actual = supabase_get(f"pedido_items?id=eq.{item_id}&pedido_id=eq.{id}")
         if not item_actual:
@@ -892,7 +1125,7 @@ def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/confirmar")
-def confirmar_pedido(id: str, datos: dict):
+def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
@@ -979,6 +1212,7 @@ def confirmar_pedido(id: str, datos: dict):
 
         # Enviar confirmacion por WhatsApp si el cliente tiene telefono registrado
         _enviar_confirmacion_wa(pedido[0], items)
+        _otorgar_bono_referidor(pedido[0].get("cliente_id"))
 
         try:
             cliente_id_push = pedido[0].get("cliente_id")
@@ -1002,7 +1236,7 @@ def confirmar_pedido(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/marcar-enviado")
-def marcar_enviado(id: str, datos: dict):
+def marcar_enviado(id: str, datos: dict, _staff=Depends(require_staff)):
     """Marca el pedido como enviado y manda email de tracking al cliente."""
     try:
         paqueteria   = datos.get("paqueteria", "").strip()
@@ -1066,13 +1300,40 @@ def marcar_enviado(id: str, datos: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+def _reembolsar_credito(pedido_id, cliente_id):
+    """Devuelve al cliente el saldo a favor que se descontó al crear el pedido (una sola
+    vez: se marca con un renglón 'reembolso_cancelacion' en el historial)."""
+    try:
+        if not cliente_id:
+            return
+        aplicado = _credito_aplicado_a_pedido(pedido_id)
+        if aplicado <= 0:
+            return
+        ya = supabase_get(f"clientes_creditos_historial?pedido_id=eq.{pedido_id}&tipo=eq.reembolso_cancelacion&select=id") or []
+        if ya:
+            return
+        cli = supabase_get(f"clientes?id=eq.{cliente_id}&select=credito_disponible") or [{}]
+        saldo = float(cli[0].get("credito_disponible") or 0)
+        nuevo = saldo + aplicado
+        supabase_patch(f"clientes?id=eq.{cliente_id}", {"credito_disponible": nuevo})
+        supabase_post("clientes_creditos_historial", {
+            "cliente_id": cliente_id, "monto": aplicado, "tipo": "reembolso_cancelacion",
+            "pedido_id": pedido_id, "saldo_despues": nuevo,
+        })
+    except Exception as e:
+        print(f"[pedidos] Error reembolsando crédito de {pedido_id}: {e}")
+
+
 @router.post("/{id}/cancelar")
-def cancelar_pedido(id: str):
+def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    _exigir_dueno_pedido(id, credentials)
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
         status_actual = pedido[0].get("status")
+        if not _es_staff_cred(credentials) and status_actual not in _STATUS_EDITABLE_CLIENTE:
+            return JSONResponse(status_code=403, content={"error": "Este pedido ya no se puede cancelar desde aquí. Contáctanos."})
         # OJO: no basta con mirar el status del PEDIDO para saber si hay que
         # devolver stock. Un apartado aprobado puede seguir de largo a
         # pendiente_pago (cerrar-apartado) y luego a checkout_iniciado
@@ -1110,13 +1371,15 @@ def cancelar_pedido(id: str):
                     hubo_devolucion = True
         if hubo_devolucion:
             supabase_patch(f"pedido_items?pedido_id=eq.{id}", {"reservado": False, "solicitud_liberar": False})
+        if status_actual != "cancelado":
+            _reembolsar_credito(id, pedido[0].get("cliente_id"))
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
         return {"ok": True, "stock_devuelto": hubo_devolucion}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/{id}/reconfirmar")
-def reconfirmar_pedido(id: str, datos: dict):
+def reconfirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:

@@ -20538,7 +20538,7 @@ window.guardarSEO = async () => {
 // ya se publicó o no.
 function _editorVisualPostMsg(tipo) {
   const frame = document.getElementById('editor-visual-iframe')
-  if (frame && frame.contentWindow) frame.contentWindow.postMessage({ origen: 'zm-panel', tipo }, '*')
+  if (frame && frame.contentWindow) frame.contentWindow.postMessage({ origen: 'zm-panel', tipo, token: localStorage.getItem('erp_token') || '' }, 'https://zapatillasmay.mx')
 }
 
 window.toggleModoEdicionVisual = () => {

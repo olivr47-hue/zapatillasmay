@@ -4018,7 +4018,9 @@ cargarConfigSEO()
   const API_EDIT = 'https://zapatillasmay-production.up.railway.app'
 
   let modoEdicion = false
+  let tokenEditor = ''  // JWT del panel, llega por postMessage (solo del padre, ver listener)
   const cambiosPendientes = {}
+  const authEditor = (h) => Object.assign({}, h || {}, tokenEditor ? { Authorization: 'Bearer ' + tokenEditor } : {})
 
   function avisarPanel(msg) {
     try { if (window.parent) window.parent.postMessage(Object.assign({ origen: 'zm-editor' }, msg), '*') } catch(e) {}
@@ -4325,7 +4327,7 @@ cargarConfigSEO()
         const formData = new FormData()
         formData.append('archivo', file)
         formData.append('carpeta', multi ? 'hero360' : 'hero')
-        const res = await fetch(`${API_EDIT}/imagenes/subir`, { method: 'POST', body: formData })
+        const res = await fetch(`${API_EDIT}/imagenes/subir`, { method: 'POST', headers: authEditor(), body: formData })
         const data = await res.json()
         if (data.url) urls.push(data.url)
       }
@@ -4390,6 +4392,8 @@ cargarConfigSEO()
 
   window.addEventListener('message', (ev) => {
     if (!ev.data || ev.data.origen !== 'zm-panel') return
+    if (ev.source !== window.parent) return
+    if (typeof ev.data.token === 'string') tokenEditor = ev.data.token
     if (ev.data.tipo === 'activar-edicion') {
       modoEdicion = true
       document.documentElement.classList.add('zm-modo-edicion')
@@ -4403,7 +4407,7 @@ cargarConfigSEO()
       avisarPanel({ tipo: 'guardando' })
       fetch(`${API_EDIT}/seo/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authEditor({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(cambiosPendientes)
       })
         .then(r => {

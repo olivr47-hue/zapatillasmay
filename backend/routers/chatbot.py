@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
+from security import limpiar_texto
 import urllib.request
 import urllib.parse
 import json
@@ -938,9 +939,9 @@ def guardar_conversacion(telefono, mensaje, respuesta, tipo="texto", nombre="", 
         from database import supabase_post
         data = {
             "telefono": telefono,
-            "nombre_contacto": nombre,
-            "mensaje": mensaje,
-            "respuesta": respuesta,
+            "nombre_contacto": limpiar_texto(nombre),
+            "mensaje": limpiar_texto(mensaje),
+            "respuesta": limpiar_texto(respuesta),
             "tipo": tipo
         }
         if media_url:

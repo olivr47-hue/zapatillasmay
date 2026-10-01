@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
+from security import require_staff
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO
 
 router = APIRouter(prefix="/sucursales", tags=["Sucursales"])
@@ -19,17 +20,17 @@ def obtener_sucursal(id: str):
     return supabase_get(f"sucursales?id=eq.{id}")
 
 @router.post("/")
-def crear_sucursal(sucursal: dict):
+def crear_sucursal(sucursal: dict, _staff=Depends(require_staff)):
     result = supabase_post("sucursales", sucursal)
     cache_invalidate_prefix("sucursales_")
     return result
 
 @router.get("/{id}/inventario")
-def inventario_sucursal(id: str):
+def inventario_sucursal(id: str, _staff=Depends(require_staff)):
     return supabase_get(f"inventario?sucursal_id=eq.{id}&select=*,variantes(*,productos(*))")
 
 @router.patch("/{id}")
-def actualizar_sucursal(id: str, sucursal: dict):
+def actualizar_sucursal(id: str, sucursal: dict, _staff=Depends(require_staff)):
     try:
         result = supabase_patch(f"sucursales?id=eq.{id}", sucursal)
         cache_invalidate_prefix("sucursales_")

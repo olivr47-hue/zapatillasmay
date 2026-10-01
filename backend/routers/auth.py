@@ -4,30 +4,61 @@ from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_post, supabase_patch
 from security import hash_password, verify_password, create_token, limiter, bearer_opcional, cliente_autorizado, usuario_autorizado, require_staff
 from email_utils import enviar_email
+from security import limpiar_texto
 import os
 import secrets
 import json
 import urllib.request
 import datetime as _dt
+import html as _html
+import urllib.parse as _up
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+def _q(valor) -> str:
+    """Codifica un valor para usarlo dentro de un filtro PostgREST (evita que un
+    '&', '=', ',' o '(' del usuario inyecte parámetros extra en la consulta)."""
+    return _up.quote(str(valor), safe="")
+
+
+def _usuarios_por_email(email: str, select: str, solo_activos: bool = True) -> list:
+    """Busca usuarios por email sin distinguir mayúsculas, pero con coincidencia
+    EXACTA: ilike trata '_' y '%' como comodines, así que 'jo_@gmail.com' calzaba
+    con 'joe@gmail.com'. Se trae por ilike y se filtra exacto en Python."""
+    email = (email or "").strip().lower()
+    if not email:
+        return []
+    filtro = f"usuarios?email=ilike.{_q(email)}&select={select}"
+    if solo_activos:
+        filtro += "&activo=eq.true"
+    return [u for u in (supabase_get(filtro) or []) if (u.get("email") or "").strip().lower() == email]
+
+
+def _clientes_por_email(email: str, select: str = "id") -> list:
+    email = (email or "").strip().lower()
+    if not email:
+        return []
+    sel = select if "email" in select.split(",") else select + ",email"
+    rows = supabase_get(f"clientes?email=ilike.{_q(email)}&select={sel}") or []
+    return [c for c in rows if (c.get("email") or "").strip().lower() == email]
 
 
 @router.post("/registro")
 @limiter.limit("5/minute")
 async def registro(request: Request, datos: dict):
     try:
-        nombre = datos.get("nombre")
+        nombre = limpiar_texto(datos.get("nombre"))
         email = (datos.get("email") or "").strip().lower()
         password = datos.get("password")
         tipo = datos.get("tipo", "cliente")
         if not nombre or not email or not password:
             return JSONResponse(status_code=400, content={"error": "Faltan datos obligatorios"})
-        existente = supabase_get(f"usuarios?email=eq.{email}")
+        existente = _usuarios_por_email(email, "id", solo_activos=False)
         if existente:
             return JSONResponse(status_code=400, content={"error": "El email ya esta registrado"})
         password_hash = hash_password(password)
-        telefono = datos.get("telefono", "")
+        telefono = limpiar_texto(datos.get("telefono", ""))
         usuario = supabase_post("usuarios", {
             "nombre": nombre,
             "email": email,
@@ -37,9 +68,9 @@ async def registro(request: Request, datos: dict):
         })
         u = usuario[0]
         # Buscar si ya existe cliente con ese email o telefono para no duplicar
-        cliente_existente = supabase_get(f"clientes?email=ilike.{email}")
+        cliente_existente = _clientes_por_email(email)
         if not cliente_existente and telefono:
-            cliente_existente = supabase_get(f"clientes?telefono=eq.{telefono}")
+            cliente_existente = supabase_get(f"clientes?telefono=eq.{_q(telefono)}")
 
         if cliente_existente:
             supabase_patch(f"clientes?id=eq.{cliente_existente[0]['id']}", {
@@ -60,23 +91,19 @@ async def registro(request: Request, datos: dict):
         if cliente_id:
             supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
 
-        # Aplicar código de referido: $50 si quien refiere es menudeo, $300 si es mayoreo/zapatería
-        codigo_ref = datos.get("codigo_referido", "").strip().upper()
+        # Código de referido: la nueva cuenta recibe $50 de bienvenida; el bono del
+        # REFERIDOR ($50 menudeo / $300 mayoreo) ya NO se da al registrarse (se podía
+        # farmear con cuentas falsas) sino cuando el referido paga su primera compra
+        # (ver referidos.otorgar_bono_referidor, llamado desde pagos/pedidos).
+        codigo_ref = (datos.get("codigo_referido") or "").strip().upper()
         if codigo_ref and cliente_id:
-            referidores = supabase_get(
-                f"clientes?codigo_referido=eq.{codigo_ref}&select=id,credito_disponible,tipo"
-            )
-            if referidores:
-                ref = referidores[0]
-                if ref["id"] != cliente_id:
-                    bono = 300 if ref.get("tipo") in ("mayoreo", "zapateria") else 50
+            referidores = supabase_get(f"clientes?codigo_referido=eq.{_q(codigo_ref)}&select=id")
+            if referidores and referidores[0]["id"] != cliente_id:
+                actual = supabase_get(f"clientes?id=eq.{cliente_id}&select=credito_disponible,referido_por") or [{}]
+                if not actual[0].get("referido_por"):
                     supabase_patch(f"clientes?id=eq.{cliente_id}", {
                         "referido_por": codigo_ref,
-                        "credito_disponible": 50
-                    })
-                    credito_actual = float(ref.get("credito_disponible") or 0)
-                    supabase_patch(f"clientes?id=eq.{ref['id']}", {
-                        "credito_disponible": credito_actual + bono
+                        "credito_disponible": float(actual[0].get("credito_disponible") or 0) + 50
                     })
 
         return {
@@ -102,12 +129,12 @@ async def login(request: Request, datos: dict):
         usuarios = None
         if "@" in identificador:
             # Login por email
-            usuarios = supabase_get(f"usuarios?email=ilike.{identificador}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
+            usuarios = _usuarios_por_email(identificador, "id,nombre,email,tipo,cliente_id,password_hash")
         else:
             # Login por teléfono: buscar cliente por teléfono, luego su usuario vinculado
             solo_digitos = "".join(c for c in identificador if c.isdigit())
             if solo_digitos:
-                clientes_tel = supabase_get(f"clientes?telefono=eq.{solo_digitos}&select=id")
+                clientes_tel = supabase_get(f"clientes?telefono=eq.{_q(solo_digitos)}&select=id")
                 if clientes_tel:
                     cliente_id = clientes_tel[0]["id"]
                     usuarios = supabase_get(f"usuarios?cliente_id=eq.{cliente_id}&activo=eq.true&select=id,nombre,email,tipo,cliente_id,password_hash")
@@ -128,7 +155,7 @@ async def login(request: Request, datos: dict):
         # Auto-reparar cuentas viejas cuyo usuario nunca quedó vinculado a su cliente
         cliente_id = u.get("cliente_id")
         if not cliente_id and u.get("email"):
-            clientes_email = supabase_get(f"clientes?email=ilike.{u['email']}&select=id")
+            clientes_email = _clientes_por_email(u["email"])
             if clientes_email:
                 cliente_id = clientes_email[0]["id"]
                 supabase_patch(f"usuarios?id=eq.{u['id']}", {"cliente_id": cliente_id})
@@ -163,7 +190,7 @@ def perfil(usuario_id: str, credentials: HTTPAuthorizationCredentials = Depends(
         u = usuarios[0]
         cliente_id = u.get("cliente_id")
         if not cliente_id and u.get("email"):
-            clientes_email = supabase_get(f"clientes?email=ilike.{u['email']}&select=id")
+            clientes_email = _clientes_por_email(u["email"])
             if clientes_email:
                 cliente_id = clientes_email[0]["id"]
             elif u.get("tipo") in ("zapateria", "mayoreo", "menudeo", "cliente"):
@@ -215,24 +242,29 @@ async def google_login(request: Request, datos: dict):
     try:
         # Verificar token con Google tokeninfo (no requiere librería adicional)
         req = urllib.request.Request(
-            f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={_q(id_token)}",
             headers={"User-Agent": "ZapatillasMay/1.0"}
         )
         with urllib.request.urlopen(req, timeout=10) as r:
             info = json.loads(r.read())
 
         email = info.get("email", "").strip().lower()
-        nombre = info.get("name") or info.get("given_name") or ""
+        nombre = limpiar_texto(info.get("name") or info.get("given_name") or "")
         email_verified = info.get("email_verified") == "true"
         client_id_env = os.environ.get("GOOGLE_CLIENT_ID", "")
         aud = info.get("aud", "")
 
         if not email or not email_verified:
             return JSONResponse(status_code=401, content={"error": "Token inválido: email no verificado"})
-        if client_id_env and aud != client_id_env:
+        if not client_id_env:
+            # Sin GOOGLE_CLIENT_ID no se puede verificar la audiencia: cualquier id_token de
+            # Google de OTRA app serviría para entrar como cualquier correo. Falla cerrado.
+            print("[auth/google] GOOGLE_CLIENT_ID no configurado; login con Google deshabilitado")
+            return JSONResponse(status_code=503, content={"error": "Inicio de sesión con Google no disponible"})
+        if aud != client_id_env:
             return JSONResponse(status_code=401, content={"error": "Token no corresponde a esta aplicación"})
 
-        existente = supabase_get(f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre,email,tipo,cliente_id")
+        existente = _usuarios_por_email(email, "id,nombre,email,tipo,cliente_id")
         if existente:
             u = existente[0]
         else:
@@ -244,7 +276,7 @@ async def google_login(request: Request, datos: dict):
                 "activo": True,
             })
             u = nuevo[0]
-            cliente_existente = supabase_get(f"clientes?email=eq.{email}")
+            cliente_existente = _clientes_por_email(email)
             if not cliente_existente:
                 cliente = supabase_post("clientes", {
                     "nombre": u["nombre"],
@@ -278,7 +310,7 @@ async def google_login(request: Request, datos: dict):
 @limiter.limit("3/minute")
 async def recuperar_password(request: Request, datos: dict):
     try:
-        email = datos.get("email")
+        email = (datos.get("email") or "").strip().lower()
         if not email:
             return JSONResponse(status_code=400, content={"error": "Email requerido"})
 
@@ -286,13 +318,14 @@ async def recuperar_password(request: Request, datos: dict):
         # una cuenta guardada con otra capitalización de letras (Laura@ vs
         # laura@) nunca se encuentra, y la clienta jamás recibe el correo
         # sin ningún error visible para nadie.
-        usuarios = supabase_get(f"usuarios?email=ilike.{email}&activo=eq.true&select=id,nombre")
+        usuarios = _usuarios_por_email(email, "id,nombre,email")
         if not usuarios:
             # Respuesta genérica para no revelar si el email existe
             return {"ok": True, "mensaje": "Si existe una cuenta con ese email, recibirás las instrucciones."}
 
         u = usuarios[0]
-        nombre = u.get("nombre", "Cliente")
+        nombre = _html.escape(u.get("nombre") or "Cliente")
+        email = u["email"]  # SIEMPRE al correo guardado, nunca al texto que mandó quien pidió el reset
 
         # El frontend (mi-cuenta.html) ya promete "te enviaremos una contraseña
         # temporal" -- antes este endpoint mandaba en cambio un link a
@@ -371,7 +404,11 @@ def resetear_password_cliente(datos: dict, _staff=Depends(require_staff)):
 
 
 @router.post("/cambiar-password")
-def cambiar_password(datos: dict):
+@limiter.limit("5/minute")
+def cambiar_password(request: Request, datos: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    # Antes no pedía token: cualquiera podía adivinar la contraseña actual de cualquier usuario_id.
+    if not usuario_autorizado(str(datos.get("usuario_id") or ""), credentials):
+        raise HTTPException(status_code=403, detail="No autorizado")
     try:
         usuario_id = datos.get("usuario_id")
         password_actual = datos.get("password_actual")
@@ -383,7 +420,7 @@ def cambiar_password(datos: dict):
         if len(password_nueva) < 8:
             return JSONResponse(status_code=400, content={"error": "La nueva contraseña debe tener al menos 8 caracteres"})
 
-        usuarios = supabase_get(f"usuarios?id=eq.{usuario_id}&activo=eq.true&select=id,password_hash")
+        usuarios = supabase_get(f"usuarios?id=eq.{_q(usuario_id)}&activo=eq.true&select=id,password_hash")
         if not usuarios:
             return JSONResponse(status_code=401, content={"error": "La contraseña actual es incorrecta"})
 
@@ -402,17 +439,18 @@ def cambiar_password(datos: dict):
 # ── NEWSLETTER ────────────────────────────────────────────────────
 
 @router.post("/newsletter/subscribe")
-def newsletter_subscribe(datos: dict):
+@limiter.limit("5/minute")
+def newsletter_subscribe(request: Request, datos: dict):
     """Suscribe un email al newsletter y envía email de bienvenida."""
     email  = (datos.get("email") or "").strip().lower()
-    nombre = (datos.get("nombre") or "").strip()
+    nombre = limpiar_texto((datos.get("nombre") or "").strip())
 
     if not email or "@" not in email:
         return JSONResponse(status_code=400, content={"error": "Email inválido"})
 
     try:
         # Verificar si ya existe
-        existente = supabase_get(f"suscriptores?email=eq.{email}")
+        existente = supabase_get(f"suscriptores?email=eq.{_q(email)}")
         if existente:
             return {"ok": True, "mensaje": "Ya estabas suscrita 😊"}
 
@@ -425,7 +463,7 @@ def newsletter_subscribe(datos: dict):
         })
 
         # Email de bienvenida
-        nombre_display = nombre.split()[0].capitalize() if nombre else "Hola"
+        nombre_display = _html.escape(nombre.split()[0].capitalize()) if nombre else "Hola"
         try:
             enviar_email(
                 email,
@@ -482,21 +520,24 @@ def newsletter_subscribe(datos: dict):
 _NOTIF_EMAIL = os.getenv("NOTIF_EMAIL", "olivr47@gmail.com")
 
 @router.post("/mayorista/registro")
-def mayorista_registro(datos: dict):
+@limiter.limit("5/minute")
+def mayorista_registro(request: Request, datos: dict):
     """Registra una revendedora interesada: guarda el lead y notifica al negocio."""
     nombre   = (datos.get("nombre") or "").strip()
-    negocio  = (datos.get("negocio") or "").strip()
-    ciudad   = (datos.get("ciudad") or "").strip()
-    telefono = (datos.get("telefono") or "").strip()
+    negocio  = limpiar_texto((datos.get("negocio") or "").strip())
+    ciudad   = limpiar_texto((datos.get("ciudad") or "").strip())
+    telefono = limpiar_texto((datos.get("telefono") or "").strip())
     email    = (datos.get("email") or "").strip().lower()
 
     if not nombre or not telefono:
         return JSONResponse(status_code=400, content={"error": "Nombre y teléfono son obligatorios"})
+    # Estos valores se incrustan en HTML de correos (incluido el aviso a la dueña): escapar.
+    nombre, negocio, ciudad, telefono = (_html.escape(x) for x in (nombre, negocio, ciudad, telefono))
 
     # Guardar lead en suscriptores
     try:
         if email and "@" in email:
-            existente = supabase_get(f"suscriptores?email=eq.{email}")
+            existente = supabase_get(f"suscriptores?email=eq.{_q(email)}")
             if not existente:
                 supabase_post("suscriptores", {
                     "email": email,
@@ -521,7 +562,7 @@ def mayorista_registro(datos: dict):
                 <tr><td style="padding:8px 0;color:#888">Negocio</td><td style="padding:8px 0;font-weight:600">{negocio or '—'}</td></tr>
                 <tr><td style="padding:8px 0;color:#888">Ciudad</td><td style="padding:8px 0;font-weight:600">{ciudad or '—'}</td></tr>
                 <tr><td style="padding:8px 0;color:#888">Teléfono</td><td style="padding:8px 0;font-weight:600">{telefono}</td></tr>
-                <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;font-weight:600">{email or '—'}</td></tr>
+                <tr><td style="padding:8px 0;color:#888">Email</td><td style="padding:8px 0;font-weight:600">{_html.escape(email) if email else '—'}</td></tr>
               </table>
               <a href="https://wa.me/52{tel_limpio}"
                  style="display:inline-block;margin-top:16px;background:#25D366;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">

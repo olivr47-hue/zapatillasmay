@@ -465,6 +465,7 @@ async function cargarCarritoDesdeURL() {
   } catch (e) { return false }
 }
 
+function authH(extra) { try { const t = (JSON.parse(localStorage.getItem('usuario') || 'null') || {}).token; return Object.assign({}, extra || {}, t ? { Authorization: 'Bearer ' + t } : {}) } catch (e) { return extra || {} } }
 function leerUsuario() { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } }
 
 function leerCarrito() { try { return JSON.parse(localStorage.getItem('zm_carrito') || '[]') } catch(e) { return [] } }
@@ -707,7 +708,7 @@ async function procesarPago() {
       : `${calle}, ${colonia}, CP ${cp}, ${ciudad}, ${estado}`
     const notasFinal = esRecoger ? `[Recoge en tienda] ${notas}`.trim() : notas
     const resPedido = await fetch(`${API}/pedidos/`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers: authH({'Content-Type':'application/json'}),
       body: JSON.stringify({
         cliente_id: usuarioActual?.cliente_id || null,
         items: carrito.map(i => ({ variante_id:i.variante_id, cantidad:i.es_corrida?i.cantidad*6:i.cantidad, precio_unitario:calcularPrecioUnitario(i,pTotal), nombre:i.nombre, color:i.color, talla:i.talla })),
@@ -1183,7 +1184,7 @@ async function cargarSesion() {
     // Traer datos completos del cliente (dirección guardada)
     if (usuarioActual.cliente_id) {
       try {
-        const r = await fetch(`${API}/clientes/${usuarioActual.cliente_id}`)
+        const r = await fetch(`${API}/clientes/${usuarioActual.cliente_id}`, { headers: authH() })
         if (r.ok) {
           const c = await r.json()
           const cli = Array.isArray(c) ? c[0] : c
@@ -1236,7 +1237,7 @@ async function guardarDatosEnCuenta(datos) {
   try {
     await fetch(`${API}/clientes/${usuarioActual.cliente_id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authH({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         nombre: datos.nombre,
         telefono: datos.telefono,

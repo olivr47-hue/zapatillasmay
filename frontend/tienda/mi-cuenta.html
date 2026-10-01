@@ -686,6 +686,7 @@ let usuario = null
 let googleClientId = null
 
 // ── Utilidades ──────────────────────────────────────────────────
+function authH(extra) { try { const t = (JSON.parse(localStorage.getItem('usuario') || 'null') || {}).token; return Object.assign({}, extra || {}, t ? { Authorization: 'Bearer ' + t } : {}) } catch (e) { return extra || {} } }
 function leerUsuario() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null') } catch(e) { return null }
 }
@@ -939,7 +940,7 @@ async function cargarPedidos() {
     return
   }
   try {
-    const res = await fetch(API + '/auth/pedidos/' + usuario.cliente_id)
+    const res = await fetch(API + '/auth/pedidos/' + usuario.cliente_id, { headers: authH() })
     const pedidos = await res.json()
     if (!Array.isArray(pedidos) || pedidos.length === 0) {
       contenedor.innerHTML = `<div class="mc-empty"><div class="mc-empty-icon">📦</div><div class="mc-empty-title">Sin pedidos aún</div><div class="mc-empty-sub">Cuando realices una compra, aparecerá aquí.</div></div>`
@@ -1050,7 +1051,7 @@ function togglePedido(idx) {
 async function cargarDatosCliente() {
   if (!usuario?.cliente_id) return
   try {
-    const res = await fetch(API + '/clientes/' + usuario.cliente_id)
+    const res = await fetch(API + '/clientes/' + usuario.cliente_id, { headers: authH() })
     const c = await res.json()
     document.getElementById('d-nombre').value = c.nombre || ''
     document.getElementById('d-email').value = c.email || usuario.email || ''
@@ -1072,7 +1073,7 @@ async function guardarDatos() {
   }
   try {
     const res = await fetch(API + '/clientes/' + usuario.cliente_id, {
-      method: 'PATCH', headers: {'Content-Type':'application/json'},
+      method: 'PATCH', headers: authH({'Content-Type':'application/json'}),
       body: JSON.stringify(body)
     })
     if (res.ok) {
@@ -1104,7 +1105,7 @@ async function cambiarPassword() {
   if (nueva !== confirm) { mostrarMsg('msg-pass', 'Las contraseñas no coinciden', 'error'); return }
   try {
     const res = await fetch(API + '/auth/cambiar-password', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: authH({'Content-Type':'application/json'}),
       body: JSON.stringify({ usuario_id: usuario.id, password_actual: actual, password_nueva: nueva })
     })
     const data = await res.json()

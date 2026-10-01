@@ -1,8 +1,9 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from security import limiter
+from security import limiter, require_staff, AUTH_ENFORCE, verify_token, es_personal
+import re as _re
 from database import supabase_get
 from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
 from routers import productos, sucursales, inventario, clientes, pedidos, imagenes, variantes, movimientos, pagos, auth, crm, finanzas, chatbot
@@ -41,6 +42,70 @@ try:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 except ImportError:
     pass
+
+
+# ── Puerta de autenticación (default-deny) para los routers que no protegen cada
+# ruta por separado. Todo lo que cae bajo estos prefijos exige token de PERSONAL,
+# salvo las excepciones públicas explícitas de abajo (webhooks de Meta/MP/ML,
+# OAuth de marketplaces, feeds SEO, endpoints de la tienda pública).
+# Se define antes que CORSMiddleware para que las respuestas 401/403 lleven
+# cabeceras CORS (si no, el navegador las ve como error de red, no como 401).
+# Respeta AUTH_ENFORCE igual que require_staff (despliegue seguro).
+_PREFIJOS_PROTEGIDOS = (
+    "/chatbot", "/finanzas", "/ml", "/shein", "/walmart", "/tiktok", "/analytics",
+    "/campanas", "/crm", "/emails", "/catalogos", "/merchant", "/businessprofile",
+    "/searchconsole", "/push", "/imagenes", "/sucursales", "/carrito-abandonado",
+    "/resenas", "/sugerencias", "/referidos", "/pinterest", "/catalogo",
+    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal",
+)
+# (método o "*", regex del path completo)
+_PUBLICAS = [(m, _re.compile(r)) for m, r in (
+    ("*",    r"/chatbot/whatsapp"), ("*", r"/chatbot/meta"),                 # webhooks Meta (validan firma)
+    ("*",    r"/ml/(auth|callback)"), ("POST", r"/ml/notificaciones"),       # OAuth + webhook ML
+    ("*",    r"/shein/(auth|callback)"), ("*", r"/tiktok/(authorize|callback)"),
+    ("*",    r"/analytics/(setup|setup/callback)"), ("GET", r"/analytics/producto-popularidad"),
+    ("GET",  r"/catalogos(/.*)?"),
+    ("POST", r"/emails/contacto-web"),
+    ("GET",  r"/push/public-key"), ("POST", r"/push/(suscribir|desuscribir)"),
+    ("GET",  r"/imagenes/pdf-viewer"),
+    ("GET",  r"/sucursales/?"), ("GET", r"/sucursales/[^/]+"),
+    ("POST", r"/carrito-abandonado/guardar"), ("GET", r"/carrito-abandonado/recuperar/[^/]+"),
+    ("GET",  r"/resenas/producto/[^/]+"), ("POST", r"/resenas/producto/[^/]+"),
+    ("POST", r"/referidos/validar"),
+    ("POST", r"/pinterest/event"),
+    ("GET",  r"/seo/(producto|pagina)/[^/]+"), ("GET", r"/seo/config"),
+    ("GET",  r"/config/(envio|pago-transferencia)"),
+    ("GET",  r"/feed/(meta\.xml|google\.xml|google-local\.xml|tiktok\.json)"),
+)]
+# Cualquier usuario con token válido (cliente de portal/tienda o personal); la
+# propiedad del recurso se valida dentro de la ruta.
+_CON_TOKEN = [(m, _re.compile(r)) for m, r in (
+    ("GET",  r"/sugerencias/?"), ("POST", r"/sugerencias/?"),
+    ("GET",  r"/referidos/(mi-codigo|stats)/[^/]+"),
+)]
+
+
+def _coincide(lista, metodo, path):
+    return any((m == "*" or m == metodo) and rx.fullmatch(path) for m, rx in lista)
+
+
+@app.middleware("http")
+async def _puerta_auth(request, call_next):
+    if AUTH_ENFORCE and request.method != "OPTIONS":
+        path = request.url.path
+        if (path.startswith(_PREFIJOS_PROTEGIDOS)
+                and path not in ("/feed.json",)
+                and not _coincide(_PUBLICAS, request.method, path)):
+            auth = request.headers.get("authorization", "")
+            if not auth.lower().startswith("bearer "):
+                return JSONResponse(status_code=401, content={"detail": "Autenticacion requerida"})
+            try:
+                payload = verify_token(auth[7:])
+            except Exception:
+                return JSONResponse(status_code=401, content={"detail": "Token invalido o expirado"})
+            if not es_personal(payload) and not _coincide(_CON_TOKEN, request.method, path):
+                return JSONResponse(status_code=403, content={"detail": "Se requiere acceso de personal"})
+    return await call_next(request)
 
 # Los orígenes de PRODUCCIÓN siempre están presentes (nunca se quitan → cero riesgo
 # para el sitio real). Los de localhost solo se agregan fuera de producción: Railway
@@ -88,26 +153,6 @@ async def _security_headers(request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP
     return response
-
-# DIAGNÓSTICO TEMPORAL (v2): el log estándar de uvicorn solo muestra la IP
-# interna de Railway (100.64.x.x), no la IP real de quien conecta -- Railway
-# sí la manda en X-Forwarded-For/X-Real-Ip aunque no aparezca en el access
-# log. La v1 de este diagnóstico (referer/user-agent) ya descartó que sea
-# el portal, un cron de Railway, o algo corriendo en esta máquina -- esta
-# version agrega la IP real para saber por fin quién es. Quitar una vez
-# identificado el origen.
-@app.api_route("/seo/config/envio", methods=["GET", "POST"])
-async def _diagnostico_seo_config_envio_v2(request: Request):
-    print(
-        f"[diagnostico 404 v2] /seo/config/envio -- "
-        f"x-forwarded-for={request.headers.get('x-forwarded-for')!r} "
-        f"x-real-ip={request.headers.get('x-real-ip')!r} "
-        f"referer={request.headers.get('referer')!r} "
-        f"origin={request.headers.get('origin')!r} "
-        f"user-agent={request.headers.get('user-agent')!r} "
-        f"todos_los_headers={dict(request.headers)!r}"
-    )
-    return JSONResponse(status_code=404, content={"detail": "Not Found"})
 
 app.include_router(productos.router)
 app.include_router(sucursales.router)
@@ -351,7 +396,7 @@ def salud():
         supabase_get("sucursales")
         return {"estado": "ok", "base_de_datos": "conectada"}
     except Exception as e:
-        return {"estado": "error", "detalle": str(e)}
+        return JSONResponse(status_code=503, content={"estado": "error", "detalle": "base de datos no disponible"})
         # redeploy finanzas
         
 @app.get("/health")
@@ -383,12 +428,12 @@ def buscar_cp(cp: str):
         return {"error": str(e)}
 
 @app.get("/cache/stats")
-def cache_estado():
+def cache_estado(_staff=Depends(require_staff)):
     """Ver qué hay en caché y cuánto tiempo le queda a cada clave."""
     return cache_stats()
 
 @app.post("/cache/limpiar")
-def cache_limpiar():
+def cache_limpiar(_staff=Depends(require_staff)):
     """Limpiar todo el caché manualmente (fuerza recarga desde Supabase)."""
     for prefijo in ("productos", "variantes", "inventario", "tpl_", "seo_", "ssr_"):
         cache_invalidate_prefix(prefijo)

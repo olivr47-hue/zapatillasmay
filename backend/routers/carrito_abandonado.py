@@ -64,9 +64,10 @@ def guardar(datos: dict):
         marcar_convertido(email)
         return {"ok": True, "accion": "convertido"}
 
-    items = datos.get("items") or []
+    from security import limpiar_dict, limpiar_texto
+    items = [limpiar_dict(i) if isinstance(i, dict) else i for i in (datos.get("items") or [])]
     total = datos.get("total") or 0
-    nombre = (datos.get("nombre") or "").strip()
+    nombre = limpiar_texto((datos.get("nombre") or "").strip())
 
     if not items:
         return {"ok": False, "motivo": "sin_items"}

@@ -1,3 +1,4 @@
+from security import limpiar_texto
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
@@ -16,13 +17,13 @@ def listar_sugerencias():
 @router.post("/")
 def crear_sugerencia(datos: dict):
     try:
-        mensaje = (datos.get("mensaje") or "").strip()
+        mensaje = limpiar_texto((datos.get("mensaje") or "").strip())
         if not mensaje:
             return JSONResponse(status_code=400, content={"error": "El mensaje es obligatorio"})
         return supabase_post("sugerencias_clientes", {
             "cliente_id": datos.get("cliente_id"),
-            "nombre_cliente": datos.get("nombre_cliente"),
-            "tipo": datos.get("tipo", "sugerencia"),
+            "nombre_cliente": limpiar_texto(datos.get("nombre_cliente")),
+            "tipo": limpiar_texto(datos.get("tipo", "sugerencia")),
             "mensaje": mensaje,
             "estado": "nueva",
         })

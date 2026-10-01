@@ -77,7 +77,7 @@ def inventario_slim():
 
 
 @router.get("/alertas")
-def alertas_stock_bajo():
+def alertas_stock_bajo(_staff=Depends(require_staff)):
     try:
         data = supabase_get_all("inventario?select=*,variantes(*,productos(nombre,sku_interno)),sucursales(nombre)")
         alertas = [i for i in data if i.get("cantidad", 0) <= i.get("stock_minimo", 3)]
@@ -101,14 +101,14 @@ def listar_inventario(fresh: bool = False):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/sucursal/{sucursal_id}")
-def inventario_por_sucursal(sucursal_id: str):
+def inventario_por_sucursal(sucursal_id: str, _staff=Depends(require_staff)):
     try:
         return supabase_get_all(f"inventario?sucursal_id=eq.{sucursal_id}&select=*,variantes(*,productos(nombre,sku_interno))")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/producto/{producto_id}")
-def inventario_por_producto(producto_id: str):
+def inventario_por_producto(producto_id: str, _staff=Depends(require_staff)):
     try:
         return supabase_get(f"inventario?select=*,variantes(*,productos(*)),sucursales(nombre)")
     except Exception as e:

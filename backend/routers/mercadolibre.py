@@ -8,6 +8,7 @@ import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, u
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
+from security import limpiar_texto
 from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate
 
@@ -779,7 +780,7 @@ def _hacer_sync_ventas():
                     "total":       float(orden.get("total_amount") or 0),
                     "subtotal":    float(orden.get("total_amount") or 0),
                     "forma_pago":  "mercadolibre",
-                    "nombre_cliente": (comprador.get("nickname") or "Comprador MercadoLibre"),
+                    "nombre_cliente": limpiar_texto(comprador.get("nickname") or "Comprador MercadoLibre"),
                     "notas":       f"Pedido generado automáticamente desde MercadoLibre (orden {order_id}){' — faltó match de algún SKU' if faltante else ''}",
                 }
                 if fecha_orden:

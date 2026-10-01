@@ -1,15 +1,30 @@
 from fastapi import APIRouter, Body, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from typing import List
 import datetime
 import re
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, obtener_consecutivo
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_FEEDS
-from security import require_staff
+from security import require_staff, bearer_opcional, payload_opcional, es_personal
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
 _CK = "productos"  # prefijo de caché
+
+# Datos internos que NO deben salir en los GET públicos (los consume la tienda sin login):
+# costo, proveedor y alertas de reposición. El panel (token de personal) sigue viéndolos.
+_CAMPOS_INTERNOS = ("costo", "proveedor", "proveedor_id", "stock_minimo")
+
+
+def _publico(data, credentials):
+    """Quita los campos internos si quien pide NO es personal con token válido."""
+    p = payload_opcional(credentials)
+    if p and es_personal(p):
+        return data
+    def _limpia(row):
+        return {k: v for k, v in row.items() if k not in _CAMPOS_INTERNOS} if isinstance(row, dict) else row
+    return [_limpia(r) for r in data] if isinstance(data, list) else _limpia(data)
 
 
 def _asegurar_slug_unico(slug: str, sku_interno: str, excluir_id: str = None) -> str:
@@ -80,7 +95,7 @@ def productos_mas_vendidos(dias: int = 30, limit: int = 12):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/siguiente-sku/{categoria}/{proveedor}")
-def siguiente_sku(categoria: str, proveedor: str):
+def siguiente_sku(categoria: str, proveedor: str, _staff=Depends(require_staff)):
     num = obtener_consecutivo("productos")
     cat_prefijos = {
         "tacones": "TAC", "sandalias": "SAN", "botas": "BOT",
@@ -93,7 +108,8 @@ def siguiente_sku(categoria: str, proveedor: str):
     return {"sku_base": sku_base, "consecutivo": num}
 
 @router.get("/")
-def listar_productos(categoria: str = None, activo: str = None, q: str = None, limit: int = None):
+def listar_productos(categoria: str = None, activo: str = None, q: str = None, limit: int = None,
+                     credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     cached = cache_get(_CK + "_all")
     if cached is not None:
         data = cached
@@ -120,43 +136,43 @@ def listar_productos(categoria: str = None, activo: str = None, q: str = None, l
     if limit:
         data = data[:limit]
 
-    return data
+    return _publico(data, credentials)
 
 @router.get("/destacados")
-def productos_destacados():
+def productos_destacados(credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     cached = cache_get(_CK + "_destacados")
     if cached is not None:
-        return cached
+        return _publico(cached, credentials)
     data = supabase_get("productos?destacado=eq.true&activo=eq.true")
     cache_set(_CK + "_destacados", data)
-    return data
+    return _publico(data, credentials)
 
 @router.get("/nuevos")
-def productos_nuevos():
+def productos_nuevos(credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     cached = cache_get(_CK + "_nuevos")
     if cached is not None:
-        return cached
+        return _publico(cached, credentials)
     data = supabase_get("productos?nuevo=eq.true&activo=eq.true")
     cache_set(_CK + "_nuevos", data)
-    return data
+    return _publico(data, credentials)
 
 @router.get("/categoria/{categoria}")
-def productos_por_categoria(categoria: str):
+def productos_por_categoria(categoria: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     key = f"{_CK}_cat_{categoria}"
     cached = cache_get(key)
     if cached is not None:
-        return cached
+        return _publico(cached, credentials)
     data = supabase_get(f"productos?categoria=eq.{categoria}&activo=eq.true")
     cache_set(key, data)
-    return data
+    return _publico(data, credentials)
 
 @router.get("/sku/{sku}")
-def producto_por_sku(sku: str):
-    return supabase_get(f"productos?sku_interno=eq.{sku}")
+def producto_por_sku(sku: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    return _publico(supabase_get(f"productos?sku_interno=eq.{sku}"), credentials)
 
 @router.get("/slug/{slug}")
-def producto_por_slug(slug: str):
-    return supabase_get(f"productos?slug=eq.{slug}")
+def producto_por_slug(slug: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    return _publico(supabase_get(f"productos?slug=eq.{slug}"), credentials)
 
 @router.get("/catalog-version")
 def catalog_version():
@@ -170,8 +186,8 @@ def catalog_version():
     return v
 
 @router.get("/{id}")
-def obtener_producto(id: str):
-    return supabase_get(f"productos?id=eq.{id}")
+def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+    return _publico(supabase_get(f"productos?id=eq.{id}"), credentials)
 
 @router.post("/")
 def crear_producto(producto: dict, _staff=Depends(require_staff)):

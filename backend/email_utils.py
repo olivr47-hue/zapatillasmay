@@ -28,6 +28,7 @@ mandó ni por dónde.
 
 import os
 import json
+import html as _h
 import urllib.request
 import urllib.error
 
@@ -158,15 +159,15 @@ def _base_html(contenido: str) -> str:
 
 def email_pedido_confirmado(pedido: dict):
     """Retorna (subject, html) para email de pago confirmado al cliente."""
-    nombre   = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
+    nombre   = _h.escape((pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize())
     total    = float(pedido.get("total") or 0)
     pedido_id = str(pedido.get("id") or "")[:8].upper()
-    direccion = pedido.get("direccion_envio") or "—"
+    direccion = _h.escape(pedido.get("direccion_envio") or "—")
     items    = pedido.get("pedido_items") or []
 
     filas = ""
     for it in items:
-        nom  = it.get("nombre") or "Producto"
+        nom  = _h.escape(str(it.get("nombre") or "Producto"))
         col  = it.get("color") or ""
         tal  = it.get("talla") or ""
         cant = it.get("cantidad") or 1
@@ -228,7 +229,7 @@ def email_pedido_confirmado(pedido: dict):
 
 def email_pedido_pendiente_spei(pedido: dict):
     """Retorna (subject, html) para email de SPEI pendiente al cliente."""
-    nombre    = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
+    nombre    = _h.escape((pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize())
     total     = float(pedido.get("total") or 0)
     pedido_id = str(pedido.get("id") or "")[:8].upper()
 
@@ -273,10 +274,10 @@ def email_pedido_pendiente_spei(pedido: dict):
 
 def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, tracking_url: str):
     """Retorna (subject, html) para notificar al cliente que su pedido fue enviado."""
-    nombre    = (pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize()
+    nombre    = _h.escape((pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize())
     pedido_id = str(pedido.get("id") or "")[:8].upper()
     total     = float(pedido.get("total") or 0)
-    direccion = pedido.get("direccion_envio") or "—"
+    direccion = _h.escape(pedido.get("direccion_envio") or "—")
 
     logo_paqueteria = {"fedex": "📦 FedEx", "estafeta": "📦 Estafeta", "dhl": "📦 DHL"}.get(
         paqueteria.lower(), f"📦 {paqueteria}"
@@ -333,17 +334,17 @@ def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, track
 def email_nuevo_pedido_negocio(pedido: dict):
     """Retorna (subject, html) para notificar al negocio de un pedido pagado."""
     pedido_id = str(pedido.get("id") or "")[:8].upper()
-    nombre    = pedido.get("nombre_cliente") or "—"
+    nombre    = _h.escape(pedido.get("nombre_cliente") or "—")
     email     = pedido.get("email_cliente") or "—"
     telefono  = pedido.get("telefono_cliente") or "—"
     total     = float(pedido.get("total") or 0)
-    direccion = pedido.get("direccion_envio") or "—"
-    notas     = pedido.get("notas") or ""
+    direccion = _h.escape(pedido.get("direccion_envio") or "—")
+    notas     = _h.escape(pedido.get("notas") or "")
     items     = pedido.get("pedido_items") or []
 
     filas = ""
     for it in items:
-        nom  = it.get("nombre") or "?"
+        nom  = _h.escape(str(it.get("nombre") or "?"))
         col  = it.get("color") or ""
         tal  = it.get("talla") or ""
         cant = it.get("cantidad") or 1
@@ -398,6 +399,7 @@ def email_nuevo_pedido_negocio(pedido: dict):
 def email_contacto_web(nombre: str, correo: str, mensaje: str):
     """Retorna (subject, html) para notificar al negocio de un mensaje del
     formulario de contacto del sitio (reply-to = correo de quien escribió)."""
+    nombre, correo, mensaje = _h.escape(nombre), _h.escape(correo), _h.escape(mensaje)
     contenido = f"""
       <h2 style="color:#2A1A0E;font-size:1.2rem;margin-bottom:4px">✉️ Nuevo mensaje de contacto</h2>
       <p style="color:#888;font-size:0.85rem;margin-bottom:24px">Enviado desde el formulario de zapatillasmay.mx/contacto</p>

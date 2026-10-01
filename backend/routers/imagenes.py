@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Depends
+from security import require_staff
 from fastapi.responses import JSONResponse, Response, RedirectResponse
 from storage import subir_imagen, eliminar_imagen, subir_video
 import cloudinary.uploader
@@ -35,21 +36,21 @@ def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
 
 
 @router.post("/subir")
-async def subir(archivo: UploadFile = File(...), carpeta: str = "productos"):
+async def subir(archivo: UploadFile = File(...), carpeta: str = "productos", _staff=Depends(require_staff)):
     contenido = await archivo.read()
     resultado = subir_imagen(contenido, carpeta)
     return resultado
 
 
 @router.post("/videos/subir")
-async def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video"):
+async def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video", _staff=Depends(require_staff)):
     contenido = await archivo.read()
     resultado = subir_video(contenido, carpeta)
     return resultado
 
 
 @router.post("/upload-temp")
-async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None)):
+async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None), _staff=Depends(require_staff)):
     """Sube cualquier archivo (imagen, video, PDF) para enviar por WhatsApp.
     PDFs van a Supabase Storage; imágenes/videos a Cloudinary."""
     try:
@@ -116,5 +117,5 @@ async def pdf_viewer(url: str):
 
 
 @router.delete("/{public_id:path}")
-def eliminar(public_id: str):
+def eliminar(public_id: str, _staff=Depends(require_staff)):
     return eliminar_imagen(public_id)
