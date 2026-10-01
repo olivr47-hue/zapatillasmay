@@ -391,50 +391,6 @@ def buscar_skc_en_listado(skc: str):
     return {"total_items_revisados": total_items, "paginas": page, "encontrados": encontrados}
 
 
-@router.get("/skus-huerfanos-temp")
-def skus_huerfanos_temp():
-    """DIAGNOSTICO TEMPORAL, solo lectura: de todos los SKUs publicados en
-    SHEIN (cache), cuales ya no corresponden a ningun producto activo del ERP
-    (ej. el producto se desactivo/elimino despues de publicarse, o quedo con
-    un SKU viejo de antes de alguna migracion). El supplierSku sigue el
-    patron "{sku_interno}-{color}-{talla}", asi que se compara el prefijo
-    sku_interno contra productos.sku_interno real. Quitar despues de usar."""
-    publicados = cache_get("shein_skus_publicados")
-    if publicados is None:
-        return {"cache": "fria (None) -- entra primero a /shein/catalogo-sin-publicar para calentarla"}
-
-    productos = supabase_get_all("productos?select=sku_interno,activo")
-    skus_activos = {p["sku_interno"] for p in productos if p.get("activo") and p.get("sku_interno")}
-    skus_todos = {p["sku_interno"] for p in productos if p.get("sku_interno")}
-
-    huerfanos = []
-    vistos = set()
-    for item in publicados:
-        supplier_sku = item.get("supplierSku") or ""
-        partes = supplier_sku.split("-")
-        if len(partes) < 3:
-            continue
-        sku_interno = "-".join(partes[:3])  # ej. "M-TAC-0031" de "M-TAC-0031-BEI-25"
-        if sku_interno in skus_activos:
-            continue
-        if sku_interno in vistos:
-            continue
-        vistos.add(sku_interno)
-        huerfanos.append({
-            "sku_interno_inferido": sku_interno,
-            "supplierSku_ejemplo": supplier_sku,
-            "skuCode": item.get("skuCode"),
-            "spuName": item.get("spuName"),
-            "existe_en_productos_pero_inactivo": sku_interno in skus_todos,
-        })
-    return {
-        "total_publicados_shein": len(publicados),
-        "total_productos_en_erp": len(skus_todos),
-        "total_huerfanos": len(huerfanos),
-        "huerfanos": huerfanos,
-    }
-
-
 @router.get("/ordenes/diagnostico-mapeo")
 def ordenes_diagnostico_mapeo(sku_code: str = None, goods_sn: str = None):
     """Diagnóstico de solo lectura: revisa el contenido de la caché
