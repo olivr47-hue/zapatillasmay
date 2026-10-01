@@ -24,11 +24,14 @@ import os
 import json
 import time
 import datetime
+import re
+import html as _html
 import urllib.parse
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_post, supabase_patch
 from email_utils import enviar_email
+from security import limiter, require_staff
 
 router = APIRouter(prefix="/carrito-abandonado", tags=["Carrito Abandonado"])
 
@@ -51,7 +54,8 @@ def _now_iso():
 
 # ── 1. CAPTURA / UPSERT ───────────────────────────────────────────
 @router.post("/guardar")
-def guardar(datos: dict):
+@limiter.limit("20/minute")
+def guardar(request: Request, datos: dict):
     """Guarda o actualiza el carrito de un cliente que está en el checkout."""
     email = (datos.get("email") or "").strip().lower()
     if not email or "@" not in email:
@@ -73,7 +77,7 @@ def guardar(datos: dict):
         return {"ok": False, "motivo": "sin_items"}
 
     try:
-        existente = supabase_get(f"carritos_abandonados?email=eq.{email}&convertido=eq.false&select=id")
+        existente = supabase_get(f"carritos_abandonados?email=eq.{urllib.parse.quote(email, safe='')}&convertido=eq.false&select=id,recordatorio_enviado_at")
         payload = {
             "email": email,
             "nombre": nombre or None,
@@ -83,6 +87,14 @@ def guardar(datos: dict):
             "recordatorio_enviado": False,  # reinicia si vuelve a actividad
         }
         if existente:
+            # No reiniciar el recordatorio si ya se mandó hace menos de 3 días: cualquiera puede llamar
+            # este endpoint público con el correo de otra persona, y cada llamada volvía a disparar el correo.
+            try:
+                _t = datetime.datetime.fromisoformat(str(existente[0].get("recordatorio_enviado_at") or "").replace("Z", "+00:00"))
+                if (datetime.datetime.now(datetime.timezone.utc) - _t).total_seconds() < 3 * 86400:
+                    payload.pop("recordatorio_enviado", None)
+            except Exception:
+                pass
             supabase_patch(f"carritos_abandonados?id=eq.{existente[0]['id']}", payload)
             return {"ok": True, "accion": "actualizado", "id": existente[0]["id"]}
         else:
@@ -130,7 +142,7 @@ def _enviar_recordatorio(carrito: dict) -> bool:
     if "@" not in email:
         print(f"[carrito-abandonado] Email inválido, se omite recordatorio: {carrito.get('email')!r}")
         return False
-    nombre = (carrito.get("nombre") or "").split(" ")[0].capitalize() if carrito.get("nombre") else "Hola"
+    nombre = _html.escape((carrito.get("nombre") or "").split(" ")[0].capitalize()) if carrito.get("nombre") else "Hola"
     items  = carrito.get("items") or []
     total  = carrito.get("total") or 0
     cid    = carrito["id"]
@@ -138,9 +150,10 @@ def _enviar_recordatorio(carrito: dict) -> bool:
     filas = ""
     for it in items[:6]:
         img = it.get("imagen") or ""
-        nom = it.get("nombre") or "Producto"
-        col = it.get("color") or ""
-        tal = it.get("talla") or ""
+        img = _html.escape(img, quote=True) if re.match(r"^https?://", str(img)) else ""
+        nom = _html.escape(str(it.get("nombre") or "Producto"))
+        col = _html.escape(str(it.get("color") or ""))
+        tal = _html.escape(str(it.get("talla") or ""))
         meta = " · ".join([x for x in [col, ("Talla " + str(tal)) if tal else ""] if x])
         img_html = (f'<img src="{img}" width="64" height="64" '
                     f'style="border-radius:8px;object-fit:cover;background:#f5f0eb">'
@@ -205,6 +218,10 @@ def procesar_recordatorios() -> dict:
         )
         enviados = 0
         for c in (pendientes or []):
+            if "@" not in (c.get("email") or ""):
+                # email inválido: antes se reintentaba (y fallaba) cada 15 min para siempre
+                supabase_patch(f"carritos_abandonados?id=eq.{c['id']}", {"recordatorio_enviado": True, "recordatorio_enviado_at": _now_iso()})
+                continue
             if _enviar_recordatorio(c):
                 supabase_patch(
                     f"carritos_abandonados?id=eq.{c['id']}",
@@ -218,10 +235,10 @@ def procesar_recordatorios() -> dict:
 
 
 @router.get("/procesar")
-def procesar_endpoint(secret: str = ""):
-    """Dispara el procesamiento manualmente (también lo corre un hilo cada 15 min)."""
-    if secret != _SECRET:
-        return JSONResponse(status_code=403, content={"error": "secret invalido"})
+def procesar_endpoint(_staff=Depends(require_staff)):
+    """Dispara el procesamiento manualmente (también lo corre un hilo cada 15 min).
+    Antes se protegía con ?secret=<SECRET_KEY>: la MISMA llave que firma los JWT viajando en la URL
+    (queda en logs/historial). Ahora exige sesión de personal."""
     return procesar_recordatorios()
 
 
@@ -282,12 +299,14 @@ def recordatorio_whatsapp(id: str):
         # Buscar teléfono en clientes por email
         telefono = ""
         if email:
-            cli = supabase_get(f"clientes?email=eq.{email}&select=telefono,lada&limit=1")
+            cli = supabase_get(f"clientes?email=eq.{urllib.parse.quote(email, safe='')}&select=telefono,lada&limit=1")
             if cli:
-                lada = cli[0].get("lada") or "52"
-                tel_raw = (cli[0].get("telefono") or "").replace(" ", "").replace("-", "")
+                lada = re.sub(r"\D", "", str(cli[0].get("lada") or "52")) or "52"
+                tel_raw = re.sub(r"\D", "", str(cli[0].get("telefono") or ""))
                 if tel_raw:
-                    telefono = lada + tel_raw if not tel_raw.startswith(lada) else tel_raw
+                    # 10 dígitos = nacional: se le antepone la lada. (Antes se comparaba por prefijo y un
+                    # número como 52 55... se tomaba como "ya trae lada" y salía mal.)
+                    telefono = lada + tel_raw if len(tel_raw) == 10 else tel_raw
 
         if not telefono:
             return JSONResponse(status_code=400, content={"error": "El cliente no tiene teléfono registrado"})

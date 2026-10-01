@@ -4,6 +4,7 @@ Router MercadoLibre — ERP Zapatillas May
 Gestiona el token, busca publicaciones y sincroniza inventario.
 """
 
+import threading
 import os, json, time, secrets, hashlib, base64, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
@@ -658,10 +659,12 @@ def ver_log_sync():
 
 # ─── Ventas ML → descontar inventario en el ERP ────────────────────────────────
 
-def _buscar_variante_por_sku(seller_sku: str):
-    """Busca la variante del ERP que corresponde a un SELLER_SKU de ML."""
+def _buscar_variante_por_sku(seller_sku: str, variantes=None):
+    """Busca la variante del ERP que corresponde a un SELLER_SKU de ML. `variantes` permite
+    reusar una lista ya cargada (antes se bajaban TODAS las variantes por cada SKU)."""
     sku_norm = _norm_sku(seller_sku)
-    variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id,activa")
+    if variantes is None:
+        variantes = supabase_get_all("variantes?select=id,sku,color,talla,producto_id,activa")
     for v in variantes:
         if not v.get("sku"):
             continue
@@ -700,7 +703,21 @@ def _descontar_inventario_variante(variante_id: str, cantidad: int):
     return True
 
 
+# Una sola sincronización a la vez: el hilo de 10 min, el webhook y el botón manual podían
+# correr juntos, ver la misma orden como "nueva" y descontar el inventario dos veces.
+_SYNC_VENTAS_LOCK = threading.Lock()
+
+
 def _hacer_sync_ventas():
+    if not _SYNC_VENTAS_LOCK.acquire(blocking=False):
+        return {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "omitida": "ya hay una sincronización en curso"}
+    try:
+        return _hacer_sync_ventas_inner()
+    finally:
+        _SYNC_VENTAS_LOCK.release()
+
+
+def _hacer_sync_ventas_inner():
     """
     Busca órdenes pagadas recientes en ML que no se hayan procesado todavía
     (por ml_order_id en pedidos), descuenta el inventario correspondiente y
@@ -721,12 +738,20 @@ def _hacer_sync_ventas():
                 break
             offset += 50
 
+        # Qué órdenes ya existen: una consulta por bloque (antes 1 consulta POR orden, hasta 250
+        # cada 10 min).
+        ids_ordenes = [str(o.get("id")) for o in ordenes if o.get("id")]
+        ya_procesados = set()
+        for _i in range(0, len(ids_ordenes), 100):
+            for r in supabase_get_all(f"pedidos?ml_order_id=in.({','.join(ids_ordenes[_i:_i + 100])})&select=ml_order_id"):
+                ya_procesados.add(str(r.get("ml_order_id")))
+        variantes_cache = None
+
         for orden in ordenes:
             resultado["revisadas"] += 1
             order_id = str(orden.get("id"))
 
-            ya_existe = supabase_get(f"pedidos?ml_order_id=eq.{order_id}&select=id")
-            if ya_existe:
+            if order_id in ya_procesados:
                 continue
 
             items_pedido = []
@@ -737,7 +762,9 @@ def _hacer_sync_ventas():
                 cantidad   = int(oi.get("quantity") or 0)
                 if not seller_sku or cantidad <= 0:
                     continue
-                variante = _buscar_variante_por_sku(seller_sku)
+                if variantes_cache is None:
+                    variantes_cache = supabase_get_all("variantes?select=id,sku,color,talla,producto_id,activa")
+                variante = _buscar_variante_por_sku(seller_sku, variantes_cache)
                 if not variante:
                     resultado["sin_match"].append({"orden": order_id, "sku": seller_sku})
                     faltante = True
@@ -756,9 +783,9 @@ def _hacer_sync_ventas():
                 continue
 
             try:
-                for it in items_pedido:
-                    _descontar_inventario_variante(it["variante_id"], it["cantidad"])
-
+                # Primero se REGISTRA el pedido y después se descuenta el inventario: antes era al
+                # revés, y si el insert del pedido fallaba, la orden seguía "nueva" y en el siguiente
+                # ciclo se descontaba otra vez.
                 comprador = orden.get("buyer", {}) or {}
                 # Fecha real de la venta en ML (no la fecha en que corre la sincronizacion),
                 # para que no aparezca como venta "de hoy" en los reportes del ERP.
@@ -812,6 +839,11 @@ def _hacer_sync_ventas():
                             "color":           it["color"],
                             "talla":           it["talla"],
                         })
+                for it in items_pedido:
+                    try:
+                        _descontar_inventario_variante(it["variante_id"], it["cantidad"])
+                    except Exception as e_inv:
+                        resultado["errores"].append({"orden": order_id, "error": f"pedido creado pero falló el descuento de inventario ({it.get('sku')}): {e_inv}"})
                 resultado["procesadas"] += 1
             except Exception as e:
                 resultado["errores"].append({"orden": order_id, "error": str(e)})

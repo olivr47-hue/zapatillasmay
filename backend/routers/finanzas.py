@@ -1,8 +1,30 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import json
+
+# Railway corre en UTC: _hoy_mx() cambia de día a las 18:00 hora de México, así que
+# "hoy" para cierres de caja/reportes salía mal en las tardes-noches. Todo "día de negocio"
+# se calcula en hora de México (UTC-6, sin horario de verano desde 2022).
+_TZ_MX = timezone(timedelta(hours=-6))
+
+
+def _hoy_mx() -> date:
+    return datetime.now(_TZ_MX).date()
+
+
+def _inicio_dia_mx(d: date) -> str:
+    """Inicio del día d en México expresado en UTC ('Z' evita problemas de '+' en la URL)."""
+    return f"{d.isoformat()}T06:00:00Z"
+
+
+def _fecha_mx(ts: str):
+    """Fecha (hora México) de un timestamp ISO que viene de la BD; None si no se puede."""
+    try:
+        return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(_TZ_MX).date()
+    except Exception:
+        return None
 
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
 
@@ -22,7 +44,7 @@ def _desglose_pago(pedido):
 @router.get("/caja/hoy/{sucursal_id}")
 def caja_hoy(sucursal_id: str):
     try:
-        hoy = date.today().isoformat()
+        hoy = _hoy_mx().isoformat()
         return supabase_get(f"cajas?sucursal_id=eq.{sucursal_id}&fecha=eq.{hoy}&order=created_at.desc")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -38,7 +60,7 @@ def historial_cajas(sucursal_id: str):
 def abrir_caja(datos: dict):
     try:
         sucursal_id = datos.get("sucursal_id")
-        hoy = date.today().isoformat()
+        hoy = _hoy_mx().isoformat()
         existente = supabase_get(f"cajas?sucursal_id=eq.{sucursal_id}&fecha=eq.{hoy}&status=eq.abierta")
         if existente:
             return JSONResponse(status_code=400, content={"error": "Ya hay una caja abierta hoy"})
@@ -58,13 +80,18 @@ def cerrar_caja(id: str, datos: dict):
         caja = supabase_get(f"cajas?id=eq.{id}")
         if not caja:
             return JSONResponse(status_code=404, content={"error": "Caja no encontrada"})
-        
-        # Calcular ventas del dia -- por confirmado_at (cuando se cerro la venta),
-        # no created_at (cuando se abrio el carrito/borrador, que puede ser dias antes)
-        pedidos = supabase_get(f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)&select=*")
-        hoy = date.today().isoformat()
-        pedidos_hoy = [p for p in pedidos if (p.get('confirmado_at') or p['created_at'])[:10] == hoy]
-        
+        if caja[0].get("status") == "cerrada":
+            return JSONResponse(status_code=400, content={"error": "Esta caja ya fue cerrada"})
+
+        # Ventas del dia en hora de México, por confirmado_at (cuando se cerro la venta). Antes se
+        # traían TODOS los pedidos de la sucursal (tope de 1000 filas sin orden) y se filtraba por
+        # fecha UTC: las ventas de hoy podían quedar fuera y después de las 6pm el día ya era "mañana".
+        hoy = _hoy_mx()
+        pedidos_hoy = supabase_get_all(
+            f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)"
+            f"&confirmado_at=gte.{_inicio_dia_mx(hoy)}&confirmado_at=lt.{_inicio_dia_mx(hoy + timedelta(days=1))}&select=*"
+        )
+
         desgloses_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
         ventas_efectivo = sum(m for fp, m in desgloses_hoy if fp == 'efectivo')
         ventas_tarjeta = sum(m for fp, m in desgloses_hoy if fp == 'tarjeta')
@@ -72,8 +99,11 @@ def cerrar_caja(id: str, datos: dict):
         ventas_credito = sum(m for fp, m in desgloses_hoy if fp == 'credito')
         total_ventas = ventas_efectivo + ventas_tarjeta + ventas_spei + ventas_credito
         
-        monto_cierre = datos.get("monto_cierre", 0)
-        diferencia = float(monto_cierre) - (float(caja[0]['monto_apertura']) + ventas_efectivo)
+        try:
+            monto_cierre = float(datos.get("monto_cierre", 0) or 0)
+        except (TypeError, ValueError):
+            return JSONResponse(status_code=400, content={"error": "monto_cierre inválido"})
+        diferencia = monto_cierre - (float(caja[0]['monto_apertura']) + ventas_efectivo)
         
         supabase_patch(f"cajas?id=eq.{id}", {
             "status": "cerrada",
@@ -99,7 +129,7 @@ def _materializar_gastos_recurrentes(sucursal_id):
     para no tener que capturarlos a mano cada mes."""
     import calendar
     try:
-        hoy = date.today()
+        hoy = _hoy_mx()
         mes_actual = hoy.strftime("%Y-%m")
         plantillas = supabase_get(
             f"gastos?sucursal_id=eq.{sucursal_id}&es_recurrente=eq.true&plantilla_id=is.null"
@@ -145,7 +175,7 @@ def listar_gastos(sucursal_id: str):
 def crear_gasto(datos: dict):
     try:
         if datos.get("es_recurrente"):
-            hoy = date.today()
+            hoy = _hoy_mx()
             datos.setdefault("dia_mes", hoy.day)
             datos["mes_generado"] = hoy.strftime("%Y-%m")
         return supabase_post("gastos", datos)
@@ -238,6 +268,12 @@ def recibir_orden_existente(id: str):
         if not sucursal_id:
             return JSONResponse(status_code=400, content={"error": "La orden no tiene sucursal asignada"})
 
+        # Reclamar la orden ANTES de tocar inventario: el PATCH condicional solo afecta una
+        # orden que sigue en 'borrador', así que un doble clic / reintento no suma dos veces.
+        total = float(orden.get("total") or 0)
+        if not supabase_patch(f"ordenes_compra?id=eq.{id}&status=eq.borrador", {"status": "recibida", "saldo_pendiente": total}):
+            return JSONResponse(status_code=409, content={"error": "Esta orden ya fue recibida"})
+
         for i in items:
             variante_id = i.get("variante_id")
             cantidad = int(i.get("cantidad") or 0)
@@ -265,8 +301,6 @@ def recibir_orden_existente(id: str):
                 "motivo": f"Recepcion de mercancia - orden {id}",
             })
 
-        total = float(orden.get("total") or 0)
-        supabase_patch(f"ordenes_compra?id=eq.{id}", {"status": "recibida", "saldo_pendiente": total})
         return {"ok": True}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -352,7 +386,7 @@ def recibir_mercancia(datos: dict):
 def reporte_financiero(sucursal_id: str):
     try:
         from datetime import datetime, timedelta
-        hoy = date.today()
+        hoy = _hoy_mx()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
         # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días.
@@ -383,11 +417,14 @@ def reporte_financiero(sucursal_id: str):
         cmv = 0.0
         if ids_pedidos:
             # 1. Todos los items en una sola consulta
-            ids_str = ','.join(ids_pedidos)
-            items = supabase_get(
-                f"pedido_items?pedido_id=in.({ids_str})"
-                f"&select=pedido_id,cantidad,variante_id,precio_unitario,nombre"
-            ) or []
+            # En bloques y paginado: antes era UNA consulta con todos los ids en la URL (se
+            # pasaba del largo permitido) y con tope de 1000 filas -> costo de ventas incompleto.
+            items = []
+            for _i in range(0, len(ids_pedidos), 150):
+                items += supabase_get_all(
+                    f"pedido_items?pedido_id=in.({','.join(ids_pedidos[_i:_i + 150])})"
+                    f"&select=pedido_id,cantidad,variante_id,precio_unitario,nombre"
+                ) or []
 
             items_validos = [
                 i for i in items
@@ -398,10 +435,11 @@ def reporte_financiero(sucursal_id: str):
             variante_ids_unicos = list({i['variante_id'] for i in items_validos})
             variantes_map = {}
             if variante_ids_unicos:
-                vids_str = ','.join(variante_ids_unicos)
-                vs = supabase_get(
-                    f"variantes?id=in.({vids_str})&select=id,producto_id,color,talla"
-                ) or []
+                vs = []
+                for _i in range(0, len(variante_ids_unicos), 150):
+                    vs += supabase_get(
+                        f"variantes?id=in.({','.join(variante_ids_unicos[_i:_i + 150])})&select=id,producto_id,color,talla"
+                    ) or []
                 variantes_map = {v['id']: v for v in vs}
 
             # 3. Todos los productos necesarios en una sola consulta
@@ -412,10 +450,11 @@ def reporte_financiero(sucursal_id: str):
             })
             productos_map = {}
             if producto_ids_unicos:
-                pids_str = ','.join(producto_ids_unicos)
-                ps = supabase_get(
-                    f"productos?id=in.({pids_str})&select=id,nombre,costo,sku_interno"
-                ) or []
+                ps = []
+                for _i in range(0, len(producto_ids_unicos), 150):
+                    ps += supabase_get(
+                        f"productos?id=in.({','.join(producto_ids_unicos[_i:_i + 150])})&select=id,nombre,costo,sku_interno"
+                    ) or []
                 productos_map = {p['id']: p for p in ps}
 
             # 4. Construir desglose
@@ -487,22 +526,24 @@ def reporte_financiero(sucursal_id: str):
 def estado_resultados(sucursal_id: str):
     try:
         from datetime import datetime, timedelta
-        hoy = date.today()
+        hoy = _hoy_mx()
         
-        # Ultimos 6 meses
+        # Últimos 6 meses (aritmética de meses real; antes restaba i*30 días y en marzo
+        # duplicaba enero y omitía febrero)
         meses = []
         for i in range(5, -1, -1):
-            primer_dia = (hoy.replace(day=1) - timedelta(days=i*30)).replace(day=1)
-            if primer_dia.month == 12:
-                ultimo_dia = primer_dia.replace(year=primer_dia.year+1, month=1, day=1) - timedelta(days=1)
-            else:
-                ultimo_dia = primer_dia.replace(month=primer_dia.month+1, day=1) - timedelta(days=1)
+            mes_idx = hoy.year * 12 + (hoy.month - 1) - i
+            primer_dia = date(mes_idx // 12, mes_idx % 12 + 1, 1)
+            sig_idx = mes_idx + 1
+            ultimo_dia = date(sig_idx // 12, sig_idx % 12 + 1, 1) - timedelta(days=1)
             meses.append((primer_dia, ultimo_dia))
 
         resultado = []
         for primer_dia, ultimo_dia in meses:
-            pedidos = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{primer_dia.isoformat()}T00:00:00&confirmado_at=lte.{ultimo_dia.isoformat()}T23:59:59")
-            gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{primer_dia.isoformat()}T00:00:00&created_at=lte.{ultimo_dia.isoformat()}T23:59:59")
+            _ini = _inicio_dia_mx(primer_dia)
+            _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
+            pedidos = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
+            gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
             gasto = sum(float(g['monto'] or 0) for g in gastos)
@@ -525,7 +566,7 @@ def estado_resultados(sucursal_id: str):
 def flujo_efectivo(sucursal_id: str):
     try:
         from datetime import timedelta
-        hoy = date.today()
+        hoy = _hoy_mx()
         hace7 = (hoy - timedelta(days=7)).isoformat()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
@@ -535,8 +576,7 @@ def flujo_efectivo(sucursal_id: str):
         gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
 
         # Por forma de pago hoy
-        hoy_str = hoy.isoformat()
-        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hoy_str}T00:00:00")
+        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}")
 
         desgloses_pago_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
         return {
@@ -592,7 +632,7 @@ def cuentas_por_cobrar():
 def gastos_por_categoria(sucursal_id: str):
     try:
         from datetime import timedelta
-        hace30 = (date.today() - timedelta(days=30)).isoformat()
+        hace30 = (_hoy_mx() - timedelta(days=30)).isoformat()
         gastos = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
         
         categorias = {}
@@ -667,8 +707,8 @@ def valor_inventario():
 def sugerencias_recompra(sucursal_id: str):
     try:
         from datetime import timedelta
-        hace30 = (date.today() - timedelta(days=30)).isoformat()
-        hace90 = (date.today() - timedelta(days=90)).isoformat()
+        hace30 = (_hoy_mx() - timedelta(days=30)).isoformat()
+        hace90 = (_hoy_mx() - timedelta(days=90)).isoformat()
 
         # supabase_get sin paginar corta en ~1000 filas (limite de PostgREST) —
         # con 1400+ variantes y miles de movimientos, se perdian productos
@@ -683,25 +723,29 @@ def sugerencias_recompra(sucursal_id: str):
         # (esos canales registran su descuento de inventario con ese tipo distinto).
         movimientos = supabase_get_all(f"movimientos_inventario?tipo=in.(venta,salida)&created_at=gte.{hace90}T00:00:00")
 
+        # Índices por variante/producto (antes: productos x variantes x movimientos anidados,
+        # millones de comparaciones por cada carga de esta pantalla).
+        variantes_por_prod = {}
+        for v in variantes:
+            variantes_por_prod.setdefault(v['producto_id'], []).append(v)
+        stock_por_var = {}
+        for i in inventario:
+            stock_por_var[i['variante_id']] = stock_por_var.get(i['variante_id'], 0) + (i.get('cantidad') or 0)
+        v30_por_var, v90_por_var = {}, {}
+        for m in movimientos:
+            q = abs(m.get('cantidad') or 0)
+            v90_por_var[m['variante_id']] = v90_por_var.get(m['variante_id'], 0) + q
+            if m['created_at'][:10] >= hace30:
+                v30_por_var[m['variante_id']] = v30_por_var.get(m['variante_id'], 0) + q
+
         sugerencias = []
         for p in productos:
-            vars_prod = [v for v in variantes if v['producto_id'] == p['id']]
+            vars_prod = variantes_por_prod.get(p['id'], [])
             var_ids = [v['id'] for v in vars_prod]
-            
-            stock_total = sum(
-                i['cantidad'] for i in inventario 
-                if i['variante_id'] in var_ids
-            )
-            
-            ventas_30 = sum(
-                abs(m['cantidad']) for m in movimientos 
-                if m['variante_id'] in var_ids and m['created_at'][:10] >= hace30
-            )
-            ventas_90 = sum(
-                abs(m['cantidad']) for m in movimientos 
-                if m['variante_id'] in var_ids
-            )
-            
+            stock_total = sum(stock_por_var.get(vid, 0) for vid in var_ids)
+            ventas_30 = sum(v30_por_var.get(vid, 0) for vid in var_ids)
+            ventas_90 = sum(v90_por_var.get(vid, 0) for vid in var_ids)
+
             velocidad_semanal = ventas_30 / 4 if ventas_30 > 0 else ventas_90 / 12
             dias_inventario = round(stock_total / velocidad_semanal * 7) if velocidad_semanal > 0 else None
             stock_minimo = p.get('stock_minimo') or 1  # default 1 par: aparece cuando llega a 1 o 0
@@ -709,7 +753,7 @@ def sugerencias_recompra(sucursal_id: str):
             # Detalle de stock por variante (antes de calcular cantidad_sugerida)
             variantes_detalle = []
             for v in vars_prod:
-                stock_v = sum(i['cantidad'] for i in inventario if i['variante_id'] == v['id'])
+                stock_v = stock_por_var.get(v['id'], 0)
                 variantes_detalle.append({
                     "id": v['id'],
                     "talla": v.get('talla', ''),
@@ -792,7 +836,7 @@ def cuentas_por_pagar():
             "ordenes_compra?status=eq.recibida"
             "&order=created_at.asc&select=*,proveedores(nombre,telefono,dias_credito)"
         )
-        hoy = date.today()
+        hoy = _hoy_mx()
 
         pagos_por_orden = {}
         orden_ids = [o["id"] for o in ordenes]
@@ -892,7 +936,7 @@ def registrar_abono_orden(id: str, datos: dict):
         saldo_actual = float(orden.get("total") or 0) if saldo_actual is None else float(saldo_actual)
         saldo_nuevo = max(0, round(saldo_actual - monto, 2))
 
-        fecha = datos.get("fecha") or date.today().isoformat()
+        fecha = datos.get("fecha") or _hoy_mx().isoformat()
         supabase_post("ordenes_compra_pagos", {
             "orden_id": id,
             "monto": monto,
@@ -927,7 +971,7 @@ def _proximo_dia_pago(dia_pago):
     import calendar
     if not dia_pago:
         return None
-    hoy = date.today()
+    hoy = _hoy_mx()
     ultimo_dia_mes = calendar.monthrange(hoy.year, hoy.month)[1]
     dia = min(dia_pago, ultimo_dia_mes)
     candidata = date(hoy.year, hoy.month, dia)
@@ -985,6 +1029,8 @@ def registrar_pago_deuda(id: str, datos: dict):
         monto_capital = float(datos.get("monto_capital") or 0)
         monto_interes = float(datos.get("monto_interes") or 0)
         monto_total   = float(datos.get("monto") or (monto_capital + monto_interes))
+        if monto_capital < 0 or monto_interes < 0 or monto_total <= 0:
+            return JSONResponse(status_code=400, content={"error": "Los montos deben ser positivos"})
         saldo_nuevo   = max(0, float(deuda["saldo_actual"]) - monto_capital)
 
         pago = supabase_post("deudas_pagos", {
@@ -992,7 +1038,7 @@ def registrar_pago_deuda(id: str, datos: dict):
             "monto": monto_total,
             "monto_interes": monto_interes,
             "monto_capital": monto_capital,
-            "fecha": datos.get("fecha") or date.today().isoformat(),
+            "fecha": datos.get("fecha") or _hoy_mx().isoformat(),
             "saldo_despues": saldo_nuevo,
             "notas": datos.get("notas", "")
         })
@@ -1019,7 +1065,7 @@ def obtener_saldo():
 @router.post("/saldo")
 def guardar_saldo(datos: dict):
     try:
-        valor = json.dumps({"monto": float(datos.get("monto") or 0), "fecha": date.today().isoformat()})
+        valor = json.dumps({"monto": float(datos.get("monto") or 0), "fecha": _hoy_mx().isoformat()})
         existente = supabase_get("configuracion?clave=eq.saldo_flujo_efectivo")
         if existente:
             supabase_patch("configuracion?clave=eq.saldo_flujo_efectivo", {"valor": valor})
@@ -1039,7 +1085,7 @@ def proyeccion_flujo(sucursal_id: str, dias: int = 60):
     try:
         from datetime import timedelta
         import calendar as _cal
-        hoy = date.today()
+        hoy = _hoy_mx()
 
         saldo_rows = supabase_get("configuracion?clave=eq.saldo_flujo_efectivo")
         saldo_inicial = 0.0
@@ -1080,10 +1126,14 @@ def proyeccion_flujo(sucursal_id: str, dias: int = 60):
             detalle = []
 
             for o in cxp:
-                if o.get("fecha_vencimiento") == fecha_iso:
-                    monto = float(o.get("total") or 0)
+                # saldo pendiente (no el total: ya pudo tener abonos). Las ya vencidas caen en
+                # el día 0 -- antes solo se contaban si vencían EXACTO en un día futuro y las
+                # deudas atrasadas desaparecían de la proyección.
+                vence = o.get("fecha_vencimiento")
+                if vence == fecha_iso or (i == 0 and vence and vence < fecha_iso):
+                    monto = float(o.get("saldo_pendiente") if o.get("saldo_pendiente") is not None else (o.get("total") or 0))
                     egreso += monto
-                    detalle.append(f"Pago a {o.get('proveedor_nombre')}: ${monto:,.0f}")
+                    detalle.append(f"Pago a {o.get('proveedor_nombre')}: ${monto:,.0f}" + (" (vencido)" if vence < fecha_iso else ""))
 
             for t in plantillas:
                 dia = t.get("dia_mes") or 1

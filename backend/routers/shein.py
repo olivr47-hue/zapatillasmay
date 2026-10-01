@@ -23,6 +23,7 @@ Firma de cada request (headers x-lt-*):
 Verificado contra 3 SDKs independientes (PHP oficial, Java oficial, Python comunitario).
 """
 
+import threading
 import os, json, time, random, string, hmac, hashlib, base64, secrets, re
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
@@ -407,7 +408,21 @@ def ordenes_diagnostico_mapeo(sku_code: str = None, goods_sn: str = None):
     return resultado
 
 
+# Una sola sincronización a la vez: el hilo de 10 min, el webhook y el botón manual podían
+# correr juntos, ver la misma orden como "nueva" y descontar el inventario dos veces.
+_SYNC_VENTAS_LOCK = threading.Lock()
+
+
 def _hacer_sync_ventas_shein() -> dict:
+    if not _SYNC_VENTAS_LOCK.acquire(blocking=False):
+        return {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "omitida": "ya hay una sincronización en curso"}
+    try:
+        return _hacer_sync_ventas_shein_inner()
+    finally:
+        _SYNC_VENTAS_LOCK.release()
+
+
+def _hacer_sync_ventas_shein_inner() -> dict:
     import datetime as _dt
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
 
@@ -486,9 +501,7 @@ def _hacer_sync_ventas_shein() -> dict:
                 continue
 
             try:
-                for it in items_pedido:
-                    _descontar_inventario_variante_shein(it["variante_id"], it["cantidad"])
-
+                # Pedido primero, inventario después (ver comentario en mercadolibre.py).
                 total = sum(it["precio_unitario"] * it["cantidad"] for it in items_pedido)
                 datos_pedido = {
                     "shein_order_id": order_id, "canal": "shein",
@@ -526,6 +539,11 @@ def _hacer_sync_ventas_shein() -> dict:
                             "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
                             "color": it["color"], "talla": it["talla"],
                         })
+                for it in items_pedido:
+                    try:
+                        _descontar_inventario_variante_shein(it["variante_id"], it["cantidad"])
+                    except Exception as e_inv:
+                        resultado["errores"].append({"orden": order_id, "error": f"pedido creado pero falló el descuento de inventario ({it.get('sku')}): {e_inv}"})
                 resultado["procesadas"] += 1
             except Exception as e:
                 resultado["errores"].append({"orden": order_id, "error": str(e)})

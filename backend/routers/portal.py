@@ -11,7 +11,8 @@ Diseño:
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import supabase_get, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+import urllib.parse as _up
 from security import verify_password, hash_password, create_token, verify_token, limiter
 from email_utils import enviar_email
 import os
@@ -25,6 +26,8 @@ router = APIRouter(prefix="/portal", tags=["Portal Cliente"])
 _bearer = HTTPBearer(auto_error=False)
 
 OTP_EXP_MIN = 10
+OTP_COOLDOWN_SEG = 60   # mínimo entre códigos pedidos para el mismo destino
+_UUID_RE = re.compile(r"^[0-9a-fA-F-]{36}$")
 OTP_MAX_INTENTOS = 5
 
 # Campos del cliente seguros para exponer al propio cliente (sin notas internas, etc.)
@@ -82,7 +85,7 @@ async def login(request: Request, datos: dict):
         return JSONResponse(status_code=400, content={"error": "Correo y contraseña requeridos"})
 
     usuarios = supabase_get(
-        f"usuarios?email=eq.{email}&activo=eq.true&select=id,nombre,email,cliente_id,password_hash"
+        f"usuarios?email=eq.{_up.quote(email, safe='')}&activo=eq.true&select=id,nombre,email,cliente_id,password_hash"
     )
     if not usuarios or not verify_password(password, usuarios[0].get("password_hash", "")):
         return JSONResponse(status_code=401, content={"error": "Correo o contraseña incorrectos"})
@@ -109,7 +112,7 @@ async def login_google(request: Request, datos: dict):
         return JSONResponse(status_code=400, content={"error": "Token requerido"})
     try:
         req = urllib.request.Request(
-            f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}",
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={_up.quote(id_token, safe='')}",
             headers={"User-Agent": "ZapatillasMay/1.0"},
         )
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -121,10 +124,15 @@ async def login_google(request: Request, datos: dict):
     if not email or info.get("email_verified") not in ("true", True):
         return JSONResponse(status_code=401, content={"error": "Email no verificado por Google"})
     client_id_env = os.environ.get("GOOGLE_CLIENT_ID", "")
-    if client_id_env and info.get("aud") != client_id_env:
+    if not client_id_env:
+        # Sin GOOGLE_CLIENT_ID no se puede validar la audiencia: un id_token de OTRA app serviría
+        # para entrar como cualquier correo. Falla cerrado.
+        print("[portal/google] GOOGLE_CLIENT_ID no configurado; login con Google deshabilitado")
+        return JSONResponse(status_code=503, content={"error": "Inicio de sesión con Google no disponible"})
+    if info.get("aud") != client_id_env:
         return JSONResponse(status_code=401, content={"error": "Token no corresponde a esta aplicación"})
 
-    cli = supabase_get(f"clientes?email=eq.{email}&select=*")
+    cli = supabase_get(f"clientes?email=eq.{_up.quote(email, safe='')}&select=*")
     if not cli:
         return JSONResponse(status_code=403, content={"error": "No encontramos una cuenta de cliente con ese correo. Pide tu alta de mayoreo."})
     c = cli[0]
@@ -150,12 +158,14 @@ def _buscar_cliente_por(metodo: str, valor: str):
         tel = _norm_tel(valor)
         if len(tel) < 10:
             return None, None
-        clientes = supabase_get("clientes?activo=eq.true&select=id,nombre,telefono,email,tipo") or []
+        # supabase_get_all: con supabase_get solo llegaban las primeras 1000 filas y los clientes
+        # siguientes nunca podían entrar por teléfono.
+        clientes = supabase_get_all("clientes?activo=eq.true&select=id,nombre,telefono,email,tipo") or []
         return next((c for c in clientes if _norm_tel(c.get("telefono")) == tel), None), tel
     email = (valor or "").strip().lower()
     if "@" not in email:
         return None, None
-    cli = (supabase_get(f"clientes?email=eq.{email}&select=id,nombre,telefono,email,tipo") or [None])[0]
+    cli = (supabase_get(f"clientes?email=eq.{_up.quote(email, safe='')}&select=id,nombre,telefono,email,tipo") or [None])[0]
     return cli, email
 
 
@@ -173,7 +183,7 @@ def _enviar_email_codigo(email: str, nombre: str, codigo: str) -> bool:
         f"Tu código de acceso: {codigo}",
         f"""
         <div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:28px">
-          <h2 style="color:#0A0A0A">Hola {nombre or ''} 👋</h2>
+          <h2 style="color:#0A0A0A">Hola {__import__('html').escape(nombre or '')} 👋</h2>
           <p style="color:#555">Tu código para entrar al portal de mayoreo:</p>
           <p style="font-size:2rem;font-weight:800;letter-spacing:6px;color:#E91E8C;margin:18px 0">{codigo}</p>
           <p style="color:#aaa;font-size:.8rem">Vence en {OTP_EXP_MIN} minutos. Si no fuiste tú, ignora este correo.</p>
@@ -233,6 +243,17 @@ async def otp_solicitar(request: Request, datos: dict):
     if metodo == "correo" and not cli.get("email"):
         return JSONResponse(status_code=400, content={"error": "Tu cuenta no tiene correo registrado"})
 
+    # Un código por destino cada OTP_COOLDOWN_SEG: sin esto cualquiera podía disparar WhatsApps/correos
+    # de código sin parar al número de un cliente, y además adivinar el código con más intentos.
+    ultimo = supabase_get(f"portal_otp?destino=eq.{_up.quote(destino, safe='')}&order=created_at.desc&limit=1&select=created_at") or []
+    if ultimo:
+        try:
+            t0 = datetime.fromisoformat(str(ultimo[0]["created_at"]).replace("Z", "+00:00"))
+            if (datetime.now(timezone.utc) - t0).total_seconds() < OTP_COOLDOWN_SEG:
+                return JSONResponse(status_code=429, content={"error": "Ya te enviamos un código hace un momento. Espera un minuto para pedir otro."})
+        except Exception:
+            pass
+
     codigo = f"{secrets.randbelow(1000000):06d}"
     expira = (datetime.now(timezone.utc) + timedelta(minutes=OTP_EXP_MIN)).isoformat()
     supabase_post("portal_otp", {
@@ -260,7 +281,7 @@ async def otp_verificar(request: Request, datos: dict):
     if not destino:
         return JSONResponse(status_code=400, content={"error": "Dato inválido"})
 
-    rows = supabase_get(f"portal_otp?destino=eq.{destino}&usado=eq.false&order=created_at.desc&limit=1") or []
+    rows = supabase_get(f"portal_otp?destino=eq.{_up.quote(destino, safe='')}&usado=eq.false&order=created_at.desc&limit=1") or []
     if not rows:
         return JSONResponse(status_code=400, content={"error": "Solicita un código primero"})
     row = rows[0]
@@ -342,7 +363,9 @@ def enviar_carrito(datos: dict, auth: dict = Depends(require_cliente)):
         return JSONResponse(status_code=400, content={"error": "Sin artículos válidos"})
 
     # Traer variantes + productos para calcular precios reales (no confiar en el cliente)
-    ids = list({vid for (vid, _) in pedido_items})
+    ids = [v for v in {vid for (vid, _) in pedido_items} if _UUID_RE.match(str(v))]
+    if not ids:
+        return JSONResponse(status_code=400, content={"error": "Sin artículos válidos"})
     in_clause = ",".join(ids)
     variantes = supabase_get(f"variantes?id=in.({in_clause})&select=id,producto_id,talla,color,foto_url")
     var_by_id = {v["id"]: v for v in (variantes or [])}

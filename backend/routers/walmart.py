@@ -11,6 +11,7 @@ Headers obligatorios en TODAS las llamadas autenticadas (fuera del Token API):
   WM_SEC.ACCESS_TOKEN, WM_QOS.CORRELATION_ID, WM_SVC.NAME, WM_MARKET=mx.
 """
 
+import threading
 import os, json, time, uuid, base64, io, shutil
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException
@@ -260,7 +261,21 @@ def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
     return True
 
 
+# Una sola sincronización a la vez: el hilo de 10 min, el webhook y el botón manual podían
+# correr juntos, ver la misma orden como "nueva" y descontar el inventario dos veces.
+_SYNC_VENTAS_LOCK = threading.Lock()
+
+
 def _hacer_sync_ventas_walmart() -> dict:
+    if not _SYNC_VENTAS_LOCK.acquire(blocking=False):
+        return {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": [], "omitida": "ya hay una sincronización en curso"}
+    try:
+        return _hacer_sync_ventas_walmart_inner()
+    finally:
+        _SYNC_VENTAS_LOCK.release()
+
+
+def _hacer_sync_ventas_walmart_inner() -> dict:
     resultado = {"revisadas": 0, "procesadas": 0, "sin_match": [], "errores": []}
     try:
         resp = walmart_get("/orders", params={"limit": 100})
@@ -312,12 +327,12 @@ def _hacer_sync_ventas_walmart() -> dict:
             continue
 
         try:
-            for it in items_pedido:
-                _descontar_inventario_variante_walmart(it["variante_id"], it["cantidad"])
-
+            # Pedido primero, inventario después (ver comentario en mercadolibre.py).
             total = sum(it["precio_unitario"] * it["cantidad"] for it in items_pedido)
             datos_pedido = {
-                "walmart_order_id": order_id, "canal": "walmart", "status": "confirmado",
+                # "pagado" (no "confirmado"): Walmart ya cobró al comprador; con "confirmado" el pedido
+                # no aparecía en "Por enviar" ni en el badge (mismo caso que ML/SHEIN).
+                "walmart_order_id": order_id, "canal": "walmart", "status": "pagado",
                 "tipo": "online", "total": total, "subtotal": total, "forma_pago": "walmart",
                 "nombre_cliente": "Comprador Walmart",
                 "notas": f"Pedido generado automáticamente desde Walmart (orden {order_id})" + (" — faltó match de algún SKU" if faltante else ""),
@@ -350,6 +365,11 @@ def _hacer_sync_ventas_walmart() -> dict:
                         "precio_unitario": it["precio_unitario"], "nombre": it["nombre"],
                         "color": it["color"], "talla": it["talla"],
                     })
+            for it in items_pedido:
+                try:
+                    _descontar_inventario_variante_walmart(it["variante_id"], it["cantidad"])
+                except Exception as e_inv:
+                    resultado["errores"].append({"orden": order_id, "error": f"pedido creado pero falló el descuento de inventario ({it.get('sku')}): {e_inv}"})
             resultado["procesadas"] += 1
         except Exception as e:
             resultado["errores"].append({"orden": order_id, "error": str(e)})

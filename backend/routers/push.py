@@ -10,8 +10,11 @@ ningun servicio de terceros de pago.
 import os
 import re
 import json
-from fastapi import APIRouter
+import urllib.parse as _up
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
+from security import bearer_opcional, payload_opcional, es_personal
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 
 router = APIRouter(prefix="/push", tags=["Push"])
@@ -35,7 +38,7 @@ def public_key():
 
 
 @router.post("/suscribir")
-def suscribir(body: dict):
+def suscribir(body: dict, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     """
     Guarda una suscripcion push nueva (o la reactiva si ya existia).
     Body: { "subscription": {"endpoint":..., "keys": {"p256dh":..., "auth":...}},
@@ -47,13 +50,26 @@ def suscribir(body: dict):
     if not endpoint or not keys.get("p256dh") or not keys.get("auth"):
         return JSONResponse(status_code=400, content={"error": "Suscripcion invalida"})
 
-    existentes = supabase_get(f"push_subscriptions?endpoint=eq.{endpoint}&select=id")
+    # Este endpoint es público (los visitantes de la tienda se suscriben sin login), así que NO
+    # se confía en el body para lo sensible: antes cualquiera podía mandar sitio="panel" y recibir
+    # en su navegador las notificaciones internas (pedidos, pagos, correos entrantes, reportes).
+    payload = payload_opcional(credentials)
+    es_staff = bool(payload) and es_personal(payload)
+    sitio = body.get("sitio") or "tienda"
+    if sitio not in ("tienda", "portal", "panel"):
+        sitio = "tienda"
+    if sitio == "panel" and not es_staff:
+        return JSONResponse(status_code=403, content={"error": "Solo el personal puede suscribirse a las notificaciones del panel"})
+    # cliente_id solo si el token lo respalda (nunca el del body: se podían desviar notificaciones de otro cliente)
+    cliente_id = payload.get("cliente_id") if (payload and not es_staff) else None
+
+    existentes = supabase_get(f"push_subscriptions?endpoint=eq.{_up.quote(str(endpoint), safe='')}&select=id")
     datos = {
         "endpoint":   endpoint,
         "p256dh":     keys["p256dh"],
         "auth":       keys["auth"],
-        "sitio":      body.get("sitio") or "tienda",
-        "cliente_id": body.get("cliente_id") or None,
+        "sitio":      sitio,
+        "cliente_id": cliente_id,
         "user_agent": body.get("user_agent") or "",
         "activa":     True,
     }
@@ -69,7 +85,7 @@ def desuscribir(body: dict):
     endpoint = body.get("endpoint")
     if not endpoint:
         return JSONResponse(status_code=400, content={"error": "endpoint requerido"})
-    supabase_patch(f"push_subscriptions?endpoint=eq.{endpoint}", {"activa": False})
+    supabase_patch(f"push_subscriptions?endpoint=eq.{_up.quote(str(endpoint), safe='')}", {"activa": False})
     return {"ok": True}
 
 
@@ -192,19 +208,4 @@ def diagnostico():
         "pywebpush_instalado": _PYWEBPUSH_OK,
         "vapid_configurado": bool(VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY),
         "error_import": None if _PYWEBPUSH_OK else _import_error,
-    }
-
-
-@router.get("/diagnostico-detalle")
-def diagnostico_detalle():
-    """Temporal: lista los paquetes realmente instalados en el venv del servidor."""
-    import subprocess, sys
-    try:
-        out = subprocess.run([sys.executable, "-m", "pip", "list"], capture_output=True, text=True, timeout=20)
-        paquetes = out.stdout
-    except Exception as e:
-        paquetes = f"error corriendo pip list: {e}"
-    return {
-        "python_executable": sys.executable,
-        "paquetes_instalados": paquetes,
     }
