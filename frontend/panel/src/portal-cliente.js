@@ -2904,9 +2904,65 @@ window.pcToggleSeleccionApartado = function(key) {
   renderCarrito()
 }
 
+// ── WhatsApp obligatorio para apartar / cerrar pedido ─────────────────────
+// Las clientas se registran solo con correo; sin teléfono, los carritos/apartados que
+// llegan al panel no tienen forma de contactarse. Antes de apartar o cerrar se pide el
+// WhatsApp (se guarda en su cuenta y no se vuelve a pedir).
+function pcTelefonoLimpio(v) {
+  let d = String(v || '').replace(/\D/g, '')
+  if (d.length === 13 && d.startsWith('521')) d = d.slice(3)
+  else if (d.length === 12 && d.startsWith('52')) d = d.slice(2)
+  return d
+}
+function pcTieneWhatsapp() { return pcTelefonoLimpio(pc.clienteData?.telefono).length === 10 }
+
+// Resuelve true si la clienta ya tiene (o acaba de capturar) un WhatsApp válido; false si cancela.
+window.pcAsegurarWhatsapp = function() {
+  if (pcTieneWhatsapp()) return Promise.resolve(true)
+  return new Promise(resolve => {
+    const ov = document.createElement('div')
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px'
+    ov.innerHTML = `
+      <div style="background:var(--pc-surface,#fff);color:var(--pc-text,#111);border-radius:16px;max-width:380px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.35)">
+        <p style="font-size:1.05rem;font-weight:800;margin:0 0 6px">📱 ¿A qué WhatsApp te escribimos?</p>
+        <p style="font-size:0.83rem;color:var(--pc-muted,#666);margin:0 0 16px;line-height:1.5">Para confirmar tu apartado y coordinar el pago y el envío necesitamos tu número de WhatsApp.</p>
+        <input id="pc-wa-input" type="tel" inputmode="tel" maxlength="20" placeholder="10 dígitos, ej. 4791234567" class="pc-input" style="width:100%;box-sizing:border-box;margin-bottom:8px">
+        <p id="pc-wa-err" style="display:none;color:#ef4444;font-size:0.78rem;margin:0 0 8px"></p>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="pc-wa-cancel" class="pc-btn" style="flex:1">Cancelar</button>
+          <button id="pc-wa-ok" class="pc-btn pc-btn-primary" style="flex:1">Guardar y continuar</button>
+        </div>
+      </div>`
+    document.body.appendChild(ov)
+    const input = ov.querySelector('#pc-wa-input'), err = ov.querySelector('#pc-wa-err'), ok = ov.querySelector('#pc-wa-ok')
+    const cerrar = v => { ov.remove(); resolve(v) }
+    ov.querySelector('#pc-wa-cancel').onclick = () => cerrar(false)
+    input.focus()
+    const guardar = async () => {
+      const tel = pcTelefonoLimpio(input.value)
+      if (tel.length !== 10) { err.textContent = 'Escribe los 10 dígitos de tu WhatsApp (con lada, sin +52).'; err.style.display = 'block'; return }
+      ok.disabled = true; ok.textContent = 'Guardando...'
+      try {
+        const res = await fetch(`${PC_API}/clientes/${pc.sesion.cliente_id}`, {
+          method: 'PATCH', headers: pcAuthHeaders(), body: JSON.stringify({ telefono: tel })
+        })
+        if (!res.ok) throw new Error('No se pudo guardar')
+        pc.clienteData = Object.assign(pc.clienteData || {}, { telefono: tel })
+        cerrar(true)
+      } catch (e) {
+        err.textContent = 'No se pudo guardar tu número. Intenta de nuevo.'; err.style.display = 'block'
+        ok.disabled = false; ok.textContent = 'Guardar y continuar'
+      }
+    }
+    ok.onclick = guardar
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') guardar() })
+  })
+}
+
 window.pcEnviarParaApartar = async function() {
   const sel = pc._seleccionApartado
   if (!sel || !sel.size) return
+  if (!(await pcAsegurarWhatsapp())) return
   const btns = document.querySelectorAll('[onclick="pcEnviarParaApartar()"]')
   btns.forEach(b => { b.disabled = true; b.textContent = 'Enviando...' })
   try {
@@ -3132,6 +3188,7 @@ window.pcCerrarPedidoDirecto = async function() {
     return
   }
   if (!pc.sesion?.cliente_id) { if (errEl) { errEl.textContent = 'Sin sesión activa'; errEl.style.display = 'block' } return }
+  if (!(await pcAsegurarWhatsapp())) return
   const direccion = (pc.clienteData?.direccion || '').trim()
   if (!direccion) {
     if (errEl) { errEl.textContent = 'Agrega tu dirección de envío en Mi cuenta antes de cerrar el pedido'; errEl.style.display = 'block' }

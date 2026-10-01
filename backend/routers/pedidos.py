@@ -54,6 +54,19 @@ def _exigir_dueno_pedido(pedido_id, credentials):
     return exigir_personal_o_dueno(_cliente_de_pedido(pedido_id), credentials)
 
 
+def _cliente_sin_whatsapp(cliente_id):
+    """True si el cliente no tiene un teléfono de 10 dígitos guardado (sin él, un apartado o
+    pedido llega al panel sin forma de contactar a la clienta)."""
+    if not cliente_id:
+        return True
+    rows = supabase_get(f"clientes?id=eq.{cliente_id}&select=telefono&limit=1") or [{}]
+    d = re.sub(r"\D", "", str(rows[0].get("telefono") or ""))
+    return len(d) < 10
+
+
+_MSG_SIN_WHATSAPP = "Necesitamos tu WhatsApp para continuar. Agrégalo en Mi cuenta e intenta de nuevo."
+
+
 def _es_staff_cred(credentials):
     p = payload_opcional(credentials)
     return bool(p) and es_personal(p)
@@ -279,14 +292,14 @@ def _enviar_confirmacion_wa(pedido_data, items_data):
 def listar_pedidos(status: str = None, _staff=Depends(require_staff)):
     try:
         filtro = f"&status=eq.{status}" if status else ""
-        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*)")
+        return supabase_get(f"pedidos?order=created_at.desc{filtro}&select=*,clientes(nombre,telefono,email),sucursales(nombre),pedido_items(*)")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/apartados")
 def listar_apartados(_staff=Depends(require_staff)):
     try:
-        return supabase_get("pedidos?status=eq.apartado&order=created_at.desc&select=*,clientes(nombre,telefono),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
+        return supabase_get("pedidos?status=eq.apartado&order=created_at.desc&select=*,clientes(nombre,telefono,email),sucursales(nombre),pedido_items(*,variantes(*,productos(nombre,imagen_principal)))")
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -573,6 +586,9 @@ async def crear_pedido(pedido: dict, request: Request):
                     pedido.pop(_k, None)
             if pedido.get("status") not in _STATUS_CLIENTE_OK:
                 pedido["status"] = "borrador"
+            if (_cliente_verificado and pedido.get("canal") == "portal_mayoreo"
+                    and pedido.get("status") == "pendiente_pago" and _cliente_sin_whatsapp(pedido.get("cliente_id"))):
+                return JSONResponse(status_code=400, content={"error": _MSG_SIN_WHATSAPP, "code": "TELEFONO_REQUERIDO"})
             if (pedido.get("canal") or "") not in _CANALES_CLIENTE_OK:
                 pedido["canal"] = "web"
             if pedido.get("forma_pago") not in _FORMAS_PAGO_CLIENTE_OK:
@@ -972,6 +988,8 @@ def solicitar_apartado_items(id: str, datos: dict, credentials: HTTPAuthorizatio
     ítems para que el dueño los vea agrupados y decida aprobarlos desde el
     panel (aprobar-apartado prioriza los que tengan esta bandera)."""
     _exigir_dueno_pedido(id, credentials)
+    if not _es_staff_cred(credentials) and _cliente_sin_whatsapp(_cliente_de_pedido(id)):
+        return JSONResponse(status_code=400, content={"error": _MSG_SIN_WHATSAPP, "code": "TELEFONO_REQUERIDO"})
     try:
         item_ids = datos.get("item_ids") or []
         if not item_ids:

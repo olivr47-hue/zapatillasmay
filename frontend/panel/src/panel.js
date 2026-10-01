@@ -26120,7 +26120,9 @@ async function cargarCarritos() {
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
                       <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
-                      <p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono || 'Sin teléfono'}</p>
+                      ${cliente.telefono
+                        ? `<p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono} <a href="https://wa.me/52${String(cliente.telefono).replace(/\D/g,'').slice(-10)}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:1px 7px;border-radius:6px;font-size:0.66rem;text-decoration:none;margin-left:4px">WhatsApp</a></p>`
+                        : `<p style="font-size:0.75rem;margin:3px 0 0"><span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 7px;font-weight:700;font-size:0.68rem">⚠ Sin WhatsApp</span>${cliente.email ? ` <a href="mailto:${cliente.email}" onclick="event.stopPropagation()" style="color:#64748b">${cliente.email}</a>` : ''}</p>`}
                       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px">
                         ${nQuitar > 0 ? `<span style="display:inline-block;background:#fee2e2;color:#991b1b;border:1px solid #dc2626;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🚫 ${nQuitar} quitar</span>` : ''}
                         ${nSolicitados > 0 ? `<span style="display:inline-block;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;border-radius:100px;padding:2px 9px;font-size:0.66rem;font-weight:700">🙋 ${nSolicitados} solicitado${nSolicitados!==1?'s':''}</span>` : ''}
