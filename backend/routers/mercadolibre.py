@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
 from security import limpiar_texto
-from database import supabase_get_all, supabase_get, supabase_post, supabase_patch
+from database import supabase_get_all, supabase_get, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set, cache_invalidate
 
 router = APIRouter(prefix="/ml", tags=["MercadoLibre"])
@@ -688,8 +688,8 @@ def _descontar_inventario_variante(variante_id: str, cantidad: int):
     if not filas:
         return False
     fila = filas[0]
-    nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
-    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
+    # descuento ATÓMICO en la función SQL (la sucursal con más stock se eligió arriba)
+    inventario_ajustar(variante_id, fila['sucursal_id'], -cantidad)
     supabase_post("movimientos_inventario", {
         "variante_id":  variante_id,
         "sucursal_id":  fila["sucursal_id"],

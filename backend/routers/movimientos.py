@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, inventario_ajustar
 from cache import cache_invalidate_prefix
 from security import require_staff
 
@@ -69,22 +69,10 @@ def entrada_mercancia(datos: dict, _staff=Depends(require_staff)):
         cantidad = datos.get("cantidad")
         motivo = datos.get("motivo", "Entrada de mercancia")
 
-        inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-        cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
-        cantidad_nueva = cantidad_anterior + cantidad
-
-        if inv_actual:
-            supabase_patch(
-                f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                {"cantidad": cantidad_nueva}
-            )
-        else:
-            supabase_post("inventario", {
-                "variante_id": variante_id,
-                "sucursal_id": sucursal_id,
-                "cantidad": cantidad_nueva,
-                "stock_minimo": 3
-            })
+        # entrada ATÓMICA (crea la fila si no existía)
+        _aj = inventario_ajustar(variante_id, sucursal_id, int(cantidad), crear=True)
+        cantidad_anterior = _aj["anterior"] if _aj else 0
+        cantidad_nueva = _aj["nueva"] if _aj else int(cantidad)
 
         supabase_post("movimientos_inventario", {
             "tipo": "entrada",
@@ -115,22 +103,9 @@ def registrar_cambio(datos: dict, _staff=Depends(require_staff)):
         sucursal_id = datos.get("sucursal_id")
         motivo = datos.get("motivo", "Cambio de cliente")
 
-        inv_origen = supabase_get(f"inventario?variante_id=eq.{variante_origen_id}&sucursal_id=eq.{sucursal_id}")
-        if inv_origen:
-            cantidad_origen = inv_origen[0]["cantidad"]
-            supabase_patch(
-                f"inventario?variante_id=eq.{variante_origen_id}&sucursal_id=eq.{sucursal_id}",
-                {"cantidad": cantidad_origen + 1}
-            )
-
-        inv_destino = supabase_get(f"inventario?variante_id=eq.{variante_destino_id}&sucursal_id=eq.{sucursal_id}")
-        if inv_destino:
-            cantidad_destino = inv_destino[0]["cantidad"]
-            if cantidad_destino > 0:
-                supabase_patch(
-                    f"inventario?variante_id=eq.{variante_destino_id}&sucursal_id=eq.{sucursal_id}",
-                    {"cantidad": cantidad_destino - 1}
-                )
+        # +1 al par que regresa, -1 al que se lleva (atómico; el destino nunca baja de 0)
+        inventario_ajustar(variante_origen_id, sucursal_id, 1)
+        inventario_ajustar(variante_destino_id, sucursal_id, -1)
 
         supabase_post("cambios_producto", {
             "variante_origen_id": variante_origen_id,
@@ -172,30 +147,13 @@ def registrar_traspaso(datos: dict, _staff=Depends(require_staff)):
         if sucursal_origen_id == sucursal_destino_id:
             return JSONResponse(status_code=400, content={"error": "La sucursal origen y destino no pueden ser la misma"})
 
-        inv_origen = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_origen_id}")
-        if not inv_origen or inv_origen[0]["cantidad"] < cantidad:
+        # Salida atómica del origen; si no había suficiente (otra venta se adelantó), se revierte lo tomado.
+        _sal = inventario_ajustar(variante_id, sucursal_origen_id, -int(cantidad))
+        if not _sal or (_sal["anterior"] - _sal["nueva"]) < int(cantidad):
+            if _sal and _sal["anterior"] > _sal["nueva"]:
+                inventario_ajustar(variante_id, sucursal_origen_id, _sal["anterior"] - _sal["nueva"])
             return JSONResponse(status_code=400, content={"error": "No hay suficiente inventario en la sucursal origen"})
-
-        cantidad_origen = inv_origen[0]["cantidad"]
-        supabase_patch(
-            f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_origen_id}",
-            {"cantidad": cantidad_origen - cantidad}
-        )
-
-        inv_destino = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_destino_id}")
-        if inv_destino:
-            cantidad_destino = inv_destino[0]["cantidad"]
-            supabase_patch(
-                f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_destino_id}",
-                {"cantidad": cantidad_destino + cantidad}
-            )
-        else:
-            supabase_post("inventario", {
-                "variante_id": variante_id,
-                "sucursal_id": sucursal_destino_id,
-                "cantidad": cantidad,
-                "stock_minimo": 3
-            })
+        inventario_ajustar(variante_id, sucursal_destino_id, int(cantidad), crear=True)
 
         supabase_post("movimientos_inventario", {
             "tipo": "traspaso_salida",

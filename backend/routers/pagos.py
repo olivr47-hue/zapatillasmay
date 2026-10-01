@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_patch, supabase_post
+from database import supabase_get, supabase_patch, supabase_post, inventario_ajustar
 from cache import cache_get, cache_set, TTL_PUBLICO
 from security import require_staff
 import mercadopago
@@ -891,12 +891,9 @@ async def webhook_mercadopago(request: Request):
                                     inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&order=cantidad.desc&limit=1")
                                 if inv:
                                     inv_suc = inv[0].get("sucursal_id")
-                                    cantidad_anterior = inv[0]["cantidad"]
-                                    nueva_cantidad = max(0, cantidad_anterior - cantidad)
-                                    supabase_patch(
-                                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{inv_suc}",
-                                        {"cantidad": nueva_cantidad}
-                                    )
+                                    # descuento ATÓMICO (función SQL): ventas simultáneas ya no se pisan
+                                    _aj = inventario_ajustar(variante_id, inv_suc, -cantidad)
+                                    cantidad_anterior = _aj["anterior"] if _aj else inv[0]["cantidad"]
                                     try:
                                         supabase_post("movimientos_inventario", {
                                             "tipo": "venta",

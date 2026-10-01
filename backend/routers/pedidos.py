@@ -5,7 +5,7 @@ import re
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, inventario_ajustar
 from security import (
     require_staff, verify_token, bearer_opcional, es_personal,
     payload_opcional, exigir_personal_o_dueno, limpiar_dict, AUTH_ENFORCE,
@@ -351,10 +351,9 @@ def confirmar_deposito(id: str, datos: dict, _staff=Depends(require_staff)):
             variante_id = item.get("variante_id")
             cantidad = item.get("cantidad", 1)
             if variante_id and sucursal_id:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
-                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_cantidad})
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, -cantidad)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "venta",
                         "variante_id": variante_id,
@@ -913,10 +912,9 @@ def actualizar_item(id: str, item_id: str, datos: dict, _staff=Depends(require_s
             sucursal_id = pedido[0].get("sucursal_id")
             diff = nueva_cantidad - cantidad_anterior  # positivo = más pares (descontar), negativo = devolver
             if variante_id and sucursal_id and diff != 0:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_inv = max(0, inv[0]["cantidad"] - diff)
-                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_inv})
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, -diff)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "ajuste",
                         "variante_id": variante_id,
@@ -964,9 +962,9 @@ def eliminar_item(id: str, item_id: str, forzar: bool = False, credentials: HTTP
             variante_id = item_actual[0].get("variante_id")
             sucursal_id = pedido[0].get("sucursal_id")
             if variante_id and sucursal_id and cantidad > 0:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": inv[0]["cantidad"] + cantidad})
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, cantidad)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "ajuste",
                         "variante_id": variante_id,
@@ -1109,10 +1107,9 @@ def aprobar_apartado(id: str, datos: dict = {}, _staff=Depends(require_staff)):
             variante_id = it.get("variante_id")
             cantidad = it.get("cantidad", 1) or 1
             if variante_id:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
-                    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva_cantidad})
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, -cantidad)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "apartado",
                         "variante_id": variante_id,
@@ -1160,13 +1157,9 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
             if item.get("reservado"):
                 continue
             if variante_id and sucursal_id:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
-                    supabase_patch(
-                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                        {"cantidad": nueva_cantidad}
-                    )
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, -cantidad)
+                if _aj:
                     # Una linea con cantidad negativa es un "cambio" (el cliente
                     # devuelve ese par en vez de comprarlo) — el stock sube en
                     # vez de bajar; se etiqueta distinto para que el historial
@@ -1372,13 +1365,9 @@ def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends
             variante_id = item.get("variante_id")
             cantidad = item.get("cantidad", 1)
             if variante_id and sucursal_id:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_cantidad = inv[0]["cantidad"] + cantidad
-                    supabase_patch(
-                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                        {"cantidad": nueva_cantidad}
-                    )
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, cantidad)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "ajuste",
                         "variante_id": variante_id,
@@ -1410,13 +1399,9 @@ def reconfirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
             variante_id = item.get("variante_id")
             cantidad = item.get("cantidad", 1)
             if variante_id and sucursal_id:
-                inv = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-                if inv:
-                    nueva_cantidad = max(0, inv[0]["cantidad"] - cantidad)
-                    supabase_patch(
-                        f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                        {"cantidad": nueva_cantidad}
-                    )
+                # ajuste ATÓMICO (función SQL ajustar_inventario): dos ventas simultáneas ya no se pisan
+                _aj = inventario_ajustar(variante_id, sucursal_id, -cantidad)
+                if _aj:
                     supabase_post("movimientos_inventario", {
                         "tipo": "venta",
                         "variante_id": variante_id,

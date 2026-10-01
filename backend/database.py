@@ -108,3 +108,41 @@ def supabase_delete(tabla):
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise Exception(f"HTTP {e.code}: {error_body}")
+
+def inventario_ajustar(variante_id, sucursal_id, delta, crear=False):
+    """Suma `delta` (negativo = descontar) al inventario de una variante en una sucursal de forma
+    ATÓMICA, usando la función SQL public.ajustar_inventario (bloquea la fila). Antes cada venta
+    leía la cantidad, restaba en Python y escribía: dos ventas simultáneas se pisaban y el stock
+    quedaba mal. Nunca baja de 0. `crear=True` crea la fila si no existe (entradas de mercancía).
+
+    Devuelve {"anterior": N, "nueva": M}, o None si no hay fila de inventario y crear=False.
+    Si la función SQL no existe todavía en la base, cae al método anterior (no atómico)."""
+    url = f"{SUPABASE_URL}/rest/v1/rpc/ajustar_inventario"
+    body = json.dumps({
+        "p_variante": str(variante_id), "p_sucursal": str(sucursal_id),
+        "p_delta": int(delta), "p_crear": bool(crear),
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
+            raw = response.read()
+            return json.loads(raw) if raw else None
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode(errors="replace")
+        if e.code in (401, 403, 404) or "PGRST202" in detalle or "42501" in detalle:   # función ausente o sin permiso: método anterior
+            return _inventario_ajustar_legacy(variante_id, sucursal_id, delta, crear)
+        raise Exception(f"HTTP {e.code}: {detalle}")
+
+
+def _inventario_ajustar_legacy(variante_id, sucursal_id, delta, crear):
+    filas = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}&select=cantidad")
+    if not filas:
+        if not crear:
+            return None
+        nueva = max(0, int(delta))
+        supabase_post("inventario", {"variante_id": variante_id, "sucursal_id": sucursal_id, "cantidad": nueva, "stock_minimo": 3})
+        return {"anterior": 0, "nueva": nueva}
+    anterior = int(filas[0].get("cantidad") or 0)
+    nueva = max(0, anterior + int(delta))
+    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva})
+    return {"anterior": anterior, "nueva": nueva}

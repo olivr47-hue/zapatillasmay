@@ -16,7 +16,7 @@ import os, json, time, uuid, base64, io, shutil
 import urllib.request, urllib.error, urllib.parse
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from database import supabase_get_all, supabase_post, supabase_get, supabase_patch
+from database import supabase_get_all, supabase_post, supabase_get, supabase_patch, inventario_ajustar
 from cache import cache_get, cache_set
 
 router = APIRouter(prefix="/walmart", tags=["Walmart"])
@@ -249,8 +249,8 @@ def _descontar_inventario_variante_walmart(variante_id: str, cantidad: int):
     if not filas:
         return False
     fila = filas[0]
-    nueva_cantidad = max(0, (fila.get("cantidad") or 0) - cantidad)
-    supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{fila['sucursal_id']}", {"cantidad": nueva_cantidad})
+    # descuento ATÓMICO en la función SQL (la sucursal con más stock se eligió arriba)
+    inventario_ajustar(variante_id, fila['sucursal_id'], -cantidad)
     supabase_post("movimientos_inventario", {
         "variante_id": variante_id, "sucursal_id": fila["sucursal_id"],
         # Negativo: el inventario SI se resto bien arriba, pero este registro

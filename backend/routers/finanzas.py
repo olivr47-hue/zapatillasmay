@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, inventario_ajustar
 from datetime import date, datetime, timedelta, timezone
 import json
 
@@ -279,19 +279,9 @@ def recibir_orden_existente(id: str):
             cantidad = int(i.get("cantidad") or 0)
             if not variante_id or cantidad <= 0:
                 continue
-            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
-            cantidad_nueva = cantidad_anterior + cantidad
-            if inv_actual:
-                supabase_patch(
-                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                    {"cantidad": cantidad_nueva}
-                )
-            else:
-                supabase_post("inventario", {
-                    "variante_id": variante_id, "sucursal_id": sucursal_id,
-                    "cantidad": cantidad_nueva, "stock_minimo": 3
-                })
+            # entrada ATÓMICA (crea la fila si no existía)
+            _aj = inventario_ajustar(variante_id, sucursal_id, cantidad, crear=True)
+            cantidad_anterior = _aj["anterior"] if _aj else 0
             supabase_post("movimientos_inventario", {
                 "tipo": "entrada",
                 "variante_id": variante_id,
@@ -355,19 +345,9 @@ def recibir_mercancia(datos: dict):
                 "subtotal": cantidad * costo_unitario,
             })
 
-            inv_actual = supabase_get(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}")
-            cantidad_anterior = inv_actual[0]["cantidad"] if inv_actual else 0
-            cantidad_nueva = cantidad_anterior + cantidad
-            if inv_actual:
-                supabase_patch(
-                    f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}",
-                    {"cantidad": cantidad_nueva}
-                )
-            else:
-                supabase_post("inventario", {
-                    "variante_id": variante_id, "sucursal_id": sucursal_id,
-                    "cantidad": cantidad_nueva, "stock_minimo": 3
-                })
+            # entrada ATÓMICA (crea la fila si no existía)
+            _aj = inventario_ajustar(variante_id, sucursal_id, cantidad, crear=True)
+            cantidad_anterior = _aj["anterior"] if _aj else 0
             supabase_post("movimientos_inventario", {
                 "tipo": "entrada",
                 "variante_id": variante_id,
