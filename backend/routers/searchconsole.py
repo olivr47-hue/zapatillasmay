@@ -151,6 +151,51 @@ def search_analytics(dias: int = 28, dimension: str = "query", limite: int = 100
     return {"configurado": True, "dias": dias, "dimension": dimension, "filas": filas}
 
 
+@router.get("/consulta-detalle-temp")
+def consulta_detalle_temp(q: str, dias: int = 28):
+    """TEMPORAL: para una frase de busqueda exacta, muestra que pagina rankea
+    y con que posicion, por semana, para ver tendencia reciente (no solo el
+    promedio del periodo completo). Quitar despues de usar."""
+    if not _configurado():
+        return _no_config()
+    import datetime as _dt
+    hoy = _dt.date.today()
+    inicio = hoy - _dt.timedelta(days=dias)
+    site = urllib.parse.quote(GSC_SITE_URL, safe="")
+    url = f"https://www.googleapis.com/webmasters/v3/sites/{site}/searchAnalytics/query"
+    filtro = {
+        "dimensionFilterGroups": [{
+            "filters": [{"dimension": "query", "operator": "equals", "expression": q}]
+        }]
+    }
+    por_pagina = _api(url, {
+        "startDate": inicio.isoformat(), "endDate": hoy.isoformat(),
+        "dimensions": ["page"], "rowLimit": 20, **filtro,
+    })
+    por_semana = _api(url, {
+        "startDate": inicio.isoformat(), "endDate": hoy.isoformat(),
+        "dimensions": ["date"], "rowLimit": 1000, **filtro,
+    })
+    def _filas(resp, dim):
+        if resp is None:
+            return []
+        out = []
+        for row in resp.get("rows", []):
+            keys = row.get("keys", [])
+            out.append({
+                dim: keys[0] if keys else "",
+                "clicks": row.get("clicks", 0),
+                "impresiones": row.get("impressions", 0),
+                "posicion": round(row.get("position", 0), 1),
+            })
+        return out
+    return {
+        "configurado": True, "query": q, "dias": dias,
+        "por_pagina": _filas(por_pagina, "page"),
+        "por_fecha": _filas(por_semana, "date"),
+    }
+
+
 @router.get("/inspeccionar")
 def inspeccionar_url(url: str):
     """
