@@ -17408,6 +17408,7 @@ area.style.minHeight = '0'
     <div class="wa-input-bar">
       <div class="wa-input-toolbar">
         ${_esWhatsappChat ? `
+        <button class="wa-tool-btn" title="Enviar plantilla aprobada (funciona aunque hayan pasado más de 24 h)" style="font-size:0.95rem" onclick="mostrarPlantillaChatWA('${_ja(telefono)}','${_ja((chat.nombre||''))}')">📨</button>
         <button class="wa-tool-btn" title="Adjuntar imagen" onclick="document.getElementById('img-file-${telefono}').click()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         </button>
