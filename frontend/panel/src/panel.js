@@ -15755,10 +15755,11 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
     window._chatsData = {}
     chats.forEach(c => window._chatsData[c.telefono] = c)
     window._productosWA = productos.filter(p => p.activo)
-    window._waFiltros = { canal: '', estado: '', etiqueta: '', mayorista: false, texto: '' }
+    window._waFiltros = { canal: '', estado: '', etiqueta: '', mayorista: false, espera: false, texto: '' }
 
     const totalNoLeidos = chats.reduce((s,c) => s + (c.no_leidos||0), 0)
 
+    window._actualizarContadorEsperaWA(chats)
     content.innerHTML = `
   <div class="wa-topbar">
     <div>
@@ -15810,6 +15811,7 @@ if (navConv) navConv.querySelector('.nav-badge')?.remove()
             <button onclick="filtrarEtiqueta('seguimiento')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span> Seguim.</button>
             <button onclick="filtrarEtiqueta('frecuente')" class="wa-pill"><span style="width:6px;height:6px;border-radius:50%;background:#E91E8C;display:inline-block;flex-shrink:0"></span> Frecuente</button>
             <button onclick="window.filtrarMayoristaWA(this)" class="wa-pill" title="Mostrar solo conversaciones de clientes mayoristas/zapaterías">🏢 Mayoristas</button>
+            <button onclick="window.filtrarEsperaWA(this)" class="wa-pill" title="Clientas que escribieron y nadie (ni Maya) les ha contestado">⏳ Sin responder <span id="wa-espera-n"></span></button>
           </div>
         </div>
         <div class="wa-chat-list">
@@ -16028,9 +16030,116 @@ window._aplicarFiltrosWA = () => {
                (!f.estado || (el.dataset.estado || 'abierto') === f.estado) &&
                (!f.etiqueta || (el.dataset.etiqueta || '') === f.etiqueta) &&
                (!f.mayorista || el.dataset.mayorista === '1') &&
+               (!f.espera || el.dataset.espera === '1') &&
                (!f.texto || (el.dataset.nombre || '').includes(f.texto) || (el.dataset.tel || '').includes(f.texto))
     el.style.display = ok ? '' : 'none'
   })
+}
+
+// ¿La clienta escribió y nadie (ni Maya) le ha contestado? (ult_entrante/ult_saliente vienen de la función SQL chats_lista)
+window._esperaWA = (c) => {
+  if (!c || !c.ult_entrante || c.estado === 'cerrado') return null
+  const te = new Date(c.ult_entrante).getTime()
+  const ts = c.ult_saliente ? new Date(c.ult_saliente).getTime() : 0
+  if (!(te > ts)) return null
+  const min = (Date.now() - te) / 60000
+  if (min < 30) return null   // acaba de escribir: Maya/el equipo todavía están a tiempo
+  return min
+}
+window._textoEsperaWA = (min) => {
+  if (min < 60) return Math.round(min) + ' min'
+  if (min < 1440) return Math.round(min / 60) + ' h'
+  return Math.floor(min / 1440) + ' d'
+}
+window._actualizarContadorEsperaWA = (chats) => {
+  const n = (chats || []).filter(c => window._esperaWA(c) != null).length
+  const el = document.getElementById('wa-espera-n')
+  if (el) el.textContent = n ? '(' + n + ')' : ''
+}
+window.filtrarEsperaWA = (btn) => {
+  window._waFiltros.espera = !window._waFiltros.espera
+  btn.classList.toggle('activa', window._waFiltros.espera)
+  window._aplicarFiltrosWA()
+}
+// hora si es de hoy, "Ayer", o día/mes (antes siempre día/mes: no se veía a qué hora escribió)
+window._fechaChatWA = (iso) => {
+  const d = new Date(iso); if (isNaN(d)) return ''
+  const hoy = new Date(); const ayer = new Date(hoy); ayer.setDate(hoy.getDate() - 1)
+  const mismo = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+  if (mismo(d, hoy)) return d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+  if (mismo(d, ayer)) return 'Ayer'
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+}
+
+// WhatsApp solo deja mandar texto libre dentro de las 24 h posteriores al último mensaje de la clienta.
+window._ventanaWAAbierta = (chat) => {
+  if (!chat || (chat.canal && chat.canal !== 'whatsapp')) return true   // Messenger/Instagram tienen sus propias reglas
+  let ult = chat.ult_entrante
+  if (!ult) {   // sin dato del servidor: se deduce de los mensajes cargados (el más reciente primero)
+    const m = (chat.mensajes || []).find(x => x.tipo && x.tipo !== 'manual' && !String(x.tipo).endsWith('_saliente') && x.tipo !== 'reaction')
+    ult = m && m.created_at
+  }
+  if (!ult) return false
+  return (Date.now() - new Date(ult).getTime()) < 24 * 3600 * 1000
+}
+
+window.mostrarPlantillaChatWA = async (telefono, nombre) => {
+  const modal = document.createElement('div')
+  modal.id = 'modal-plantilla-chat'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem'
+  modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:460px;width:100%;padding:1.5rem;max-height:90vh;overflow:auto"><p style="font-weight:700;margin:0 0 6px">📨 Enviar plantilla</p><p id="pl-estado" style="font-size:0.8rem;color:#64748b;margin:0">Cargando plantillas aprobadas...</p></div>'
+  document.body.appendChild(modal)
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  try {
+    const res = await fetch(API + '/chatbot/templates')
+    const data = await res.json()
+    const aprobadas = (data.templates || []).filter(t => t.status === 'APPROVED')
+    const caja = modal.firstElementChild
+    if (!aprobadas.length) { caja.innerHTML = '<p style="font-weight:700;margin:0 0 6px">📨 Enviar plantilla</p><p style="font-size:0.85rem;color:#b91c1c">No hay plantillas aprobadas. Créalas en Meta (WhatsApp Manager).</p>'; return }
+    window._plantillasChatWA = aprobadas
+    const cuerpoDe = (t) => ((t.components || []).find(c => c.type === 'BODY') || {}).text || ''
+    const nVars = (t) => { const m = cuerpoDe(t).match(/\{\{\d+\}\}/g); return m ? new Set(m).size : 0 }
+    caja.innerHTML =
+      '<p style="font-weight:700;margin:0 0 10px">📨 Enviar plantilla a ' + _ja(nombre || telefono) + '</p>' +
+      '<select id="pl-sel" class="form-input" style="width:100%;margin-bottom:8px">' +
+        aprobadas.map((t, i) => '<option value="' + i + '">' + t.name + ' (' + t.language + ')</option>').join('') +
+      '</select>' +
+      '<div id="pl-cuerpo" style="background:#f8fafc;border-radius:8px;padding:10px;font-size:0.8rem;color:#334155;white-space:pre-wrap;margin-bottom:8px"></div>' +
+      '<div id="pl-vars"></div>' +
+      '<p id="pl-err" style="color:#b91c1c;font-size:0.78rem;margin:6px 0;display:none"></p>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'modal-plantilla-chat\').remove()">Cancelar</button>' +
+        '<button class="btn btn-primary" id="pl-enviar">Enviar</button></div>'
+    const pintar = () => {
+      const t = aprobadas[parseInt(document.getElementById('pl-sel').value)]
+      document.getElementById('pl-cuerpo').textContent = cuerpoDe(t) || '(sin texto)'
+      const n = nVars(t); let h = ''
+      for (let i = 1; i <= n; i++) h += '<input class="form-input pl-var" placeholder="Variable {{' + i + '}}" style="width:100%;margin-bottom:6px" value="' + (i === 1 ? _ja(((nombre || '').split(' ')[0]) || '') : '') + '">'
+      document.getElementById('pl-vars').innerHTML = h
+    }
+    document.getElementById('pl-sel').addEventListener('change', pintar)
+    pintar()
+    document.getElementById('pl-enviar').onclick = async () => {
+      const t = aprobadas[parseInt(document.getElementById('pl-sel').value)]
+      const params = [...document.querySelectorAll('.pl-var')].map(i => i.value.trim())
+      const err = document.getElementById('pl-err')
+      if (params.some(p => !p)) { err.textContent = 'Llena todas las variables.'; err.style.display = 'block'; return }
+      const btn = document.getElementById('pl-enviar'); btn.disabled = true; btn.textContent = 'Enviando...'
+      try {
+        const r = await fetch(API + '/chatbot/templates/enviar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telefono, template: t.name, language: t.language, params })
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) { err.textContent = d.error || 'No se pudo enviar la plantilla.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Enviar'; return }
+        modal.remove()
+        await window._recargarChats()
+        abrirChat(telefono)
+      } catch (e) { err.textContent = 'Error de conexión.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Enviar' }
+    }
+  } catch (e) {
+    modal.firstElementChild.innerHTML = '<p style="color:#b91c1c;font-size:0.85rem">No se pudieron cargar las plantillas: ' + e.message + '</p>'
+  }
 }
 
 window.filtrarMayoristaWA = (btn) => {
@@ -16047,8 +16156,9 @@ window.filtrarCanalWA = (canal, btn) => {
 }
 
 window.filtrarEtiqueta = (etiqueta) => {
-  document.querySelectorAll('.wa-pill').forEach(b => b.classList.remove('activa'))
-  event.target.classList.add('activa')
+  // solo las píldoras de etiqueta: antes también apagaba visualmente "Mayoristas" (su filtro seguía activo, la pantalla no lo mostraba)
+  document.querySelectorAll('.wa-pill[onclick^="filtrarEtiqueta"]').forEach(b => b.classList.remove('activa'))
+  event.target.closest('.wa-pill').classList.add('activa')
   window._waFiltros.etiqueta = etiqueta
   window._aplicarFiltrosWA()
 }
@@ -16975,8 +17085,8 @@ window._htmlChatItems = (chats) => {
   if (!chats || chats.length === 0) {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
-  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); return `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}"
+  return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); const espera = window._esperaWA(c); return `
+              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}" data-espera="${espera != null ? '1' : '0'}"
                    onclick="abrirChat('${_ja(c.telefono)}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
                   ${window._letraAvatarWA(c.nombre || c.telefono)}
@@ -16991,8 +17101,9 @@ window._htmlChatItems = (chats) => {
                   <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.length > 40 ? mm.substring(0,40)+'…' : (mm || 'Sin mensajes') })()}</div>
                 </div>
                 <div class="wa-chat-meta">
-                  <span class="wa-chat-time">${new Date(c.ultimo_mensaje).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</span>
+                  <span class="wa-chat-time">${window._fechaChatWA(c.ultimo_mensaje)}</span>
                   ${c.no_leidos > 0 ? `<span class="wa-unread">${c.no_leidos}</span>` : ''}
+                  ${espera != null ? `<span title="La clienta escribió hace ${window._textoEsperaWA(espera)} y no se le ha contestado" style="font-size:0.6rem;font-weight:700;border-radius:100px;padding:1px 6px;margin-top:2px;background:${espera >= 1440 ? '#fee2e2' : '#fef3c7'};color:${espera >= 1440 ? '#b91c1c' : '#92400e'}">⏳ ${window._textoEsperaWA(espera)}</span>` : ''}
                 </div>
               </div>
             `}).join('')
@@ -17002,9 +17113,10 @@ window._htmlChatItems = (chats) => {
 window._refrescarListaChats = (chats) => {
   const lista = document.querySelector('.wa-chat-list')
   if (!lista) return  // no estamos en la pestaña de conversaciones
-  const firmaNueva = chats.map(c => c.telefono + ':' + c.ultimo_mensaje + ':' + (c.no_leidos||0)).join('|')
+  const firmaNueva = chats.map(c => c.telefono + ':' + c.ultimo_mensaje + ':' + (c.no_leidos||0) + ':' + (c.ult_saliente||'') + ':' + (c.en_control ? 1 : 0)).join('|')
   if (firmaNueva === window._firmaListaChats) return  // nada cambió, no re-renderizar
   window._firmaListaChats = firmaNueva
+  window._actualizarContadorEsperaWA(chats)
   lista.innerHTML = window._htmlChatItems(chats)
   // Re-aplicar los filtros activos (canal/estado/etiqueta/búsqueda ya viven en window._waFiltros)
   window._aplicarFiltrosWA()
@@ -17293,6 +17405,11 @@ area.style.minHeight = '0'
     <div class="wa-input-bar" style="padding:14px;color:#94a3b8;font-size:0.8rem;text-align:center">
       💭 Los comentarios públicos todavía no se pueden contestar desde aquí — Maya ya los responde sola si está activa, o contesta directamente en Instagram/Facebook.
     </div>` : `
+    ${(_esWhatsappChat && !window._ventanaWAAbierta(chat)) ? `
+    <div style="background:#fef3c7;border-top:1px solid #fde68a;color:#92400e;font-size:0.78rem;padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span>🕒 Pasaron más de 24 h desde su último mensaje: WhatsApp solo permite mandarle una <strong>plantilla</strong>.</span>
+      <button class="wa-btn" style="margin-left:auto" onclick="mostrarPlantillaChatWA('${_ja(telefono)}','${_ja((chat.nombre||''))}')">📨 Enviar plantilla</button>
+    </div>` : ''}
     <div class="wa-input-bar">
       <div class="wa-input-toolbar">
         ${_esWhatsappChat ? `

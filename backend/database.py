@@ -162,3 +162,16 @@ def _inventario_ajustar_legacy(variante_id, sucursal_id, delta, crear):
     nueva = max(0, anterior + int(delta))
     supabase_patch(f"inventario?variante_id=eq.{variante_id}&sucursal_id=eq.{sucursal_id}", {"cantidad": nueva})
     return {"anterior": anterior, "nueva": nueva}
+
+
+def supabase_rpc(nombre, payload=None):
+    """Llama a una función SQL de Supabase (POST /rest/v1/rpc/<nombre>) y devuelve su resultado JSON."""
+    url = f"{SUPABASE_URL}/rest/v1/rpc/{nombre}"
+    body = json.dumps(payload or {}).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers=HEADERS, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT) as response:
+            raw = response.read()
+            return json.loads(raw) if raw else None
+    except urllib.error.HTTPError as e:
+        raise Exception(f"HTTP {e.code}: {e.read().decode(errors='replace')}")

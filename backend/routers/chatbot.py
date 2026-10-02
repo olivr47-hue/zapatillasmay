@@ -1021,6 +1021,49 @@ def debug_media():
     return resultado
 
 
+def _control_manual_expirado(telefono) -> bool:
+    """True si un chat en control manual lleva demasiado tiempo sin que NADIE del equipo escriba. Un chat tomado por
+    una asesora se quedaba así para siempre: Maya no volvía a contestar (hoy 58 de 72 chats en manual llevan más de 14
+    días inactivos, y a 15 clientas ni Maya ni el equipo les contestó en más de 24 h). Pasadas CONTROL_MANUAL_EXPIRA_HORAS
+    (48 por defecto; 0 lo desactiva) sin mensaje manual del equipo, el control regresa a Maya."""
+    try:
+        horas = float(os.environ.get("CONTROL_MANUAL_EXPIRA_HORAS", "48"))
+    except ValueError:
+        horas = 48.0
+    if horas <= 0:
+        return False
+    try:
+        import datetime as _d
+        tel = urllib.parse.quote(str(telefono), safe="")
+        manual = supabase_get(f"conversaciones_whatsapp?telefono=eq.{tel}&tipo=eq.manual&order=created_at.desc&limit=1&select=created_at")
+        if manual:
+            ref = manual[0]["created_at"]
+        else:   # nadie del equipo ha escrito: se mide contra la última actividad del chat
+            ult = supabase_get(f"conversaciones_whatsapp?telefono=eq.{tel}&order=created_at.desc&limit=1&select=created_at")
+            if not ult:
+                return False
+            ref = ult[0]["created_at"]
+        t = _d.datetime.fromisoformat(str(ref).replace("Z", "+00:00"))
+        return (_d.datetime.now(_d.timezone.utc) - t).total_seconds() > horas * 3600
+    except Exception as e:
+        print(f"[control] no se pudo evaluar la expiración de {telefono}: {e}")
+        return False
+
+
+def _liberar_control_si_expiro(telefono, control):
+    """Devuelve `control` (falsy si expiró y se liberó el chat para Maya)."""
+    if control and _control_manual_expirado(telefono):
+        try:
+            supabase_patch(f"chats_control?telefono=eq.{urllib.parse.quote(str(telefono), safe='')}", {"en_control": False})
+            cache_invalidate("chats_lista")
+            print(f"[control] {telefono}: control manual expirado, Maya vuelve a contestar")
+        except Exception as e:
+            print(f"[control] no se pudo liberar {telefono}: {e}")
+            return control
+        return []
+    return control
+
+
 def _maya_activa_global() -> bool:
     """Interruptor general para pausar a Maya en TODOS los canales a la vez
     (a diferencia de 'en_control', que solo pausa una conversacion puntual).
@@ -1379,6 +1422,7 @@ async def _procesar_webhook_whatsapp(datos: dict):
             mark_as_read_wa(wa_msg_id)
 
         control = supabase_get(f"chats_control?telefono=eq.{from_number}&en_control=eq.true")
+        control = _liberar_control_si_expiro(from_number, control)
         if not control and not _maya_activa_global():
             control = True  # Maya apagada globalmente -- mismo camino que un take-over manual
 
@@ -1946,6 +1990,7 @@ async def _procesar_webhook_meta(datos: dict):
                     continue
 
                 control = supabase_get(f"chats_control?telefono=eq.{identificador}&en_control=eq.true")
+                control = _liberar_control_si_expiro(identificador, control)
                 if control or not _maya_activa_global():
                     guardar_conversacion(identificador, texto, None, "texto", "", canal=canal)
                     continue
@@ -2012,6 +2057,51 @@ def procesar_mensaje(datos: dict):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+def _chats_desde_mensajes_legado() -> dict:
+    """Método anterior: arma los chats con los últimos 400 mensajes (solo respaldo si falla la función SQL)."""
+    # Solo los campos necesarios para la lista + límite 400 mensajes recientes
+    try:
+        conversaciones = supabase_get(
+            "conversaciones_whatsapp"
+            "?order=created_at.desc"
+            "&limit=400"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,canal"
+        )
+    except Exception:
+        conversaciones = supabase_get(
+            "conversaciones_whatsapp"
+            "?order=created_at.desc"
+            "&limit=400"
+            "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
+        )
+    chats = {}
+    for m in conversaciones:
+        tel = m['telefono']
+        if tel not in chats:
+            chats[tel] = {
+                "telefono": tel,
+                "nombre": None,
+                "canal": m.get('canal') or 'whatsapp',
+                "mensajes": [],
+                "ultimo_mensaje": m['created_at'],
+                "no_leidos": 0,
+                "en_control": False,
+                "agente": None,
+                "etiqueta": "sin_etiqueta"
+            }
+        chats[tel]['mensajes'].append(m)
+        if not m.get('leido'):
+            chats[tel]['no_leidos'] += 1
+    for tel, chat in chats.items():
+        nombre = tel
+        for m in chat['mensajes']:
+            if m.get('nombre_contacto') and m['nombre_contacto'] != tel:
+                nombre = m['nombre_contacto']
+                break
+        chat['nombre'] = nombre
+    return chats
+
+
 @router.get("/chats")
 def listar_chats():
     # Caché 20s — el frontend poll cada 30s, así casi siempre lo sirve de memoria
@@ -2019,46 +2109,31 @@ def listar_chats():
     if cached is not None:
         return cached
     try:
-        # Solo los campos necesarios para la lista + límite 400 mensajes recientes
-        try:
-            conversaciones = supabase_get(
-                "conversaciones_whatsapp"
-                "?order=created_at.desc"
-                "&limit=400"
-                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id,media_url,canal"
-            )
-        except Exception:
-            conversaciones = supabase_get(
-                "conversaciones_whatsapp"
-                "?order=created_at.desc"
-                "&limit=400"
-                "&select=telefono,nombre_contacto,created_at,leido,mensaje,respuesta,tipo,wa_message_id"
-            )
         chats = {}
-        for m in conversaciones:
-            tel = m['telefono']
-            if tel not in chats:
+        try:
+            # Lista COMPLETA de chats (función SQL): los N chats con actividad más reciente, con conteo real de no leídos
+            # y cuándo escribió la clienta / se le respondió. Antes se leían solo los últimos 400 MENSAJES y las clientas
+            # con conversaciones más antiguas (73% hoy: 140 de 192) no aparecían en el panel.
+            from database import supabase_rpc
+            for it in (supabase_rpc("chats_lista", {"p_limite": 400, "p_msgs": 4}) or []):
+                msgs = it.get("mensajes") or []
+                tel = it["telefono"]
                 chats[tel] = {
                     "telefono": tel,
-                    "nombre": None,
-                    "canal": m.get('canal') or 'whatsapp',
-                    "mensajes": [],
-                    "ultimo_mensaje": m['created_at'],
-                    "no_leidos": 0,
+                    "nombre": it.get("nombre_contacto") or tel,
+                    "canal": (msgs[0].get("canal") if msgs else None) or "whatsapp",
+                    "mensajes": msgs,
+                    "ultimo_mensaje": it.get("ultimo_mensaje"),
+                    "no_leidos": it.get("no_leidos") or 0,
+                    "ult_entrante": it.get("ult_entrante"),
+                    "ult_saliente": it.get("ult_saliente"),
                     "en_control": False,
                     "agente": None,
-                    "etiqueta": "sin_etiqueta"
+                    "etiqueta": "sin_etiqueta",
                 }
-            chats[tel]['mensajes'].append(m)
-            if not m.get('leido'):
-                chats[tel]['no_leidos'] += 1
-        for tel, chat in chats.items():
-            nombre = tel
-            for m in chat['mensajes']:
-                if m.get('nombre_contacto') and m['nombre_contacto'] != tel:
-                    nombre = m['nombre_contacto']
-                    break
-            chat['nombre'] = nombre
+        except Exception as e_rpc:
+            print(f"[chats] RPC chats_lista no disponible, uso el método anterior: {e_rpc}")
+            chats = _chats_desde_mensajes_legado()
         # Intentar con columnas nuevas, fallback a columnas base si no existen aún
         try:
             control = supabase_get("chats_control?select=telefono,en_control,agente,etiqueta,cliente_leyo_at,cliente_entrego_at,pendiente_revision,estado,mayorista")
@@ -3753,7 +3828,7 @@ def enviar_template(datos: dict):
 
         payload = {
             "messaging_product": "whatsapp",
-            "to": telefono,
+            "to": a_e164_mx(telefono),
             "type": "template",
             "template": {
                 "name": template,
@@ -3762,6 +3837,22 @@ def enviar_template(datos: dict):
             }
         }
         wa_id = _wa_send(payload)
+        if not wa_id:
+            # Antes devolvía {"ok": True, "wa_id": ""} aunque Meta rechazara la plantilla: el panel creía que se mandó.
+            return JSONResponse(status_code=502, content={"error": _explicar_error_wa()})
+        # Queda en el historial del chat (antes no se veía que se había mandado) y cuenta como respuesta al cliente.
+        try:
+            supabase_post("conversaciones_whatsapp", {
+                "telefono": a_e164_mx(telefono),   # misma llave que usan los chats (52 + 10 dígitos)
+                "mensaje": f"[Plantilla]: {template}" + (" — " + " | ".join(str(x) for x in params) if params else ""),
+                "respuesta": None,
+                "tipo": "plantilla_saliente",
+                "wa_message_id": wa_id,
+                "leido": True,
+            })
+            cache_invalidate("chats_lista")
+        except Exception as e_log:
+            print(f"[templates] no se pudo guardar en el historial: {e_log}")
         return {"ok": True, "wa_id": wa_id}
     except urllib.error.HTTPError as e:
         body = e.read().decode()

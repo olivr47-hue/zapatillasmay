@@ -399,6 +399,39 @@ def _loop_apartados_vencidos():
         _time.sleep(30 * 60)
 
 
+def _loop_chats_sin_responder():
+    """Cada mañana (~9am México) avisa por push cuántas clientas llevan más de 24 h sin que nadie (ni Maya) les
+    conteste. Hoy hay chats donde la clienta esperó días sin que nadie se enterara."""
+    _time.sleep(280)
+    ultimo_aviso = None
+    while True:
+        try:
+            ahora_mx = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=6)
+            if 9 <= ahora_mx.hour < 10 and ultimo_aviso != ahora_mx.date():
+                from database import supabase_rpc
+                ahora = _dt.datetime.now(_dt.timezone.utc)
+                esperando = 0
+                for c in (supabase_rpc("chats_lista", {"p_limite": 400, "p_msgs": 1}) or []):
+                    ent, sal = c.get("ult_entrante"), c.get("ult_saliente")
+                    if not ent:
+                        continue
+                    te = _dt.datetime.fromisoformat(ent.replace("Z", "+00:00"))
+                    ts = _dt.datetime.fromisoformat(sal.replace("Z", "+00:00")) if sal else None
+                    if (ts is None or te > ts) and (ahora - te).total_seconds() > 24 * 3600 and (ahora - te).days < 30:
+                        esperando += 1
+                ultimo_aviso = ahora_mx.date()
+                if esperando:
+                    push.enviar_push(
+                        "⏳ Clientas sin respuesta",
+                        f"{esperando} conversación(es) llevan más de 24 h sin respuesta. Revisa Conversaciones > Sin responder.",
+                        url="/?modulo=conversaciones", sitio="panel",
+                    )
+                    print(f"[chats] aviso: {esperando} chat(s) sin responder")
+        except Exception as e:
+            print(f"[chats] Error en loop de sin responder: {e}")
+        _time.sleep(30 * 60)
+
+
 @app.on_event("startup")
 def _iniciar_hilos():
     # Carrito abandonado
@@ -429,6 +462,9 @@ def _iniciar_hilos():
     t6 = threading.Thread(target=_loop_reporte_semanal, daemon=True)
     t6.start()
     print("[reporte-semanal] Hilo de reporte semanal iniciado (lunes 9am)")
+    # Aviso diario de clientas sin responder
+    t9 = threading.Thread(target=_loop_chats_sin_responder, daemon=True)
+    t9.start()
     # Aviso diario de apartados vencidos
     t8 = threading.Thread(target=_loop_apartados_vencidos, daemon=True)
     t8.start()
