@@ -293,7 +293,7 @@ _SELECT_PEDIDOS_COMPLETO = "*,clientes(nombre,telefono,email),sucursales(nombre)
 # Para pantallas que solo calculan totales/estadísticas (dashboard, CRM, clientes...): sin renglones ni sucursal.
 _SELECT_PEDIDOS_LIGERO = (
     "id,cliente_id,status,total,created_at,confirmado_at,canal,forma_pago,mp_preference_id,mp_payment_id,"
-    "empleado,nombre_cliente,clientes(nombre)"
+    "empleado,nombre_cliente,ml_order_id,shein_order_id,walmart_order_id,clientes(nombre)"
 )
 # Estados "abiertos": aunque el pedido sea viejo, hay que seguir viéndolo (cobrar, surtir, apartados...).
 _ESTADOS_ABIERTOS = "(pendiente_pago,pagado,apartado,checkout_iniciado,borrador)"

@@ -14906,17 +14906,17 @@ function _filaHistorial(m) {
   return `<tr ${trAttrs}>
     <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
     <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
-    <td><strong>${m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—'}</strong></td>
+    <td><strong>${_escSugerencia(m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—')}</strong></td>
     <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
     <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
     <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
     <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
-    <td style="font-size:0.82rem">${m.usuario || 'Admin'}</td>
-    <td style="font-size:0.82rem;color:var(--text-muted)">${m.motivo || '—'}${ref ? ` <span style="color:#1565c0;font-weight:600;white-space:nowrap">🔗 ver ${ref.tipo}</span>` : ''}</td>
+    <td style="font-size:0.82rem">${_escSugerencia(m.usuario || 'Admin')}</td>
+    <td style="font-size:0.82rem;color:var(--text-muted)">${_escSugerencia(m.motivo || '—')}${ref ? ` <span style="color:#1565c0;font-weight:600;white-space:nowrap">🔗 ver ${ref.tipo}</span>` : ''}</td>
     <td onclick="event.stopPropagation()">
       ${m.tipo !== 'venta' && m.tipo !== 'ajuste' ? `
       <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828"
-              onclick="cancelarMovimiento('${m.id}', ${Math.abs(m.cantidad)}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
+              onclick="cancelarMovimiento('${m.id}', ${Number(m.cantidad) || 0}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
         Cancelar
       </button>` : ''}
     </td>
@@ -14975,30 +14975,21 @@ async function cargarHistorial() {
   }
 }
 window.cancelarMovimiento = async (id, cantidad, varianteId, sucursalId, tipo) => {
+  // `cantidad` llega CON signo (entrada +, salida -): revertir = aplicar el opuesto. Antes se restaba siempre el valor
+  // absoluto, así que cancelar una salida (traspaso/cambio) quitaba más stock en vez de devolverlo.
+  const marca = 'Cancelación de movimiento ' + id
+  if ((window._historialData || []).some(m => (m.motivo || '').includes(marca))) {
+    alert('Este movimiento ya fue cancelado.')
+    return
+  }
   if (!confirm('¿Cancelar este movimiento? Se revertirá el cambio en el inventario.')) return
   try {
-    // Obtener inventario específico de esta variante y sucursal
-    const resInv = await fetch(API + '/inventario/?variante_id=eq.' + varianteId + '&sucursal_id=eq.' + sucursalId)
-    const inventario = await resInv.json()
-    const cantidadActual = inventario && inventario.length > 0 ? inventario[0].cantidad : 0
-
-    // Calcular nueva cantidad
-    const nuevaCantidad = tipo === 'venta'
-      ? cantidadActual + cantidad
-      : Math.max(0, cantidadActual - cantidad)
-
-    // Actualizar directamente sin crear movimiento nuevo
-    const res = await fetch(API + '/inventario/actualizar', {
-      method: 'PATCH',
+    // Ajuste relativo y atómico (queda registrado en el historial como "ajuste")
+    const res = await fetch(API + '/movimientos/ajuste', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        variante_id: varianteId,
-        sucursal_id: sucursalId,
-        cantidad: nuevaCantidad,
-        stock_minimo: inventario && inventario.length > 0 ? inventario[0].stock_minimo : 3
-      })
+      body: JSON.stringify({ variante_id: varianteId, sucursal_id: sucursalId, delta: -Number(cantidad), motivo: marca })
     })
-
     if (res.ok) {
       alert('Movimiento cancelado. Inventario actualizado.')
       cargarHistorial()
@@ -15480,9 +15471,9 @@ window.cargarResenasModeracion = async () => {
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:200px">
                   <div style="color:#f59e0b;font-size:1rem">${estrellas(r.calificacion || 0)} <span style="color:#888;font-size:0.8rem">(${r.calificacion}/5)</span></div>
-                  <p style="font-weight:600;margin:4px 0 2px">${(r.nombre_cliente || 'Anónimo')}</p>
-                  <p style="font-size:0.8rem;color:#888;margin:0 0 6px">${nombreDe(r.producto_id)} · ${new Date(r.created_at).toLocaleDateString('es-MX')}</p>
-                  <p style="font-size:0.9rem;color:#333;margin:0">${(r.comentario || '').replace(/</g, '&lt;')}</p>
+                  <p style="font-weight:600;margin:4px 0 2px">${_escSugerencia(r.nombre_cliente || 'Anónimo')}</p>
+                  <p style="font-size:0.8rem;color:#888;margin:0 0 6px">${_escSugerencia(nombreDe(r.producto_id))} · ${new Date(r.created_at).toLocaleDateString('es-MX')}</p>
+                  <p style="font-size:0.9rem;color:#333;margin:0">${_escSugerencia(r.comentario || '')}</p>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0">
                   <button class="btn btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="aprobarResena('${r.id}')">✓ Aprobar</button>
@@ -15498,14 +15489,16 @@ window.cargarResenasModeracion = async () => {
 }
 window.aprobarResena = async (id) => {
   try {
-    await fetch(API + '/resenas/admin/' + id + '/aprobar', { method: 'PATCH' })
+    const r = await fetch(API + '/resenas/admin/' + id + '/aprobar', { method: 'PATCH' })
+    if (!r.ok) throw new Error('rechazado')
     const el = document.getElementById('resena-' + id); if (el) el.remove()
   } catch (e) { alert('Error al aprobar la reseña') }
 }
 window.eliminarResena = async (id) => {
   if (!confirm('¿Eliminar esta reseña permanentemente?')) return
   try {
-    await fetch(API + '/resenas/admin/' + id, { method: 'DELETE' })
+    const r = await fetch(API + '/resenas/admin/' + id, { method: 'DELETE' })
+    if (!r.ok) throw new Error('rechazado')
     const el = document.getElementById('resena-' + id); if (el) el.remove()
   } catch (e) { alert('Error al eliminar la reseña') }
 }
@@ -19472,12 +19465,13 @@ async function cargarSugerencias() {
 
 window.cambiarEstadoSugerencia = async (id, estado) => {
   try {
-    await fetch(API + '/sugerencias/' + id, {
+    const r = await fetch(API + '/sugerencias/' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ estado })
     })
-  } catch(e) {}
+    if (!r.ok) throw new Error('rechazado')
+  } catch(e) { alert('No se pudo cambiar el estado de la sugerencia.'); cargarSugerencias() }
 }
 
 async function cargarCarritosAbandonados() {
@@ -22714,11 +22708,15 @@ window._mlEjecutarPublicacionMasiva = async () => {
       const over = (window._mlCatalogoOverrides || {})[id]
       if (over) producto_overrides[id] = { precio: over.precio || null, titulo: (over.titulo || '').trim() || null }
     })
-    await fetch(`${API}/ml/publicar-catalogo`, {
+    const rPub = await fetch(`${API}/ml/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ listing_type: 'gold_special', producto_ids, producto_overrides })
     })
+    if (!rPub.ok) {   // antes se mostraba "Publicando..." aunque el servidor lo hubiera rechazado
+      const dPub = await rPub.json().catch(() => ({}))
+      throw new Error(dPub.detail || dPub.error || ('Error ' + rPub.status))
+    }
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_mlBtn('refresh', 'Actualizar progreso', 'window._mlVerLogCatalogoMasivo()', 'secondary')}`
   } catch(e) {
@@ -22756,7 +22754,7 @@ async function _mlRenderVentasTab() {
   const body = document.getElementById('ml-tab-body')
   body.innerHTML = '<p style="padding:2rem;color:#aaa;font-size:0.85rem">Cargando ventas...</p>'
   try {
-    const res  = await fetch(`${API}/pedidos/`)
+    const res  = await fetch(`${API}/pedidos/?ligero=true`)
     const data = await res.json()
     const ventas = (Array.isArray(data) ? data : []).filter(p => p.canal === 'mercadolibre')
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -22807,7 +22805,7 @@ async function _mlRenderVentasTab() {
               ${ventas.map(p => `
                 <tr style="border-bottom:1px solid var(--border)">
                   <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#3483fa;font-family:monospace">${p.ml_order_id || '—'}</td>
-                  <td style="padding:0.4rem 0.5rem;font-size:0.82rem">${p.nombre_cliente || '—'}</td>
+                  <td style="padding:0.4rem 0.5rem;font-size:0.82rem">${_escSugerencia(p.nombre_cliente) || '—'}</td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.82rem;text-align:right;font-weight:600">$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</td>
                   <td style="padding:0.4rem 0.5rem"><span class="badge badge-success" style="font-size:0.72rem">${p.status}</span></td>
                   <td style="padding:0.4rem 0.5rem;font-size:0.78rem;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
@@ -22830,6 +22828,7 @@ window._mlForzarSyncVentas = async (btn) => {
   try {
     const r = await fetch(API + '/ml/sync-ventas', { method: 'POST' })
     const d = await r.json()
+    if (!r.ok) throw new Error(d.detail || d.error || ('Error ' + r.status))
     box.style.display = 'block'
     if (d.procesadas > 0) {
       box.style.background = '#f0fdf4'; box.style.color = '#166534'
@@ -22895,10 +22894,10 @@ async function _mlRenderPreguntasTab() {
         </div>` : d.preguntas.map(p => `
         <div id="ml-pregunta-${p.id}" style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.1rem 1.25rem;box-shadow:0 1px 2px rgba(0,0,0,0.03);margin-bottom:0.75rem">
           <div style="display:flex;gap:10px;margin-bottom:0.6rem">
-            ${p.item_imagen ? `<img src="${p.item_imagen}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
+            ${p.item_imagen ? `<img src="${_escSugerencia(p.item_imagen)}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
             <div style="min-width:0">
-              <p style="margin:0;font-size:0.78rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.item_titulo || p.item_id || ''}</p>
-              <p style="margin:2px 0 0;font-size:0.92rem;font-weight:600">${p.texto}</p>
+              <p style="margin:0;font-size:0.78rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escSugerencia(p.item_titulo || p.item_id || '')}</p>
+              <p style="margin:2px 0 0;font-size:0.92rem;font-weight:600">${_escSugerencia(p.texto)}</p>
               <p style="margin:2px 0 0;font-size:0.72rem;color:#aaa">${p.fecha ? new Date(p.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
             </div>
           </div>
@@ -22973,16 +22972,16 @@ async function _mlRenderMensajesTab() {
           ${msjs.map(m => `
             <div style="padding:0.8rem 1rem;border:1px solid #fde68a;border-radius:10px;background:#fffbeb">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
-                <strong style="font-size:0.86rem">${m.comprador || 'Comprador'}</strong>
+                <strong style="font-size:0.86rem">${_escSugerencia(m.comprador || 'Comprador')}</strong>
                 <span style="background:#e67e22;color:#fff;border-radius:100px;padding:2px 8px;font-size:0.72rem;font-weight:700;white-space:nowrap">${m.no_leidos} sin leer</span>
               </div>
-              <p style="margin:0 0 6px;font-size:0.8rem;color:#666">${m.ultimo_mensaje || '(sin vista previa)'}</p>
+              <p style="margin:0 0 6px;font-size:0.8rem;color:#666">${_escSugerencia(m.ultimo_mensaje || '(sin vista previa)')}</p>
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
                 <p style="margin:0;font-size:0.72rem;color:#aaa">Orden ${m.order_id} · ${m.fecha ? new Date(m.fecha).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}) : ''}</p>
                 <div style="display:flex;gap:6px">
-                  <button onclick="navigator.clipboard.writeText('${(m.comprador||'').replace(/'/g,"\\'")}');this.textContent='Copiado'"
+                  <button onclick="navigator.clipboard.writeText('${_ja(m.comprador||'')}');this.textContent='Copiado'"
                           style="font-size:0.72rem;color:#3483fa;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">Copiar nombre</button>
-                  <a href="${m.link}" target="_blank" rel="noopener"
+                  <a href="${/^https?:/.test(m.link || '') ? _escSugerencia(m.link) : '#'}" target="_blank" rel="noopener"
                      style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:#3483fa;text-decoration:none;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px">
                     Ver conversación ${_mlIcon('externalLink', 11, '#3483fa')}
                   </a>
@@ -23738,6 +23737,7 @@ window._sheinSincronizarVentas = async (btn) => {
   try {
     const res = await fetch(`${API}/shein/sync-ventas`, { method: 'POST' })
     const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
     box.style.display = 'block'
     if (d.procesadas > 0) {
       box.style.background = '#f0fdf4'; box.style.color = '#166534'
@@ -23920,11 +23920,15 @@ window._sheinEjecutarPublicacionMasiva = async () => {
       const over = (window._sheinCatalogoOverrides || {})[id]
       if (over) producto_overrides[id] = { precio: over.precio || null, titulo: (over.titulo || '').trim() || null }
     })
-    await fetch(`${API_DIRECTO}/shein/publicar-catalogo`, {
+    const rPub = await fetch(`${API_DIRECTO}/shein/publicar-catalogo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ producto_ids, producto_overrides })
     })
+    if (!rPub.ok) {   // antes se mostraba "Publicando..." aunque el servidor lo hubiera rechazado
+      const dPub = await rPub.json().catch(() => ({}))
+      throw new Error(dPub.detail || dPub.error || ('Error ' + rPub.status))
+    }
     log.innerHTML = '<p style="margin:0;color:#888">Publicando... esto puede tardar varios minutos. Puedes cambiar de pestaña, el proceso sigue en el servidor. Vuelve aquí y dale "Actualizar" para ver el avance.</p>' +
       `${_sheinBtn('refresh', 'Actualizar progreso', 'window._sheinVerLogCatalogoMasivo()', 'secondary')}`
   } catch(e) {
@@ -24052,6 +24056,7 @@ window.sheinSincronizar = async function(btn) {
   try {
     const r = await fetch(API + '/shein/sync', { method: 'POST' })
     const d = await r.json()
+    if (!r.ok) throw new Error(d.detail || d.error || ('Error ' + r.status))
     box.style.display = 'block'
     box.textContent = '🔄 ' + (d.message || 'Sincronización iniciada') + '\n\nEspera unos segundos y haz clic en "Último resultado".'
   } catch(e) {
@@ -24873,11 +24878,11 @@ window._buzonCargar = async (tab) => {
       </thead>
       <tbody>
         ${mensajes.map(m => `
-          <tr onclick="window._buzonVerDetalle('${m.folderId}','${m.messageId}',${JSON.stringify(m.asunto).replace(/"/g,'&quot;')},${JSON.stringify(tab === 'inbox' ? m.de : m.para).replace(/"/g,'&quot;')},'${tab}')"
+          <tr onclick="window._buzonVerDetalle('${m.folderId}','${m.messageId}',${_escSugerencia(JSON.stringify(m.asunto))},${_escSugerencia(JSON.stringify(tab === 'inbox' ? m.de : m.para))},'${tab}')"
               style="border-bottom:1px solid #f5f5f5;cursor:pointer;${m.leido ? '' : 'font-weight:700'}" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
-            <td style="padding:10px 14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tab === 'inbox' ? (m.de || '—') : (m.para || '—')}</td>
-            <td style="padding:10px 14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.asunto}${m.tiene_adjunto ? ' 📎' : ''}</td>
-            <td style="padding:10px 14px;color:#888;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.resumen || ''}</td>
+            <td style="padding:10px 14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escSugerencia(tab === 'inbox' ? (m.de || '—') : (m.para || '—'))}</td>
+            <td style="padding:10px 14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escSugerencia(m.asunto)}${m.tiene_adjunto ? ' 📎' : ''}</td>
+            <td style="padding:10px 14px;color:#888;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escSugerencia(m.resumen || '')}</td>
             <td style="padding:10px 14px;color:#888;white-space:nowrap">${m.fecha_ms ? new Date(m.fecha_ms).toLocaleString('es-MX') : '—'}</td>
           </tr>`).join('')}
       </tbody>
@@ -24896,23 +24901,23 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
     <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
         <div style="min-width:0">
-          <p style="margin:0;font-weight:700;font-size:0.95rem">${asunto || '—'}</p>
-          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">${contacto || ''}</p>
+          <p style="margin:0;font-weight:700;font-size:0.95rem">${_escSugerencia(asunto || '—')}</p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">${_escSugerencia(contacto || '')}</p>
         </div>
         <button onclick="document.getElementById('modal-buzon-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
       </div>
       <div style="border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:1rem">
-        <iframe id="buzon-iframe-${messageId}" style="width:100%;height:420px;border:none"></iframe>
+        <iframe id="buzon-iframe-${messageId}" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;height:420px;border:none"></iframe>
       </div>
       <div id="buzon-adjuntos-${messageId}"></div>
-      ${puedeResponder ? `<button class="btn btn-primary" onclick="window._buzonRedactar(${JSON.stringify(contacto).replace(/"/g,'&quot;')}, ${JSON.stringify('Re: ' + (asunto||'')).replace(/"/g,'&quot;')}, '${messageId}')">↩️ Responder</button>` : ''}
+      ${puedeResponder ? `<button class="btn btn-primary" onclick="window._buzonRedactar(${_escSugerencia(JSON.stringify(contacto))}, ${_escSugerencia(JSON.stringify('Re: ' + (asunto||'')))}, '${messageId}')">↩️ Responder</button>` : ''}
     </div>`
   document.body.appendChild(ov)
   try {
     const res = await fetch(`${API}/emails/buzon/mensaje/${folderId}/${messageId}`)
     const data = await res.json()
     const iframe = document.getElementById(`buzon-iframe-${messageId}`)
-    if (iframe) iframe.srcdoc = data.html || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
+    if (iframe) iframe.srcdoc = (data.html ? '<base target="_blank">' + data.html : '') || '<p style="font-family:sans-serif;color:#888;padding:1rem">No se pudo cargar el contenido.</p>'
     const cont = document.getElementById(`buzon-adjuntos-${messageId}`)
     if (cont && data.adjuntos && data.adjuntos.length) {
       cont.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem'
@@ -24920,7 +24925,7 @@ window._buzonVerDetalle = async (folderId, messageId, asunto, contacto, tab) => 
         const url = `${API}/emails/buzon/adjunto/${folderId}/${messageId}/${a.attachmentId}`
         const nombre = a.attachmentName || 'archivo'
         const kb = a.attachmentSize ? `${Math.round(a.attachmentSize / 1024)} KB` : ''
-        return `<a href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:0.78rem;color:#333;text-decoration:none">📎 ${nombre}${kb ? ` <span style="color:#999">(${kb})</span>` : ''}</a>`
+        return `<a href="${url}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 10px;font-size:0.78rem;color:#333;text-decoration:none">📎 ${_escSugerencia(nombre)}${kb ? ` <span style="color:#999">(${kb})</span>` : ''}</a>`
       }).join('')
     }
   } catch (e) {
@@ -24949,11 +24954,11 @@ window._buzonRedactar = (paraPrefill = '', asuntoPrefill = '', responderA = '') 
         <button onclick="document.getElementById('modal-buzon-redactar').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888">×</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
-        <input id="rz-para" type="email" placeholder="Para: correo@ejemplo.com" value="${paraLimpio}"
+        <input id="rz-para" type="email" placeholder="Para: correo@ejemplo.com" value="${_escSugerencia(paraLimpio)}"
                style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
         <input id="rz-cc" type="email" placeholder="CC (opcional)"
                style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
-        <input id="rz-asunto" placeholder="Asunto" value="${(asuntoPrefill || '').replace(/"/g,'&quot;')}"
+        <input id="rz-asunto" placeholder="Asunto" value="${_escSugerencia(asuntoPrefill || '')}"
                style="padding:0.6rem 0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;font-family:inherit">
         <textarea id="rz-cuerpo" placeholder="Escribe tu mensaje..." rows="10"
                   style="padding:0.7rem;border:1px solid #ddd;border-radius:8px;font-size:0.88rem;font-family:inherit;resize:vertical"></textarea>
@@ -25072,8 +25077,8 @@ window._correoFiltrar = () => {
       <tbody>
         ${filtrados.map(e => `
           <tr onclick="window._correoVerDetalle('${e.id}')" style="border-bottom:1px solid #f5f5f5;cursor:pointer" onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'">
-            <td style="padding:10px 14px">${e.destinatario || '—'}</td>
-            <td style="padding:10px 14px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.asunto || '—'}</td>
+            <td style="padding:10px 14px">${_escSugerencia(e.destinatario || '—')}</td>
+            <td style="padding:10px 14px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escSugerencia(e.asunto || '—')}</td>
             <td style="padding:10px 14px;color:#888">${e.tipo || '—'}</td>
             <td style="padding:10px 14px;color:#888;white-space:nowrap">${e.created_at ? new Date(e.created_at).toLocaleString('es-MX') : '—'}</td>
             <td style="padding:10px 14px;text-align:center">${e.exito ? '<span style="color:#16a34a">✓</span>' : `<span style="color:#dc2626" title="${(e.error||'').replace(/"/g,'')}">✗</span>`}</td>
@@ -25096,15 +25101,15 @@ window._correoVerDetalle = async (id) => {
     <div style="background:#fff;border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;gap:1rem">
         <div style="min-width:0">
-          <p style="margin:0;font-weight:700;font-size:0.95rem">${e.asunto || '—'}</p>
-          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">Para: ${e.destinatario}${e.bcc ? ' · CC: ' + e.bcc : ''}</p>
+          <p style="margin:0;font-weight:700;font-size:0.95rem">${_escSugerencia(e.asunto || '—')}</p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#888">Para: ${_escSugerencia(e.destinatario)}${e.bcc ? ' · CC: ' + _escSugerencia(e.bcc) : ''}</p>
           <p style="margin:2px 0 0;font-size:0.78rem;color:#aaa">${e.created_at ? new Date(e.created_at).toLocaleString('es-MX') : ''} · ${e.tipo || 'sin tipo'} · ${e.exito ? '✅ Enviado' : '❌ Falló'}</p>
-          ${!e.exito && e.error ? `<p style="margin:6px 0 0;font-size:0.78rem;color:#dc2626">${e.error}</p>` : ''}
+          ${!e.exito && e.error ? `<p style="margin:6px 0 0;font-size:0.78rem;color:#dc2626">${_escSugerencia(e.error)}</p>` : ''}
         </div>
         <button onclick="document.getElementById('modal-correo-detalle').remove()" aria-label="Cerrar" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;flex-shrink:0">×</button>
       </div>
       <div style="border:1px solid #eee;border-radius:10px;overflow:hidden">
-        <iframe srcdoc="${(e.html||'').replace(/"/g,'&quot;')}" style="width:100%;height:420px;border:none"></iframe>
+        <iframe sandbox srcdoc="${_escSugerencia(e.html||'')}" style="width:100%;height:420px;border:none"></iframe>
       </div>
     </div>`
   document.body.appendChild(ov)
@@ -28483,6 +28488,7 @@ window._wmSincronizarVentas = async (btn) => {
   try {
     const res = await fetch(`${API}/walmart/sync-ventas`, { method: 'POST' })
     const d = await res.json()
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
     box.style.display = 'block'
     if (d.procesadas > 0) {
       box.style.background = '#f0fdf4'; box.style.color = '#166534'
@@ -28674,7 +28680,7 @@ window._wmRenderPendienteTab = async () => {
             <input type="checkbox" ${p.listo ? 'checked' : ''} data-wm-prod="${p.id}" onchange="window._wmToggle('${p.id}',this.checked)">
             <input type="text" data-wm-titulo="${p.id}" value="${_wmEsc(p.nombre)}" title="Título para Walmart (no cambia el nombre en el ERP)"
                    style="flex:1;min-width:180px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;font-family:inherit">
-            <input type="number" data-wm-precio="${p.id}" value="${p.precio_menudeo}" min="1" step="1" title="Precio para Walmart (no cambia el precio en el ERP)"
+            <input type="number" data-wm-precio="${p.id}" value="${p.precio_menudeo}" min="1" step="1" title="Precio base del panel; en Walmart se publica con +$150 (maniobra y envío). No cambia el precio en el ERP."
                    style="width:90px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem;font-family:inherit">
             <span style="color:#888;white-space:nowrap">${p.num_variantes} SKU${p.num_variantes===1?'':'s'} · ${p.num_colores} color${p.num_colores===1?'':'es'}</span>
             ${p.listo
@@ -28827,8 +28833,8 @@ window._wmElegirProducto = async (skuInterno) => {
                    style="width:100%;padding:0.6rem 0.9rem;border:1.5px solid ${_WM_ACCENT};border-radius:8px;font-size:0.9rem;box-sizing:border-box;font-family:inherit">
           </div>
           <div>
-            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Precio (MXN)</label>
-            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">Opcional</p>
+            <label style="font-size:0.8rem;font-weight:700;display:block;margin-bottom:4px;color:#333">Precio base (MXN)</label>
+            <p style="font-size:0.76rem;color:#888;margin:0 0 6px">En Walmart se publica +$150</p>
             <input id="wm-nuevo-precio" type="number" min="1" step="1" value="${d.precio_menudeo}"
                    style="width:130px;padding:0.6rem 0.9rem;border:1.5px solid #ddd;border-radius:8px;font-size:0.9rem">
           </div>

@@ -545,7 +545,8 @@ def _fila_variante(producto: dict, variante: dict, es_primaria: bool) -> dict:
         "I": imagen_principal,
         "J": f"Calzado {nombre} color {color}; Marca May; talla {talla} (sistema mexicano)"[:4000],
         "K": (producto.get("descripcion") or f"{nombre}. Calzado Marca May, color {color}, talla {talla}.")[:4000],
-        "L": float(producto.get("precio_menudeo") or 0),
+        # mismo precio que el feed por API: precio del panel + ajuste de maniobra/envío de Walmart
+        "L": (round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2) if float(producto.get("precio_menudeo") or 0) > 0 else 0.0),
         "M": "May",
         "N": clave_sat,
         "O": "No",
