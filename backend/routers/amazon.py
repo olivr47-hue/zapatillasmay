@@ -74,8 +74,8 @@ def _lwa_token() -> str:
     return _token_cache["token"]
 
 
-def amazon_request(method: str, path: str, params: dict = None, body: dict = None) -> dict:
-    url = f"{BASE}{path}"
+def amazon_request(method: str, path: str, params: dict = None, body: dict = None, base: str = None) -> dict:
+    url = f"{base or BASE}{path}"
     if params:
         url += "?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None}, doseq=True)
     data = json.dumps(body).encode() if body is not None else None
@@ -98,11 +98,13 @@ def amazon_request(method: str, path: str, params: dict = None, body: dict = Non
 # ─── Diagnóstico ─────────────────────────────────────────────────────────────
 
 @router.get("/ping")
-def amazon_ping():
+def amazon_ping(sandbox: bool = None):
     """Estado de la conexión: variables presentes, token LWA y, si se puede, los
     marketplaces donde la cuenta participa (muestra si está suspendida)."""
+    usar_sandbox = SANDBOX if sandbox is None else sandbox   # ?sandbox=true prueba el sandbox sin tocar Railway
+    base = "https://sandbox.sellingpartnerapi-na.amazon.com" if usar_sandbox else "https://sellingpartnerapi-na.amazon.com"
     estado = {
-        "sandbox": SANDBOX, "marketplace_id": MARKETPLACE_ID,
+        "sandbox": usar_sandbox, "marketplace_id": MARKETPLACE_ID,
         "tiene_client_id": bool(LWA_CLIENT_ID), "tiene_client_secret": bool(LWA_CLIENT_SECRET),
         "tiene_refresh_token": bool(REFRESH_TOKEN), "tiene_seller_id": bool(SELLER_ID),
     }
@@ -114,7 +116,7 @@ def amazon_ping():
     except HTTPException as e:
         return {**estado, "ok": False, "token_ok": False, "error": str(e.detail)}
     try:
-        resp = amazon_request("GET", "/sellers/v1/marketplaceParticipations")
+        resp = amazon_request("GET", "/sellers/v1/marketplaceParticipations", base=base)
         return {**estado, "ok": True, "token_ok": True, "participaciones": resp.get("payload", resp)}
     except HTTPException as e:
         return {**estado, "ok": False, "token_ok": True, "error": str(e.detail)}
