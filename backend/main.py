@@ -177,7 +177,19 @@ async def _security_headers(request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Content-Security-Policy"] = _CSP
+    # Catálogo público de la tienda (~450 KB por visita, se pedía completo en cada página): caché corta del navegador,
+    # SOLO para peticiones sin sesión. Con token (panel/portal) nunca se cachea, y `Vary` evita que una caché compartida
+    # mezcle la versión pública con la de personal (que trae costos).
+    if request.method == "GET" and response.status_code == 200 and request.url.path in _CACHE_PUBLICA:
+        response.headers["Vary"] = "Authorization"
+        if request.headers.get("authorization"):
+            response.headers["Cache-Control"] = "private, no-store"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=30, stale-while-revalidate=60"
     return response
+
+_CACHE_PUBLICA = {"/productos/", "/productos/nuevos", "/variantes/", "/inventario/slim", "/seo/config",
+                  "/config/envio", "/catalogos/", "/sucursales/"}
 
 app.include_router(productos.router)
 app.include_router(sucursales.router)

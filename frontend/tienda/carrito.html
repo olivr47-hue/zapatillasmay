@@ -511,6 +511,41 @@ function _dispararViewCart() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────
+// El carrito vive en el navegador del cliente: si cambias un precio en el panel, quien ya tenía el producto guardado
+// pagaba el precio viejo (el servidor solo impide precios por DEBAJO del mínimo). Aquí se vuelven a leer del catálogo.
+async function refrescarPreciosCarrito() {
+  try {
+    const items = leerCarrito()
+    if (!items.length) return
+    const r = await fetch(`${API}/productos/`)
+    if (!r.ok) return
+    const prods = await r.json()
+    if (!Array.isArray(prods)) return
+    const por = {}
+    prods.forEach(p => { por[p.id] = p })
+    let cambio = false
+    items.forEach(i => {
+      const p = por[i.producto_id]
+      if (!p) return
+      const mn = parseFloat(p.precio_menudeo) || 0
+      if (!mn) return
+      const base = p.es_oferta ? mn : mn + 80
+      const nuevo = {
+        precio_menudeo: base,
+        precio_mayoreo3: base - 60,
+        precio_corrida: parseFloat(p.precio_corrida) || (mn - 100),
+        es_oferta: !!p.es_oferta,
+        precio_unitario: base,
+      }
+      Object.keys(nuevo).forEach(k => { if (i[k] !== nuevo[k]) { i[k] = nuevo[k]; cambio = true } })
+    })
+    if (cambio) {
+      localStorage.setItem('zm_carrito', JSON.stringify(items))
+      setTimeout(() => mostrarToast('Actualizamos los precios de tu carrito'), 300)
+    }
+  } catch (e) {}
+}
+
 async function init() {
   // Restaurar carrito desde un email de recordatorio (?recover=<id>)
   const _recoverId = new URLSearchParams(location.search).get('recover')
@@ -537,6 +572,7 @@ async function init() {
       if (Array.isArray(inv)) { inventario = inv; inventarioCargado = true }
     }
   } catch(e) { /* usa defaults */ }
+  await refrescarPreciosCarrito()
   render()
 
   // Cargar pixeles SOLO con consentimiento

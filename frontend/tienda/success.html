@@ -433,13 +433,14 @@ if (!window.fbq){
   if (!window.__zmPagoOk) return
   const API = 'https://zapatillasmay-production.up.railway.app'
   try {
-    const r = await fetch(`${API}/productos?activo=eq.true&nuevo=eq.true&select=id,nombre,slug,precio_menudeo,imagen_principal&limit=6`)
+    const r = await fetch(`${API}/productos/nuevos`)
     if (!r.ok) return
     let prods = await r.json()
-    if (!prods.length) {
-      const r2 = await fetch(`${API}/productos?activo=eq.true&select=id,nombre,slug,precio_menudeo,imagen_principal&limit=6&order=id.desc`)
+    if (!Array.isArray(prods) || !prods.length) {
+      const r2 = await fetch(`${API}/productos/?limit=12`)
       if (r2.ok) prods = await r2.json()
     }
+    if (!Array.isArray(prods)) return
     prods = prods.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
     if (!prods.length) return
     const grid = document.getElementById('crosssell-grid')
