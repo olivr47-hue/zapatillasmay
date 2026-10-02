@@ -667,7 +667,8 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool, gtins: dict = 
             except Exception:
                 pass
 
-    color = variante.get("color") or ""
+    color = " ".join((variante.get("color") or "").split())
+    nombre = " ".join(nombre.split())   # el ERP trae espacios sobrantes ("Vino ", nombres con doble espacio)
     talla = _talla_display(variante.get("talla"))
     caja  = _CAJAS.get(categoria, _CAJAS["_default"])
     clave_sat = _SAT_CLAVE_PRODSERV.get(categoria, _SAT_CLAVE_PRODSERV["_default"])
