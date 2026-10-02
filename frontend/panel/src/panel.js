@@ -19887,10 +19887,7 @@ window.crearPlantillaPago = async function(btn) {
       const lineas = data.resultados.map(r => r.nombre + ': ' + (t[r.estado] || r.estado) + (r.detalle && r.estado === 'error' ? ' — ' + r.detalle : ''))
       btn.textContent = data.ok ? '✅ Plantillas enviadas a Meta' : orig
       btn.disabled = !!data.ok
-      alert(lineas.join('
-') + (data.ok ? '
-
-Meta las revisa; tardan de minutos a horas en aprobarse.' : ''))
+      alert(lineas.join('\n') + (data.ok ? '\n\nMeta las revisa; tardan de minutos a horas en aprobarse.' : ''))
     } else {
       btn.textContent = orig
       btn.disabled = false
