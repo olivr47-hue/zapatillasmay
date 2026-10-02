@@ -193,6 +193,12 @@ def walmart_items(limit: int = 50, offset: int = 0):
     }
 
 
+@router.get("/items/{sku}")
+def walmart_item(sku: str):
+    """Un artículo tal como lo tiene Walmart (respuesta cruda), para depurar."""
+    return walmart_get(f"/items/{urllib.parse.quote(sku, safe='')}")
+
+
 @router.get("/publicados")
 def walmart_publicados():
     """Todo lo que ya está en Walmart (estatus y precio reales de allá) cruzado
