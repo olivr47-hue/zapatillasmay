@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_patch, supabase_post, inventario_ajustar
+from telefonos import a_e164_mx
 from cache import cache_get, cache_set, TTL_PUBLICO
 from security import require_staff
 import mercadopago
@@ -362,9 +363,7 @@ def _confirmar_pago_whatsapp(pedido: dict):
         nombre = (pedido.get("nombre_cliente") or "").split()[0] or "Clienta"
         total = pedido.get("total", 0)
         notas = pedido.get("notas", "tu pedido")
-        tel = str(telefono).replace("+", "").replace(" ", "").replace("-", "")
-        if not tel.startswith("52"):
-            tel = "52" + tel
+        tel = a_e164_mx(telefono)
         mensaje = (
             f"✅ *¡Pago confirmado, {nombre}!*\n\n"
             f"Recibimos tu pago de *${total:.0f} MXN* 🎉\n"

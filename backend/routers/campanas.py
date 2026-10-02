@@ -1,5 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks
 import os, time, uuid, json, urllib.request, urllib.error
+from telefonos import a_e164_mx
 
 router = APIRouter(tags=["Campanas"])
 
@@ -73,10 +74,7 @@ def _enviar_wa_imagen(to, img_url, caption=""):
 
 
 def _normalizar_tel(telefono):
-    t = str(telefono).replace(" ", "").replace("+", "").replace("-", "").replace("(", "").replace(")", "")
-    if not t.startswith("52"):
-        t = "52" + t
-    return t
+    return a_e164_mx(telefono)
 
 
 def _procesar_campana(job_id: str, destinatarios: list, fotos_urls: list, imagen_url: str, delay: float, fotos_con_caption: list = None):

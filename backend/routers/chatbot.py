@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from telefonos import a_e164_mx
 from cache import cache_get, cache_set, cache_invalidate, TTL_STOCK
 from security import limpiar_texto
 import urllib.request
@@ -351,13 +352,39 @@ def _wa_send(payload: dict) -> str:
     url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
     headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers=headers, method="POST")
+    global _WA_ULTIMO_ERROR
+    _WA_ULTIMO_ERROR = None
     try:
         with urllib.request.urlopen(req) as r:
             data = json.loads(r.read())
             return data.get("messages", [{}])[0].get("id", "")
+    except urllib.error.HTTPError as e:
+        cuerpo = e.read().decode(errors="replace")
+        try:
+            err = (json.loads(cuerpo).get("error") or {})
+        except Exception:
+            err = {}
+        _WA_ULTIMO_ERROR = {"codigo": err.get("code"), "mensaje": err.get("message") or cuerpo[:200]}
+        print(f"Error WA send: HTTP {e.code} {cuerpo[:300]}")
+        return ""
     except Exception as e:
+        _WA_ULTIMO_ERROR = {"codigo": None, "mensaje": str(e)}
         print(f"Error WA send: {e}")
         return ""
+
+
+_WA_ULTIMO_ERROR = None
+
+
+def _explicar_error_wa() -> str:
+    """Texto para el panel cuando WhatsApp rechaza un mensaje manual (antes se guardaba como enviado igual)."""
+    e = _WA_ULTIMO_ERROR or {}
+    if e.get("codigo") == 131047:
+        return ("Pasaron más de 24 horas desde el último mensaje de la clienta, así que WhatsApp no deja mandarle texto libre. "
+                "Envíale una plantilla aprobada.")
+    if e.get("codigo") in (190, 102):
+        return "El token de WhatsApp venció o es inválido. Hay que renovarlo en Meta."
+    return "WhatsApp rechazó el mensaje" + (f": {e.get('mensaje')}" if e.get("mensaje") else " (revisa el token y el número configurados).")
 
 def enviar_whatsapp_texto(to, texto, reply_to_id=None):
     payload = {
@@ -2118,6 +2145,9 @@ def enviar_mensaje_manual(telefono: str, datos: dict):
             _enviar_mensaje_meta(destinatario_id, mensaje)
         else:
             wa_id = enviar_whatsapp_texto(telefono, mensaje, reply_to_id=reply_to)
+            if not wa_id:
+                # Antes igual se guardaba como enviado y se respondía ok: la asesora creía haber contestado.
+                return JSONResponse(status_code=502, content={"error": _explicar_error_wa()})
         row = {
             "telefono": telefono,
             "mensaje": f"[{agente}]: {mensaje}",
@@ -2143,7 +2173,8 @@ def enviar_imagen_manual(telefono: str, datos: dict):
         imagen_url = datos.get("imagen_url", "")
         caption = datos.get("caption", "")
         agente = datos.get("agente", "Admin")
-        enviar_whatsapp_imagen(telefono, imagen_url, caption)
+        if not enviar_whatsapp_imagen(telefono, imagen_url, caption):
+            return JSONResponse(status_code=502, content={"error": _explicar_error_wa()})
         supabase_post("conversaciones_whatsapp", {
             "telefono": telefono,
             "mensaje": f"[{agente}]: [Imagen] {imagen_url}\n{caption}",
@@ -2670,6 +2701,7 @@ def envio_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep po
         enviados = 0
         fallidos = 0
         errores = []
+        ya_enviados_masivo = set()
         url = f"https://graph.facebook.com/v25.0/{phone_id}/messages"
         headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
 
@@ -2678,9 +2710,10 @@ def envio_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep po
             nombre = (contacto.get("nombre") or "Cliente").strip() or "Cliente"
             if not telefono:
                 continue
-            tel = telefono.replace("+", "").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            if not tel.startswith("52"):
-                tel = "52" + tel
+            tel = a_e164_mx(telefono)
+            if tel in ya_enviados_masivo:      # el mismo número repetido en la lista recibía el mensaje dos veces
+                continue
+            ya_enviados_masivo.add(tel)
 
             components = []
             if header_tipo == "IMAGE" and imagen_url:
@@ -2777,7 +2810,7 @@ def envio_fotos(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep por
 
         def _tel(t):
             t = str(t).replace("+","").replace(" ","").replace("-","").replace("(","").replace(")","")
-            return t if t.startswith("52") else "52" + t
+            return a_e164_mx(t)
 
         def _post(payload):
             req = urllib.request.Request(url_api,
@@ -2929,9 +2962,7 @@ def wa_diagnostico(datos: dict):
     if not telefono or not plantilla:
         return resultado
 
-    tel = telefono.replace("+", "").replace(" ", "").replace("-", "")
-    if not tel.startswith("52"):
-        tel = "52" + tel
+    tel = a_e164_mx(telefono)
 
     # Detectar cuántas variables tiene la plantilla consultando Meta
     components_diag = []
@@ -3457,11 +3488,9 @@ def envio_productos(datos: dict):  # sync (no async): hace HTTP bloqueante/sleep
         errores = []
 
         for contacto in contactos:
-            telefono = (contacto.get("telefono") or "").replace("+", "").replace(" ", "").replace("-", "")
+            telefono = a_e164_mx(contacto.get("telefono") or "")
             if not telefono:
                 continue
-            if not telefono.startswith("52"):
-                telefono = "52" + telefono
 
             if total_skus == 1:
                 # Mensaje de producto único
