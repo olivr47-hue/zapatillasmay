@@ -664,6 +664,9 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
         fotos = [producto["imagen_principal"]]
     fotos = [f for f in fotos if f]
     imagen_principal = _cloudinary_cuadrada(fotos[0]) if fotos else ""
+    # Fotos adicionales (hasta 4, igual que la plantilla vieja) -- sin esto
+    # Walmart solo mostraba la portada (confirmado por el dueño en vivo).
+    imagenes_extra = [_cloudinary_cuadrada(u) for u in fotos[1:5]]
 
     color_categoria = _COLOR_CATEGORY.get(_normalizar(color), "Multicolor")
     genero          = _GENERO_POR_CATEGORIA.get(categoria, "Mujer")
@@ -714,6 +717,8 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
         "ShippingDimensionsHeight": {"measure": float(caja["height"]), "unit": "cm"},
         "ShippingDimensionsDepth":  {"measure": float(caja["depth"]),  "unit": "cm"},
     }
+    if imagenes_extra:
+        orderable["productSecondaryImageURL"] = imagenes_extra
 
     visible_zapatos = {
         "gender": genero,
