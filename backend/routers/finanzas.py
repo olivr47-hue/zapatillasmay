@@ -522,7 +522,7 @@ def estado_resultados(sucursal_id: str):
         for primer_dia, ultimo_dia in meses:
             _ini = _inicio_dia_mx(primer_dia)
             _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
-            pedidos = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
+            pedidos = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
             gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -550,13 +550,13 @@ def flujo_efectivo(sucursal_id: str):
         hace7 = (hoy - timedelta(days=7)).isoformat()
         hace30 = (hoy - timedelta(days=30)).isoformat()
 
-        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hace7}T00:00:00")
-        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{hace30}T00:00:00")
+        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace7}T00:00:00")
+        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}T00:00:00")
         gastos_semana = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}T00:00:00")
         gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
 
         # Por forma de pago hoy
-        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}")
+        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}")
 
         desgloses_pago_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
         return {
@@ -589,7 +589,7 @@ def cuentas_por_cobrar():
         # crédito sin que el resto lo sea -- si solo se buscara forma_pago=
         # credito, esa deuda parcial nunca aparecería aquí. Se trae también
         # "combinado" y se filtra/calcula el monto real a crédito en Python.
-        pedidos = supabase_get("pedidos?forma_pago=in.(credito,combinado)&status=in.(confirmado,pagado,entregado)&select=*,clientes(nombre,telefono)")
+        pedidos = supabase_get("pedidos?forma_pago=in.(credito,combinado)&status=in.(confirmado,pagado,entregado,enviado)&select=*,clientes(nombre,telefono)")
         resultado = []
         for p in pedidos:
             if p.get("forma_pago") == "credito":

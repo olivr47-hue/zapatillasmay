@@ -4167,7 +4167,7 @@ async function cargarCRM() {
     const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
 
     const clientesEnriquecidos = clientes.map(c => {
-      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
       const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
       const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
@@ -4191,10 +4191,10 @@ async function cargarCRM() {
 
     const ventasHoy = pedidos.filter(p => {
       const f = new Date(p.confirmado_at || p.created_at)
-      return f.toDateString() === hoy.toDateString() && (p.status === 'confirmado' || p.status === 'pagado')
+      return f.toDateString() === hoy.toDateString() && _ESTADOS_VENTA.includes(p.status)
     }).reduce((s,p) => s + parseFloat(p.total||0), 0)
 
-    const ventas30 = pedidos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30 && (p.status === 'confirmado' || p.status === 'pagado'))
+    const ventas30 = pedidos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30 && _ESTADOS_VENTA.includes(p.status))
       .reduce((s,p) => s + parseFloat(p.total||0), 0)
 
     content.innerHTML = `
@@ -5056,7 +5056,7 @@ window.mostrarCampanas = async () => {
     const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
 
     const clientesEnriquecidos = clientes.map(c => {
-      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
       const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
       const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
@@ -6286,7 +6286,7 @@ async function cargarClientes() {
     const hace90 = new Date(hoy - 90 * 24 * 60 * 60 * 1000)
 
     const clientesEnriquecidos = clientes.map(c => {
-      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && (p.status === 'confirmado' || p.status === 'pagado'))
+      const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
       const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
       const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
@@ -9459,7 +9459,7 @@ window.verCliente = async (id) => {
     const c = data[0]
     const saldoFavor = parseFloat(c.credito_disponible || 0)
     const pedidos = todosPedidos.filter(p => p.cliente_id === id)
-    const pedidosConfirmados = pedidos.filter(p => p.status === 'confirmado' || p.status === 'pagado')
+    const pedidosConfirmados = pedidos.filter(p => _ESTADOS_VENTA.includes(p.status))
     const totalGastado = pedidosConfirmados.reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const ticketPromedio = pedidosConfirmados.length > 0 ? totalGastado / pedidosConfirmados.length : 0
     const ultimoPedido = pedidos.length > 0 ? new Date(pedidos[0].created_at) : null
@@ -9651,7 +9651,7 @@ window.verHistorialCliente = async (clienteId) => {
     const cliente = pedidos.length > 0 && pedidos[0].clientes ? pedidos[0].clientes : {}
 
     const totalGastado = pedidos
-      .filter(p => p.status === 'confirmado' || p.status === 'pagado')
+      .filter(p => _ESTADOS_VENTA.includes(p.status))
       .reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
 
     content.innerHTML = `
@@ -19415,6 +19415,10 @@ window.completarTareaDashboard = async (id, checked) => {
   } catch(e) { console.error(e) }
 }
 
+// Pedidos que cuentan como venta: antes solo 'confirmado'/'pagado', y al marcar un pedido como enviado dejaba de contarse
+// en el CRM, clientes y estadísticas (había 57 enviados por $59 mil fuera de esos números).
+const _ESTADOS_VENTA = ['confirmado', 'pagado', 'enviado', 'entregado']
+
 function _escSugerencia(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
@@ -25604,7 +25608,7 @@ async function _gaActualizarRealtime() {
         `<div style="font-size:0.65rem;color:#aaa;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Por país</div>` +
         d.por_pais.map(p => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f5f5f5;gap:4px">
-            <span style="font-size:0.68rem;color:#555;flex:1">${p.pais || 'Desconocido'}</span>
+            <span style="font-size:0.68rem;color:#555;flex:1">${_escSugerencia(p.pais || 'Desconocido')}</span>
             <span style="font-size:0.68rem;font-weight:700;color:#22c55e;flex-shrink:0">${p.activos}</span>
           </div>`).join('')
     } else if (paginasEl) {
@@ -25639,7 +25643,7 @@ async function _gaCargarHoy() {
         top.innerHTML = d.top_paginas.map(p => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid #f0f0f0;gap:0.5rem">
             <span style="font-size:0.8rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"
-                  title="${p.pagina}">${p.pagina}</span>
+                  title="${_escSugerencia(p.pagina)}">${_escSugerencia(p.pagina)}</span>
             <span style="font-size:0.8rem;font-weight:600;color:#3483fa;flex-shrink:0">${p.vistas} vistas</span>
           </div>`).join('')
       } else {
@@ -25734,7 +25738,7 @@ async function _gaCargarFuentes() {
       const ingresoTxt = f.ingreso ? ` · 💰 $${f.ingreso.toLocaleString('es-MX', {maximumFractionDigits:0})} (${f.compras})` : ''
       return `<div style="margin-bottom:0.55rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${f.source}</span>
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${_escSugerencia(f.source)}</span>
           <span style="font-size:0.75rem;color:#888">${f.sesiones} ses · ${pct}%${ingresoTxt}</span>
         </div>
         <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
@@ -25791,7 +25795,7 @@ async function _gaCargarEmbudo(dias = 30) {
     el.innerHTML = d.pasos.map(p => `
       <div style="margin-bottom:0.55rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[p.paso] || ''} ${p.etiqueta}</span>
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[p.paso] || ''} ${_escSugerencia(p.etiqueta)}</span>
           <span style="font-size:0.75rem;color:#888">${p.eventos} · ${p.pct_del_total}%</span>
         </div>
         <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${p.pct_del_total}%"></div></div>
@@ -25816,7 +25820,7 @@ async function _gaCargarDispositivos(dias = 30) {
           const pct = Math.round(x.sesiones / totalSes * 100)
           return `<div style="margin-bottom:0.55rem">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-              <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[x.dispositivo] || '📶'} ${x.dispositivo}</span>
+              <span style="font-size:0.78rem;color:#333;font-weight:500">${iconos[x.dispositivo] || '📶'} ${_escSugerencia(x.dispositivo)}</span>
               <span style="font-size:0.75rem;color:#888">${x.sesiones} ses · ${pct}% · $${x.ingreso.toLocaleString('es-MX',{maximumFractionDigits:0})} (${x.compras})</span>
             </div>
             <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%"></div></div>
@@ -25830,7 +25834,7 @@ async function _gaCargarDispositivos(dias = 30) {
       } else {
         elPag.innerHTML = d.paginas_rebote.map(p => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f0">
-            <span style="font-size:0.78rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${p.pagina}</span>
+            <span style="font-size:0.78rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${_escSugerencia(p.pagina)}</span>
             <span style="font-size:0.75rem;color:${p.rebote >= 60 ? '#c62828' : '#888'}">${p.vistas} vistas · ${p.rebote}% rebote</span>
           </div>
         `).join('')
@@ -25855,8 +25859,8 @@ async function _gaCargarIA() {
         const ico = iconos[f.source?.toLowerCase()] || '🤖'
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0f0">
           <div style="min-width:0">
-            <div style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${f.source}</div>
-            <div style="font-size:0.72rem;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${f.landing_page}</div>
+            <div style="font-size:0.78rem;color:#333;font-weight:500">${ico} ${_escSugerencia(f.source)}</div>
+            <div style="font-size:0.72rem;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">${_escSugerencia(f.landing_page)}</div>
           </div>
           <span style="font-size:0.75rem;color:#888;white-space:nowrap;margin-left:8px">${f.sesiones} ses</span>
         </div>`
@@ -25897,7 +25901,7 @@ async function _gaCargarCiudades() {
       const pct = Math.round((c.sesiones / max) * 100)
       return `<div style="margin-bottom:0.55rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <span style="font-size:0.78rem;color:#333;font-weight:500">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'  '} ${c.ciudad}</span>
+          <span style="font-size:0.78rem;color:#333;font-weight:500">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'  '} ${_escSugerencia(c.ciudad)}</span>
           <span style="font-size:0.75rem;color:#888">${c.sesiones} ses</span>
         </div>
         <div class="ga-bar-bg"><div class="ga-bar-fill" style="width:${pct}%;background:#E91E8C"></div></div>
