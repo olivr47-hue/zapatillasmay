@@ -1063,10 +1063,13 @@ def feed_estado(feed_id: str):
 # no conozca simplemente no tiene efecto, no genera error de feed completo.
 
 @router.post("/inventario/sincronizar")
-def sincronizar_inventario():
+def sincronizar_inventario(sku_interno: str = None):
     """Manda a Walmart el stock actual del ERP para todas las variantes
-    publicables, vía Feeds API (POST /v3/feeds?feedType=inventory)."""
+    publicables, vía Feeds API (POST /v3/feeds?feedType=inventory).
+    Con sku_interno limita el envío a un solo producto (útil para probar)."""
     items = _variantes_publicables()
+    if sku_interno:
+        items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
     # sku_walmart, no sku -- Walmart conoce el artículo por el código corto
     # que se le mandó en el feed (columna D), no por el sku interno (ver nota
     # junto a _fila_variante: el sku interno excede su límite de 15 caracteres).
