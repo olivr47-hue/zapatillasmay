@@ -641,6 +641,11 @@ def crear_pedido(pedido: dict, request: Request):
                 _suma_items = sum(i["cantidad"] * i["precio_unitario"] for i in pedido["items"])
                 # el total puede ser MAYOR (envío) pero nunca menor que la suma real de ítems
                 pedido["total"] = round(max(float(pedido.get("total") or 0), _suma_items), 2)
+                # La tienda mandaba el envío SOLO dentro del total (costo_envio quedaba en 0): "Mi cuenta" decía "Envío: Gratis"
+                # y los reportes de envíos salían incompletos. La diferencia total - ítems es el envío cobrado.
+                _envio_cobrado = round(pedido["total"] - _suma_items, 2)
+                if _envio_cobrado > 0 and not float(pedido.get("costo_envio") or 0):
+                    pedido["costo_envio"] = _envio_cobrado
 
         # Aplicar saldo a favor (nota de credito / referidos) si el cliente lo
         # pidio: el monto SIEMPRE se revalida aqui contra credito_disponible

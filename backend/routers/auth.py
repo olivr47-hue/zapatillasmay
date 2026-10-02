@@ -580,6 +580,7 @@ def mayorista_registro(request: Request, datos: dict):
     nombre, negocio, ciudad, telefono = (_html.escape(x) for x in (nombre, negocio, ciudad, telefono))
 
     # Guardar lead en suscriptores
+    guardado = False
     try:
         if email and "@" in email:
             existente = supabase_get(f"suscriptores?email=eq.{_q(email)}")
@@ -590,13 +591,14 @@ def mayorista_registro(request: Request, datos: dict):
                     "fuente": "mayorista",
                     "activo": True
                 })
+            guardado = True
     except Exception as e:
         print(f"[mayorista] Error guardando lead: {e}")
 
     # Notificar al negocio
     try:
         tel_limpio = telefono.replace(' ', '').replace('-', '').lstrip('+')
-        enviar_email(
+        avisado = enviar_email(
             _NOTIF_EMAIL,
             f"🛍️ Nueva revendedora interesada: {nombre}",
             f"""
@@ -618,6 +620,12 @@ def mayorista_registro(request: Request, datos: dict):
         )
     except Exception as e:
         print(f"[mayorista] Error notificando: {e}")
+        avisado = False
+
+    # Sin correo del lead el único rastro es el aviso al negocio: si tampoco salió, la solicitud se perdería
+    # y la página igual decía "enviado". Ahora el formulario se entera y le sugiere escribir por WhatsApp.
+    if not (guardado or avisado):
+        return JSONResponse(status_code=502, content={"error": "No pudimos registrar tu solicitud. Escríbenos por WhatsApp."})
 
     # Email de bienvenida a la revendedora
     if email and "@" in email:

@@ -7214,13 +7214,21 @@ async function registrarMayorista() {
   // Eventos
   if (typeof gtag === 'function') gtag('event', 'generate_lead', { event_category: 'mayorista' })
   if (window.fbq) fbq('track', 'Lead', { content_name: 'mayorista' })
+  let enviado = false
   try {
-    await fetch('https://zapatillasmay-production.up.railway.app/auth/mayorista/registro', {
+    const rMay = await fetch('https://zapatillasmay-production.up.railway.app/auth/mayorista/registro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre, negocio, ciudad, telefono, email })
     })
+    enviado = rMay.ok
   } catch(e) {}
+  if (!enviado) {   // antes siempre se mostraba "enviado" aunque la solicitud no hubiera llegado
+    btn.disabled = false
+    btn.textContent = 'Quiero ser revendedora'
+    mostrarToast('No se pudo enviar. Escríbenos por WhatsApp y te damos de alta.')
+    return
+  }
   // Mostrar confirmación
   const form = document.getElementById('may-form')
   const ok = document.getElementById('may-ok')

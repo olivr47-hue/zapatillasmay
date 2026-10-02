@@ -983,8 +983,13 @@ const STATUS_TEXT = {
   preparando:     'Preparando',
   enviado:        'En camino',
   entregado:      'Entregado',
-  cancelado:      'Cancelado'
+  cancelado:      'Cancelado',
+  // estados reales del sistema: 'confirmado' es el pedido ya pagado (antes se veía el texto crudo y el seguimiento no avanzaba)
+  confirmado:     'Pedido confirmado',
+  apartado:       'Apartado'
 }
+// 'confirmado' = pagado, para ubicarlo en la línea de tiempo y en los colores de la etiqueta
+const STATUS_ALIAS = { confirmado: 'pagado' }
 
 async function cargarPedidos() {
   const contenedor = document.getElementById('lista-pedidos')
@@ -994,7 +999,9 @@ async function cargarPedidos() {
   }
   try {
     const res = await fetch(API + '/auth/pedidos/' + usuario.cliente_id, { headers: authH() })
-    const pedidos = await res.json()
+    let pedidos = await res.json()
+    // Carritos sin terminar (checkout iniciado / borrador) no son pedidos del cliente
+    if (Array.isArray(pedidos)) pedidos = pedidos.filter(p => p.status !== 'borrador' && p.status !== 'checkout_iniciado')
     if (!Array.isArray(pedidos) || pedidos.length === 0) {
       contenedor.innerHTML = `<div class="mc-empty"><div class="mc-empty-icon">📦</div><div class="mc-empty-title">Sin pedidos aún</div><div class="mc-empty-sub">Cuando realices una compra, aparecerá aquí.</div></div>`
       return
@@ -1008,7 +1015,7 @@ async function cargarPedidos() {
 function renderPedido(p, idx) {
   const status = p.status || 'pendiente_pago'
   const isCancelado = status === 'cancelado'
-  const stepIdx = STATUS_STEPS.indexOf(status)
+  const stepIdx = STATUS_STEPS.indexOf(STATUS_ALIAS[status] || status)
 
   // Timeline
   const timeline = STATUS_STEPS.map((s, i) => {
@@ -1062,9 +1069,14 @@ function renderPedido(p, idx) {
   }
 
   // Totales
-  const envio = parseFloat(p.costo_envio || 0)
+  let envio = parseFloat(p.costo_envio || 0)
   const desc = parseFloat(p.descuento || 0)
   const total = parseFloat(p.total || 0)
+  // Pedidos anteriores guardaron el envío solo dentro del total: se deduce de la diferencia con los productos
+  if (!envio && !isCancelado) {
+    const sumaItems = (p.pedido_items || []).reduce((s, it) => s + parseFloat(it.precio_unitario || 0) * (it.es_corrida ? it.cantidad * 6 : it.cantidad), 0)
+    if (sumaItems > 0 && total - sumaItems + desc > 0.5) envio = Math.round((total - sumaItems + desc) * 100) / 100
+  }
   const subtotalItems = total - envio + desc
 
   return `<div class="mc-pedido-card">
@@ -1075,7 +1087,7 @@ function renderPedido(p, idx) {
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <span style="font-weight:700;font-size:0.92rem">${fmt(total)}</span>
-        <span class="mc-status-badge ${status}">${STATUS_TEXT[status] || status}</span>
+        <span class="mc-status-badge ${STATUS_ALIAS[status] || status}">${STATUS_TEXT[status] || status}</span>
         <svg id="arr-${idx}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--gray);transition:transform 0.2s;flex-shrink:0"><path d="m6 9 6 6 6-6"/></svg>
       </div>
     </div>
