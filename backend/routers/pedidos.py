@@ -326,7 +326,7 @@ def por_enviar_resumen(_staff=Depends(require_staff)):
     try:
         return supabase_get_all(
             "pedidos?status=eq.pagado"
-            "&or=(mp_preference_id.not.is.null,mp_payment_id.not.is.null,canal.eq.mercadolibre,canal.eq.shein)"
+            "&or=(mp_preference_id.not.is.null,mp_payment_id.not.is.null,canal.eq.mercadolibre,canal.eq.shein,canal.eq.walmart)"
             "&select=id,nombre_cliente,total,canal&order=created_at.desc"
         )
     except Exception as e:

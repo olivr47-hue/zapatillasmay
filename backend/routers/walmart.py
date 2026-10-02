@@ -193,6 +193,130 @@ def walmart_items(limit: int = 50, offset: int = 0):
     }
 
 
+@router.get("/publicados")
+def walmart_publicados():
+    """Todo lo que ya está en Walmart (estatus y precio reales de allá) cruzado
+    con el producto/variante/stock del ERP -- para la pestaña "Publicados"."""
+    filas, offset = [], 0
+    while True:
+        resp = walmart_get("/items", params={"limit": 200, "offset": offset})
+        lote = resp.get("ItemResponse") or []
+        filas.extend(lote)
+        offset += len(lote)
+        if not lote or offset >= int(resp.get("totalItems") or 0):
+            break
+    por_sku = {}
+    for it in _variantes_publicables():
+        for k in (it["variante"].get("sku"), it["variante"].get("sku_walmart")):
+            if k:
+                por_sku[k.strip()] = it
+    items = []
+    for f in filas:
+        it = por_sku.get((f.get("sku") or "").strip())
+        items.append({
+            "sku": f.get("sku"), "gtin": f.get("gtin"), "wpid": f.get("wpid"),
+            "estatus": f.get("publishedStatus"),
+            "precio": (f.get("price") or {}).get("amount"),
+            "nombre_walmart": f.get("productName"),
+            "sku_interno": it["producto"].get("sku_interno") if it else None,
+            "producto": it["producto"].get("nombre") if it else None,
+            "color": it["variante"].get("color") if it else None,
+            "talla": it["variante"].get("talla") if it else None,
+            "stock": it["stock"] if it else None,
+        })
+    items.sort(key=lambda x: ((x["producto"] or "~"), str(x["talla"] or "")))
+    return {"total": len(items), "items": items}
+
+
+# ─── Pedidos en vivo desde Walmart (listado + marcar enviado) ───────────────
+# La API de Walmart México NO tiene endpoint de etiquetas/guías ni de preguntas
+# de clientes (la descarga de guías, individual o masiva, y las preguntas solo
+# existen en Seller Center) -- aquí solo lo que sí expone la API: listar
+# órdenes y POST /v3/orders/{id}/ship (marca "Shipped" con paquetería y guía).
+def _orden_normalizada(o: dict) -> dict:
+    envio = (o.get("shippingInfo") or {})
+    dir_ = (envio.get("postalAddress") or {})
+    lineas = []
+    total = 0.0
+    for ln in (o.get("orderLines") or {}).get("orderLine", []):
+        estatus = ((ln.get("orderLineStatuses") or {}).get("orderLineStatus") or [{}])[0].get("status")
+        cantidad = int(float((ln.get("orderLineQuantity") or {}).get("amount") or 0))
+        precio = 0.0
+        for ch in (ln.get("charges") or {}).get("charge", []):
+            if (ch.get("chargeType") or "").upper() == "PRODUCT":
+                precio = float((ch.get("chargeAmount") or {}).get("amount") or 0)
+        total += precio * cantidad
+        lineas.append({"linea": ln.get("lineNumber"), "sku": (ln.get("item") or {}).get("sku"),
+                       "nombre": (ln.get("item") or {}).get("productName"),
+                       "cantidad": cantidad, "precio": precio, "estatus": estatus})
+    return {
+        "id": o.get("purchaseOrderId"), "pedido_cliente": o.get("customerOrderId"),
+        "fecha": o.get("orderDate"),
+        "cliente": dir_.get("name"), "telefono": envio.get("phone"),
+        "direccion": ", ".join(x for x in (dir_.get("address1"), dir_.get("address2"), dir_.get("city"),
+                                           dir_.get("state"), dir_.get("postalCode")) if x),
+        "metodo_envio": envio.get("methodCode"),
+        "enviar_antes_de": envio.get("estimatedShipDate"),
+        "estatus": lineas[0]["estatus"] if lineas else None,
+        "total": round(total, 2), "lineas": lineas,
+    }
+
+
+@router.get("/ordenes")
+def walmart_ordenes(dias: int = 30, limit: int = 100):
+    """Órdenes recientes directo de Walmart (no del ERP)."""
+    import datetime as _dt
+    desde = (_dt.datetime.utcnow() - _dt.timedelta(days=max(1, min(dias, 180)))).strftime("%Y-%m-%dT00:00:00Z")
+    resp = walmart_get("/orders", params={"createdStartDate": desde, "limit": max(1, min(limit, 200))})
+    ordenes = ((resp.get("list") or {}).get("elements") or {}).get("order", [])
+    return {"total": len(ordenes), "ordenes": [_orden_normalizada(o) for o in ordenes]}
+
+
+@router.post("/ordenes/{purchase_order_id}/enviar")
+def walmart_enviar_orden(purchase_order_id: str, datos: dict):
+    """Marca la orden como enviada en Walmart (esto DISPARA EL COBRO al comprador)
+    y deja el pedido del ERP como 'enviado'. Body: {paqueteria, numero_guia, tracking_url?}.
+    SIN PROBAR contra una orden real todavía (al escribirlo no había ninguna)."""
+    paqueteria = (datos.get("paqueteria") or "").strip()
+    guia = (datos.get("numero_guia") or "").strip()
+    if not paqueteria or not guia:
+        raise HTTPException(400, "Faltan paqueteria y numero_guia")
+    orden = walmart_get(f"/orders/{urllib.parse.quote(purchase_order_id, safe='')}")
+    orden = (orden.get("order") or orden)
+    norm = _orden_normalizada(orden)
+    if not norm["lineas"]:
+        raise HTTPException(404, "La orden no trae líneas")
+    import datetime as _dt
+    ahora_ms = int(_dt.datetime.now(_dt.timezone.utc).timestamp() * 1000)
+    lineas_envio = [{
+        "lineNumber": str(ln["linea"]),
+        "orderLineStatuses": {"orderLineStatus": [{
+            "status": "Shipped",
+            "statusQuantity": {"unitOfMeasurement": "EACH", "amount": str(ln["cantidad"])},
+            "trackingInfo": {
+                "shipDateTime": ahora_ms,
+                "carrierName": {"carrier": paqueteria},
+                "methodCode": "Standard",
+                "trackingNumber": guia,
+                "trackingURL": (datos.get("tracking_url") or "").strip(),
+            },
+        }]},
+    } for ln in norm["lineas"] if ln["estatus"] not in ("Shipped", "Cancelled", "Delivered")]
+    if not lineas_envio:
+        raise HTTPException(400, "Todas las líneas de esta orden ya están enviadas o canceladas")
+    resp = walmart_post(f"/orders/{urllib.parse.quote(purchase_order_id, safe='')}/ship",
+                        {"orderShipment": {"orderLines": {"orderLine": lineas_envio}}})
+    try:
+        supabase_patch(f"pedidos?walmart_order_id=eq.{urllib.parse.quote(purchase_order_id, safe='')}", {
+            "status": "enviado", "paqueteria": paqueteria, "numero_guia": guia,
+            "tracking_url": (datos.get("tracking_url") or "").strip(),
+            "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        print(f"[walmart] Enviado en Walmart pero no se pudo actualizar el pedido del ERP: {e}")
+    return {"ok": True, "respuesta": resp}
+
+
 @router.get("/ordenes/test")
 def walmart_ordenes_test():
     """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
@@ -726,8 +850,9 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool, gtins: dict = 
         ],
         # Precio de menudeo del panel + _WM_AJUSTE_PRECIO: Walmart descuenta
         # comisión, maniobra y envío del pago al vendedor.
-        "price": round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2)
-                 if float(producto.get("precio_menudeo") or 0) > 0 else 0.0,
+        "price": (round(float(producto["_precio_walmart"]), 2) if producto.get("_precio_walmart")
+                  else round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2)
+                  if float(producto.get("precio_menudeo") or 0) > 0 else 0.0),
         "ProductTaxCode": int(clave_sat),
         "condition": "Nuevo",
         "hasNomCertification": "No",
@@ -955,6 +1080,7 @@ def catalogo_sin_publicar():
             "sku_interno": g["producto"].get("sku_interno"),
             "nombre": g["producto"].get("nombre"),
             "precio_menudeo": float(g["producto"].get("precio_menudeo") or 0),
+            "precio_walmart": round(float(g["producto"].get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2),
             "categoria": g["producto"].get("categoria"),
             "num_variantes": len(g["items"]),
             "num_colores": len(colores),
@@ -982,6 +1108,7 @@ def producto_preview(sku_interno: str):
     return {
         "id": producto["id"], "sku_interno": producto.get("sku_interno"), "nombre": producto.get("nombre"),
         "precio_menudeo": float(producto.get("precio_menudeo") or 0), "categoria": producto.get("categoria"),
+        "precio_walmart": round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2),
         "ya_publicado": ya_publicado, "variantes": variantes,
     }
 
@@ -1056,7 +1183,8 @@ def datetime_now_str() -> str:
 
 @router.post("/feed/subir")
 def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
-                titulo: str = None, precio: float = None, excluir_sku_walmart: str = None):
+                titulo: str = None, precio: float = None, excluir_sku_walmart: str = None,
+                precio_walmart: float = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -1074,14 +1202,17 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
         items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
         if not items:
             raise HTTPException(404, f"No se encontraron variantes publicables para sku_interno='{sku_interno}'")
-        if titulo or precio:
+        if titulo or precio or precio_walmart:
             producto_override = dict(items[0]["producto"])
             if titulo:
                 producto_override["nombre"] = titulo
             if precio:
-                producto_override["precio_menudeo"] = precio
-            for it in items:
-                it["producto"] = producto_override
+                producto_override["precio_menudeo"] = precio   # precio BASE: se le suma el ajuste de Walmart
+            if precio_walmart:
+                producto_override["_precio_walmart"] = precio_walmart   # precio FINAL exacto, sin más ajuste
+            # Copias: items viene de una caché de 30 min; antes se mutaba y el
+            # título/precio de una publicación se le quedaban pegados al siguiente.
+            items = [{**it, "producto": producto_override} for it in items]
     if excluir_sku_walmart:
         excluir = {s.strip() for s in excluir_sku_walmart.split(",") if s.strip()}
         items = [it for it in items if it["variante"].get("sku_walmart") not in excluir]
