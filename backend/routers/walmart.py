@@ -165,59 +165,15 @@ def walmart_ping():
     return {"ok": True, "respuesta": resp}
 
 
-@router.get("/taxonomia-temp")
-def taxonomia_temp(feed_type: str = "MP_ITEM", version: str = "4.2"):
-    """DIAGNOSTICO TEMPORAL: consulta la taxonomia real de product types de
-    Walmart para encontrar el nombre exacto del product type de calzado.
-    Quitar una vez resuelta la migracion al feed JSON."""
-    return walmart_get("/utilities/taxonomy", params={"feedType": feed_type, "version": version})
-
-
-@router.post("/item-spec-temp")
-def item_spec_temp(product_type: str = None, feed_type: str = "MP_ITEM", version: str = "4.2"):
-    """DIAGNOSTICO TEMPORAL: trae el schema real (POST /v3/items/spec) para un
-    product type especifico -- cuidado, Walmart limita este endpoint a 3
-    llamadas por minuto. Quitar una vez resuelta la migracion al feed JSON."""
-    body = {"feedType": feed_type, "version": version}
-    if product_type:
-        body["productTypes"] = [product_type]
-    return walmart_post("/items/spec", body)
-
-
-@router.get("/feed-json-preview-temp")
-def feed_json_preview_temp(sku_interno: str):
-    """DIAGNOSTICO TEMPORAL: arma el feed JSON en memoria SIN subirlo a
-    Walmart, para inspeccionar exactamente que se esta mandando."""
+@router.get("/feed/json-preview")
+def feed_json_preview(sku_interno: str):
+    """Arma el feed JSON en memoria SIN subirlo a Walmart, para revisar
+    exactamente qué se va a mandar de un producto."""
     items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
     if not items:
         raise HTTPException(404, "sin variantes")
     contenido = _generar_feed_json(items)
     return json.loads(contenido.decode("utf-8"))
-
-
-@router.post("/feed-test-gtin-temp")
-def feed_test_gtin_temp(sku_interno: str):
-    """DIAGNOSTICO TEMPORAL: sube UN SOLO item (el primero del producto) con
-    el GTIN de ejemplo oficial de Walmart (06104895314205) en vez del GTIN
-    generado, para probar si el "SKU is a required attribute" es en realidad
-    un error en cascada por el GTIN (patron ya visto antes con la plantilla
-    XLSX vieja: un problema de Product ID se reportaba como error de SKU)."""
-    items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
-    if not items:
-        raise HTTPException(404, "sin variantes")
-    item = _item_json(items[0]["producto"], items[0]["variante"], True)
-    item["Orderable"]["productIdentifiers"]["productId"] = "06104895314205"
-    feed = {
-        "MPItemFeedHeader": {
-            "version": _WM_FEED_VERSION, "mart": "WALMART_MEXICO", "locale": "es",
-            "subset": "EXTERNAL", "sellingChannel": "marketplace",
-            "processMode": "REPLACE", "subCategory": _WM_SUBCATEGORY,
-        },
-        "MPItem": [item],
-    }
-    contenido = json.dumps(feed, ensure_ascii=False).encode("utf-8")
-    resp = walmart_post_file("/feeds", {"feedType": "MP_ITEM_INTL"}, "test_gtin.json", contenido, mime="application/json")
-    return {"item_enviado": item, "respuesta": resp}
 
 
 @router.get("/items")
@@ -323,7 +279,11 @@ def _hacer_sync_ventas_walmart_inner() -> dict:
             cantidad = int(float((linea.get("orderLineQuantity") or {}).get("amount") or 0))
             if not sku or cantidad <= 0:
                 continue
-            variantes = supabase_get_all(f"variantes?sku_walmart=eq.{sku}&select=id,sku,color,talla,producto_id")
+            # Walmart ahora identifica los artículos por el SKU real del ERP
+            # (variantes.sku); los publicados antes de la migración siguen
+            # con el código corto (sku_walmart) -- se acepta cualquiera de los dos.
+            _q = urllib.parse.quote(sku, safe="")
+            variantes = supabase_get_all(f"variantes?or=(sku.eq.{_q},sku_walmart.eq.{_q})&select=id,sku,color,talla,producto_id")
             if not variantes:
                 resultado["sin_match"].append({"orden": order_id, "sku": sku})
                 faltante = True
@@ -651,10 +611,43 @@ _WM_SUBCATEGORY   = "footwear_other"   # unica subcategoria de calzado en el enu
 _WM_PRODUCT_TYPE  = "Zapatos"          # nombre real (en español) de la key dentro de "Visible"
 
 
-def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
+_GTIN_AJENO_LAMPARA = "06104895314205"   # el que por error se pego a una lampara real (ver nota de CUSTOM)
+_TACON_ESTILO_WM = {"bloque": "Bloque", "aguja": "Stiletto", "plataforma": "Plataforma", "cuna": "Cuña"}
+_SHOE_STYLE_WM = {"tacones": "Tacones", "sandalias": "Sandalias", "flats": "Flats", "botas": "Botas",
+                  "botines": "Botines", "plataformas": "Plataformas", "tenis": "Tenis", "nina": "Zapatos de niña"}
+
+
+def _gtins_walmart() -> dict:
+    """{sku: gtin} de lo que YA existe en Walmart. Para artículos creados con
+    exención de GTIN ("CUSTOM") Walmart les asigna su propio GTIN, y ese es el
+    que hay que mandar al actualizarlos o renombrar su SKU (CUSTOM solo vale
+    para crear)."""
+    mapa, offset = {}, 0
+    try:
+        while True:
+            resp = walmart_get("/items", params={"limit": 200, "offset": offset})
+            lote = resp.get("ItemResponse") or []
+            for i in lote:
+                if i.get("sku") and i.get("gtin"):
+                    mapa[i["sku"]] = i["gtin"]
+            offset += len(lote)
+            if not lote or offset >= int(resp.get("totalItems") or 0):
+                break
+    except HTTPException:
+        pass
+    return mapa
+
+
+def _item_json(producto: dict, variante: dict, es_primaria: bool, gtins: dict = None) -> dict:
     """Arma un objeto MPItem (Orderable + Visible.Zapatos) para una variante,
     usando los nombres de campo reales del schema MX_MP_ITEM_INTL_SPEC.json
-    (no los de la plantilla XLSX vieja, que usaba otro feed por completo)."""
+    (no los de la plantilla XLSX vieja, que usaba otro feed por completo).
+
+    SKU: el real del ERP (variantes.sku). Los artículos publicados antes con el
+    código corto (sku_walmart, un hash de 12 caracteres hecho para el límite de
+    15 de la plantilla vieja) se renombran con SkuUpdate="Sí" mandando el GTIN
+    que Walmart les asignó -- así conservan su ficha."""
+    gtins = gtins or {}
     categoria = producto.get("categoria") or ""
     nombre    = producto.get("nombre") or ""
     sku       = variante.get("sku") or ""
@@ -692,8 +685,15 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
     material        = producto.get("material") or "Sintético"
     talla_walmart   = f"{talla} (MX)"
 
+    sku_real = (variante.get("sku") or "").strip()
+    gtin_existente, renombrar = gtins.get(sku_real), False
+    if not gtin_existente:
+        g = gtins.get(sku_walmart)
+        if g and g != _GTIN_AJENO_LAMPARA:   # el de la lámpara NO se renombra, se crea uno nuevo limpio
+            gtin_existente, renombrar = g, True
+
     orderable = {
-        "sku": sku_walmart,
+        "sku": sku_real,
         # La cuenta YA TIENE aprobada la exencion de GTIN (confirmado por el
         # dueño) -- "CUSTOM" es el valor reservado documentado para eso
         # (productIdType se deja en "GTIN"). Antes se mandaba un GTIN-14
@@ -705,7 +705,7 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
         # Con exencion de por medio, "CUSTOM" evita precisamente ese riesgo:
         # crea una ficha nueva que el vendedor SI controla (fotos, descripcion,
         # variantes), en vez de pelear por una ficha de catalogo ajena.
-        "productIdentifiers": {"productIdType": "GTIN", "productId": "CUSTOM"},
+        "productIdentifiers": {"productIdType": "GTIN", "productId": gtin_existente or "CUSTOM"},
         "productName": f"{nombre} {color} Talla {talla} - Marca May"[:200],
         "brand": "May",
         "manufacturer": "May",
@@ -739,6 +739,8 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
     }
     if imagenes_extra:
         orderable["productSecondaryImageURL"] = imagenes_extra
+    if renombrar:
+        orderable["SkuUpdate"] = "Sí"
 
     visible_zapatos = {
         "gender": genero,
@@ -767,6 +769,27 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
                      else "primavera_verano")
     visible_zapatos["season"] = (["Otoño", "Invierno"] if temporada == "otono_invierno"
                                  else ["Primavera", "Verano"])
+
+    # Datos de calzado que ya están capturados en el producto del ERP.
+    suela = _normalizar(producto.get("material_suela") or "")
+    if "sintet" in suela:
+        visible_zapatos["shoeSoleMaterial"] = "Sintético"
+    elif "piel" in suela or "cuero" in suela:
+        visible_zapatos["shoeSoleMaterial"] = "Cuero"
+    tacon = (producto.get("tipo_tacon") or "").strip().lower()
+    if tacon in _TACON_ESTILO_WM:
+        visible_zapatos["footwearHeelStyle"] = _TACON_ESTILO_WM[tacon]
+    try:
+        altura_cm = float(producto.get("altura_tacon") or 0)
+    except (TypeError, ValueError):
+        altura_cm = 0
+    if altura_cm > 0 and tacon != "sin_tacon":
+        visible_zapatos["heelHeight"] = {"measure": round(altura_cm * 10, 3), "unit": "mm"}
+    ocasiones = [str(o).strip().capitalize() for o in (producto.get("ocasion") or []) if str(o).strip()]
+    if ocasiones:
+        visible_zapatos["occasion"] = ocasiones
+    if categoria in _SHOE_STYLE_WM:
+        visible_zapatos["shoeStyle"] = _SHOE_STYLE_WM[categoria]
     import datetime as _dt
     visible_zapatos["seasonYear"] = _dt.datetime.now().year
 
@@ -774,7 +797,8 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
 
 
 def _generar_feed_json(items: list) -> bytes:
-    mp_items = [_item_json(it["producto"], it["variante"], it["es_primaria"]) for it in items]
+    gtins = _gtins_walmart()
+    mp_items = [_item_json(it["producto"], it["variante"], it["es_primaria"], gtins) for it in items]
     feed = {
         "MPItemFeedHeader": {
             "version": _WM_FEED_VERSION,
@@ -807,7 +831,8 @@ def _variantes_publicables() -> list:
         return cached
     productos = supabase_get_all(
         "productos?activo=eq.true&categoria=neq.accesorios"
-        "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal,temporada"
+        "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal,temporada,"
+        "material_suela,tipo_tacon,altura_tacon,ocasion"
     )
     # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
     # en ningún canal externo, solo existen para uso interno del ERP.
@@ -1116,8 +1141,8 @@ def sincronizar_inventario(sku_interno: str = None):
     # que se le mandó en el feed (columna D), no por el sku interno (ver nota
     # junto a _fila_variante: el sku interno excede su límite de 15 caracteres).
     registros = [
-        {"sku": it["variante"]["sku_walmart"], "quantity": {"unit": "EACH", "amount": max(0, int(it["stock"] or 0))}}
-        for it in items if it["variante"].get("sku_walmart")
+        {"sku": it["variante"]["sku"].strip(), "quantity": {"unit": "EACH", "amount": max(0, int(it["stock"] or 0))}}
+        for it in items if it["variante"].get("sku")
     ]
     if not registros:
         return {"total_variantes": 0, "enviados": 0}
