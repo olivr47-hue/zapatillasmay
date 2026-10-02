@@ -220,6 +220,23 @@ def feed_test_gtin_temp(sku_interno: str):
     return {"item_enviado": item, "respuesta": resp}
 
 
+@router.get("/items")
+def walmart_items(limit: int = 50, offset: int = 0):
+    """Listado de artículos publicados en Walmart (sku, gtin asignado por
+    Walmart, estatus de publicación, precio) -- para ver el estado real y
+    para migraciones de SKU."""
+    resp = walmart_get("/items", params={"limit": limit, "offset": offset})
+    return {
+        "total": resp.get("totalItems"),
+        "items": [
+            {"sku": i.get("sku"), "gtin": i.get("gtin"), "wpid": i.get("wpid"),
+             "estatus": i.get("publishedStatus"), "lifecycle": i.get("lifecycleStatus"),
+             "precio": (i.get("price") or {}).get("amount"), "nombre": i.get("productName")}
+            for i in resp.get("ItemResponse", [])
+        ],
+    }
+
+
 @router.get("/ordenes/test")
 def walmart_ordenes_test():
     """Diagnóstico de solo lectura: confirma si la app tiene el scope de Orders
