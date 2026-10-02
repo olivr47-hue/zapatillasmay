@@ -860,11 +860,11 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool, gtins: dict = 
                   else round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2)
                   if float(producto.get("precio_menudeo") or 0) > 0 else 0.0),
         "ProductTaxCode": int(clave_sat),
-        # La plantilla oficial dice que "Condición" es para describir el estado
-        # "si es cualquier cosa menos nuevo"; con "Nuevo" explícito la página
-        # pública mostró la etiqueta "Reacondicionado" (también en la ficha de la
-        # lámpara). _sin_condicion permite probar a omitirlo.
-        **({} if producto.get("_sin_condicion") else {"condition": "Nuevo"}),
+        # OBLIGATORIO: omitirlo hace que Walmart rechace el artículo ("Condición is a
+        # required attribute", probado 2026-10-02). La etiqueta "Reacondicionado" que
+        # se vio en la página venía de la ficha ajena de la lámpara (variante principal
+        # del grupo), no de este valor.
+        "condition": "Nuevo",
         "hasNomCertification": "No",
         "hazardousMaterialsInd": "No",
         "msiEligible": "No",
@@ -1194,7 +1194,7 @@ def datetime_now_str() -> str:
 @router.post("/feed/subir")
 def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
                 titulo: str = None, precio: float = None, excluir_sku_walmart: str = None,
-                precio_walmart: float = None, sin_condicion: bool = False):
+                precio_walmart: float = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -1212,10 +1212,8 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
         items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
         if not items:
             raise HTTPException(404, f"No se encontraron variantes publicables para sku_interno='{sku_interno}'")
-        if titulo or precio or precio_walmart or sin_condicion:
+        if titulo or precio or precio_walmart:
             producto_override = dict(items[0]["producto"])
-            if sin_condicion:
-                producto_override["_sin_condicion"] = True
             if titulo:
                 producto_override["nombre"] = titulo
             if precio:
