@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import Response, StreamingResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse, RedirectResponse, HTMLResponse
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
 from cache import cache_get, cache_set, cache_invalidate_prefix, TTL_ESTATICO, TTL_FEEDS
 import urllib.request
@@ -1217,8 +1217,25 @@ def get_config_envio():
 
 @router.post("/config/envio")
 def save_config_envio(datos: dict):
-    """Guarda configuración de envío desde el panel."""
+    """Guarda configuración de envío desde el panel. Valida los montos: antes aceptaba cualquier cosa (un -99 o un
+    texto) y esas tarifas se cobran tal cual en el checkout."""
     try:
+        for campo in ["tier1", "tier2", "tier3", "gratis_desde"]:
+            if campo in datos:
+                try:
+                    if float(datos[campo]) < 0:
+                        raise ValueError
+                except (TypeError, ValueError):
+                    return JSONResponse(status_code=400, content={"error": f"'{campo}' debe ser un monto numérico mayor o igual a 0"})
+        if "mayoreo_tiers" in datos:
+            t = datos["mayoreo_tiers"]
+            try:
+                assert isinstance(t, list) and t
+                for r in t:
+                    if float(r["min_kg"]) < 0 or float(r["max_kg"]) <= float(r["min_kg"]) or float(r["precio"]) < 0:
+                        raise ValueError
+            except Exception:
+                return JSONResponse(status_code=400, content={"error": "Los tramos de mayoreo deben ser una lista con min_kg, max_kg (mayor que min_kg) y precio >= 0"})
         for campo in ["tier1", "tier2", "tier3", "gratis_desde"]:
             if campo not in datos:
                 continue
@@ -1240,7 +1257,7 @@ def save_config_envio(datos: dict):
         cache_invalidate_prefix("config_envio")
         return {"ok": True}
     except Exception as e:
-        return {"error": str(e)}
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 _PAGO_TRANSFERENCIA_CAMPOS = ["banco", "clabe", "cuenta", "tarjeta_oxxo", "titular"]
@@ -1267,8 +1284,16 @@ def get_config_pago_transferencia():
 
 @router.post("/config/pago-transferencia")
 def save_config_pago_transferencia(datos: dict):
-    """Guarda los datos bancarios desde el panel."""
+    """Guarda los datos bancarios desde el panel. La CLABE se valida (18 dígitos y dígito verificador): una captura
+    con error mandaría los depósitos de tus clientas a una cuenta equivocada."""
     try:
+        clabe = str(datos.get("clabe") or "").replace(" ", "").replace("-", "")
+        if "clabe" in datos and clabe:
+            pesos = [3, 7, 1] * 6
+            if not (clabe.isdigit() and len(clabe) == 18 and
+                    (10 - sum((int(clabe[i]) * pesos[i]) % 10 for i in range(17)) % 10) % 10 == int(clabe[17])):
+                return JSONResponse(status_code=400, content={"error": "La CLABE no es válida (18 dígitos con dígito verificador correcto). Revísala."})
+            datos = dict(datos, clabe=clabe)
         for campo in _PAGO_TRANSFERENCIA_CAMPOS:
             if campo not in datos:
                 continue
@@ -1282,7 +1307,7 @@ def save_config_pago_transferencia(datos: dict):
         cache_invalidate_prefix("config_pago_transferencia")
         return {"ok": True}
     except Exception as e:
-        return {"error": str(e)}
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.get("/sitemap.xml")
