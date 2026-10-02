@@ -736,6 +736,20 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
     if talla_walmart in _TALLAS_VALIDAS_MX:
         visible_zapatos["shoeSize"] = talla_walmart
 
+    # Temporada y año: mismo criterio que mercadolibre.py -- la que se eligió
+    # en el producto (temporada = otono_invierno / primavera_verano); si quedó
+    # en "Automático" (vacío), se infiere de la descripción y por defecto es
+    # primavera/verano. El año es el actual (igual que en ML).
+    temporada = (producto.get("temporada") or "").strip()
+    if temporada not in ("otono_invierno", "primavera_verano"):
+        desc_lower = (producto.get("descripcion") or "").lower()
+        temporada = ("otono_invierno" if any(p in desc_lower for p in ("otoño", "invierno"))
+                     else "primavera_verano")
+    visible_zapatos["season"] = (["Otoño", "Invierno"] if temporada == "otono_invierno"
+                                 else ["Primavera", "Verano"])
+    import datetime as _dt
+    visible_zapatos["seasonYear"] = _dt.datetime.now().year
+
     return {"Orderable": orderable, "Visible": {_WM_PRODUCT_TYPE: visible_zapatos}}
 
 
@@ -773,7 +787,7 @@ def _variantes_publicables() -> list:
         return cached
     productos = supabase_get_all(
         "productos?activo=eq.true&categoria=neq.accesorios"
-        "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal"
+        "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal,temporada"
     )
     # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
     # en ningún canal externo, solo existen para uso interno del ERP.
