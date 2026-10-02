@@ -1304,6 +1304,14 @@ def sincronizar_inventario(sku_interno: str = None):
     return {"total_variantes": len(items), "enviados": len(registros), "respuesta": resp}
 
 
+@router.get("/inventario-nodos/{sku}")
+def inventario_nodos_sku(sku: str):
+    """Inventario por almacén/nodo de envío (shipNode) de un SKU: cantidad
+    ingresada, disponible para vender y reservada. Walmart México maneja el
+    stock por nodo -- sin un nodo con stock el artículo sale 'Agotado'."""
+    return walmart_get("/mx/inventories", params={"sku": sku})
+
+
 @router.get("/inventario/{sku}")
 def inventario_sku(sku: str):
     """Consulta el inventario actual en Walmart para un SKU puntual (útil
