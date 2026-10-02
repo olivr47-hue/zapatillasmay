@@ -711,6 +711,9 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool) -> dict:
         "sellerWarrantyCondition": "Aplica por defectos de fabricación bajo uso normal del producto.",
         "sellerWarrantyPeriod": 1,
         "countryOfOriginAssembly": ["MX - México"],
+        # "País de Envío" (opcional en el schema, pero la plantilla vieja lo
+        # mandaba y el dueño lo pidió): desde donde sale el paquete.
+        "shippingCountryOfOrigin": "México",
         "itemsIncluded": "1 par de zapatos",
         "ShippingWeight":           {"measure": float(caja["weight"]), "unit": "kg"},
         "ShippingDimensionsWidth":  {"measure": float(caja["width"]),  "unit": "cm"},
