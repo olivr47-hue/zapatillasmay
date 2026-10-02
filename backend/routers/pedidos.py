@@ -937,14 +937,25 @@ def actualizar_item(id: str, item_id: str, datos: dict, _staff=Depends(require_s
         nuevo_precio = datos.get("precio_unitario", item_actual[0].get("precio_unitario", 0))
         nuevo_subtotal = nueva_cantidad * nuevo_precio
 
+        # Un par ya apartado (reservado) tiene su stock descontado: cambiarle la cantidad debe mover el inventario
+        # igual que en un pedido confirmado (antes el apartado quedaba con stock desfasado).
+        _descuenta_stock = pedido[0].get("status") in ("confirmado", "pagado") or bool(item_actual[0].get("reservado"))
+        _diff = int(nueva_cantidad) - int(cantidad_anterior)
+        if _descuenta_stock and _diff > 0 and item_actual[0].get("variante_id") and pedido[0].get("sucursal_id"):
+            _inv = supabase_get(
+                f"inventario?variante_id=eq.{item_actual[0]['variante_id']}&sucursal_id=eq.{pedido[0]['sucursal_id']}&select=cantidad"
+            ) or []
+            if (_inv[0]["cantidad"] if _inv else 0) < _diff:
+                return JSONResponse(status_code=409, content={"error": "No hay existencia suficiente para aumentar esa cantidad"})
+
         supabase_patch(f"pedido_items?id=eq.{item_id}", {
             "cantidad": nueva_cantidad,
             "precio_unitario": nuevo_precio,
             "subtotal": nuevo_subtotal
         })
 
-        # Ajustar inventario si el pedido ya estaba confirmado
-        if pedido[0].get("status") in ("confirmado", "pagado"):
+        # Ajustar inventario si el pedido ya estaba confirmado (o el par está apartado)
+        if _descuenta_stock:
             variante_id = item_actual[0].get("variante_id")
             sucursal_id = pedido[0].get("sucursal_id")
             diff = nueva_cantidad - cantidad_anterior  # positivo = más pares (descontar), negativo = devolver

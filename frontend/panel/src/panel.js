@@ -3421,7 +3421,7 @@ async function _cargarDatosAnalisisPesados() {
       fetch(API + '/variantes/?activa=eq.true'),
       fetch(API + '/movimientos/'),
       fetch(API + '/inventario/slim'),
-      fetch(API + '/pedidos/')
+      fetch(API + '/pedidos/?dias=120')   // solo se usan 30/90 días: antes bajaba TODOS los pedidos con renglones
     ])
     const productos = await resProductos.json()
     const variantes = await resVariantes.json()
@@ -21096,7 +21096,8 @@ window.guardarCatalogo = async function(id) {
     try {
       const res = await fetch(API + '/imagenes/subir?carpeta=catalogos', { method: 'POST', body: formData })
       const data = await res.json()
-      portada_url = data.url || portada_url
+      if (!res.ok || !data.url) throw new Error(data.error || data.detail || 'no se recibió la imagen')
+      portada_url = data.url
     } catch(e) {
       alert('Error subiendo portada: ' + e.message); return
     }
@@ -21104,11 +21105,10 @@ window.guardarCatalogo = async function(id) {
 
   const payload = { nombre, temporada, portada_url: portada_url || null }
   try {
-    if (id) {
-      await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-    } else {
-      await fetch(API + '/catalogos/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-    }
+    const rG = id
+      ? await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      : await fetch(API + '/catalogos/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    if (!rG.ok) { alert('No se pudo guardar el catálogo.'); return }
     await cargarCatalogos()
   } catch(e) {
     alert('Error guardando: ' + e.message)
@@ -21117,7 +21117,8 @@ window.guardarCatalogo = async function(id) {
 
 window.toggleCatalogo = async function(id, activo) {
   if (!confirm(activo ? '¿Ocultar este catálogo de la tienda?' : '¿Publicar este catálogo en la tienda?')) return
-  await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ activo: !activo }) })
+  const rT = await fetch(API + '/catalogos/' + id, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ activo: !activo }) })
+  if (!rT.ok) alert('No se pudo cambiar la visibilidad del catálogo.')
   await cargarCatalogos()
 }
 
@@ -27296,13 +27297,18 @@ window.cambiarCantidadCarrito = async (idx, delta) => {
   const item = window._carritoActivo.items[idx]
   if (!item) return
   const nuevaCantidad = Math.max(1, item.cantidad + delta)
-  window._carritoActivo.items[idx].cantidad = nuevaCantidad
   try {
-    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + item.id, {
+    const rQ = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + item.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cantidad: nuevaCantidad, precio_unitario: item.precio_unitario })
     })
+    if (!rQ.ok) {   // p. ej. sin existencia para aumentar un par apartado
+      const eQ = await rQ.json().catch(() => ({}))
+      alert(eQ.error || 'No se pudo cambiar la cantidad')
+      return
+    }
+    window._carritoActivo.items[idx].cantidad = nuevaCantidad
     await recalcularPreciosCarrito()
     await abrirCarrito(window._carritoActivo.pedidoId)
   } catch(e) { alert('Error: ' + e.message) }
@@ -27434,10 +27440,15 @@ window.cambiarCantCorridaDOM = async (row, delta) => {
   }
 
   try {
-    await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, {
+    const rC = await fetch(API + '/pedidos/' + window._carritoActivo.pedidoId + '/items/' + itemId, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cantidad: nuevaCantidad, precio_unitario: precio })
     })
+    if (!rC.ok) {
+      const eC = await rC.json().catch(() => ({}))
+      mostrarToastPanel('⚠️ ' + (eC.error || 'No se pudo cambiar la cantidad'))
+      return
+    }
     // Actualizar DOM inmediatamente
     cantSpan.textContent = nuevaCantidad
     if (subSpan) subSpan.textContent = '$' + (nuevaCantidad * precio).toFixed(2)
@@ -28112,9 +28123,12 @@ window.aprobarLiberacionesCarrito = async (pedidoId) => {
   if (!items.length) return
   if (!confirm(`¿Aprobar que se quiten los ${items.length} par(es) que la clienta pidió liberar? Se devuelve su stock al inventario.`)) return
   try {
+    let fallo = 0
     for (const item of items) {
-      await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id + '?forzar=true', { method: 'DELETE' })
+      const r = await fetch(API + '/pedidos/' + pedidoId + '/items/' + item.id + '?forzar=true', { method: 'DELETE' })
+      if (!r.ok) fallo++
     }
+    if (fallo) alert(`No se pudieron quitar ${fallo} par(es). Revisa el carrito.`)
     await abrirCarrito(pedidoId)
   } catch(e) { alert('Error: ' + e.message) }
 }
@@ -28146,10 +28160,11 @@ window.editarAnticipoCarrito = async (pedidoId) => {
   const nuevoStr = prompt('Anticipo de la clienta:', actual)
   if (nuevoStr === null) return
   try {
-    await fetch(API + '/pedidos/' + pedidoId, {
+    const r = await fetch(API + '/pedidos/' + pedidoId, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ anticipo: parseFloat(nuevoStr) || 0 })
     })
+    if (!r.ok) alert('No se pudo guardar el anticipo.')
     await abrirCarrito(pedidoId)
   } catch(e) { alert('Error: ' + e.message) }
 }
@@ -28197,14 +28212,16 @@ window.verSolicitudesLiberacion = async () => {
 window.aprobarLiberacionItem = async (pedidoId, itemId) => {
   if (!confirm('¿Quitar este par y devolver el stock?')) return
   try {
-    await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '?forzar=true', { method: 'DELETE' })
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '?forzar=true', { method: 'DELETE' })
+    if (!r.ok) alert('No se pudo quitar el par.')
     verSolicitudesLiberacion()
   } catch(e) { alert('Error: ' + e.message) }
 }
 
 window.rechazarLiberacionItem = async (pedidoId, itemId) => {
   try {
-    await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '/rechazar-liberacion', { method: 'POST' })
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/items/' + itemId + '/rechazar-liberacion', { method: 'POST' })
+    if (!r.ok) alert('No se pudo negar la solicitud.')
     verSolicitudesLiberacion()
   } catch(e) { alert('Error: ' + e.message) }
 }
@@ -28217,6 +28234,8 @@ window.liberarCarrito = async (pedidoId) => {
     if (data.ok) {
       alert(data.stock_devuelto ? 'Carrito liberado. Stock devuelto al inventario.' : 'Carrito liberado.')
       cargarCarritos()
+    } else {
+      alert('No se pudo liberar el carrito: ' + (data.error || res.status))
     }
   } catch(e) { alert('Error: ' + e.message) }
 }
