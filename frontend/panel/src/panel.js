@@ -100,6 +100,7 @@ const modulos = [
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
   { id: 'walmart', icon: '🏬', label: 'Walmart', section: 'Integraciones', soloAdmin: true },
+  { id: 'amazon', icon: '📦', label: 'Amazon', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
@@ -627,6 +628,7 @@ async function cargarModulo(id) {
     case 'mercadolibre': await cargarMercadoLibre(); break;
     case 'shein': await cargarShein(); break;
     case 'walmart': await cargarWalmart(); break;
+    case 'amazon': await cargarAmazon(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
     case 'correo': await cargarCorreoCorporativo(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
@@ -9897,7 +9899,7 @@ function _renderFilaPedido(p) {
   }[p.status] || p.status
 
   // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
-  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart')
+  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon')
   const esEnviado = p.status === 'enviado'
 
   let accionEnvio = ''
@@ -10061,7 +10063,7 @@ async function cargarPedidos() {
     const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
     const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
-    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart')).length
+    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon')).length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
 
     const kpiCard = (valor, label, sub, color, bg, border, onclick) => `
@@ -10166,7 +10168,7 @@ window.cargarPedidosFiltro = (filtro) => {
   } else if (filtro === 'credito') {
     filtrados = data.filter(p => p.forma_pago === 'credito')
   } else if (filtro === 'por_enviar') {
-    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart'))
+    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon'))
   } else if (filtro) {
     // Igual que "Todos": un borrador/checkout_iniciado no es una venta real,
     // no debe aparecer mezclado al filtrar por canal (Web/Sucursal/WhatsApp/ML).
@@ -28342,6 +28344,165 @@ async function cargarGenerarNombres() {
     // Marcar todos los botones como guardados
     document.querySelectorAll('.gn-input + button').forEach(b => { b.textContent = '✓'; b.style.background = '#94a3b8'; b.disabled = true })
   }
+}
+
+// ─── AMAZON (Selling Partner API, Amazon México) ───────────────────────────────
+// Backend: backend/routers/amazon.py. Autenticación solo con token LWA (sin firma AWS).
+const _AMZ_ACCENT = '#ff9900'
+const _amzEsc = (s) => (s || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+const _amzMsg = (raw) => {
+  const t = (raw || '').toString()
+  try {
+    const i = t.indexOf('{'); if (i === -1) return t
+    const d = JSON.parse(t.slice(i))
+    const e = d?.errors?.[0]
+    if (e) return `${e.message || e.details || e.code}${e.code ? ' (' + e.code + ')' : ''}`
+    if (d.error_description) return `${d.error_description} (${d.error || ''})`
+  } catch (e) {}
+  return t
+}
+const _amzBtn = (label, onclick, variant = 'primary') => {
+  const v = variant === 'primary' ? `background:${_AMZ_ACCENT};color:#111;border:none` : 'background:#fff;color:#444;border:1px solid #ddd'
+  return `<button onclick="${onclick}" style="display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1rem;${v};border-radius:8px;cursor:pointer;font-size:0.84rem;font-weight:700;font-family:inherit">${label}</button>`
+}
+const _amzCard = (titulo, sub, cuerpo) => `
+  <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.4rem;margin-bottom:1rem">
+    <h3 style="margin:0 0 2px;font-size:1rem">${titulo}</h3>
+    <p style="font-size:0.82rem;color:#888;margin:0 0 1rem">${sub}</p>${cuerpo}
+  </div>`
+
+async function cargarAmazon() {
+  const content = document.getElementById('content')
+  content.innerHTML = `
+    <div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:1000px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:${_AMZ_ACCENT};display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>
+        <h2 style="margin:0;font-size:1.25rem">Amazon México</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">Selling Partner API — ventas, existencias y pedidos.</p>
+      <div id="amz-estado" style="margin-bottom:1rem;padding:0.8rem 1rem;border-radius:10px;background:#f8f8f8;font-size:0.84rem">Verificando conexión con Amazon...</div>
+      <div id="amz-cuerpo"></div>
+    </div>`
+  window._amzCargarEstado()
+}
+
+window._amzCargarEstado = async () => {
+  const box = document.getElementById('amz-estado')
+  const cuerpo = document.getElementById('amz-cuerpo')
+  try {
+    const res = await fetch(`${API}/amazon/ping`)
+    const d = await res.json()
+    const faltan = [['AMAZON_LWA_CLIENT_ID', d.tiene_client_id], ['AMAZON_LWA_CLIENT_SECRET', d.tiene_client_secret],
+                    ['AMAZON_REFRESH_TOKEN', d.tiene_refresh_token], ['AMAZON_SELLER_ID', d.tiene_seller_id]].filter(x => !x[1]).map(x => x[0])
+    const modo = d.sandbox ? ' <b style="color:#b45309">(modo PRUEBA / sandbox: datos de ejemplo)</b>' : ''
+    if (d.ok) {
+      box.style.background = '#f0fdf4'
+      box.innerHTML = `<span style="color:#166534">✅ Conectado a Amazon México.${modo}</span>${faltan.length ? `<br><span style="color:#92400e;font-size:0.8rem">Falta en Railway: ${faltan.join(', ')}</span>` : ''}`
+    } else if (d.token_ok) {
+      box.style.background = '#fffbeb'
+      box.innerHTML = `<span style="color:#92400e">🔑 El token funciona, pero Amazon respondió con un problema: ${_amzEsc(_amzMsg(d.error))}.${modo}<br><span style="font-size:0.8rem">Si la cuenta de vendedor sigue suspendida, falta reactivarla (pago) en Seller Central.</span></span>`
+    } else {
+      box.style.background = '#fef2f2'
+      box.innerHTML = `<span style="color:#991b1b">Sin conexión: ${_amzEsc(_amzMsg(d.error))}</span>
+        <div style="margin-top:8px;font-size:0.8rem;color:#555">Agrega en Railway (Variables): <code>AMAZON_LWA_CLIENT_ID</code>, <code>AMAZON_LWA_CLIENT_SECRET</code>, <code>AMAZON_REFRESH_TOKEN</code>, <code>AMAZON_SELLER_ID</code>. Para probar con las claves de prueba agrega también <code>AMAZON_SANDBOX=1</code>.</div>`
+    }
+    cuerpo.innerHTML = `
+      ${_amzCard('Ventas de Amazon en el ERP', 'Cada venta nueva crea el pedido (aparece en "Por enviar") y descuenta el inventario solo, cada 10 minutos.', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.75rem">${_amzBtn('🔄 Sincronizar ventas ahora', 'window._amzSincronizarVentas(this)')}${_amzBtn('📋 Ver ventas', 'window._amzVerVentas()', 'secondary')}</div>
+        <div id="amz-ventas-resultado"></div>`)}
+      ${_amzCard('Pedidos directo de Amazon', 'Lo que Amazon tiene hoy (últimos 30 días). «Marcar enviado» confirma el envío en Amazon con tu paquetería y guía.', `
+        <div style="margin-bottom:0.75rem">${_amzBtn('📦 Consultar pedidos', 'window._amzVerPedidos()')}</div>
+        <div id="amz-pedidos"></div>`)}
+      ${_amzCard('Mandar existencias', 'Actualiza en Amazon el stock de un modelo (solo de publicaciones que ya existen en Amazon).', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.6rem;position:relative">
+          <input id="amz-inv-sku" type="text" placeholder="SKU del modelo, ej. L-TAC-0294" style="flex:1;min-width:220px;padding:0.55rem 0.8rem;border:1px solid #ddd;border-radius:8px;font-family:inherit;font-size:0.85rem">
+          ${_amzBtn('📤 Mandar existencias', 'window._amzInventario(this)')}
+        </div>
+        <div id="amz-inv-resultado"></div>`)}
+      <div style="padding:0.9rem 1.1rem;background:#eff6ff;border-radius:10px;font-size:0.82rem;color:#1e3a8a">
+        <b>Publicar productos:</b> siguiente fase — primero se baja de Amazon el esquema oficial de zapatos para México (así no se arma a ciegas, como pasó con Walmart).<br>
+        <b>Etiquetas de envío y preguntas de clientes:</b> la API de mensajes de Amazon solo permite <i>enviar</i> mensajes, no leer preguntas; las guías de Amazon Envíos hay que confirmar si están disponibles para México con la cuenta activa. Mientras tanto se manejan en Seller Central:
+        <a href="https://sellercentral.amazon.com.mx" target="_blank" rel="noopener" style="color:#1d4ed8;font-weight:700">abrir Seller Central</a>.
+      </div>`
+  } catch (e) {
+    box.style.background = '#fef2f2'
+    box.innerHTML = `<span style="color:#991b1b">Error al conectar con el servidor: ${_amzEsc(e.message)}</span>`
+  }
+}
+
+window._amzSincronizarVentas = async (btn) => {
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Sincronizando...'; btn.disabled = true
+  const out = document.getElementById('amz-ventas-resultado')
+  try {
+    const res = await fetch(`${API}/amazon/sync-ventas`, { method: 'POST' })
+    const d = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
+    const err = (d.errores || []).length
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:${err ? '#fffbeb' : '#f0fdf4'};color:${err ? '#92400e' : '#166534'}">
+      ${d.procesadas} venta(s) nueva(s) de ${d.revisadas} revisadas.${(d.sin_match || []).length ? ` ⚠️ ${d.sin_match.length} SKU(s) sin match en el ERP.` : ''}${err ? ` ⚠️ ${_amzEsc(_amzMsg(JSON.stringify(d.errores[0])))}` : ''}</div>`
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${_amzEsc(_amzMsg(e.message))}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
+window._amzVerVentas = async () => {
+  const out = document.getElementById('amz-ventas-resultado')
+  out.innerHTML = '<span style="color:#888;font-size:0.82rem">Cargando...</span>'
+  try {
+    const res = await fetch(`${API}/amazon/ventas`)
+    const lista = await res.json()
+    if (!res.ok) throw new Error(JSON.stringify(lista))
+    out.innerHTML = !lista.length ? '<p style="color:#aaa;font-size:0.84rem;margin:0">Todavía no hay ventas de Amazon en el ERP.</p>' : `
+      <div style="overflow-x:auto;border:1px solid #eee;border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+        <thead><tr style="background:#f8f8f8"><th style="padding:6px 8px;text-align:left">Orden</th><th style="padding:6px 8px;text-align:right">Total</th><th style="padding:6px 8px;text-align:left">Status</th><th style="padding:6px 8px;text-align:left">Fecha</th></tr></thead>
+        <tbody>${lista.map(p => `<tr style="border-bottom:1px solid #f5f5f5"><td style="padding:6px 8px;font-family:monospace">${_amzEsc(p.amazon_order_id)}</td><td style="padding:6px 8px;text-align:right;font-weight:600">$${parseFloat(p.total || 0).toLocaleString('es-MX')}</td><td style="padding:6px 8px">${_amzEsc(p.status)}</td><td style="padding:6px 8px;color:#888">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : ''}</td></tr>`).join('')}</tbody></table></div>`
+  } catch (e) { out.innerHTML = `<span style="color:#dc2626;font-size:0.82rem">${_amzEsc(e.message)}</span>` }
+}
+
+window._amzVerPedidos = async () => {
+  const out = document.getElementById('amz-pedidos')
+  out.innerHTML = '<span style="color:#888;font-size:0.82rem">Consultando a Amazon...</span>'
+  try {
+    const res = await fetch(`${API}/amazon/ordenes?dias=30`)
+    const d = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
+    out.innerHTML = !d.ordenes.length ? '<p style="color:#aaa;font-size:0.84rem;margin:0">Sin pedidos en los últimos 30 días.</p>' : d.ordenes.map(o => `
+      <div style="border:1px solid #eee;border-radius:10px;padding:0.7rem 0.9rem;margin-bottom:0.5rem;font-size:0.82rem;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+        <div><b style="font-family:monospace">${_amzEsc(o.id)}</b> · ${_amzEsc(o.estatus)} · ${o.fecha ? new Date(o.fecha).toLocaleDateString('es-MX') : ''}
+          <br><span style="color:#888">${_amzEsc(o.canal_cumplimiento || '')} · ${o.articulos_sin_enviar ?? '?'} artículo(s) sin enviar</span></div>
+        <div style="display:flex;gap:10px;align-items:center"><b>${o.total ? '$' + Number(o.total).toLocaleString('es-MX') : ''}</b>
+          ${['Unshipped', 'PartiallyShipped'].includes(o.estatus) && o.canal_cumplimiento === 'MFN' ? _amzBtn('🚚 Marcar enviado', `window._amzEnviar('${_amzEsc(o.id)}')`, 'secondary') : ''}</div>
+      </div>`).join('')
+  } catch (e) { out.innerHTML = `<span style="color:#dc2626;font-size:0.82rem">${_amzEsc(_amzMsg(e.message))}</span>` }
+}
+
+window._amzEnviar = async (id) => {
+  const paqueteria = prompt('Paquetería (ej. FedEx, Estafeta, DHL):', 'FedEx'); if (!paqueteria) return
+  const guia = prompt('Número de guía:'); if (!guia) return
+  if (!confirm(`Confirmar en Amazon el envío de la orden ${id} con ${paqueteria} / ${guia}?`)) return
+  try {
+    const res = await fetch(`${API}/amazon/ordenes/${encodeURIComponent(id)}/enviar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paqueteria: paqueteria.trim(), numero_guia: guia.trim() }) })
+    const d = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
+    alert('Envío confirmado en Amazon.'); window._amzVerPedidos()
+  } catch (e) { alert('No se pudo confirmar el envío: ' + e.message) }
+}
+
+window._amzInventario = async (btn) => {
+  const sku = (document.getElementById('amz-inv-sku')?.value || '').trim()
+  const out = document.getElementById('amz-inv-resultado')
+  if (!sku) { alert('Escribe el SKU del modelo.'); return }
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Enviando...'; btn.disabled = true
+  try {
+    const res = await fetch(`${API}/amazon/inventario/sincronizar?sku_interno=${encodeURIComponent(sku)}`, { method: 'POST' })
+    const d = await res.json()
+    if (!res.ok) throw new Error(_amzMsg(d.detail || JSON.stringify(d)))
+    out.innerHTML = `<div style="max-height:260px;overflow:auto;border:1px solid #eee;border-radius:8px">${d.resultados.map(r => `
+      <div style="padding:5px 10px;border-bottom:1px solid #f5f5f5;font-size:0.8rem"><span style="font-family:monospace">${_amzEsc(r.sku)}</span> → ${r.cantidad}
+        ${r.error ? `<span style="color:#dc2626"> ✗ ${_amzEsc(_amzMsg(r.error)).slice(0, 200)}</span>` : `<span style="color:#16a34a"> ✓ ${_amzEsc(r.estatus || 'enviado')}</span>`}</div>`).join('')}</div>`
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.6rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${_amzEsc(_amzMsg(e.message))}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = false }
 }
 
 // ─── WALMART ──────────────────────────────────────────────────────────────────

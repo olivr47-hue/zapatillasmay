@@ -15,6 +15,7 @@ from routers import catalogos
 from routers import mercadolibre
 from routers import shein
 from routers import walmart
+from routers import amazon
 from routers import analytics
 from routers import searchconsole
 from routers import merchant
@@ -52,7 +53,7 @@ except ImportError:
 # cabeceras CORS (si no, el navegador las ve como error de red, no como 401).
 # Respeta AUTH_ENFORCE igual que require_staff (despliegue seguro).
 _PREFIJOS_PROTEGIDOS = (
-    "/chatbot", "/finanzas", "/ml", "/shein", "/walmart", "/tiktok", "/analytics",
+    "/chatbot", "/finanzas", "/ml", "/shein", "/walmart", "/amazon", "/tiktok", "/analytics",
     "/campanas", "/crm", "/emails", "/catalogos", "/merchant", "/businessprofile",
     "/searchconsole", "/push", "/imagenes", "/sucursales", "/carrito-abandonado",
     "/resenas", "/sugerencias", "/referidos", "/pinterest", "/catalogo",
@@ -95,7 +96,7 @@ def _coincide(lista, metodo, path):
 # Se dejan abiertas a todo el personal las rutas que usan pantallas de vendedor (recibir mercancía, órdenes, etc.).
 _SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
     ("*",   r"/analytics(/.*)?"),
-    ("*",   r"/(ml|shein|walmart|tiktok)(/.*)?"),
+    ("*",   r"/(ml|shein|walmart|amazon|tiktok)(/.*)?"),
     ("*",   r"/emails(/.*)?"),                                   # buzón corporativo (contacto-web es público: se evalúa antes)
     ("*",   r"/push/(enviar|suscriptores|lista|historial|diagnostico)"),
     ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
@@ -212,6 +213,7 @@ app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)
 app.include_router(shein.router)
 app.include_router(walmart.router)
+app.include_router(amazon.router)
 app.include_router(analytics.router)
 app.include_router(searchconsole.router)
 app.include_router(merchant.router)
@@ -278,6 +280,21 @@ def _loop_shein_ventas():
         except Exception as e:
             print(f"[shein-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
+
+def _loop_amazon_ventas():
+    """Trae ventas nuevas de Amazon y descuenta inventario cada 10 minutos. No hace
+    nada mientras no estén las variables AMAZON_* en Railway (cuenta sin conectar)."""
+    _time.sleep(230)
+    while True:
+        try:
+            from routers.amazon import _hacer_sync_ventas_amazon, _configurado
+            if _configurado():
+                res = _hacer_sync_ventas_amazon()
+                if res.get("procesadas"):
+                    print(f"[amazon-ventas] Pedidos procesados: {res['procesadas']} de {res['revisadas']} revisadas")
+        except Exception as e:
+            print(f"[amazon-ventas] Error en loop: {e}")
+        _time.sleep(10 * 60)
 
 def _loop_tiktok_sync():
     """Sincroniza inventario con TikTok Shop cada 30 minutos si hay token activo."""
@@ -462,6 +479,10 @@ def _iniciar_hilos():
     t3b = threading.Thread(target=_loop_shein_ventas, daemon=True)
     t3b.start()
     print("[shein-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
+    # Amazon: descontar inventario por ventas nuevas (solo si está configurado)
+    t3c = threading.Thread(target=_loop_amazon_ventas, daemon=True)
+    t3c.start()
+    print("[amazon-ventas] Hilo de sincronización de ventas iniciado (cada 10 min, solo si hay credenciales)")
     # Correo entrante: avisar a admins del panel
     t4 = threading.Thread(target=_loop_correo_nuevo, daemon=True)
     t4.start()
