@@ -750,9 +750,15 @@ def crear_pedido(pedido: dict, request: Request):
                 email_c = pedido["email_cliente"].strip()
                 tel_c   = pedido.get("telefono_cliente", "").strip()
                 nombre_c = pedido.get("nombre_cliente", "").strip()
-                cli_existente = supabase_get(f"clientes?email=eq.{email_c}&limit=1")
+                # Solo se liga a un cliente existente si el correo/teléfono lo identifica de forma ÚNICA: hay 55 mayoristas
+                # con el mismo correo genérico del negocio y antes una compra con ese correo se pegaba a uno cualquiera.
+                cli_existente = supabase_get(f"clientes?email=eq.{_up.quote(email_c, safe='')}&select=id&limit=2") or []
+                if len(cli_existente) != 1:
+                    cli_existente = []
                 if not cli_existente and tel_c:
-                    cli_existente = supabase_get(f"clientes?telefono=eq.{tel_c}&limit=1")
+                    cli_existente = supabase_get(f"clientes?telefono=eq.{_up.quote(tel_c, safe='')}&select=id&limit=2") or []
+                    if len(cli_existente) != 1:
+                        cli_existente = []
                 if cli_existente:
                     pedido["cliente_id"] = cli_existente[0]["id"]
                 else:

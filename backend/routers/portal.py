@@ -135,6 +135,9 @@ def login_google(request: Request, datos: dict):
     cli = supabase_get(f"clientes?email=eq.{_up.quote(email, safe='')}&select=*")
     if not cli:
         return JSONResponse(status_code=403, content={"error": "No encontramos una cuenta de cliente con ese correo. Pide tu alta de mayoreo."})
+    if len(cli) > 1:
+        # Varios clientes comparten ese correo (p. ej. uno genérico del negocio): no se puede saber a cuál entra.
+        return JSONResponse(status_code=409, content={"error": "Ese correo está en varias cuentas. Entra con tu número de WhatsApp."})
     c = cli[0]
     _validar_mayoreo(c)
     return {"token": _emitir_token(None, c), "cliente": _cliente_publico(c)}
@@ -165,8 +168,9 @@ def _buscar_cliente_por(metodo: str, valor: str):
     email = (valor or "").strip().lower()
     if "@" not in email:
         return None, None
-    cli = (supabase_get(f"clientes?email=eq.{_up.quote(email, safe='')}&select=id,nombre,telefono,email,tipo") or [None])[0]
-    return cli, email
+    filas = supabase_get(f"clientes?email=eq.{_up.quote(email, safe='')}&select=id,nombre,telefono,email,tipo&limit=2") or []
+    # Si el correo lo comparten varios clientes no se adivina cuál es: se trata como no encontrado.
+    return (filas[0] if len(filas) == 1 else None), email
 
 
 def _enviar_sms_codigo(tel10: str, codigo: str) -> bool:

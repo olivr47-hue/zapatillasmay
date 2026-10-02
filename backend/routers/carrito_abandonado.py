@@ -299,8 +299,8 @@ def recordatorio_whatsapp(id: str):
         # Buscar teléfono en clientes por email
         telefono = ""
         if email:
-            cli = supabase_get(f"clientes?email=eq.{urllib.parse.quote(email, safe='')}&select=telefono,lada&limit=1")
-            if cli:
+            cli = supabase_get(f"clientes?email=eq.{urllib.parse.quote(email, safe='')}&select=telefono,lada&limit=2")
+            if cli and len(cli) == 1:   # un correo compartido por varios clientes no identifica a nadie
                 lada = re.sub(r"\D", "", str(cli[0].get("lada") or "52")) or "52"
                 tel_raw = re.sub(r"\D", "", str(cli[0].get("telefono") or ""))
                 if tel_raw:
