@@ -611,6 +611,11 @@ _WM_SUBCATEGORY   = "footwear_other"   # unica subcategoria de calzado en el enu
 _WM_PRODUCT_TYPE  = "Zapatos"          # nombre real (en español) de la key dentro de "Visible"
 
 
+# Pesos que se suman al precio_menudeo del panel para publicar en Walmart (pedido
+# del dueño, 2026-10-02): Walmart descuenta costos de maniobra y de envío además
+# de la comisión (15% en Zapatos; 19.5% con Premium MSI).
+_WM_AJUSTE_PRECIO = 150
+
 _GTIN_AJENO_LAMPARA = "06104895314205"   # el que por error se pego a una lampara real (ver nota de CUSTOM)
 _TACON_ESTILO_WM = {"bloque": "Bloque", "aguja": "Stiletto", "plataforma": "Plataforma", "cuna": "Cuña"}
 _SHOE_STYLE_WM = {"tacones": "Tacones", "sandalias": "Sandalias", "flats": "Flats", "botas": "Botas",
@@ -717,7 +722,10 @@ def _item_json(producto: dict, variante: dict, es_primaria: bool, gtins: dict = 
             f"Talla {talla} (sistema mexicano)"[:4000],
             f"Material: {material}"[:4000],
         ],
-        "price": float(producto.get("precio_menudeo") or 0),
+        # Precio de menudeo del panel + _WM_AJUSTE_PRECIO: Walmart descuenta
+        # comisión, maniobra y envío del pago al vendedor.
+        "price": round(float(producto.get("precio_menudeo") or 0) + _WM_AJUSTE_PRECIO, 2)
+                 if float(producto.get("precio_menudeo") or 0) > 0 else 0.0,
         "ProductTaxCode": int(clave_sat),
         "condition": "Nuevo",
         "hasNomCertification": "No",
