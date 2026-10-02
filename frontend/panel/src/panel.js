@@ -395,6 +395,7 @@ let _ultimoConteoCorreo = null
 
 async function _pollCorreoNoLeido() {
   if (document.hidden) return  // pestaña oculta: sin sondeo
+  if (window._empleadoActual && window._empleadoActual.rol !== 'admin') return  // módulo solo-admin: el servidor ya no responde a otros roles
   if (window._correoPollEnVuelo) return
   window._correoPollEnVuelo = true
   try {
@@ -436,6 +437,7 @@ let _ultimoConteoPreguntasML = null
 
 async function _pollPreguntasML() {
   if (document.hidden) return  // pestaña oculta: sin sondeo
+  if (window._empleadoActual && window._empleadoActual.rol !== 'admin') return  // módulo solo-admin: el servidor ya no responde a otros roles
   if (window._preguntasMlPollEnVuelo) return
   window._preguntasMlPollEnVuelo = true
   try {
@@ -477,6 +479,7 @@ const _SHEIN_PEND_BADGE_KEY = 'zm_badge_pendientes_shein'
 
 async function _pollPendientesShein() {
   if (document.hidden) return  // pestaña oculta: sin sondeo
+  if (window._empleadoActual && window._empleadoActual.rol !== 'admin') return  // módulo solo-admin: el servidor ya no responde a otros roles
   if (window._pendientesSheinPollEnVuelo) return
   window._pendientesSheinPollEnVuelo = true
   try {
@@ -513,6 +516,7 @@ const _WM_PEND_BADGE_KEY = 'zm_badge_pendientes_walmart'
 
 async function _pollPendientesWalmart() {
   if (document.hidden) return  // pestaña oculta: sin sondeo
+  if (window._empleadoActual && window._empleadoActual.rol !== 'admin') return  // módulo solo-admin: el servidor ya no responde a otros roles
   if (window._pendientesWalmartPollEnVuelo) return
   window._pendientesWalmartPollEnVuelo = true
   try {
@@ -2813,7 +2817,8 @@ window.guardarAbono = async (ordenId) => {
 window.marcarOrdenPagada = async (id) => {
   if (!confirm('¿Confirmar que esta orden ya se pagó al proveedor?')) return
   try {
-    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-pagada', { method: 'POST' })
+    const res = await fetch(API + '/finanzas/ordenes/' + id + '/marcar-pagada', { method: 'POST' })
+    if (!res.ok) { alert('No se pudo marcar como pagada (error ' + res.status + ')'); return }
     cargarFinanzas()
   } catch(e) {
     alert('Error marcando la orden como pagada')
@@ -2823,7 +2828,8 @@ window.marcarOrdenPagada = async (id) => {
 window.marcarOrdenCancelada = async (id) => {
   if (!confirm('¿Cancelar esta orden de compra? Ya no contará como cuenta por pagar.')) return
   try {
-    await fetch(API + '/finanzas/ordenes/' + id + '/marcar-cancelada', { method: 'POST' })
+    const res = await fetch(API + '/finanzas/ordenes/' + id + '/marcar-cancelada', { method: 'POST' })
+    if (!res.ok) { alert('No se pudo cancelar la orden (error ' + res.status + ')'); return }
     cargarFinanzas()
   } catch(e) {
     alert('Error cancelando la orden')
@@ -2979,11 +2985,12 @@ window.guardarPagoDeuda = async (deudaId) => {
   const fecha = document.getElementById('pago-fecha').value
   if (monto_capital <= 0 && monto_interes <= 0) { alert('Captura al menos un monto'); return }
   try {
-    await fetch(API + '/finanzas/deudas/' + deudaId + '/pagos', {
+    const res = await fetch(API + '/finanzas/deudas/' + deudaId + '/pagos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monto_capital, monto_interes, fecha })
     })
+    if (!res.ok) { const e = await res.json().catch(() => ({})); alert('No se pudo guardar el pago: ' + (e.error || res.status)); return }
     document.querySelector('div[style*="position: fixed"]')?.remove()
     cargarFinanzas()
   } catch(e) {
@@ -3234,7 +3241,7 @@ window.guardarGasto = async (sucursalId, btn) => {
   const diaMes = parseInt(document.getElementById('gasto-dia-mes').value) || new Date().getDate()
   if (!concepto || !monto) { alert('Completa concepto y monto'); return }
   try {
-    await fetch(API + '/finanzas/gastos', {
+    const resG = await fetch(API + '/finanzas/gastos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -3247,6 +3254,7 @@ window.guardarGasto = async (sucursalId, btn) => {
         empleado: window._empleadoActual?.nombre || 'Admin'
       })
     })
+    if (!resG.ok) { alert('No se pudo guardar el gasto (error ' + resG.status + ')'); return }
     btn.closest('div[style*="position: fixed"]')?.remove()
     cargarFinanzas()
   } catch(e) {
@@ -3257,7 +3265,8 @@ window.guardarGasto = async (sucursalId, btn) => {
 window.eliminarGasto = async (id) => {
   if (!confirm('¿Eliminar este gasto?')) return
   try {
-    await fetch(API + '/finanzas/gastos/' + id, { method: 'DELETE' })
+    const res = await fetch(API + '/finanzas/gastos/' + id, { method: 'DELETE' })
+    if (!res.ok) { alert('No se pudo eliminar el gasto (error ' + res.status + ')'); return }
     cargarFinanzas()
   } catch(e) {
     alert('Error eliminando gasto')
@@ -15425,7 +15434,7 @@ window.toggleEmpleado = async (id, activo) => {
 window.resetearPassword = async (id, nombre) => {
   const nueva = prompt('Nueva contrasena para ' + nombre + ':')
   if (!nueva) return
-  if (nueva.length < 4) { alert('La contrasena debe tener al menos 4 caracteres'); return }
+  if (nueva.length < 8) { alert('La contrasena debe tener al menos 8 caracteres'); return }
   try {
     const res = await fetch(API + '/empleados/' + id, {
       method: 'PATCH',

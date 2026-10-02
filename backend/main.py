@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from security import limiter, require_staff, AUTH_ENFORCE, verify_token, es_personal
+from security import limiter, require_staff, AUTH_ENFORCE, verify_token, es_personal, _aplicar_vigencia
 import re as _re
 from database import supabase_get
 from cache import cache_stats, cache_invalidate_prefix, cache_cleanup_expired
@@ -87,7 +87,25 @@ _CON_TOKEN = [(m, _re.compile(r)) for m, r in (
 
 
 def _coincide(lista, metodo, path):
-    return any((m == "*" or m == metodo) and rx.fullmatch(path) for m, rx in lista)
+    return any((m == "*" or metodo in m.split("|")) and rx.fullmatch(path) for m, rx in lista)
+
+
+# Rutas que solo puede usar el ADMINISTRADOR. Antes el menú del panel ocultaba estos módulos a vendedores/cajeros
+# ("soloAdmin"), pero el servidor aceptaba a CUALQUIER empleado con token: bastaba llamar la API directamente.
+# Se dejan abiertas a todo el personal las rutas que usan pantallas de vendedor (recibir mercancía, órdenes, etc.).
+_SOLO_ADMIN = [(m, _re.compile(r)) for m, r in (
+    ("*",   r"/analytics(/.*)?"),
+    ("*",   r"/(ml|shein|walmart|tiktok)(/.*)?"),
+    ("*",   r"/emails(/.*)?"),                                   # buzón corporativo (contacto-web es público: se evalúa antes)
+    ("*",   r"/push/(enviar|suscriptores|lista|historial|diagnostico)"),
+    ("*",   r"/finanzas/(reporte|estado-resultados|flujo|cuentas-por-cobrar|cuentas-por-pagar|valor-inventario|proyeccion|saldo|deudas|gastos|caja)(/.*)?"),
+    ("*",   r"/finanzas/ordenes/[^/]+/(abonos|marcar-pagada|marcar-cancelada)"),
+    ("POST|PATCH|DELETE", r"/sucursales(/.*)?"),
+    ("POST", r"/(seo|config)(/.*)?"),
+    ("*",   r"/resenas/admin/.*"),
+    ("PATCH", r"/sugerencias(/.*)?"),
+    ("POST|PATCH|DELETE", r"/catalogos(/.*)?"),
+)]
 
 
 @app.middleware("http")
@@ -104,8 +122,14 @@ async def _puerta_auth(request, call_next):
                 payload = verify_token(auth[7:])
             except Exception:
                 return JSONResponse(status_code=401, content={"detail": "Token invalido o expirado"})
+            try:
+                payload = _aplicar_vigencia(payload)   # cuenta desactivada -> 401; rol vigente de la base
+            except Exception:
+                return JSONResponse(status_code=401, content={"detail": "Cuenta desactivada"})
             if not es_personal(payload) and not _coincide(_CON_TOKEN, request.method, path):
                 return JSONResponse(status_code=403, content={"detail": "Se requiere acceso de personal"})
+            if es_personal(payload) and payload.get("rol") != "admin" and _coincide(_SOLO_ADMIN, request.method, path):
+                return JSONResponse(status_code=403, content={"detail": "Se requiere rol de administrador"})
     return await call_next(request)
 
 # Los orígenes de PRODUCCIÓN siempre están presentes (nunca se quitan → cero riesgo

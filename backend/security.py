@@ -144,6 +144,8 @@ def require_admin(
     if not credentials:
         raise HTTPException(status_code=401, detail="Autenticacion requerida")
     payload = verify_token(credentials.credentials)
+    if es_personal(payload):
+        payload = _aplicar_vigencia(payload)
     if payload.get("rol") != "admin":
         raise HTTPException(status_code=403, detail="Se requiere rol de administrador")
     return payload
@@ -173,6 +175,46 @@ def es_personal(payload: dict) -> bool:
     return bool(rol) and rol != "cliente"
 
 
+_EMP_CACHE: dict = {}   # sub -> (timestamp, {"activo":bool,"rol":str})
+_EMP_TTL = 60
+
+
+def empleado_vigente(sub) -> dict:
+    """Estado ACTUAL del empleado en la base (activo y rol), con caché de 60 s. Un JWT dura 15 días: sin esto,
+    desactivar o degradar a un empleado no surtía efecto hasta que su token venciera. Si la base no responde se
+    deja pasar (no se bloquea a todo el personal por una falla temporal) y no se cachea ese resultado."""
+    import time as _t
+    from urllib.parse import quote as _q
+    ahora = _t.time()
+    c = _EMP_CACHE.get(sub)
+    if c and ahora - c[0] < _EMP_TTL:
+        return c[1]
+    try:
+        from database import supabase_get
+        filas = supabase_get(f"empleados?id=eq.{_q(str(sub), safe='')}&select=activo,rol")
+        data = {"activo": bool(filas[0].get("activo", True)), "rol": filas[0].get("rol")} if filas else {"activo": False, "rol": None}
+    except Exception as e:
+        print(f"[auth] no se pudo verificar al empleado {sub}: {e}")
+        return {"activo": True, "rol": None}
+    _EMP_CACHE[sub] = (ahora, data)
+    return data
+
+
+def invalidar_empleado(sub) -> None:
+    _EMP_CACHE.pop(sub, None)
+
+
+def _aplicar_vigencia(payload: dict) -> dict:
+    """Si el token es de personal: rechaza cuentas desactivadas y usa el rol vigente de la base, no el del token."""
+    if es_personal(payload):
+        v = empleado_vigente(payload.get("sub"))
+        if not v["activo"]:
+            raise HTTPException(status_code=401, detail="Cuenta desactivada")
+        if v.get("rol"):
+            payload = dict(payload, rol=v["rol"])
+    return payload
+
+
 def require_staff(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
 ) -> dict:
@@ -185,7 +227,7 @@ def require_staff(
     payload = verify_token(credentials.credentials)
     if not es_personal(payload):
         raise HTTPException(status_code=403, detail="Se requiere acceso de personal")
-    return payload
+    return _aplicar_vigencia(payload)
 
 
 def payload_opcional(credentials) -> dict | None:
