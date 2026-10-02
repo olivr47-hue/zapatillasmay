@@ -1306,7 +1306,7 @@ function irACarrito() {
     if (existente) {
       const inv = inventario.find(i => i.variante_id === existente.variante_id)
       const stock = inv ? (inv.cantidad ?? 0) : 0
-      if (stock > 0 && existente.cantidad >= stock) {
+      if (datosInventarioCargados && existente.cantidad >= stock) {   // antes con stock 0 dejaba seguir agregando
         mostrarToast(`Solo hay ${stock} par${stock !== 1 ? 'es' : ''} disponibles en esta talla`)
         return
       }

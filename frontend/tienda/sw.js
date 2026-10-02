@@ -1,4 +1,4 @@
-const CACHE = 'zm-v1'
+const CACHE = 'zm-v2'   // v2: vacía la caché vieja (scripts/estilos se quedaban fijos para siempre)
 const PRECACHE = ['/index.html', '/carrito.html', '/manifest.json']
 const API_HOST = 'zapatillasmay-production.up.railway.app'
 
@@ -24,11 +24,11 @@ self.addEventListener('fetch', e => {
   if (url.hostname === API_HOST || url.hostname !== self.location.hostname) return
   if (e.request.method !== 'GET') return
 
-  // Páginas HTML: network-first (siempre contenido fresco)
-  if (e.request.destination === 'document') {
+  // Páginas HTML, scripts y estilos: network-first (siempre contenido fresco; la caché solo sirve sin conexión)
+  if (['document', 'script', 'style'].includes(e.request.destination)) {
     e.respondWith(
       fetch(e.request)
-        .then(r => { caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r })
+        .then(r => { if (r.ok) { const copia = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copia)) } return r })
         .catch(() => caches.match(e.request))
     )
     return
