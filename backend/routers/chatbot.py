@@ -3217,6 +3217,93 @@ def crear_plantilla_pago():
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+def _crear_plantilla_meta(plantilla: dict) -> dict:
+    """Envía UNA plantilla a revisión de Meta. Devuelve {"nombre","estado","detalle"}; si ya existe no es error."""
+    wa_token = os.environ.get("WHATSAPP_TOKEN", "")
+    waba_id = os.environ.get("WHATSAPP_WABA_ID", "")
+    url = f"https://graph.facebook.com/v25.0/{waba_id}/message_templates"
+    headers = {"Authorization": f"Bearer {wa_token}", "Content-Type": "application/json"}
+    try:
+        req = urllib.request.Request(url, data=json.dumps(plantilla).encode(), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=20) as r:
+            resp = json.loads(r.read())
+        return {"nombre": plantilla["name"], "estado": "enviada", "detalle": resp.get("status", "PENDING")}
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        if "2388024" in body or "already exist" in body.lower() or "ya existe" in body.lower():
+            return {"nombre": plantilla["name"], "estado": "ya_existia", "detalle": ""}
+        return {"nombre": plantilla["name"], "estado": "error", "detalle": f"HTTP {e.code}: {body[:300]}"}
+    except Exception as e:
+        return {"nombre": plantilla["name"], "estado": "error", "detalle": str(e)}
+
+
+_PIE_PLANTILLA = {"type": "FOOTER", "text": "Zapatillas May · León, Guanajuato"}
+_BOTON_WEB = {"type": "BUTTONS", "buttons": [{"type": "URL", "text": "Ir a zapatillasmay.mx", "url": "https://zapatillasmay.mx"}]}
+
+
+def _plantillas_base() -> list:
+    return [
+        {   # panel.js (confirmar envío) la manda con [nombre, últimos 6 del pedido, guía, paquetería]
+            "name": "aviso_envio", "language": "es_MX", "category": "UTILITY",
+            "components": [
+                {"type": "HEADER", "format": "TEXT", "text": "¡Tu pedido va en camino!"},
+                {"type": "BODY",
+                 "text": "Hola {{1}}, tu pedido #{{2}} de Zapatillas May ya salió a envío 📦\n\nTu guía de rastreo es {{3}} con {{4}}.\n\nCualquier duda con gusto te ayudamos.",
+                 "example": {"body_text": [["María", "A1B2C3", "3606204067", "Estafeta"]]}},
+                _PIE_PLANTILLA,
+            ],
+        },
+        {   # aviso de confirmación cuando la clienta no escribió en las últimas 24 h
+            "name": "pedido_confirmado", "language": "es_MX", "category": "UTILITY",
+            "components": [
+                {"type": "HEADER", "format": "TEXT", "text": "¡Tu compra está confirmada!"},
+                {"type": "BODY",
+                 "text": "Hola {{1}}, tu pedido #{{2}} en Zapatillas May está confirmado por ${{3}} MXN.\n\nYa lo estamos preparando y te avisamos en cuanto salga a envío.",
+                 "example": {"body_text": [["María", "A1B2C3D4", "850"]]}},
+                _PIE_PLANTILLA, _BOTON_WEB,
+            ],
+        },
+        {
+            "name": "recordatorio_pago_pendiente", "language": "es_MX", "category": "UTILITY",
+            "components": [
+                {"type": "HEADER", "format": "TEXT", "text": "Tu pedido está esperando el pago"},
+                {"type": "BODY",
+                 "text": "Hola {{1}}, te recordamos que tu pedido en Zapatillas May está pendiente de pago por ${{2}} MXN vía {{3}}.\n\nRealiza tu pago para que procesemos tu pedido lo antes posible. Si ya pagaste, por favor ignora este mensaje.\n\nTienes dudas, con gusto te ayudamos.",
+                 "example": {"body_text": [["María", "850", "OXXO"]]}},
+                _PIE_PLANTILLA, _BOTON_WEB,
+            ],
+        },
+        {   # secuencias de seguimiento (carritos): MARKETING, se cobra por conversación
+            "name": "seguimiento_carrito", "language": "es_MX", "category": "MARKETING",
+            "components": [
+                {"type": "BODY",
+                 "text": "Hola {{1}}, vimos que dejaste unos modelos apartados en tu carrito de Zapatillas May 👠 ¿Te ayudamos a terminar tu pedido? Respóndenos por aquí y con gusto te apoyamos.",
+                 "example": {"body_text": [["María"]]}},
+                _PIE_PLANTILLA,
+            ],
+        },
+        {
+            "name": "reactivacion_cliente", "language": "es_MX", "category": "MARKETING",
+            "components": [
+                {"type": "BODY",
+                 "text": "Hola {{1}}, hace tiempo no te vemos por Zapatillas May y tenemos modelos nuevos de temporada 👠 ¿Te enviamos el catálogo? Respóndenos y te lo mandamos.",
+                 "example": {"body_text": [["María"]]}},
+                _PIE_PLANTILLA,
+            ],
+        },
+    ]
+
+
+@router.post("/crear-plantillas-base")
+def crear_plantillas_base():
+    """Crea de una vez las plantillas que el ERP necesita (aviso de envío, confirmación, recordatorio de pago y las
+    dos de seguimiento). Las que ya existen se omiten. Meta las revisa: tardan de minutos a horas en aprobarse."""
+    if not os.environ.get("WHATSAPP_TOKEN") or not os.environ.get("WHATSAPP_WABA_ID"):
+        return JSONResponse(status_code=500, content={"error": "Faltan WHATSAPP_TOKEN o WHATSAPP_WABA_ID en Railway"})
+    resultados = [_crear_plantilla_meta(p) for p in _plantillas_base()]
+    return {"ok": not any(r["estado"] == "error" for r in resultados), "resultados": resultados}
+
+
 @router.post("/editar-boton-plantilla")
 async def editar_boton_plantilla(datos: dict):
     """

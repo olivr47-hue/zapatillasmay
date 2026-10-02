@@ -11407,6 +11407,8 @@ window.recalcularTotal = () => {
   items.forEach(item => {
     if (item.es_oferta) {
       item.precio_unitario = item.precio_menudeo
+    } else if (item.es_corrida) {
+      item.precio_unitario = item.precio_corrida || (item.precio_menudeo - 100)
     } else if (totalPares >= 6) {
       item.precio_unitario = item.precio_mayoreo6 || (item.precio_menudeo - 70)
     } else if (totalPares >= 3) {
@@ -19527,7 +19529,7 @@ async function cargarCarritosAbandonados() {
               <strong>💬 WhatsApp requiere plantilla aprobada.</strong> Si el botón "WhatsApp" no envía, crea la plantilla primero (solo se hace una vez).
             </div>
             <button onclick="crearPlantillaPago(this)" style="padding:6px 14px;border-radius:20px;border:1.5px solid #d97706;background:none;color:#92400e;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap">
-              ⚙️ Crear plantilla en Meta
+              ⚙️ Crear plantillas en Meta
             </button>
           </div>
           ${pedidosPendientes.length === 0
@@ -19873,19 +19875,24 @@ window.crearPlantillaCatalogo = async function(btn) {
 }
 
 window.crearPlantillaPago = async function(btn) {
+  // Crea todas las plantillas base del ERP en Meta (aviso de envío, confirmación, recordatorio de pago, seguimientos)
   const orig = btn.textContent
   btn.disabled = true
   btn.textContent = 'Creando...'
   try {
-    const res = await fetch(API + '/chatbot/crear-plantilla-pago', { method: 'POST' })
+    const res = await fetch(API + '/chatbot/crear-plantillas-base', { method: 'POST' })
     const data = await res.json()
-    if (data.ok) {
-      btn.textContent = '✅ Plantilla enviada a Meta'
-      btn.style.borderColor = '#16a34a'
-      btn.style.color = '#15803d'
-      alert('Plantilla enviada a Meta para revisión. Puede tardar unos minutos en aprobarse. Una vez APROBADA, el botón WhatsApp funcionará.')
+    if (Array.isArray(data.resultados)) {
+      const t = { enviada: '✅ enviada a revisión', ya_existia: '✔️ ya existía', error: '❌ error' }
+      const lineas = data.resultados.map(r => r.nombre + ': ' + (t[r.estado] || r.estado) + (r.detalle && r.estado === 'error' ? ' — ' + r.detalle : ''))
+      btn.textContent = data.ok ? '✅ Plantillas enviadas a Meta' : orig
+      btn.disabled = !!data.ok
+      alert(lineas.join('
+') + (data.ok ? '
+
+Meta las revisa; tardan de minutos a horas en aprobarse.' : ''))
     } else {
-      btn.textContent = '❌ Error'
+      btn.textContent = orig
       btn.disabled = false
       alert('Error: ' + (data.error || JSON.stringify(data)))
     }
@@ -27321,7 +27328,10 @@ window.recalcularPreciosCarrito = async () => {
 
     const base = parseFloat(prod.precio_menudeo) || 0
     let nuevoPrecio
-    if (tier === 'mayoreo6') {
+    if (item.es_corrida) {
+      // Las corridas tienen SU precio: antes se les ponía el de mayoreo 3+/6+ al cambiar de nivel.
+      nuevoPrecio = parseFloat(prod.precio_corrida) || (base > 0 ? Math.round(base - 100) : base)
+    } else if (tier === 'mayoreo6') {
       nuevoPrecio = parseFloat(prod.precio_mayoreo6) || (base > 0 ? Math.round(base - 70) : base)
     } else if (tier === 'mayoreo3') {
       nuevoPrecio = parseFloat(prod.precio_mayoreo3) || (base > 0 ? Math.round(base - 30) : base)
