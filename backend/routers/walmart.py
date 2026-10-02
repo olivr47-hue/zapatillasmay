@@ -832,7 +832,7 @@ def _variantes_publicables() -> list:
     productos = supabase_get_all(
         "productos?activo=eq.true&categoria=neq.accesorios"
         "&select=id,sku_interno,nombre,categoria,precio_menudeo,descripcion,material,imagen_principal,temporada,"
-        "material_suela,tipo_tacon,altura_tacon,ocasion"
+        "material_suela,tipo_tacon,altura_tacon,ocasion&order=id"
     )
     # Modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc.) no se publican
     # en ningún canal externo, solo existen para uso interno del ERP.
@@ -843,9 +843,11 @@ def _variantes_publicables() -> list:
     ids_str   = ",".join(p["id"] for p in productos)
     variantes = supabase_get_all(
         f"variantes?producto_id=in.({ids_str})&activa=eq.true"
-        "&select=id,producto_id,sku,sku_walmart,color,talla,foto_url,imagenes"
+        "&select=id,producto_id,sku,sku_walmart,color,talla,foto_url,imagenes&order=id"
     )
-    inventario = supabase_get_all("inventario?select=variante_id,cantidad")
+    # Sin order=, la paginación de PostgREST puede saltarse o repetir filas entre
+    # páginas (el orden físico cambia con cada UPDATE): faltaban ~24 variantes.
+    inventario = supabase_get_all("inventario?select=variante_id,cantidad,sucursal_id&order=variante_id,sucursal_id")
     stock_por_variante: dict = {}
     for row in inventario:
         stock_por_variante[row["variante_id"]] = stock_por_variante.get(row["variante_id"], 0) + (row.get("cantidad") or 0)
