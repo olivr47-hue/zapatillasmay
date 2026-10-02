@@ -985,7 +985,7 @@ def datetime_now_str() -> str:
 
 @router.post("/feed/subir")
 def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
-                titulo: str = None, precio: float = None):
+                titulo: str = None, precio: float = None, excluir_sku_walmart: str = None):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -1011,6 +1011,9 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
                 producto_override["precio_menudeo"] = precio
             for it in items:
                 it["producto"] = producto_override
+    if excluir_sku_walmart:
+        excluir = {s.strip() for s in excluir_sku_walmart.split(",") if s.strip()}
+        items = [it for it in items if it["variante"].get("sku_walmart") not in excluir]
     if solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
