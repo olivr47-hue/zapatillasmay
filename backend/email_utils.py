@@ -76,10 +76,14 @@ def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: 
 
 def diagnostico_smtp() -> dict:
     """Estado de la config de ZeptoMail, sin exponer el token."""
+    resend_ok = bool(RESEND_API_KEY and (RESEND_FROM or REMITENTE_EMAIL))
+    zepto_ok = bool(ZEPTOMAIL_TOKEN and REMITENTE_EMAIL)
     return {
-        "configurado": bool(ZEPTOMAIL_TOKEN and REMITENTE_EMAIL),
-        "usuario": REMITENTE_EMAIL or None,
-        "proveedor": "zeptomail",
+        "configurado": resend_ok or zepto_ok,
+        "usuario": (RESEND_FROM or REMITENTE_EMAIL) or None,
+        "proveedor": "resend" if resend_ok else "zeptomail",
+        "resend_configurado": resend_ok,
+        "zeptomail_configurado": zepto_ok,
     }
 
 
