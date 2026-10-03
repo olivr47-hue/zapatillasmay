@@ -36,21 +36,21 @@ const precioCorrida = (p) => parseFloat(p.precio_corrida) || Math.max(0, parseFl
 // ── Herramientas de venta (precio al público y ganancia) ─────────────────────────────────────
 // Precio sugerido al público = el mismo que ve cualquier clienta en zapatillasmay.mx (precio del panel + $80, salvo ofertas).
 // La mayorista puede en cambio fijar su propio margen en %, que se guarda en su navegador.
-const PC_MARGEN_KEY = 'pc_margen_v1'
+const PC_MARGEN_KEY = 'pc_margen_v2'   // v2: el valor por defecto ahora es costo + 40%
 function pcMargen() {
   try {
     const m = JSON.parse(localStorage.getItem(PC_MARGEN_KEY) || 'null')
-    if (m && (m.modo === 'sugerido' || m.modo === 'porcentaje')) return { modo: m.modo, pct: Math.min(300, Math.max(1, Number(m.pct) || 30)) }
+    if (m && (m.modo === 'sugerido' || m.modo === 'porcentaje')) return { modo: m.modo, pct: Math.min(300, Math.max(1, Number(m.pct) || 40)) }
   } catch {}
-  return { modo: 'sugerido', pct: 30 }
+  return { modo: 'porcentaje', pct: 40 }   // por defecto: costo + 40%
 }
 function pcGuardarMargen(m) { try { localStorage.setItem(PC_MARGEN_KEY, JSON.stringify(m)) } catch {} }
 const pcPrecioWeb = (p) => p.es_oferta ? (parseFloat(p.precio_menudeo) || 0) : (parseFloat(p.precio_menudeo) || 0) + 80
 function pcPrecioPublico(p) {
   const m = pcMargen()
   if (m.modo === 'sugerido') return pcPrecioWeb(p)
-  const costo = p.es_oferta ? (parseFloat(p.precio_menudeo) || 0) : precioM3(p)
-  return Math.ceil(costo * (1 + m.pct / 100) / 10) * 10   // redondeado a la decena
+  // Costo de la mayorista = precio de 3-5 pares (el mismo que paga en el carrito, también en ofertas)
+  return Math.ceil(precioM3(p) * (1 + m.pct / 100) / 10) * 10   // redondeado a la decena
 }
 
 // ── Estado global ────────────────────────────────────────────
@@ -1168,15 +1168,15 @@ function renderVender(el) {
     <div class="pc-card" style="margin-bottom:16px">
       <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">1 · Mi precio de venta</p>
       <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px">Con esto se calcula el precio que ves en cada producto, lo que compartes por WhatsApp y tu ganancia estimada. Tus clientas nunca ven tu precio de mayoreo.</p>
-      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
-        <input type="radio" name="pc-margen-modo" value="sugerido" ${m.modo === 'sugerido' ? 'checked' : ''} onchange="pcCambiarMargenModo()" style="margin-top:3px">
-        <span><strong>Precio sugerido</strong> — el mismo que ven en zapatillasmay.mx. Así no compites contra nosotros ni contra ti misma.</span>
-      </label>
-      <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+      <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
         <input type="radio" name="pc-margen-modo" value="porcentaje" ${m.modo === 'porcentaje' ? 'checked' : ''} onchange="pcCambiarMargenModo()">
-        <span><strong>Mi propio margen</strong>: gano</span>
+        <span><strong>Costo + margen</strong> (recomendado 40%): gano</span>
         <input id="pc-margen-pct" type="number" min="1" max="300" step="1" value="${m.pct}" oninput="pcCambiarMargenModo()" style="width:70px;padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
-        <span>% sobre mi costo (precio 3-5 pares)</span>
+        <span>% sobre mi costo (precio de 3-5 pares)</span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-margen-modo" value="sugerido" ${m.modo === 'sugerido' ? 'checked' : ''} onchange="pcCambiarMargenModo()" style="margin-top:3px">
+        <span><strong>Precio de la tienda</strong> — el mismo que ven en zapatillasmay.mx (incluye el link al compartir).</span>
       </label>
       <p id="pc-margen-ejemplo" style="font-size:0.78rem;color:var(--pc-muted);margin:12px 0 0"></p>
     </div>
@@ -1223,7 +1223,7 @@ function renderVender(el) {
 
 window.pcCambiarMargenModo = function(soloMostrar) {
   const modo = document.querySelector('input[name="pc-margen-modo"]:checked')?.value || 'sugerido'
-  const pct = parseFloat(document.getElementById('pc-margen-pct')?.value) || 30
+  const pct = parseFloat(document.getElementById('pc-margen-pct')?.value) || 40
   if (soloMostrar !== true) pcGuardarMargen({ modo, pct })
   // Ejemplo con un modelo real para que se vea el efecto
   const p = pc.productos.find(x => !x.es_oferta && x.precio_menudeo) || pc.productos[0]
@@ -1516,7 +1516,7 @@ window.pcAbrirProducto = function(prodId) {
           <div id="pc-tier-corr-container" style="flex:1"></div>
         </div>
         <div style="margin-top:8px;background:var(--pc-bg);border:1px dashed var(--pc-border-2);border-radius:9px;padding:7px 10px;font-size:0.72rem;color:var(--pc-text-3);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-          <span>💰 Véndelo a <strong style="color:var(--pc-text)">${fmtP(pcPub)}</strong></span>
+          <span>💰 Véndelo a <strong style="color:var(--pc-text)">${fmtP(pcPub)}</strong>${pcMargen().modo === 'porcentaje' ? ` <span style="color:var(--pc-muted)">(+${pcMargen().pct}% sobre tu costo)</span>` : ''}</span>
           <span>Ganas <strong style="color:${pcPub - pMay3 > 0 ? '#10b981' : '#ef4444'}">${fmtP(pcPub - pMay3)}</strong> (3-5) · <strong style="color:${pcPub - pMay6 > 0 ? '#10b981' : '#ef4444'}">${fmtP(pcPub - pMay6)}</strong> (6+)</span>
         </div>
         <!-- Strip de fotos por color -->
