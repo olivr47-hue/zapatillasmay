@@ -19989,7 +19989,7 @@ async function cargarCarritosAbandonados() {
                         <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
                         <td style="padding:8px">${badgeCA(c)}</td>
                         <td style="padding:8px">
-                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">💬 WhatsApp</button><button onclick="enviarPushCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #7c3aed;background:none;color:#7c3aed;font-size:0.75rem;font-weight:600;cursor:pointer">🔔 Push</button>` : ''}
+                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">💬 WhatsApp</button><button onclick="enviarEmailCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #E91E8C;background:none;color:#E91E8C;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">📧 Correo</button><button onclick="enviarPushCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #7c3aed;background:none;color:#7c3aed;font-size:0.75rem;font-weight:600;cursor:pointer">🔔 Push</button>` : ''}
                         </td>
                       </tr>`).join('')
                     : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
@@ -20034,6 +20034,30 @@ window.enviarWACarrito = async function(carritoId, btn) {
   } catch(e) {
     btn.textContent = orig
     btn.disabled = false
+  }
+}
+
+window.enviarEmailCarrito = async function(carritoId, btn) {
+  if (!confirm('¿Enviar ahora el correo de recordatorio a este cliente?')) return
+  const orig = btn.textContent
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  try {
+    const res = await fetch(API + `/carrito-abandonado/${carritoId}/email`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (res.ok && d.ok) {
+      btn.textContent = '✅ Enviado'
+      btn.style.borderColor = '#15803d'
+      btn.style.color = '#15803d'
+    } else {
+      btn.textContent = orig
+      btn.disabled = false
+      alert('No se pudo enviar el correo: ' + (d.error || ('error ' + res.status)))
+    }
+  } catch(e) {
+    btn.textContent = orig
+    btn.disabled = false
+    alert('Error de conexión al enviar el correo')
   }
 }
 

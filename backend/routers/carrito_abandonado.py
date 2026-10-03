@@ -309,6 +309,26 @@ def test_envio(datos: dict):
     return {"ok": ok, "enviado_a": email, "smtp": diagnostico_smtp()}
 
 
+# ── 7b. Correo manual: enviar el recordatorio ahora a un carrito concreto ──────────
+@router.post("/{id}/email")
+def recordatorio_email(id: str, _staff=Depends(require_staff)):
+    try:
+        rows = supabase_get(f"carritos_abandonados?id=eq.{id}&select=*&limit=1")
+        if not rows:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Carrito no encontrado"})
+        c = rows[0]
+        if c.get("convertido"):
+            return JSONResponse(status_code=409, content={"ok": False, "error": "Este cliente ya compró"})
+        if "@" not in (c.get("email") or ""):
+            return JSONResponse(status_code=400, content={"ok": False, "error": "El carrito no tiene un correo válido"})
+        if not _enviar_recordatorio(c):
+            return JSONResponse(status_code=502, content={"ok": False, "error": "El proveedor de correo rechazó el envío (revisa el historial en Correo corporativo)"})
+        supabase_patch(f"carritos_abandonados?id=eq.{id}", {"recordatorio_enviado": True, "recordatorio_enviado_at": _now_iso()})
+        return {"ok": True}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
 # ── 8. WA API: enviar recordatorio por WhatsApp al cliente ──────────
 @router.post("/{id}/whatsapp")
 def recordatorio_whatsapp(id: str):
