@@ -256,6 +256,15 @@ function _ja(v) {
 window._ja = _ja
 // Escapa texto que viene de clientes (mensajes, nombres de perfil) antes de meterlo en innerHTML
 window._escWA = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+window._linkifyWA = (textoEscapado) => String(textoEscapado == null ? '' : textoEscapado)
+  .replace(/((?:https?:\/\/|www\.)[^\s<]+)/gi, (m) => {
+    let url = m, cola = ''
+    const p = url.match(/[.,;:!?)\]]+$/)       // la puntuación final no es parte del link
+    if (p) { cola = p[0]; url = url.slice(0, -cola.length) }
+    const href = /^www\./i.test(url) ? 'https://' + url : url
+    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#0b6bcb;text-decoration:underline;word-break:break-all">${url}</a>${cola}`
+  })
+  .replace(/\n/g, '<br>')
 window._urlWA = (v) => { const u = String(v || '').trim(); return /^https?:\/\//i.test(u) ? window._escWA(u) : '' }
 
 function _setBadge(count) {
@@ -17467,7 +17476,7 @@ window._renderBurbujas = (chat) => {
       const imgUrl = urlOk(imgUrlRaw)
       msgBody = imgUrl && imgUrlRaw.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)
         ? `<a href="${imgUrl}" target="_blank" rel="noopener"><img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer"></a>`
-        : `<p>${textoLimpio}</p>`
+        : `<p style="word-break:break-word">${window._linkifyWA(textoLimpio)}</p>`
     } else if (m.tipo === 'documento_saliente') {
       const _docRaw = textoLimpio.replace('[Documento] ', '')
       const _docUrlMatch = _docRaw.match(/(https?:\/\/\S+)$/)
@@ -17511,7 +17520,7 @@ window._renderBurbujas = (chat) => {
         ? `<img src="${stUrl}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
         : `<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>`
     } else if (m.tipo === 'template_saliente') {
-      msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Template] ','')}</p>
+      msgBody = `<p style="margin:0;font-size:0.85rem;word-break:break-word">${window._linkifyWA(textoLimpio.replace('[Template] ',''))}</p>
         <p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">📋 Plantilla enviada</p>`
     } else if (m.tipo === 'button_reply') {
       msgBody = `<p style="margin:0;color:#0891b2;font-size:0.85rem">👆 ${textoLimpio.replace('[Botón] ','')}</p>`
@@ -17568,7 +17577,7 @@ window._renderBurbujas = (chat) => {
         ? `<video src="${vidSrc}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
         : `<p style="color:#64748b;font-size:0.8rem">🎬 Video recibido</p>`
     } else {
-      msgBody = `<p>${textoLimpio}</p>`
+      msgBody = `<p style="word-break:break-word">${window._linkifyWA(textoLimpio)}</p>`
     }
 
     // Read receipt: ✓ enviado | ✓✓ gris entregado | ✓✓ azul visto
@@ -17608,7 +17617,7 @@ window._renderBurbujas = (chat) => {
         <div class="wa-msg-row-inner">
           <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
           <div class="wa-bubble bot">
-            <p>${esc(m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, ''))}</p>
+            <p style="word-break:break-word">${window._linkifyWA(esc(m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')))}</p>
             ${(m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(u => urlOk(u)).filter(Boolean).map(u => `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block"></a>`).join('')}
             <div class="wa-bubble-time">${ts}</div>
           </div>
@@ -17637,6 +17646,11 @@ window.abrirChat = async (telefono) => {
   const esMobil = window.innerWidth <= 900
 
   if (esMobil) {
+    // Una entrada en el historial por cada vez que se entra a un chat: el botón "atrás" del teléfono regresa a la lista
+    if (!window._chatBackPushed && typeof window._zmPushBack === 'function') {
+      window._chatBackPushed = true
+      window._zmPushBack(() => { window._chatBackPushed = false; window.volverChats() })
+    }
     const sidebar = document.getElementById('wa-sidebar')
     const container = document.getElementById('wa-container')
     if (sidebar) sidebar.style.display = 'none'
@@ -17669,7 +17683,7 @@ area.style.minHeight = '0'
   area.innerHTML = `
     <!-- Header compacto -->
     <div class="wa-chat-header">
-      ${esMobil ? `<button onclick="volverChats()" class="wa-circ-btn">←</button>` : ''}
+      ${esMobil ? `<button onclick="volverChatsBtn()" class="wa-circ-btn">←</button>` : ''}
       <div class="wa-avatar-sm">${window._escWA(window._letraAvatarWA(chat.nombre || chat.telefono))}</div>
       <div class="wa-header-info">
         <div class="wa-header-name">${window._escWA(chat.nombre || chat.telefono)}</div>
@@ -17858,7 +17872,14 @@ window.toggleNotasTareas = () => {
   if (arrow) arrow.textContent = collapsed ? '▲' : '▼'
 }
 
+// La flecha ← de la pantalla: si hay entrada de historial pendiente, se retrocede con history.back() (que llama a volverChats)
+window.volverChatsBtn = () => {
+  if (window._chatBackPushed) history.back()
+  else window.volverChats()
+}
 window.volverChats = () => {
+  window._chatBackPushed = false
+  window._chatActivo = null
   const sidebar = document.getElementById('wa-sidebar')
   const container = document.getElementById('wa-container')
   if (sidebar) sidebar.style.display = ''
