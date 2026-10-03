@@ -46,6 +46,35 @@ def _desglose_pago(pedido):
         return [(_forma_norm(d.get("forma_pago")), float(d.get("monto") or 0)) for d in detalle]
     return [(_forma_norm(pedido.get("forma_pago")), float(pedido.get("total") or 0))]
 
+def _desgloses_con_anticipos(pedidos, sucursal_id, desde_iso, hasta_iso=None):
+    """[(forma_pago, monto)] del dinero que ENTRÓ en el periodo: las ventas cerradas (menos lo que ya se había cobrado como
+    anticipo en días anteriores) más los anticipos recibidos en el periodo. Así un apartado no cuenta dos veces en caja."""
+    try:
+        ids = [p["id"] for p in pedidos]
+        abonos = {}
+        for i in range(0, len(ids), 100):
+            for r in supabase_get(f"pedido_pagos?pedido_id=in.({','.join(ids[i:i + 100])})&select=pedido_id,monto") or []:
+                abonos[r["pedido_id"]] = abonos.get(r["pedido_id"], 0.0) + float(r.get("monto") or 0)
+        salida = []
+        for p in pedidos:
+            d = list(_desglose_pago(p))
+            a = abonos.get(p["id"], 0.0)
+            # Si los renglones ya suman solo el saldo (pago combinado capturado después del anticipo) no se resta otra vez
+            if a > 0 and d and sum(x[1] for x in d) > float(p.get("total") or 0) - a + 0.01:
+                k = max(range(len(d)), key=lambda j: d[j][1])
+                d[k] = (d[k][0], max(0.0, d[k][1] - a))
+            salida += d
+        filtro = f"pedido_pagos?sucursal_id=eq.{sucursal_id}&created_at=gte.{desde_iso}"
+        if hasta_iso:
+            filtro += f"&created_at=lt.{hasta_iso}"
+        for r in supabase_get_all(filtro + "&select=forma_pago,monto") or []:
+            salida.append((_forma_norm(r.get("forma_pago")), float(r.get("monto") or 0)))
+        return salida
+    except Exception as e:
+        print(f"[finanzas] anticipos no considerados en el corte: {e}")
+        return [d for p in pedidos for d in _desglose_pago(p)]
+
+
 # ─── CAJA ────────────────────────────────────────
 @router.get("/caja/hoy/{sucursal_id}")
 def caja_hoy(sucursal_id: str):
@@ -109,7 +138,7 @@ def cerrar_caja(id: str, datos: dict):
             f"&confirmado_at=gte.{desde}&confirmado_at=lt.{_inicio_dia_mx(hoy + timedelta(days=1))}&select=*"
         )
 
-        desgloses_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
+        desgloses_hoy = _desgloses_con_anticipos(pedidos_hoy, caja[0]['sucursal_id'], desde, _inicio_dia_mx(hoy + timedelta(days=1)))
         ventas_efectivo = sum(m for fp, m in desgloses_hoy if fp == 'efectivo')
         ventas_tarjeta = sum(m for fp, m in desgloses_hoy if fp == 'tarjeta')
         ventas_spei = sum(m for fp, m in desgloses_hoy if fp == 'spei')
@@ -584,7 +613,7 @@ def flujo_efectivo(sucursal_id: str):
         # Por forma de pago hoy
         pedidos_hoy = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}&select=*")
 
-        desgloses_pago_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
+        desgloses_pago_hoy = _desgloses_con_anticipos(pedidos_hoy, sucursal_id, _inicio_dia_mx(hoy))
         return {
             "hoy": {
                 "efectivo": sum(m for fp, m in desgloses_pago_hoy if fp == 'efectivo'),

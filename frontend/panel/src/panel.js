@@ -26618,12 +26618,13 @@ async function cargarCarritos() {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando carritos...</p>'
   try {
-    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales] = await Promise.all([
+    const [resBorradores, resApartados, resSolicitudes, resClientes, resSucursales, resInvLig] = await Promise.all([
       fetch(API + '/pedidos/?status=borrador').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/apartados').then(r => r.json()).catch(() => []),
       fetch(API + '/pedidos/solicitudes-liberacion').then(r => r.json()).catch(() => ({ total: 0 })),
       fetch(API + '/clientes/').then(r => r.json()),
-      fetch(API + '/sucursales/').then(r => r.json())
+      fetch(API + '/sucursales/').then(r => r.json()),
+      fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => [])
     ])
     // Borradores de sucursal/mayoreo manual + los carritos que el cliente arma
     // en su portal (canal portal_mayoreo con la marca [carrito-respaldo]). Estos
@@ -26637,6 +26638,32 @@ async function cargarCarritos() {
     const apartados = Array.isArray(resApartados) ? resApartados : []
     const todos = [...apartados, ...borradores]
     const numSolicitudes = resSolicitudes?.total || 0
+
+    // ── datos derivados por carrito: vencimiento, pares sin existencia, solicitudes ──
+    const stockDe = {}
+    ;(Array.isArray(resInvLig) ? resInvLig : []).forEach(i => { stockDe[i.variante_id] = (stockDe[i.variante_id] || 0) + (i.cantidad || 0) })
+    window._carrPedidos = {}
+    const hoyMs = Date.now()
+    todos.forEach(p => {
+      const items = p.pedido_items || []
+      const vence = p.apartado_hasta ? Math.ceil((new Date(p.apartado_hasta).getTime() - hoyMs) / 86400000) : null
+      p._vence = vence
+      p._vencido = p.status === 'apartado' && vence !== null && vence < 0
+      p._porVencer = p.status === 'apartado' && vence !== null && vence >= 0 && vence <= 2
+      // Solo los pares NO apartados dependen del stock actual (los apartados ya lo descontaron)
+      p._agotados = items.filter(i => !i.reservado && i.variante_id && (parseInt(i.cantidad) || 0) > 0 && (stockDe[i.variante_id] || 0) < (parseInt(i.cantidad) || 0)).length
+      p._solic = items.filter(i => (!i.reservado && i.solicitud_apartar) || (i.reservado && i.solicitud_liberar)).length
+      p._pares = items.reduce((s, i) => s + Math.max(0, parseInt(i.cantidad) || 0), 0)
+      p._sinTel = !(p.clientes && p.clientes.telefono)
+      window._carrPedidos[p.id] = p
+    })
+    const kApartados = todos.filter(p => p.status === 'apartado')
+    const kDinero = kApartados.reduce((s, p) => s + (parseFloat(p.total) || 0), 0)
+    const kAnticipos = kApartados.reduce((s, p) => s + (parseFloat(p.anticipo) || 0), 0)
+    const kPares = kApartados.reduce((s, p) => s + p._pares, 0)
+    const vencidos = todos.filter(p => p._vencido)
+    const porVencer = todos.filter(p => p._porVencer)
+    window._carrF = { chip: 'todos', orden: 'recientes', q: '' }
 
     content.innerHTML = `
       <div style="padding:0 0 1rem">
@@ -26663,9 +26690,64 @@ async function cargarCarritos() {
             <button class="btn btn-primary" style="margin-top:1.25rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
           </div>
         ` : `
-          <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input class="form-input" id="carr-buscar" placeholder="🔍 Buscar cliente o teléfono..." style="max-width:320px;font-size:0.85rem" oninput="filtrarCarritosLista()">
-            <span id="carr-contador" style="font-size:0.75rem;color:#94a3b8">${todos.length} carrito${todos.length === 1 ? '' : 's'} · ${apartados.length} apartado${apartados.length === 1 ? '' : 's'}</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px">
+              <div style="font-size:1.35rem;font-weight:800;color:#92400e">$${Math.round(kDinero).toLocaleString('es-MX')}</div>
+              <div style="font-size:0.72rem;color:#92400e;font-weight:600">En apartados</div>
+              <div style="font-size:0.68rem;color:#b08a2e">${kApartados.length} apartado${kApartados.length === 1 ? '' : 's'} · ${kPares} par${kPares === 1 ? '' : 'es'} reservados</div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 14px">
+              <div style="font-size:1.35rem;font-weight:800;color:#15803d">$${Math.round(kAnticipos).toLocaleString('es-MX')}</div>
+              <div style="font-size:0.72rem;color:#15803d;font-weight:600">Anticipos recibidos</div>
+              <div style="font-size:0.68rem;color:#3f9d63">Saldo por cobrar $${Math.round(Math.max(0, kDinero - kAnticipos)).toLocaleString('es-MX')}</div>
+            </div>
+            <div style="background:${vencidos.length ? '#fef2f2' : '#f8fafc'};border:1px solid ${vencidos.length ? '#fecaca' : '#e2e8f0'};border-radius:12px;padding:12px 14px">
+              <div style="font-size:1.35rem;font-weight:800;color:${vencidos.length ? '#b91c1c' : '#475569'}">${vencidos.length}</div>
+              <div style="font-size:0.72rem;color:${vencidos.length ? '#b91c1c' : '#475569'};font-weight:600">Apartados vencidos</div>
+              <div style="font-size:0.68rem;color:#94a3b8">${porVencer.length} vence${porVencer.length === 1 ? '' : 'n'} en 2 días o menos</div>
+            </div>
+            <div style="background:${todos.filter(p => p._agotados).length ? '#fff7ed' : '#f8fafc'};border:1px solid ${todos.filter(p => p._agotados).length ? '#fed7aa' : '#e2e8f0'};border-radius:12px;padding:12px 14px">
+              <div style="font-size:1.35rem;font-weight:800;color:${todos.filter(p => p._agotados).length ? '#c2410c' : '#475569'}">${todos.filter(p => p._agotados).length}</div>
+              <div style="font-size:0.72rem;color:${todos.filter(p => p._agotados).length ? '#c2410c' : '#475569'};font-weight:600">Con pares sin existencia</div>
+              <div style="font-size:0.68rem;color:#94a3b8">Pares sin apartar que ya no hay</div>
+            </div>
+          </div>
+
+          ${(vencidos.length + porVencer.length) > 0 ? `
+          <div style="background:#fff;border:1px solid #fecaca;border-radius:14px;padding:12px 14px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+              <strong style="font-size:0.9rem;color:#991b1b">⏰ Apartados que requieren atención</strong>
+              ${vencidos.length ? `<button class="btn btn-secondary" style="font-size:0.74rem;padding:5px 10px;color:#b91c1c;border-color:#fca5a5" onclick="liberarVencidosCarritos()">🗑 Liberar vencidos sin anticipo</button>` : ''}
+            </div>
+            ${[...vencidos, ...porVencer].map(p => `
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid #f1f5f9">
+                <div style="flex:1;min-width:160px">
+                  <strong style="font-size:0.85rem">${window._escWA((p.clientes && p.clientes.nombre) || 'Sin cliente')}</strong>
+                  <div style="font-size:0.72rem;color:${p._vencido ? '#b91c1c' : '#b45309'};font-weight:600">${p._vencido ? 'Venció hace ' + (-p._vence) + ' día' + (-p._vence === 1 ? '' : 's') : (p._vence === 0 ? 'Vence hoy' : 'Vence en ' + p._vence + ' día' + (p._vence === 1 ? '' : 's'))} · $${Math.round(parseFloat(p.total) || 0).toLocaleString('es-MX')}${parseFloat(p.anticipo) > 0 ? ' · anticipo $' + Math.round(parseFloat(p.anticipo)).toLocaleString('es-MX') : ''}</div>
+                </div>
+                <button class="btn btn-secondary" style="font-size:0.74rem;padding:5px 10px;color:#15803d;border-color:#86efac" onclick="waResumenCarrito('${p.id}','vencimiento')">💬 Recordar</button>
+                <button class="btn btn-secondary" style="font-size:0.74rem;padding:5px 10px;color:#E91E8C;border-color:#f9a8d4" onclick="enviarResumenCarrito('${p.id}','vencimiento')">📧 Correo</button>
+              </div>`).join('')}
+          </div>` : ''}
+
+          <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input class="form-input" id="carr-buscar" placeholder="🔍 Buscar cliente o teléfono..." style="max-width:260px;font-size:0.85rem" oninput="filtrarCarritosLista()">
+            <select class="form-input" id="carr-orden" style="max-width:190px;font-size:0.82rem" onchange="filtrarCarritosLista()">
+              <option value="recientes">Más recientes primero</option>
+              <option value="antiguos">Más antiguos primero</option>
+              <option value="monto">Mayor monto primero</option>
+              <option value="vence">Vencen primero</option>
+            </select>
+            <span id="carr-contador" style="font-size:0.75rem;color:#94a3b8">${todos.length} carrito${todos.length === 1 ? '' : 's'}</span>
+          </div>
+          <div id="carr-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="pill-filter pill-active" data-chip="todos" onclick="carrChip('todos')">Todos</button>
+            <button class="pill-filter" data-chip="apartados" onclick="carrChip('apartados')">🔒 Apartados</button>
+            <button class="pill-filter" data-chip="borradores" onclick="carrChip('borradores')">📝 Borradores</button>
+            <button class="pill-filter" data-chip="solicitudes" onclick="carrChip('solicitudes')">🙋 Con solicitudes</button>
+            <button class="pill-filter" data-chip="vencidos" onclick="carrChip('vencidos')">⏰ Vencidos</button>
+            <button class="pill-filter" data-chip="agotados" onclick="carrChip('agotados')">⚠️ Sin existencia</button>
+            <button class="pill-filter" data-chip="sintel" onclick="carrChip('sintel')">📵 Sin teléfono</button>
           </div>
           <div id="carr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
             ${todos.map(p => {
@@ -26677,7 +26759,7 @@ async function cargarCarritos() {
               const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
               const nQuitar = (p.pedido_items || []).filter(i => i.reservado && i.solicitud_liberar).length
               return `
-                <div class="carr-card" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div class="carr-card" data-id="${p.id}" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" data-estado="${p.status}" data-vencido="${p._vencido ? 1 : 0}" data-solic="${p._solic}" data-agot="${p._agotados}" data-sintel="${p._sinTel ? 1 : 0}" data-total="${parseFloat(p.total) || 0}" data-creado="${p.created_at || ''}" data-vence="${p.status === 'apartado' && p._vence !== null ? p._vence : 9999}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
@@ -26696,6 +26778,8 @@ async function cargarCarritos() {
                       ${dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : dias + ' días'}
                     </span>
                   </div>
+                  ${p._agotados > 0 ? `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⚠️ ${p._agotados} par${p._agotados === 1 ? '' : 'es'} ya sin existencia</div>` : ''}
+                  ${p._vencido ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⏰ Apartado vencido hace ${-p._vence} día${-p._vence === 1 ? '' : 's'}</div>` : (p._porVencer ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:6px 10px;font-size:0.72rem;font-weight:700;margin-bottom:10px">⏳ ${p._vence === 0 ? 'Vence hoy' : 'Vence en ' + p._vence + ' día' + (p._vence === 1 ? '' : 's')}</div>` : '')}
                   <div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-bottom:14px">
                     <p style="font-size:0.65rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin:0 0 2px">Total</p>
                     <p style="font-weight:700;font-size:1.35rem;color:#E91E8C;margin:0">$${parseFloat(p.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})}</p>
@@ -26706,6 +26790,8 @@ async function cargarCarritos() {
                   </div>
                   <div style="display:flex;gap:6px">
                     <button class="btn btn-primary" style="flex:1;font-size:0.8rem" onclick="event.stopPropagation();abrirCarrito('${p.id}')">Abrir</button>
+                    <button class="btn btn-secondary" title="Enviar resumen por correo" style="font-size:0.8rem;padding:6px 10px" onclick="event.stopPropagation();enviarResumenCarrito('${p.id}')">📧</button>
+                    <button class="btn btn-secondary" title="Enviar resumen por WhatsApp" style="font-size:0.8rem;padding:6px 10px;color:#15803d;border-color:#86efac" onclick="event.stopPropagation();waResumenCarrito('${p.id}')">💬</button>
                     <button class="btn btn-secondary" style="font-size:0.8rem;color:#dc2626;border-color:#fca5a5" onclick="event.stopPropagation();liberarCarrito('${p.id}')">Liberar</button>
                   </div>
                 </div>
@@ -26924,7 +27010,7 @@ function renderCarritoAbierto(p) {
           ${esApartado ? `<p style="font-size:0.78rem;color:#92400e;font-weight:600;margin:4px 0 0">🔒 Apartado
             ${anticipo > 0 ? ` · Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}` : ' · Sin anticipo'}
             ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `vencido hace ${-diasRestantes}d`}` : ''}
-            <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">editar</a></p>` : ''}
+            <a href="#" onclick="event.preventDefault();editarAnticipoCarrito('${pedidoId}')" style="color:#E91E8C;font-weight:700;margin-left:6px">anticipos</a></p>` : ''}
         </div>
         <button class="btn btn-secondary" style="color:#92400e;border-color:#fbbf24;background:#fffbeb;font-weight:700" onclick="aprobarApartadoCarrito('${pedidoId}')">
           🔒 ${nSolicitados > 0 ? `Aprobar ${nSolicitados} par${nSolicitados!==1?'es':''} solicitado${nSolicitados!==1?'s':''}` : esApartado ? (hayNuevosSinReservar ? 'Apartar pares nuevos' : 'Apartado') : 'Aprobar apartado'}
@@ -26941,6 +27027,12 @@ function renderCarritoAbierto(p) {
         </button>
         <button class="btn btn-secondary" onclick="generarCotizacionCarrito('${pedidoId}')">
           📄 Cotización PDF
+        </button>
+        <button class="btn btn-secondary" onclick="enviarResumenCarrito('${pedidoId}')">
+          📧 Enviar resumen
+        </button>
+        <button class="btn btn-secondary" style="color:#15803d;border-color:#86efac" onclick="waResumenCarrito('${pedidoId}')">
+          💬 WhatsApp
         </button>
         <button class="btn btn-secondary" style="color:#c62828;border-color:#c62828" onclick="liberarCarrito('${pedidoId}')">
           🗑 ${esApartado ? 'Liberar apartado' : 'Liberar'}
@@ -27004,8 +27096,12 @@ function renderCarritoAbierto(p) {
         </div>
 
         ${items.length > 0 ? `
-          <div id="c-envio-wrap" style="margin-top:1rem;padding:1rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
-            <p style="font-weight:700;color:#333;margin:0 0 10px;font-size:0.9rem">📦 Envío</p>
+          <details id="c-envio-wrap" style="margin-top:1rem;padding:0.9rem 1rem;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">
+            <summary style="font-weight:700;color:#333;font-size:0.9rem;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <span>📦 Envío <span style="font-weight:400;color:#888;font-size:0.78rem">(opcional · toca para elegir)</span></span>
+              <span id="c-envio-chip" style="font-size:0.78rem;color:#166534;font-weight:700"></span>
+            </summary>
+            <div style="height:10px"></div>
 
             <div style="background:white;border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px">
               <p style="font-size:0.8rem;font-weight:600;color:#333;margin:0 0 8px">1. Envío calculado (por peso)</p>
@@ -27038,7 +27134,7 @@ function renderCarritoAbierto(p) {
 
             <input type="hidden" id="c-envio-monto" value="0">
             <p id="c-envio-elegido" style="margin:10px 0 0;font-size:0.82rem;color:#166534;font-weight:600"></p>
-          </div>
+          </details>
         ` : ''}
 
         ${items.length > 0 ? `
@@ -27058,6 +27154,8 @@ function renderCarritoAbierto(p) {
               <input type="checkbox" id="c-pago-combinado-chk" onchange="_toggleCombinadoCarrito('${pedidoId}')">
               Dividir el pago entre varios métodos
             </label>
+
+            <div id="c-saldo-info" style="display:none;margin-bottom:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:0.84rem;color:#166534;text-align:right"></div>
 
             <div id="c-forma-pago-simple" style="display:flex;justify-content:flex-end;align-items:center;gap:1rem;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:8px">
@@ -27092,6 +27190,14 @@ function renderCarritoAbierto(p) {
   window._carritoActivo.pedidoData = p
   window._carritoActivo.varianteSeleccionada = null
   _iniciarPollCarritoActivo(pedidoId)
+  window._actualizarSaldoCarrito()
+  try {
+    const _tb = document.getElementById('carrito-total-btn')
+    if (_tb) new MutationObserver(() => window._actualizarSaldoCarrito()).observe(_tb, { childList: true, characterData: true, subtree: true })
+    const _ee = document.getElementById('c-envio-elegido')
+    if (_ee) new MutationObserver(() => { const ch = document.getElementById('c-envio-chip'); if (ch) ch.textContent = _ee.textContent.replace(/^[^:]*:\s*/, '') && _ee.textContent.trim() ? '✓ ' + _ee.textContent.trim().slice(0, 40) : '' }).observe(_ee, { childList: true, characterData: true, subtree: true })
+  } catch (e) {}
+  window._cargarHistorialCarrito(pedidoId)
 }
 
 // ── Cambios dentro de un carrito (apartado o borrador) ───────────────────
@@ -28071,7 +28177,8 @@ window.confirmarVentaCarrito = async (pedidoId) => {
   // podría cerrar como "tarjeta" sin cobrar nada realmente en la terminal.
   // El envío y el cargo adicional se suman aquí también, si no la terminal
   // cobraría de menos.
-  const total = _totalBaseCarrito() + cargoExtra
+  const _anticipoCob = window._anticipoCarrito()
+  const total = Math.max(0, _totalBaseCarrito() + cargoExtra - _anticipoCob)   // lo que falta por cobrar (ya hay anticipo)
   if (formaPago === 'tarjeta') {
     const terminalDeviceId = localStorage.getItem('pos_terminal_device_id')
     if (!terminalDeviceId) {
@@ -28093,12 +28200,8 @@ window.confirmarVentaCarrito = async (pedidoId) => {
     ? '\n\n⚠️ El cobro con tarjeta YA se hizo en la terminal. NO vuelvas a cobrar: avísale al administrador para cuadrar este pedido.'
     : ''
   try {
-    const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ forma_pago: formaPago, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
-    })
-    const data = await res.json().catch(() => ({}))
+    const data = await window._confirmarCarritoApi(pedidoId, { forma_pago: formaPago, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
+    if (data.cancelado) return
     if (data.ok) {
       alert('✅ Venta confirmada. Stock descontado.')
       cargarCarritos()
@@ -28117,7 +28220,7 @@ window.confirmarVentaCarritoCombinado = async (pedidoId) => {
   const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
   const { monto: cargoExtra, concepto: cargoExtraConcepto } = _cargoExtraActualCarrito()
   if (cargoExtra > 0 && !cargoExtraConcepto) { alert('Escribe el concepto del cargo adicional.'); return }
-  const total = _totalBaseCarrito() + cargoExtra
+  const total = Math.max(0, _totalBaseCarrito() + cargoExtra - window._anticipoCarrito())   // saldo (ya hay anticipo)
   const suma = filas.reduce((s, f) => s + f.monto, 0)
   if (Math.abs(total - suma) >= 0.01) { alert('La suma de los métodos de pago no coincide con el total.'); return }
   const desc = filas.map(f => `$${f.monto} en ${f.forma_pago}`).join(' + ')
@@ -28147,12 +28250,8 @@ window.confirmarVentaCarritoCombinado = async (pedidoId) => {
   }
 
   try {
-    const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pagos: filas, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
-    })
-    const data = await res.json()
+    const data = await window._confirmarCarritoApi(pedidoId, { pagos: filas, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
+    if (data.cancelado) return
     if (data.ok) {
       alert('✅ Venta confirmada. Stock descontado.')
       cargarCarritos()
@@ -28528,12 +28627,23 @@ window.aprobarApartadoCarrito = async (pedidoId) => {
   if (!confirm(yaApartado
     ? '¿Apartar también los pares nuevos que se agregaron? Se descontará su stock.'
     : '¿Aprobar este apartado? Se descontará el stock de todos los pares del carrito y la clienta ya no podrá quitarlos sin tu autorización.')) return
-  const anticipoStr = prompt('¿Cuánto anticipo dio la clienta? (deja vacío o 0 si no dio nada)', window._carritoActivo?.pedidoData?.anticipo || '0')
+  const anticipoStr = prompt('¿Cuánto anticipo da la clienta AHORA? (deja vacío o 0 si no da nada; luego puedes registrar más desde "anticipos")', '0')
   if (anticipoStr === null) return
+  const anticipoNuevo = parseFloat(anticipoStr) || 0
+  let formaAnt = 'efectivo'
+  if (anticipoNuevo > 0) {
+    formaAnt = (prompt('¿Con qué lo pagó? (efectivo, transferencia, tarjeta o spei)', 'efectivo') || 'efectivo').trim().toLowerCase()
+    if (!['efectivo', 'transferencia', 'tarjeta', 'spei'].includes(formaAnt)) { alert('Forma de pago no válida.'); return }
+  }
   try {
+    if (anticipoNuevo > 0) {
+      const ra = await fetch(API + '/pedidos/' + pedidoId + '/anticipos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monto: anticipoNuevo, forma_pago: formaAnt }) })
+      if (!ra.ok) { const da = await ra.json().catch(() => ({})); alert('No se pudo registrar el anticipo: ' + (da.error || ra.status)); return }
+    }
     const res = await fetch(API + '/pedidos/' + pedidoId + '/aprobar-apartado', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anticipo: parseFloat(anticipoStr) || 0 })
+      body: JSON.stringify({})
     })
     const data = await res.json()
     if (data.ok) {
@@ -28546,17 +28656,56 @@ window.aprobarApartadoCarrito = async (pedidoId) => {
 }
 
 window.editarAnticipoCarrito = async (pedidoId) => {
-  const actual = window._carritoActivo?.pedidoData?.anticipo || 0
-  const nuevoStr = prompt('Anticipo de la clienta:', actual)
-  if (nuevoStr === null) return
+  const esc = window._escWA
+  let datos = { pagos: [], total: 0 }
+  try { datos = await fetch(API + '/pedidos/' + pedidoId + '/anticipos').then(r => r.json()) } catch (e) {}
+  const ped = window._carritoActivo?.pedidoData || {}
+  const totalPedido = parseFloat(ped.total) || 0
+  const legacy = Math.max(0, (parseFloat(ped.anticipo) || 0) - (datos.total || 0))
+  const m = document.createElement('div')
+  m.id = 'modal-anticipo'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:460px;width:100%;max-height:90vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💵 Anticipos del apartado</h3><button onclick="document.getElementById('modal-anticipo').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">Cada anticipo se guarda como un pago con su forma de pago y entra a la caja del día que lo recibes. Al confirmar la venta solo se cobra el saldo.</p>
+    ${legacy > 0 ? `<p style="font-size:0.76rem;background:#f8fafc;border-radius:8px;padding:8px 10px;color:#64748b;margin:0 0 10px">Anticipo anterior (capturado antes de esta mejora): <strong>$${legacy.toLocaleString('es-MX')}</strong></p>` : ''}
+    <div id="ant-lista">${(datos.pagos || []).map(x => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid #f1f5f9;font-size:0.84rem">
+        <span><strong>$${parseFloat(x.monto).toLocaleString('es-MX')}</strong> · ${esc(x.forma_pago)}<br><span style="font-size:0.7rem;color:#94a3b8">${new Date(x.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(x.usuario || '')}${x.nota ? ' · ' + esc(x.nota) : ''}</span></span>
+        <button class="btn btn-secondary" style="font-size:0.7rem;padding:3px 8px;color:#b91c1c;border-color:#fca5a5" onclick="borrarAnticipoCarrito('${pedidoId}','${esc(x.id)}')">Quitar</button>
+      </div>`).join('') || '<p style="font-size:0.8rem;color:#94a3b8;margin:0">Todavía no hay anticipos registrados.</p>'}</div>
+    <div style="border-top:2px solid #f1f5f9;margin-top:10px;padding-top:12px">
+      <p style="font-weight:700;margin:0 0 8px;font-size:0.88rem">Registrar nuevo anticipo</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="ant-monto" type="number" min="1" step="0.01" class="form-input" placeholder="Monto" style="flex:1;min-width:110px">
+        <select id="ant-forma" class="form-input" style="flex:1;min-width:130px"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta</option><option value="spei">SPEI</option></select>
+      </div>
+      <input id="ant-nota" class="form-input" placeholder="Nota (opcional)" style="margin-top:8px;width:100%">
+      <p style="font-size:0.74rem;color:#64748b;margin:8px 0 0">Total del pedido $${totalPedido.toLocaleString('es-MX')} · ya recibido $${(parseFloat(ped.anticipo) || 0).toLocaleString('es-MX')}</p>
+      <button class="btn btn-primary" id="ant-guardar" style="margin-top:10px;width:100%" onclick="guardarAnticipoCarrito('${pedidoId}')">Guardar anticipo</button>
+    </div>
+  </div>`
+  document.body.appendChild(m)
+}
+window.guardarAnticipoCarrito = async (pedidoId) => {
+  const monto = parseFloat(document.getElementById('ant-monto').value) || 0
+  if (monto <= 0) { alert('Escribe el monto del anticipo.'); return }
+  const btn = document.getElementById('ant-guardar'); btn.disabled = true; btn.textContent = 'Guardando...'
   try {
-    const r = await fetch(API + '/pedidos/' + pedidoId, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ anticipo: parseFloat(nuevoStr) || 0 })
-    })
-    if (!r.ok) alert('No se pudo guardar el anticipo.')
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/anticipos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monto, forma_pago: document.getElementById('ant-forma').value, nota: document.getElementById('ant-nota').value }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(d.error || 'No se pudo guardar')
+    document.getElementById('modal-anticipo')?.remove()
     await abrirCarrito(pedidoId)
-  } catch(e) { alert('Error: ' + e.message) }
+  } catch (e) { alert('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Guardar anticipo' }
+}
+window.borrarAnticipoCarrito = async (pedidoId, pagoId) => {
+  if (!confirm('¿Quitar este anticipo? Úsalo solo si se capturó por error.')) return
+  const r = await fetch(API + '/pedidos/' + pedidoId + '/anticipos/' + pagoId, { method: 'DELETE' })
+  if (!r.ok) { alert('No se pudo quitar el anticipo.'); return }
+  document.getElementById('modal-anticipo')?.remove()
+  await abrirCarrito(pedidoId)
 }
 
 window.verSolicitudesLiberacion = async () => {
@@ -29950,14 +30099,190 @@ window.renderCarritosCA = () => {
 }
 
 
+
+
+// ═══ Carritos: filtros, orden, resumen por correo / WhatsApp, vencidos, saldo e historial ═══
+window.carrChip = (c) => {
+  window._carrF = window._carrF || {}
+  window._carrF.chip = c
+  document.querySelectorAll('#carr-chips .pill-filter').forEach(b => b.classList.toggle('pill-active', b.dataset.chip === c))
+  window.filtrarCarritosLista()
+}
 window.filtrarCarritosLista = () => {
+  const grid = document.getElementById('carr-grid')
+  if (!grid) return
+  const F = window._carrF || { chip: 'todos' }
   const q = (document.getElementById('carr-buscar')?.value || '').toLowerCase().trim()
-  let n = 0
-  document.querySelectorAll('#carr-grid .carr-card').forEach(c => {
-    const ok = !q || (c.dataset.q || '').includes(q)
+  const orden = document.getElementById('carr-orden')?.value || 'recientes'
+  const cards = [...grid.querySelectorAll('.carr-card')]
+  const n = (el, k) => parseFloat(el.dataset[k]) || 0
+  const cmp = {
+    recientes: (a, b) => (b.dataset.creado || '').localeCompare(a.dataset.creado || ''),
+    antiguos: (a, b) => (a.dataset.creado || '').localeCompare(b.dataset.creado || ''),
+    monto: (a, b) => n(b, 'total') - n(a, 'total'),
+    vence: (a, b) => n(a, 'vence') - n(b, 'vence'),
+  }[orden]
+  cards.sort(cmp).forEach(c => grid.appendChild(c))
+  let vis = 0
+  cards.forEach(c => {
+    let ok = !q || (c.dataset.q || '').includes(q)
+    if (ok) {
+      if (F.chip === 'apartados') ok = c.dataset.estado === 'apartado'
+      else if (F.chip === 'borradores') ok = c.dataset.estado === 'borrador'
+      else if (F.chip === 'solicitudes') ok = n(c, 'solic') > 0
+      else if (F.chip === 'vencidos') ok = c.dataset.vencido === '1'
+      else if (F.chip === 'agotados') ok = n(c, 'agot') > 0
+      else if (F.chip === 'sintel') ok = c.dataset.sintel === '1'
+    }
     c.style.display = ok ? '' : 'none'
-    if (ok) n++
+    if (ok) vis++
   })
   const t = document.getElementById('carr-contador')
-  if (t) t.textContent = `${n} carrito${n === 1 ? '' : 's'}`
+  if (t) t.textContent = `${vis} carrito${vis === 1 ? '' : 's'}`
+}
+
+// Texto del resumen para WhatsApp (el cliente lo recibe listo para enviar)
+window._textoResumenCarrito = (p, items, modo) => {
+  const nom = ((p.clientes && p.clientes.nombre) || p.nombre_cliente || '').split(' ')[0]
+  const saludo = nom ? `Hola ${nom.charAt(0).toUpperCase() + nom.slice(1).toLowerCase()} 👋` : 'Hola 👋'
+  const lineas = (items || []).filter(i => (parseInt(i.cantidad) || 0) > 0).map(i => {
+    const v = i.variantes || {}, pr = v.productos || {}
+    const nombre = pr.nombre || i.nombre || 'Producto'
+    const color = v.color || i.color || '', talla = v.talla || i.talla || ''
+    const c = parseInt(i.cantidad) || 1
+    return `• ${nombre}${color ? ' ' + color : ''}${talla ? ' T' + talla : ''} x${c} — $${Math.round((parseFloat(i.precio_unitario) || 0) * c).toLocaleString('es-MX')}`
+  })
+  const total = parseFloat(p.total) || 0
+  const anticipo = parseFloat(p.anticipo) || 0
+  let t = `${saludo} Soy de *Zapatillas May* 👠\n\n`
+  if (modo === 'vencimiento') {
+    t += `Tu apartado ${p._vencido ? 'ya venció' : 'está por vencer'}${p.apartado_hasta ? ' (' + new Date(p.apartado_hasta).toLocaleDateString('es-MX') + ')' : ''}. Aún tenemos tus pares guardados:\n\n`
+  } else {
+    t += (p.status === 'apartado' ? 'Este es el resumen de tu apartado:\n\n' : 'Este es el resumen de tu pedido:\n\n')
+  }
+  t += lineas.join('\n') + `\n\n*Total: $${Math.round(total).toLocaleString('es-MX')}*`
+  if (anticipo > 0) t += `\nAnticipo recibido: $${Math.round(anticipo).toLocaleString('es-MX')}\n*Saldo: $${Math.round(Math.max(0, total - anticipo)).toLocaleString('es-MX')}*`
+  t += modo === 'vencimiento' ? '\n\n¿Te los seguimos guardando o los liberamos? 😊' : '\n\n¿Te lo preparamos? 😊'
+  return t
+}
+window._pedidoParaResumen = async (id) => {
+  let p = (window._carrPedidos || {})[id]
+  if (!p || !p.pedido_items) {
+    const r = await fetch(API + '/pedidos/' + id).then(r => r.json())
+    p = Array.isArray(r) ? r[0] : r
+    p.pedido_items = p.pedido_items || await fetch(API + '/pedidos/' + id + '/items').then(r => r.json())
+    if (p.apartado_hasta) { const d = Math.ceil((new Date(p.apartado_hasta).getTime() - Date.now()) / 86400000); p._vence = d; p._vencido = p.status === 'apartado' && d < 0 }
+  }
+  return p
+}
+window.waResumenCarrito = async (id, modo) => {
+  try {
+    const p = await window._pedidoParaResumen(id)
+    const tel = String((p.clientes && p.clientes.telefono) || p.telefono_cliente || '').replace(/\D/g, '').replace(/^(52|521)(?=\d{10}$)/, '')
+    if (tel.length < 10) { alert('Este cliente no tiene teléfono registrado. Agrégalo en Clientes para poder escribirle.'); return }
+    const texto = window._textoResumenCarrito(p, p.pedido_items, modo)
+    window.open('https://wa.me/52' + tel.slice(-10) + '?text=' + encodeURIComponent(texto), '_blank')
+  } catch (e) { alert('No se pudo preparar el mensaje: ' + e.message) }
+}
+window.enviarResumenCarrito = async (id, modo) => {
+  const esc = window._escWA
+  let p
+  try { p = await window._pedidoParaResumen(id) } catch (e) { alert('No se pudo cargar el carrito'); return }
+  const emailCli = (p.email_cliente || (p.clientes && p.clientes.email) || '').trim()
+  const nombre = (p.clientes && p.clientes.nombre) || p.nombre_cliente || 'la clienta'
+  const m = document.createElement('div')
+  m.id = 'modal-resumen'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:460px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">📧 Enviar por correo</h3><button onclick="document.getElementById('modal-resumen').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    <p style="font-size:0.8rem;color:#64748b;margin:0 0 10px">${modo === 'vencimiento' ? 'Aviso de que su apartado vence' : (p.status === 'apartado' ? 'Resumen de su apartado' : 'Resumen / cotización de su pedido')} para <strong>${esc(nombre)}</strong>, con fotos, precios${(parseFloat(p.anticipo) || 0) > 0 ? ', anticipo y saldo' : ''}.</p>
+    <label style="font-size:0.78rem;color:#64748b">Correo de la clienta</label>
+    <input id="res-email" type="email" class="form-input" value="${esc(emailCli)}" placeholder="correo@ejemplo.com" style="width:100%;margin:4px 0 10px">
+    <label style="font-size:0.78rem;color:#64748b">Mensaje personal (opcional)</label>
+    <textarea id="res-msg" class="form-input" rows="3" maxlength="600" placeholder="Ej. Te aparté tus pares hasta el viernes 😊" style="width:100%;margin:4px 0 12px"></textarea>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" id="res-enviar" style="flex:1" onclick="confirmarEnvioResumen('${id}','${modo || 'resumen'}')">Enviar correo</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('modal-resumen').remove()">Cancelar</button></div>
+    <p id="res-res" style="font-size:0.8rem;margin:10px 0 0;display:none"></p>
+  </div>`
+  document.body.appendChild(m)
+}
+window.confirmarEnvioResumen = async (id, modo) => {
+  const email = document.getElementById('res-email').value.trim()
+  const res = document.getElementById('res-res'), btn = document.getElementById('res-enviar')
+  if (!email.includes('@')) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Escribe un correo válido.'; return }
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  try {
+    const r = await fetch(API + '/pedidos/' + id + '/enviar-resumen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, modo, mensaje: document.getElementById('res-msg').value }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo enviar')
+    res.style.display = 'block'; res.style.color = '#15803d'; res.textContent = '✅ Correo enviado a ' + d.enviado_a
+    btn.textContent = 'Enviado'
+    setTimeout(() => document.getElementById('modal-resumen')?.remove(), 1400)
+  } catch (e) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Error: ' + e.message; btn.disabled = false; btn.textContent = 'Enviar correo' }
+}
+
+// Liberar de golpe los apartados vencidos que NO tienen anticipo (con anticipo se revisan uno por uno)
+window.liberarVencidosCarritos = async () => {
+  const todos = Object.values(window._carrPedidos || {}).filter(p => p._vencido)
+  const libres = todos.filter(p => !(parseFloat(p.anticipo) > 0))
+  const conAnt = todos.length - libres.length
+  if (!libres.length) { alert('Los apartados vencidos tienen anticipo: revísalos uno por uno para no perder el rastro del dinero.'); return }
+  if (!confirm(`¿Liberar ${libres.length} apartado(s) vencido(s) sin anticipo? Su stock se devuelve al inventario.` + (conAnt ? `\n\n(${conAnt} con anticipo NO se tocan.)` : ''))) return
+  let ok = 0
+  for (const p of libres) {
+    try {
+      const r = await fetch(API + '/pedidos/' + p.id + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo: 'Apartado vencido' }) })
+      if (r.ok) ok++
+    } catch (e) {}
+  }
+  alert(`Se liberaron ${ok} de ${libres.length}.`)
+  cargarCarritos()
+}
+
+// Anticipo / saldo
+window._anticipoCarrito = () => parseFloat(window._carritoActivo?.pedidoData?.anticipo) || 0
+window._actualizarSaldoCarrito = () => {
+  const el = document.getElementById('c-saldo-info')
+  if (!el) return
+  const ant = window._anticipoCarrito()
+  if (ant <= 0) { el.style.display = 'none'; return }
+  const total = (typeof _totalBaseCarrito === 'function' ? _totalBaseCarrito() : 0) + (typeof _cargoExtraActualCarrito === 'function' ? _cargoExtraActualCarrito().monto : 0)
+  const saldo = Math.max(0, total - ant)
+  el.style.display = 'block'
+  el.innerHTML = `Total $${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })} − anticipo $${ant.toLocaleString('es-MX', { minimumFractionDigits: 2 })} = <strong style="font-size:1.05rem">saldo a cobrar $${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</strong>`
+}
+
+// Confirmar venta con validación de existencia en el servidor (y opción de vender aunque el sistema diga que no hay)
+window._confirmarCarritoApi = async (pedidoId, body) => {
+  const llamar = async (extra) => {
+    const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, validar_stock: true, ...extra }) })
+    return await res.json().catch(() => ({}))
+  }
+  let data = await llamar({})
+  if (!data.ok && data.code === 'SIN_EXISTENCIA') {
+    if (!confirm('⚠️ ' + data.error + '\n\nEl sistema dice que no hay suficientes. ¿Vender de todos modos? (úsalo solo si sí tienes los pares físicamente)')) return { cancelado: true }
+    data = await llamar({ forzar: true })
+  }
+  return data
+}
+
+// Historial del carrito (quién agregó / quitó / aprobó / registró anticipos)
+window._cargarHistorialCarrito = async (pedidoId) => {
+  try {
+    const r = await fetch(API + '/pedidos/' + pedidoId + '/historial')
+    const filas = r.ok ? await r.json() : []
+    const cont = document.querySelector('#content > div')
+    if (!cont || !Array.isArray(filas) || !document.getElementById('carrito-items-lista')) return
+    document.getElementById('carr-historial')?.remove()
+    const etq = { agrego_par: '➕ Agregó par', quito_par: '➖ Quitó par', anticipo: '💵 Anticipo', anticipo_borrado: '↩️ Quitó anticipo', correo_enviado: '📧 Correo', apartado: '🔒 Apartado', cancelado: '❌ Liberado', confirmado: '✅ Confirmado' }
+    const esc = window._escWA
+    cont.insertAdjacentHTML('beforeend', `<details id="carr-historial" class="table-card" style="padding:1rem 1.25rem;margin-top:1rem">
+      <summary style="font-weight:700;cursor:pointer;font-size:0.9rem">🕘 Historial de este carrito (${filas.length})</summary>
+      ${filas.length ? filas.map(f => `<div style="display:flex;gap:10px;padding:7px 0;border-top:1px solid #f1f5f9;font-size:0.8rem;flex-wrap:wrap">
+        <span style="color:#94a3b8;min-width:105px">${new Date(f.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
+        <span style="flex:1;min-width:140px"><strong>${etq[f.accion] || esc(f.accion)}</strong>${f.detalle ? ' · ' + esc(f.detalle) : ''}</span>
+        <span style="color:#94a3b8">${esc(f.usuario || '')}</span></div>`).join('') : '<p style="font-size:0.78rem;color:#94a3b8;margin:8px 0 0">Todavía no hay movimientos registrados.</p>'}
+    </details>`)
+  } catch (e) {}
 }

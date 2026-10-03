@@ -983,6 +983,7 @@ def agregar_item(id: str, item: dict, credentials: HTTPAuthorizationCredentials 
             except ValueError as ve:
                 return JSONResponse(status_code=400, content={"error": str(ve)})
         item["pedido_id"] = id
+        _hist_staff = _es_staff_cred(credentials)
         # El POS mandaba solo variante/cantidad/precio: 963 renglones de sucursal quedaron sin nombre, color ni talla
         # (se veían en blanco en búsquedas, lista de surtido y reportes). Si faltan, se completan desde la variante.
         if item.get("variante_id") and not (item.get("nombre") and item.get("talla")):
@@ -996,6 +997,8 @@ def agregar_item(id: str, item: dict, credentials: HTTPAuthorizationCredentials 
                 print(f"[pedidos] no se pudo completar nombre/talla del item: {_e}")
         resultado = supabase_post("pedido_items", item)
         _recalcular_total_pedido(id)
+        if _hist_staff:
+            _historial(id, "agrego_par", f"{item.get('nombre') or ''} {item.get('color') or ''} T{item.get('talla') or ''} x{item.get('cantidad') or 1}".strip(), _quien(payload_opcional(credentials)))
         return resultado
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -1090,6 +1093,8 @@ def eliminar_item(id: str, item_id: str, forzar: bool = False, credentials: HTTP
 
         cantidad = item_actual[0].get("cantidad", 0)
         supabase_delete(f"pedido_items?id=eq.{item_id}")
+        if _es_staff_cred(credentials):
+            _historial(id, "quito_par", f"{item_actual[0].get('nombre') or ''} {item_actual[0].get('color') or ''} T{item_actual[0].get('talla') or ''} x{cantidad}".strip(), _quien(payload_opcional(credentials)))
 
         # Devolver stock si ya estaba confirmado/pagado, o si el ítem estaba
         # reservado por un apartado aprobado (el stock se descontó al aprobar).
@@ -1283,6 +1288,22 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
         # Sin esta guarda, un doble clic (o confirmar otra vez un pedido ya cerrado) volvía a DESCONTAR el stock y cambiaba la
         # fecha de venta; confirmar un pedido cancelado lo "resucitaba" sin reservar nada.
         _estado_actual = pedido[0].get("status")
+        if datos.get("validar_stock") and not datos.get("forzar"):
+            # Existencia real en servidor para los pares NO apartados (los apartados ya descontaron su stock). El panel puede
+            # reintentar con forzar=true si el personal decide vender aunque el sistema diga que no hay (inventario desajustado).
+            _suc_val = pedido[0].get("sucursal_id")
+            _faltan = []
+            if _suc_val:
+                for _it in (supabase_get(f"pedido_items?pedido_id=eq.{id}&select=variante_id,cantidad,reservado,nombre,color,talla") or []):
+                    _cant = int(_it.get("cantidad") or 0)
+                    if _it.get("reservado") or _cant <= 0 or not _it.get("variante_id"):
+                        continue
+                    _inv = supabase_get(f"inventario?variante_id=eq.{_it['variante_id']}&sucursal_id=eq.{_suc_val}&select=cantidad") or []
+                    _disp = int(_inv[0]["cantidad"]) if _inv else 0
+                    if _disp < _cant:
+                        _faltan.append(f"{_it.get('nombre') or 'Producto'} {_it.get('color') or ''} T{_it.get('talla') or ''} (hay {_disp}, pide {_cant})".replace("  ", " "))
+            if _faltan:
+                return JSONResponse(status_code=409, content={"error": "Sin existencia suficiente: " + "; ".join(_faltan), "code": "SIN_EXISTENCIA", "faltantes": _faltan})
         if _estado_actual in ("confirmado", "pagado", "enviado", "entregado"):
             return JSONResponse(status_code=409, content={"error": f"Este pedido ya estaba {_estado_actual}: no se vuelve a descontar el stock."})
         if _estado_actual == "cancelado":
@@ -1448,6 +1469,95 @@ def marcar_enviado(id: str, datos: dict, _staff=Depends(require_staff)):
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ─── Anticipos / abonos de un apartado: cada uno es un PAGO con fecha y forma de pago (entra a la caja del día) ───
+@router.get("/{id}/anticipos")
+def listar_anticipos(id: str, _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    filas = supabase_get(f"pedido_pagos?pedido_id=eq.{id}&order=created_at.asc") or []
+    return {"pagos": filas, "total": round(sum(float(f.get("monto") or 0) for f in filas), 2)}
+
+
+@router.post("/{id}/anticipos")
+def registrar_anticipo(id: str, datos: dict, _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    try:
+        monto = round(float(datos.get("monto") or 0), 2)
+    except (TypeError, ValueError):
+        monto = 0
+    if monto <= 0:
+        return JSONResponse(status_code=400, content={"error": "El monto debe ser mayor a 0"})
+    forma = str(datos.get("forma_pago") or "efectivo").strip().lower()
+    if forma not in ("efectivo", "tarjeta", "transferencia", "spei"):
+        return JSONResponse(status_code=400, content={"error": "Forma de pago no válida"})
+    ped = supabase_get(f"pedidos?id=eq.{id}&select=id,status,total,anticipo,sucursal_id")
+    if not ped:
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    p = ped[0]
+    if p.get("status") not in ("borrador", "apartado", "pendiente_pago"):
+        return JSONResponse(status_code=409, content={"error": "Solo se registra anticipo en carritos o apartados abiertos"})
+    suc = p.get("sucursal_id")
+    if not suc:
+        s0 = supabase_get("sucursales?activa=eq.true&select=id&limit=1") or []
+        suc = s0[0]["id"] if s0 else None
+    supabase_post("pedido_pagos", {
+        "pedido_id": id, "monto": monto, "forma_pago": forma, "tipo": "anticipo",
+        "nota": (str(datos.get("nota") or "").strip()[:200] or None), "usuario": _quien(_staff), "sucursal_id": suc,
+    })
+    nuevo_total = round(float(p.get("anticipo") or 0) + monto, 2)
+    supabase_patch(f"pedidos?id=eq.{id}", {"anticipo": nuevo_total})
+    _historial(id, "anticipo", f"+${monto:,.2f} ({forma})", _quien(_staff))
+    return {"ok": True, "anticipo": nuevo_total, "saldo": max(0.0, round(float(p.get("total") or 0) - nuevo_total, 2))}
+
+
+@router.delete("/{id}/anticipos/{pago_id}")
+def borrar_anticipo(id: str, pago_id: str, _staff=Depends(require_staff)):
+    if not (_UUID_RE.match(id) and _UUID_RE.match(pago_id)):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    fila = supabase_get(f"pedido_pagos?id=eq.{pago_id}&pedido_id=eq.{id}")
+    if not fila:
+        return JSONResponse(status_code=404, content={"error": "Pago no encontrado"})
+    monto = float(fila[0].get("monto") or 0)
+    supabase_delete(f"pedido_pagos?id=eq.{pago_id}")
+    ped = supabase_get(f"pedidos?id=eq.{id}&select=anticipo,total") or [{}]
+    nuevo = max(0.0, round(float(ped[0].get("anticipo") or 0) - monto, 2))
+    supabase_patch(f"pedidos?id=eq.{id}", {"anticipo": nuevo})
+    _historial(id, "anticipo_borrado", f"-${monto:,.2f}", _quien(_staff))
+    return {"ok": True, "anticipo": nuevo}
+
+
+# ─── Resumen del carrito / apartado por correo (con plantilla) ───
+@router.post("/{id}/enviar-resumen")
+def enviar_resumen_correo(id: str, datos: dict = Body(default=None), _staff=Depends(require_staff)):
+    datos = datos or {}
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Id inválido"})
+    try:
+        ped = supabase_get(f"pedidos?id=eq.{id}&select=*,clientes(nombre,email,telefono)")
+        if not ped:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Pedido no encontrado"})
+        p = ped[0]
+        destino = str(datos.get("email") or p.get("email_cliente") or (p.get("clientes") or {}).get("email") or "").strip().rstrip(".")
+        if "@" not in destino or " " in destino:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "Escribe un correo válido para enviarlo"})
+        items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(color,talla,foto_url,productos(nombre,imagen_principal))") or []
+        if not items:
+            return JSONResponse(status_code=400, content={"ok": False, "error": "El carrito está vacío"})
+        pagos = supabase_get(f"pedido_pagos?pedido_id=eq.{id}&select=monto") or []
+        anticipo = sum(float(x.get("monto") or 0) for x in pagos) or float(p.get("anticipo") or 0)
+        modo = "vencimiento" if datos.get("modo") == "vencimiento" else "resumen"
+        from email_utils import enviar_email, email_resumen_carrito
+        asunto, html = email_resumen_carrito(p, items, anticipo, modo, str(datos.get("mensaje") or "")[:600])
+        if not enviar_email(destino, asunto, html, bcc=None, tipo="resumen_carrito" if modo == "resumen" else "apartado_vencimiento"):
+            return JSONResponse(status_code=502, content={"ok": False, "error": "El proveedor de correo rechazó el envío (revisa el historial en Correo corporativo)"})
+        _historial(id, "correo_enviado", f"{'Aviso de vencimiento' if modo == 'vencimiento' else 'Resumen'} a {destino}", _quien(_staff))
+        return {"ok": True, "enviado_a": destino}
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
 @router.post("/marcar-enviado-lote")

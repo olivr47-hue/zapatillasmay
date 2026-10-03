@@ -196,10 +196,11 @@ def _base_html(contenido: str, preheader: str = "") -> str:
 {pre}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4eeea"><tr><td align="center" style="padding:24px 12px">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
-    <tr><td align="center" bgcolor="#b5687a" style="background:#b5687a;background-image:linear-gradient(135deg,#b5687a,#c8967a);padding:30px 24px">
-      <a href="https://zapatillasmay.mx" style="text-decoration:none;color:#ffffff">
-        <span style="font-size:26px;font-weight:300;letter-spacing:1.5px;color:#ffffff">Zapatillas <strong style="font-weight:700">May</strong></span></a><br>
-      <span style="font-size:12px;color:#fbe9e7;letter-spacing:.5px">Calzado para dama · León, Guanajuato</span>
+    <tr><td align="center" bgcolor="#ffffff" style="background:#ffffff;padding:26px 24px 16px;border-bottom:4px solid #b5687a">
+      <a href="https://zapatillasmay.mx" style="text-decoration:none;color:#2A1A0E">
+        <img src="https://zapatillasmay.mx/images/logosolo.png" width="230" alt="Zapatillas May"
+             style="display:block;margin:0 auto;width:230px;max-width:70%;height:auto;border:0;font-family:Georgia,serif;font-size:26px;color:#2A1A0E"></a>
+      <span style="display:block;margin-top:6px;font-size:12px;color:#a67c6a;letter-spacing:.8px">Calzado para dama · León, Guanajuato</span>
     </td></tr>
     <tr><td style="padding:32px 28px 8px 28px">{contenido}</td></tr>
     <tr><td style="padding:8px 28px 28px 28px">
@@ -349,6 +350,108 @@ def email_pedido_confirmado(pedido: dict):
 
     subject = f"✅ Pedido #{pedido_id} confirmado — gracias por tu compra, {nombre}"
     return subject, _base_html(contenido, f"Recibimos tu pago de ${total:,.0f} MXN. Estamos preparando tu pedido #{pedido_id}.")
+
+
+def email_resumen_carrito(pedido: dict, items: list, anticipo: float = 0.0, modo: str = "resumen", mensaje: str = ""):
+    """Correo para la clienta con el resumen de su carrito / apartado (lo envía el personal desde la sección Carritos).
+    modo: "resumen" (cotización o apartado) | "vencimiento" (recordatorio de que su apartado vence o ya venció)."""
+    import datetime as _dt
+    cliente = pedido.get("clientes") or {}
+    nombre = _h.escape(((cliente.get("nombre") or pedido.get("nombre_cliente") or "Clienta").split() or ["Clienta"])[0].capitalize())
+    es_apartado = pedido.get("status") == "apartado"
+    pedido_id = str(pedido.get("id") or "")[:8].upper()
+    fotos = _imagenes_de_items(items)
+
+    filas = ""
+    subtotal = 0.0
+    pares = 0
+    for it in items:
+        cant = int(it.get("cantidad") or 1)
+        precio = float(it.get("precio_unitario") or 0)
+        v = it.get("variantes") or {}
+        pr = v.get("productos") or {}
+        nom = _h.escape(str(pr.get("nombre") or it.get("nombre") or "Producto"))
+        col = _h.escape(str(v.get("color") or it.get("color") or ""))
+        tal = _h.escape(str(v.get("talla") or it.get("talla") or ""))
+        meta = " · ".join([x for x in [col, f"Talla {tal}" if tal else ""] if x])
+        if cant < 0:
+            continue
+        subtotal += precio * cant
+        pares += cant
+        apartado_tag = ' <span style="background:#fff3cd;color:#856404;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700">🔒 apartado</span>' if it.get("reservado") else ""
+        foto = fotos.get(str(it.get("variante_id")), "") or v.get("foto_url") or pr.get("imagen_principal") or ""
+        filas += f"""
+        <tr>
+          <td width="86" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top">{_miniatura(foto)}</td>
+          <td style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;font-size:14px;color:#2A1A0E;line-height:1.45">
+            <strong>{nom}</strong>{apartado_tag}<br>
+            <span style="color:#8a7b71;font-size:12px">{meta}</span><br>
+            <span style="color:#8a7b71;font-size:12px">{cant} {("par" if cant == 1 else "pares")} × ${precio:,.0f}</span>
+          </td>
+          <td align="right" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;font-size:14px;color:#b5687a;font-weight:700;white-space:nowrap">${precio * cant:,.0f}</td>
+        </tr>"""
+
+    envio = float(pedido.get("costo_envio") or 0)
+    total = float(pedido.get("total") or (subtotal + envio))
+    saldo = max(0.0, total - float(anticipo or 0))
+
+    vence_txt = ""
+    vencido = False
+    if pedido.get("apartado_hasta"):
+        try:
+            hasta = _dt.datetime.fromisoformat(str(pedido["apartado_hasta"]).replace("Z", "+00:00"))
+            dias = (hasta - _dt.datetime.now(_dt.timezone.utc)).days
+            fecha = hasta.astimezone(_dt.timezone(_dt.timedelta(hours=-6))).strftime("%d/%m/%Y")
+            vencido = dias < 0
+            vence_txt = f"venció el {fecha}" if vencido else f"vence el {fecha}" + (" (hoy)" if dias == 0 else f" (en {dias} día{'s' if dias != 1 else ''})")
+        except Exception:
+            pass
+
+    if modo == "vencimiento":
+        titulo = f"{nombre}, tu apartado {'ya venció' if vencido else 'está por vencer'} ⏰"
+        intro = ("Tus pares siguen guardados a tu nombre, pero el plazo de tu apartado "
+                 + (vence_txt or "está por terminar") + ". Si aún los quieres, escríbenos para completar tu compra y no perderlos.")
+        asunto = f"⏰ Tu apartado {'venció' if vencido else 'está por vencer'} — Zapatillas May"
+        pre = "Escríbenos para completar tu compra y conservar tus pares."
+    elif es_apartado:
+        titulo = f"{nombre}, tus pares están apartados 🔒"
+        intro = ("Guardamos estos modelos a tu nombre" + (f"; tu apartado {vence_txt}" if vence_txt else "") +
+                 ". Cuando quieras completar tu compra, escríbenos y te decimos cómo pagar el saldo.")
+        asunto = f"🔒 Tus pares están apartados — Zapatillas May"
+        pre = f"Resumen de tu apartado: {pares} par(es), saldo ${saldo:,.0f} MXN."
+    else:
+        titulo = f"{nombre}, aquí está el resumen de tu pedido 👠"
+        intro = "Este es el resumen de los modelos que revisamos juntas. Aún no están apartados: si quieres reservarlos, avísanos."
+        asunto = "👠 Resumen de tu pedido — Zapatillas May"
+        pre = f"{pares} par(es) por ${total:,.0f} MXN. Respóndenos por WhatsApp para apartarlos."
+
+    nota = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px"><tr>'
+            f'<td style="background:#fdf8f5;border-left:3px solid #c8967a;border-radius:6px;padding:12px 16px;font-size:14px;color:#5b4d44;line-height:1.6">{_h.escape(mensaje)}</td></tr></table>') if mensaje.strip() else ""
+    envio_fila = (f'<tr><td style="padding:4px 0;font-size:13px;color:#7a6a60">Envío</td>'
+                  f'<td align="right" style="padding:4px 0;font-size:13px;color:#2A1A0E">${envio:,.0f}</td></tr>') if envio > 0 else ""
+    anticipo_fila = (f'<tr><td style="padding:4px 0;font-size:13px;color:#2e7d32">Anticipo recibido</td>'
+                     f'<td align="right" style="padding:4px 0;font-size:13px;color:#2e7d32">− ${float(anticipo):,.0f}</td></tr>') if anticipo and float(anticipo) > 0 else ""
+    caja_vence = (f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:18px"><tr>'
+                  f'<td style="background:{"#fdecea" if vencido else "#fff8e1"};border-radius:12px;padding:12px 16px;font-size:13px;color:{"#9a2b21" if vencido else "#6d4c00"}">'
+                  f'⏱️ Tu apartado {vence_txt}</td></tr></table>') if vence_txt and es_apartado else ""
+
+    contenido = f"""
+      <h1 style="margin:0 0 8px;font-size:23px;line-height:1.3;color:#2A1A0E">{titulo}</h1>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#5b4d44">{intro}</p>
+      {nota}{caja_vence}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{filas}</table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0 22px">
+        <tr><td style="padding:4px 0;font-size:13px;color:#7a6a60">Productos ({pares} {("par" if pares == 1 else "pares")})</td><td align="right" style="padding:4px 0;font-size:13px;color:#2A1A0E">${subtotal:,.0f}</td></tr>
+        {envio_fila}
+        <tr><td style="padding:8px 0 0;border-top:1px solid #efe1d8;font-size:14px;font-weight:700;color:#2A1A0E">Total</td>
+            <td align="right" style="padding:8px 0 0;border-top:1px solid #efe1d8;font-size:15px;font-weight:700;color:#2A1A0E">${total:,.0f} MXN</td></tr>
+        {anticipo_fila}
+        <tr><td style="padding:8px 0 0;font-size:16px;font-weight:700;color:#2A1A0E">{"Saldo por pagar" if anticipo and float(anticipo) > 0 else "Total a pagar"}</td>
+            <td align="right" style="padding:8px 0 0;font-size:21px;font-weight:700;color:#b5687a">${saldo:,.0f} MXN</td></tr>
+      </table>
+      {_boton("Escribirnos por WhatsApp →", "https://wa.me/5214792244560?text=" + __import__("urllib.parse").parse.quote(f"Hola, quiero continuar con mi pedido #{pedido_id}"), "#25D366")}
+      <p style="margin:16px 0 0;font-size:12px;color:#a89a90;text-align:center">Referencia de tu pedido: <strong>#{pedido_id}</strong></p>"""
+    return asunto, _base_html(contenido, pre)
 
 
 def email_pedido_pendiente_spei(pedido: dict):
