@@ -1517,27 +1517,34 @@ function pcRegPintar(el) {
     <div class="pc-card">
       <p style="font-weight:700;color:var(--pc-text);margin:0 0 12px">Movimientos de ${esc(r.mes)}</p>
       ${r.error ? `<p style="color:#ef4444;font-size:0.85rem">${esc(r.error)}</p>` : ''}
-      ${delMes.length === 0 ? '<p style="color:var(--pc-muted);font-size:0.85rem;margin:0">Todavía no hay movimientos este mes. Registra tu primera venta o gasto con los botones de arriba.</p>' : `
-      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
-        <thead><tr style="text-align:left;color:var(--pc-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em">
-          <th style="padding:6px 8px">Fecha</th><th style="padding:6px 8px">Concepto</th><th style="padding:6px 8px;text-align:right">Pares</th><th style="padding:6px 8px;text-align:right">Venta</th><th style="padding:6px 8px;text-align:right">Gasto</th><th style="padding:6px 8px;text-align:right">Ganancia</th><th></th></tr></thead>
-        <tbody>${delMes.map(f => {
-          const esV = f.tipo === 'venta'
-          const venta = esV ? (Number(f.pares) || 0) * (Number(f.precio_par) || 0) : 0
-          const gan = esV ? venta - (Number(f.pares) || 0) * (Number(f.costo_par) || 0) : -(Number(f.monto) || 0)
-          return `<tr style="border-top:1px solid var(--pc-border)">
-            <td style="padding:8px;white-space:nowrap;color:var(--pc-text-3)">${esc(String(f.fecha).slice(5).split('-').reverse().join('/'))}</td>
-            <td style="padding:8px;color:var(--pc-text-2)">${esV ? '🛍️' : '🧾'} ${esc(f.concepto || (esV ? 'Venta' : 'Gasto'))}</td>
-            <td style="padding:8px;text-align:right">${esV ? esc(f.pares) : ''}</td>
-            <td style="padding:8px;text-align:right">${esV ? money(venta) : ''}</td>
-            <td style="padding:8px;text-align:right">${esV ? '' : money(f.monto)}</td>
-            <td style="padding:8px;text-align:right;font-weight:700;color:${gan >= 0 ? '#10b981' : '#ef4444'}">${money(gan)}</td>
-            <td style="padding:8px;white-space:nowrap;text-align:right">
-              <button onclick="pcRegEditar('${esc(f.id)}')" title="Editar" style="background:none;border:none;cursor:pointer;color:var(--pc-muted)">✏️</button>
-              <button onclick="pcRegBorrar('${esc(f.id)}')" title="Borrar" style="background:none;border:none;cursor:pointer;color:var(--pc-muted)">🗑️</button>
-            </td></tr>`
-        }).join('')}</tbody>
-      </table></div>`}
+      ${delMes.length === 0 ? '<p style="color:var(--pc-muted);font-size:0.85rem;margin:0">Todavía no hay movimientos este mes. Registra tu primera venta o gasto con los botones de arriba.</p>' : delMes.map(f => {
+        // Una tarjeta por movimiento (no tabla): en el celular la tabla era más ancha que la pantalla y los botones de editar/borrar
+        // quedaban fuera de vista, a la derecha.
+        const esV = f.tipo === 'venta'
+        const n = Number(f.pares) || 0
+        const venta = esV ? n * (Number(f.precio_par) || 0) : 0
+        const gan = esV ? venta - n * (Number(f.costo_par) || 0) : -(Number(f.monto) || 0)
+        const fecha = String(f.fecha).slice(5).split('-').reverse().join('/')
+        const detalle = esV
+          ? `${esc(fecha)} · ${n} par${n !== 1 ? 'es' : ''} a ${money(f.precio_par)} c/u · vendido ${money(venta)}`
+          : `${esc(fecha)} · gasto de ${money(f.monto)}`
+        return `<div style="border-top:1px solid var(--pc-border);padding:12px 0">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+            <div style="min-width:0">
+              <p style="margin:0;font-size:0.88rem;font-weight:600;color:var(--pc-text-2);overflow-wrap:anywhere">${esV ? '🛍️' : '🧾'} ${esc(f.concepto || (esV ? 'Venta' : 'Gasto'))}</p>
+              <p style="margin:3px 0 0;font-size:0.75rem;color:var(--pc-muted)">${detalle}</p>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <p style="margin:0;font-size:1rem;font-weight:800;color:${gan >= 0 ? '#10b981' : '#ef4444'}">${gan < 0 ? '−' : ''}${money(Math.abs(gan))}</p>
+              <p style="margin:2px 0 0;font-size:0.68rem;color:var(--pc-muted)">${esV ? 'ganancia' : 'gasto'}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="pcRegEditar('${esc(f.id)}')" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.8rem;padding:9px 6px">✏️ Editar</button>
+            <button onclick="pcRegBorrar('${esc(f.id)}')" class="pc-btn pc-btn-secondary" style="flex:1;font-size:0.8rem;padding:9px 6px;color:#ef4444">🗑️ Borrar</button>
+          </div>
+        </div>`
+      }).join('')}
     </div>
   `
   if (tipoForm === 'venta') pcRegCalc()
