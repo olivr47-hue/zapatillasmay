@@ -6401,7 +6401,13 @@ async function cargarClientes() {
           <button class="pill-filter" data-flag="conpedidos" onclick="_cliFlag('conpedidos')">🛍️ Ya compraron</button>
           <button class="pill-filter" data-flag="sincompras" onclick="_cliFlag('sincompras')">⚪ Nunca han comprado</button>
           <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
-          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliLimpiar()">Limpiar filtros</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliSelVisibles()">☑ Seleccionar los que se ven</button>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px" onclick="_cliLimpiar()">Limpiar filtros</button>
+        </div>
+        <div id="cli-barra-envio" style="display:none;position:sticky;top:0;z-index:20;background:#fdf2f8;border:1px solid #f9a8d4;border-radius:10px;margin:0 1.5rem 0.75rem;padding:8px 12px;align-items:center;gap:10px;flex-wrap:wrap">
+          <strong id="cli-sel-n" style="font-size:0.85rem;color:#be185d"></strong>
+          <button class="btn btn-primary" style="font-size:0.8rem;padding:6px 12px" onclick="abrirEnvioMensajeClientes()">💬 Enviar mensaje por WhatsApp</button>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="_cliSelNinguno()">Quitar selección</button>
         </div>
         <div id="cli-lista">
           ${clientesEnriquecidos.map(c => `
@@ -6409,6 +6415,7 @@ async function cargarClientes() {
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
                  onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
                  onclick="verCliente('${c.id}')">
+              <input type="checkbox" class="cli-sel" data-id="${c.id}" onclick="event.stopPropagation();_cliSelCambio()" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;accent-color:#E91E8C">
               <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#E91E8C,#c4116a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0">
                 ${c.nombre.charAt(0).toUpperCase()}
               </div>
@@ -29575,3 +29582,178 @@ window._wmSincronizarInventario = async (btn) => {
     } catch (e) {}
   }
 })()
+
+
+// ═══ Clientes → mensaje predeterminado por WhatsApp ═══════════════════════════════════════════════
+// Dos formas: (1) "Uno por uno": abre WhatsApp con el mensaje ya escrito y personalizado (manda la persona, sin riesgo de bloqueo);
+// (2) "Plantilla oficial": envío masivo con la API oficial de WhatsApp (solo plantillas aprobadas por Meta; es lo que permite
+// escribirle a quien no te ha escrito en las últimas 24 h). La mensajería no oficial (Campañas por QR) NO se usa aquí.
+const _MSG_PRED_DEFAULT = [
+  { t: 'Nuevos modelos', m: 'Hola {nombre} 👋 Soy de Zapatillas May. Ya llegaron modelos nuevos y pensé en ti. ¿Te mando fotos y precios? 👠' },
+  { t: 'Te extrañamos', m: 'Hola {nombre} 😊 Hace tiempo no nos visitas. Esta semana tenemos novedades y promociones. ¿Te comparto el catálogo?' },
+  { t: 'Pedido listo', m: 'Hola {nombre}, tu pedido ya está listo. ¿Quieres que te lo enviemos o pasas por él? Gracias por tu compra 💖' },
+  { t: 'Recordatorio de pago', m: 'Hola {nombre}, te recordamos que tienes un pago pendiente con Zapatillas May. Si ya lo hiciste, ignora este mensaje. ¡Gracias!' },
+  { t: 'Mayoreo: resurtido', m: 'Hola {nombre} 👋 ¿Ya necesitas resurtir? Tenemos existencia de tus modelos y precios de mayoreo. Dime qué tallas necesitas y te lo preparo.' },
+]
+window._msgPredicados = () => {
+  try { const g = JSON.parse(localStorage.getItem('msg_pred_clientes') || 'null'); if (Array.isArray(g) && g.length) return g } catch (e) {}
+  return _MSG_PRED_DEFAULT.map(x => ({ ...x }))
+}
+window._msgGuardar = (l) => { try { localStorage.setItem('msg_pred_clientes', JSON.stringify(l)) } catch (e) {} }
+
+window._cliSelCambio = () => {
+  const n = document.querySelectorAll('.cli-sel:checked').length
+  const b = document.getElementById('cli-barra-envio')
+  if (b) b.style.display = n ? 'flex' : 'none'
+  const t = document.getElementById('cli-sel-n')
+  if (t) t.textContent = `${n} cliente${n === 1 ? '' : 's'} seleccionado${n === 1 ? '' : 's'}`
+}
+window._cliSelVisibles = () => {
+  document.querySelectorAll('.cli-item').forEach(el => {
+    if (el.style.display !== 'none') { const c = el.querySelector('.cli-sel'); if (c) c.checked = true }
+  })
+  _cliSelCambio()
+}
+window._cliSelNinguno = () => { document.querySelectorAll('.cli-sel').forEach(c => { c.checked = false }); _cliSelCambio() }
+
+window.abrirEnvioMensajeClientes = async () => {
+  const ids = new Set([...document.querySelectorAll('.cli-sel:checked')].map(c => c.dataset.id))
+  const sel = (window._clientesData || []).filter(c => ids.has(c.id))
+  if (!sel.length) return
+  const conTel = sel.filter(c => (c.telefono || '').replace(/\D/g, '').length >= 10)
+  const sinTel = sel.length - conTel.length
+  window._envSel = conTel
+  const msgs = _msgPredicados()
+  const modal = document.createElement('div')
+  modal.id = 'modal-env-cli'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:12px'
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:680px;width:100%;max-height:92vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">💬 Enviar mensaje a ${conTel.length} cliente${conTel.length === 1 ? '' : 's'}</h3><button onclick="document.getElementById('modal-env-cli').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    ${sinTel ? `<p style="font-size:0.78rem;color:#b45309;margin:0 0 8px">⚠️ ${sinTel} de los seleccionados no tienen teléfono válido y se omiten.</p>` : ''}
+    <div style="display:flex;gap:0;border:1px solid #eee;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:12px">
+      <button id="env-tab-uno" onclick="_envTab('uno')" style="padding:7px 14px;font-size:0.8rem;border:none;cursor:pointer;background:#E91E8C;color:#fff;font-weight:600">Uno por uno (mensaje listo)</button>
+      <button id="env-tab-plantilla" onclick="_envTab('plantilla')" style="padding:7px 14px;font-size:0.8rem;border:none;cursor:pointer;background:#fff;color:#888;font-weight:600">Plantilla oficial (masivo)</button>
+    </div>
+
+    <div id="env-uno">
+      <label style="font-size:0.78rem;color:#64748b">Mensaje predeterminado</label>
+      <select id="env-msg-sel" class="form-input" style="margin:4px 0 8px" onchange="_envCargarMsg()">${msgs.map((m, i) => `<option value="${i}">${m.t}</option>`).join('')}</select>
+      <textarea id="env-msg-txt" class="form-input" rows="4" style="width:100%;font-size:0.85rem" oninput="_envRenderLista()"></textarea>
+      <div style="display:flex;gap:8px;margin:6px 0 10px;flex-wrap:wrap">
+        <button class="btn btn-secondary" style="font-size:0.74rem;padding:4px 10px" onclick="_envGuardarMsg()">💾 Guardar cambios a este mensaje</button>
+        <button class="btn btn-secondary" style="font-size:0.74rem;padding:4px 10px" onclick="_envNuevoMsg()">+ Nuevo mensaje</button>
+        <button class="btn btn-secondary" style="font-size:0.74rem;padding:4px 10px" onclick="_envBorrarMsg()">🗑 Borrar</button>
+        <span style="font-size:0.72rem;color:#94a3b8;align-self:center">{nombre} se cambia por el primer nombre de cada cliente</span>
+      </div>
+      <div id="env-lista" style="border-top:1px solid #eef0f4"></div>
+    </div>
+
+    <div id="env-plantilla" style="display:none">
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 8px">Usa una plantilla aprobada por Meta. Es la forma oficial de escribirle a clientes que no te han escrito en las últimas 24 h. El parámetro <code>{nombre}</code> se cambia por el primer nombre de cada uno.</p>
+      <select id="env-tpl-sel" class="form-input" onchange="_envTplCambio()"><option>Cargando plantillas...</option></select>
+      <p id="env-tpl-cuerpo" style="font-size:0.8rem;background:#f8fafc;border-radius:8px;padding:8px 10px;margin:8px 0;white-space:pre-wrap"></p>
+      <div id="env-tpl-params"></div>
+      <button class="btn btn-primary" id="env-tpl-btn" style="margin-top:8px" onclick="_envEnviarPlantilla()">Enviar a ${conTel.length} cliente${conTel.length === 1 ? '' : 's'}</button>
+      <p id="env-tpl-res" style="font-size:0.8rem;margin:8px 0 0;display:none"></p>
+    </div>
+  </div>`
+  document.body.appendChild(modal)
+  _envCargarMsg()
+  fetch(API + '/chatbot/templates').then(r => r.json()).then(d => {
+    const ok = (d.templates || []).filter(t => t.status === 'APPROVED')
+    window._envTpls = ok
+    const s2 = document.getElementById('env-tpl-sel')
+    if (!s2) return
+    s2.innerHTML = ok.length ? ok.map((t, i) => `<option value="${i}">${t.name} (${t.language})</option>`).join('') : '<option>No hay plantillas aprobadas</option>'
+    _envTplCambio()
+  }).catch(() => { const s2 = document.getElementById('env-tpl-sel'); if (s2) s2.innerHTML = '<option>No se pudieron cargar las plantillas</option>' })
+}
+window._envTab = (t) => {
+  const act = 'background:#E91E8C;color:#fff', ina = 'background:#fff;color:#888'
+  document.getElementById('env-tab-uno').style.cssText += ';' + (t === 'uno' ? act : ina)
+  document.getElementById('env-tab-plantilla').style.cssText += ';' + (t === 'plantilla' ? act : ina)
+  document.getElementById('env-uno').style.display = t === 'uno' ? '' : 'none'
+  document.getElementById('env-plantilla').style.display = t === 'plantilla' ? '' : 'none'
+}
+window._envCargarMsg = () => {
+  const i = parseInt(document.getElementById('env-msg-sel').value) || 0
+  document.getElementById('env-msg-txt').value = (_msgPredicados()[i] || {}).m || ''
+  _envRenderLista()
+}
+window._envGuardarMsg = () => {
+  const l = _msgPredicados(), i = parseInt(document.getElementById('env-msg-sel').value) || 0
+  if (!l[i]) return
+  l[i].m = document.getElementById('env-msg-txt').value
+  _msgGuardar(l); mostrarToastPanel('💾 Mensaje guardado')
+}
+window._envNuevoMsg = () => {
+  const t = prompt('Nombre del mensaje (ej. "Oferta de temporada")'); if (!t) return
+  const l = _msgPredicados(); l.push({ t: t.trim().slice(0, 40), m: 'Hola {nombre} 👋 ' }); _msgGuardar(l)
+  const s2 = document.getElementById('env-msg-sel')
+  s2.innerHTML = l.map((m, i) => `<option value="${i}">${m.t}</option>`).join(''); s2.value = String(l.length - 1); _envCargarMsg()
+}
+window._envBorrarMsg = () => {
+  const l = _msgPredicados(), i = parseInt(document.getElementById('env-msg-sel').value) || 0
+  if (l.length <= 1 || !confirm('¿Borrar el mensaje "' + (l[i] || {}).t + '"?')) return
+  l.splice(i, 1); _msgGuardar(l)
+  const s2 = document.getElementById('env-msg-sel')
+  s2.innerHTML = l.map((m, k) => `<option value="${k}">${m.t}</option>`).join(''); s2.value = '0'; _envCargarMsg()
+}
+window._envPrimerNombre = (n) => { const x = String(n || '').trim().split(/\s+/)[0] || 'Cliente'; return x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() }
+window._envRenderLista = () => {
+  const txt = document.getElementById('env-msg-txt')?.value || ''
+  const cont = document.getElementById('env-lista')
+  if (!cont) return
+  window._envEnviados = window._envEnviados || new Set()
+  cont.innerHTML = (window._envSel || []).map(c => {
+    const msg = txt.replace(/\{nombre\}/gi, _envPrimerNombre(c.nombre))
+    const tel = (c.lada || '52') + String(c.telefono).replace(/\D/g, '').replace(/^(52|521)(?=\d{10}$)/, '')
+    const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg)
+    const hecho = window._envEnviados.has(c.id)
+    return `<div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9">
+      <div style="flex:1;min-width:0"><strong style="font-size:0.84rem">${c.nombre}</strong><br><span style="font-size:0.7rem;color:#94a3b8">${c.telefono}</span></div>
+      <a href="${url}" target="_blank" rel="noopener" onclick="_envMarcar('${c.id}', this)" class="btn ${hecho ? 'btn-secondary' : 'btn-primary'}" style="font-size:0.75rem;padding:5px 11px;text-decoration:none;${hecho ? '' : 'background:#25D366;border-color:#25D366;color:#fff'}">${hecho ? '✓ Enviado · reabrir' : '💬 Abrir WhatsApp'}</a>
+    </div>`
+  }).join('') || '<p style="color:#888;font-size:0.82rem;padding:10px 0">Ninguno de los seleccionados tiene teléfono.</p>'
+}
+window._envMarcar = (id, el) => {
+  window._envEnviados.add(id)
+  setTimeout(() => { el.className = 'btn btn-secondary'; el.style.cssText = 'font-size:0.75rem;padding:5px 11px;text-decoration:none'; el.textContent = '✓ Enviado · reabrir' }, 300)
+}
+window._envTplCambio = () => {
+  const t = (window._envTpls || [])[parseInt(document.getElementById('env-tpl-sel')?.value) || 0]
+  const cuerpo = document.getElementById('env-tpl-cuerpo'), pr = document.getElementById('env-tpl-params')
+  if (!t || !cuerpo) { if (cuerpo) cuerpo.textContent = ''; if (pr) pr.innerHTML = ''; return }
+  const body = (t.components || []).find(c => c.type === 'BODY')
+  const texto = body ? body.text || '' : ''
+  cuerpo.textContent = texto
+  const n = (texto.match(/\{\{\d+\}\}/g) || []).length
+  pr.innerHTML = Array.from({ length: n }, (_, i) => `<div style="margin-bottom:6px"><label style="font-size:0.74rem;color:#64748b">Parámetro {{${i + 1}}}</label>
+    <input class="form-input env-tpl-p" value="${i === 0 ? '{nombre}' : ''}" style="width:100%;font-size:0.85rem"></div>`).join('')
+}
+window._envEnviarPlantilla = async () => {
+  const t = (window._envTpls || [])[parseInt(document.getElementById('env-tpl-sel')?.value) || 0]
+  const sel = window._envSel || []
+  if (!t || !sel.length) return
+  const params = [...document.querySelectorAll('.env-tpl-p')].map(i => i.value.trim())
+  if (params.some(p => !p)) { alert('Llena todos los parámetros de la plantilla.'); return }
+  if (!confirm(`¿Enviar la plantilla "${t.name}" a ${sel.length} cliente(s)? Esto manda mensajes reales por la API oficial de WhatsApp.`)) return
+  const btn = document.getElementById('env-tpl-btn'), res = document.getElementById('env-tpl-res')
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  const nombres = {}, telefonos = []
+  sel.forEach(c => {
+    let d = String(c.telefono).replace(/\D/g, '')
+    d = (c.lada || '52') + d.replace(/^(521|52)(?=\d{10}$)/, '')
+    if (d.startsWith('52') && d.length === 12) d = '521' + d.slice(2)   // formato que usa la API de Meta para celulares de México
+    telefonos.push(d); nombres[d] = c.nombre
+  })
+  try {
+    const r = await fetch(API + '/chatbot/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template: t.name, idioma: t.language, params, telefonos, nombres, nombre: 'Clientes · ' + t.name }) })
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error || 'No se pudo enviar')
+    res.style.display = 'block'; res.style.color = d.errores ? '#b45309' : '#15803d'
+    res.textContent = `✅ ${d.enviados} enviado${d.enviados === 1 ? '' : 's'}` + (d.errores ? ` · ${d.errores} con error (revisa que tengan WhatsApp)` : '') + '. Las respuestas llegan a Conversaciones.'
+  } catch (e) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Error: ' + e.message }
+  btn.disabled = false; btn.textContent = 'Enviar de nuevo'
+}

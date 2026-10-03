@@ -4208,6 +4208,8 @@ def broadcast_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/slee
         idioma        = datos.get("idioma", "es_MX")
         nombre        = (datos.get("nombre") or template_name).strip()
         filtro_etiqueta = datos.get("filtro_etiqueta")
+        # Opcional: {"telefono": "nombre"} para personalizar. Un parámetro "{nombre}" se cambia por el primer nombre de cada cliente.
+        nombres_por_tel = datos.get("nombres") or {}
 
         if not template_name:
             return JSONResponse(status_code=400, content={"error": "template requerido"})
@@ -4231,8 +4233,11 @@ def broadcast_masivo(datos: dict):  # sync (no async): hace HTTP bloqueante/slee
         for tel in telefonos:
             try:
                 components = []
-                if params:
-                    components.append({"type": "body", "parameters": [{"type": "text", "text": str(p)} for p in params]})
+                _n = str(nombres_por_tel.get(tel) or "").strip()
+                _primer = _n.split()[0].title() if _n else "Cliente"
+                params_tel = [str(p).replace("{nombre}", _primer) for p in params]
+                if params_tel:
+                    components.append({"type": "body", "parameters": [{"type": "text", "text": p} for p in params_tel]})
                 wamid = _wa_send({
                     "messaging_product": "whatsapp", "to": tel, "type": "template",
                     "template": {"name": template_name, "language": {"code": idioma}, "components": components}
