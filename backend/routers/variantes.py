@@ -31,9 +31,11 @@ def color_a_codigo(color):
     for k, v in COLORES_CODIGO.items():
         if k.lower() == color.lower():
             return v
-    # Fallback: usar hasta 6 caracteres del nombre sin espacios (reduce colisiones vs 3 chars)
-    codigo = color.upper().replace(' ', '')
-    return codigo[:6] if len(codigo) >= 6 else codigo
+    # Fallback: usar hasta 6 caracteres del nombre, SOLO letras y números: un color como "NEGRO/" dejaba una "/" dentro
+    # del SKU (inválida en marketplaces y etiquetas).
+    import re
+    codigo = re.sub(r'[^A-Z0-9]', '', color.upper().replace('Ñ', 'N'))
+    return (codigo[:6] if len(codigo) >= 6 else codigo) or 'COL'
 
 def talla_a_codigo(talla):
     return talla.replace('.', '_')
@@ -101,8 +103,11 @@ def toggle_color(datos: dict, _staff=Depends(require_staff)):
 def crear_variante(variante: dict, _staff=Depends(require_staff)):
     variante["activa"] = True  # Siempre activa al crear
     producto_id = variante.get("producto_id")
-    color = variante.get("color", "")
-    talla = variante.get("talla", "")
+    # Sin espacios al borde ni dobles ("NEGRO " y "NEGRO" contaban como colores distintos: había 2,580 variantes así)
+    color = " ".join(str(variante.get("color") or "").split())
+    talla = str(variante.get("talla") or "").strip()
+    variante["color"] = color
+    variante["talla"] = talla
     if producto_id:
         producto = supabase_get(f"productos?id=eq.{producto_id}&select=sku_interno")
         if producto and len(producto) > 0:

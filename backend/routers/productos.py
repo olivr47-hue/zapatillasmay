@@ -204,6 +204,8 @@ def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depend
 
 @router.post("/")
 def crear_producto(producto: dict, _staff=Depends(require_staff)):
+    if isinstance(producto.get("nombre"), str):
+        producto["nombre"] = " ".join(producto["nombre"].split())   # sin espacios al borde (109 modelos los tenían)
     sku_dado = (producto.get("sku_interno") or "").strip()
     producto["sku_interno"] = sku_dado or None
     # Sin SKU, o con uno que ya existe: se genera uno nuevo (un modelo NUNCA se guarda sin SKU)
@@ -217,6 +219,8 @@ def crear_producto(producto: dict, _staff=Depends(require_staff)):
 
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
+    if isinstance(producto.get("nombre"), str):
+        producto["nombre"] = " ".join(producto["nombre"].split())
     # Un campo SKU vacío en el formulario NO debe borrar el SKU que ya tiene el modelo (así lo perdió RX2201)
     if "sku_interno" in producto and not (producto.get("sku_interno") or "").strip():
         producto.pop("sku_interno")

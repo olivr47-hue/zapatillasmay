@@ -8911,7 +8911,7 @@ async function subirImagenesVariantes() {
     if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) de "${nombre.value}" no se pudieron subir. Intenta de nuevo.`)
 
     resultado.push({ 
-      color: nombre.value, 
+      color: nombre.value.split(/\s+/).filter(Boolean).join(' '),   // sin espacios al borde ("NEGRO " y "NEGRO" contaban como colores distintos)
       color_hex: hex ? hex.value : '#000000', 
       imagenes: urlsValidas
     })
@@ -8956,14 +8956,40 @@ window.guardarProducto = async () => {
   // Leer ID del campo oculto
   const idOculto = document.getElementById('f-producto-id') ? document.getElementById('f-producto-id').value : ''
   if (idOculto) window._productoEditandoId = idOculto
-  const nombre = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
+  const nombre = (document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : '').split(/\s+/).filter(Boolean).join(' ')   // sin espacios al borde ni dobles
   const costo = document.getElementById('f-costo') ? document.getElementById('f-costo').value : ''
   const precio_menudeo = document.getElementById('f-menudeo') ? document.getElementById('f-menudeo').value : ''
   const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
 
+  // Antes estos `return` dejaban `_guardandoProducto` en true: tras un aviso de "completa los campos" el botón ya no
+  // guardaba hasta recargar la página.
+  const abortar = (msg) => { if (msg) alert(msg); window._guardandoProducto = false }
   if (!nombre || !costo || !precio_menudeo || !categoria) {
-    alert('Por favor completa los campos obligatorios: Nombre, Categoria, Costo y Precio menudeo')
-    return
+    return abortar('Por favor completa los campos obligatorios: Nombre, Categoria, Costo y Precio menudeo')
+  }
+  if (!(parseFloat(costo) > 0) || !(parseFloat(precio_menudeo) > 0)) return abortar('El costo y el precio de menudeo deben ser mayores a 0.')
+  if (parseFloat(precio_menudeo) < parseFloat(costo) && !confirm(`El precio de menudeo ($${precio_menudeo}) es MENOR que el costo ($${costo}). Venderías perdiendo dinero. ¿Guardar así?`)) return abortar()
+
+  // Colores y fotos: sin foto el modelo no se ve en la tienda (ni en los feeds de Google/Meta)
+  {
+    const nombresColor = []
+    let sinFotos = []
+    let totalFotos = 0
+    document.querySelectorAll('.variante-item').forEach(vi => {
+      const idx = parseInt(vi.id.replace('variante-', ''))
+      const n = (document.getElementById('v' + idx + '-nombre')?.value || '').trim()
+      if (!n) return
+      nombresColor.push(n)
+      const nf = ((window._variantesFotos || {})[idx] || []).length
+      totalFotos += nf
+      if (!nf) sinFotos.push(n)
+    })
+    if (!nombresColor.length) return abortar('Agrega al menos un color (con su nombre) para el modelo.')
+    if (!window._productoEditandoId && totalFotos === 0) return abortar('Sube al menos una foto: sin foto el modelo no se muestra en la tienda.')
+    if (sinFotos.length && !confirm(`Estos colores no tienen foto: ${sinFotos.join(', ')}.
+Sin foto no se verán bien en la tienda. ¿Guardar así?`)) return abortar()
+    const pesoK = document.getElementById('f-peso') ? document.getElementById('f-peso').value : ''
+    if (!pesoK && !confirm('No capturaste el peso en kilos. Sin peso no se puede calcular el envío por peso a mayoristas. ¿Guardar sin peso?')) return abortar()
   }
 
   const btn = document.getElementById('btn-guardar')
