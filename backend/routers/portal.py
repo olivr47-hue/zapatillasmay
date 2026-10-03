@@ -11,7 +11,7 @@ Diseño:
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from database import supabase_get, supabase_get_all, supabase_post, supabase_patch
+from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete
 import urllib.parse as _up
 from security import verify_password, hash_password, create_token, verify_token, limiter
 from email_utils import enviar_email
@@ -440,3 +440,118 @@ def enviar_carrito(datos: dict, auth: dict = Depends(require_cliente)):
     supabase_patch(f"pedidos?id=eq.{pedido_id}", {"total": total, "subtotal": total})
 
     return {"ok": True, "pedido_id": pedido_id, "total": total, "fusionado": bool(existente)}
+
+
+# ── MI REGISTRO DE VENTAS Y GASTOS (herramienta de la mayorista para llevar sus números) ──────────
+_MAX_FILAS_REGISTRO = 5000
+
+
+def _fecha_registro(v):
+    """Fecha ISO (AAAA-MM-DD) o hoy en horario de México."""
+    if not v:
+        return (datetime.now(timezone.utc) - timedelta(hours=6)).date().isoformat()
+    try:
+        return datetime.strptime(str(v)[:10], "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        raise ValueError("Fecha inválida")
+
+
+def _num_registro(v, nombre, maximo, minimo=0.0):
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"{nombre} inválido")
+    if n < minimo or n > maximo:
+        raise ValueError(f"{nombre} fuera de rango")
+    return round(n, 2)
+
+
+def _limpiar_registro(datos: dict, parcial: bool = False) -> dict:
+    """Valida y normaliza una fila del registro. Lanza ValueError con un mensaje legible."""
+    from security import limpiar_texto
+    fila = {}
+    tipo = datos.get("tipo")
+    if not parcial or "tipo" in datos:
+        if tipo not in ("venta", "gasto"):
+            raise ValueError("Tipo inválido")
+        fila["tipo"] = tipo
+    if "fecha" in datos or not parcial:
+        fila["fecha"] = _fecha_registro(datos.get("fecha"))
+    if "concepto" in datos:
+        fila["concepto"] = limpiar_texto(str(datos.get("concepto") or "").strip())[:120] or None
+    if "notas" in datos:
+        fila["notas"] = limpiar_texto(str(datos.get("notas") or "").strip())[:300] or None
+    es_venta = (fila.get("tipo") or tipo) == "venta"
+    if es_venta:
+        if "pares" in datos or not parcial:
+            pares = _num_registro(datos.get("pares"), "Pares", 100000, 1)
+            fila["pares"] = int(pares)
+        if "precio_par" in datos or not parcial:
+            fila["precio_par"] = _num_registro(datos.get("precio_par"), "Precio de venta", 1000000)
+        if "costo_par" in datos or not parcial:
+            fila["costo_par"] = _num_registro(datos.get("costo_par"), "Costo por par", 1000000)
+        fila["monto"] = None
+    else:
+        if "monto" in datos or not parcial:
+            fila["monto"] = _num_registro(datos.get("monto"), "Monto", 100000000, 0.01)
+        fila["pares"] = None
+        fila["precio_par"] = None
+        fila["costo_par"] = None
+    return fila
+
+
+@router.get("/registro")
+def registro_listar(desde: str = "", hasta: str = "", auth: dict = Depends(require_cliente)):
+    cid = auth["cliente_id"]
+    try:
+        filtro = f"mayorista_registro?cliente_id=eq.{cid}"
+        if desde:
+            filtro += f"&fecha=gte.{_fecha_registro(desde)}"
+        if hasta:
+            filtro += f"&fecha=lte.{_fecha_registro(hasta)}"
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    filas = supabase_get(filtro + "&order=fecha.desc,created_at.desc&limit=2000") or []
+    return {"filas": filas}
+
+
+@router.post("/registro")
+def registro_crear(datos: dict, auth: dict = Depends(require_cliente)):
+    cid = auth["cliente_id"]
+    try:
+        fila = _limpiar_registro(datos)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    existentes = supabase_get(f"mayorista_registro?cliente_id=eq.{cid}&select=id&limit={_MAX_FILAS_REGISTRO}") or []
+    if len(existentes) >= _MAX_FILAS_REGISTRO:
+        return JSONResponse(status_code=400, content={"error": "Llegaste al límite de movimientos guardados"})
+    fila["cliente_id"] = cid
+    res = supabase_post("mayorista_registro", fila)
+    return {"ok": True, "fila": res[0] if isinstance(res, list) and res else None}
+
+
+@router.patch("/registro/{fila_id}")
+def registro_editar(fila_id: str, datos: dict, auth: dict = Depends(require_cliente)):
+    cid = auth["cliente_id"]
+    if not _UUID_RE.match(fila_id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    actual = supabase_get(f"mayorista_registro?id=eq.{fila_id}&cliente_id=eq.{cid}&select=id,tipo")
+    if not actual:
+        return JSONResponse(status_code=404, content={"error": "No encontrado"})
+    datos = dict(datos, tipo=actual[0]["tipo"])   # el tipo no cambia al editar
+    try:
+        fila = _limpiar_registro(datos, parcial=True)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    fila.pop("tipo", None)
+    supabase_patch(f"mayorista_registro?id=eq.{fila_id}&cliente_id=eq.{cid}", fila)
+    return {"ok": True}
+
+
+@router.delete("/registro/{fila_id}")
+def registro_borrar(fila_id: str, auth: dict = Depends(require_cliente)):
+    cid = auth["cliente_id"]
+    if not _UUID_RE.match(fila_id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    supabase_delete(f"mayorista_registro?id=eq.{fila_id}&cliente_id=eq.{cid}")
+    return {"ok": True}

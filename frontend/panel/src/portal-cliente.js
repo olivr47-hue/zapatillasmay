@@ -53,6 +53,30 @@ function pcPrecioPublico(p) {
   return Math.ceil(precioM3(p) * (1 + m.pct / 100) / 10) * 10   // redondeado a la decena
 }
 
+// ── Opciones del catálogo PDF (precios de venta, nombre del negocio, WhatsApp) ──────────────────
+const PC_CAT_CFG_KEY = 'pc_catalogo_cfg_v1'
+function pcCatCfg() {
+  try {
+    const c = JSON.parse(localStorage.getItem(PC_CAT_CFG_KEY) || 'null')
+    if (c) return {
+      precio: ['ninguno', 'pct', 'fijo'].includes(c.precio) ? c.precio : 'ninguno',
+      pct: Math.min(300, Math.max(1, Number(c.pct) || 40)),
+      fijo: Math.min(100000, Math.max(0, Number(c.fijo) || 0)),
+      negocio: String(c.negocio || '').slice(0, 40),
+      tel: String(c.tel || '').replace(/\D/g, '').slice(0, 13),
+    }
+  } catch {}
+  return { precio: 'ninguno', pct: 40, fijo: 100, negocio: '', tel: String(pc.clienteData?.telefono || '').replace(/\D/g, '').slice(-10) }
+}
+function pcCatGuardarCfg(c) { try { localStorage.setItem(PC_CAT_CFG_KEY, JSON.stringify(c)) } catch {} }
+// Precio que verá su clienta en el PDF: SIEMPRE sobre su costo (precio de 3-5 pares); el costo de mayoreo nunca se imprime
+function pcPrecioCatalogo(p, cfg) {
+  if (!cfg || cfg.precio === 'ninguno') return null
+  const costo = precioM3(p)
+  const v = cfg.precio === 'pct' ? costo * (1 + cfg.pct / 100) : costo + cfg.fijo
+  return Math.ceil(v / 10) * 10   // redondeado a la decena
+}
+
 // ── Estado global ────────────────────────────────────────────
 const pc = {
   sesion:   null,
@@ -240,6 +264,7 @@ function renderPC() {
         ${pcNavItem('catalogo', '👟', 'Productos')}
         ${pcNavItem('catalogos','📥', 'Catálogos')}
         ${pcNavItem('vender',   '💰', 'Vender')}
+        ${pcNavItem('registro', '📒', 'Mi registro')}
         ${pcNavItem('carrito',  '🛒', 'Carrito')}
         ${pcNavItem('apartados','🔒', 'Apartados')}
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
@@ -506,6 +531,7 @@ function pcIrA(tab, _fromBack) {
       case 'catalogo': renderCatalogo(content); break
       case 'catalogos': renderCatalogosDescarga(content); break
       case 'vender':   renderVender(content); break
+      case 'registro': renderRegistro(content); break
       case 'carrito':  renderCarrito(content); break
       case 'apartados': renderApartados(content); break
       case 'pedidos':  renderMisPedidos(content); break
@@ -1287,6 +1313,250 @@ window.pcCalcularGanancia = function() {
     caja('Por par', money(costoPar) + ' → ' + money(pubPar))
 }
 
+// ── MI REGISTRO: ventas, costo por par y gastos de la mayorista ──────────────────────────────
+const _regMes = (f) => String(f || '').slice(0, 7)
+function _regHoy() { return new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10) }   // hora de México
+pc._reg = { filas: [], mes: _regHoy().slice(0, 7), form: null, editId: null, cargando: false }
+
+async function pcRegCargar() {
+  pc._reg.cargando = true
+  try {
+    const res = await fetch(`${PC_API}/portal/registro`, { headers: pcAuthHeaders() })
+    if (res.status === 401 || res.status === 403) { pcForzarRelogin(); return }
+    const d = await res.json()
+    pc._reg.filas = Array.isArray(d.filas) ? d.filas : []
+  } catch (e) { pc._reg.error = 'No se pudo cargar tu registro. Intenta de nuevo.' }
+  pc._reg.cargando = false
+}
+
+async function renderRegistro(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+  if (!pc._reg.cargado) {
+    el.innerHTML = '<p style="padding:40px;text-align:center;color:var(--pc-muted)">Cargando tu registro...</p>'
+    await pcRegCargar()
+    pc._reg.cargado = true
+  }
+  pcRegPintar(el)
+}
+
+function pcRegResumen(filas) {
+  let ventas = 0, costo = 0, gastos = 0, pares = 0
+  filas.forEach(f => {
+    if (f.tipo === 'venta') {
+      const n = Number(f.pares) || 0
+      ventas += n * (Number(f.precio_par) || 0)
+      costo += n * (Number(f.costo_par) || 0)
+      pares += n
+    } else gastos += Number(f.monto) || 0
+  })
+  const bruta = ventas - costo
+  const neta = bruta - gastos
+  return { ventas, costo, gastos, pares, bruta, neta, porPar: pares ? neta / pares : 0, margen: ventas ? neta / ventas * 100 : 0 }
+}
+
+function pcRegPintar(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+  const r = pc._reg
+  const delMes = r.filas.filter(f => _regMes(f.fecha) === r.mes)
+  const t = pcRegResumen(delMes)
+  const caja = (lbl, val, sub, color) => `<div class="pc-kpi"><p class="pc-kpi-lbl">${lbl}</p><p class="pc-kpi-val" style="${color ? 'color:' + color : ''}">${val}</p>${sub ? `<p class="pc-kpi-sub">${sub}</p>` : ''}</div>`
+  const ed = r.editId ? r.filas.find(f => f.id === r.editId) : null
+  const tipoForm = r.form
+  const inp = 'width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit'
+  const lbl = 'font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px'
+  const productos = [...pc.productos].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)))
+
+  el.innerHTML = `
+    <div style="margin-bottom:18px">
+      <h1 style="font-size:1.5rem;font-weight:800;color:var(--pc-text);margin:0 0 4px;letter-spacing:-0.01em">📒 Mi registro de ventas</h1>
+      <p style="font-size:0.85rem;color:var(--pc-muted);margin:0">Anota lo que vendes y lo que gastas para saber cuánto ganas de verdad. Solo tú ves esto.</p>
+    </div>
+
+    <details class="pc-card" style="margin-bottom:16px;padding:14px 18px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--pc-text);font-size:0.88rem;list-style:none">❓ Cómo funciona y qué significa cada cosa</summary>
+      <div style="margin-top:12px;font-size:0.82rem;color:var(--pc-text-3);line-height:1.6">
+        <p style="margin:0 0 8px"><strong>Venta:</strong> cada vez que vendes pares, anota cuántos, a qué <strong>precio de venta por par</strong> y cuál fue tu <strong>costo por par</strong> (lo que te costó a ti: el precio de mayoreo al que compraste).</p>
+        <p style="margin:0 0 8px"><strong>Gasto de operación:</strong> lo que pagas para poder vender y no está en el costo del zapato: envíos, empaque, publicidad, transporte, comisiones, renta del local, etc.</p>
+        <p style="margin:0 0 8px"><strong>Ganancia bruta</strong> = lo vendido − el costo de esos pares.<br><strong>Ganancia neta</strong> = ganancia bruta − tus gastos. Esa es la que realmente te queda.</p>
+        <p style="margin:0"><strong>Margen</strong> = qué parte de lo que vendes es ganancia neta. Elige el mes arriba para ver su resumen; puedes descargar todo a Excel.</p>
+      </div>
+    </details>
+
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <label style="font-size:0.8rem;color:var(--pc-text-3)">Mes:
+        <input type="month" value="${esc(r.mes)}" onchange="pcRegCambiarMes(this.value)" style="margin-left:6px;${inp};width:auto">
+      </label>
+      <button onclick="pcRegAbrirForm('venta')" class="pc-btn pc-btn-primary" style="font-size:0.82rem">+ Registrar venta</button>
+      <button onclick="pcRegAbrirForm('gasto')" class="pc-btn pc-btn-secondary" style="font-size:0.82rem">+ Registrar gasto</button>
+      <button onclick="pcRegDescargarCSV()" class="pc-btn pc-btn-secondary" style="font-size:0.82rem">⬇️ Descargar a Excel</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px">
+      ${caja('Vendido', money(t.ventas), `${t.pares} par${t.pares !== 1 ? 'es' : ''}`)}
+      ${caja('Costo de lo vendido', money(t.costo), 'tu costo por par × pares')}
+      ${caja('Gastos', money(t.gastos), 'envíos, publicidad, etc.')}
+      ${caja('Ganancia neta', money(t.neta), t.ventas ? `margen ${t.margen.toFixed(0)}%` : '', t.neta >= 0 ? '#10b981' : '#ef4444')}
+      ${caja('Ganancia por par', money(t.porPar), 'ya descontando gastos', t.porPar >= 0 ? '#10b981' : '#ef4444')}
+    </div>
+
+    ${tipoForm ? `
+    <div class="pc-card" style="margin-bottom:18px;border-color:rgba(233,30,140,0.35)">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 12px">${ed ? 'Editar' : 'Nuevo'} ${tipoForm === 'venta' ? 'venta' : 'gasto'}</p>
+      ${tipoForm === 'venta' ? `
+      <div style="margin-bottom:10px">
+        <label style="${lbl}">Elegir un modelo (opcional — llena el costo y el precio por ti)</label>
+        <select id="pc-reg-prod" onchange="pcRegElegirModelo()" style="${inp}">
+          <option value="">— Escribo yo mismo los datos —</option>
+          ${productos.map(p => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
+        <div><label style="${lbl}">Fecha</label><input id="pc-reg-fecha" type="date" value="${esc(ed?.fecha || _regHoy())}" style="${inp}"></div>
+        <div><label style="${lbl}">¿Qué vendiste / a quién?</label><input id="pc-reg-concepto" maxlength="120" value="${esc(ed?.concepto || '')}" placeholder="Ej: tacones negros a Laura" style="${inp}"></div>
+        <div><label style="${lbl}">Pares</label><input id="pc-reg-pares" type="number" min="1" step="1" value="${esc(ed?.pares ?? 1)}" oninput="pcRegCalc()" style="${inp}"></div>
+        <div><label style="${lbl}">Precio de venta por par ($)</label><input id="pc-reg-precio" type="number" min="0" step="1" value="${esc(ed?.precio_par ?? '')}" oninput="pcRegCalc()" style="${inp}"></div>
+        <div><label style="${lbl}">Mi costo por par ($)</label><input id="pc-reg-costo" type="number" min="0" step="1" value="${esc(ed?.costo_par ?? '')}" oninput="pcRegCalc()" style="${inp}"></div>
+      </div>
+      <p id="pc-reg-calc" style="font-size:0.8rem;color:var(--pc-muted);margin:0 0 10px"></p>` : `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
+        <div><label style="${lbl}">Fecha</label><input id="pc-reg-fecha" type="date" value="${esc(ed?.fecha || _regHoy())}" style="${inp}"></div>
+        <div><label style="${lbl}">¿En qué gastaste?</label>
+          <input id="pc-reg-concepto" list="pc-reg-gastos-sug" maxlength="120" value="${esc(ed?.concepto || '')}" placeholder="Ej: Envío, publicidad..." style="${inp}">
+          <datalist id="pc-reg-gastos-sug"><option value="Envíos"><option value="Empaque"><option value="Publicidad"><option value="Transporte"><option value="Comisiones"><option value="Renta"><option value="Otro"></datalist>
+        </div>
+        <div><label style="${lbl}">Monto ($)</label><input id="pc-reg-monto" type="number" min="0" step="1" value="${esc(ed?.monto ?? '')}" style="${inp}"></div>
+      </div>`}
+      <div style="margin-bottom:10px"><label style="${lbl}">Notas (opcional)</label><input id="pc-reg-notas" maxlength="300" value="${esc(ed?.notas || '')}" style="${inp}"></div>
+      <p id="pc-reg-err" style="display:none;color:#ef4444;font-size:0.8rem;margin:0 0 10px"></p>
+      <div style="display:flex;gap:8px">
+        <button onclick="pcRegGuardar()" id="pc-reg-btn" class="pc-btn pc-btn-primary" style="font-size:0.85rem">Guardar</button>
+        <button onclick="pcRegCerrarForm()" class="pc-btn pc-btn-secondary" style="font-size:0.85rem">Cancelar</button>
+      </div>
+    </div>` : ''}
+
+    <div class="pc-card">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 12px">Movimientos de ${esc(r.mes)}</p>
+      ${r.error ? `<p style="color:#ef4444;font-size:0.85rem">${esc(r.error)}</p>` : ''}
+      ${delMes.length === 0 ? '<p style="color:var(--pc-muted);font-size:0.85rem;margin:0">Todavía no hay movimientos este mes. Registra tu primera venta o gasto con los botones de arriba.</p>' : `
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+        <thead><tr style="text-align:left;color:var(--pc-muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em">
+          <th style="padding:6px 8px">Fecha</th><th style="padding:6px 8px">Concepto</th><th style="padding:6px 8px;text-align:right">Pares</th><th style="padding:6px 8px;text-align:right">Venta</th><th style="padding:6px 8px;text-align:right">Gasto</th><th style="padding:6px 8px;text-align:right">Ganancia</th><th></th></tr></thead>
+        <tbody>${delMes.map(f => {
+          const esV = f.tipo === 'venta'
+          const venta = esV ? (Number(f.pares) || 0) * (Number(f.precio_par) || 0) : 0
+          const gan = esV ? venta - (Number(f.pares) || 0) * (Number(f.costo_par) || 0) : -(Number(f.monto) || 0)
+          return `<tr style="border-top:1px solid var(--pc-border)">
+            <td style="padding:8px;white-space:nowrap;color:var(--pc-text-3)">${esc(String(f.fecha).slice(5).split('-').reverse().join('/'))}</td>
+            <td style="padding:8px;color:var(--pc-text-2)">${esV ? '🛍️' : '🧾'} ${esc(f.concepto || (esV ? 'Venta' : 'Gasto'))}</td>
+            <td style="padding:8px;text-align:right">${esV ? esc(f.pares) : ''}</td>
+            <td style="padding:8px;text-align:right">${esV ? money(venta) : ''}</td>
+            <td style="padding:8px;text-align:right">${esV ? '' : money(f.monto)}</td>
+            <td style="padding:8px;text-align:right;font-weight:700;color:${gan >= 0 ? '#10b981' : '#ef4444'}">${money(gan)}</td>
+            <td style="padding:8px;white-space:nowrap;text-align:right">
+              <button onclick="pcRegEditar('${esc(f.id)}')" title="Editar" style="background:none;border:none;cursor:pointer;color:var(--pc-muted)">✏️</button>
+              <button onclick="pcRegBorrar('${esc(f.id)}')" title="Borrar" style="background:none;border:none;cursor:pointer;color:var(--pc-muted)">🗑️</button>
+            </td></tr>`
+        }).join('')}</tbody>
+      </table></div>`}
+    </div>
+  `
+  if (tipoForm === 'venta') pcRegCalc()
+}
+
+window.pcRegCambiarMes = function(m) { if (/^\d{4}-\d{2}$/.test(m)) { pc._reg.mes = m; pcRegPintar() } }
+window.pcRegAbrirForm = function(tipo) { pc._reg.form = tipo; pc._reg.editId = null; pcRegPintar(); document.getElementById('pc-reg-fecha')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+window.pcRegCerrarForm = function() { pc._reg.form = null; pc._reg.editId = null; pcRegPintar() }
+window.pcRegEditar = function(id) {
+  const f = pc._reg.filas.find(x => x.id === id)
+  if (!f) return
+  pc._reg.form = f.tipo; pc._reg.editId = id; pcRegPintar()
+  document.getElementById('pc-reg-fecha')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+window.pcRegElegirModelo = function() {
+  const id = document.getElementById('pc-reg-prod')?.value
+  const p = pc.productos.find(x => x.id === id)
+  if (!p) return
+  const pares = Math.max(1, parseInt(document.getElementById('pc-reg-pares')?.value) || 1)
+  const set = (i, v) => { const e = document.getElementById(i); if (e) e.value = v }
+  set('pc-reg-concepto', String(p.nombre || '').trim().slice(0, 120))
+  set('pc-reg-costo', Math.round(pares >= 6 ? precioM6(p) : precioM3(p)))
+  set('pc-reg-precio', pcPrecioPublico(p))
+  pcRegCalc()
+}
+window.pcRegCalc = function() {
+  const out = document.getElementById('pc-reg-calc')
+  if (!out) return
+  const n = parseInt(document.getElementById('pc-reg-pares')?.value) || 0
+  const pv = parseFloat(document.getElementById('pc-reg-precio')?.value) || 0
+  const c = parseFloat(document.getElementById('pc-reg-costo')?.value) || 0
+  if (!n || !pv) { out.textContent = ''; return }
+  const gan = n * (pv - c)
+  out.innerHTML = `Vendes ${money(n * pv)} · te costó ${money(n * c)} · ganas <strong style="color:${gan >= 0 ? '#10b981' : '#ef4444'}">${money(gan)}</strong> (antes de gastos)`
+}
+window.pcRegGuardar = async function() {
+  const r = pc._reg
+  const v = (id) => document.getElementById(id)?.value ?? ''
+  const err = document.getElementById('pc-reg-err')
+  const fallo = (m) => { if (err) { err.textContent = m; err.style.display = 'block' } }
+  const cuerpo = { tipo: r.form, fecha: v('pc-reg-fecha'), concepto: v('pc-reg-concepto').trim(), notas: v('pc-reg-notas').trim() }
+  if (r.form === 'venta') {
+    cuerpo.pares = parseInt(v('pc-reg-pares')); cuerpo.precio_par = parseFloat(v('pc-reg-precio')); cuerpo.costo_par = parseFloat(v('pc-reg-costo'))
+    if (!(cuerpo.pares >= 1)) return fallo('Escribe cuántos pares vendiste.')
+    if (!(cuerpo.precio_par >= 0)) return fallo('Escribe el precio de venta por par.')
+    if (!(cuerpo.costo_par >= 0)) return fallo('Escribe tu costo por par (lo que te costó a ti).')
+  } else {
+    cuerpo.monto = parseFloat(v('pc-reg-monto'))
+    if (!cuerpo.concepto) return fallo('Escribe en qué fue el gasto.')
+    if (!(cuerpo.monto > 0)) return fallo('Escribe el monto del gasto.')
+  }
+  const btn = document.getElementById('pc-reg-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
+  try {
+    const url = `${PC_API}/portal/registro` + (r.editId ? '/' + r.editId : '')
+    const res = await fetch(url, { method: r.editId ? 'PATCH' : 'POST', headers: pcAuthHeaders(), body: JSON.stringify(cuerpo) })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || d.detail || 'No se pudo guardar')
+    r.mes = String(cuerpo.fecha).slice(0, 7) || r.mes   // se muestra el mes de lo que acaba de guardar
+    r.form = null; r.editId = null
+    await pcRegCargar()
+    pcRegPintar()
+    pcMostrarExito('Guardado ✅')
+  } catch (e) {
+    fallo(e.message)
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar' }
+  }
+}
+window.pcRegBorrar = async function(id) {
+  if (!confirm('¿Borrar este movimiento? No se puede deshacer.')) return
+  try {
+    const res = await fetch(`${PC_API}/portal/registro/${id}`, { method: 'DELETE', headers: pcAuthHeaders() })
+    if (!res.ok) throw new Error()
+    await pcRegCargar(); pcRegPintar()
+  } catch (e) { alert('No se pudo borrar. Intenta de nuevo.') }
+}
+window.pcRegDescargarCSV = function() {
+  const filas = pc._reg.filas.filter(f => _regMes(f.fecha) === pc._reg.mes).slice().reverse()
+  if (!filas.length) { alert('No hay movimientos este mes para descargar.'); return }
+  const celda = (x) => '"' + String(x ?? '').replace(/"/g, '""') + '"'
+  const lineas = [['Fecha', 'Tipo', 'Concepto', 'Pares', 'Precio de venta por par', 'Costo por par', 'Vendido', 'Costo', 'Gasto', 'Ganancia', 'Notas'].map(celda).join(',')]
+  filas.forEach(f => {
+    const esV = f.tipo === 'venta'
+    const n = Number(f.pares) || 0
+    const venta = esV ? n * (Number(f.precio_par) || 0) : 0
+    const costo = esV ? n * (Number(f.costo_par) || 0) : 0
+    const gasto = esV ? 0 : (Number(f.monto) || 0)
+    lineas.push([f.fecha, esV ? 'Venta' : 'Gasto', f.concepto || '', esV ? n : '', esV ? f.precio_par : '', esV ? f.costo_par : '', venta, costo, gasto, venta - costo - gasto, f.notas || ''].map(celda).join(','))
+  })
+  const blob = new Blob(['\ufeff' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `mi_registro_${pc._reg.mes}.csv`
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+}
+
 // ── CATÁLOGOS (descarga PDF por categoría) ────────────────────
 const PC_CATEGORIAS_CATALOGO = [
   ['tacones',    '👠', 'Tacones'],
@@ -1310,6 +1580,43 @@ function renderCatalogosDescarga(el) {
       <p style="font-size:0.83rem;color:var(--pc-muted);margin:0">Descarga un PDF con fotos de todos los modelos activos por categoría, listo para compartir con tus clientes.</p>
     </div>
 
+    <div class="pc-card" style="margin-bottom:18px">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">Cómo quieres tu catálogo</p>
+      <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px;line-height:1.5">
+        Puedes mandar el catálogo <strong>solo con fotos</strong> o <strong>con tus precios de venta</strong>. Los precios que elijas aquí son los que verán tus clientas:
+        se calculan sumándole una ganancia a <strong>tu costo</strong> (lo que te cuesta a ti, el precio de 3 a 5 pares) y <strong>tu costo nunca aparece en el PDF</strong>.
+        Los precios no incluyen envío. Tus elecciones se quedan guardadas para la próxima vez.
+      </p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-cat-precio" value="ninguno" onchange="pcCatCfgCambio()" style="margin-top:3px">
+        <span><strong>Sin precios</strong> — solo fotos y código del modelo.</span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-cat-precio" value="pct" onchange="pcCatCfgCambio()">
+        <span><strong>Con precios — subir un porcentaje a mi costo:</strong> gano</span>
+        <input id="pc-cat-pct" type="number" min="1" max="300" step="1" oninput="pcCatCfgCambio()" style="width:70px;padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        <span>% (lo común es 40%)</span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-cat-precio" value="fijo" onchange="pcCatCfgCambio()">
+        <span><strong>Con precios — sumar una cantidad fija a mi costo:</strong> gano $</span>
+        <input id="pc-cat-fijo" type="number" min="0" max="100000" step="10" oninput="pcCatCfgCambio()" style="width:80px;padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        <span>por par</span>
+      </label>
+      <p id="pc-cat-ejemplo" style="font-size:0.78rem;color:var(--pc-muted);margin:4px 0 14px"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px">Nombre de tu negocio (opcional)</label>
+          <input id="pc-cat-negocio" maxlength="40" oninput="pcCatCfgCambio()" placeholder="Ej: Calzado Lupita" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        </div>
+        <div style="flex:1;min-width:180px">
+          <label style="font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px">Tu WhatsApp para pedidos (opcional)</label>
+          <input id="pc-cat-tel" inputmode="tel" maxlength="16" oninput="pcCatCfgCambio()" placeholder="10 dígitos" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        </div>
+      </div>
+      <p style="font-size:0.72rem;color:var(--pc-muted);margin:8px 0 0">El nombre y el WhatsApp salen en el encabezado y el pie de cada página.</p>
+    </div>
+
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
       ${PC_CATEGORIAS_CATALOGO.map(([id, icon, label]) => {
         const total = pc.productos.filter(p => p.categoria === id && p.activo !== false).length
@@ -1329,6 +1636,35 @@ function renderCatalogosDescarga(el) {
       }).join('')}
     </div>
   `
+  pcCatCfgPintar()
+}
+
+function pcCatCfgPintar() {
+  const c = pcCatCfg()
+  document.querySelectorAll('input[name="pc-cat-precio"]').forEach(r => { r.checked = r.value === c.precio })
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v }
+  set('pc-cat-pct', c.pct); set('pc-cat-fijo', c.fijo); set('pc-cat-negocio', c.negocio); set('pc-cat-tel', c.tel)
+  pcCatEjemplo()
+}
+window.pcCatCfgCambio = function() {
+  const val = (id) => document.getElementById(id)?.value
+  pcCatGuardarCfg({
+    precio: document.querySelector('input[name="pc-cat-precio"]:checked')?.value || 'ninguno',
+    pct: parseFloat(val('pc-cat-pct')) || 40,
+    fijo: parseFloat(val('pc-cat-fijo')) || 0,
+    negocio: String(val('pc-cat-negocio') || '').trim(),
+    tel: String(val('pc-cat-tel') || '').replace(/\D/g, ''),
+  })
+  pcCatEjemplo()
+}
+function pcCatEjemplo() {
+  const el = document.getElementById('pc-cat-ejemplo')
+  if (!el) return
+  const c = pcCatCfg()
+  const p = pc.productos.find(x => x.precio_menudeo) || pc.productos[0]
+  if (c.precio === 'ninguno' || !p) { el.textContent = 'El catálogo saldrá solo con fotos.'; return }
+  const pub = pcPrecioCatalogo(p, c)
+  el.innerHTML = `Ejemplo con <strong>${esc(String(p.nombre || '').split(' ')[0])}</strong>: te cuesta ${money(precioM3(p))} → en el catálogo aparecerá <strong style="color:var(--pc-text)">${money(pub)}</strong> → ganas <strong style="color:#10b981">${money(pub - precioM3(p))}</strong> por par.`
 }
 
 function pcProductoCard(p) {
@@ -2884,6 +3220,8 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
   try {
     const productos = pc.productos.filter(p => p.categoria === cat && p.activo !== false)
     const variantes = pc.variantes
+    const cfg = pcCatCfg()
+    const conPrecio = cfg.precio !== 'ninguno'
 
     if (!productos.length) {
       if (msg) msg.textContent = `Sin productos activos en ${label}`
@@ -2908,11 +3246,11 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
         if (!v.color || colorsSeen.has(v.color.trim().toUpperCase())) return
         colorsSeen.add(v.color.trim().toUpperCase())
         const imgUrl = v.foto_url || p.imagen_principal
-        if (imgUrl) items.push({ sku: codigo, color: v.color.trim().toUpperCase(), imgUrl })
+        if (imgUrl) items.push({ sku: codigo, color: v.color.trim().toUpperCase(), imgUrl, precio: pcPrecioCatalogo(p, cfg) })
       })
 
       if (colorsSeen.size === 0 && p.imagen_principal) {
-        items.push({ sku: codigo, color: 'ÚNICO', imgUrl: p.imagen_principal })
+        items.push({ sku: codigo, color: 'ÚNICO', imgUrl: p.imagen_principal, precio: pcPrecioCatalogo(p, cfg) })
       }
     })
 
@@ -2941,7 +3279,7 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
     const marginX = 40, marginY = 80, gapX = 24, gapY = 32
     const cellW = (pageW - marginX * 2 - gapX * (cols - 1)) / cols
     const cellH = (pageH - marginY * 2 - gapY * (rows - 1)) / rows
-    const imgH = cellH - 50
+    const imgH = cellH - (conPrecio ? 70 : 50)   // con precio hay una línea más de texto debajo de la foto
 
     const _cargarImg = url => new Promise(resolve => {
       if (!url) return resolve(null)
@@ -2990,7 +3328,7 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
       ctx.font = '300 20px sans-serif'
       ctx.textAlign = 'center'
       ctx.letterSpacing = '4px'
-      ctx.fillText(`CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38)
+      ctx.fillText(`${cfg.negocio ? cfg.negocio.toUpperCase() + '  ·  ' : ''}CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38)
       ctx.letterSpacing = '0px'
 
       ctx.fillStyle = '#C8967A'
@@ -3010,7 +3348,11 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
 
         ctx.fillStyle = '#2A1A0E'; ctx.textAlign = 'center'
         ctx.font = '600 18px sans-serif'
-        ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 28)
+        ctx.fillText(`${item.sku} ${item.color}`, cellX + cellW / 2, cellY + imgH + 26)
+        if (item.precio) {
+          ctx.fillStyle = '#B3125F'; ctx.font = '700 26px sans-serif'
+          ctx.fillText('$' + Math.round(item.precio).toLocaleString('es-MX'), cellX + cellW / 2, cellY + imgH + 58)
+        }
       }
 
       ctx.fillStyle = '#C8967A'
@@ -3019,7 +3361,9 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
       ctx.fillStyle = '#A07860'
       ctx.font = '300 14px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(`Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30)
+      const _tel = cfg.tel ? (cfg.tel.length === 10 ? cfg.tel.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : cfg.tel) : ''
+      const _pie = [cfg.negocio, _tel ? 'Pedidos por WhatsApp: ' + _tel : '', conPrecio ? 'Precios en MXN, no incluyen envío' : ''].filter(Boolean).join('  ·  ')
+      ctx.fillText(`${_pie ? _pie + '   |   ' : ''}Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30)
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
       if (!primeraPagina) pdf.addPage([pageW, pageH])
