@@ -2317,7 +2317,7 @@ window.mostrarCxC = () => {
           return `
             <div style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
               <div style="flex:1">
-                <p style="font-size:0.85rem;font-weight:600">${p.clientes?.nombre || 'Sin cliente'}</p>
+                <p style="font-size:0.85rem;font-weight:600">${p.clientes?.nombre || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente')}</p>
                 <p style="font-size:0.72rem;color:#888">${new Date(p.created_at).toLocaleDateString('es-MX')} · Pedido #${p.id.substring(0,8).toUpperCase()}</p>
               </div>
               <div style="text-align:right">
@@ -9990,7 +9990,7 @@ function _renderFilaPedido(p) {
     ? `<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${p.paqueteria || ''} ${p.numero_guia}</span>` : ''
   const avisoEnvioPendiente = p.envio_pendiente_coordinar
     ? `<br><span style="font-size:0.68rem;color:#b45309;font-weight:700">⚠️ Envío pendiente de coordinar</span>` : ''
-  const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')
+  const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente'))
   const tel = p.telefono_cliente || (p.clientes && p.clientes.telefono) || ''
 
   return `
@@ -10358,7 +10358,7 @@ window.mostrarGuiasLote = () => {
       <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Escribe la guía de cada pedido que ya mandaste. Los que dejes vacíos no se tocan. Al guardar, a cada cliente le llega su aviso por WhatsApp y correo.</p>
       <label style="font-size:0.78rem;color:#475569">Paquetería para todos: <select id="lote-paq" class="form-input" style="display:inline-block;width:auto;font-size:0.82rem">${opts}</select></label>
       <div style="margin-top:10px">${pedidos.map(p => {
-        const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')
+        const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || (p.canal === 'sucursal' ? 'Público general' : 'Sin cliente'))
         const dias = window._pedDias(p.confirmado_at || p.created_at)
         return `<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eef0f4;flex-wrap:wrap">
           <div style="flex:1;min-width:180px"><strong style="font-size:0.84rem">${cli}</strong><br><span style="font-size:0.7rem;color:#94a3b8;font-family:monospace">#${p.id.slice(0, 8).toUpperCase()} · $${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })} · ${dias >= 3 ? '🔴' : dias >= 1 ? '🟡' : '🟢'} ${dias} d</span></div>
@@ -19581,7 +19581,7 @@ window.verOportunidad = async (id) => {
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1.5rem">
           <div>
             <h3 style="font-size:1rem;font-weight:700;margin-bottom:4px">${o.titulo}</h3>
-            <p style="font-size:0.82rem;color:#888">${o.clientes?.nombre || 'Sin cliente'}</p>
+            <p style="font-size:0.82rem;color:#888">${o.clientes?.nombre || 'Público general'}</p>
           </div>
           <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#888">✕</button>
         </div>
