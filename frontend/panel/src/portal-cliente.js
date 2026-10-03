@@ -1706,16 +1706,17 @@ function renderCatalogosDescarga(el) {
       </label>
       <p id="pc-cat-ejemplo" style="font-size:0.78rem;color:var(--pc-muted);margin:4px 0 14px"></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div style="flex:1;min-width:180px">
+        <div style="flex:1 1 230px;min-width:0">
           <label style="font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px">Nombre de tu negocio (opcional)</label>
           <input id="pc-cat-negocio" maxlength="40" oninput="pcCatCfgCambio()" placeholder="Ej: Calzado Lupita" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
         </div>
-        <div style="flex:1;min-width:180px">
+        <div style="flex:1 1 230px;min-width:0">
           <label style="font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px">Tu WhatsApp para pedidos (opcional)</label>
           <input id="pc-cat-tel" inputmode="tel" maxlength="16" oninput="pcCatCfgCambio()" placeholder="10 dígitos" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
         </div>
       </div>
-      <p style="font-size:0.72rem;color:var(--pc-muted);margin:8px 0 0">El nombre y el WhatsApp salen en el encabezado y el pie de cada página.</p>
+      <p style="font-size:0.72rem;color:var(--pc-muted);margin:8px 0 8px">El nombre y el WhatsApp salen grandes en el encabezado y otra vez al pie de cada página. Así saldrá:</p>
+      <div id="pc-cat-previa" style="border:1px dashed var(--pc-border-2);border-radius:10px;padding:12px;text-align:center;background:var(--pc-bg)"></div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
@@ -1758,7 +1759,18 @@ window.pcCatCfgCambio = function() {
   })
   pcCatEjemplo()
 }
+function pcCatPrevia() {
+  const el = document.getElementById('pc-cat-previa')
+  if (!el) return
+  const c = pcCatCfg()
+  const tel = c.tel ? (c.tel.length === 10 ? c.tel.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : c.tel) : ''
+  if (!c.negocio && !tel) { el.innerHTML = '<span style="font-size:0.78rem;color:var(--pc-muted)">Sin nombre ni WhatsApp: el catálogo saldrá con el encabezado normal.</span>'; return }
+  el.innerHTML = (c.negocio ? `<div style="font-weight:800;font-size:1.05rem;color:var(--pc-text);letter-spacing:0.02em;overflow-wrap:anywhere">${esc(c.negocio.toUpperCase())}</div>` : '') +
+    `<div style="font-size:0.62rem;letter-spacing:0.25em;color:var(--pc-muted);margin:2px 0 8px">CATÁLOGO DE TACONES</div>` +
+    (tel ? `<span style="display:inline-block;background:#25D366;color:#fff;font-weight:700;font-size:0.9rem;padding:6px 16px;border-radius:100px">WhatsApp: ${esc(tel)}</span>` : '')
+}
 function pcCatEjemplo() {
+  pcCatPrevia()
   const el = document.getElementById('pc-cat-ejemplo')
   if (!el) return
   const c = pcCatCfg()
@@ -3377,9 +3389,14 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
     const cols = 2, rows = 3
     const itemsPerPage = cols * rows
     const pageW = 1080, pageH = 1440
-    const marginX = 40, marginY = 80, gapX = 24, gapY = 32
+    // Nombre del negocio y WhatsApp: se imprimen GRANDES (título y pastilla verde) para que se alcancen a ver; el encabezado crece según lo que lleve
+    const _tel = cfg.tel ? (cfg.tel.length === 10 ? cfg.tel.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : cfg.tel) : ''
+    const marca = !!(cfg.negocio || _tel)
+    const marginX = 40, gapX = 24, gapY = 32
+    const marginTop = !marca ? 80 : (cfg.negocio ? (_tel ? 176 : 126) : 150)
+    const marginBottom = marca ? 96 : 80
     const cellW = (pageW - marginX * 2 - gapX * (cols - 1)) / cols
-    const cellH = (pageH - marginY * 2 - gapY * (rows - 1)) / rows
+    const cellH = (pageH - marginTop - marginBottom - gapY * (rows - 1)) / rows
     const imgH = cellH - (conPrecio ? 70 : 50)   // con precio hay una línea más de texto debajo de la foto
 
     const _cargarImg = url => new Promise(resolve => {
@@ -3425,22 +3442,46 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
 
       ctx.fillStyle = '#FAFAF8'; ctx.fillRect(0, 0, pageW, pageH)
 
-      ctx.fillStyle = '#2A1A0E'
-      ctx.font = '300 20px sans-serif'
       ctx.textAlign = 'center'
-      ctx.letterSpacing = '4px'
-      ctx.fillText(`${cfg.negocio ? cfg.negocio.toUpperCase() + '  ·  ' : ''}CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38)
-      ctx.letterSpacing = '0px'
-
-      ctx.fillStyle = '#C8967A'
-      ctx.fillRect(marginX, 48, pageW - marginX * 2, 1.5)
+      if (marca) {
+        let yy = 56
+        if (cfg.negocio) {
+          ctx.fillStyle = '#2A1A0E'; ctx.font = '700 40px sans-serif'
+          let tam = 40
+          while (ctx.measureText(cfg.negocio.toUpperCase()).width > pageW - 120 && tam > 22) { tam -= 2; ctx.font = `700 ${tam}px sans-serif` }
+          ctx.fillText(cfg.negocio.toUpperCase(), pageW / 2, yy)
+          yy += 36
+        }
+        ctx.fillStyle = '#8A6A55'; ctx.font = '400 20px sans-serif'; ctx.letterSpacing = '4px'
+        ctx.fillText(`CATÁLOGO DE ${catLabelClean}`, pageW / 2, yy)
+        ctx.letterSpacing = '0px'
+        if (_tel) {
+          const txt = 'WhatsApp: ' + _tel
+          ctx.font = '700 30px sans-serif'
+          const w = ctx.measureText(txt).width + 64, h = 50, x = (pageW - w) / 2, y = yy + 14
+          ctx.fillStyle = '#25D366'
+          ctx.beginPath(); ctx.moveTo(x + h / 2, y); ctx.lineTo(x + w - h / 2, y); ctx.arc(x + w - h / 2, y + h / 2, h / 2, -Math.PI / 2, Math.PI / 2)
+          ctx.lineTo(x + h / 2, y + h); ctx.arc(x + h / 2, y + h / 2, h / 2, Math.PI / 2, -Math.PI / 2); ctx.closePath(); ctx.fill()
+          ctx.fillStyle = '#FFFFFF'; ctx.fillText(txt, pageW / 2, y + 35)
+        }
+        ctx.fillStyle = '#C8967A'
+        ctx.fillRect(marginX, marginTop - 12, pageW - marginX * 2, 1.5)
+      } else {
+        ctx.fillStyle = '#2A1A0E'
+        ctx.font = '300 20px sans-serif'
+        ctx.letterSpacing = '4px'
+        ctx.fillText(`CATÁLOGO DE ${catLabelClean}`, pageW / 2, 38)
+        ctx.letterSpacing = '0px'
+        ctx.fillStyle = '#C8967A'
+        ctx.fillRect(marginX, 48, pageW - marginX * 2, 1.5)
+      }
 
       for (let cellIdx = 0; cellIdx < pageItems.length; cellIdx++) {
         const item = pageItems[cellIdx]
         const colIdx = cellIdx % cols
         const rowIdx = Math.floor(cellIdx / cols)
         const cellX = marginX + colIdx * (cellW + gapX)
-        const cellY = marginY + rowIdx * (cellH + gapY)
+        const cellY = marginTop + rowIdx * (cellH + gapY)
 
         const img = await _cargarImg(item.imgUrl)
         _drawContain(ctx, img, cellX, cellY, cellW, imgH)
@@ -3457,14 +3498,17 @@ window.pcDescargarCatalogoPorCategoria = async function(cat, label) {
       }
 
       ctx.fillStyle = '#C8967A'
-      ctx.fillRect(marginX, pageH - 48, pageW - marginX * 2, 1)
+      ctx.fillRect(marginX, pageH - (marca ? 78 : 48), pageW - marginX * 2, 1)
 
-      ctx.fillStyle = '#A07860'
-      ctx.font = '300 14px sans-serif'
       ctx.textAlign = 'center'
-      const _tel = cfg.tel ? (cfg.tel.length === 10 ? cfg.tel.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3') : cfg.tel) : ''
-      const _pie = [cfg.negocio, _tel ? 'Pedidos por WhatsApp: ' + _tel : '', conPrecio ? 'Precios en MXN, no incluyen envío' : ''].filter(Boolean).join('  ·  ')
-      ctx.fillText(`${_pie ? _pie + '   |   ' : ''}Página ${pIdx + 1} de ${pages.length}`, pageW / 2, pageH - 30)
+      if (marca) {
+        // negocio y WhatsApp otra vez al pie, en letra legible
+        ctx.fillStyle = '#4A2E1E'; ctx.font = '700 24px sans-serif'
+        ctx.fillText([cfg.negocio, _tel ? 'WhatsApp ' + _tel : ''].filter(Boolean).join('   ·   '), pageW / 2, pageH - 46)
+      }
+      ctx.fillStyle = '#A07860'
+      ctx.font = '300 15px sans-serif'
+      ctx.fillText([conPrecio ? 'Precios en MXN, no incluyen envío' : '', `Página ${pIdx + 1} de ${pages.length}`].filter(Boolean).join('   |   '), pageW / 2, pageH - (marca ? 20 : 30))
 
       const dataUrl = canvas.toDataURL('image/jpeg', 0.90)
       if (!primeraPagina) pdf.addPage([pageW, pageH])
