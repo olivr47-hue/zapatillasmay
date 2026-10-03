@@ -532,6 +532,10 @@ def _producto_ssr_inner(sku: str, request: Request):
     except Exception as _e:
         print(f"[seo] No se pudo inyectar contenido server-side: {_e}")
 
+    # Modelo sin ninguna foto: no se indexa hasta que tenga (Google lo marcaría como página de baja calidad)
+    if not imagenes_seo and '</head>' in template:
+        template = template.replace('</head>', '<meta name="robots" content="noindex,follow"></head>', 1)
+
     cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
 
