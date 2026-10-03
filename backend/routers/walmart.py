@@ -1186,6 +1186,11 @@ def feed_plantilla(solo_listos: bool = True, producto_ids: str = None):
     )
 
 
+def _fotos_variante(v: dict) -> int:
+    """Fotos distintas propias de la variante (sin contar las del producto)."""
+    return len({f for f in list(v.get("imagenes") or []) + [v.get("foto_url")] if f})
+
+
 def datetime_now_str() -> str:
     import datetime as _dt
     return _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1194,7 +1199,7 @@ def datetime_now_str() -> str:
 @router.post("/feed/subir")
 def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: str = None,
                 titulo: str = None, precio: float = None, excluir_sku_walmart: str = None,
-                precio_walmart: float = None):
+                precio_walmart: float = None, solo_con_stock: bool = False, min_fotos: int = 0):
     """Sube el feed a Walmart vía Feeds API (POST /v3/feeds?feedType=item,
     multipart). Crea publicaciones REALES en Walmart -- por eso exige
     confirmar=true explícito y no corre solo. Devuelve el feedId para
@@ -1226,6 +1231,22 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
     if excluir_sku_walmart:
         excluir = {s.strip() for s in excluir_sku_walmart.split(",") if s.strip()}
         items = [it for it in items if it["variante"].get("sku_walmart") not in excluir]
+    # El límite de anuncios de Walmart cuenta SKUs (talla+color): con estos filtros solo
+    # se publican las variantes que realmente se pueden vender y que tienen fotos propias.
+    if solo_con_stock:
+        items = [it for it in items if (it["stock"] or 0) > 0]
+    if min_fotos:
+        items = [it for it in items if _fotos_variante(it["variante"]) >= min_fotos]
+    if solo_con_stock or min_fotos:
+        # Walmart exige una variante "primaria" por grupo (producto+color): se recalcula
+        # con las que quedaron, porque la original pudo haberse filtrado.
+        grupos: dict = {}
+        for it in items:
+            grupos.setdefault((it["producto"]["id"], it["variante"].get("color")), []).append(it)
+        items = []
+        for g in grupos.values():
+            g.sort(key=lambda x: _talla_display(x["variante"].get("talla")))
+            items.extend({**it, "es_primaria": i == 0} for i, it in enumerate(g))
     if solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
@@ -1283,13 +1304,17 @@ def feed_estado(feed_id: str):
 # no conozca simplemente no tiene efecto, no genera error de feed completo.
 
 @router.post("/inventario/sincronizar")
-def sincronizar_inventario(sku_interno: str = None):
+def sincronizar_inventario(sku_interno: str = None, solo_publicados: bool = False):
     """Manda a Walmart el stock actual del ERP para todas las variantes
     publicables, vía Feeds API (POST /v3/feeds?feedType=inventory).
-    Con sku_interno limita el envío a un solo producto (útil para probar)."""
+    Con sku_interno limita el envío a un solo producto (útil para probar).
+    Con solo_publicados manda únicamente los SKUs que ya existen en Walmart."""
     items = _variantes_publicables()
     if sku_interno:
         items = [it for it in items if it["producto"].get("sku_interno") == sku_interno]
+    if solo_publicados:
+        existentes = set(_gtins_walmart().keys())
+        items = [it for it in items if (it["variante"].get("sku") or "").strip() in existentes]
     # sku_walmart, no sku -- Walmart conoce el artículo por el código corto
     # que se le mandó en el feed (columna D), no por el sku interno (ver nota
     # junto a _fila_variante: el sku interno excede su límite de 15 caracteres).

@@ -281,6 +281,21 @@ def _loop_shein_ventas():
             print(f"[shein-ventas] Error en loop: {e}")
         _time.sleep(10 * 60)  # cada 10 minutos
 
+def _loop_walmart_inventario():
+    """Mantiene al día en Walmart el stock de lo que ya está publicado ahí (cada 30 min).
+    Sin esto, un par vendido en la tienda/ML/SHEIN seguía ofreciéndose en Walmart."""
+    _time.sleep(1200)
+    while True:
+        try:
+            from routers.walmart import sincronizar_inventario, WALMART_CLIENT_ID
+            if WALMART_CLIENT_ID:
+                res = sincronizar_inventario(solo_publicados=True)
+                if res.get("enviados"):
+                    print(f"[walmart-inventario] Existencias enviadas: {res['enviados']} SKU(s)")
+        except Exception as e:
+            print(f"[walmart-inventario] Error en loop: {e}")
+        _time.sleep(30 * 60)
+
 def _loop_amazon_ventas():
     """Trae ventas nuevas de Amazon y descuenta inventario cada 10 minutos. No hace
     nada mientras no estén las variables AMAZON_* en Railway (cuenta sin conectar)."""
@@ -479,6 +494,10 @@ def _iniciar_hilos():
     t3b = threading.Thread(target=_loop_shein_ventas, daemon=True)
     t3b.start()
     print("[shein-ventas] Hilo de sincronización de ventas iniciado (cada 10 min)")
+    # Walmart: mantener existencias al día
+    t3w = threading.Thread(target=_loop_walmart_inventario, daemon=True)
+    t3w.start()
+    print("[walmart-inventario] Hilo de existencias iniciado (cada 30 min)")
     # Amazon: descontar inventario por ventas nuevas (solo si está configurado)
     t3c = threading.Thread(target=_loop_amazon_ventas, daemon=True)
     t3c.start()
