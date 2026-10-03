@@ -182,24 +182,89 @@ def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None, reply_t
 
 # ── Plantillas ────────────────────────────────────────────────────
 
-def _base_html(contenido: str) -> str:
-    return f"""
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#fff">
-      <div style="background:linear-gradient(135deg,#b5687a,#c8967a);padding:32px;text-align:center">
-        <h1 style="color:#fff;font-weight:300;margin:0;font-size:1.5rem;letter-spacing:1px">
-          Zapatillas <strong>May</strong>
-        </h1>
-        <p style="color:rgba(255,255,255,0.85);font-size:0.8rem;margin:6px 0 0">León, Guanajuato · zapatillasmay.mx</p>
-      </div>
-      <div style="padding:32px">{contenido}</div>
-      <div style="background:#faf8f6;padding:20px 32px;text-align:center;border-top:1px solid #f0e8e0">
-        <p style="color:#aaa;font-size:0.75rem;margin:0">
-          ¿Dudas? Escríbenos por
-          <a href="https://wa.me/5214792244560" style="color:#c8967a">WhatsApp</a>
-          · Envíos a todo México
-        </p>
-      </div>
-    </div>"""
+def _base_html(contenido: str, preheader: str = "") -> str:
+    """Marco común de todos los correos. Hecho con tablas (no flex/grid) para que se vea igual en Gmail, Outlook y Apple Mail,
+    con texto de vista previa (preheader), botones que no se rompen y pie con contacto."""
+    pre = (
+        f'<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px">'
+        f'{_h.escape(preheader)}&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>'
+    ) if preheader else ""
+    return f"""<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only"><title>Zapatillas May</title></head>
+<body style="margin:0;padding:0;background:#f4eeea">
+{pre}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4eeea"><tr><td align="center" style="padding:24px 12px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif">
+    <tr><td align="center" bgcolor="#b5687a" style="background:#b5687a;background-image:linear-gradient(135deg,#b5687a,#c8967a);padding:30px 24px">
+      <a href="https://zapatillasmay.mx" style="text-decoration:none;color:#ffffff">
+        <span style="font-size:26px;font-weight:300;letter-spacing:1.5px;color:#ffffff">Zapatillas <strong style="font-weight:700">May</strong></span></a><br>
+      <span style="font-size:12px;color:#fbe9e7;letter-spacing:.5px">Calzado para dama · León, Guanajuato</span>
+    </td></tr>
+    <tr><td style="padding:32px 28px 8px 28px">{contenido}</td></tr>
+    <tr><td style="padding:8px 28px 28px 28px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#faf5f1;border-radius:12px;padding:16px">
+        <span style="font-size:13px;color:#7a6a60;line-height:1.6">¿Tienes alguna duda? Respondemos rápido por WhatsApp</span><br>
+        <a href="https://wa.me/5214792244560" style="display:inline-block;margin-top:10px;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 22px;border-radius:50px">💬 Escribir por WhatsApp</a>
+      </td></tr></table>
+    </td></tr>
+    <tr><td align="center" style="background:#2A1A0E;padding:18px 24px">
+      <span style="font-size:12px;color:#d9c9bd;line-height:1.7">Envíos a todo México · Pago seguro<br>
+      <a href="https://zapatillasmay.mx" style="color:#e8b4a0;text-decoration:none">zapatillasmay.mx</a>
+      &nbsp;·&nbsp; <a href="mailto:contacto@zapatillasmay.mx" style="color:#e8b4a0;text-decoration:none">contacto@zapatillasmay.mx</a></span>
+    </td></tr>
+  </table>
+</td></tr></table>
+</body></html>"""
+
+
+def _boton(texto: str, url: str, color: str = "#b5687a") -> str:
+    """Botón que se ve bien en todos los clientes de correo (tabla con fondo sólido)."""
+    return (
+        f'<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:6px auto"><tr>'
+        f'<td align="center" bgcolor="{color}" style="background:{color};border-radius:50px">'
+        f'<a href="{_h.escape(url, quote=True)}" style="display:inline-block;padding:14px 34px;color:#ffffff;text-decoration:none;'
+        f'font-weight:700;font-size:15px;font-family:Arial,Helvetica,sans-serif">{texto}</a></td></tr></table>'
+    )
+
+
+def _imagenes_de_items(items: list) -> dict:
+    """variante_id -> URL de la foto (la del color; si no hay, la del producto). Para las miniaturas del correo."""
+    ids = [str(i.get("variante_id")) for i in items if i.get("variante_id")]
+    if not ids:
+        return {}
+    try:
+        from database import supabase_get
+        filas = supabase_get(f"variantes?id=in.({','.join(ids)})&select=id,foto_url,productos(imagen_principal)") or []
+        return {f["id"]: (f.get("foto_url") or (f.get("productos") or {}).get("imagen_principal") or "") for f in filas}
+    except Exception:
+        return {}
+
+
+def _miniatura(url: str) -> str:
+    url = str(url or "")
+    if url.startswith("https://") or url.startswith("http://"):
+        return (f'<img src="{_h.escape(url, quote=True)}" width="72" height="72" alt="" '
+                f'style="display:block;width:72px;height:72px;border-radius:10px;object-fit:cover;background:#f5f0eb">')
+    return '<div style="width:72px;height:72px;border-radius:10px;background:#f5f0eb;text-align:center;line-height:72px;font-size:28px">👠</div>'
+
+
+def _seguimiento_pasos(paso_actual: int) -> str:
+    """Barra de 4 pasos: Confirmado · Preparando · Enviado · Entregado (paso_actual de 1 a 4)."""
+    etiquetas = ["Pedido confirmado", "Preparando", "Enviado", "Entregado"]
+    celdas = ""
+    for i, et in enumerate(etiquetas, start=1):
+        hecho = i <= paso_actual
+        bola_bg = "#b5687a" if hecho else "#e9dfd8"
+        bola_tx = "#ffffff" if hecho else "#a89a90"
+        celdas += (
+            f'<td align="center" width="25%" style="padding:0 2px;vertical-align:top">'
+            f'<div style="width:30px;height:30px;line-height:30px;border-radius:50%;background:{bola_bg};color:{bola_tx};'
+            f'font-size:14px;font-weight:700;margin:0 auto">{"✓" if hecho else i}</div>'
+            f'<div style="font-size:11px;color:{"#2A1A0E" if hecho else "#a89a90"};margin-top:6px;line-height:1.3;'
+            f'font-weight:{"700" if hecho else "400"}">{et}</div></td>'
+        )
+    return f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 22px"><tr>{celdas}</tr></table>'
 
 
 def email_pedido_confirmado(pedido: dict):
@@ -209,67 +274,81 @@ def email_pedido_confirmado(pedido: dict):
     pedido_id = str(pedido.get("id") or "")[:8].upper()
     direccion = _h.escape(pedido.get("direccion_envio") or "—")
     items    = pedido.get("pedido_items") or []
+    fotos    = _imagenes_de_items(items)
 
     filas = ""
+    subtotal = 0.0
+    envio = float(pedido.get("costo_envio") or 0)
+    pares = 0
     for it in items:
-        nom  = _h.escape(str(it.get("nombre") or "Producto"))
-        col  = it.get("color") or ""
-        tal  = it.get("talla") or ""
-        cant = it.get("cantidad") or 1
+        cant = int(it.get("cantidad") or 1)
         precio = float(it.get("precio_unitario") or 0)
-        meta = " · ".join([x for x in [col, f"T{tal}" if tal else ""] if x])
+        if str(it.get("nombre") or "").strip().lower() == "envío" or str(it.get("nombre") or "").strip().lower() == "envio":
+            envio = envio or precio * cant     # el envío viaja como renglón del pedido
+            continue
+        nom  = _h.escape(str(it.get("nombre") or "Producto"))
+        col  = _h.escape(str(it.get("color") or ""))
+        tal  = _h.escape(str(it.get("talla") or ""))
+        meta = " · ".join([x for x in [col, f"Talla {tal}" if tal else ""] if x])
+        subtotal += precio * cant
+        pares += cant
         filas += f"""
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #f5ede8;font-size:14px;color:#333">
+          <td width="86" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top">{_miniatura(fotos.get(str(it.get('variante_id')), ''))}</td>
+          <td style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;font-size:14px;color:#2A1A0E;line-height:1.45">
             <strong>{nom}</strong><br>
-            <span style="color:#aaa;font-size:12px">{meta} · {cant} {("par" if cant==1 else "pares")}</span>
+            <span style="color:#8a7b71;font-size:12px">{meta}</span><br>
+            <span style="color:#8a7b71;font-size:12px">{cant} {("par" if cant == 1 else "pares")} × ${precio:,.0f}</span>
           </td>
-          <td style="padding:10px 0;border-bottom:1px solid #f5ede8;font-size:14px;color:#b5687a;
-                     text-align:right;font-weight:700;white-space:nowrap">
-            ${precio * cant:,.0f} MXN
-          </td>
+          <td align="right" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;font-size:14px;color:#b5687a;font-weight:700;white-space:nowrap">${precio * cant:,.0f}</td>
         </tr>"""
 
+    envio_fila = (f'<tr><td style="padding:4px 0;font-size:13px;color:#7a6a60">Envío</td>'
+                  f'<td align="right" style="padding:4px 0;font-size:13px;color:#2A1A0E">{"Gratis" if envio <= 0 else f"${envio:,.0f}"}</td></tr>')
+
     contenido = f"""
-      <h2 style="color:#2A1A0E;font-size:1.3rem;margin-bottom:4px">¡Gracias, {nombre}! 🎉</h2>
-      <p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:24px">
-        Recibimos tu pago y ya estamos preparando tu pedido.
-        Te avisamos cuando lo enviemos con tu número de rastreo.
+      <h1 style="margin:0 0 6px;font-size:24px;line-height:1.25;color:#2A1A0E">¡Gracias por tu compra, {nombre}! 🎉</h1>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#5b4d44">
+        Recibimos tu pago y ya estamos preparando tu pedido con mucho cariño. Te avisaremos por correo y WhatsApp en cuanto salga, con tu número de rastreo.
       </p>
 
-      <div style="background:#fdf8f5;border-radius:10px;padding:16px 20px;margin-bottom:20px">
-        <p style="font-size:0.7rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin:0 0 4px">
-          Número de pedido
-        </p>
-        <p style="font-size:1.1rem;font-weight:700;color:#2A1A0E;font-family:monospace;margin:0">
-          #{pedido_id}
-        </p>
-      </div>
+      {_seguimiento_pasos(1)}
 
-      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">{filas}</table>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px"><tr>
+        <td style="background:#fdf8f5;border-radius:12px;padding:14px 18px">
+          <span style="font-size:11px;color:#a89a90;text-transform:uppercase;letter-spacing:1px">Número de pedido</span><br>
+          <span style="font-size:20px;font-weight:700;color:#2A1A0E;font-family:'Courier New',monospace">#{pedido_id}</span>
+          <span style="font-size:12px;color:#8a7b71">&nbsp;·&nbsp;{pares} {("par" if pares == 1 else "pares")}</span>
+        </td></tr></table>
 
-      <div style="display:flex;justify-content:space-between;padding:14px 0;
-                  border-top:2px solid #f0e0d6;margin-bottom:20px">
-        <strong style="font-size:1rem;color:#2A1A0E">Total pagado</strong>
-        <strong style="font-size:1.1rem;color:#b5687a">${total:,.0f} MXN</strong>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{filas}</table>
 
-      <div style="background:#f5f0eb;border-radius:10px;padding:14px 20px;margin-bottom:24px">
-        <p style="font-size:0.7rem;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px">
-          📦 Dirección de envío
-        </p>
-        <p style="font-size:0.88rem;color:#333;margin:0;line-height:1.5">{direccion}</p>
-      </div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:14px 0 22px">
+        <tr><td style="padding:4px 0;font-size:13px;color:#7a6a60">Productos</td><td align="right" style="padding:4px 0;font-size:13px;color:#2A1A0E">${subtotal:,.0f}</td></tr>
+        {envio_fila}
+        <tr><td style="padding:10px 0 0;border-top:2px solid #efe1d8;font-size:16px;font-weight:700;color:#2A1A0E">Total pagado</td>
+            <td align="right" style="padding:10px 0 0;border-top:2px solid #efe1d8;font-size:20px;font-weight:700;color:#b5687a">${total:,.0f} MXN</td></tr>
+      </table>
 
-      <a href="https://zapatillasmay.mx"
-         style="display:block;text-align:center;background:linear-gradient(135deg,#b5687a,#c8967a);
-                color:#fff;padding:14px;border-radius:50px;text-decoration:none;
-                font-weight:700;font-size:0.9rem;margin-bottom:16px">
-        Ver más modelos →
-      </a>"""
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px"><tr>
+        <td style="background:#f7f1ec;border-radius:12px;padding:14px 18px">
+          <span style="font-size:11px;color:#a89a90;text-transform:uppercase;letter-spacing:1px">📦 Se enviará a</span><br>
+          <span style="font-size:14px;color:#2A1A0E;line-height:1.55">{direccion}</span>
+        </td></tr></table>
 
-    subject = f"Tu pedido #{pedido_id} está confirmado — Zapatillas May"
-    return subject, _base_html(contenido)
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px"><tr>
+        <td style="border-left:3px solid #c8967a;padding:4px 0 4px 14px;font-size:13px;color:#5b4d44;line-height:1.65">
+          <strong>¿Qué sigue?</strong><br>
+          1) Preparamos y revisamos tus zapatillas.<br>
+          2) Las enviamos con paquetería (normalmente en 1 a 3 días hábiles).<br>
+          3) Te mandamos la guía para que sigas tu paquete.
+        </td></tr></table>
+
+      {_boton("Seguir comprando →", "https://zapatillasmay.mx")}
+      <p style="margin:18px 0 0;font-size:12px;color:#a89a90;text-align:center">Guarda este correo: tu número de pedido es <strong>#{pedido_id}</strong>.</p>"""
+
+    subject = f"✅ Pedido #{pedido_id} confirmado — gracias por tu compra, {nombre}"
+    return subject, _base_html(contenido, f"Recibimos tu pago de ${total:,.0f} MXN. Estamos preparando tu pedido #{pedido_id}.")
 
 
 def email_pedido_pendiente_spei(pedido: dict):
@@ -314,7 +393,7 @@ def email_pedido_pendiente_spei(pedido: dict):
       </p>"""
 
     subject = f"⏳ Pago SPEI pendiente — Pedido #{pedido_id} · Zapatillas May"
-    return subject, _base_html(contenido)
+    return subject, _base_html(contenido, f"Falta confirmar tu transferencia de ${total:,.0f} MXN para el pedido #{pedido_id}.")
 
 
 def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, tracking_url: str):
@@ -325,14 +404,18 @@ def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, track
     direccion = _h.escape(pedido.get("direccion_envio") or "—")
 
     logo_paqueteria = {"fedex": "📦 FedEx", "estafeta": "📦 Estafeta", "dhl": "📦 DHL"}.get(
-        paqueteria.lower(), f"📦 {paqueteria}"
+        paqueteria.lower(), f"📦 {_h.escape(paqueteria)}"
     )
+    numero_guia = _h.escape(str(numero_guia))
+    tracking_url = tracking_url if str(tracking_url).startswith(("https://", "http://")) else "https://zapatillasmay.mx"
 
     contenido = f"""
       <h2 style="color:#2A1A0E;font-size:1.3rem;margin-bottom:4px">¡Tu pedido va en camino, {nombre}! 🚚</h2>
-      <p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:24px">
+      <p style="color:#555;font-size:0.92rem;line-height:1.6;margin-bottom:18px">
         Ya enviamos tu paquete. Puedes rastrear tu envío en cualquier momento con el botón de abajo.
+        La entrega suele tardar de 2 a 5 días hábiles según tu ciudad.
       </p>
+      {_seguimiento_pasos(3)}
 
       <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:18px 20px;margin-bottom:20px">
         <p style="font-size:0.7rem;color:#2e7d32;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:0 0 8px">
@@ -373,7 +456,7 @@ def email_envio_realizado(pedido: dict, paqueteria: str, numero_guia: str, track
       </p>"""
 
     subject = f"🚚 Tu pedido #{pedido_id} ya fue enviado — Zapatillas May"
-    return subject, _base_html(contenido)
+    return subject, _base_html(contenido, f"{paqueteria} · guía {numero_guia}. Rastrea tu paquete cuando quieras.")
 
 
 def email_nuevo_pedido_negocio(pedido: dict):

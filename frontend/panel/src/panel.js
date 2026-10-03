@@ -19852,6 +19852,8 @@ async function cargarCarritosAbandonados() {
     const st = resCA.stats || {}
     const carritos = resCA.carritos || []
     const pedidosPendientes = Array.isArray(resPP) ? resPP : (Array.isArray(resPP.pedidos) ? resPP.pedidos : [])
+    window._caCarritos = carritos
+    window._caFiltro = 'pendientes'
 
     const fmtFecha = (f) => { try { return new Date(f).toLocaleString('es-MX', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) } catch(e){ return f } }
     const badgeCA = (c) => {
@@ -19916,9 +19918,9 @@ async function cargarCarritosAbandonados() {
                     const yaAvisado = !!p.recordatorio_pago_enviado_at
                     return `<tr data-pedido-id="${p.id}" style="border-bottom:1px solid var(--border)">
                       <td style="padding:10px 14px">
-                        <div style="font-weight:600">${nombre}</div>
-                        ${email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${email}</div>` : ''}
-                        ${tel   ? `<div style="font-size:0.75rem;color:var(--text-muted)">${tel}</div>` : ''}
+                        <div style="font-weight:600">${window._escWA(nombre)}</div>
+                        ${email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${window._escWA(email)}</div>` : ''}
+                        ${tel   ? `<div style="font-size:0.75rem;color:var(--text-muted)">${window._escWA(tel)}</div>` : ''}
                       </td>
                       <td style="padding:10px 14px;font-weight:700">$${parseFloat(p.total||0).toFixed(0)}</td>
                       <td style="padding:10px 14px">${metodoBadge(p.forma_pago)}</td>
@@ -19941,64 +19943,53 @@ async function cargarCarritosAbandonados() {
         <!-- Tab: Carritos abandonados -->
         <div id="panel-ca" style="display:none">
           <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.25rem">
-              <div style="background:var(--bg);border-radius:10px;padding:14px;text-align:center;border:1px solid var(--border)">
-                <div style="font-size:1.6rem;font-weight:700">${st.total||0}</div>
-                <div style="font-size:0.72rem;color:var(--text-muted)">Total</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:1.1rem">
+              <div style="background:#fffbeb;border-radius:12px;padding:14px;border:1px solid #fde68a">
+                <div style="font-size:1.5rem;font-weight:800;color:#856404">${carritos.filter(c => !c.convertido).length}</div>
+                <div style="font-size:0.72rem;color:#856404;font-weight:600">Por recuperar</div>
+                <div style="font-size:0.7rem;color:#a98a2a">$${Math.round(st.monto_abierto || 0).toLocaleString('es-MX')} en juego</div>
               </div>
-              <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;border:1px solid #fde68a">
-                <div style="font-size:1.6rem;font-weight:700;color:#856404">${st.pendientes||0}</div>
-                <div style="font-size:0.72rem;color:#856404">Sin avisar</div>
+              <div style="background:#f0fdf4;border-radius:12px;padding:14px;border:1px solid #bbf7d0">
+                <div style="font-size:1.5rem;font-weight:800;color:#15803d">${st.convertidos || 0}</div>
+                <div style="font-size:0.72rem;color:#15803d;font-weight:600">Ya compraron</div>
+                <div style="font-size:0.7rem;color:#3f9d63">$${Math.round(st.monto_recuperado || 0).toLocaleString('es-MX')} recuperados</div>
               </div>
-              <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;border:1px solid #bfdbfe">
-                <div style="font-size:1.6rem;font-weight:700;color:#1565c0">${st.enviados||0}</div>
-                <div style="font-size:0.72rem;color:#1565c0">Avisados</div>
+              <div style="background:#eff6ff;border-radius:12px;padding:14px;border:1px solid #bfdbfe">
+                <div style="font-size:1.5rem;font-weight:800;color:#1565c0">${st.tasa_recuperacion || 0}%</div>
+                <div style="font-size:0.72rem;color:#1565c0;font-weight:600">Tasa de recuperación</div>
+                <div style="font-size:0.7rem;color:#5b8fd0">de los que se avisaron</div>
               </div>
-              <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;border:1px solid #bbf7d0">
-                <div style="font-size:1.6rem;font-weight:700;color:#15803d">${st.convertidos||0}</div>
-                <div style="font-size:0.72rem;color:#15803d">Compraron</div>
+              <div style="background:var(--bg);border-radius:12px;padding:14px;border:1px solid var(--border)">
+                <div style="font-size:1.5rem;font-weight:800">${st.total || 0}</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);font-weight:600">Carritos registrados</div>
+                <div style="font-size:0.7rem;color:var(--text-muted)">${st.pendientes || 0} sin avisar</div>
               </div>
             </div>
-            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:14px;margin-bottom:1.25rem;font-size:0.82rem;color:#0369a1">
-              <strong>Recordatorio automático:</strong> se envía 1 hora después de inactividad.<br>
-              Copia BCC a <strong>olivr47@gmail.com</strong> · Verifica en <a href="https://resend.com/emails" target="_blank" style="color:#0369a1;font-weight:600">resend.com/emails</a>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;margin-bottom:1rem;font-size:0.8rem;color:#0369a1;line-height:1.6">
+              <strong>Recordatorio automático por correo:</strong> sale solo después de ${st.horas_espera || 1} h sin actividad y se revisa cada 15 min.
+              Llega copia a <strong>${(st.copia_a || '').replace(/</g, '&lt;')}</strong>. Si un correo falla, se pausa 1 hora antes de reintentar.
               <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <input id="ca-test-email" type="email" placeholder="correo de prueba"
+                <input id="ca-test-email" type="email" placeholder="correo para ver cómo se ve el recordatorio"
                   style="border:1.5px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:0.82rem;flex:1;min-width:180px;outline:none">
-                <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Prueba</button>
+                <button class="btn btn-primary" onclick="probarRecordatorio()" style="font-size:0.82rem">📧 Enviarme una prueba</button>
               </div>
               <div id="ca-test-msg" style="margin-top:8px;font-size:0.8rem"></div>
             </div>
-            <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
-                <thead>
-                  <tr style="text-align:left;border-bottom:2px solid var(--border)">
-                    <th style="padding:8px">Email / Nombre</th>
-                    <th style="padding:8px">Total</th>
-                    <th style="padding:8px">Última actividad</th>
-                    <th style="padding:8px">Estado</th>
-                    <th style="padding:8px">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${carritos.length
-                    ? carritos.map(c => `
-                      <tr style="border-bottom:1px solid var(--border)">
-                        <td style="padding:8px">${c.email}${c.nombre?`<br><span style="color:var(--text-muted);font-size:0.75rem">${c.nombre}</span>`:''}</td>
-                        <td style="padding:8px;font-weight:600">$${parseFloat(c.total||0).toFixed(0)}</td>
-                        <td style="padding:8px;color:var(--text-muted)">${fmtFecha(c.updated_at)}</td>
-                        <td style="padding:8px">${badgeCA(c)}</td>
-                        <td style="padding:8px">
-                          ${!c.convertido ? `<button onclick="enviarWACarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #25D366;background:none;color:#15803d;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">💬 WhatsApp</button><button onclick="enviarEmailCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #E91E8C;background:none;color:#E91E8C;font-size:0.75rem;font-weight:600;cursor:pointer;margin-right:6px">📧 Correo</button><button onclick="enviarPushCarrito('${c.id}', this)" style="padding:5px 12px;border-radius:20px;border:1.5px solid #7c3aed;background:none;color:#7c3aed;font-size:0.75rem;font-weight:600;cursor:pointer">🔔 Push</button>` : ''}
-                        </td>
-                      </tr>`).join('')
-                    : '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text-muted)">Aún no hay carritos abandonados registrados</td></tr>'}
-                </tbody>
-              </table>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+              <input id="ca-buscar" class="form-input" placeholder="🔍 Buscar por correo o nombre..." style="flex:1;min-width:200px;max-width:320px;font-size:0.85rem" oninput="renderCarritosCA()">
+              <button class="pill-filter pill-active" data-caf="pendientes" onclick="filtrarCarritosCA('pendientes')">Por recuperar</button>
+              <button class="pill-filter" data-caf="sinavisar" onclick="filtrarCarritosCA('sinavisar')">Sin avisar</button>
+              <button class="pill-filter" data-caf="avisados" onclick="filtrarCarritosCA('avisados')">Ya avisados</button>
+              <button class="pill-filter" data-caf="compraron" onclick="filtrarCarritosCA('compraron')">Compraron</button>
+              <button class="pill-filter" data-caf="todos" onclick="filtrarCarritosCA('todos')">Todos</button>
+              <span id="ca-contador" style="font-size:0.75rem;color:var(--text-muted)"></span>
             </div>
+            <div id="ca-lista"></div>
           </div>
         </div>
       </div>`
+    window.renderCarritosCA()
   } catch(e) {
     document.getElementById('content').innerHTML = `<p style="padding:2rem;color:red">Error: ${e.message}</p>`
   }
@@ -29860,4 +29851,67 @@ window._envEnviarPlantilla = async () => {
     res.textContent = `✅ ${d.enviados} enviado${d.enviados === 1 ? '' : 's'}` + (d.errores ? ` · ${d.errores} con error (revisa que tengan WhatsApp)` : '') + '. Las respuestas llegan a Conversaciones.'
   } catch (e) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Error: ' + e.message }
   btn.disabled = false; btn.textContent = 'Enviar de nuevo'
+}
+
+
+// ── Carritos abandonados: lista en tarjetas con filtros, búsqueda y fotos de lo que dejaron ─────────────────
+window.filtrarCarritosCA = (f) => {
+  window._caFiltro = f
+  document.querySelectorAll('[data-caf]').forEach(b => b.classList.toggle('pill-active', b.dataset.caf === f))
+  window.renderCarritosCA()
+}
+window.renderCarritosCA = () => {
+  const cont = document.getElementById('ca-lista')
+  if (!cont) return
+  const esc = window._escWA
+  const f = window._caFiltro || 'pendientes'
+  const q = (document.getElementById('ca-buscar')?.value || '').toLowerCase().trim()
+  const hace = (iso) => {
+    if (!iso) return ''
+    const m = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000))
+    if (m < 60) return `hace ${m} min`
+    if (m < 1440) return `hace ${Math.floor(m / 60)} h`
+    const d = Math.floor(m / 1440)
+    return `hace ${d} día${d === 1 ? '' : 's'}`
+  }
+  let lista = (window._caCarritos || []).filter(c => {
+    if (f === 'pendientes' && c.convertido) return false
+    if (f === 'sinavisar' && (c.convertido || c.recordatorio_enviado)) return false
+    if (f === 'avisados' && (c.convertido || !c.recordatorio_enviado)) return false
+    if (f === 'compraron' && !c.convertido) return false
+    if (q && !`${c.email || ''} ${c.nombre || ''}`.toLowerCase().includes(q)) return false
+    return true
+  })
+  // Los que aún se pueden recuperar primero y, entre ellos, los carritos de más valor
+  lista = lista.sort((a, b) => (a.convertido ? 1 : 0) - (b.convertido ? 1 : 0) || (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0))
+  const cnt = document.getElementById('ca-contador')
+  if (cnt) cnt.textContent = `${lista.length} carrito${lista.length === 1 ? '' : 's'}`
+  if (!lista.length) { cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted)">No hay carritos con ese filtro 🎉</div>'; return }
+  cont.innerHTML = lista.map(c => {
+    const items = Array.isArray(c.items) ? c.items : []
+    const fotos = items.slice(0, 4).map(it => {
+      const u = window._urlWA(it.imagen)
+      return u ? `<img src="${u}" title="${esc(it.nombre || '')} ${esc(it.color || '')} T${esc(it.talla || '')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #eee">`
+               : `<div style="width:44px;height:44px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center">👠</div>`
+    }).join('')
+    const pares = items.reduce((s, it) => s + (parseInt(it.cantidad) || 1), 0)
+    const resumen = items.slice(0, 2).map(it => esc(String(it.nombre || '').split(' ')[0] + (it.talla ? ' T' + it.talla : ''))).join(', ') + (items.length > 2 ? ` y ${items.length - 2} más` : '')
+    const caliente = !c.convertido && (Date.now() - new Date(c.updated_at).getTime()) < 86400000
+    const badge = c.convertido
+      ? '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">✓ Compró</span>'
+      : c.recordatorio_enviado
+        ? `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">📧 Avisado ${hace(c.recordatorio_enviado_at)}</span>`
+        : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">⏳ Sin avisar</span>'
+    const btn = (txt, fn, col) => `<button onclick="${fn}('${esc(c.id)}', this)" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${col};background:none;color:${col};font-size:0.75rem;font-weight:600;cursor:pointer">${txt}</button>`
+    return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 4px;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:4px;min-width:96px">${fotos || '<div style="width:44px;height:44px"></div>'}</div>
+      <div style="flex:1;min-width:190px">
+        <div style="font-weight:700;font-size:0.9rem">${esc(c.nombre || c.email)} ${caliente ? '<span title="Dejó el carrito hace menos de 24 h: aún está caliente" style="font-size:0.66rem;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:10px;font-weight:700">🔥 reciente</span>' : ''}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted)">${c.nombre ? esc(c.email) + ' · ' : ''}${pares} par${pares === 1 ? '' : 'es'}${resumen ? ' · ' + resumen : ''}</div>
+        <div style="font-size:0.7rem;color:var(--text-muted)">Última actividad ${hace(c.updated_at)}</div>
+      </div>
+      <div style="text-align:right;min-width:80px"><div style="font-weight:800;font-size:1rem;color:#b5687a">$${Math.round(parseFloat(c.total) || 0).toLocaleString('es-MX')}</div>${badge}</div>
+      ${!c.convertido ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${btn('📧 Correo', 'enviarEmailCarrito', '#E91E8C')}${btn('💬 WhatsApp', 'enviarWACarrito', '#15803d')}${btn('🔔 Push', 'enviarPushCarrito', '#7c3aed')}</div>` : ''}
+    </div>`
+  }).join('')
 }

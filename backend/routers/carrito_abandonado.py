@@ -160,52 +160,59 @@ def _enviar_recordatorio(carrito: dict) -> bool:
     total  = carrito.get("total") or 0
     cid    = carrito["id"]
 
+    from email_utils import _base_html, _boton, _miniatura
     filas = ""
     for it in items[:6]:
         img = it.get("imagen") or ""
-        img = _html.escape(img, quote=True) if re.match(r"^https?://", str(img)) else ""
         nom = _html.escape(str(it.get("nombre") or "Producto"))
         col = _html.escape(str(it.get("color") or ""))
         tal = _html.escape(str(it.get("talla") or ""))
+        cant = int(it.get("cantidad") or 1)
+        try:
+            precio = float(it.get("precio") or it.get("precio_unitario") or 0)
+        except (TypeError, ValueError):
+            precio = 0.0
         meta = " · ".join([x for x in [col, ("Talla " + str(tal)) if tal else ""] if x])
-        img_html = (f'<img src="{img}" width="64" height="64" '
-                    f'style="border-radius:8px;object-fit:cover;background:#f5f0eb">'
-                    if img else '<div style="width:64px;height:64px;border-radius:8px;'
-                    'background:#f5f0eb;text-align:center;line-height:64px;font-size:24px">👠</div>')
+        precio_html = (f'<td align="right" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;'
+                       f'font-size:14px;color:#b5687a;font-weight:700;white-space:nowrap">${precio * cant:,.0f}</td>') if precio else \
+                      '<td style="border-bottom:1px solid #f3e9e2"></td>'
         filas += f"""
         <tr>
-          <td style="padding:8px 0" width="76">{img_html}</td>
-          <td style="padding:8px 0;font-size:14px;color:#333">
-            <strong>{nom}</strong><br>
-            <span style="color:#888;font-size:12px">{meta}</span>
+          <td width="86" style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top">{_miniatura(img)}</td>
+          <td style="padding:12px 0;border-bottom:1px solid #f3e9e2;vertical-align:top;font-size:14px;color:#2A1A0E;line-height:1.45">
+            <strong>{nom}</strong><br><span style="color:#8a7b71;font-size:12px">{meta}</span>
+            {f'<br><span style="color:#8a7b71;font-size:12px">{cant} pares</span>' if cant > 1 else ''}
           </td>
+          {precio_html}
         </tr>"""
+    mas = f'<p style="margin:8px 0 0;font-size:12px;color:#8a7b71">y {len(items) - 6} modelo(s) más en tu carrito</p>' if len(items) > 6 else ""
 
     recover_url = f"{_SITE}/carrito?recover={cid}"
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff">
-      <div style="background:linear-gradient(135deg,#b5687a,#c8967a);padding:32px;text-align:center">
-        <h1 style="color:#fff;font-weight:300;margin:0;font-size:1.4rem">Zapatillas <strong>May</strong></h1>
-      </div>
-      <div style="padding:32px">
-        <h2 style="font-size:1.2rem;color:#0A0A0A;margin-bottom:8px">¡{nombre}, dejaste algo en tu carrito! 👠</h2>
-        <p style="color:#555;font-size:0.92rem;line-height:1.7;margin-bottom:20px">
-          Tus modelos siguen disponibles, pero pueden agotarse. Completa tu compra antes de que se acaben:
+    try:
+        total_txt = f"${float(total):,.0f} MXN"
+    except (TypeError, ValueError):
+        total_txt = ""
+    bloque_total = ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 22px"><tr>'
+                    '<td style="font-size:15px;font-weight:700;color:#2A1A0E">Total de tu carrito</td>'
+                    f'<td align="right" style="font-size:20px;font-weight:700;color:#b5687a">{total_txt}</td></tr></table>') if total_txt else ""
+    contenido = f"""
+        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.25;color:#2A1A0E">{nombre}, tus zapatillas te están esperando 👠</h1>
+        <p style="margin:0 0 20px;font-size:15px;line-height:1.65;color:#5b4d44">
+          Vimos que te quedaste a un paso de terminar tu compra. Guardamos tu carrito tal cual lo dejaste, pero las tallas y colores pueden agotarse pronto.
         </p>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">{filas}</table>
-        <div style="background:#fdf8f5;border-radius:8px;padding:14px;text-align:center;margin-bottom:24px">
-          <span style="color:#888;font-size:0.8rem">Total de tu carrito</span><br>
-          <strong style="color:#c8967a;font-size:1.3rem">${total:.0f} MXN</strong>
-        </div>
-        <a href="{recover_url}"
-           style="display:block;text-align:center;background:linear-gradient(135deg,#b5687a,#c8967a);color:#fff;padding:15px;border-radius:50px;text-decoration:none;font-weight:700;font-size:0.95rem">
-          Completar mi compra →
-        </a>
-        <p style="color:#aaa;font-size:0.75rem;text-align:center;margin-top:20px">
-          ¿Dudas? Escríbenos por WhatsApp. · Envíos a todo México · León, Guanajuato
-        </p>
-      </div>
-    </div>"""
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">{filas}</table>
+        {mas}
+        {bloque_total}
+        {_boton("Terminar mi compra →", recover_url)}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 6px"><tr>
+          <td align="center" width="33%" style="font-size:12px;color:#5b4d44;line-height:1.5;padding:0 4px">🚚<br><strong>Envío a todo México</strong></td>
+          <td align="center" width="33%" style="font-size:12px;color:#5b4d44;line-height:1.5;padding:0 4px">🔒<br><strong>Pago seguro</strong></td>
+          <td align="center" width="33%" style="font-size:12px;color:#5b4d44;line-height:1.5;padding:0 4px">💬<br><strong>Te asesoramos por WhatsApp</strong></td>
+        </tr></table>
+        <p style="margin:16px 0 0;font-size:12px;color:#a89a90;text-align:center;line-height:1.6">
+          ¿Dudas con tu talla? Escríbenos y te ayudamos a elegir. Si ya compraste, ignora este mensaje.
+        </p>"""
+    html = _base_html(contenido, f"Guardamos tu carrito{(' de ' + total_txt) if total_txt else ''}. Termina tu compra antes de que se agoten tus tallas.")
 
     return enviar_email(
         email,
@@ -278,9 +285,20 @@ def listar():
         enviados = sum(1 for r in rows if r.get("recordatorio_enviado"))
         convertidos = sum(1 for r in rows if r.get("convertido"))
         pendientes = total - enviados - convertidos
+        def _t(r):
+            try:
+                return float(r.get("total") or 0)
+            except (TypeError, ValueError):
+                return 0.0
+        monto_abierto = sum(_t(r) for r in rows if not r.get("convertido"))
+        monto_recuperado = sum(_t(r) for r in rows if r.get("convertido"))
+        avisados_total = sum(1 for r in rows if r.get("recordatorio_enviado") or r.get("convertido"))
         return {
             "ok": True,
-            "stats": {"total": total, "pendientes": pendientes, "enviados": enviados, "convertidos": convertidos},
+            "stats": {"total": total, "pendientes": pendientes, "enviados": enviados, "convertidos": convertidos,
+                      "monto_abierto": monto_abierto, "monto_recuperado": monto_recuperado,
+                      "tasa_recuperacion": round(100 * convertidos / avisados_total) if avisados_total else 0,
+                      "horas_espera": _HORAS_ESPERA, "copia_a": _NOTIF_EMAIL},
             "carritos": rows,
         }
     except Exception as e:
