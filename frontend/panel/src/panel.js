@@ -185,7 +185,8 @@ export function renderPanel() {
 
   // Sonido
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
+    const ctx = window._audioCtxAviso || (window._audioCtxAviso = new (window.AudioContext || window.webkitAudioContext)())
+    if (ctx.state === 'suspended') ctx.resume()
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
@@ -233,6 +234,7 @@ let _ultimosPedidosPorEnviar = new Set()
 // (error de JavaScript) y un nombre con comillas puede inyectar código al abrir la pantalla.
 function _ja(v) {
   return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
     .replace(/"/g, '&quot;')
@@ -240,6 +242,9 @@ function _ja(v) {
     .replace(/[\r\n]+/g, ' ')
 }
 window._ja = _ja
+// Escapa texto que viene de clientes (mensajes, nombres de perfil) antes de meterlo en innerHTML
+window._escWA = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+window._urlWA = (v) => { const u = String(v || '').trim(); return /^https?:\/\//i.test(u) ? window._escWA(u) : '' }
 
 function _setBadge(count) {
   const badge = document.getElementById('badge-pedidos-enviar')
@@ -17372,19 +17377,19 @@ window._htmlChatItems = (chats) => {
     return '<div style="padding:2rem;text-align:center;color:#999;font-size:0.85rem">Sin conversaciones</div>'
   }
   return [...chats].sort((a,b) => new Date(b.ultimo_mensaje) - new Date(a.ultimo_mensaje)).map(c => { const esMay = window._esMayoristaWA(c); const espera = window._esperaWA(c); return `
-              <div class="wa-chat-item" data-tel="${c.telefono}" data-nombre="${(c.nombre||'').toLowerCase()}" data-etiqueta="${c.etiqueta||''}" data-estado="${c.estado||'abierto'}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}" data-espera="${espera != null ? '1' : '0'}"
+              <div class="wa-chat-item" data-tel="${window._escWA(c.telefono)}" data-nombre="${window._escWA((c.nombre||'').toLowerCase())}" data-etiqueta="${window._escWA(c.etiqueta||'')}" data-estado="${window._escWA(c.estado||'abierto')}" data-canal="${window._grupoCanalWA(c.canal)}" data-mayorista="${esMay ? '1' : '0'}" data-espera="${espera != null ? '1' : '0'}"
                    onclick="abrirChat('${_ja(c.telefono)}')">
                 <div class="wa-avatar" style="background:${window._colorAvatarWA(c.telefono)};position:relative">
-                  ${window._letraAvatarWA(c.nombre || c.telefono)}
+                  ${window._escWA(window._letraAvatarWA(c.nombre || c.telefono))}
                   ${c.en_control ? '<div class="wa-control-dot"></div>' : ''}
                   ${window._badgeCanalWA(c.canal)}
                 </div>
                 <div class="wa-chat-info">
-                  <div class="wa-chat-name">${c.nombre || c.telefono}
+                  <div class="wa-chat-name">${window._escWA(c.nombre || c.telefono)}
                     ${c.estado && c.estado !== 'abierto' ? `<span class="wa-estado-dot-inline ${c.estado}" title="${c.estado==='espera'?'En espera':'Cerrado'}"></span>` : ''}
                     ${esMay ? `<span style="font-size:0.6rem;font-weight:700;color:#7c3aed;background:#ede7f6;border-radius:100px;padding:1px 6px;margin-left:4px;vertical-align:middle">Mayorista</span>` : ''}
                   </div>
-                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return mm.length > 40 ? mm.substring(0,40)+'…' : (mm || 'Sin mensajes') })()}</div>
+                  <div class="wa-chat-preview">${(() => { const mm = (c.mensajes&&c.mensajes[0]&&c.mensajes[0].mensaje)||''; if (mm.startsWith('[Imagen]')) return '📷 Imagen'; if (mm.startsWith('[Sticker]')) return '🏷️ Sticker'; return window._escWA(mm.length > 40 ? mm.substring(0,40)+'…' : (mm || 'Sin mensajes')) })()}</div>
                 </div>
                 <div class="wa-chat-meta">
                   <span class="wa-chat-time">${window._fechaChatWA(c.ultimo_mensaje)}</span>
@@ -17422,6 +17427,7 @@ window._renderBurbujas = (chat) => {
     const tieneZona = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)
     return new Date(tieneZona ? s : s.replace(' ', 'T') + 'Z')
   }
+  const esc = window._escWA, urlOk = window._urlWA
   const mensajesOrden = [...(chat.mensajes || [])].reverse()
   // Encontrar el índice del último mensaje saliente para poner el read receipt
   const idxUltimoSaliente = mensajesOrden.reduce((acc, m, i) => {
@@ -17431,22 +17437,23 @@ window._renderBurbujas = (chat) => {
 
   return mensajesOrden.map((m, idx) => {
     const esSaliente = m.tipo === 'manual' || m.tipo === 'imagen_saliente' || m.tipo === 'documento_saliente' || m.tipo === 'video_saliente' || m.tipo === 'ubicacion_saliente' || m.tipo === 'contacto_saliente' || m.tipo === 'botones_saliente' || m.tipo === 'lista_saliente' || m.tipo === 'carrusel_saliente' || m.tipo === 'template_saliente'
-    const senderName = esSaliente ? ((m.mensaje || '').match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono)
+    const senderName = esc(esSaliente ? ((m.mensaje || '').match(/\[(.+?)\]:/)?.[1] || 'Admin') : (chat.nombre || chat.telefono))
     const _parsedAt = parseUTC(m.created_at)
     const ts = _parsedAt ? _parsedAt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : ''
-    const textoLimpio = m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : ''
+    const textoLimpio = esc(m.mensaje ? m.mensaje.replace(/\[.+?\]:\s*/, '') : '')   // YA escapado: todo lo derivado de aquí es seguro en HTML
 
     // Construir body de la burbuja según tipo
     let msgBody = ''
     if (m.tipo === 'imagen_saliente') {
-      const imgUrl = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
-      msgBody = imgUrl.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)
-        ? `<img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer" onclick="window.open('${imgUrl}')">`
+      const imgUrlRaw = m.mensaje.replace(/\[.+?\]:\s*\[Imagen\]\s*/, '').split('\n')[0].trim()
+      const imgUrl = urlOk(imgUrlRaw)
+      msgBody = imgUrl && imgUrlRaw.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)/i)
+        ? `<a href="${imgUrl}" target="_blank" rel="noopener"><img src="${imgUrl}" style="max-width:200px;border-radius:8px;display:block;cursor:pointer"></a>`
         : `<p>${textoLimpio}</p>`
     } else if (m.tipo === 'documento_saliente') {
       const _docRaw = textoLimpio.replace('[Documento] ', '')
       const _docUrlMatch = _docRaw.match(/(https?:\/\/\S+)$/)
-      const furl  = _docUrlMatch ? _docUrlMatch[1] : ''
+      const furl  = _docUrlMatch && /^https?:\/\//i.test(_docUrlMatch[1].replace(/&amp;/g, '&')) ? _docUrlMatch[1] : ''
       const fname = furl ? _docRaw.slice(0, _docRaw.lastIndexOf(furl)).trim() || 'documento' : (_docRaw || 'documento')
       const viewUrl = furl && furl.startsWith('https://res.cloudinary.com/')
         ? `${API}/imagenes/pdf-viewer?url=${encodeURIComponent(furl)}`
@@ -17455,7 +17462,7 @@ window._renderBurbujas = (chat) => {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         ${fname}</a>`
     } else if (m.tipo === 'video_saliente') {
-      const vurl = textoLimpio.replace('[Video] ', '')
+      const vurl = urlOk(textoLimpio.replace('[Video] ', '').replace(/&amp;/g, '&'))
       msgBody = `<video src="${vurl}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
     } else if (m.tipo === 'botones_saliente') {
       const partes = textoLimpio.replace('[Botones] ', '').split(' -> ')
@@ -17474,16 +17481,16 @@ window._renderBurbujas = (chat) => {
         </div>`
     } else if (m.tipo === 'carrusel_saliente') {
       const partesC = (m.mensaje || '').split('|IMGS|')
-      const imgsC = partesC[1] ? partesC[1].split(',').filter(Boolean) : []
+      const imgsC = partesC[1] ? partesC[1].split(',').filter(Boolean).map(u => urlOk(u)).filter(Boolean) : []
       const textoC = textoLimpio.split('|IMGS|')[0].replace('[Carrusel] ', '')
       msgBody = `<p style="margin:0;font-size:0.85rem">${textoC}</p>
         ${imgsC.length
           ? `<div style="display:flex;gap:6px;overflow-x:auto;margin-top:6px;max-width:250px;padding-bottom:2px">${imgsC.map(u => `<img src="${u}" alt="producto" style="width:62px;height:78px;object-fit:cover;border-radius:8px;flex-shrink:0;cursor:pointer" onclick="window.open('${u}','_blank')">`).join('')}</div>`
           : '<p style="margin:4px 0 0;font-size:0.72rem;color:#94a3b8">🎠 Carrusel de productos</p>'}`
     } else if (m.tipo === 'sticker') {
-      const stUrl = (m.mensaje || '').match(/https?:\/\/\S+/)
+      const stUrl = urlOk(((m.mensaje || '').match(/https?:\/\/\S+/) || [''])[0])
       msgBody = stUrl
-        ? `<img src="${stUrl[0]}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
+        ? `<img src="${stUrl}" alt="sticker" style="width:100px;height:100px;object-fit:contain">`
         : `<p style="color:#64748b;font-size:0.8rem">🏷️ Sticker</p>`
     } else if (m.tipo === 'template_saliente') {
       msgBody = `<p style="margin:0;font-size:0.85rem">${textoLimpio.replace('[Template] ','')}</p>
@@ -17506,8 +17513,8 @@ window._renderBurbujas = (chat) => {
     } else if (m.tipo === 'imagen') {
       // La URL viene en media_url (legacy) o embebida en el mensaje: "[Imagen] https://..."
       const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
-      const imgSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
-      const caption = (m.mensaje || '').replace('[Imagen]', '').replace(/https?:\/\/\S+/, '').replace(/^[:\s]+/, '').trim()
+      const imgSrc = urlOk(m.media_url || (urlEnMsg ? urlEnMsg[0] : '')) || null
+      const caption = esc((m.mensaje || '').replace('[Imagen]', '').replace(/https?:\/\/\S+/, '').replace(/^[:\s]+/, '').trim())
       if (imgSrc) {
         msgBody = `<div>
           <a href="${imgSrc}" target="_blank" rel="noopener">
@@ -17519,7 +17526,7 @@ window._renderBurbujas = (chat) => {
         msgBody = `<p style="color:#64748b;font-size:0.8rem">📷 Imagen recibida</p>`
       }
     } else if (m.tipo === 'audio') {
-      const audioSrc = m.media_url || (m.mensaje || '').match(/https?:\/\/\S+/)?.[0] || ''
+      const audioSrc = urlOk(m.media_url || (m.mensaje || '').match(/https?:\/\/\S+/)?.[0] || '')
       const transcripcion = textoLimpio.replace('[Audio de voz recibido]','').replace('[Audio sin contenido]','').replace('[Audio no procesable]','').trim()
       msgBody = audioSrc
         ? `<div>
@@ -17529,8 +17536,8 @@ window._renderBurbujas = (chat) => {
         : `<p style="color:#64748b;font-size:0.8rem">🎵 ${transcripcion || 'Audio de voz'}</p>`
     } else if (m.tipo === 'documento') {
       const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
-      const docSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
-      const fname = (m.mensaje || '').replace('[Documento]','').replace(/https?:\/\/\S+/g,'').trim() || 'documento'
+      const docSrc = urlOk(m.media_url || (urlEnMsg ? urlEnMsg[0] : '')) || null
+      const fname = esc((m.mensaje || '').replace('[Documento]','').replace(/https?:\/\/\S+/g,'').trim() || 'documento')
       msgBody = docSrc
         ? `<a href="${docSrc}" target="_blank" class="wa-doc-link">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -17538,7 +17545,7 @@ window._renderBurbujas = (chat) => {
         : `<p style="color:#64748b;font-size:0.8rem">📄 ${fname || 'Documento recibido'}</p>`
     } else if (m.tipo === 'video') {
       const urlEnMsg = (m.mensaje || '').match(/https?:\/\/\S+/)
-      const vidSrc = m.media_url || (urlEnMsg ? urlEnMsg[0] : null)
+      const vidSrc = urlOk(m.media_url || (urlEnMsg ? urlEnMsg[0] : '')) || null
       msgBody = vidSrc
         ? `<video src="${vidSrc}" controls style="max-width:220px;border-radius:8px;display:block"></video>`
         : `<p style="color:#64748b;font-size:0.8rem">🎬 Video recibido</p>`
@@ -17563,7 +17570,7 @@ window._renderBurbujas = (chat) => {
     }
 
     // Botón reply en hover
-    const replyBtn = `<button class="wa-reply-btn" onclick="iniciarReply('${_ja(chat.telefono)}','${(m.wa_message_id||'').replace(/'/g,'')}')" title="Responder">
+    const replyBtn = `<button class="wa-reply-btn" onclick="iniciarReply('${_ja(chat.telefono)}','${(m.wa_message_id||'').replace(/[^A-Za-z0-9=_.\-]/g,'')}')" title="Responder">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     </button>`
 
@@ -17583,8 +17590,8 @@ window._renderBurbujas = (chat) => {
         <div class="wa-msg-row-inner">
           <span class="wa-msg-sender" style="color:#7c3aed">Bot · Maya</span>
           <div class="wa-bubble bot">
-            <p>${m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, '')}</p>
-            ${(m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(u => `<img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block" onclick="window.open('${u}')">`).join('')}
+            <p>${esc(m.respuesta.replace(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi, ''))}</p>
+            ${(m.respuesta.match(/(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|webp))/gi)||[]).map(u => urlOk(u)).filter(Boolean).map(u => `<a href="${u}" target="_blank" rel="noopener"><img src="${u}" style="max-width:200px;border-radius:8px;margin-top:4px;display:block"></a>`).join('')}
             <div class="wa-bubble-time">${ts}</div>
           </div>
         </div>
@@ -17640,9 +17647,9 @@ area.style.minHeight = '0'
     <!-- Header compacto -->
     <div class="wa-chat-header">
       ${esMobil ? `<button onclick="volverChats()" class="wa-circ-btn">←</button>` : ''}
-      <div class="wa-avatar-sm">${(chat.nombre||chat.telefono).charAt(0).toUpperCase()}</div>
+      <div class="wa-avatar-sm">${window._escWA(window._letraAvatarWA(chat.nombre || chat.telefono))}</div>
       <div class="wa-header-info">
-        <div class="wa-header-name">${chat.nombre || chat.telefono}</div>
+        <div class="wa-header-name">${window._escWA(chat.nombre || chat.telefono)}</div>
         <div class="wa-header-sub">${window._CANAL_INFO_WA[chat.canal] ? window._CANAL_INFO_WA[chat.canal].emoji + ' ' + window._CANAL_INFO_WA[chat.canal].label + ' · ' : ''}${chat.mensajes.length} msg</div>
       </div>
       <div class="wa-header-actions">
@@ -18603,10 +18610,10 @@ window.cargarEnviosMasivos = async function() {
         <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${_ja(c.telefono)}',this)"
           style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
         <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
-          ${(c.nombre||'?').charAt(0).toUpperCase()}
+          ${window._escWA(window._letraAvatarWA(c.nombre || '?'))}
         </div>
         <div style="flex:1;min-width:0">
-          <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre || c.telefono}</p>
+          <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${window._escWA(c.nombre || c.telefono)}</p>
           <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
         </div>
       </label>`
@@ -19024,10 +19031,10 @@ const _renderEnvioLista = (lista) => {
       <input type="checkbox" ${sel ? 'checked' : ''} onchange="toggleEnvioContacto('${_ja(c.telefono)}',this)"
         style="accent-color:#E91E8C;width:15px;height:15px;flex-shrink:0">
       <div style="width:28px;height:28px;border-radius:50%;background:#E91E8C;display:flex;align-items:center;justify-content:center;color:white;font-size:0.75rem;font-weight:700;flex-shrink:0">
-        ${(c.nombre||'?').charAt(0).toUpperCase()}
+        ${window._escWA(window._letraAvatarWA(c.nombre || '?'))}
       </div>
       <div style="flex:1;min-width:0">
-        <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre || c.telefono}</p>
+        <p style="font-size:0.82rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${window._escWA(c.nombre || c.telefono)}</p>
         <p style="font-size:0.72rem;color:#888;margin:0">${c.telefono}${c.tipo ? ' · ' + c.tipo : ''}</p>
       </div>
     </label>`

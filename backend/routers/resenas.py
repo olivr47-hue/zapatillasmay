@@ -48,6 +48,8 @@ def crear_resena(sku: str, datos: dict):
     NINGUNA reseña se pudo crear jamás. Queda pendiente de aprobación en el panel.
     Body: { calificacion: 1-5, comentario: str, nombre: str, email: str }
     """
+    from textos import limpiar_campos
+    limpiar_campos(datos, ("comentario", "nombre"))
     try:
         cal = _validar_calificacion(datos.get("calificacion"))
         if cal is None:

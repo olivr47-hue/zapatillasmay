@@ -57,6 +57,8 @@ def _now_iso():
 @limiter.limit("20/minute")
 def guardar(request: Request, datos: dict):
     """Guarda o actualiza el carrito de un cliente que está en el checkout."""
+    from textos import limpiar_campos
+    limpiar_campos(datos, ("nombre", "telefono"))
     email = (datos.get("email") or "").strip().lower()
     if not email or "@" not in email:
         return {"ok": False, "motivo": "email_invalido"}

@@ -649,6 +649,8 @@ def obtener_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(
 
 @router.post("/")
 def crear_pedido(pedido: dict, request: Request):
+    from textos import limpiar_campos
+    limpiar_campos(pedido, ("nombre_cliente", "telefono_cliente", "direccion_envio", "notas", "ciudad", "colonia", "referencias"))
     _credito_debitado = False   # para devolver el saldo si el pedido no llega a crearse
     _credito_cli_g = None
     _credito_monto_g = 0.0

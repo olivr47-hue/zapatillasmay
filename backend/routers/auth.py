@@ -47,6 +47,8 @@ def _clientes_por_email(email: str, select: str = "id") -> list:
 @router.post("/registro")
 @limiter.limit("5/minute")
 def registro(request: Request, datos: dict):
+    from textos import limpiar_campos
+    limpiar_campos(datos, ("nombre", "telefono", "ciudad", "direccion"))
     try:
         nombre = limpiar_texto(datos.get("nombre"), comillas=True)
         email = (datos.get("email") or "").strip().lower()
