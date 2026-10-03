@@ -441,7 +441,7 @@ if (!window.fbq){
       if (r2.ok) prods = await r2.json()
     }
     if (!Array.isArray(prods)) return
-    prods = prods.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || ''))
+    prods = prods.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.slug || '') && (p.imagen_principal || '').trim())
     if (!prods.length) return
     const grid = document.getElementById('crosssell-grid')
     grid.innerHTML = prods.slice(0,3).map(p => `

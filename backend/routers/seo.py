@@ -990,6 +990,7 @@ def pagina_ssr(slug: str):
             _cat_productos = supabase_get(
                 f"productos?activo=eq.true&categoria=eq.{slug}&select=sku_interno,slug,nombre,meta_titulo,imagen_principal,precio_menudeo,es_oferta&limit=20"
             ) or []
+            _cat_productos = [x for x in _cat_productos if (x.get("imagen_principal") or "").strip()]   # sin foto no se lista
         except Exception:
             pass
 
@@ -1773,6 +1774,9 @@ def feed_meta():
                     # Imagen principal del color
                     v_color = colores_vistos.get(color, v)
                     imagen = v_color.get('foto_url') or p.get('imagen_principal', '')
+                    # Sin foto Merchant Center/Meta/TikTok rechazan el artículo (image_link vacío): se omite hasta que tenga foto
+                    if not (imagen or '').strip():
+                        continue
 
                     # Imágenes adicionales
                     imagenes_extra = v_color.get('imagenes') or []
@@ -2045,6 +2049,9 @@ def feed_google():
                     # Imagen principal del color
                     v_color = colores_vistos.get(color, v)
                     imagen = v_color.get('foto_url') or p.get('imagen_principal', '')
+                    # Sin foto Merchant Center/Meta/TikTok rechazan el artículo (image_link vacío): se omite hasta que tenga foto
+                    if not (imagen or '').strip():
+                        continue
 
                     # Imágenes adicionales
                     imagenes_extra = v_color.get('imagenes') or []
@@ -2262,6 +2269,9 @@ def feed_tiktok():
                     stock = inv_map.get(vid, 0)
                     availability = "in stock" if stock > 0 else "out of stock"
                     imagen = (colores_vistos.get(color) or v).get("foto_url") or p.get("imagen_principal", "")
+                    # Sin foto Merchant Center/Meta/TikTok rechazan el artículo (image_link vacío): se omite hasta que tenga foto
+                    if not (imagen or '').strip():
+                        continue
                     color_norm = color.replace(' ','_').replace('/','_').replace('-','_').strip('_')
                     var_id = f"{sku}-{color_norm}-{talla}" if talla else f"{sku}-{color_norm}"
                     if not talla or talla in ('Unica', 'Única', 'unica', 'única'):

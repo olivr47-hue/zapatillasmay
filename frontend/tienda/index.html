@@ -4502,6 +4502,15 @@ cargarConfigSEO()
         productos = cached.productos
         variantes = cached.variantes
         inventario = cached.inventario
+        // El stock cambia con cada venta y la versión del catálogo no: con la caché de 10 min se veían pares ya vendidos
+        // como disponibles. El inventario es liviano (~90 KB comprimido), así que se pide siempre fresco.
+        try {
+          const rInvFresco = await fetch(API + '/inventario/slim')
+          if (rInvFresco.ok) {
+            const invFresco = await rInvFresco.json()
+            if (Array.isArray(invFresco)) { inventario = invFresco; _cacheSave({ productos, variantes, inventario }, serverVersion) }
+          }
+        } catch(e) {}
       } else {
         const [resP, resV, resI] = await Promise.all([
           fetch(API + '/productos/'),
@@ -4532,6 +4541,14 @@ cargarConfigSEO()
       // Ocultar del sitio los modelos de uso interno (lotes "OFERTA250", "OFERTA200", etc. --
       // existen en el ERP para otros canales pero no deben verse ni comprarse desde la tienda).
       productos = productos.filter(p => !/^oferta/i.test(p.nombre || '') && !/^oferta/i.test(p.sku_interno || ''))
+      // Sin foto principal no se lista (la mayoría de los "Nuevos" eran modelos recién capturados sin foto y se veían rotos)
+      // (si el modelo no tiene portada pero alguna variante sí tiene foto, esa se usa como portada)
+      productos.forEach(p => {
+        if ((p.imagen_principal || '').trim()) return
+        const vf = variantes.find(v => v.producto_id === p.id && (v.foto_url || '').trim())
+        if (vf) p.imagen_principal = vf.foto_url
+      })
+      productos = productos.filter(p => (p.imagen_principal || '').trim())
       _construirIndicesFiltro()
       renderCategorias()
 
