@@ -217,6 +217,9 @@ def _enviar_recordatorio(carrito: dict) -> bool:
 
 
 # ── 5. PROCESAR (envía recordatorios pendientes) ──────────────────
+_PAUSA_HASTA = None
+
+
 def procesar_recordatorios() -> dict:
     """Busca carritos abandonados (>N horas de inactividad, sin convertir ni avisar) y envía recordatorio."""
     try:
@@ -230,6 +233,12 @@ def procesar_recordatorios() -> dict:
             f"&updated_at=lte.{corte_iso}&select=*"
         )
         enviados = 0
+        # Disyuntor: si el proveedor de correo está caído o sin créditos, no reintentar todo el lote cada 15 min
+        # (llegó a 1,400 intentos fallidos al día y 97 MB de bitácora). Se vuelve a intentar pasada 1 hora.
+        global _PAUSA_HASTA
+        ahora = datetime.datetime.now(datetime.timezone.utc)
+        if _PAUSA_HASTA and ahora < _PAUSA_HASTA:
+            return {"ok": True, "revisados": len(pendientes or []), "enviados": 0, "pausado_hasta": _PAUSA_HASTA.isoformat()}
         for c in (pendientes or []):
             if "@" not in (c.get("email") or ""):
                 # email inválido: antes se reintentaba (y fallaba) cada 15 min para siempre
@@ -241,6 +250,10 @@ def procesar_recordatorios() -> dict:
                     {"recordatorio_enviado": True, "recordatorio_enviado_at": _now_iso()}
                 )
                 enviados += 1
+            else:
+                _PAUSA_HASTA = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+                print("[carrito-abandonado] el envío de correo falló: pausa de 1 hora antes de reintentar")
+                break
         return {"ok": True, "revisados": len(pendientes or []), "enviados": enviados, "ts": _now_iso()}
     except Exception as e:
         print(f"[carrito-abandonado] Error procesar: {e}")

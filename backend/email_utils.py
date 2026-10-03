@@ -52,18 +52,21 @@ NEGOCIO_EMAIL  = os.getenv("NOTIF_EMAIL", "contacto@zapatillasmay.mx")
 FROM_DISPLAY   = "Zapatillas May"
 
 _ZEPTOMAIL_URL = "https://api.zeptomail.com/v1.1/email"
+RESEND_API_KEY = (os.getenv("RESEND_API_KEY") or "").strip()
+RESEND_FROM = (os.getenv("RESEND_FROM") or "").strip()   # opcional; por defecto el remitente de siempre (el dominio debe estar verificado en Resend)
 
 
-def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: str, bcc: str, tipo: str):
+def _guardar_log(destinatario: str, asunto: str, html: str, exito: bool, error: str, bcc: str, tipo: str, proveedor: str = "zeptomail"):
     try:
         from database import supabase_post
         supabase_post("emails_enviados", {
             "destinatario": destinatario,
             "asunto":       asunto,
-            "html":         html,
+            # El HTML solo se guarda si el correo salió: los fallos repetidos (misma dirección cada 15 min) llenaron la base
+            "html":         html if exito else None,
             "exito":        exito,
-            "error":        error,
-            "proveedor":    "zeptomail",
+            "error":        (error or None) and str(error)[:400],
+            "proveedor":    proveedor,
             "tipo":         tipo or None,
             "bcc":          bcc,
         })
@@ -89,19 +92,57 @@ def enviar_email(to: str, subject: str, html: str, bcc: str = None, tipo: str = 
     `reply_to` opcional: si se pasa, contestar el correo va a esa direccion
     en vez de a REMITENTE_EMAIL (util para notificaciones "de parte de" alguien).
     """
-    if not (ZEPTOMAIL_TOKEN and REMITENTE_EMAIL):
-        print(f"[email] ZeptoMail no configurado — no se envió a {to}")
-        _guardar_log(to, subject, html, False, "ZeptoMail no configurado (falta ZEPTOMAIL_TOKEN o el remitente en Railway)", bcc, tipo)
-        return False
+    errores = []
+    # 1) Resend (plan gratis: 3,000 correos/mes y 100/día) si está configurado
+    if RESEND_API_KEY and (RESEND_FROM or REMITENTE_EMAIL):
+        try:
+            _enviar_resend(to, subject, html, bcc, reply_to)
+            _guardar_log(to, subject, html, True, None, bcc, tipo, "resend")
+            return True
+        except Exception as e:
+            print(f"[email] Resend falló: {e}")
+            errores.append(str(e))
+    # 2) ZeptoMail (respaldo, o único proveedor si no hay Resend)
+    if ZEPTOMAIL_TOKEN and REMITENTE_EMAIL:
+        try:
+            _enviar_zeptomail(to, subject, html, bcc, reply_to)
+            _guardar_log(to, subject, html, True, None, bcc, tipo, "zeptomail")
+            return True
+        except Exception as e:
+            print(f"[email] ZeptoMail falló: {e}")
+            errores.append(str(e))
+    if not errores:
+        print(f"[email] Ningún proveedor configurado — no se envió a {to}")
+        errores.append("Sin proveedor de correo configurado (falta RESEND_API_KEY o ZEPTOMAIL_TOKEN en Railway)")
+    _guardar_log(to, subject, html, False, " | ".join(errores), bcc, tipo, "resend" if RESEND_API_KEY else "zeptomail")
+    return False
 
+
+def _enviar_resend(to: str, subject: str, html: str, bcc: str = None, reply_to: str = None):
+    remitente = RESEND_FROM or REMITENTE_EMAIL
+    body = {"from": f"{FROM_DISPLAY} <{remitente}>", "to": [to], "subject": subject, "html": html}
+    if bcc:
+        body["bcc"] = [bcc]
+    if reply_to:
+        body["reply_to"] = reply_to
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            # Resend está detrás de Cloudflare: sin User-Agent propio rechaza el cliente por defecto de Python (403)
+            "User-Agent": "zapatillasmay-erp/1.0",
+        },
+    )
     try:
-        _enviar_zeptomail(to, subject, html, bcc, reply_to)
-        _guardar_log(to, subject, html, True, None, bcc, tipo)
-        return True
-    except Exception as e:
-        print(f"[email] ZeptoMail falló: {e}")
-        _guardar_log(to, subject, html, False, str(e), bcc, tipo)
-        return False
+        with urllib.request.urlopen(req, timeout=10) as r:
+            r.read()
+        print(f"[email] Resend → {to} ✓")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace")
+        raise Exception(f"Resend HTTP {e.code}: {raw[:300]}")
 
 
 def _enviar_zeptomail(to: str, subject: str, html: str, bcc: str = None, reply_to: str = None):
