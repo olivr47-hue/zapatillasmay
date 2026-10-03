@@ -46,7 +46,9 @@ if (_skuEstiloPublico) {
   window.fetch = async (input, init) => {
     init = init || {}
     const url = typeof input === 'string' ? input : (input && input.url) || ''
-    const esApi = url.startsWith('/api') || url.startsWith(location.origin + '/api')
+    // También las llamadas directas al servidor (SHEIN usa esa vía por los escaneos largos): sin la sesión el servidor
+    // respondía 401 y la pantalla de SHEIN lo mostraba como "ya tienes todo publicado".
+    const esApi = url.startsWith('/api') || url.startsWith(location.origin + '/api') || url.startsWith('https://zapatillasmay-production.up.railway.app/')
     if (esApi) {
       const token = localStorage.getItem('erp_token')
       if (token) {

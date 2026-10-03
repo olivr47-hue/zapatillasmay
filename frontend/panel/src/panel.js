@@ -23810,6 +23810,8 @@ window._sheinCargarResumenCatalogo = async () => {
   try {
     const res = await fetch(`${API_DIRECTO}/shein/catalogo-sin-publicar`)
     const d = await res.json()
+    // Un error del servidor (p. ej. 401) caía en "ya tienes todo publicado" porque no trae `total`
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
     if (d.escaneando) {
       box.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;padding:0.9rem;background:#eff6ff;border-radius:10px;color:#1e40af;font-size:0.86rem">
