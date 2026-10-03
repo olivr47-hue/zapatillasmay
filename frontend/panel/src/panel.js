@@ -216,9 +216,21 @@ export function renderPanel() {
         const chat = window._chatsData[window._chatActivo]
         const mensajesArea = document.getElementById('mensajes-area')
         if (mensajesArea) {
-          const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 60
-          mensajesArea.innerHTML = window._renderBurbujas(chat)
-          if (estaAbajo) mensajesArea.scrollTop = mensajesArea.scrollHeight
+          // Solo se repinta si algo cambió: antes se reconstruía cada 8 s y eso reiniciaba audios/videos, quitaba la selección de
+          // texto (para copiar) y movía el scroll.
+          const _ms = chat.mensajes || []
+          const sig = _ms.length + '|' + ((_ms[0] && (_ms[0].created_at || _ms[0].mensaje)) || '') + '|' + (chat.cliente_leyo_at || '') + '|' + (chat.cliente_entrego_at || '')
+          if (mensajesArea.dataset.sig !== sig) {
+            const estaAbajo = mensajesArea.scrollHeight - mensajesArea.scrollTop <= mensajesArea.clientHeight + 60
+            mensajesArea.innerHTML = window._renderBurbujas(chat)
+            mensajesArea.dataset.sig = sig
+            if (estaAbajo) mensajesArea.scrollTop = mensajesArea.scrollHeight
+          }
+          // Mensajes que llegan con el chat abierto y la pestaña a la vista: se marcan como leídos (antes quedaban "no leídos")
+          if ((chat.no_leidos || 0) > 0) {
+            chat.no_leidos = 0
+            fetch(API + '/chatbot/chats/' + window._chatActivo + '/leido', { method: 'PATCH' }).catch(() => {})
+          }
         }
       }
     } catch(e) {}
@@ -17249,9 +17261,15 @@ window._recargarChats = async () => {
     const nuevo = {}
     chats.forEach(c => {
       const existente = window._chatsData[c.telefono]
-      // Preserve individually-loaded full history if it's larger than the bulk fetch
+      // Historial completo ya cargado: se conserva y se le suman los mensajes más recientes que trae el listado
       if (existente && existente._historial_completo && existente.mensajes.length > c.mensajes.length) {
-        nuevo[c.telefono] = { ...c, mensajes: existente.mensajes, _historial_completo: true }
+        const clave = (m) => m.id || m.wa_message_id || ((m.created_at || '') + '|' + (m.mensaje || '') + '|' + (m.respuesta || ''))
+        const conocidos = new Set(existente.mensajes.map(clave))
+        // los mensajes vienen del más nuevo al más viejo; se descartan los "temporales" (optimistas) ya confirmados
+        const base = existente.mensajes.filter(m => !m._temporal)
+        const baseKeys = new Set(base.map(clave))
+        const nuevos = c.mensajes.filter(m => !baseKeys.has(clave(m)) && !conocidos.has(clave(m)))
+        nuevo[c.telefono] = { ...c, mensajes: [...nuevos, ...base], _historial_completo: true }
       } else {
         nuevo[c.telefono] = c
       }
@@ -17414,7 +17432,7 @@ window._refrescarListaChats = (chats) => {
   // Marcar como activo el chat abierto
   if (window._chatActivo) {
     const act = lista.querySelector(`.wa-chat-item[data-tel="${window._chatActivo}"]`)
-    if (act) act.classList.add('activa')
+    if (act) act.classList.add('activo')
   }
 }
 
@@ -17607,8 +17625,13 @@ window.abrirChat = async (telefono) => {
     etiqueta: 'sin_etiqueta', estado: 'abierto', no_leidos: 0
   }
 
+  // Borrador y foco del cuadro de texto (si este mismo chat ya estaba abierto)
+  const _tiPrev = document.getElementById('msg-input-' + telefono)
+  const _borradorPrevio = (_tiPrev && window._chatActivo === telefono) ? _tiPrev.value : null
+  const _teniaFoco = !!_tiPrev && document.activeElement === _tiPrev
+
   document.querySelectorAll('.wa-chat-item').forEach(el => el.classList.remove('activo'))
-  const item = document.querySelector(`[data-tel="${telefono}"]`)
+  const item = document.querySelector(`.wa-chat-item[data-tel="${telefono}"]`)
   if (item) item.classList.add('activo')
 
   const esMobil = window.innerWidth <= 900
@@ -17785,6 +17808,12 @@ area.style.minHeight = '0'
       </div>
     </div>
   `
+
+  // Si se está repintando la conversación que ya estaba abierta, no perder lo escrito ni el foco
+  if (_borradorPrevio != null) {
+    const ti = document.getElementById('msg-input-' + telefono)
+    if (ti) { ti.value = _borradorPrevio; if (_teniaFoco) ti.focus() }
+  }
 
   // Scroll inicial con los mensajes en caché
   const _scrollMensajes = () => {
@@ -17989,16 +18018,49 @@ window.usarRespuestaRapida = (telefono, mensaje) => {
 }
 
 
+// Refresca los mensajes del chat abierto sin volver a pintar toda la conversación: el cuadro de texto conserva foco y borrador
+// (antes cada envío llamaba a abrirChat() que recreaba el textarea y había que volver a hacerle clic para seguir escribiendo)
+window._refrescarChatAbierto = async (telefono, enfocar = true) => {
+  await window._recargarChats()
+  const ma = document.getElementById('mensajes-area')
+  const chat = window._chatsData[telefono]
+  if (!ma || !chat || window._chatActivo !== telefono) return window.abrirChat(telefono)
+  ma.innerHTML = window._renderBurbujas(chat)
+  ma.scrollTop = ma.scrollHeight
+  const sub = document.querySelector('#chat-area .wa-header-sub')
+  if (sub && chat.mensajes) sub.textContent = `${chat.telefono} · ${chat.mensajes.length} msg`
+  const ti = document.getElementById('msg-input-' + telefono)
+  if (ti && enfocar) ti.focus()
+}
+
 window.enviarMensajeWA = async (telefono) => {
   const input = document.getElementById('msg-input-' + telefono)
   const mensaje = input?.value?.trim()
   if (!mensaje) return
+  if (window._enviandoWA) return          // evita doble envío si Enter se presiona dos veces seguidas
+  window._enviandoWA = true
   input.value = ''
+  input.focus()                           // el foco NO se pierde: se puede seguir escribiendo de inmediato
   const agente = window._empleadoActual?.nombre || 'Admin'
   const reply_to_wa_id = window._replyContext?.[telefono] || null
   cancelarReply(telefono)
   const cc = document.getElementById('char-count-' + telefono)
   if (cc) cc.textContent = ''
+
+  // Burbuja inmediata (optimista): se ve al instante y luego se reemplaza por la real
+  const chat = window._chatsData[telefono]
+  const temporal = { _temporal: true, tipo: 'manual', mensaje: `[${agente}]: ${mensaje}`, created_at: new Date().toISOString() }
+  const ma = document.getElementById('mensajes-area')
+  if (chat && ma) {
+    chat.mensajes = [temporal, ...(chat.mensajes || [])]
+    ma.innerHTML = window._renderBurbujas(chat)
+    ma.scrollTop = ma.scrollHeight
+  }
+  const quitarTemporal = () => {
+    if (chat) chat.mensajes = (chat.mensajes || []).filter(m => m !== temporal)
+    const ma2 = document.getElementById('mensajes-area')
+    if (chat && ma2 && window._chatActivo === telefono) ma2.innerHTML = window._renderBurbujas(chat)
+  }
   try {
     const res = await fetch(API + '/chatbot/chats/' + telefono + '/mensaje', {
       method: 'POST',
@@ -18007,15 +18069,20 @@ window.enviarMensajeWA = async (telefono) => {
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
+      quitarTemporal()
       alert(data.error || 'Error enviando mensaje')
-      input.value = mensaje
+      const ti = document.getElementById('msg-input-' + telefono)
+      if (ti && !ti.value) { ti.value = mensaje; ti.focus() }
       return
     }
-    await window._recargarChats()
-    abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono)
   } catch(e) {
+    quitarTemporal()
     alert('Error enviando mensaje')
-    input.value = mensaje
+    const ti = document.getElementById('msg-input-' + telefono)
+    if (ti && !ti.value) { ti.value = mensaje; ti.focus() }
+  } finally {
+    window._enviandoWA = false
   }
 }
 
@@ -18065,13 +18132,13 @@ window.subirImagenWA = async (telefono, input) => {
     const uploadData = await uploadRes.json()
     const imagen_url = uploadData.url || uploadData.public_url
     if (!imagen_url) throw new Error('No se obtuvo URL')
-    await fetch(API + '/chatbot/chats/' + telefono + '/imagen', {
+    const _rEnv = await fetch(API + '/chatbot/chats/' + telefono + '/imagen', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imagen_url, caption: '', agente })
     })
-    await window._recargarChats()
-    abrirChat(telefono)
+    if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error subiendo imagen: ' + e.message)
   } finally {
@@ -18091,13 +18158,13 @@ window.subirDocumentoWA = async (telefono, input) => {
     const uploadData = await uploadRes.json()
     const doc_url = uploadData.url || uploadData.public_url
     if (!doc_url) throw new Error('No se obtuvo URL')
-    await fetch(API + '/chatbot/chats/' + telefono + '/documento', {
+    const _rEnv = await fetch(API + '/chatbot/chats/' + telefono + '/documento', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ doc_url, filename: file.name, caption: '', agente })
     })
-    await window._recargarChats()
-    abrirChat(telefono)
+    if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error enviando documento: ' + e.message)
   }
@@ -18115,13 +18182,13 @@ window.subirVideoWA = async (telefono, input) => {
     const uploadData = await uploadRes.json()
     const video_url = uploadData.url || uploadData.public_url
     if (!video_url) throw new Error('No se obtuvo URL')
-    await fetch(API + '/chatbot/chats/' + telefono + '/video', {
+    const _rEnv = await fetch(API + '/chatbot/chats/' + telefono + '/video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ video_url, caption: '', agente })
     })
-    await window._recargarChats()
-    abrirChat(telefono)
+    if (!_rEnv.ok) { const _d = await _rEnv.json().catch(() => ({})); throw new Error(_d.error || ('WhatsApp rechazó el envío (' + _rEnv.status + ')')) }
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error enviando video: ' + e.message)
   }
@@ -18141,8 +18208,7 @@ window.enviarUbicacionWA = async (telefono) => {
       body: JSON.stringify({ lat, lng, nombre, direccion, agente })
     })
     if (!r.ok) throw new Error('Error ' + r.status)
-    await window._recargarChats()
-    abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error enviando ubicación: ' + e.message)
   }
@@ -18195,8 +18261,7 @@ window.enviarContactoWA = async (telefono) => {
       body: JSON.stringify({ nombre, telefono_contacto: tel_c, empresa, agente })
     })
     if (!r.ok) throw new Error('Error ' + r.status)
-    await window._recargarChats()
-    abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error enviando contacto: ' + e.message)
   }
@@ -18235,7 +18300,7 @@ window._enviarBotonesWA = async (telefono) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cuerpo, encabezado, botones, agente })
     })
-    await window._recargarChats(); abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) { alert('Error: ' + e.message) }
 }
 
@@ -18270,7 +18335,7 @@ window._enviarListaWA = async (telefono) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cuerpo, titulo_boton, secciones, agente })
     })
-    await window._recargarChats(); abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) { alert('Error: ' + e.message) }
 }
 
@@ -18422,7 +18487,7 @@ window._enviarCarruselWA = async (telefono) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ cuerpo, tarjetas, agente })
     })
-    await window._recargarChats(); abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) { alert('Error: ' + e.message) }
 }
 
@@ -18549,8 +18614,7 @@ if (modalWA) modalWA.remove()
       })
     }
     await new Promise(r => setTimeout(r, 1500))
-    await window._recargarChats()
-    abrirChat(telefono)
+    await window._refrescarChatAbierto(telefono, false)
   } catch(e) {
     alert('Error enviando producto')
   }
