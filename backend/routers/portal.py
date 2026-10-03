@@ -495,6 +495,18 @@ def _limpiar_registro(datos: dict, parcial: bool = False) -> dict:
     if "notas" in datos:
         fila["notas"] = limpiar_texto(str(datos.get("notas") or "").strip())[:300] or None
     es_venta = (fila.get("tipo") or tipo) == "venta"
+    if "variante_id" in datos:
+        vid = datos.get("variante_id")
+        if vid in (None, ""):
+            fila["variante_id"] = None
+        elif not es_venta:
+            fila["variante_id"] = None       # un gasto no se liga a ningún par
+        elif _UUID_RE.match(str(vid)):
+            fila["variante_id"] = str(vid)   # liga la venta a un par que compró (para saber cuántos le quedan)
+        else:
+            raise ValueError("Par inválido")
+    if not es_venta:
+        fila["variante_id"] = None
     if es_venta:
         if "pares" in datos or not parcial:
             pares = _num_registro(datos.get("pares"), "Pares", 100000, 1)

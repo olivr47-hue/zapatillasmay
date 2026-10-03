@@ -1356,6 +1356,36 @@ function pcRegResumen(filas) {
   return { ventas, costo, gastos, pares, bruta, neta, porPar: pares ? neta / pares : 0, margen: ventas ? neta / ventas * 100 : 0 }
 }
 
+// Los pares que la mayorista ya compró (sus pedidos pagados), con lo que PAGÓ por cada uno y cuántos le quedan
+// por vender = comprados − vendidos (las ventas del registro ligadas a ese par).
+function pcMisPares(excluirFilaId) {
+  const mapa = new Map()
+  ;(pc.pedidos || []).filter(ped => ESTADOS_VENTA_PC.includes(ped.status)).forEach(ped => {
+    ;(ped.pedido_items || []).forEach(it => {
+      const id = it.variante_id
+      const cant = Number(it.cantidad) || 0
+      if (!id || cant <= 0) return
+      const v = it.variantes || {}
+      const prod = v.productos || {}
+      let m = mapa.get(id)
+      if (!m) {
+        m = { variante_id: id, producto_id: v.producto_id || null, nombre: prod.nombre || it.nombre || 'Producto', foto: v.foto_url || prod.imagen_principal || '',
+              color: v.color || it.color || '', talla: v.talla || it.talla || '', comprados: 0, gastado: 0, vendidos: 0 }
+        mapa.set(id, m)
+      }
+      m.comprados += cant
+      m.gastado += cant * (Number(it.precio_unitario) || 0)
+    })
+  })
+  ;(pc._reg.filas || []).forEach(f => {
+    if (f.tipo === 'venta' && f.variante_id && f.id !== excluirFilaId) {
+      const m = mapa.get(f.variante_id)
+      if (m) m.vendidos += Number(f.pares) || 0
+    }
+  })
+  return [...mapa.values()].map(m => ({ ...m, costo: m.comprados ? m.gastado / m.comprados : 0, quedan: Math.max(0, m.comprados - m.vendidos) }))
+}
+
 function pcRegPintar(el) {
   el = el || document.getElementById('pc-content')
   if (!el) return
@@ -1367,7 +1397,6 @@ function pcRegPintar(el) {
   const tipoForm = r.form
   const inp = 'width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit'
   const lbl = 'font-size:0.72rem;font-weight:700;color:var(--pc-muted);display:block;margin-bottom:4px'
-  const productos = [...pc.productos].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)))
 
   el.innerHTML = `
     <div style="margin-bottom:18px">
@@ -1402,16 +1431,52 @@ function pcRegPintar(el) {
       ${caja('Ganancia por par', money(t.porPar), 'ya descontando gastos', t.porPar >= 0 ? '#10b981' : '#ef4444')}
     </div>
 
+    ${(() => {
+      const mp = pcMisPares()
+      if (!mp.length) {
+        return `<div class="pc-card" style="margin-bottom:18px"><p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">📦 Mis pares comprados</p>
+          <p style="font-size:0.82rem;color:var(--pc-muted);margin:0">Aquí aparecerán solos los pares que compres en el portal, con lo que pagaste por cada uno y cuántos te quedan por vender.</p></div>`
+      }
+      const porVender = mp.reduce((s, x) => s + x.quedan, 0)
+      const invertido = mp.reduce((s, x) => s + x.quedan * x.costo, 0)
+      const grupos = {}
+      mp.forEach(x => { (grupos[x.nombre] = grupos[x.nombre] || []).push(x) })
+      const lista = Object.entries(grupos).map(([nombre, vs]) => ({ nombre, vs, quedan: vs.reduce((s, x) => s + x.quedan, 0), comprados: vs.reduce((s, x) => s + x.comprados, 0) }))
+        .sort((a, b) => (b.quedan > 0) - (a.quedan > 0) || a.nombre.localeCompare(b.nombre))
+      return `<div class="pc-card" style="margin-bottom:18px">
+        <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">📦 Mis pares comprados</p>
+        <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px;line-height:1.5">Son los pares de tus pedidos pagados. El costo es lo que <strong>tú pagaste</strong> por cada uno. Cuando vendas uno, toca <strong>Vendí</strong>: se llena solo y te descuenta uno de lo que te queda.
+          Llevas <strong>${porVender} par${porVender !== 1 ? 'es' : ''}</strong> por vender (${money(invertido)} invertidos).</p>
+        ${lista.map(g => `
+          <details style="border-top:1px solid var(--pc-border);padding:8px 0" ${g.quedan > 0 && lista.length <= 4 ? 'open' : ''}>
+            <summary style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center;list-style:none;font-size:0.84rem;color:var(--pc-text-2)">
+              <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong>${esc(String(g.nombre).trim())}</strong></span>
+              <span style="flex-shrink:0;font-size:0.75rem;color:${g.quedan > 0 ? '#10b981' : 'var(--pc-muted)'}">${g.quedan > 0 ? `quedan ${g.quedan}` : 'vendido todo'} · compraste ${g.comprados}</span>
+            </summary>
+            <div style="margin-top:8px">
+              ${g.vs.sort((a, b) => String(a.color).localeCompare(String(b.color)) || (parseFloat(a.talla) || 0) - (parseFloat(b.talla) || 0)).map(x => `
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:0.78rem;color:var(--pc-text-3)">
+                  ${x.foto ? `<img src="${esc(x.foto)}" style="width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0">` : ''}
+                  <span style="flex:1;min-width:0">${esc(x.color)} · talla ${esc(x.talla)}<br><span style="color:var(--pc-muted)">compraste ${x.comprados} · vendiste ${x.vendidos} · te costó ${money(x.costo)} c/u</span></span>
+                  <strong style="color:${x.quedan > 0 ? '#10b981' : 'var(--pc-muted)'};flex-shrink:0">quedan ${x.quedan}</strong>
+                  <button onclick="pcRegVender('${esc(x.variante_id)}')" class="pc-btn pc-btn-secondary" style="font-size:0.74rem;padding:6px 10px;flex-shrink:0" ${x.quedan <= 0 ? 'disabled' : ''}>Vendí</button>
+                </div>`).join('')}
+            </div>
+          </details>`).join('')}
+      </div>`
+    })()}
+
     ${tipoForm ? `
     <div class="pc-card" style="margin-bottom:18px;border-color:rgba(233,30,140,0.35)">
       <p style="font-weight:700;color:var(--pc-text);margin:0 0 12px">${ed ? 'Editar' : 'Nuevo'} ${tipoForm === 'venta' ? 'venta' : 'gasto'}</p>
       ${tipoForm === 'venta' ? `
       <div style="margin-bottom:10px">
-        <label style="${lbl}">Elegir un modelo (opcional — llena el costo y el precio por ti)</label>
-        <select id="pc-reg-prod" onchange="pcRegElegirModelo()" style="${inp}">
-          <option value="">— Escribo yo mismo los datos —</option>
-          ${productos.map(p => `<option value="${esc(p.id)}">${esc(p.nombre)}</option>`).join('')}
+        <label style="${lbl}">¿Cuál par vendiste? (de los que ya compraste — se llena el costo y el precio por ti)</label>
+        <select id="pc-reg-par" onchange="pcRegElegirModelo()" style="${inp}">
+          <option value="">— Otro: lo escribo yo mismo —</option>
+          ${pcMisPares(r.editId).filter(x => x.quedan > 0 || x.variante_id === ed?.variante_id).map(x => `<option value="${esc(x.variante_id)}" ${x.variante_id === ed?.variante_id ? 'selected' : ''}>${esc(String(x.nombre).trim().slice(0, 40))} · ${esc(x.color)} · T${esc(x.talla)} (quedan ${x.quedan})</option>`).join('')}
         </select>
+        <p id="pc-reg-quedan" style="font-size:0.75rem;color:var(--pc-muted);margin:6px 0 0"></p>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
         <div><label style="${lbl}">Fecha</label><input id="pc-reg-fecha" type="date" value="${esc(ed?.fecha || _regHoy())}" style="${inp}"></div>
@@ -1476,15 +1541,26 @@ window.pcRegEditar = function(id) {
   document.getElementById('pc-reg-fecha')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 window.pcRegElegirModelo = function() {
-  const id = document.getElementById('pc-reg-prod')?.value
-  const p = pc.productos.find(x => x.id === id)
-  if (!p) return
-  const pares = Math.max(1, parseInt(document.getElementById('pc-reg-pares')?.value) || 1)
+  const id = document.getElementById('pc-reg-par')?.value
+  const nota = document.getElementById('pc-reg-quedan')
   const set = (i, v) => { const e = document.getElementById(i); if (e) e.value = v }
-  set('pc-reg-concepto', String(p.nombre || '').trim().slice(0, 120))
-  set('pc-reg-costo', Math.round(pares >= 6 ? precioM6(p) : precioM3(p)))
-  set('pc-reg-precio', pcPrecioPublico(p))
+  const x = id ? pcMisPares(pc._reg.editId).find(m => m.variante_id === id) : null
+  if (!x) { if (nota) nota.textContent = ''; return }
+  const prod = pc.productos.find(pp => pp.id === x.producto_id)
+  const pares = Math.min(Math.max(1, parseInt(document.getElementById('pc-reg-pares')?.value) || 1), Math.max(1, x.quedan))
+  set('pc-reg-concepto', `${String(x.nombre).trim()} ${x.color} T${x.talla}`.slice(0, 120))
+  set('pc-reg-costo', Math.round(x.costo))        // lo que ella PAGÓ por este par
+  if (prod) set('pc-reg-precio', pcPrecioPublico(prod))
+  set('pc-reg-pares', pares)
+  if (nota) nota.textContent = `Te quedan ${x.quedan} de este par (compraste ${x.comprados}, ya vendiste ${x.vendidos}). Te costó ${money(x.costo)} cada uno.`
   pcRegCalc()
+}
+window.pcRegVender = function(varianteId) {
+  pc._reg.form = 'venta'; pc._reg.editId = null
+  pcRegPintar()
+  const sel = document.getElementById('pc-reg-par')
+  if (sel) { sel.value = varianteId; pcRegElegirModelo() }
+  document.getElementById('pc-reg-par')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 window.pcRegCalc = function() {
   const out = document.getElementById('pc-reg-calc')
@@ -1504,7 +1580,12 @@ window.pcRegGuardar = async function() {
   const cuerpo = { tipo: r.form, fecha: v('pc-reg-fecha'), concepto: v('pc-reg-concepto').trim(), notas: v('pc-reg-notas').trim() }
   if (r.form === 'venta') {
     cuerpo.pares = parseInt(v('pc-reg-pares')); cuerpo.precio_par = parseFloat(v('pc-reg-precio')); cuerpo.costo_par = parseFloat(v('pc-reg-costo'))
+    cuerpo.variante_id = v('pc-reg-par') || null
     if (!(cuerpo.pares >= 1)) return fallo('Escribe cuántos pares vendiste.')
+    if (cuerpo.variante_id) {
+      const x = pcMisPares(r.editId).find(m => m.variante_id === cuerpo.variante_id)
+      if (x && cuerpo.pares > x.quedan) return fallo(`Solo te quedan ${x.quedan} de este par. Si vendiste más, elige "Otro" y escríbelo tú.`)
+    }
     if (!(cuerpo.precio_par >= 0)) return fallo('Escribe el precio de venta por par.')
     if (!(cuerpo.costo_par >= 0)) return fallo('Escribe tu costo por par (lo que te costó a ti).')
   } else {
