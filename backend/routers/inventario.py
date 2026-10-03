@@ -101,7 +101,7 @@ def listar_inventario(fresh: bool = False, ligero: bool = False):
                 cached = cache_get(_CK + "_ligero")
                 if cached is not None:
                     return cached
-            data = supabase_get_all("inventario?select=id,variante_id,sucursal_id,cantidad,stock_minimo")
+            data = supabase_get_all("inventario?select=variante_id,sucursal_id,cantidad,stock_minimo")
             cache_set(_CK + "_ligero", data, ttl=TTL_STOCK)
             return data
         if not fresh:
