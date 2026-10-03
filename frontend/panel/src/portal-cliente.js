@@ -1322,8 +1322,9 @@ async function pcRegCargar() {
   pc._reg.cargando = true
   try {
     const res = await fetch(`${PC_API}/portal/registro`, { headers: pcAuthHeaders() })
-    if (res.status === 401 || res.status === 403) { pcForzarRelogin(); return }
+    if (res.status === 401) { pcForzarRelogin(); return }   // solo 401 = sesión vencida; un 403 no debe sacarla de su cuenta
     const d = await res.json()
+    if (!res.ok) throw new Error(d.error || d.detail || 'error')
     pc._reg.filas = Array.isArray(d.filas) ? d.filas : []
   } catch (e) { pc._reg.error = 'No se pudo cargar tu registro. Intenta de nuevo.' }
   pc._reg.cargando = false

@@ -446,6 +446,19 @@ def enviar_carrito(datos: dict, auth: dict = Depends(require_cliente)):
 _MAX_FILAS_REGISTRO = 5000
 
 
+def require_cliente_portal(credentials: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
+    """Sesión de una clienta del portal. El portal entra por /auth/login (la misma sesión de la tienda), cuyo token trae
+    cliente_id pero NO rol='cliente' (ese rol solo lo emite /portal/login): por eso aquí se acepta cualquier token con
+    cliente_id que no sea de personal. El cliente_id sale SIEMPRE del token, nunca del cuerpo de la petición."""
+    from security import es_personal
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Autenticación requerida")
+    payload = verify_token(credentials.credentials)
+    if es_personal(payload) or not payload.get("cliente_id"):
+        raise HTTPException(status_code=403, detail="Se requiere una sesión de cliente")
+    return payload
+
+
 def _fecha_registro(v):
     """Fecha ISO (AAAA-MM-DD) o hoy en horario de México."""
     if not v:
@@ -501,7 +514,7 @@ def _limpiar_registro(datos: dict, parcial: bool = False) -> dict:
 
 
 @router.get("/registro")
-def registro_listar(desde: str = "", hasta: str = "", auth: dict = Depends(require_cliente)):
+def registro_listar(desde: str = "", hasta: str = "", auth: dict = Depends(require_cliente_portal)):
     cid = auth["cliente_id"]
     try:
         filtro = f"mayorista_registro?cliente_id=eq.{cid}"
@@ -516,7 +529,7 @@ def registro_listar(desde: str = "", hasta: str = "", auth: dict = Depends(requi
 
 
 @router.post("/registro")
-def registro_crear(datos: dict, auth: dict = Depends(require_cliente)):
+def registro_crear(datos: dict, auth: dict = Depends(require_cliente_portal)):
     cid = auth["cliente_id"]
     try:
         fila = _limpiar_registro(datos)
@@ -531,7 +544,7 @@ def registro_crear(datos: dict, auth: dict = Depends(require_cliente)):
 
 
 @router.patch("/registro/{fila_id}")
-def registro_editar(fila_id: str, datos: dict, auth: dict = Depends(require_cliente)):
+def registro_editar(fila_id: str, datos: dict, auth: dict = Depends(require_cliente_portal)):
     cid = auth["cliente_id"]
     if not _UUID_RE.match(fila_id):
         return JSONResponse(status_code=400, content={"error": "Id inválido"})
@@ -549,7 +562,7 @@ def registro_editar(fila_id: str, datos: dict, auth: dict = Depends(require_clie
 
 
 @router.delete("/registro/{fila_id}")
-def registro_borrar(fila_id: str, auth: dict = Depends(require_cliente)):
+def registro_borrar(fila_id: str, auth: dict = Depends(require_cliente_portal)):
     cid = auth["cliente_id"]
     if not _UUID_RE.match(fila_id):
         return JSONResponse(status_code=400, content={"error": "Id inválido"})
