@@ -26663,7 +26663,11 @@ async function cargarCarritos() {
             <button class="btn btn-primary" style="margin-top:1.25rem" onclick="nuevoCarrito()">+ Nuevo carrito</button>
           </div>
         ` : `
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
+          <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input class="form-input" id="carr-buscar" placeholder="🔍 Buscar cliente o teléfono..." style="max-width:320px;font-size:0.85rem" oninput="filtrarCarritosLista()">
+            <span id="carr-contador" style="font-size:0.75rem;color:#94a3b8">${todos.length} carrito${todos.length === 1 ? '' : 's'} · ${apartados.length} apartado${apartados.length === 1 ? '' : 's'}</span>
+          </div>
+          <div id="carr-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem">
             ${todos.map(p => {
               const cliente = p.clientes || {}
               const dias = p.created_at ? Math.floor((Date.now() - new Date(p.created_at).getTime()) / 86400000) : 0
@@ -26673,11 +26677,11 @@ async function cargarCarritos() {
               const nSolicitados = (p.pedido_items || []).filter(i => !i.reservado && i.solicitud_apartar).length
               const nQuitar = (p.pedido_items || []).filter(i => i.reservado && i.solicitud_liberar).length
               return `
-                <div style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
+                <div class="carr-card" data-q="${window._escWA(((cliente.nombre || '') + ' ' + (cliente.telefono || '')).toLowerCase())}" style="background:white;border-radius:14px;border:1px solid ${nQuitar > 0 ? '#dc2626' : nSolicitados > 0 ? '#f59e0b' : esApartado ? '#fbbf24' : '#e2e8f0'};padding:1.2rem;cursor:pointer;transition:box-shadow 0.18s,border-color 0.18s" onclick="abrirCarrito('${p.id}')"
                      onmouseenter="this.style.boxShadow='0 4px 24px rgba(0,0,0,0.08)'" onmouseleave="this.style.boxShadow=''">
                   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
                     <div>
-                      <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${cliente.nombre || 'Sin cliente'}</p>
+                      <p style="font-weight:700;font-size:0.95rem;color:#0f172a;margin:0">${window._escWA(cliente.nombre || 'Sin cliente')}</p>
                       ${cliente.telefono
                         ? `<p style="font-size:0.75rem;color:#94a3b8;margin:3px 0 0">${cliente.telefono} <a href="https://wa.me/52${String(cliente.telefono).replace(/\D/g,'').slice(-10)}" target="_blank" onclick="event.stopPropagation()" style="background:#25D366;color:white;padding:1px 7px;border-radius:6px;font-size:0.66rem;text-decoration:none;margin-left:4px">WhatsApp</a></p>`
                         : `<p style="font-size:0.75rem;margin:3px 0 0"><span style="background:#fee2e2;color:#991b1b;border-radius:6px;padding:1px 7px;font-weight:700;font-size:0.68rem">⚠ Sin WhatsApp</span>${cliente.email ? ` <a href="mailto:${cliente.email}" onclick="event.stopPropagation()" style="color:#64748b">${cliente.email}</a>` : ''}</p>`}
@@ -26873,7 +26877,7 @@ window.abrirCarrito = async (pedidoId) => {
       fetch(API + '/pedidos/' + pedidoId + '/items').then(r => r.json()),
       fetch(API + '/variantes/?activa=eq.true').then(r => r.json()),
       fetch(API + '/productos/').then(r => r.json()),
-      fetch(API + '/inventario/').then(r => r.json()).catch(() => []),
+      fetch(API + '/inventario/?ligero=true').then(r => r.json()).catch(() => []),
       fetch(API + '/config/envio').then(r => r.json()).catch(() => null)
     ])
 
@@ -26915,8 +26919,8 @@ function renderCarritoAbierto(p) {
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
         <button class="btn btn-secondary" onclick="cargarCarritos()">← Carritos</button>
         <div style="flex:1">
-          <h3 style="margin:0">${cliente.nombre || 'Sin cliente'}</h3>
-          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${cliente.telefono || ''} · Abierto hace ${dias === 0 ? 'hoy' : dias + ' día(s)'}</p>
+          <h3 style="margin:0">${window._escWA(cliente.nombre || 'Sin cliente')}</h3>
+          <p style="font-size:0.8rem;color:#888;margin:2px 0 0">${window._escWA(cliente.telefono || '')} · Abierto hace ${dias === 0 ? 'hoy' : dias + ' día(s)'}</p>
           ${esApartado ? `<p style="font-size:0.78rem;color:#92400e;font-weight:600;margin:4px 0 0">🔒 Apartado
             ${anticipo > 0 ? ` · Anticipo $${anticipo.toLocaleString('es-MX',{minimumFractionDigits:2})}` : ' · Sin anticipo'}
             ${diasRestantes !== null ? ` · ${diasRestantes >= 0 ? `vence en ${diasRestantes}d` : `vencido hace ${-diasRestantes}d`}` : ''}
@@ -28053,6 +28057,7 @@ function _actualizarResumenPagosCarrito(pedidoId) {
 }
 
 window.confirmarVentaCarrito = async (pedidoId) => {
+  if (window._confirmandoCarrito) return
   const formaPagoEl = document.getElementById('c-forma-pago')
   const formaPago = formaPagoEl ? formaPagoEl.value : 'efectivo'
   const envio = parseFloat(document.getElementById('c-envio-monto')?.value) || 0
@@ -28083,20 +28088,25 @@ window.confirmarVentaCarrito = async (pedidoId) => {
     }
   }
 
+  window._confirmandoCarrito = true
+  const _cobroYaHecho = formaPago === 'tarjeta'
+    ? '\n\n⚠️ El cobro con tarjeta YA se hizo en la terminal. NO vuelvas a cobrar: avísale al administrador para cuadrar este pedido.'
+    : ''
   try {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ forma_pago: formaPago, envio, cargo_extra: cargoExtra, cargo_extra_concepto: cargoExtraConcepto })
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     if (data.ok) {
       alert('✅ Venta confirmada. Stock descontado.')
       cargarCarritos()
     } else {
-      alert('Error: ' + JSON.stringify(data))
+      alert('No se confirmó la venta: ' + (data.error || JSON.stringify(data)) + _cobroYaHecho)
     }
-  } catch(e) { alert('Error: ' + e.message) }
+  } catch(e) { alert('Error: ' + e.message + _cobroYaHecho) }
+  finally { window._confirmandoCarrito = false }
 }
 
 window.confirmarVentaCarritoCombinado = async (pedidoId) => {
@@ -28607,7 +28617,14 @@ window.rechazarLiberacionItem = async (pedidoId, itemId) => {
 }
 
 window.liberarCarrito = async (pedidoId) => {
-  if (!confirm('¿Liberar este carrito? Si tenía pares apartados, su stock se devuelve al inventario.')) return
+  // Si es un apartado con anticipo, liberarlo NO devuelve ese dinero: se avisa antes de borrar el rastro
+  let _anticipo = 0
+  try {
+    const _ped = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
+    _anticipo = parseFloat((Array.isArray(_ped) ? _ped[0] : _ped)?.anticipo || 0) || 0
+  } catch (e) {}
+  const _avisoAnticipo = _anticipo > 0 ? `\n\n⚠️ Este apartado tiene un ANTICIPO de $${_anticipo.toLocaleString('es-MX')}. Liberarlo no devuelve ese dinero: si hay que reembolsarlo o aplicarlo a otro pedido, hazlo aparte.` : ''
+  if (!confirm('¿Liberar este carrito? Si tenía pares apartados, su stock se devuelve al inventario.' + _avisoAnticipo)) return
   try {
     const res = await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST' })
     const data = await res.json()
@@ -29914,4 +29931,17 @@ window.renderCarritosCA = () => {
       ${!c.convertido ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${btn('📧 Correo', 'enviarEmailCarrito', '#E91E8C')}${btn('💬 WhatsApp', 'enviarWACarrito', '#15803d')}${btn('🔔 Push', 'enviarPushCarrito', '#7c3aed')}</div>` : ''}
     </div>`
   }).join('')
+}
+
+
+window.filtrarCarritosLista = () => {
+  const q = (document.getElementById('carr-buscar')?.value || '').toLowerCase().trim()
+  let n = 0
+  document.querySelectorAll('#carr-grid .carr-card').forEach(c => {
+    const ok = !q || (c.dataset.q || '').includes(q)
+    c.style.display = ok ? '' : 'none'
+    if (ok) n++
+  })
+  const t = document.getElementById('carr-contador')
+  if (t) t.textContent = `${n} carrito${n === 1 ? '' : 's'}`
 }

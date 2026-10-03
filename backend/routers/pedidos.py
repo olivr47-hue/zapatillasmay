@@ -1280,6 +1280,13 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        # Sin esta guarda, un doble clic (o confirmar otra vez un pedido ya cerrado) volvía a DESCONTAR el stock y cambiaba la
+        # fecha de venta; confirmar un pedido cancelado lo "resucitaba" sin reservar nada.
+        _estado_actual = pedido[0].get("status")
+        if _estado_actual in ("confirmado", "pagado", "enviado", "entregado"):
+            return JSONResponse(status_code=409, content={"error": f"Este pedido ya estaba {_estado_actual}: no se vuelve a descontar el stock."})
+        if _estado_actual == "cancelado":
+            return JSONResponse(status_code=409, content={"error": "Este pedido está cancelado: crea uno nuevo."})
         _historial(id, "confirmado", "Forma de pago: " + str(datos.get("forma_pago") or ("combinado" if datos.get("pagos") else "—")), _quien(_staff))
         # Traer items con nombre de producto para el mensaje de WhatsApp
         items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre))")
