@@ -166,10 +166,11 @@ def walmart_ping():
 
 
 @router.get("/feed/json-preview")
-def feed_json_preview(sku_interno: str):
+def feed_json_preview(sku_interno: str, solo_con_stock: bool = False, min_fotos: int = 0):
     """Arma el feed JSON en memoria SIN subirlo a Walmart, para revisar
     exactamente qué se va a mandar de un producto."""
     items = [it for it in _variantes_publicables() if it["producto"].get("sku_interno") == sku_interno]
+    items = _filtrar_items(items, solo_con_stock, min_fotos)
     if not items:
         raise HTTPException(404, "sin variantes")
     contenido = _generar_feed_json(items)
@@ -1186,6 +1187,26 @@ def feed_plantilla(solo_listos: bool = True, producto_ids: str = None):
     )
 
 
+def _filtrar_items(items: list, solo_con_stock: bool, min_fotos: int) -> list:
+    """El límite de anuncios de Walmart cuenta SKUs (talla+color): con estos filtros solo
+    se publican las variantes que realmente se pueden vender y que tienen fotos propias."""
+    if solo_con_stock:
+        items = [it for it in items if (it["stock"] or 0) > 0]
+    if min_fotos:
+        items = [it for it in items if _fotos_variante(it["variante"]) >= min_fotos]
+    if solo_con_stock or min_fotos:
+        # Walmart exige una variante "primaria" por grupo (producto+color): se recalcula
+        # con las que quedaron, porque la original pudo haberse filtrado.
+        grupos: dict = {}
+        for it in items:
+            grupos.setdefault((it["producto"]["id"], it["variante"].get("color")), []).append(it)
+        items = []
+        for g in grupos.values():
+            g.sort(key=lambda x: _talla_display(x["variante"].get("talla")))
+            items.extend({**it, "es_primaria": i == 0} for i, it in enumerate(g))
+    return items
+
+
 def _fotos_variante(v: dict) -> int:
     """Fotos distintas propias de la variante (sin contar las del producto)."""
     return len({f for f in list(v.get("imagenes") or []) + [v.get("foto_url")] if f})
@@ -1231,22 +1252,7 @@ def feed_subir(solo_listos: bool = True, confirmar: bool = False, sku_interno: s
     if excluir_sku_walmart:
         excluir = {s.strip() for s in excluir_sku_walmart.split(",") if s.strip()}
         items = [it for it in items if it["variante"].get("sku_walmart") not in excluir]
-    # El límite de anuncios de Walmart cuenta SKUs (talla+color): con estos filtros solo
-    # se publican las variantes que realmente se pueden vender y que tienen fotos propias.
-    if solo_con_stock:
-        items = [it for it in items if (it["stock"] or 0) > 0]
-    if min_fotos:
-        items = [it for it in items if _fotos_variante(it["variante"]) >= min_fotos]
-    if solo_con_stock or min_fotos:
-        # Walmart exige una variante "primaria" por grupo (producto+color): se recalcula
-        # con las que quedaron, porque la original pudo haberse filtrado.
-        grupos: dict = {}
-        for it in items:
-            grupos.setdefault((it["producto"]["id"], it["variante"].get("color")), []).append(it)
-        items = []
-        for g in grupos.values():
-            g.sort(key=lambda x: _talla_display(x["variante"].get("talla")))
-            items.extend({**it, "es_primaria": i == 0} for i, it in enumerate(g))
+    items = _filtrar_items(items, solo_con_stock, min_fotos)
     if solo_listos:
         items = [it for it in items if not _validar_fila(it)]
     if not items:
