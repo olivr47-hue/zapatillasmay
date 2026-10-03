@@ -106,7 +106,7 @@ def crear_variante(variante: dict, _staff=Depends(require_staff)):
     if producto_id:
         producto = supabase_get(f"productos?id=eq.{producto_id}&select=sku_interno")
         if producto and len(producto) > 0:
-            sku_base = producto[0].get("sku_interno", "MAY")
+            sku_base = producto[0].get("sku_interno") or "MAY"   # .get(..., "MAY") devolvía None si la clave existía vacía -> "None-NEGRO-24"
             cod_color = color_a_codigo(color)
             cod_talla = talla_a_codigo(talla)
             variante["sku"] = f"{sku_base}-{cod_color}-{cod_talla}"

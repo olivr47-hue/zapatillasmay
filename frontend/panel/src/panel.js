@@ -8594,9 +8594,11 @@ window.actualizarSKU = async () => {
   const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
   const proveedor = document.getElementById('f-proveedor') ? document.getElementById('f-proveedor').value : ''
   const skuInput = document.getElementById('f-sku')
-  if (skuInput && !skuInput.value && nombre && categoria && proveedor) {
+  // El proveedor ya NO es requisito: sin él el SKU quedaba vacío y el modelo se guardaba sin SKU ("None-NEGRO-24" en sus variantes).
+  // La letra sale del proveedor o, si no hay, de la primera letra del nombre (MA6902 -> M).
+  if (skuInput && !skuInput.value && nombre && categoria) {
     try {
-      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
+      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor || nombre.trim() || 'M'))
       const data = await res.json()
       skuInput.value = data.sku_base
     } catch(e) {}
@@ -8620,15 +8622,16 @@ window.actualizarSKU = async () => {
 window.regenerarSKU = async () => {
   const categoria = document.getElementById('f-categoria') ? document.getElementById('f-categoria').value : ''
   const proveedor = document.getElementById('f-proveedor') ? document.getElementById('f-proveedor').value : ''
-  if (categoria && proveedor) {
+  const nombreReg = document.getElementById('f-nombre') ? document.getElementById('f-nombre').value : ''
+  if (categoria) {
     try {
-      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor))
+      const res = await fetch(API + '/productos/siguiente-sku/' + categoria + '/' + encodeURIComponent(proveedor || nombreReg.trim() || 'M'))
       const data = await res.json()
       const skuInput = document.getElementById('f-sku')
       if (skuInput) skuInput.value = data.sku_base
     } catch(e) {}
   } else {
-    alert('Selecciona categoria y escribe el proveedor primero')
+    alert('Selecciona la categoría primero')
   }
 }
 

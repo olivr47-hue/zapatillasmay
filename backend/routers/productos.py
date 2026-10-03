@@ -94,17 +94,30 @@ def productos_mas_vendidos(dias: int = 30, limit: int = 12):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+_CAT_PREFIJOS = {
+    "tacones": "TAC", "sandalias": "SAN", "botas": "BOT", "botines": "BTN",
+    "flats": "FLT", "plataformas": "PLT", "tenis": "TEN", "nina": "NIN", "accesorios": "ACC",
+}
+
+
+def _generar_sku(categoria, proveedor=None, nombre=None):
+    """SKU base 'P-CAT-0001'. La letra sale del proveedor; si no hay, de la primera letra del nombre del modelo
+    (MA6902 -> M); y si tampoco es letra, 'M'. Antes el SKU solo se generaba con proveedor capturado y, sin él, el
+    modelo se guardaba SIN SKU (y sus variantes salían como 'None-NEGRO-24')."""
+    num = obtener_consecutivo("productos")
+    prefix = _CAT_PREFIJOS.get(categoria, "MAY")
+    letra = ""
+    for texto in (proveedor, nombre):
+        t = (texto or "").strip()
+        if t and t[0].isalpha():
+            letra = t[0].upper()
+            break
+    return f"{letra or 'M'}-{prefix}-{str(num).zfill(4)}", num
+
+
 @router.get("/siguiente-sku/{categoria}/{proveedor}")
 def siguiente_sku(categoria: str, proveedor: str, _staff=Depends(require_staff)):
-    num = obtener_consecutivo("productos")
-    cat_prefijos = {
-        "tacones": "TAC", "sandalias": "SAN", "botas": "BOT",
-        "botines": "BTN", "flats": "FLT", "plataformas": "PLT",
-        "tenis": "TEN", "nina": "NIN", "accesorios": "ACC"
-    }
-    prefix = cat_prefijos.get(categoria, "MAY")
-    prov = proveedor[0].upper() if proveedor else "M"
-    sku_base = f"{prov}-{prefix}-{str(num).zfill(4)}"
+    sku_base, num = _generar_sku(categoria, proveedor)
     return {"sku_base": sku_base, "consecutivo": num}
 
 @router.get("/")
@@ -191,22 +204,11 @@ def obtener_producto(id: str, credentials: HTTPAuthorizationCredentials = Depend
 
 @router.post("/")
 def crear_producto(producto: dict, _staff=Depends(require_staff)):
-    # Si tiene SKU, verificar que no exista
-    if producto.get("sku_interno"):
-        existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}")
-        if existente:
-            # Generar nuevo SKU
-            num = obtener_consecutivo("productos")
-            categoria = producto.get("categoria", "tacones")
-            proveedor = producto.get("proveedor", "M")
-            cat_prefijos = {
-                "tacones": "TAC", "sandalias": "SAN", "botas": "BOT",
-                "botines": "BTN", "flats": "FLT", "plataformas": "PLT",
-                "tenis": "TEN", "nina": "NIN", "accesorios": "ACC"
-            }
-            prefix = cat_prefijos.get(categoria, "MAY")
-            prov = proveedor[0].upper() if proveedor else "M"
-            producto["sku_interno"] = f"{prov}-{prefix}-{str(num).zfill(4)}"
+    sku_dado = (producto.get("sku_interno") or "").strip()
+    producto["sku_interno"] = sku_dado or None
+    # Sin SKU, o con uno que ya existe: se genera uno nuevo (un modelo NUNCA se guarda sin SKU)
+    if not sku_dado or supabase_get(f"productos?sku_interno=eq.{sku_dado}"):
+        producto["sku_interno"], _ = _generar_sku(producto.get("categoria", "tacones"), producto.get("proveedor"), producto.get("nombre"))
     if producto.get("slug"):
         producto["slug"] = _asegurar_slug_unico(producto["slug"], producto.get("sku_interno"))
     resultado = supabase_post("productos", producto)
@@ -215,6 +217,12 @@ def crear_producto(producto: dict, _staff=Depends(require_staff)):
 
 @router.patch("/{id}")
 def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
+    # Un campo SKU vacío en el formulario NO debe borrar el SKU que ya tiene el modelo (así lo perdió RX2201)
+    if "sku_interno" in producto and not (producto.get("sku_interno") or "").strip():
+        producto.pop("sku_interno")
+        actual = (supabase_get(f"productos?id=eq.{id}&select=sku_interno,categoria,proveedor,nombre") or [{}])[0]
+        if not (actual.get("sku_interno") or "").strip():
+            producto["sku_interno"], _ = _generar_sku(producto.get("categoria") or actual.get("categoria"), producto.get("proveedor") or actual.get("proveedor"), producto.get("nombre") or actual.get("nombre"))
     if producto.get("sku_interno"):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
         if existente:
