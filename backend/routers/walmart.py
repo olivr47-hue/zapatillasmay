@@ -200,6 +200,24 @@ def walmart_item(sku: str):
     return walmart_get(f"/items/{urllib.parse.quote(sku, safe='')}")
 
 
+@router.delete("/items/{sku}")
+def walmart_retirar_item(sku: str, confirmar: bool = False):
+    """Retira un artículo del catálogo de Walmart (DELETE /v3/items/{sku}).
+    Libera un lugar del límite de 250. Irreversible -> exige confirmar=true."""
+    if not confirmar:
+        raise HTTPException(400, "Pasa confirmar=true: retirar un artículo en Walmart no se deshace")
+    req = urllib.request.Request(
+        f"{WALMART_BASE}/items/{urllib.parse.quote(sku, safe='')}", method="DELETE",
+        headers=_walmart_headers(),
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode(errors="ignore")
+        raise HTTPException(e.code, f"Walmart API error: {detalle}")
+
+
 @router.get("/publicados")
 def walmart_publicados():
     """Todo lo que ya está en Walmart (estatus y precio reales de allá) cruzado
