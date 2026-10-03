@@ -33,6 +33,26 @@ const precioM3 = (p) => parseFloat(p.precio_mayoreo3) || Math.max(0, parseFloat(
 const precioM6 = (p) => parseFloat(p.precio_mayoreo6) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 70)
 const precioCorrida = (p) => parseFloat(p.precio_corrida) || Math.max(0, parseFloat(p.precio_menudeo || 0) - 100)
 
+// ── Herramientas de venta (precio al público y ganancia) ─────────────────────────────────────
+// Precio sugerido al público = el mismo que ve cualquier clienta en zapatillasmay.mx (precio del panel + $80, salvo ofertas).
+// La mayorista puede en cambio fijar su propio margen en %, que se guarda en su navegador.
+const PC_MARGEN_KEY = 'pc_margen_v1'
+function pcMargen() {
+  try {
+    const m = JSON.parse(localStorage.getItem(PC_MARGEN_KEY) || 'null')
+    if (m && (m.modo === 'sugerido' || m.modo === 'porcentaje')) return { modo: m.modo, pct: Math.min(300, Math.max(1, Number(m.pct) || 30)) }
+  } catch {}
+  return { modo: 'sugerido', pct: 30 }
+}
+function pcGuardarMargen(m) { try { localStorage.setItem(PC_MARGEN_KEY, JSON.stringify(m)) } catch {} }
+const pcPrecioWeb = (p) => p.es_oferta ? (parseFloat(p.precio_menudeo) || 0) : (parseFloat(p.precio_menudeo) || 0) + 80
+function pcPrecioPublico(p) {
+  const m = pcMargen()
+  if (m.modo === 'sugerido') return pcPrecioWeb(p)
+  const costo = p.es_oferta ? (parseFloat(p.precio_menudeo) || 0) : precioM3(p)
+  return Math.ceil(costo * (1 + m.pct / 100) / 10) * 10   // redondeado a la decena
+}
+
 // ── Estado global ────────────────────────────────────────────
 const pc = {
   sesion:   null,
@@ -219,6 +239,7 @@ function renderPC() {
         ${pcNavItem('inicio',   '🏠', 'Mi resumen')}
         ${pcNavItem('catalogo', '👟', 'Productos')}
         ${pcNavItem('catalogos','📥', 'Catálogos')}
+        ${pcNavItem('vender',   '💰', 'Vender')}
         ${pcNavItem('carrito',  '🛒', 'Carrito')}
         ${pcNavItem('apartados','🔒', 'Apartados')}
         ${pcNavItem('pedidos',  '📦', 'Mis pedidos')}
@@ -484,6 +505,7 @@ function pcIrA(tab, _fromBack) {
       case 'inicio':   renderInicio(content); break
       case 'catalogo': renderCatalogo(content); break
       case 'catalogos': renderCatalogosDescarga(content); break
+      case 'vender':   renderVender(content); break
       case 'carrito':  renderCarrito(content); break
       case 'apartados': renderApartados(content); break
       case 'pedidos':  renderMisPedidos(content); break
@@ -651,13 +673,15 @@ function renderInicio(el) {
   el = el || document.getElementById('pc-content')
   if (!el) return
   const pedidos = pc.pedidos || []
-  const totalGastado = pedidos.reduce((s, p) => s + parseFloat(p.total || 0), 0)
-  const pedidosActivos = pedidos.filter(p => !['entregado','cancelado'].includes(p.status)).length
+  // Solo pedidos realmente comprados (antes sumaba también cancelados y pendientes de pago)
+  const pedidosComprados = pedidos.filter(p => ESTADOS_VENTA_PC.includes(p.status))
+  const totalGastado = pedidosComprados.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+  const pedidosActivos = pedidos.filter(p => ['pendiente_pago', 'confirmado', 'pagado', 'preparando', 'enviado', 'apartado'].includes(p.status)).length
   const credito = parseFloat(pc.clienteData?.credito_disponible || 0)
   const ultimosPedidos = [...pedidos].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0,3)
 
   // Historial: gasto de los últimos 6 meses (pedidos no cancelados) y top 5 modelos.
-  const pedidosValidos = pedidos.filter(p => p.status !== 'cancelado')
+  const pedidosValidos = pedidosComprados
   const mesesLbl = []
   const mesesTotales = []
   const hoy = new Date()
@@ -690,7 +714,7 @@ function renderInicio(el) {
       <div class="pc-kpi">
         <p class="pc-kpi-lbl">Total comprado</p>
         <p class="pc-kpi-val">${money(totalGastado)}</p>
-        <p class="pc-kpi-sub">${pedidos.length} pedido${pedidos.length !== 1 ? 's' : ''}</p>
+        <p class="pc-kpi-sub">${pedidosComprados.length} pedido${pedidosComprados.length !== 1 ? 's' : ''}</p>
       </div>
       <div class="pc-kpi">
         <p class="pc-kpi-lbl">En proceso</p>
@@ -713,6 +737,7 @@ function renderInicio(el) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:28px">
       ${[
         { icon:'👟', label:'Ver catálogo', tab:'catalogo' },
+        { icon:'💰', label:'Vender', tab:'vender' },
         { icon:'🛒', label:'Carrito', tab:'carrito' },
         { icon:'📦', label:'Mis pedidos',  tab:'pedidos' },
         { icon:'💡', label:'Sugerencias',  tab:'sugerencias' },
@@ -841,7 +866,7 @@ function _pcRenderChartGasto(labels, totales) {
 
 function pcPedidoFila(p) {
   const statusColors = {
-    pendiente_pago:'#f59e0b', pagado:'#10b981', preparando:'#3b82f6',
+    pendiente_pago:'#f59e0b', pagado:'#10b981', confirmado:'#10b981', apartado:'#f59e0b', preparando:'#3b82f6',
     enviado:'#8b5cf6', entregado:'#10b981', cancelado:'#ef4444'
   }
   const color = statusColors[p.status] || '#6b7280'
@@ -1080,6 +1105,7 @@ window.pcCompartirVariosWhatsApp = async () => {
         files.push(new File([blob], filename, { type: blob.type }))
         
         selecInfo.push({
+          precio: pcPrecioPublico(p),
           nombre: p.nombre,
           sku: p.sku_interno || '',
           color: colorName !== 'default' ? colorName : ''
@@ -1093,7 +1119,7 @@ window.pcCompartirVariosWhatsApp = async () => {
     selecInfo.forEach((item, index) => {
       const shortName = item.nombre.split(' ')[0]
       const colorText = item.color ? ` - Color ${item.color}` : ''
-      text += `*${index + 1}. Modelo ${shortName}* (${item.sku})${colorText}\n\n`
+      text += `*${index + 1}. Modelo ${shortName}* (${item.sku})${colorText} — ${money(item.precio)}\n\n`
     })
 
     if (navigator.share && navigator.canShare && navigator.canShare({ files })) {
@@ -1123,6 +1149,142 @@ window.pcCompartirVariosWhatsApp = async () => {
     btn.disabled = false
     window.pcCancelarSeleccionCompartir()
   }
+}
+
+// ── VENDER: herramientas para revender ────────────────────────────────────────────────────────
+function renderVender(el) {
+  el = el || document.getElementById('pc-content')
+  if (!el) return
+  const m = pcMargen()
+  const conStock = (p) => pc.variantes.some(v => v.producto_id === p.id && pc.inventario.some(i => i.variante_id === v.id && (i.cantidad || 0) > 0))
+  const cats = [...new Set(pc.productos.map(p => p.categoria).filter(Boolean))].sort()
+
+  el.innerHTML = `
+    <div style="margin-bottom:22px">
+      <h1 style="font-size:1.5rem;font-weight:800;color:var(--pc-text);margin:0 0 4px;letter-spacing:-0.01em">💰 Herramientas para vender</h1>
+      <p style="font-size:0.85rem;color:var(--pc-muted);margin:0">Fija tu margen, saca tu lista de precios para tus clientas y calcula tu ganancia.</p>
+    </div>
+
+    <div class="pc-card" style="margin-bottom:16px">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">1 · Mi precio de venta</p>
+      <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px">Con esto se calcula el precio que ves en cada producto, lo que compartes por WhatsApp y tu ganancia estimada. Tus clientas nunca ven tu precio de mayoreo.</p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-margen-modo" value="sugerido" ${m.modo === 'sugerido' ? 'checked' : ''} onchange="pcCambiarMargenModo()" style="margin-top:3px">
+        <span><strong>Precio sugerido</strong> — el mismo que ven en zapatillasmay.mx. Así no compites contra nosotros ni contra ti misma.</span>
+      </label>
+      <label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:0.85rem;color:var(--pc-text-2);cursor:pointer">
+        <input type="radio" name="pc-margen-modo" value="porcentaje" ${m.modo === 'porcentaje' ? 'checked' : ''} onchange="pcCambiarMargenModo()">
+        <span><strong>Mi propio margen</strong>: gano</span>
+        <input id="pc-margen-pct" type="number" min="1" max="300" step="1" value="${m.pct}" oninput="pcCambiarMargenModo()" style="width:70px;padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        <span>% sobre mi costo (precio 3-5 pares)</span>
+      </label>
+      <p id="pc-margen-ejemplo" style="font-size:0.78rem;color:var(--pc-muted);margin:12px 0 0"></p>
+    </div>
+
+    <div class="pc-card" style="margin-bottom:16px">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">2 · Lista de precios para mis clientas</p>
+      <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px">Un mensaje listo para mandar por WhatsApp con tus precios de venta (solo modelos con existencias).</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <select id="pc-lista-cat" onchange="pcGenerarListaPrecios()" style="padding:8px 10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+          <option value="">Todas las categorías</option>
+          ${cats.map(c => `<option value="${esc(c)}">${esc(c.charAt(0).toUpperCase() + c.slice(1))}</option>`).join('')}
+        </select>
+        <label style="font-size:0.8rem;color:var(--pc-text-3);display:flex;gap:6px;align-items:center;cursor:pointer"><input id="pc-lista-stock" type="checkbox" checked onchange="pcGenerarListaPrecios()"> Solo con existencias</label>
+      </div>
+      <textarea id="pc-lista-texto" readonly rows="10" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit;font-size:0.8rem;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button onclick="pcCopiarListaPrecios()" class="pc-btn pc-btn-secondary" style="font-size:0.82rem">📋 Copiar</button>
+        <button onclick="pcListaPreciosWhatsApp()" class="pc-btn pc-btn-primary" style="font-size:0.82rem;background:#25D366;border-color:#25D366">💬 Mandar por WhatsApp</button>
+        <span id="pc-lista-n" style="font-size:0.75rem;color:var(--pc-muted);align-self:center"></span>
+      </div>
+    </div>
+
+    <div class="pc-card" style="margin-bottom:16px">
+      <p style="font-weight:700;color:var(--pc-text);margin:0 0 4px">3 · Calculadora de ganancia</p>
+      <p style="font-size:0.78rem;color:var(--pc-muted);margin:0 0 12px">Estimación con el precio promedio de los modelos con existencias.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;font-size:0.85rem;color:var(--pc-text-2)">
+        <span>Voy a comprar</span>
+        <input id="pc-calc-pares" type="number" min="1" step="1" value="6" oninput="pcCalcularGanancia()" style="width:80px;padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+        <span>pares y los vendo</span>
+        <select id="pc-calc-vendo" onchange="pcCalcularGanancia()" style="padding:6px 8px;border-radius:8px;border:1px solid var(--pc-border-2);background:var(--pc-bg);color:var(--pc-text);font-family:inherit">
+          <option value="1">todos</option>
+          <option value="0.8">el 80%</option>
+          <option value="0.5">la mitad</option>
+        </select>
+      </div>
+      <div id="pc-calc-resultado" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px"></div>
+      <p style="font-size:0.72rem;color:var(--pc-muted);margin:10px 0 0">Desde 6 pares el precio por par baja (precio 6+). Los pares que no vendas se quedan contigo: la ganancia ya los descuenta.</p>
+    </div>
+  `
+  pcCambiarMargenModo(true)
+  pcGenerarListaPrecios()
+  pcCalcularGanancia()
+}
+
+window.pcCambiarMargenModo = function(soloMostrar) {
+  const modo = document.querySelector('input[name="pc-margen-modo"]:checked')?.value || 'sugerido'
+  const pct = parseFloat(document.getElementById('pc-margen-pct')?.value) || 30
+  if (soloMostrar !== true) pcGuardarMargen({ modo, pct })
+  // Ejemplo con un modelo real para que se vea el efecto
+  const p = pc.productos.find(x => !x.es_oferta && x.precio_menudeo) || pc.productos[0]
+  const ej = document.getElementById('pc-margen-ejemplo')
+  if (ej && p) {
+    const pub = pcPrecioPublico(p)
+    ej.innerHTML = `Ejemplo con <strong>${esc(String(p.nombre || '').split(' ')[0])}</strong>: te cuesta ${money(precioM3(p))} (3-5 pares) → lo vendes a <strong style="color:var(--pc-text)">${money(pub)}</strong> → ganas <strong style="color:#10b981">${money(pub - precioM3(p))}</strong> por par.`
+  }
+  if (soloMostrar !== true) { pcGenerarListaPrecios(); pcCalcularGanancia() }
+}
+
+window.pcGenerarListaPrecios = function() {
+  const area = document.getElementById('pc-lista-texto')
+  if (!area) return
+  const cat = document.getElementById('pc-lista-cat')?.value || ''
+  const soloStock = document.getElementById('pc-lista-stock')?.checked !== false
+  const tieneStock = (p) => pc.variantes.some(v => v.producto_id === p.id && pc.inventario.some(i => i.variante_id === v.id && (i.cantidad || 0) > 0))
+  let lista = pc.productos.filter(p => (!cat || p.categoria === cat) && (!soloStock || tieneStock(p)))
+  lista = lista.filter(p => pcPrecioPublico(p) > 0)
+  const grupos = {}
+  lista.forEach(p => { (grupos[p.categoria || 'otros'] = grupos[p.categoria || 'otros'] || []).push(p) })
+  let txt = '*Zapatillas May — Lista de precios* 👠\n'
+  Object.keys(grupos).sort().forEach(c => {
+    txt += `\n*${c.charAt(0).toUpperCase() + c.slice(1)}*\n`
+    grupos[c].forEach(p => { txt += `• ${String(p.nombre || '').trim()} — ${money(pcPrecioPublico(p))}\n` })
+  })
+  area.value = lista.length ? txt.trim() : 'No hay modelos para mostrar con esos filtros.'
+  const n = document.getElementById('pc-lista-n')
+  if (n) n.textContent = `${lista.length} modelo${lista.length !== 1 ? 's' : ''}`
+}
+window.pcCopiarListaPrecios = function() {
+  const t = document.getElementById('pc-lista-texto')?.value || ''
+  if (!t) return
+  navigator.clipboard?.writeText(t).then(() => pcMostrarExito('📋 Lista copiada')).catch(() => { try { document.getElementById('pc-lista-texto').select() } catch {} })
+}
+window.pcListaPreciosWhatsApp = function() {
+  const t = document.getElementById('pc-lista-texto')?.value || ''
+  if (!t) return
+  window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank')
+}
+
+window.pcCalcularGanancia = function() {
+  const out = document.getElementById('pc-calc-resultado')
+  if (!out) return
+  const pares = Math.max(1, parseInt(document.getElementById('pc-calc-pares')?.value) || 1)
+  const vendo = parseFloat(document.getElementById('pc-calc-vendo')?.value) || 1
+  const tieneStock = (p) => pc.variantes.some(v => v.producto_id === p.id && pc.inventario.some(i => i.variante_id === v.id && (i.cantidad || 0) > 0))
+  const base = pc.productos.filter(p => !p.es_oferta && tieneStock(p) && pcPrecioPublico(p) > 0)
+  if (!base.length) { out.innerHTML = '<p style="font-size:0.8rem;color:var(--pc-muted)">Sin datos todavía.</p>'; return }
+  const prom = (f) => base.reduce((s, p) => s + f(p), 0) / base.length
+  const costoPar = pares >= 6 ? prom(precioM6) : (pares >= 3 ? prom(precioM3) : prom(p => parseFloat(p.precio_menudeo) || 0))
+  const pubPar = prom(pcPrecioPublico)
+  const inversion = costoPar * pares
+  const venta = pubPar * Math.round(pares * vendo)
+  const ganancia = venta - inversion
+  const caja = (lbl, val, color) => `<div class="pc-kpi"><p class="pc-kpi-lbl">${lbl}</p><p class="pc-kpi-val" style="${color ? 'color:' + color : ''}">${val}</p></div>`
+  out.innerHTML =
+    caja('Inversión', money(inversion)) +
+    caja('Venta estimada', money(venta)) +
+    caja('Ganancia', money(ganancia), ganancia >= 0 ? '#10b981' : '#ef4444') +
+    caja('Por par', money(costoPar) + ' → ' + money(pubPar))
 }
 
 // ── CATÁLOGOS (descarga PDF por categoría) ────────────────────
@@ -1269,7 +1431,8 @@ window.pcCompartirProducto = function(prodId, medio) {
   const p = pc.productos.find(x => x.id === prodId)
   if (!p) return
   const link = `https://zapatillasmay.mx/producto/${encodeURIComponent(p.sku_interno || p.id)}`
-  const mensaje = `¡Mira este modelo! ${p.nombre} 👠\n${link}`
+  // Con precio al público (nunca el de mayoreo). El link solo se agrega con el precio sugerido, porque la página muestra ese precio.
+  const mensaje = `¡Mira este modelo! ${p.nombre} 👠\n💰 ${money(pcPrecioPublico(p))}` + (pcMargen().modo === 'sugerido' ? `\n${link}` : '')
   if (medio === 'whatsapp') {
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
   } else if (medio === 'facebook') {
@@ -1308,6 +1471,7 @@ window.pcAbrirProducto = function(prodId) {
   const pMay6    = precioM6(p)
   const pCorr    = precioCorrida(p)
   const fmtP = n => '$' + Math.round(n).toLocaleString('es-MX')
+  const pcPub = pcPrecioPublico(p)
 
   window._pcBuffer  = {}
   window._pcModo    = 'variado'
@@ -1350,6 +1514,10 @@ window.pcAbrirProducto = function(prodId) {
             <p style="font-size:0.92rem;font-weight:800;color:#E91E8C;margin:0">${fmtP(pMay6)}</p>
           </div>
           <div id="pc-tier-corr-container" style="flex:1"></div>
+        </div>
+        <div style="margin-top:8px;background:var(--pc-bg);border:1px dashed var(--pc-border-2);border-radius:9px;padding:7px 10px;font-size:0.72rem;color:var(--pc-text-3);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <span>💰 Véndelo a <strong style="color:var(--pc-text)">${fmtP(pcPub)}</strong></span>
+          <span>Ganas <strong style="color:${pcPub - pMay3 > 0 ? '#10b981' : '#ef4444'}">${fmtP(pcPub - pMay3)}</strong> (3-5) · <strong style="color:${pcPub - pMay6 > 0 ? '#10b981' : '#ef4444'}">${fmtP(pcPub - pMay6)}</strong> (6+)</span>
         </div>
         <!-- Strip de fotos por color -->
         <div id="pc-modal-foto-strip" style="display:none;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:8px 0 0;-webkit-overflow-scrolling:touch"></div>
@@ -2652,6 +2820,23 @@ function renderCarrito(el) {
           <span style="font-weight:700;color:#E91E8C">${money(total)}</span>
         </div>`}
         ${(() => {
+          // Ganancia estimada si revende todo al precio al público (sugerido o su margen)
+          let venta = 0, costo = 0
+          pc.carrito.forEach(i => {
+            const prod = pc.productos.find(x => x.id === i.producto_id)
+            if (!prod) return
+            venta += pcPrecioPublico(prod) * i.cantidad
+            costo += i.precio_unitario * i.cantidad
+          })
+          if (venta <= 0) return ''
+          const gan = venta - costo
+          return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(233,30,140,0.06);border:1px solid rgba(233,30,140,0.2);border-radius:8px">
+            <p style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#E91E8C;margin:0 0 4px">💰 Si lo revendes</p>
+            <p style="font-size:0.8rem;color:var(--pc-text-2);margin:0">Vendiendo todo al precio al público (${money(venta)}) ganas <strong style="color:${gan > 0 ? '#10b981' : '#ef4444'}">${money(gan)}</strong>${costo > 0 ? ` · ${Math.round(gan / costo * 100)}% sobre tu inversión` : ''}</p>
+            <button onclick="pcIrA('vender')" style="background:none;border:none;color:var(--pc-muted);font-size:0.72rem;cursor:pointer;padding:4px 0 0;text-decoration:underline">Cambiar mi margen</button>
+          </div>`
+        })()}
+        ${(() => {
           const dir = (pc.clienteData?.direccion || '').trim()
           if (dir) {
             return `<div style="margin-bottom:12px;padding:10px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px">
@@ -3562,13 +3747,16 @@ function renderMisPedidos(el) {
 }
 
 const STATUS_STEPS = ['pendiente_pago','pagado','preparando','enviado','entregado']
-const STATUS_LABELS = { pendiente_pago:'Pendiente de pago', pagado:'Pago confirmado', preparando:'Preparando', enviado:'En camino', entregado:'Entregado', cancelado:'Cancelado' }
-const STATUS_ICONS  = { pendiente_pago:'⏳', pagado:'✅', preparando:'📦', enviado:'🚚', entregado:'🎉', cancelado:'❌' }
+const STATUS_LABELS = { pendiente_pago:'Pendiente de pago', pagado:'Pago confirmado', preparando:'Preparando', enviado:'En camino', entregado:'Entregado', cancelado:'Cancelado', confirmado:'Pedido confirmado', apartado:'Apartado' }
+const STATUS_ICONS  = { pendiente_pago:'⏳', pagado:'✅', preparando:'📦', enviado:'🚚', entregado:'🎉', cancelado:'❌', confirmado:'✅', apartado:'🔒' }
+// 'confirmado' es el pedido ya pagado (el estado real más común): antes no se reconocía y se veía el texto crudo sin avanzar la línea de tiempo
+const STATUS_ALIAS = { confirmado: 'pagado' }
+const ESTADOS_VENTA_PC = ['confirmado', 'pagado', 'preparando', 'enviado', 'entregado']
 
 function pcPedidoDetalle(p) {
-  const statusColors = { pendiente_pago:'#f59e0b', pagado:'#10b981', preparando:'#3b82f6', enviado:'#8b5cf6', entregado:'#10b981', cancelado:'#ef4444' }
+  const statusColors = { pendiente_pago:'#f59e0b', pagado:'#10b981', confirmado:'#10b981', apartado:'#f59e0b', preparando:'#3b82f6', enviado:'#8b5cf6', entregado:'#10b981', cancelado:'#ef4444' }
   const color = statusColors[p.status] || '#6b7280'
-  const stepIdx = STATUS_STEPS.indexOf(p.status)
+  const stepIdx = STATUS_STEPS.indexOf(STATUS_ALIAS[p.status] || p.status)
   const items = p.pedido_items || []
 
   return `

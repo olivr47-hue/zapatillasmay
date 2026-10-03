@@ -99,7 +99,18 @@ def guardar(request: Request, datos: dict):
             return {"ok": True, "accion": "actualizado", "id": existente[0]["id"]}
         else:
             payload["created_at"] = _now_iso()
-            res = supabase_post("carritos_abandonados", payload)
+            try:
+                res = supabase_post("carritos_abandonados", payload)
+            except Exception as e_ins:
+                # Dos peticiones casi simultáneas (el campo de correo guarda al escribir y al salir) pasaban ambas el
+                # "¿ya existe?" y creaban el carrito dos veces. Ahora la base lo impide (índice único por correo abierto):
+                # la que llega segunda actualiza la primera.
+                otra = supabase_get(f"carritos_abandonados?email=eq.{urllib.parse.quote(email, safe='')}&convertido=eq.false&select=id")
+                if not otra:
+                    raise e_ins
+                payload.pop("created_at", None)
+                supabase_patch(f"carritos_abandonados?id=eq.{otra[0]['id']}", payload)
+                return {"ok": True, "accion": "actualizado", "id": otra[0]["id"]}
             cid = res[0]["id"] if isinstance(res, list) and res else None
             return {"ok": True, "accion": "creado", "id": cid}
     except Exception as e:
