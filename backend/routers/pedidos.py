@@ -351,7 +351,7 @@ _ESTADOS_ABIERTOS = "(pendiente_pago,pagado,apartado,checkout_iniciado,borrador)
 
 
 @router.get("/")
-def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, _staff=Depends(require_staff)):
+def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, cliente_id: str = None, _staff=Depends(require_staff)):
     """Lista de pedidos para el panel.
     - ligero=true: solo los campos para estadísticas (sin renglones): decenas de veces menos datos.
     - dias=N: pedidos de los últimos N días MÁS todos los abiertos (pendiente de pago, pagados por surtir,
@@ -360,6 +360,10 @@ def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, _
     perdía los más viejos sin avisar; ahora pagina completo."""
     try:
         filtro = f"&status=eq.{_up.quote(str(status), safe='')}" if status else ""
+        if cliente_id:
+            if not _UUID_RE.match(str(cliente_id)):
+                return JSONResponse(status_code=400, content={"error": "cliente_id inválido"})
+            filtro += f"&cliente_id=eq.{cliente_id}"
         if dias:
             import datetime as _dtm
             corte = (_dtm.datetime.now(_dtm.timezone.utc) - _dtm.timedelta(days=int(dias))).strftime("%Y-%m-%dT%H:%M:%SZ")

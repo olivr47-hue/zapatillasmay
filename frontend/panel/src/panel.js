@@ -6313,7 +6313,9 @@ async function cargarClientes() {
         segmento = 'activo'; segmentoLabel = '🔵 Activo'; segmentoBg = '#e3f2fd'; segmentoColor = '#1565c0'
       }
 
-      return { ...c, totalGastado, ultimoPedido, pedidos30, diasSinComprar, segmento, segmentoLabel, segmentoBg, segmentoColor, totalPedidos: pedidosCli.length }
+      const pedCredito = pedidosCli.filter(p => p.forma_pago === 'credito')
+      const montoCredito = pedCredito.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+      return { ...c, totalGastado, ultimoPedido, pedidos30, diasSinComprar, segmento, segmentoLabel, segmentoBg, segmentoColor, totalPedidos: pedidosCli.length, numCredito: pedCredito.length, montoCredito }
     }).sort((a, b) => b.totalGastado - a.totalGastado)
 
     // Estadísticas
@@ -6325,6 +6327,9 @@ async function cargarClientes() {
     const totalTienda = clientesEnriquecidos.filter(c => c.origen === 'tienda').length
 
     window._clientesData = clientesEnriquecidos
+    window._cliF = { seg: 'todos', flag: '' }
+    window._cliPag = 100
+    setTimeout(() => window._cliRender && window._cliRender(), 0)
 
     content.innerHTML = `
       <div style="display:flex;gap:0;border:1px solid #eee;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:1rem">
@@ -6382,10 +6387,25 @@ async function cargarClientes() {
             <option value="tienda">🛍️ Registrados en tienda</option>
             <option value="panel">Panel / manual</option>
           </select>
+          <select class="form-input" id="cli-orden" style="min-width:150px" onchange="filtrarClientes()">
+            <option value="gasto">Más compran primero</option>
+            <option value="reciente">Compraron más recién</option>
+            <option value="antiguo">Sin comprar hace más</option>
+            <option value="nuevos">Registrados recién</option>
+            <option value="nombre">Nombre A–Z</option>
+          </select>
+        </div>
+        <div style="padding:0 1.5rem 0.75rem;display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="cli-chips">
+          <button class="pill-filter" data-flag="credito" onclick="_cliFlag('credito')">💳 Con crédito</button>
+          <button class="pill-filter" data-flag="sintel" onclick="_cliFlag('sintel')">📵 Sin teléfono</button>
+          <button class="pill-filter" data-flag="conpedidos" onclick="_cliFlag('conpedidos')">🛍️ Ya compraron</button>
+          <button class="pill-filter" data-flag="sincompras" onclick="_cliFlag('sincompras')">⚪ Nunca han comprado</button>
+          <span id="cli-contador" style="font-size:0.75rem;color:#94a3b8;margin-left:6px"></span>
+          <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 9px;margin-left:auto" onclick="_cliLimpiar()">Limpiar filtros</button>
         </div>
         <div id="cli-lista">
           ${clientesEnriquecidos.map(c => `
-            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}"
+            <div class="cli-item" data-segmento="${c.segmento}" data-tipo="${c.tipo || ''}" data-origen="${c.origen || ''}" data-nombre="${c.nombre.toLowerCase()}" data-tel="${c.telefono || ''}" data-gastado="${c.totalGastado}" data-dias="${c.diasSinComprar === null ? 99999 : c.diasSinComprar}" data-creado="${c.created_at || ''}" data-credito="${c.numCredito}"
                  style="padding:1rem 1.5rem;border-bottom:1px solid #f5f5f5;display:flex;align-items:center;gap:16px;flex-wrap:wrap;cursor:pointer;transition:background 0.15s"
                  onmouseover="this.style.background='#fafafa'" onmouseout="this.style.background='white'"
                  onclick="verCliente('${c.id}')">
@@ -6400,6 +6420,7 @@ async function cargarClientes() {
                   ${c.origen === 'tienda' ? '<span style="padding:2px 8px;border-radius:100px;font-size:0.65rem;font-weight:600;background:#fdf4ff;color:#7c3aed">🛍️ Tienda</span>' : ''}
                 </div>
                 <p style="font-size:0.78rem;color:#888">${c.telefono || 'Sin teléfono'}${c.ciudad ? ' · ' + c.ciudad : ''}</p>
+                ${c.numCredito > 0 ? `<p style="font-size:0.72rem;color:#0f766e;font-weight:600;margin-top:2px">💳 ${c.numCredito} pedido${c.numCredito > 1 ? 's' : ''} a crédito · $${c.montoCredito.toLocaleString('es-MX', { maximumFractionDigits: 0 })}</p>` : ''}
                 ${c.comentarios_internos ? `<p style="font-size:0.72rem;color:#E91E8C;margin-top:2px">📝 ${c.comentarios_internos.substring(0,50)}${c.comentarios_internos.length > 50 ? '...' : ''}</p>` : ''}
               </div>
               <div style="text-align:right;min-width:100px">
@@ -6455,41 +6476,67 @@ window.abrirClientesCRM = async () => {
   _cliCambiarTab('crm')
 }
 
-window.filtrarClientes = () => {
+// ── Filtros combinables de Clientes: etiqueta (segmento) + búsqueda + tipo + origen + chips + orden + "mostrar más" ──
+window._cliF = { seg: 'todos', flag: '' }
+window._cliPag = 100
+window.filtrarClientes = () => { window._cliPag = 100; _cliRender() }
+window.filtrarClientesSeg = (seg) => { window._cliF.seg = seg || 'todos'; window._cliPag = 100; _cliRender() }
+window._cliFlag = (f) => { window._cliF.flag = window._cliF.flag === f ? '' : f; window._cliPag = 100; _cliRender() }
+window._cliLimpiar = () => {
+  ;['cli-buscar', 'cli-tipo', 'cli-origen'].forEach(id => { const e = document.getElementById(id); if (e) e.value = '' })
+  window._cliF = { seg: 'todos', flag: '' }
+  window._cliPag = 100
+  _cliRender()
+}
+function _cliRender() {
+  const lista = document.getElementById('cli-lista')
+  if (!lista) return
+  const F = window._cliF
   const buscar = (document.getElementById('cli-buscar')?.value || '').toLowerCase().trim()
-  const tipo   = document.getElementById('cli-tipo')?.value || ''
+  const tipo = document.getElementById('cli-tipo')?.value || ''
   const origen = document.getElementById('cli-origen')?.value || ''
-  let visible = 0
-  document.querySelectorAll('.cli-item').forEach(el => {
-    const nombre  = (el.dataset.nombre || '').toLowerCase()
-    const tel     = el.dataset.tel || ''
-    const tipoEl  = el.dataset.tipo || ''
-    const origenEl = el.dataset.origen || ''
-    const matchBuscar = !buscar || nombre.includes(buscar) || tel.includes(buscar)
-    const matchTipo   = !tipo   || tipoEl  === tipo
-    const matchOrigen = !origen || origenEl === origen
-    const show = matchBuscar && matchTipo && matchOrigen
-    el.style.display = show ? '' : 'none'
-    if (show) visible++
-  })
-  // (había una segunda definición más abajo que pisaba esta e ignoraba el filtro de origen)
-  const countEl = document.getElementById('cli-count')
-  if (countEl) countEl.textContent = visible
-}
+  const orden = document.getElementById('cli-orden')?.value || 'gasto'
+  const items = [...lista.querySelectorAll('.cli-item')]
+  const num = (el, k) => parseFloat(el.dataset[k]) || 0
+  const cmp = {
+    gasto: (a, b) => num(b, 'gastado') - num(a, 'gastado'),
+    reciente: (a, b) => num(a, 'dias') - num(b, 'dias'),
+    antiguo: (a, b) => (num(b, 'dias') === 99999 ? -1 : num(a, 'dias') === 99999 ? 1 : num(b, 'dias') - num(a, 'dias')),
+    nuevos: (a, b) => (b.dataset.creado || '').localeCompare(a.dataset.creado || ''),
+    nombre: (a, b) => (a.dataset.nombre || '').localeCompare(b.dataset.nombre || ''),
+  }[orden]
+  items.sort(cmp).forEach(el => lista.appendChild(el))   // reordena el DOM
 
-window.filtrarClientesSeg = (seg) => {
-  // Limpiar selects al filtrar por tarjeta
-  const selTipo   = document.getElementById('cli-tipo')
-  const selOrigen = document.getElementById('cli-origen')
-  if (selTipo)   selTipo.value   = ''
-  if (selOrigen) selOrigen.value = ''
-  document.querySelectorAll('.cli-item').forEach(el => {
-    if (seg === 'todos')  { el.style.display = ''; return }
-    if (seg === 'tienda') { el.style.display = el.dataset.origen === 'tienda' ? '' : 'none'; return }
-    if (seg === 'activos') { el.style.display = (el.dataset.segmento === 'activo' || el.dataset.segmento === 'frecuente') ? '' : 'none'; return }
-    el.style.display = el.dataset.segmento === seg ? '' : 'none'
+  const cumple = (el) => {
+    const seg = el.dataset.segmento
+    if (F.seg === 'tienda' ? el.dataset.origen !== 'tienda'
+      : F.seg === 'activos' ? !(seg === 'activo' || seg === 'frecuente')
+      : (F.seg !== 'todos' && seg !== F.seg)) return false
+    if (buscar && !((el.dataset.nombre || '').includes(buscar) || (el.dataset.tel || '').includes(buscar))) return false
+    if (tipo && el.dataset.tipo !== tipo) return false
+    if (origen && el.dataset.origen !== origen) return false
+    if (F.flag === 'credito' && num(el, 'credito') === 0) return false
+    if (F.flag === 'sintel' && el.dataset.tel) return false
+    if (F.flag === 'conpedidos' && seg === 'nuevo') return false
+    if (F.flag === 'sincompras' && seg !== 'nuevo') return false
+    return true
+  }
+  let visibles = 0, total = 0
+  items.forEach(el => {
+    const ok = cumple(el)
+    if (ok) total++
+    const mostrar = ok && visibles < window._cliPag
+    if (mostrar) visibles++
+    el.style.display = mostrar ? '' : 'none'
   })
+  const c = document.getElementById('cli-contador')
+  if (c) c.textContent = `${total} cliente${total === 1 ? '' : 's'}` + (F.seg !== 'todos' ? ` · filtro: ${F.seg}` : '')
+  document.querySelectorAll('#cli-chips .pill-filter').forEach(b => b.classList.toggle('pill-active', b.dataset.flag === F.flag))
+  let mas = document.getElementById('cli-mas')
+  if (!mas) { mas = document.createElement('div'); mas.id = 'cli-mas'; mas.style.cssText = 'text-align:center;padding:14px'; lista.after(mas) }
+  mas.innerHTML = total > visibles ? `<button class="btn btn-secondary" onclick="window._cliPag+=100;_cliRender()">Mostrar más (${total - visibles} restantes)</button>` : ''
 }
+window._cliRender = _cliRender
 
 window.cambiarTipoCliente = async (id, nuevoTipo, btn) => {
   const orig = btn.textContent
@@ -9516,7 +9563,7 @@ window.verCliente = async (id) => {
   try {
     const [resCli, resPed, resCred] = await Promise.all([
       fetch(API + '/clientes/' + id),
-      fetch(API + '/pedidos/?ligero=true'),
+      fetch(API + '/pedidos/?ligero=true&cliente_id=' + id),
       fetch(API + '/clientes/' + id + '/creditos-historial')
     ])
     const data = await resCli.json()
@@ -9529,7 +9576,7 @@ window.verCliente = async (id) => {
     const pedidosConfirmados = pedidos.filter(p => _ESTADOS_VENTA.includes(p.status))
     const totalGastado = pedidosConfirmados.reduce((s, p) => s + parseFloat(p.total || 0), 0)
     const ticketPromedio = pedidosConfirmados.length > 0 ? totalGastado / pedidosConfirmados.length : 0
-    const ultimoPedido = pedidos.length > 0 ? new Date(pedidos[0].created_at) : null
+    const ultimoPedido = pedidosConfirmados.length > 0 ? new Date(pedidosConfirmados[0].confirmado_at || pedidosConfirmados[0].created_at) : null
     const diasSinComprar = ultimoPedido ? Math.floor((new Date() - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
 
     // Meses de actividad
@@ -12098,18 +12145,26 @@ window.limpiarClientePOS = () => {
 window.renderProductosPOS = (productos) => {
   const { variantes, inventario } = window._posData
   const sucursalId = document.getElementById('pos-sucursal') ? document.getElementById('pos-sucursal').value : ''
-  const invSucursal = inventario.filter(i => i.sucursal_id === sucursalId)
-
   const grid = document.getElementById('pos-productos-grid')
   if (!grid) return
 
-  grid.innerHTML = productos.filter(p => p.activo).map(p => {
-    const varsProd = variantes.filter(v => v.producto_id === p.id)
+  // Mapas por id: antes cada tarjeta recorría TODAS las variantes y TODO el inventario (≈16 millones de comparaciones por
+  // cada tecla escrita en el buscador), lo que hacía lento el POS en cuanto había miles de variantes.
+  const stockPorVariante = new Map()
+  inventario.forEach(i => { if (i.sucursal_id === sucursalId) stockPorVariante.set(i.variante_id, i.cantidad) })
+  const variantesPorProducto = new Map()
+  variantes.forEach(v => {
+    if (!variantesPorProducto.has(v.producto_id)) variantesPorProducto.set(v.producto_id, [])
+    variantesPorProducto.get(v.producto_id).push(v)
+  })
+  const stockDe = (p) => (variantesPorProducto.get(p.id) || []).reduce((sum, v) => sum + (stockPorVariante.get(v.id) || 0), 0)
+  // Con existencia primero; los agotados al final (el cajero casi siempre busca lo que SÍ hay)
+  const visibles = productos.filter(p => p.activo).map(p => ({ p, st: stockDe(p) }))
+    .sort((a, b) => (b.st > 0) - (a.st > 0))
+
+  grid.innerHTML = visibles.map(({ p, st: totalStock }) => {
+    const varsProd = variantesPorProducto.get(p.id) || []
     const colores = [...new Set(varsProd.map(v => v.color).filter(Boolean))]
-    const totalStock = varsProd.reduce((sum, v) => {
-      const inv = invSucursal.find(i => i.variante_id === v.id)
-      return sum + (inv ? inv.cantidad : 0)
-    }, 0)
 
     return `
       <div onclick="abrirProductoPOS('${p.id}')"
@@ -12118,7 +12173,7 @@ window.renderProductosPOS = (productos) => {
            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='none'">
         <div style="position:relative">
           ${p.imagen_principal
-            ? `<img src="${p.imagen_principal}" style="width:100%;height:160px;object-fit:contain;background:#f5f5f5">`
+            ? `<img src="${p.imagen_principal}" loading="lazy" decoding="async" style="width:100%;height:160px;object-fit:contain;background:#f5f5f5">`
             : `<div style="width:100%;height:160px;background:linear-gradient(135deg,#f5f5f5,#eee);display:flex;align-items:center;justify-content:center;font-size:2rem">­👠</div>`}
           ${totalStock === 0 ? '<div style="position:absolute;top:8px;right:8px;background:#c62828;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Agotado</div>' : ''}
           ${p.es_oferta ? '<div style="position:absolute;top:8px;left:8px;background:#E91E8C;color:white;font-size:0.65rem;padding:2px 6px;border-radius:100px">Oferta</div>' : ''}
@@ -12142,6 +12197,10 @@ window.renderProductosPOS = (productos) => {
 }
 
 window.buscarPOS = (texto) => {
+  clearTimeout(window._posBuscarT)
+  window._posBuscarT = setTimeout(() => _buscarPOSAhora(texto), 120)
+}
+function _buscarPOSAhora(texto) {
   const { productos } = window._posData
   if (!texto) {
     renderProductosPOS(productos)
@@ -12186,7 +12245,7 @@ window.filtrarPOSNuevos = () => {
 window.actualizarInventarioPOS = async () => {
   const sucursalId = document.getElementById('pos-sucursal').value
   try {
-    const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+    const resInv = await fetch(API + '/inventario/?ligero=true&fresh=true')
     window._posData.inventario = await resInv.json()
     const { productos } = window._posData
     renderProductosPOS(productos)
@@ -14368,7 +14427,7 @@ window.cobrarPOS = async () => {
     // 5. Refrescar inventario. En su propio try: la venta YA está cobrada y confirmada; si solo falla este
     // refresco (red, sesión), el catch de abajo NO debe cancelarla (antes lo hacía).
     try {
-      const resInv = await fetch(API + '/inventario/sucursal/' + sucursalId)
+      const resInv = await fetch(API + '/inventario/?ligero=true&fresh=true')
       if (resInv.ok) {
         window._posData.inventario = await resInv.json()
         renderProductosPOS(window._posData.productos)
