@@ -977,6 +977,17 @@ def agregar_item(id: str, item: dict, credentials: HTTPAuthorizationCredentials 
             except ValueError as ve:
                 return JSONResponse(status_code=400, content={"error": str(ve)})
         item["pedido_id"] = id
+        # El POS mandaba solo variante/cantidad/precio: 963 renglones de sucursal quedaron sin nombre, color ni talla
+        # (se veían en blanco en búsquedas, lista de surtido y reportes). Si faltan, se completan desde la variante.
+        if item.get("variante_id") and not (item.get("nombre") and item.get("talla")):
+            try:
+                _v = (supabase_get(f"variantes?id=eq.{item['variante_id']}&select=color,talla,productos(nombre)") or [None])[0]
+                if _v:
+                    item["nombre"] = item.get("nombre") or ((_v.get("productos") or {}).get("nombre") or "")
+                    item["color"] = item.get("color") or (_v.get("color") or "")
+                    item["talla"] = item.get("talla") or (_v.get("talla") or "")
+            except Exception as _e:
+                print(f"[pedidos] no se pudo completar nombre/talla del item: {_e}")
         resultado = supabase_post("pedido_items", item)
         _recalcular_total_pedido(id)
         return resultado

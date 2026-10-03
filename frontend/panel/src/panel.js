@@ -11636,7 +11636,7 @@ async function cargarPOS() {
       fetch(API + '/variantes/').then(r => r.json()),
       fetch(API + '/sucursales/').then(r => r.json()),
       fetch(API + '/clientes/').then(r => r.json()),
-      fetch(API + '/inventario/?fresh=true').then(r => r.json())
+      fetch(API + '/inventario/?ligero=true&fresh=true').then(r => r.json())
     ])
 
     window._posData = { productos, variantes, sucursales, clientes, inventario }
@@ -12366,7 +12366,7 @@ if (modalAnterior) modalAnterior.remove()
       const [productos, variantes, inventario] = await Promise.all([
         fetch(API + '/productos/').then(r => r.json()),
         fetch(API + '/variantes/').then(r => r.json()),
-        fetch(API + '/inventario/?fresh=true').then(r => r.json())
+        fetch(API + '/inventario/?ligero=true&fresh=true').then(r => r.json())
       ])
       window._posData = { productos, variantes, sucursales: [], clientes: [], inventario }
     } catch (e) { return }
@@ -14245,6 +14245,7 @@ window.cobrarPOS = async () => {
   }
 
   let pedidoId = null
+  let ventaConfirmada = false   // una vez confirmada (cobrada y con stock descontado) NUNCA se cancela automáticamente
   try {
     // 1. Crear pedido como borrador primero
     const resPedido = await fetch(API + '/pedidos/', {
@@ -14274,7 +14275,8 @@ window.cobrarPOS = async () => {
           variante_id: item.variante_id,
           cantidad: item.cantidad,
           precio_unitario: item.precio_unitario,
-          subtotal: item.cantidad * item.precio_unitario
+          subtotal: item.cantidad * item.precio_unitario,
+          nombre: item.nombre || '', color: item.color || '', talla: item.talla || ''
         })
       })
       if (!resItem.ok) {
@@ -14326,6 +14328,7 @@ window.cobrarPOS = async () => {
         const errConf = await resConf.json().catch(() => ({}))
         throw new Error('Error confirmando: ' + JSON.stringify(errConf))
       }
+      ventaConfirmada = true
     } else if (formaPago !== 'spei') {
       const resConf = await fetch(API + '/pedidos/' + pedidoId + '/confirmar', {
         method: 'POST',
@@ -14336,6 +14339,7 @@ window.cobrarPOS = async () => {
         const errConf = await resConf.json().catch(() => ({}))
         throw new Error('Error confirmando: ' + JSON.stringify(errConf))
       }
+      ventaConfirmada = true
     } else {
       // SPEI: solo marcar como pendiente_pago
       await fetch(API + '/pedidos/' + pedidoId, {
@@ -14374,7 +14378,15 @@ window.cobrarPOS = async () => {
   } catch(e) {
     console.error('Error procesando la venta:', e)
     window._cobrando = false
-    // Si el pedido ya se creó, cancelarlo automáticamente para no dejar basura
+    // Si el pedido ya se creó, cancelarlo automáticamente para no dejar basura. Si YA estaba confirmada (el error fue después,
+    // p. ej. al pintar el carrito o imprimir) NO se cancela: ya se cobró y cancelarla devolvería el stock de una venta real.
+    if (ventaConfirmada) {
+      window._posCarrito = []
+      try { renderCarritoPOS() } catch (e3) {}
+      alert('La venta SÍ quedó registrada y cobrada, pero hubo un problema al terminar la pantalla:\n' + (e?.message || e) + '\nRevísala en Pedidos (puedes reimprimir el ticket desde ahí).')
+      ;[btnCobrar, btnCobrarM].forEach(b => { if (b) { b.disabled = false; b.textContent = 'Cobrar' } })
+      return
+    }
     if (pedidoId) {
       try {
         await fetch(API + '/pedidos/' + pedidoId + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
