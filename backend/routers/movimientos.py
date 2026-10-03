@@ -7,12 +7,17 @@ from security import require_staff
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
 @router.get("/")
-def listar_movimientos(desde: str = None, hasta: str = None, _staff=Depends(require_staff)):
+def listar_movimientos(desde: str = None, hasta: str = None, ligero: bool = False, _staff=Depends(require_staff)):
     """Sin desde/hasta trae TODA la tabla (13,000+ filas y creciendo) -- el
     panel siempre manda un rango (30 días por default) para no tener que
     paginar y renderizar todo el historial en cada carga."""
     try:
-        filtro = "movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)"
+        if ligero:
+            # Para Análisis (rotación): solo ventas/salidas y sin joins. Antes bajaba las 14,000+ filas (10,500 son ajustes) con
+            # variante, producto y sucursal anidados: varios MB para usar solo 4 campos de 2,300 filas.
+            filtro = "movimientos_inventario?order=created_at.desc&tipo=in.(venta,salida)&select=tipo,variante_id,cantidad,created_at"
+        else:
+            filtro = "movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)"
         if desde:
             filtro += f"&created_at=gte.{desde}T00:00:00"
         if hasta:

@@ -1804,13 +1804,14 @@ function renderDashboardHTML() {
     </div>
   `
 }
-async function cargarFinanzas() {
+async function cargarFinanzas(sucursalElegida) {
   const content = document.getElementById('content')
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando finanzas...</p>'
   try {
     const resSucursales = await fetch(API + '/sucursales/')
     const sucursales = await resSucursales.json()
-    const sucursalId = sucursales[0]?.id
+    const sucursalId = (sucursalElegida && sucursales.find(s => s.id === sucursalElegida)) ? sucursalElegida : sucursales[0]?.id
+    window._finSucursalId = sucursalId
 
     const [resCaja, resReporte, resGastos, resEstado, resFlujo, resCxC, resCategorias, resCxP, resDeudas, resValorInv] = await Promise.all([
       fetch(API + '/finanzas/caja/hoy/' + sucursalId),
@@ -1837,10 +1838,13 @@ async function cargarFinanzas() {
     const valorInv = await resValorInv.json()
 
     const cajaActiva = cajas.find(c => c.status === 'abierta')
-    const hoy = new Date().toISOString().split('T')[0]
-    const gastosHoy = gastos.filter(g => g.created_at?.startsWith(hoy))
+    // "Hoy" en hora de México (toISOString es UTC: después de las 6 pm ya daba el día siguiente)
+    const _fmtMx = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
+    const hoy = _fmtMx(new Date())
+    const gastosHoy = gastos.filter(g => g.created_at && _fmtMx(g.created_at) === hoy)
+    window._cajaActivaId = cajaActiva ? cajaActiva.id : null
     const totalGastosHoy = gastosHoy.reduce((s, g) => s + parseFloat(g.monto || 0), 0)
-    const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const totalCxC = cxc.reduce((s, p) => s + parseFloat(p.monto_credito != null ? p.monto_credito : (p.total || 0)), 0)
     const totalCxP = (Array.isArray(cxp) ? cxp : []).reduce((s, o) => s + parseFloat(o.total || 0), 0)
     const cxpVencidas = (Array.isArray(cxp) ? cxp : []).filter(o => o.vencido).length
 
@@ -1852,7 +1856,7 @@ async function cargarFinanzas() {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <select class="form-input" id="fin-sucursal" style="max-width:200px" onchange="recargarFinanzas(this.value)">
-            ${sucursales.map(s => `<option value="${s.id}">${s.nombre}</option>`).join('')}
+            ${sucursales.map(s => `<option value="${s.id}" ${s.id === sucursalId ? 'selected' : ''}>${s.nombre}</option>`).join('')}
           </select>
           ${!cajaActiva
             ? `<button class="btn btn-primary" onclick="abrirCaja('${sucursalId}')">🔓 Abrir caja</button>`
@@ -3219,6 +3223,10 @@ window.agregarGasto = (sucursalId) => {
           <input type="checkbox" id="gasto-recurrente" style="width:16px;height:16px;cursor:pointer" onchange="document.getElementById('gasto-dia-mes-wrap').style.display=this.checked?'block':'none'">
           <label for="gasto-recurrente" style="font-size:0.85rem;cursor:pointer">Es un gasto recurrente (se repite cada mes)</label>
         </div>
+        ${window._cajaActivaId ? `<div style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="gasto-de-caja" style="width:16px;height:16px;cursor:pointer" checked>
+          <label for="gasto-de-caja" style="font-size:0.85rem;cursor:pointer">Lo pagué con efectivo de la caja (se descuenta del corte)</label>
+        </div>` : ''}
         <div id="gasto-dia-mes-wrap" style="display:none">
           <label class="form-label">Día del mes en que se repite</label>
           <input class="form-input" id="gasto-dia-mes" type="number" min="1" max="28" value="${new Date().getDate()}">
@@ -3252,6 +3260,7 @@ window.guardarGasto = async (sucursalId, btn) => {
         categoria,
         es_recurrente: esRecurrente,
         dia_mes: esRecurrente ? diaMes : null,
+        caja_id: (!esRecurrente && document.getElementById('gasto-de-caja')?.checked) ? window._cajaActivaId : null,
         empleado: window._empleadoActual?.nombre || 'Admin'
       })
     })
@@ -3420,7 +3429,7 @@ async function _cargarDatosAnalisisPesados() {
     const [resProductos, resVariantes, resMovimientos, resInventario, resPedidos] = await Promise.all([
       fetch(API + '/productos/'),
       fetch(API + '/variantes/?activa=eq.true'),
-      fetch(API + '/movimientos/'),
+      fetch(API + '/movimientos/?ligero=true'),
       fetch(API + '/inventario/slim'),
       fetch(API + '/pedidos/?dias=120')   // solo se usan 30/90 días: antes bajaba TODOS los pedidos con renglones
     ])
@@ -19625,7 +19634,7 @@ window.validarCantidadTalla = (varianteId, maxStock) => {
 }
 
 window.recargarFinanzas = async (sucursalId) => {
-  await cargarFinanzas()
+  await cargarFinanzas(sucursalId)
 }
 
 window.verOportunidad = async (id) => {

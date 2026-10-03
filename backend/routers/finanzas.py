@@ -29,6 +29,12 @@ def _fecha_mx(ts: str):
 router = APIRouter(prefix="/finanzas", tags=["Finanzas"])
 
 
+def _forma_norm(fp):
+    """'transferencia' es lo mismo que SPEI para el corte: antes esas ventas no entraban a ninguna columna del cierre."""
+    fp = (fp or "").strip().lower()
+    return "spei" if fp in ("transferencia", "spei", "mercadopago", "oxxo") else fp
+
+
 def _desglose_pago(pedido):
     """[(forma_pago, monto), ...] de un pedido -- explota pagos_detalle si
     es una venta con pago combinado (forma_pago='combinado'); si no, regresa
@@ -37,8 +43,8 @@ def _desglose_pago(pedido):
     la clienta hubiera pagado, por ejemplo, mitad efectivo y mitad tarjeta."""
     detalle = pedido.get("pagos_detalle")
     if isinstance(detalle, list) and detalle:
-        return [(d.get("forma_pago"), float(d.get("monto") or 0)) for d in detalle]
-    return [(pedido.get("forma_pago"), float(pedido.get("total") or 0))]
+        return [(_forma_norm(d.get("forma_pago")), float(d.get("monto") or 0)) for d in detalle]
+    return [(_forma_norm(pedido.get("forma_pago")), float(pedido.get("total") or 0))]
 
 # ─── CAJA ────────────────────────────────────────
 @router.get("/caja/hoy/{sucursal_id}")
@@ -87,9 +93,20 @@ def cerrar_caja(id: str, datos: dict):
         # traían TODOS los pedidos de la sucursal (tope de 1000 filas sin orden) y se filtraba por
         # fecha UTC: las ventas de hoy podían quedar fuera y después de las 6pm el día ya era "mañana".
         hoy = _hoy_mx()
+        # Si hubo una caja anterior ya cerrada el mismo día, solo cuentan las ventas posteriores a ese cierre
+        # (antes la segunda caja del día volvía a contar todo el día y duplicaba las ventas).
+        desde = _inicio_dia_mx(hoy)
+        try:
+            previas = supabase_get(
+                f"cajas?sucursal_id=eq.{caja[0]['sucursal_id']}&fecha=eq.{hoy.isoformat()}&status=eq.cerrada&id=neq.{id}"
+                f"&select=hora_cierre&order=hora_cierre.desc&limit=1") or []
+            if previas and previas[0].get("hora_cierre"):
+                desde = max(desde, str(previas[0]["hora_cierre"]).replace("+00:00", "Z"))
+        except Exception:
+            pass
         pedidos_hoy = supabase_get_all(
-            f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado)"
-            f"&confirmado_at=gte.{_inicio_dia_mx(hoy)}&confirmado_at=lt.{_inicio_dia_mx(hoy + timedelta(days=1))}&select=*"
+            f"pedidos?sucursal_id=eq.{caja[0]['sucursal_id']}&status=in.(confirmado,pagado,entregado,enviado)"
+            f"&confirmado_at=gte.{desde}&confirmado_at=lt.{_inicio_dia_mx(hoy + timedelta(days=1))}&select=*"
         )
 
         desgloses_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
@@ -103,7 +120,13 @@ def cerrar_caja(id: str, datos: dict):
             monto_cierre = float(datos.get("monto_cierre", 0) or 0)
         except (TypeError, ValueError):
             return JSONResponse(status_code=400, content={"error": "monto_cierre inválido"})
-        diferencia = monto_cierre - (float(caja[0]['monto_apertura']) + ventas_efectivo)
+        # El efectivo esperado descuenta los gastos pagados con dinero de ESTA caja (gasto con caja_id)
+        gastos_caja = 0.0
+        try:
+            gastos_caja = sum(float(g.get("monto") or 0) for g in (supabase_get(f"gastos?caja_id=eq.{id}&select=monto") or []))
+        except Exception:
+            pass
+        diferencia = monto_cierre - (float(caja[0]['monto_apertura']) + ventas_efectivo - gastos_caja)
         
         supabase_patch(f"cajas?id=eq.{id}", {
             "status": "cerrada",
@@ -115,9 +138,9 @@ def cerrar_caja(id: str, datos: dict):
             "ventas_credito": ventas_credito,
             "total_ventas": total_ventas,
             "diferencia": diferencia,
-            "notas": datos.get("notas", "")
+            "notas": (str(datos.get("notas", "")) + (f" [Gastos pagados de caja: ${gastos_caja:,.2f}]" if gastos_caja else "")).strip()
         })
-        return {"ok": True, "total_ventas": total_ventas, "diferencia": diferencia}
+        return {"ok": True, "total_ventas": total_ventas, "diferencia": diferencia, "gastos_caja": gastos_caja}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -367,7 +390,7 @@ def reporte_financiero(sucursal_id: str):
     try:
         from datetime import datetime, timedelta
         hoy = _hoy_mx()
-        hace30 = (hoy - timedelta(days=30)).isoformat()
+        hace30 = _inicio_dia_mx(hoy - timedelta(days=30))
 
         # Pedidos de la sucursal + pedidos online (sin sucursal) en los últimos 30 días.
         # Se filtra por confirmado_at (fecha real de venta), no created_at (fecha del
@@ -379,13 +402,13 @@ def reporte_financiero(sucursal_id: str):
         ) or []
         pedidos_online = supabase_get(
             f"pedidos?sucursal_id=is.null"
-            f"&status=in.(pagado,enviado)&confirmado_at=gte.{hace30}"
+            f"&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}"
             f"&select=id,total"
         ) or []
         pedidos = pedidos_sucursal + pedidos_online
 
         gastos = supabase_get(
-            f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00"
+            f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}"
         ) or []
 
         total_ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -522,7 +545,9 @@ def estado_resultados(sucursal_id: str):
         for primer_dia, ultimo_dia in meses:
             _ini = _inicio_dia_mx(primer_dia)
             _fin = _inicio_dia_mx(ultimo_dia + timedelta(days=1))
-            pedidos = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
+            # Sucursal + ventas en línea/marketplaces (sin sucursal): antes faltaban estas últimas y el estado de resultados
+            # daba menos ventas que el reporte de 30 días.
+            pedidos = supabase_get_all(f"pedidos?or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_ini}&confirmado_at=lt.{_fin}&select=total")
             gastos = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{_ini}&created_at=lt.{_fin}&select=monto")
             
             ventas = sum(float(p['total'] or 0) for p in pedidos)
@@ -547,16 +572,17 @@ def flujo_efectivo(sucursal_id: str):
     try:
         from datetime import timedelta
         hoy = _hoy_mx()
-        hace7 = (hoy - timedelta(days=7)).isoformat()
-        hace30 = (hoy - timedelta(days=30)).isoformat()
+        hace7 = _inicio_dia_mx(hoy - timedelta(days=7))
+        hace30 = _inicio_dia_mx(hoy - timedelta(days=30))
+        _suc = f"or=(sucursal_id.eq.{sucursal_id},sucursal_id.is.null)"   # sucursal + ventas en línea, igual que el reporte
 
-        pedidos_semana = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace7}T00:00:00")
-        pedidos_mes = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}T00:00:00")
-        gastos_semana = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}T00:00:00")
-        gastos_mes = supabase_get(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}T00:00:00")
+        pedidos_semana = supabase_get_all(f"pedidos?{_suc}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace7}&select=total")
+        pedidos_mes = supabase_get_all(f"pedidos?{_suc}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{hace30}&select=total")
+        gastos_semana = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace7}&select=monto")
+        gastos_mes = supabase_get_all(f"gastos?sucursal_id=eq.{sucursal_id}&created_at=gte.{hace30}&select=monto")
 
         # Por forma de pago hoy
-        pedidos_hoy = supabase_get(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}")
+        pedidos_hoy = supabase_get_all(f"pedidos?sucursal_id=eq.{sucursal_id}&status=in.(confirmado,pagado,entregado,enviado)&confirmado_at=gte.{_inicio_dia_mx(hoy)}&select=*")
 
         desgloses_pago_hoy = [d for p in pedidos_hoy for d in _desglose_pago(p)]
         return {
