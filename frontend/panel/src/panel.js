@@ -29899,36 +29899,52 @@ window.renderCarritosCA = () => {
     if (q && !`${c.email || ''} ${c.nombre || ''}`.toLowerCase().includes(q)) return false
     return true
   })
-  // Los que aún se pueden recuperar primero y, entre ellos, los carritos de más valor
-  lista = lista.sort((a, b) => (a.convertido ? 1 : 0) - (b.convertido ? 1 : 0) || (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0))
+  // Más recientes primero (por última actividad), sin importar si ya compraron o no
+  lista = lista.sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))
   const cnt = document.getElementById('ca-contador')
   if (cnt) cnt.textContent = `${lista.length} carrito${lista.length === 1 ? '' : 's'}`
   if (!lista.length) { cont.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted)">No hay carritos con ese filtro 🎉</div>'; return }
-  cont.innerHTML = lista.map(c => {
+  cont.innerHTML = `<style>
+      .ca-card{border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px;background:#fff}
+      .ca-top{display:flex;gap:12px;align-items:flex-start}
+      .ca-fotos{display:flex;gap:4px;flex-shrink:0}
+      .ca-info{flex:1;min-width:0}
+      .ca-total{text-align:right;flex-shrink:0}
+      .ca-acciones{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+      @media (max-width: 640px){
+        .ca-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px}
+        .ca-fotos{grid-column:1 / -1}
+        .ca-info{min-width:0}
+        .ca-acciones button{flex:1 1 30%;padding:9px 6px !important;font-size:0.78rem !important}
+      }
+    </style>` + lista.map(c => {
     const items = Array.isArray(c.items) ? c.items : []
     const fotos = items.slice(0, 4).map(it => {
       const u = window._urlWA(it.imagen)
-      return u ? `<img src="${u}" title="${esc(it.nombre || '')} ${esc(it.color || '')} T${esc(it.talla || '')}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid #eee">`
-               : `<div style="width:44px;height:44px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center">👠</div>`
+      return u ? `<img src="${u}" loading="lazy" title="${esc(it.nombre || '')} ${esc(it.color || '')} T${esc(it.talla || '')}" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #eee">`
+               : `<div style="width:48px;height:48px;border-radius:8px;background:#f5f0eb;display:flex;align-items:center;justify-content:center">👠</div>`
     }).join('')
     const pares = items.reduce((s, it) => s + (parseInt(it.cantidad) || 1), 0)
     const resumen = items.slice(0, 2).map(it => esc(String(it.nombre || '').split(' ')[0] + (it.talla ? ' T' + it.talla : ''))).join(', ') + (items.length > 2 ? ` y ${items.length - 2} más` : '')
     const caliente = !c.convertido && (Date.now() - new Date(c.updated_at).getTime()) < 86400000
     const badge = c.convertido
-      ? '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">✓ Compró</span>'
+      ? '<span style="background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">✓ Compró</span>'
       : c.recordatorio_enviado
-        ? `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">📧 Avisado ${hace(c.recordatorio_enviado_at)}</span>`
-        : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700">⏳ Sin avisar</span>'
+        ? `<span style="background:#e3f2fd;color:#1565c0;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">📧 Avisado ${hace(c.recordatorio_enviado_at)}</span>`
+        : '<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-weight:700;white-space:nowrap">⏳ Sin avisar</span>'
     const btn = (txt, fn, col) => `<button onclick="${fn}('${esc(c.id)}', this)" style="padding:6px 13px;border-radius:20px;border:1.5px solid ${col};background:none;color:${col};font-size:0.75rem;font-weight:600;cursor:pointer">${txt}</button>`
-    return `<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 4px;border-top:1px solid var(--border)">
-      <div style="display:flex;gap:4px;min-width:96px">${fotos || '<div style="width:44px;height:44px"></div>'}</div>
-      <div style="flex:1;min-width:190px">
-        <div style="font-weight:700;font-size:0.9rem">${esc(c.nombre || c.email)} ${caliente ? '<span title="Dejó el carrito hace menos de 24 h: aún está caliente" style="font-size:0.66rem;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:10px;font-weight:700">🔥 reciente</span>' : ''}</div>
-        <div style="font-size:0.75rem;color:var(--text-muted)">${c.nombre ? esc(c.email) + ' · ' : ''}${pares} par${pares === 1 ? '' : 'es'}${resumen ? ' · ' + resumen : ''}</div>
-        <div style="font-size:0.7rem;color:var(--text-muted)">Última actividad ${hace(c.updated_at)}</div>
+    return `<div class="ca-card">
+      <div class="ca-top">
+        <div class="ca-fotos">${fotos || '<div style="width:48px;height:48px"></div>'}</div>
+        <div class="ca-info">
+          <div style="font-weight:700;font-size:0.92rem;word-break:break-word">${esc(c.nombre || c.email)} ${caliente ? '<span title="Dejó el carrito hace menos de 24 h" style="font-size:0.66rem;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:10px;font-weight:700;white-space:nowrap">🔥 reciente</span>' : ''}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);word-break:break-all">${c.nombre ? esc(c.email) : ''}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${pares} par${pares === 1 ? '' : 'es'}${resumen ? ' · ' + resumen : ''}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">Última actividad ${hace(c.updated_at)}</div>
+        </div>
+        <div class="ca-total"><div style="font-weight:800;font-size:1.05rem;color:#b5687a">$${Math.round(parseFloat(c.total) || 0).toLocaleString('es-MX')}</div><div style="margin-top:4px">${badge}</div></div>
       </div>
-      <div style="text-align:right;min-width:80px"><div style="font-weight:800;font-size:1rem;color:#b5687a">$${Math.round(parseFloat(c.total) || 0).toLocaleString('es-MX')}</div>${badge}</div>
-      ${!c.convertido ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${btn('📧 Correo', 'enviarEmailCarrito', '#E91E8C')}${btn('💬 WhatsApp', 'enviarWACarrito', '#15803d')}${btn('🔔 Push', 'enviarPushCarrito', '#7c3aed')}</div>` : ''}
+      ${!c.convertido ? `<div class="ca-acciones">${btn('📧 Correo', 'enviarEmailCarrito', '#E91E8C')}${btn('💬 WhatsApp', 'enviarWACarrito', '#15803d')}${btn('🔔 Push', 'enviarPushCarrito', '#7c3aed')}</div>` : ''}
     </div>`
   }).join('')
 }
