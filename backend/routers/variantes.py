@@ -153,6 +153,100 @@ def crear_variante(variante: dict, _staff=Depends(require_staff)):
                     return resultado
         raise e
 
+@router.post("/lote")
+def crear_variantes_lote(datos: dict, _staff=Depends(require_staff)):
+    """Crea/actualiza TODAS las variantes (color x talla) de un modelo en una sola petición.
+    Antes el panel mandaba una petición por cada color y talla (20-60 a la vez), cada una con su propia consulta del
+    producto y su propia invalidación de caché: guardar un modelo con varios colores tardaba muchísimo.
+    Body: {"producto_id": "...", "variantes": [{"color","color_hex","talla","foto_url","imagenes"}...]}"""
+    import re as _re
+    producto_id = str(datos.get("producto_id") or "")
+    items = datos.get("variantes") or []
+    if not _re.match(r"^[0-9a-fA-F-]{36}$", producto_id):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "producto_id inválido"})
+    if not isinstance(items, list) or not items or len(items) > 600:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Lista de variantes inválida"})
+    prod = supabase_get(f"productos?id=eq.{producto_id}&select=sku_interno")
+    if not prod:
+        return JSONResponse(status_code=404, content={"ok": False, "error": "Producto no encontrado"})
+    sku_base = prod[0].get("sku_interno") or "MAY"
+
+    existentes = supabase_get_all(f"variantes?producto_id=eq.{producto_id}&select=id,color,talla,sku,color_hex,foto_url,imagenes,activa")
+    por_clave = {((e.get("color") or "").strip().lower(), str(e.get("talla") or "").strip()): e for e in existentes}
+    skus_usados = {e["sku"] for e in existentes if e.get("sku")}
+
+    nuevas, a_parchar, vistos = [], [], set()
+    for it in items:
+        color = " ".join(str(it.get("color") or "").split())
+        talla = str(it.get("talla") or "").strip()
+        if not color or not talla:
+            continue
+        clave = (color.lower(), talla)
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        fotos = [u for u in (it.get("imagenes") or []) if u]
+        foto = it.get("foto_url") or (fotos[0] if fotos else None)
+        hex_ = it.get("color_hex") or None
+        ex = por_clave.get(clave)
+        if ex:
+            cambio = {}
+            if ex.get("activa") is not True:
+                cambio["activa"] = True            # una talla que se había quitado y se vuelve a marcar debe reactivarse
+            if hex_ and ex.get("color_hex") != hex_:
+                cambio["color_hex"] = hex_
+            if foto != ex.get("foto_url") and (foto or fotos):
+                cambio["foto_url"] = foto
+            if fotos != (ex.get("imagenes") or []) and fotos:
+                cambio["imagenes"] = fotos
+            if cambio:
+                a_parchar.append((ex["id"], cambio))
+        else:
+            sku = f"{sku_base}-{color_a_codigo(color)}-{talla_a_codigo(talla)}"
+            nuevas.append({"producto_id": producto_id, "color": color, "color_hex": hex_, "talla": talla, "sku": sku,
+                           "foto_url": foto, "imagenes": fotos, "activa": True})
+
+    # SKU únicos: dentro del lote y contra TODA la tabla (dos colores pueden dar el mismo código corto)
+    if nuevas:
+        candidatos = list({n["sku"] for n in nuevas})
+        ocupados = set()
+        for i in range(0, len(candidatos), 80):
+            trozo = ",".join('"' + c.replace('"', '') + '"' for c in candidatos[i:i + 80])
+            ocupados |= {r["sku"] for r in (supabase_get(f"variantes?sku=in.({trozo})&select=sku") or [])}
+        usados = set(skus_usados) | ocupados
+        for n in nuevas:
+            base = n["sku"]
+            k = 2
+            while n["sku"] in usados:
+                n["sku"] = f"{base}-{k}"
+                k += 1
+            usados.add(n["sku"])
+
+    creadas = 0
+    try:
+        if nuevas:
+            supabase_post("variantes", nuevas)      # un solo insert, todo o nada
+            creadas = len(nuevas)
+    except Exception as e:
+        # carrera con otra alta: se reintenta una por una con la lógica de colisiones de siempre
+        print(f"[variantes/lote] insert masivo falló ({e}); reintentando una por una")
+        creadas = 0
+        for n in nuevas:
+            try:
+                crear_variante(dict(n), _staff)
+                creadas += 1
+            except Exception as e2:
+                print(f"[variantes/lote] no se pudo crear {n.get('sku')}: {e2}")
+    errores = 0
+    for vid, cambio in a_parchar:
+        try:
+            supabase_patch(f"variantes?id=eq.{vid}", cambio)
+        except Exception:
+            errores += 1
+    cache_invalidate_prefix(_CK)
+    return {"ok": errores == 0 and creadas == len(nuevas), "creadas": creadas, "actualizadas": len(a_parchar) - errores, "errores": errores}
+
+
 @router.post("/activar-todas")
 def activar_variantes_sin_activa(_staff=Depends(require_staff)):
     """Activa todas las variantes que tienen activa=null (creadas sin el campo)"""

@@ -94,6 +94,89 @@ def productos_mas_vendidos(dias: int = 30, limit: int = 12):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+_TIPO_SINGULAR_SEO = {
+    "tacones": "Tacones", "sandalias": "Sandalias", "botas": "Botas", "botines": "Botines", "flats": "Flats",
+    "plataformas": "Plataformas", "tenis": "Tenis", "nina": "Calzado para niña", "accesorios": "Accesorios",
+}
+
+
+_PALABRAS_SUELTAS = {"con", "de", "del", "para", "y", "e", "en", "a", "el", "la", "los", "las", "muy", "un", "una", "al", "por", "sin"}
+
+
+def _recorta_palabras(texto, maximo):
+    """Recorta a `maximo` caracteres sin partir palabras ni dejar conectores sueltos al final ("... con")."""
+    t = " ".join(str(texto or "").split())
+    if len(t) <= maximo:
+        return t
+    palabras = t[:maximo].rsplit(" ", 1)[0].split()
+    while len(palabras) > 1 and palabras[-1].lower().strip(",.;:") in _PALABRAS_SUELTAS:
+        palabras.pop()
+    return " ".join(palabras) or t[:maximo]
+
+
+def _slug_de(texto):
+    import unicodedata
+    t = unicodedata.normalize("NFD", str(texto or "").lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    t = re.sub(r"[^a-z0-9\s-]", "", t)
+    return re.sub(r"-+", "-", re.sub(r"\s+", "-", t.strip())).strip("-")
+
+
+def _completar_seo(p, base=None):
+    """Garantiza slug, meta título y meta descripción con buena estructura. Solo rellena lo que está VACÍO (nunca pisa lo que
+    ya escribió la dueña ni lo generado con IA); lo que sí se corrige siempre es el largo (Google corta títulos de más de
+    60 y descripciones de más de 160 caracteres). `base` = datos ya guardados del producto (al editar)."""
+    b = dict(base or {})
+    b.update({k: v for k, v in p.items() if v not in (None, "")})
+    nombre = " ".join(str(b.get("nombre") or "").split())
+    if not nombre:
+        return p
+    cat = (b.get("categoria") or "").strip().lower()
+    cat_txt = _TIPO_SINGULAR_SEO.get(cat, "Calzado")
+    # Nombre "legible": si es solo un código (1 palabra, ej. "Mar1702") se le agrega el tipo de calzado
+    base_nombre = nombre if len(nombre.split()) >= 3 else f"{nombre} {cat_txt}"
+    # slug
+    if not (p.get("slug") or "").strip():
+        p["slug"] = _slug_de(base_nombre)[:90].strip("-")
+    # meta título: "<nombre legible> | Zapatillas May" (30-60 caracteres)
+    mt = (p.get("meta_titulo") or "").strip()
+    if not mt:
+        corto = _recorta_palabras(base_nombre, 60 - len(" | Zapatillas May"))
+        mt = f"{corto} | Zapatillas May"
+        if len(mt) < 30:
+            mt = f"{corto} para Dama | Zapatillas May"
+    p["meta_titulo"] = _recorta_palabras(mt, 60) if len(mt) > 60 else mt
+    # meta descripción (140-160 caracteres, con tipo, material, tacón, precio y envío)
+    md = (p.get("meta_descripcion") or "").strip()
+    if not md:
+        extras = []   # en orden de importancia: se agregan mientras quepan en 158 caracteres
+        try:
+            precio = float(b.get("precio_menudeo") or 0)
+            if precio > 0:
+                precio = precio if b.get("es_oferta") else precio + 80
+                extras.append(f"Desde ${precio:,.0f} MXN.")
+        except (TypeError, ValueError):
+            pass
+        extras.append("Envío a todo México.")
+        if b.get("material"):
+            extras.append(f"Material {str(b['material']).strip().capitalize()}.")
+        try:
+            altura = float(b.get("altura_tacon") or 0)
+        except (TypeError, ValueError):
+            altura = 0
+        if altura > 0:
+            tipo = str(b.get("tipo_tacon") or "").strip().replace("_", " ")
+            tipo = "" if tipo.lower() in ("sin tacon", "sin tacón", "") else tipo
+            extras.append(f"Tacón {tipo + ' ' if tipo else ''}de {altura:g} cm.")
+        extras.append("Hecho en León, Guanajuato.")
+        md = f"Compra {_recorta_palabras(base_nombre, 55)} en Zapatillas May."
+        for e in extras:
+            if len(md) + 1 + len(e) <= 158:
+                md += " " + e
+    p["meta_descripcion"] = md
+    return p
+
+
 _CAT_PREFIJOS = {
     "tacones": "TAC", "sandalias": "SAN", "botas": "BOT", "botines": "BTN",
     "flats": "FLT", "plataformas": "PLT", "tenis": "TEN", "nina": "NIN", "accesorios": "ACC",
@@ -211,6 +294,7 @@ def crear_producto(producto: dict, _staff=Depends(require_staff)):
     # Sin SKU, o con uno que ya existe: se genera uno nuevo (un modelo NUNCA se guarda sin SKU)
     if not sku_dado or supabase_get(f"productos?sku_interno=eq.{sku_dado}"):
         producto["sku_interno"], _ = _generar_sku(producto.get("categoria", "tacones"), producto.get("proveedor"), producto.get("nombre"))
+    _completar_seo(producto)   # slug / meta título / meta descripción siempre presentes y con buen largo
     if producto.get("slug"):
         producto["slug"] = _asegurar_slug_unico(producto["slug"], producto.get("sku_interno"))
     resultado = supabase_post("productos", producto)
@@ -227,6 +311,17 @@ def actualizar_producto(id: str, producto: dict, _staff=Depends(require_staff)):
         actual = (supabase_get(f"productos?id=eq.{id}&select=sku_interno,categoria,proveedor,nombre") or [{}])[0]
         if not (actual.get("sku_interno") or "").strip():
             producto["sku_interno"], _ = _generar_sku(producto.get("categoria") or actual.get("categoria"), producto.get("proveedor") or actual.get("proveedor"), producto.get("nombre") or actual.get("nombre"))
+    # SEO: si el formulario mandó alguno de los campos SEO vacío, se completa (con los datos ya guardados del modelo)
+    if any(k in producto for k in ("slug", "meta_titulo", "meta_descripcion")):
+        actual_seo = (supabase_get(f"productos?id=eq.{id}&select=nombre,categoria,material,altura_tacon,tipo_tacon,precio_menudeo,es_oferta,slug,meta_titulo,meta_descripcion") or [{}])[0]
+        for k in ("slug", "meta_titulo", "meta_descripcion"):
+            if k in producto and not (producto.get(k) or "").strip():
+                producto.pop(k)
+                if (actual_seo.get(k) or "").strip():
+                    continue          # ya tenía uno guardado: se conserva
+                producto[k] = ""      # vacío y sin respaldo: lo genera _completar_seo
+        if any(producto.get(k) == "" for k in ("slug", "meta_titulo", "meta_descripcion")):
+            _completar_seo(producto, actual_seo)
     if producto.get("sku_interno"):
         existente = supabase_get(f"productos?sku_interno=eq.{producto['sku_interno']}&id=neq.{id}")
         if existente:

@@ -35,29 +35,32 @@ def _subir_pdf_supabase(contenido: bytes, filename: str) -> str:
     return f"{_SUPABASE_URL}/storage/v1/object/public/wa-media/{filename}"
 
 
+# OJO: estas rutas son `def` (no `async def`): Cloudinary sube de forma síncrona y, dentro de una ruta async, bloqueaba el
+# servidor ENTERO durante cada foto (varios segundos): las fotos de un producto se subían una por una y todo el sistema
+# se ponía lento mientras tanto. Como `def` corren en hilos y se pueden subir varias a la vez.
 @router.post("/subir")
-async def subir(archivo: UploadFile = File(...), carpeta: str = "productos", _staff=Depends(require_staff)):
-    contenido = await archivo.read()
+def subir(archivo: UploadFile = File(...), carpeta: str = "productos", _staff=Depends(require_staff)):
+    contenido = archivo.file.read()
     resultado = subir_imagen(contenido, carpeta)
     return resultado
 
 
 @router.post("/videos/subir")
-async def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video", _staff=Depends(require_staff)):
-    contenido = await archivo.read()
+def subir_video_endpoint(archivo: UploadFile = File(...), carpeta: str = "productos_video", _staff=Depends(require_staff)):
+    contenido = archivo.file.read()
     resultado = subir_video(contenido, carpeta)
     return resultado
 
 
 @router.post("/upload-temp")
-async def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None), _staff=Depends(require_staff)):
+def upload_temp(archivo: UploadFile = File(None), file: UploadFile = File(None), _staff=Depends(require_staff)):
     """Sube cualquier archivo (imagen, video, PDF) para enviar por WhatsApp.
     PDFs van a Supabase Storage; imágenes/videos a Cloudinary."""
     try:
         upload = archivo or file
         if not upload:
             return JSONResponse(status_code=422, content={"error": "Se requiere un archivo (campo 'archivo' o 'file')"})
-        contenido = await upload.read()
+        contenido = upload.file.read()
         content_type = upload.content_type or ""
         archivo = upload
 

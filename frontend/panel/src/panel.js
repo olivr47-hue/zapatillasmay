@@ -8093,7 +8093,7 @@ function renderVariante(i, datos) {
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
             <div>
               <p style="font-size:0.8rem;font-weight:600;color:#555;margin-bottom:1px">Fotos de este color</p>
-              <p style="font-size:0.7rem;color:#aaa">La 1ª foto será portada · tócala para cambiarla</p>
+              <p style="font-size:0.7rem;color:#aaa">La 1ª foto es la <strong>portada</strong>. Arrastra las fotos (o usa ◀ ▶) para cambiar el orden en que se ven.</p>
             </div>
             <button type="button" class="btn btn-secondary"
                     onclick="document.getElementById('v${i}-imgs').click()"
@@ -8160,17 +8160,28 @@ window.actualizarVistaPreviews = (idx) => {
     return
   }
 
+  // La posición ES el orden en que se verán (la 1ª es la portada del color). Se arrastran para reordenar y, para quien no
+  // arrastra (celular), cada foto trae flechas ◀ ▶.
+  fotos.forEach((f, i) => { f.isPortada = (i === 0) })
   preview.innerHTML = fotos.map((foto, fIdx) => {
     const src = foto.type === 'url' ? foto.value : foto.previewUrl
-    const esPortada = foto.isPortada
+    const esPortada = fIdx === 0
+    const btnFlecha = (txt, destino, lado, titulo) => `<button type="button" title="${titulo}" onclick="event.stopPropagation();moverFotoClave(${idx}, ${fIdx}, ${destino})"
+        style="position:absolute;bottom:3px;${lado}:3px;background:rgba(0,0,0,0.62);color:white;border:none;border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:0.8rem;line-height:1;padding:0">${txt}</button>`
     return `
-      <div style="position:relative;cursor:pointer" data-fidx="${fIdx}">
-        <img src="${src}" 
-             style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'}"
-             onclick="seleccionarPortadaClave(${idx}, ${fIdx})">
-        ${esPortada ? '<span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:#E91E8C;color:white;font-size:0.55rem;padding:2px 6px;border-radius:100px;font-weight:700;pointer-events:none">PORTADA</span>' : ''}
-        <button type="button" onclick="eliminarFotoClave(${idx}, ${fIdx})" 
-                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+      <div class="foto-tile" draggable="true" data-fidx="${fIdx}"
+           ondragstart="fotoDragStart(event, ${idx}, ${fIdx})" ondragend="fotoDragEnd()"
+           ondragover="event.preventDefault();this.style.outline='3px dashed #E91E8C'" ondragleave="this.style.outline=''"
+           ondrop="fotoDrop(event, ${idx}, ${fIdx})"
+           style="position:relative;cursor:grab;border-radius:10px;touch-action:manipulation">
+        <img src="${src}" draggable="false" title="Toca para dejarla como portada"
+             style="width:84px;height:84px;object-fit:cover;border-radius:10px;border:3px solid ${esPortada ? '#E91E8C' : '#eee'};display:block"
+             onclick="moverFotoClave(${idx}, ${fIdx}, 0)">
+        <span class="portada-badge" style="position:absolute;top:-6px;left:-6px;background:${esPortada ? '#E91E8C' : '#555'};color:white;font-size:0.6rem;padding:2px 7px;border-radius:100px;font-weight:700;pointer-events:none">${esPortada ? 'PORTADA' : (fIdx + 1)}</span>
+        <button type="button" onclick="event.stopPropagation();eliminarFotoClave(${idx}, ${fIdx})" title="Quitar esta foto"
+                style="position:absolute;top:-6px;right:-6px;background:#c62828;color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center">✕</button>
+        ${fIdx > 0 ? btnFlecha('◀', fIdx - 1, 'left', 'Mover antes') : ''}
+        ${fIdx < fotos.length - 1 ? btnFlecha('▶', fIdx + 1, 'right', 'Mover después') : ''}
       </div>
     `
   }).join('')
@@ -8185,16 +8196,32 @@ window.actualizarVistaPreviews = (idx) => {
   }
 }
 
-window.seleccionarPortadaClave = (idx, fIdx) => {
-  const fotos = window._variantesFotos[idx] || []
-  fotos.forEach((foto, i) => {
-    foto.isPortada = (i === fIdx)
-  })
-  
-  const portadaItem = fotos.splice(fIdx, 1)[0]
-  fotos.unshift(portadaItem)
-  
+window.seleccionarPortadaClave = (idx, fIdx) => window.moverFotoClave(idx, fIdx, 0)
+
+// Reordenar fotos de un color: mueve la foto `desde` a la posición `hasta` (0 = portada)
+window.moverFotoClave = (idx, desde, hasta) => {
+  const fotos = (window._variantesFotos || {})[idx] || []
+  if (desde === hasta || desde < 0 || hasta < 0 || desde >= fotos.length || hasta >= fotos.length) return
+  const [foto] = fotos.splice(desde, 1)
+  fotos.splice(hasta, 0, foto)
   window.actualizarVistaPreviews(idx)
+}
+window._fotoArrastrando = null
+window.fotoDragStart = (ev, idx, fIdx) => {
+  window._fotoArrastrando = { idx, fIdx }
+  try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', String(fIdx)) } catch (e) {}
+  ev.currentTarget.style.opacity = '0.45'
+}
+window.fotoDragEnd = () => {
+  window._fotoArrastrando = null
+  document.querySelectorAll('.foto-tile').forEach(t => { t.style.opacity = ''; t.style.outline = '' })
+}
+window.fotoDrop = (ev, idx, aFIdx) => {
+  ev.preventDefault()
+  const d = window._fotoArrastrando
+  window.fotoDragEnd()
+  if (!d || d.idx !== idx) return   // solo se reordena dentro del mismo color
+  window.moverFotoClave(idx, d.fIdx, aFIdx)
 }
 
 window.eliminarFotoClave = (idx, fIdx) => {
@@ -8869,52 +8896,81 @@ window.toggleTalla = (input) => {
   }
 }
 
+// Reduce la foto antes de subirla: las fotos del celular pesan 4-10 MB y subirlas completas era lo que hacía tardar tanto el guardado.
+// Máx. 2000 px por lado y JPEG de buena calidad (se ve igual en la tienda, que de todos modos las sirve más chicas).
+async function comprimirImagenParaSubir(file) {
+  try {
+    if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size < 450 * 1024) return file
+    const bmp = await createImageBitmap(file)
+    const escala = Math.min(1, 2000 / Math.max(bmp.width, bmp.height))
+    const w = Math.round(bmp.width * escala), h = Math.round(bmp.height * escala)
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, w, h)   // sin esto un PNG con transparencia saldría con fondo negro
+    ctx.drawImage(bmp, 0, 0, w, h)
+    if (bmp.close) bmp.close()
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88))
+    if (!blob || blob.size >= file.size) return file
+    return new File([blob], (file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' })
+  } catch (e) { return file }
+}
+
 async function subirImagenesVariantes() {
   const variantes = document.querySelectorAll('.variante-item')
   const resultado = []
+  const btn = document.getElementById('btn-guardar')
 
+  // 1) se arma la lista de TODAS las fotos nuevas de todos los colores
+  const trabajos = []   // { color, pos, foto }
+  const porColor = []   // { color, hex, urls: [] } (las que ya son URL se quedan en su lugar)
   for (const v of variantes) {
     const idx = parseInt(v.id.replace('variante-', ''))
     const hex = document.getElementById('v' + idx + '-hex')
     const nombre = document.getElementById('v' + idx + '-nombre')
-
     if (!nombre || !nombre.value) continue
+    const fotos = (window._variantesFotos || {})[idx] || []
+    const entrada = { color: nombre.value.split(/\s+/).filter(Boolean).join(' '), hex: hex ? hex.value : '#000000', urls: new Array(fotos.length).fill(null) }
+    fotos.forEach((foto, pos) => {
+      if (foto.type === 'url') entrada.urls[pos] = foto.value
+      else trabajos.push({ entrada, pos, foto })
+    })
+    porColor.push(entrada)
+  }
 
-    const fotos = window._variantesFotos[idx] || []
-    console.log(`[Fotos] Color "${nombre.value}": procesando ${fotos.length} foto(s)`)
-
-    const promesasSubida = fotos.map(async (foto) => {
-      if (foto.type === 'url') {
-        return foto.value
-      } else {
-        const formData = new FormData()
-        formData.append('archivo', foto.value)
-        for (let intento = 1; intento <= 3; intento++) {
-          try {
-            const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
-            if (res.ok) {
-              const data = await res.json()
-              if (data.url) return data.url
-            }
-          } catch(e) {}
-          if (intento < 3) await new Promise(r => setTimeout(r, 1200))
-        }
-        console.error(`[Fotos] FALLÓ subir foto de "${nombre.value}" tras 3 intentos`)
-        return null
+  // 2) se suben de 4 en 4 (en paralelo), con avance en el botón
+  let hechas = 0
+  const total = trabajos.length
+  const avance = () => { if (btn && total) btn.textContent = `Subiendo fotos ${hechas}/${total}...` }
+  avance()
+  let fallidas = 0
+  let siguiente = 0
+  const operario = async () => {
+    while (siguiente < trabajos.length) {
+      const t = trabajos[siguiente++]
+      const archivo = await comprimirImagenParaSubir(t.foto.value)
+      let url = null
+      for (let intento = 1; intento <= 3 && !url; intento++) {
+        try {
+          const formData = new FormData()
+          formData.append('archivo', archivo)
+          const res = await fetch(API + '/imagenes/subir', { method: 'POST', body: formData })
+          if (res.ok) { const data = await res.json(); if (data.url) url = data.url }
+        } catch (e) {}
+        if (!url && intento < 3) await new Promise(r => setTimeout(r, 1200))
       }
-    })
+      if (!url) fallidas++
+      t.entrada.urls[t.pos] = url
+      hechas++
+      avance()
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, trabajos.length) }, operario))
+  if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) no se pudieron subir. Revisa tu internet y vuelve a subirlas editando el producto.`)
+  if (btn) btn.textContent = 'Guardando...'
 
-    const urlsResultados = await Promise.all(promesasSubida)
-    const urlsValidas = urlsResultados.filter(Boolean)
-
-    const fallidas = urlsResultados.length - urlsValidas.length
-    if (fallidas > 0) alert(`⚠️ ${fallidas} foto(s) de "${nombre.value}" no se pudieron subir. Intenta de nuevo.`)
-
-    resultado.push({ 
-      color: nombre.value.split(/\s+/).filter(Boolean).join(' '),   // sin espacios al borde ("NEGRO " y "NEGRO" contaban como colores distintos)
-      color_hex: hex ? hex.value : '#000000', 
-      imagenes: urlsValidas
-    })
+  for (const e of porColor) {
+    resultado.push({ color: e.color, color_hex: e.hex, imagenes: e.urls.filter(Boolean) })
   }
   return resultado
 }
@@ -8984,10 +9040,10 @@ window.guardarProducto = async () => {
       totalFotos += nf
       if (!nf) sinFotos.push(n)
     })
-    if (!nombresColor.length) return abortar('Agrega al menos un color (con su nombre) para el modelo.')
-    if (!window._productoEditandoId && totalFotos === 0) return abortar('Sube al menos una foto: sin foto el modelo no se muestra en la tienda.')
-    if (sinFotos.length && !confirm(`Estos colores no tienen foto: ${sinFotos.join(', ')}.
-Sin foto no se verán bien en la tienda. ¿Guardar así?`)) return abortar()
+    if (!nombresColor.length && !confirm('No agregaste ningún color con nombre: el modelo se guardará sin tallas ni colores (no se podrá vender hasta que los agregues). ¿Guardar así?')) return abortar()
+    // Guardar SIN fotos es válido (la empleada da de alta y la dueña sube las fotos después): no se bloquea ni se pregunta.
+    // Solo se avisa al terminar (ver `avisoSinFotos` más abajo).
+    window._avisoSinFotos = totalFotos === 0 ? 'todas' : (sinFotos.length ? sinFotos.join(', ') : '')
     const pesoK = document.getElementById('f-peso') ? document.getElementById('f-peso').value : ''
     if (!pesoK && !confirm('No capturaste el peso en kilos. Sin peso no se puede calcular el envío por peso a mayoristas. ¿Guardar sin peso?')) return abortar()
   }
@@ -9095,51 +9151,28 @@ document.querySelectorAll('.variante-item').forEach(v => {
 
   const promesas = []
   const erroresVariante = []
-for (const v of variantesData) {
-  for (const talla of tallasGuardar) {
-    const varExistente = varsExistentes.find(ve =>
-  ve.color.trim().toLowerCase() === v.color.trim().toLowerCase() &&
-  ve.talla === talla
-)
-    if (varExistente) {
-      // Solo actualizar si algo cambió realmente
-      const nuevaFoto = v.imagenes.length > 0 ? v.imagenes[0] : null
-      const nuevasImagenes = JSON.stringify(v.imagenes)
-      const mismaFoto = varExistente.foto_url === nuevaFoto
-      const mismasImagenes = JSON.stringify(varExistente.imagenes || []) === nuevasImagenes
-      const mismoHex = varExistente.color_hex === v.color_hex
-      if (mismaFoto && mismasImagenes && mismoHex) {
-        console.log(`[Variantes] SIN CAMBIOS: ${v.color} T${talla} — omitiendo PATCH`)
-      } else {
-        console.log(`[Variantes] ACTUALIZAR: ${v.color} T${talla} → ${varExistente.id}`)
-        const update = { color_hex: v.color_hex, foto_url: nuevaFoto, imagenes: v.imagenes }
-        promesas.push(fetch(API + '/variantes/' + varExistente.id, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(update)
-        }))
+  // Todas las variantes (color x talla) en UNA sola petición. Antes eran 20-60 peticiones simultáneas, cada una con su propia
+  // consulta del producto: guardar un modelo con varios colores podía tardar minutos.
+  {
+    const lote = []
+    for (const v of variantesData) {
+      for (const talla of tallasGuardar) {
+        lote.push({ color: v.color, color_hex: v.color_hex, talla, foto_url: (v.imagenes || [])[0] || null, imagenes: v.imagenes || [] })
       }
-    } else {
-      console.log(`[Variantes] CREAR NUEVO: ${v.color} T${talla}`)
-  promesas.push(
-    fetch(API + '/variantes/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ producto_id: pid, color: v.color, color_hex: v.color_hex, talla, foto_url: v.imagenes[0] || null, imagenes: v.imagenes || [], activa: true })
-    }).then(async r => {
-      if (!r.ok) {
-        const txt = await r.text().catch(() => '')
-        erroresVariante.push(`${v.color} T${talla}: ${r.status}`)
-        console.error('Error variante:', v.color, talla, r.status, txt)
+    }
+    if (lote.length) {
+      try {
+        const rl = await fetch(API + '/variantes/lote', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ producto_id: pid, variantes: lote })
+        })
+        const dl = await rl.json().catch(() => ({}))
+        if (!rl.ok || dl.ok === false) erroresVariante.push('No se guardaron todas las variantes: ' + (dl.error || rl.status))
+      } catch (e) {
+        erroresVariante.push('error de red al guardar las variantes')
       }
-    }).catch(e => {
-      erroresVariante.push(`${v.color} T${talla}: error de red`)
-      console.error('Error red variante:', v.color, talla, e)
-    })
-  )
-}
+    }
   }
-}
 // Desactivar variantes existentes cuya talla/color ya NO está en la selección actual
 // (antes solo se creaban/actualizaban variantes, nunca se apagaban las que el usuario quitó
 // del checklist -- por eso una talla destildada "reaparecía" al reabrir el producto).
@@ -9173,7 +9206,10 @@ console.log('Tallas:', tallas)
         window._guardandoProducto = false
         return
       }
-      alert('Producto guardado correctamente')
+      alert('Producto guardado correctamente' + (window._avisoSinFotos === 'todas'
+        ? '\n\n📷 Quedó SIN fotos: no se mostrará en la tienda hasta que le agregues fotos (edítalo cuando las tengas).'
+        : window._avisoSinFotos ? '\n\n📷 Estos colores aún no tienen fotos: ' + window._avisoSinFotos + '.' : ''))
+      window._avisoSinFotos = ''
       window._productoEditandoId = null
       window._guardandoProducto = false
       navegarA('productos')
@@ -9258,7 +9294,13 @@ window.duplicarProducto = async (id) => {
       delete d.created_at
       delete d.updated_at
       d.nombre = d.nombre + ' (copia)'
-      d.slug = d.slug ? d.slug + '-copia' : null
+      // El SEO NO se copia: antes el duplicado heredaba el meta título / descripción / slug del modelo original y se quedaban con
+      // el nombre de OTRO modelo (ME8008 tenía el título de ME7090). Vacíos, se generan solos con el nombre nuevo.
+      d.slug = null
+      d.meta_titulo = null
+      d.meta_descripcion = null
+      d.palabras_clave = null
+      d.imagen_principal = null
       d.sku_interno = null
       window._productoEditandoId = null
       mostrarFormProducto(d)
