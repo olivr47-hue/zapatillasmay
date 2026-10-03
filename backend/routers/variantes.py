@@ -41,13 +41,22 @@ def talla_a_codigo(talla):
     return talla.replace('.', '_')
 
 @router.get("/")
-def listar_variantes(producto_ids: str = None):
+def listar_variantes(producto_ids: str = None, ligero: bool = False):
     if producto_ids:
         ids_list = [i.strip() for i in producto_ids.split(",") if i.strip()]
         if not ids_list:
             return []
         ids_str = ",".join(ids_list)
         return supabase_get(f"variantes?producto_id=in.({ids_str})&or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,color_hex,foto_url")
+
+    if ligero:
+        # Pantalla de Inventario: sin fotos ni producto anidado (con 4,000+ variantes eran ~2 MB de más)
+        cached = cache_get(_CK + "_ligero")
+        if cached is not None:
+            return cached
+        data = supabase_get_all("variantes?or=(activa.eq.true,activa.is.null)&select=id,producto_id,color,talla,sku,activa")
+        cache_set(_CK + "_ligero", data)
+        return data
 
     cached = cache_get(_CK + "_all")
     if cached is not None:

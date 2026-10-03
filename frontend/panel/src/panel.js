@@ -84,7 +84,6 @@ const modulos = [
   { id: 'clientes', icon: '👥', label: 'Clientes', section: 'Ventas' },
   { id: 'historial', icon: '📋', label: 'Historial', section: 'Ventas' },
   { id: 'analisis', icon: '📈', label: 'Analisis', section: 'Ventas' },
-  { id: 'crm', icon: '🎯', label: 'CRM', section: 'Ventas' },
   { id: 'finanzas', icon: '💰', label: 'Finanzas', section: 'Finanzas', soloAdmin: true },
   { id: 'proveedores', icon: '🏭', label: 'Proveedores', section: 'Finanzas', soloAdmin: true },
   { id: 'sucursales', icon: '🏪', label: 'Sucursales', section: 'Configuracion', soloAdmin: true },
@@ -620,7 +619,7 @@ async function cargarModulo(id) {
     case 'editor-visual': await cargarEditorVisual(); break
     case 'envio': await cargarEnvio(); break
     case 'analisis': await cargarAnalisis(); break
-    case 'crm': await cargarCRM(); break;
+    case 'crm': await window.abrirClientesCRM(); break;
     case 'finanzas': await cargarFinanzas(); break;
     case 'proveedores': await cargarProveedores(); break;
     case 'conversaciones': await cargarConversaciones(); break;
@@ -4149,9 +4148,10 @@ window._aplicarFiltroRotacion = () => {
   const contador = document.getElementById('rotacion-contador')
   if (contador) contador.textContent = `${visibles} de ${document.querySelectorAll('.rotacion-item').length} modelos`
 }
+// El CRM ya no es una sección aparte: vive como pestaña "Seguimiento" dentro de Clientes (misma lista, mismos segmentos).
 async function cargarCRM() {
-  const content = document.getElementById('content')
-  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando CRM...</p>'
+  const content = document.getElementById('cli-tab-crm') || document.getElementById('content')
+  content.innerHTML = '<p style="padding:2rem;color:#888">Cargando seguimiento...</p>'
 
   try {
     const [resCli, resPed, resSeg] = await Promise.all([
@@ -4171,9 +4171,9 @@ async function cargarCRM() {
     const clientesEnriquecidos = clientes.map(c => {
       const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
-      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].confirmado_at || pedidosCli[0].created_at) : null
       const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
-      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+      const pedidos30 = pedidosCli.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30).length
 
       let segmento = 'nuevo'
       if (pedidosCli.length === 0) segmento = 'nuevo'
@@ -4202,13 +4202,12 @@ async function cargarCRM() {
     content.innerHTML = `
       <div style="margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
-          <h2 style="font-size:1.2rem;font-weight:700;margin-bottom:4px">🎯 CRM — Centro de relaciones</h2>
-          <p style="color:#888;font-size:0.85rem">Gestión completa de clientes y oportunidades</p>
+          <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:4px">🎯 Seguimiento de clientes</h2>
+          <p style="color:#888;font-size:0.85rem">Quién está por perderse, recordatorios y oportunidades</p>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary" onclick="mostrarPipeline()">📊 Pipeline</button>
           <button class="btn btn-secondary" onclick="mostrarCampanas()">📣 Campañas</button>
-          <button class="btn btn-primary" onclick="mostrarFormCliente()">+ Nuevo cliente</button>
         </div>
       </div>
 
@@ -4381,7 +4380,7 @@ window.mostrarPipeline = async () => {
     ]
     content.innerHTML = `
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="cargarCRM()">← Volver al CRM</button>
+        <button class="btn btn-secondary" onclick="abrirClientesCRM()">← Volver a Clientes</button>
         <h2 style="flex:1;font-size:1.1rem;font-weight:700">📊 Pipeline de oportunidades</h2>
         <button class="btn btn-primary" onclick="nuevaOportunidad()">+ Nueva oportunidad</button>
       </div>
@@ -5060,9 +5059,9 @@ window.mostrarCampanas = async () => {
     const clientesEnriquecidos = clientes.map(c => {
       const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
-      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].confirmado_at || pedidosCli[0].created_at) : null
       const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
-      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+      const pedidos30 = pedidosCli.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30).length
       let segmento = 'nuevo'
       if (pedidosCli.length === 0) segmento = 'nuevo'
       else if (totalGastado >= 5000 && pedidos30 >= 1) segmento = 'vip'
@@ -5133,7 +5132,7 @@ window.mostrarCampanas = async () => {
 
     content.innerHTML = `
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="navegarA('crm')">← Volver al CRM</button>
+        <button class="btn btn-secondary" onclick="abrirClientesCRM()">← Volver a Clientes</button>
         <div>
           <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:2px">📣 Campañas de WhatsApp</h2>
           <p style="font-size:0.82rem;color:#888">Envía fotos de nuevos modelos a tus clientes de mayoreo</p>
@@ -6290,8 +6289,8 @@ async function cargarClientes() {
     const clientesEnriquecidos = clientes.map(c => {
       const pedidosCli = pedidos.filter(p => p.cliente_id === c.id && _ESTADOS_VENTA.includes(p.status))
       const totalGastado = pedidosCli.reduce((s, p) => s + parseFloat(p.total || 0), 0)
-      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].created_at) : null
-      const pedidos30 = pedidosCli.filter(p => new Date(p.created_at) >= hace30).length
+      const ultimoPedido = pedidosCli.length > 0 ? new Date(pedidosCli[0].confirmado_at || pedidosCli[0].created_at) : null
+      const pedidos30 = pedidosCli.filter(p => new Date(p.confirmado_at || p.created_at) >= hace30).length
       const diasSinComprar = ultimoPedido ? Math.floor((hoy - ultimoPedido) / (1000 * 60 * 60 * 24)) : null
 
       // Segmentacion automatica
@@ -6331,6 +6330,8 @@ async function cargarClientes() {
       <div style="display:flex;gap:0;border:1px solid #eee;border-radius:8px;overflow:hidden;width:fit-content;margin-bottom:1rem">
         <button id="cli-tab-btn-lista" onclick="_cliCambiarTab('lista')"
           style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:#E91E8C;color:white;font-weight:600">👥 Clientes</button>
+        <button id="cli-tab-btn-crm" onclick="_cliCambiarTab('crm')"
+          style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:white;color:#888;font-weight:600">🎯 Seguimiento</button>
         <button id="cli-tab-btn-accesos" onclick="_cliCambiarTab('accesos')"
           style="padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;background:white;color:#888;font-weight:600">🔑 Accesos portal</button>
       </div>
@@ -6417,6 +6418,8 @@ async function cargarClientes() {
       </div>
       </div>
 
+      <div id="cli-tab-crm" style="display:none"></div>
+
       <div id="cli-tab-accesos" style="display:none">
         <p style="padding:2rem;color:#888;text-align:center">Cargando...</p>
       </div>
@@ -6428,29 +6431,28 @@ async function cargarClientes() {
 
 window._cliTabAccesosCargado = false
 window._cliCambiarTab = function(tab) {
-  const btnLista = document.getElementById('cli-tab-btn-lista')
-  const btnAccesos = document.getElementById('cli-tab-btn-accesos')
-  const elLista = document.getElementById('cli-tab-lista')
-  const elAccesos = document.getElementById('cli-tab-accesos')
-  if (!btnLista || !btnAccesos || !elLista || !elAccesos) return
+  const tabs = ['lista', 'crm', 'accesos']
   const activo = 'background:#E91E8C;color:white;font-weight:600'
   const inactivo = 'background:white;color:#888;font-weight:600'
   const base = 'padding:7px 16px;font-size:0.82rem;border:none;cursor:pointer;'
-  if (tab === 'accesos') {
-    btnLista.style.cssText = base + inactivo
-    btnAccesos.style.cssText = base + activo
-    elLista.style.display = 'none'
-    elAccesos.style.display = ''
-    if (!window._cliTabAccesosCargado) {
-      window._cliTabAccesosCargado = true
-      cargarPortalAccesos(elAccesos)
-    }
-  } else {
-    btnLista.style.cssText = base + activo
-    btnAccesos.style.cssText = base + inactivo
-    elLista.style.display = ''
-    elAccesos.style.display = 'none'
+  if (!tabs.every(t => document.getElementById('cli-tab-btn-' + t) && document.getElementById('cli-tab-' + t))) return
+  tabs.forEach(t => {
+    document.getElementById('cli-tab-btn-' + t).style.cssText = base + (t === tab ? activo : inactivo)
+    document.getElementById('cli-tab-' + t).style.display = t === tab ? '' : 'none'
+  })
+  if (tab === 'accesos' && !window._cliTabAccesosCargado) {
+    window._cliTabAccesosCargado = true
+    cargarPortalAccesos(document.getElementById('cli-tab-accesos'))
   }
+  // El seguimiento se recalcula cada vez que se abre (para no mostrar clientes "en riesgo" ya atendidos)
+  if (tab === 'crm') cargarCRM()
+}
+
+// Entrada única para "CRM": abre Clientes en la pestaña de seguimiento (también la usan los botones "Volver")
+window.abrirClientesCRM = async () => {
+  window._cliTabAccesosCargado = false
+  await cargarClientes()
+  _cliCambiarTab('crm')
 }
 
 window.filtrarClientes = () => {
@@ -6566,17 +6568,9 @@ async function cargarInventario() {
     const [sucursales, productos, variantes, inventario] = await Promise.all([
       fetch(API + '/sucursales/').then(r => r.json()),
       fetch(API + '/productos/').then(r => r.json()),
-      fetch(API + '/variantes/').then(r => r.json()),
-      fetch(API + '/inventario/').then(r => r.json())
+      fetch(API + '/variantes/?ligero=true').then(r => r.json()),
+      fetch(API + '/inventario/?ligero=true').then(r => r.json())
     ])
-
-    // Complementar variantes con las que vienen anidadas en inventario
-    // (cubre variantes con activa=null que el endpoint /variantes/ filtra)
-    inventario.forEach(i => {
-      if (i.variantes && i.variantes.id && i.variantes.activa !== false && !variantes.find(v => v.id === i.variantes.id)) {
-        variantes.push(i.variantes)
-      }
-    })
 
     window._invData = { sucursales, productos, variantes, inventario }
 
@@ -6804,7 +6798,7 @@ window.editarStock = async (variante_id, sucursal_id, cantidad, minimo) => {
       body: JSON.stringify({ variante_id, sucursal_id, cantidad: parseInt(nuevaCantidad), stock_minimo: parseInt(nuevoMinimo), motivo: 'Ajuste manual desde inventario' })
     })
     if (res.ok) {
-      const resInv = await fetch(API + '/inventario/')
+      const resInv = await fetch(API + '/inventario/?ligero=true&fresh=true')
       window._invData.inventario = await resInv.json()
       renderInventario()
     } else {
@@ -10017,7 +10011,7 @@ function _renderFilaPedido(p) {
         <span class="badge ${statusColor}">${statusLabel}</span>
         ${semaforo}${guiaInfo}${avisoEnvioPendiente}
       </td>
-      <td data-label="Fecha">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+      <td data-label="Fecha">${(p.confirmado_at || p.created_at) ? new Date(p.confirmado_at || p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}${p.confirmado_at && p.created_at && window._pedDias(p.created_at) - window._pedDias(p.confirmado_at) >= 1 ? `<br><span style="font-size:0.66rem;color:#94a3b8">abierto hace ${window._pedDias(p.created_at) - window._pedDias(p.confirmado_at)} día(s) antes</span>` : ''}</td>
       <td class="acciones-ped" style="white-space:nowrap">
         <button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
         ${acciones}
@@ -10134,9 +10128,9 @@ async function cargarPedidos() {
     const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
     const NO_VENTA = ['cancelado', 'borrador', 'checkout_iniciado']
     const pedidosActivos = data.filter(p => !NO_VENTA.includes(p.status))
-    const pedidosHoy = pedidosActivos.filter(p => new Date(p.created_at) >= inicioHoy)
+    const pedidosHoy = pedidosActivos.filter(p => new Date(p.confirmado_at || p.created_at) >= inicioHoy)
     const totalHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
-    const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
+    const total7d = pedidosActivos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace7).reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
     const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
     const lista = data.filter(window._pedEsPorEnviar)
@@ -10188,7 +10182,7 @@ async function cargarPedidos() {
 
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
           ${kpiCard(pedidosHoy.length, 'Pedidos hoy', `$${totalHoy.toLocaleString('es-MX', { maximumFractionDigits: 0 })} vendidos`, '#E91E8C', 'linear-gradient(135deg,#fff0f8,#ffe4f4)', '#f9a8d4', '')}
-          ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p => new Date(p.created_at) >= hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
+          ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p => new Date(p.confirmado_at || p.created_at) >= hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
           ${porEnviar > 0
             ? kpiCard(porEnviar, 'Por enviar', porEnviarRojos > 0 ? `🔴 ${porEnviarRojos} con 3+ días` : 'Confirmados sin guía', porEnviarRojos > 0 ? '#b91c1c' : '#1d4ed8', porEnviarRojos > 0 ? '#fff1f2' : '#eff6ff', porEnviarRojos > 0 ? '#fda4af' : '#93c5fd', "cargarPedidosFiltro('por_enviar')")
             : verde('0', 'Por enviar', 'Sin pendientes')}
@@ -10264,8 +10258,8 @@ function _pedFiltrados() {
   }
   if (F.estado) l = l.filter(p => p.status === F.estado)
   if (F.pago) l = l.filter(p => (p.mp_preference_id ? 'mercadopago' : p.forma_pago) === F.pago)
-  if (F.desde) l = l.filter(p => p.created_at && hoyIso(p.created_at) >= F.desde)
-  if (F.hasta) l = l.filter(p => p.created_at && hoyIso(p.created_at) <= F.hasta)
+  if (F.desde) l = l.filter(p => (p.confirmado_at || p.created_at) && hoyIso(p.confirmado_at || p.created_at) >= F.desde)
+  if (F.hasta) l = l.filter(p => (p.confirmado_at || p.created_at) && hoyIso(p.confirmado_at || p.created_at) <= F.hasta)
   const q = (F.q || '').trim().toLowerCase()
   if (q) {
     l = l.filter(p => {

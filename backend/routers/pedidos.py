@@ -363,9 +363,13 @@ def listar_pedidos(status: str = None, ligero: bool = False, dias: int = None, _
         if dias:
             import datetime as _dtm
             corte = (_dtm.datetime.now(_dtm.timezone.utc) - _dtm.timedelta(days=int(dias))).strftime("%Y-%m-%dT%H:%M:%SZ")
-            filtro += f"&or=(created_at.gte.{corte},status.in.{_ESTADOS_ABIERTOS},forma_pago.eq.credito)"
+            filtro += f"&or=(created_at.gte.{corte},confirmado_at.gte.{corte},status.in.{_ESTADOS_ABIERTOS},forma_pago.eq.credito)"
         sel = _SELECT_PEDIDOS_LIGERO if ligero else _SELECT_PEDIDOS_COMPLETO
-        return supabase_get_all(f"pedidos?order=created_at.desc{filtro}&select={sel}")
+        filas = supabase_get_all(f"pedidos?order=created_at.desc{filtro}&select={sel}")
+        # Una venta cuenta el día que se CERRÓ, no el día que se abrió el carrito/apartado: así la venta de hoy sale hasta arriba
+        # aunque el apartado tenga semanas. Los días de apartado se siguen contando desde created_at.
+        filas.sort(key=lambda r: r.get("confirmado_at") or r.get("created_at") or "", reverse=True)
+        return filas
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

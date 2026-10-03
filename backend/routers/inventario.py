@@ -90,10 +90,20 @@ def alertas_stock_bajo(conteo: bool = False, _staff=Depends(require_staff)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.get("/")
-def listar_inventario(fresh: bool = False):
+def listar_inventario(fresh: bool = False, ligero: bool = False):
     """fresh=true evita la cache de 10 min — lo usa el POS para no vender
     con stock desactualizado si hubo una venta/ajuste reciente en otro lado."""
     try:
+        if ligero:
+            # Pantalla de Inventario del panel: solo filas planas (el panel ya baja variantes y productos por separado).
+            # Antes cada fila traía su variante y producto completos: ~4 MB repetidos que hacían tardar la pantalla.
+            if not fresh:
+                cached = cache_get(_CK + "_ligero")
+                if cached is not None:
+                    return cached
+            data = supabase_get_all("inventario?select=id,variante_id,sucursal_id,cantidad,stock_minimo")
+            cache_set(_CK + "_ligero", data, ttl=TTL_STOCK)
+            return data
         if not fresh:
             cached = cache_get(_CK + "_all")
             if cached is not None:
