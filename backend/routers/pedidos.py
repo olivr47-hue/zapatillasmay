@@ -3,7 +3,7 @@ import json
 import urllib.request
 import re
 import urllib.parse as _up
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends, HTTPException, Body
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from database import supabase_get, supabase_get_all, supabase_post, supabase_patch, supabase_delete, inventario_ajustar
@@ -71,6 +71,57 @@ _MSG_SIN_WHATSAPP = "Necesitamos tu WhatsApp para continuar. Agrégalo en Mi cue
 def _es_staff_cred(credentials):
     p = payload_opcional(credentials)
     return bool(p) and es_personal(p)
+
+
+def _quien(payload):
+    """Nombre legible de quien hizo un cambio (para la bitácora del pedido)."""
+    if not payload:
+        return "sistema"
+    if es_personal(payload):
+        return str(payload.get("nombre") or payload.get("email") or "personal")[:60]
+    return "cliente"
+
+
+def _historial(pedido_id, accion, detalle=None, quien=None):
+    """Bitácora del pedido: quién cambió qué y cuándo. Nunca debe romper la operación que la llama."""
+    try:
+        supabase_post("pedido_historial", {
+            "pedido_id": pedido_id, "accion": str(accion)[:60],
+            "detalle": (str(detalle)[:500] if detalle else None), "usuario": quien,
+        })
+    except Exception as e:
+        print(f"[pedidos] no se pudo guardar el historial: {e}")
+
+
+def _avisar_envio_whatsapp(p, paqueteria, guia):
+    """Plantilla aprobada 'aviso_envio' al cliente. Se manda DESDE EL SERVIDOR: antes la mandaba el panel solo si el pedido traía
+    teléfono propio, así que a los mayoristas (cuyo teléfono está en su ficha de cliente) nunca les llegaba, y tampoco
+    habría funcionado al marcar varios pedidos a la vez."""
+    try:
+        tel = (p.get("telefono_cliente") or "").strip()
+        nombre = (p.get("nombre_cliente") or "").strip()
+        cid = p.get("cliente_id")
+        if cid and (not tel or not nombre):
+            c = (supabase_get(f"clientes?id=eq.{cid}&select=nombre,telefono") or [{}])[0]
+            tel = tel or (c.get("telefono") or "").strip()
+            nombre = nombre or (c.get("nombre") or "").strip()
+        if not tel or p.get("canal") in ("mercadolibre", "shein", "walmart", "amazon"):
+            return False
+        from telefonos import a_e164_mx
+        from routers.chatbot import enviar_whatsapp_plantilla
+        corto = nombre.split()[0] if nombre else "Cliente"
+        pid6 = str(p["id"])[-6:]
+        wamid = enviar_whatsapp_plantilla(a_e164_mx(tel), "aviso_envio", "es_MX", [corto, pid6, guia, paqueteria])
+        if wamid:
+            supabase_post("conversaciones_whatsapp", {
+                "telefono": a_e164_mx(tel),
+                "mensaje": f"[Sistema]: Aviso de envío #{pid6} — {paqueteria} {guia}",
+                "respuesta": None, "tipo": "plantilla_saliente", "wa_message_id": wamid, "leido": True,
+            })
+        return bool(wamid)
+    except Exception as e:
+        print(f"[pedidos] aviso de envío por WhatsApp falló: {e}")
+        return False
 
 
 def _pisos_por_variante(variante_ids):
@@ -862,6 +913,10 @@ def actualizar_pedido(id: str, pedido: dict, credentials: HTTPAuthorizationCrede
     try:
         if _es_staff_cred(credentials) or not credentials:
             # (sin credentials solo llega aquí con AUTH_ENFORCE=0: despliegue seguro)
+            if "status" in pedido:
+                _ant = (supabase_get(f"pedidos?id=eq.{id}&select=status") or [{}])[0].get("status")
+                if _ant != pedido["status"]:
+                    _historial(id, "estado", f"{_ant} → {pedido['status']}", _quien(payload_opcional(credentials)))
             return supabase_patch(f"pedidos?id=eq.{id}", pedido)
         # Cliente dueño: solo datos de envío/pago de un pedido que aún no se cierra.
         actual = supabase_get(f"pedidos?id=eq.{id}&select=status,costo_envio") or [{}]
@@ -1204,6 +1259,7 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
             return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+        _historial(id, "confirmado", "Forma de pago: " + str(datos.get("forma_pago") or ("combinado" if datos.get("pagos") else "—")), _quien(_staff))
         # Traer items con nombre de producto para el mensaje de WhatsApp
         items = supabase_get(f"pedido_items?pedido_id=eq.{id}&select=*,variantes(*,productos(nombre))")
         sucursal_id = pedido[0].get("sucursal_id")
@@ -1305,98 +1361,115 @@ def confirmar_pedido(id: str, datos: dict, _staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+def _marcar_enviado(id, paqueteria, numero_guia, tracking_extra, quien):
+    """Devuelve (resultado_dict, status_http). Lo usan el endpoint de un pedido y el de varios a la vez."""
+    paqueteria = (paqueteria or "").strip()
+    numero_guia = (numero_guia or "").strip()
+    if not paqueteria or not numero_guia:
+        return {"error": "Faltan paqueteria y numero_guia"}, 400
+    pedido = supabase_get(f"pedidos?id=eq.{id}&select=*,pedido_items(*)")
+    if not pedido:
+        return {"error": "Pedido no encontrado"}, 404
+    p = pedido[0]
+    if p.get("status") in ("cancelado", "borrador", "checkout_iniciado"):
+        return {"error": f"Un pedido {p.get('status')} no se puede marcar como enviado"}, 409
+
+    pak = paqueteria.lower()
+    if "fedex" in pak:
+        tracking_url = f"https://www.fedex.com/fedextrack/?trknbr={numero_guia}"
+    elif "estafeta" in pak:
+        tracking_url = f"https://www.estafeta.com/herramientas/rastreo?wayBillType=1&wayBill={numero_guia}"
+    elif "dhl" in pak:
+        tracking_url = f"https://www.dhl.com/mx-es/home/rastreo.html?tracking-id={numero_guia}"
+    else:
+        tracking_url = tracking_extra or ""
+
+    import datetime as _dt
+    supabase_patch(f"pedidos?id=eq.{id}", {
+        "status": "enviado", "paqueteria": paqueteria, "numero_guia": numero_guia, "tracking_url": tracking_url,
+        "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+    })
+    _historial(id, "enviado", f"{paqueteria} · guía {numero_guia}", quien)
+
+    email_cliente = p.get("email_cliente", "")
+    if email_cliente:
+        try:
+            from email_utils import enviar_email, email_envio_realizado
+            subj, html = email_envio_realizado(p, paqueteria, numero_guia, tracking_url)
+            enviar_email(email_cliente, subj, html, tipo="pedido_enviado")
+        except Exception as e:
+            print(f"[pedidos] Error email tracking: {e}")
+    try:
+        if p.get("cliente_id"):
+            # Sin cliente_id, enviar_push() cae a mandarlo a TODOS los suscriptores activos
+            from routers.push import enviar_push
+            enviar_push("Tu pedido va en camino", f"Envío con {paqueteria}, guía {numero_guia}.",
+                        url=tracking_url or "/", cliente_id=p["cliente_id"])
+    except Exception as e:
+        print(f"[pedidos] Error push envio: {e}")
+    wa = _avisar_envio_whatsapp(p, paqueteria, numero_guia)
+    return {"ok": True, "tracking_url": tracking_url, "whatsapp": wa}, 200
+
+
 @router.post("/{id}/marcar-enviado")
 def marcar_enviado(id: str, datos: dict, _staff=Depends(require_staff)):
-    """Marca el pedido como enviado y manda email de tracking al cliente."""
+    """Marca el pedido como enviado, avisa por correo, notificación y WhatsApp, y lo deja en la bitácora."""
     try:
-        paqueteria   = datos.get("paqueteria", "").strip()
-        numero_guia  = datos.get("numero_guia", "").strip()
-        if not paqueteria or not numero_guia:
-            return JSONResponse(status_code=400, content={"error": "Faltan paqueteria y numero_guia"})
-
-        pedido = supabase_get(f"pedidos?id=eq.{id}&select=*,pedido_items(*)")
-        if not pedido:
-            return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
-        p = pedido[0]
-
-        # Generar URL de tracking según paquetería
-        pak = paqueteria.lower()
-        if "fedex" in pak:
-            tracking_url = f"https://www.fedex.com/fedextrack/?trknbr={numero_guia}"
-        elif "estafeta" in pak:
-            tracking_url = f"https://www.estafeta.com/herramientas/rastreo?wayBillType=1&wayBill={numero_guia}"
-        elif "dhl" in pak:
-            tracking_url = f"https://www.dhl.com/mx-es/home/rastreo.html?tracking-id={numero_guia}"
-        else:
-            tracking_url = datos.get("tracking_url", "")
-
-        import datetime as _dt
-        supabase_patch(f"pedidos?id=eq.{id}", {
-            "status": "enviado",
-            "paqueteria": paqueteria,
-            "numero_guia": numero_guia,
-            "tracking_url": tracking_url,
-            "enviado_at": _dt.datetime.now(_dt.timezone.utc).isoformat()
-        })
-
-        # Email de tracking al cliente
-        email_cliente = p.get("email_cliente", "")
-        if email_cliente:
-            try:
-                from email_utils import enviar_email, email_envio_realizado
-                subj, html = email_envio_realizado(p, paqueteria, numero_guia, tracking_url)
-                enviar_email(email_cliente, subj, html, tipo="pedido_enviado")
-            except Exception as e:
-                print(f"[pedidos] Error email tracking: {e}")
-
-        try:
-            cliente_id_push = p.get("cliente_id")
-            # Sin cliente_id, enviar_push() cae a mandarlo a TODOS los suscriptores
-            # activos (ver comentario igual en confirmar_pedido más arriba).
-            if cliente_id_push:
-                from routers.push import enviar_push
-                enviar_push(
-                    "Tu pedido va en camino",
-                    f"Envío con {paqueteria}, guía {numero_guia}.",
-                    url=tracking_url or "/",
-                    cliente_id=cliente_id_push,
-                )
-        except Exception as e:
-            print(f"[pedidos] Error push envio: {e}")
-
-        return {"ok": True, "tracking_url": tracking_url}
+        res, code = _marcar_enviado(id, datos.get("paqueteria"), datos.get("numero_guia"), datos.get("tracking_url"), _quien(_staff))
+        return JSONResponse(status_code=code, content=res) if code != 200 else res
     except Exception as e:
         import traceback; traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-def _reembolsar_credito(pedido_id, cliente_id):
-    """Devuelve al cliente el saldo a favor que se descontó al crear el pedido (una sola
-    vez: se marca con un renglón 'reembolso_cancelacion' en el historial)."""
-    try:
-        if not cliente_id:
-            return
-        aplicado = _credito_aplicado_a_pedido(pedido_id)
-        if aplicado <= 0:
-            return
-        ya = supabase_get(f"clientes_creditos_historial?pedido_id=eq.{pedido_id}&tipo=eq.reembolso_cancelacion&select=id") or []
-        if ya:
-            return
-        cli = supabase_get(f"clientes?id=eq.{cliente_id}&select=credito_disponible") or [{}]
-        saldo = float(cli[0].get("credito_disponible") or 0)
-        nuevo = saldo + aplicado
-        supabase_patch(f"clientes?id=eq.{cliente_id}", {"credito_disponible": nuevo})
-        supabase_post("clientes_creditos_historial", {
-            "cliente_id": cliente_id, "monto": aplicado, "tipo": "reembolso_cancelacion",
-            "pedido_id": pedido_id, "saldo_despues": nuevo,
-        })
-    except Exception as e:
-        print(f"[pedidos] Error reembolsando crédito de {pedido_id}: {e}")
+@router.post("/marcar-enviado-lote")
+def marcar_enviado_lote(datos: dict, _staff=Depends(require_staff)):
+    """Registra la guía de VARIOS pedidos de una vez: {"pedidos": [{"id","paqueteria","numero_guia"}...]}."""
+    filas = datos.get("pedidos") or []
+    if not isinstance(filas, list) or not filas or len(filas) > 100:
+        return JSONResponse(status_code=400, content={"error": "Lista de pedidos inválida (1 a 100)"})
+    quien = _quien(_staff)
+    resultados = []
+    for f in filas:
+        pid = str(f.get("id") or "")
+        if not _UUID_RE.match(pid):
+            resultados.append({"id": pid, "ok": False, "error": "id inválido"})
+            continue
+        try:
+            res, code = _marcar_enviado(pid, f.get("paqueteria"), f.get("numero_guia"), f.get("tracking_url"), quien)
+            resultados.append({"id": pid, "ok": code == 200, "error": res.get("error"), "whatsapp": res.get("whatsapp")})
+        except Exception as e:
+            resultados.append({"id": pid, "ok": False, "error": str(e)})
+    return {"ok": all(r["ok"] for r in resultados), "resultados": resultados}
+
+
+@router.post("/{id}/marcar-entregado")
+def marcar_entregado(id: str, _staff=Depends(require_staff)):
+    """-> entregado. Desde 'enviado' (llegó por paquetería) o desde 'confirmado'/'pagado' (entrega directa: lo recogió o se lo
+    llevaron sin paquetería, como muchas mayoristas de León). Antes ese estado casi no se usaba y los pedidos se quedaban
+    'enviados' o 'confirmados' para siempre."""
+    p = supabase_get(f"pedidos?id=eq.{id}&select=status")
+    if not p:
+        return JSONResponse(status_code=404, content={"error": "Pedido no encontrado"})
+    estado = p[0].get("status")
+    if estado not in ("enviado", "confirmado", "pagado"):
+        return JSONResponse(status_code=409, content={"error": "Solo un pedido confirmado, pagado o enviado se puede marcar como entregado"})
+    supabase_patch(f"pedidos?id=eq.{id}", {"status": "entregado"})
+    _historial(id, "entregado", None if estado == "enviado" else "Entrega directa (sin paquetería)", _quien(_staff))
+    return {"ok": True}
+
+
+@router.get("/{id}/historial")
+def historial_pedido(id: str, _staff=Depends(require_staff)):
+    if not _UUID_RE.match(id):
+        return JSONResponse(status_code=400, content={"error": "Id inválido"})
+    return supabase_get(f"pedido_historial?pedido_id=eq.{id}&order=created_at.desc&limit=100") or []
 
 
 @router.post("/{id}/cancelar")
-def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
+def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional), datos: dict = Body(default=None)):
     _exigir_dueno_pedido(id, credentials)
+    motivo = ((datos or {}).get("motivo") or "").strip()[:300] if isinstance(datos, dict) else ""
     try:
         pedido = supabase_get(f"pedidos?id=eq.{id}")
         if not pedido:
@@ -1440,6 +1513,7 @@ def cancelar_pedido(id: str, credentials: HTTPAuthorizationCredentials = Depends
         if status_actual != "cancelado":
             _reembolsar_credito(id, pedido[0].get("cliente_id"))
         supabase_patch(f"pedidos?id=eq.{id}", {"status": "cancelado"})
+        _historial(id, "cancelado", (f"Motivo: {motivo}. " if motivo else "") + ("Stock devuelto." if hubo_devolucion else ""), _quien(payload_opcional(credentials)))
         return {"ok": True, "stock_devuelto": hubo_devolucion}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})

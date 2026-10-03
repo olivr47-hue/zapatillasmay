@@ -9946,78 +9946,98 @@ window.guardarTraspaso = async () => {
     alert('Error conectando con el servidor')
   }
 }
+// ¿Está esperando envío? Confirmado/pagado, sin guía, que no sea venta de sucursal ni "recoge en tienda".
+// Antes "Por enviar" solo contaba el estado `pagado` con pago en línea: los pedidos CONFIRMADOS sin guía (p. ej. los del portal
+// mayorista) no aparecían en ninguna lista de trabajo.
+const _CANALES_CON_ENVIO = ['web', 'online', 'whatsapp', 'mercadolibre', 'shein', 'walmart', 'amazon', 'portal_mayoreo', 'mayoreo']
+window._pedEsPorEnviar = (p) =>
+  ['pagado', 'confirmado'].includes(p.status) && !p.numero_guia &&
+  (_CANALES_CON_ENVIO.includes(p.canal) || p.mp_preference_id || p.mp_payment_id) &&
+  !/recoge en tienda|recoger en tienda/i.test(`${p.notas || ''} ${p.direccion_envio || ''}`)
+window._pedDias = (iso) => iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : 0
+
 function _renderFilaPedido(p) {
   const statusColor = {
-    'borrador':          'badge-warning',
-    'checkout_iniciado': 'badge-danger',
-    'pendiente_pago':    'badge-warning',
-    'confirmado':        'badge-success',
-    'cancelado':         'badge-danger',
-    'pagado':            'badge-success',
-    'por_enviar':        'badge-info',
-    'enviado':           'badge-success',
+    'borrador': 'badge-warning', 'checkout_iniciado': 'badge-danger', 'pendiente_pago': 'badge-warning',
+    'confirmado': 'badge-success', 'cancelado': 'badge-danger', 'pagado': 'badge-success',
+    'por_enviar': 'badge-info', 'enviado': 'badge-success', 'entregado': 'badge-success', 'apartado': 'badge-warning',
   }[p.status] || 'badge-warning'
-
   const statusLabel = {
-    'borrador':          'Borrador',
-    'checkout_iniciado': '🛒 Abandonó',
-    'pendiente_pago':    'Pend. pago',
-    'confirmado':        'Confirmado',
-    'cancelado':         'Cancelado',
-    'pagado':            'Pagado',
-    'por_enviar':        '📦 Por enviar',
-    'enviado':           '✅ Enviado',
+    'borrador': 'Borrador', 'checkout_iniciado': '🛒 Abandonó', 'pendiente_pago': 'Pend. pago', 'confirmado': 'Confirmado',
+    'cancelado': 'Cancelado', 'pagado': 'Pagado', 'por_enviar': '📦 Por enviar', 'enviado': '✅ Enviado',
+    'entregado': '🎉 Entregado', 'apartado': '🔒 Apartado',
   }[p.status] || p.status
 
-  // Botón de envío para pedidos pagados por MercadoPago que aún no han sido enviados
-  const esPagadoOnline = (p.status === 'pagado') && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon')
+  const porEnviar = window._pedEsPorEnviar(p)
   const esEnviado = p.status === 'enviado'
+  const diasEsperando = window._pedDias(p.confirmado_at || p.created_at)
+  const diasEnviado = window._pedDias(p.enviado_at || p.created_at)
 
-  let accionEnvio = ''
-  if (esPagadoOnline) {
-    accionEnvio = `<button class="btn btn-primary" style="padding:4px 8px;font-size:0.72rem;background:#1565c0;border-color:#1565c0;margin-top:4px" onclick="abrirModalEnvio('${p.id}')">🚚 Enviar</button>`
-  } else if (esEnviado && p.tracking_url) {
-    accionEnvio = `<a href="${p.tracking_url}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;margin-top:4px">📍 Rastrear</a>`
+  // Semáforo: cuánto lleva esperando envío (rojo = 3+ días) o sin confirmar la entrega (enviado hace 7+ días)
+  let semaforo = ''
+  if (porEnviar) {
+    const [c, bg, txt] = diasEsperando >= 3 ? ['#b91c1c', '#fee2e2', `🔴 ${diasEsperando} días sin enviar`] : diasEsperando >= 1 ? ['#b45309', '#fef3c7', `🟡 ${diasEsperando} día${diasEsperando > 1 ? 's' : ''} sin enviar`] : ['#166534', '#dcfce7', '🟢 Nuevo']
+    semaforo = `<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:${bg};color:${c}">${txt}</span>`
+  } else if (esEnviado && diasEnviado >= 7) {
+    semaforo = `<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:#fef3c7;color:#b45309">⏳ Enviado hace ${diasEnviado} días</span>`
   }
 
-  const guiaInfo = esEnviado && p.numero_guia
-    ? `<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${p.paqueteria || ''} ${p.numero_guia}</span>`
-    : ''
+  const btn = (txt, onclick, estilo = '') => `<button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem;${estilo}" onclick="${onclick}">${txt}</button>`
+  let acciones = ''
+  if (porEnviar) {
+    acciones = `${btn('🚚 Enviar', `abrirModalEnvio('${p.id}')`, 'background:#1565c0;border-color:#1565c0;color:#fff')}
+      ${btn('🏪 Entrega directa', `marcarEntregadoPedido('${p.id}', true)`)}`
+  } else if (esEnviado) {
+    acciones = `${p.tracking_url ? `<a href="${p.tracking_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem">📍 Rastrear</a>` : ''}
+      ${btn('✅ Entregado', `marcarEntregadoPedido('${p.id}', false)`)}`
+  }
 
-  // La clienta eligió "coordinar el envío después" en su portal -- el pedido
-  // se quedó sin costo de envío a propósito, esperando que alguien lo agregue.
+  const guiaInfo = p.numero_guia && (esEnviado || p.status === 'entregado')
+    ? `<br><span style="font-size:0.68rem;color:#2e7d32;font-family:monospace">${p.paqueteria || ''} ${p.numero_guia}</span>` : ''
   const avisoEnvioPendiente = p.envio_pendiente_coordinar
-    ? `<br><span style="font-size:0.68rem;color:#b45309;font-weight:700">⚠️ Envío pendiente de coordinar</span>`
-    : ''
+    ? `<br><span style="font-size:0.68rem;color:#b45309;font-weight:700">⚠️ Envío pendiente de coordinar</span>` : ''
+  const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')
+  const tel = p.telefono_cliente || (p.clientes && p.clientes.telefono) || ''
 
   return `
-    <tr style="${esPagadoOnline ? 'background:#f0f7ff' : ''}">
-      <td style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0,8).toUpperCase()}</td>
-      <td>
-        <strong>${p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')}</strong>
+    <tr style="${porEnviar && diasEsperando >= 3 ? 'background:#fff7f7' : (porEnviar ? 'background:#f0f7ff' : '')}">
+      <td data-label="Pedido" style="font-family:monospace;font-size:0.78rem;color:#888">#${p.id.substring(0, 8).toUpperCase()}</td>
+      <td data-label="Cliente">
+        <strong>${cli}</strong>
         ${p.email_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.email_cliente}</span>` : ''}
-        ${p.telefono_cliente ? `<br><span style="font-size:0.72rem;color:#aaa">${p.telefono_cliente}</span>` : ''}
+        ${tel ? `<br><span style="font-size:0.72rem;color:#aaa">${tel}</span>` : ''}
       </td>
-      <td>${{
-        web:          '🌐 Web',
-        sucursal:     '🏬 Sucursal',
-        whatsapp:     '💬 WhatsApp',
-        mercadolibre: '🛒 MercadoLibre',
+      <td data-label="Canal">${{
+        web: '🌐 Web', sucursal: '🏬 Sucursal', whatsapp: '💬 WhatsApp', mercadolibre: '🛒 MercadoLibre',
+        portal_mayoreo: '🏢 Portal mayoreo', shein: '👗 SHEIN', walmart: '🏬 Walmart',
       }[p.canal] || p.canal || (p.mp_preference_id ? '🌐 Web' : '—')}</td>
-      <td><strong>$${parseFloat(p.total||0).toLocaleString('es-MX',{maximumFractionDigits:0})}</strong></td>
-      <td>${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
-      <td>
+      <td data-label="Total"><strong>$${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })}</strong></td>
+      <td data-label="Pago">${p.mp_preference_id ? 'MercadoPago' : (p.forma_pago || '—')}</td>
+      <td data-label="Estado">
         <span class="badge ${statusColor}">${statusLabel}</span>
-        ${guiaInfo}
-        ${avisoEnvioPendiente}
+        ${semaforo}${guiaInfo}${avisoEnvioPendiente}
       </td>
-      <td>${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—'}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
-        ${accionEnvio}
+      <td data-label="Fecha">${p.created_at ? new Date(p.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</td>
+      <td class="acciones-ped" style="white-space:nowrap">
+        <button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem" onclick="verPedido('${p.id}')">Ver</button>
+        ${acciones}
       </td>
     </tr>
   `
+}
+
+window.marcarEntregadoPedido = async (id, directa) => {
+  const msg = directa
+    ? '¿Marcar este pedido como ENTREGADO sin paquetería (lo recogió o se lo entregaron directo)?'
+    : '¿Confirmas que este pedido ya fue entregado al cliente?'
+  if (!confirm(msg)) return
+  try {
+    const res = await fetch(API + `/pedidos/${id}/marcar-entregado`, { method: 'POST' })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.error || 'No se pudo actualizar')
+    window.mostrarToastPanel('✅ Pedido marcado como entregado')
+    await cargarPedidos()
+  } catch (e) { alert('Error: ' + e.message) }
 }
 
 window.abrirModalEnvio = function(pedidoId) {
@@ -10082,29 +10102,10 @@ window.confirmarEnvio = async function(pedidoId) {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Error al guardar')
 
-    // Enviar template de aviso de envío por WhatsApp
-    try {
-      // GET /pedidos/{id} devuelve una LISTA: antes se leía resPed.telefono_cliente sobre el arreglo (undefined)
-      // y el aviso de envío por WhatsApp nunca se mandaba.
-      const _rp = await fetch(API + '/pedidos/' + pedidoId).then(r => r.json())
-      const resPed = (Array.isArray(_rp) ? _rp[0] : _rp) || {}
-      const tel = resPed.telefono_cliente
-      const nombre = (resPed.nombre_cliente || 'Cliente').split(' ')[0]
-      if (tel) {
-        await fetch(API + '/chatbot/templates/enviar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            telefono: tel,
-            template: 'aviso_envio',
-            params: [nombre, String(pedidoId).slice(-6), numeroGuia, paqueteria]
-          })
-        })
-      }
-    } catch(_) {}
-
+    // El aviso por WhatsApp (plantilla aviso_envio) ahora lo manda el SERVIDOR al marcar el envío: así también les llega a los
+    // mayoristas (teléfono en su ficha) y funciona al registrar varios envíos a la vez.
     document.getElementById('modal-envio').remove()
-    mostrarToast('✅ Pedido enviado — WhatsApp de tracking enviado al cliente')
+    window.mostrarToastPanel(data.whatsapp ? '✅ Pedido enviado — aviso por WhatsApp mandado al cliente' : '✅ Pedido enviado (sin WhatsApp: el cliente no tiene teléfono)')
     await cargarPedidos()
   } catch(e) {
     errEl.textContent = e.message
@@ -10114,28 +10115,37 @@ window.confirmarEnvio = async function(pedidoId) {
   }
 }
 
+window._pedF = { pill: '', estado: '', pago: '', desde: '', hasta: '', q: '' }
+window._pedPagina = 100
+const _PED_NO_REAL = ['checkout_iniciado', 'borrador']
+
 async function cargarPedidos() {
   const content = document.getElementById('content')
   try {
     const res = await fetch(API + '/pedidos/' + (window._pedidosHistorialCompleto ? '' : '?dias=180'))
     const data = await res.json()
+    if (!Array.isArray(data)) throw new Error('respuesta inesperada')
+    window._pedidosData = data
+    window._pedF = { pill: '', estado: '', pago: '', desde: '', hasta: '', q: '' }
+    window._pedPagina = 100
 
     const hoy = new Date()
     const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
     const hace7 = new Date(hoy - 7 * 24 * 60 * 60 * 1000)
-
-    // checkout_iniciado = abandonó el pago (fue a MP y no eligió método ni pagó). No es venta.
     const NO_VENTA = ['cancelado', 'borrador', 'checkout_iniciado']
     const pedidosActivos = data.filter(p => !NO_VENTA.includes(p.status))
-    // La tabla "Todos" muestra solo ventas reales: sin borradores (están en Carritos) ni abandonados
-    const dataVisible = data.filter(p => p.status !== 'checkout_iniciado' && p.status !== 'borrador')
     const pedidosHoy = pedidosActivos.filter(p => new Date(p.created_at) >= inicioHoy)
-    const totalHoy = pedidosHoy.reduce((s, p) => s + parseFloat(p.total || 0), 0)
-    const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((s, p) => s + parseFloat(p.total || 0), 0)
+    const totalHoy = pedidosHoy.reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
+    const total7d = pedidosActivos.filter(p => new Date(p.created_at) >= hace7).reduce((sum, p) => sum + parseFloat(p.total || 0), 0)
     const pendienteSPEI = data.filter(p => p.status === 'pendiente_pago').length
     const abandonados = data.filter(p => p.status === 'checkout_iniciado').length
-    const porEnviar = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon')).length
+    const lista = data.filter(window._pedEsPorEnviar)
+    const porEnviar = lista.length
+    const porEnviarRojos = lista.filter(p => window._pedDias(p.confirmado_at || p.created_at) >= 3).length
+    const enviadosViejos = data.filter(p => p.status === 'enviado' && window._pedDias(p.enviado_at || p.created_at) >= 7).length
+    const apartados = data.filter(p => p.status === 'apartado').length
     const enCredito = data.filter(p => p.forma_pago === 'credito' && p.status !== 'cancelado').length
+    const dataVisible = data.filter(p => !_PED_NO_REAL.includes(p.status))
 
     const kpiCard = (valor, label, sub, color, bg, border, onclick) => `
       <div style="background:${bg};border-radius:14px;padding:1.1rem 1.25rem;border:1px solid ${border};cursor:${onclick ? 'pointer' : 'default'};transition:transform 0.15s,box-shadow 0.15s"
@@ -10144,8 +10154,21 @@ async function cargarPedidos() {
         <p style="font-size:0.7rem;font-weight:600;color:${color};opacity:0.85;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1px">${label}</p>
         ${sub ? `<p style="font-size:0.68rem;color:#94a3b8;margin-top:2px">${sub}</p>` : ''}
       </div>`
+    const verde = (valor, label, sub) => kpiCard(valor, label, sub, '#16a34a', '#f0fdf4', '#86efac', '')
+    const input = 'font-size:0.82rem;padding:7px 9px'
+    const pill = (clave, texto, extra = '') => `<button class="pill-filter ${extra}" data-pill="${clave}" onclick="cargarPedidosFiltro('${clave}')">${texto}</button>`
 
     content.innerHTML = `
+      <style>
+        @media (max-width: 760px) {
+          table.tabla-pedidos thead { display: none }
+          table.tabla-pedidos, table.tabla-pedidos tbody, table.tabla-pedidos tr, table.tabla-pedidos td { display: block; width: 100% }
+          table.tabla-pedidos tr { border: 1px solid #e5e7eb; border-radius: 12px; margin: 10px 0; padding: 10px 12px; background: #fff }
+          table.tabla-pedidos td { padding: 3px 0 !important; border: none !important; white-space: normal !important }
+          table.tabla-pedidos td[data-label]::before { content: attr(data-label) ": "; font-weight: 600; color: #94a3b8; font-size: 0.7rem }
+          table.tabla-pedidos td.acciones-ped { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 8px !important }
+        }
+      </style>
       <div style="margin-bottom:1.25rem">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
           <div>
@@ -10156,119 +10179,231 @@ async function cargarPedidos() {
               : 'Últimos 180 días y todo lo pendiente · <a href="#" onclick="window._pedidosHistorialCompleto=true;cargarPedidos();return false" style="color:#E91E8C">ver historial completo</a>'}</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="mostrarListaSurtido()">📋 Lista de surtido</button>
+            <button class="btn btn-secondary" onclick="mostrarGuiasLote()">🚚 Guías en lote</button>
             <button class="btn btn-secondary" onclick="mostrarFormLinkPago()" style="background:#ffe600;color:#333;border-color:#ffe600">💳 Crear link de pago</button>
             <button class="btn btn-primary" onclick="mostrarFormPedido()">+ Nuevo pedido</button>
           </div>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px">
-          ${kpiCard(pedidosHoy.length, 'Pedidos hoy', `$${totalHoy.toLocaleString('es-MX',{maximumFractionDigits:0})} vendidos`, '#E91E8C', 'linear-gradient(135deg,#fff0f8,#ffe4f2)', '#f9a8d4', '')}
-          ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p=>new Date(p.created_at)>=hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
+          ${kpiCard(pedidosHoy.length, 'Pedidos hoy', `$${totalHoy.toLocaleString('es-MX', { maximumFractionDigits: 0 })} vendidos`, '#E91E8C', 'linear-gradient(135deg,#fff0f8,#ffe4f4)', '#f9a8d4', '')}
+          ${kpiCard('$' + Math.round(total7d / 1000) + 'k', '7 días', `${pedidosActivos.filter(p => new Date(p.created_at) >= hace7).length} pedidos`, '#7c3aed', '#f5f3ff', '#ddd6fe', '')}
+          ${porEnviar > 0
+            ? kpiCard(porEnviar, 'Por enviar', porEnviarRojos > 0 ? `🔴 ${porEnviarRojos} con 3+ días` : 'Confirmados sin guía', porEnviarRojos > 0 ? '#b91c1c' : '#1d4ed8', porEnviarRojos > 0 ? '#fff1f2' : '#eff6ff', porEnviarRojos > 0 ? '#fda4af' : '#93c5fd', "cargarPedidosFiltro('por_enviar')")
+            : verde('0', 'Por enviar', 'Sin pendientes')}
+          ${enviadosViejos > 0
+            ? kpiCard(enviadosViejos, 'Enviados sin entrega', 'Hace 7+ días: revisa el rastreo', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('enviados_viejos')")
+            : verde('0', 'Enviados sin entrega', 'Todo al corriente')}
+          ${apartados > 0 ? kpiCard(apartados, 'Apartados', 'Esperando cierre', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('apartado')") : ''}
           ${pendienteSPEI > 0
             ? kpiCard(pendienteSPEI, 'SPEI/OXXO pendiente', 'Eligió método, falta pagar', '#b45309', '#fffbeb', '#fcd34d', "cargarPedidosFiltro('pendiente_pago')")
-            : kpiCard('0', 'SPEI/OXXO pendiente', 'Todo al corriente', '#16a34a', '#f0fdf4', '#86efac', '')}
+            : verde('0', 'SPEI/OXXO pendiente', 'Todo al corriente')}
           ${abandonados > 0
             ? kpiCard(abandonados, 'Abandonados', 'Fue a pagar y no terminó', '#be123c', '#fff1f2', '#fda4af', "cargarPedidosFiltro('abandonado')")
-            : kpiCard('0', 'Abandonados', 'Ninguno', '#16a34a', '#f0fdf4', '#86efac', '')}
-          ${porEnviar > 0
-            ? kpiCard(porEnviar, 'Por enviar', 'Pagados online', '#1d4ed8', '#eff6ff', '#93c5fd', "cargarPedidosFiltro('por_enviar')")
-            : kpiCard('0', 'Por enviar', 'Sin pendientes', '#16a34a', '#f0fdf4', '#86efac', '')}
+            : verde('0', 'Abandonados', 'Ninguno')}
           ${kpiCard(enCredito, 'En crédito', 'Pedidos activos', '#0f766e', '#f0fdfa', '#99f6e4', "cargarPedidosFiltro('credito')")}
         </div>
 
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <input class="form-input" id="ped-buscar" placeholder="Buscar por # pedido o cliente..."
-                 style="max-width:240px;font-size:0.82rem" oninput="filtrarPedidos()">
-          <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
-            <button class="pill-filter pill-active" onclick="cargarPedidosFiltro('')">Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span></button>
-            <button class="pill-filter" onclick="cargarPedidosFiltro('sucursal')">Sucursal</button>
-            <button class="pill-filter" onclick="cargarPedidosFiltro('whatsapp')">WhatsApp</button>
-            <button class="pill-filter" onclick="cargarPedidosFiltro('web')">Web</button>
-            <button class="pill-filter" onclick="cargarPedidosFiltro('mercadolibre')">🛒 MercadoLibre</button>
-            <button class="pill-filter pill-warning" onclick="cargarPedidosFiltro('pendiente_pago')">SPEI/OXXO pendiente</button>
-            <button class="pill-filter pill-danger" onclick="cargarPedidosFiltro('abandonado')">Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}</button>
-            <button class="pill-filter pill-info" onclick="cargarPedidosFiltro('por_enviar')">Por enviar</button>
-            <button class="pill-filter pill-success" onclick="cargarPedidosFiltro('credito')">Crédito</button>
-          </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+          <input class="form-input" id="ped-buscar" placeholder="Buscar # pedido, cliente, teléfono, guía o modelo..." style="flex:1;min-width:220px;max-width:340px;${input}" oninput="_pedFiltroCambio()">
+          <select class="form-input" id="ped-estado" style="max-width:150px;${input}" onchange="_pedFiltroCambio()">
+            <option value="">Todos los estados</option>
+            <option value="confirmado">Confirmado</option><option value="pagado">Pagado</option><option value="enviado">Enviado</option>
+            <option value="entregado">Entregado</option><option value="apartado">Apartado</option><option value="pendiente_pago">Pend. pago</option><option value="cancelado">Cancelado</option>
+          </select>
+          <select class="form-input" id="ped-pago" style="max-width:150px;${input}" onchange="_pedFiltroCambio()">
+            <option value="">Todas las formas de pago</option>
+            <option value="mercadopago">MercadoPago</option><option value="efectivo">Efectivo</option><option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia</option><option value="spei">SPEI</option><option value="oxxo">OXXO</option><option value="credito">Crédito</option>
+          </select>
+          <label style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:4px">Desde <input class="form-input" type="date" id="ped-desde" style="${input}" onchange="_pedFiltroCambio()"></label>
+          <label style="font-size:0.72rem;color:#64748b;display:flex;align-items:center;gap:4px">Hasta <input class="form-input" type="date" id="ped-hasta" style="${input}" onchange="_pedFiltroCambio()"></label>
+          <button class="btn btn-secondary" style="font-size:0.78rem;padding:6px 10px" onclick="_pedLimpiarFiltros()">Limpiar</button>
         </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="ped-filtros">
+          ${pill('', `Todos <span style="opacity:0.75;font-weight:400">${dataVisible.length}</span>`, 'pill-active')}
+          ${pill('sucursal', 'Sucursal')}${pill('whatsapp', 'WhatsApp')}${pill('web', 'Web')}${pill('portal_mayoreo', '🏢 Portal mayoreo')}${pill('mercadolibre', '🛒 MercadoLibre')}
+          ${pill('pendiente_pago', 'SPEI/OXXO pendiente', 'pill-warning')}
+          ${pill('abandonado', `Abandonados ${abandonados > 0 ? `<span style="opacity:0.75;font-weight:400">${abandonados}</span>` : ''}`, 'pill-danger')}
+          ${pill('por_enviar', `Por enviar ${porEnviar > 0 ? `<span style="opacity:0.75;font-weight:400">${porEnviar}</span>` : ''}`, 'pill-info')}
+          ${pill('credito', 'Crédito', 'pill-success')}
+        </div>
+        <p id="ped-contador" style="font-size:0.72rem;color:#94a3b8;margin:8px 0 0"></p>
       </div>
       <div class="table-card">
-        <table>
+        <table class="tabla-pedidos">
           <thead>
-            <tr>
-              <th># Pedido</th>
-              <th>Cliente</th>
-              <th>Canal</th>
-              <th>Total</th>
-              <th>Forma de pago</th>
-              <th>Status</th>
-              <th>Fecha</th>
-              <th>Acciones</th>
-            </tr>
+            <tr><th># Pedido</th><th>Cliente</th><th>Canal</th><th>Total</th><th>Forma de pago</th><th>Status</th><th>Fecha</th><th>Acciones</th></tr>
           </thead>
-          <tbody>
-            ${dataVisible.length === 0
-              ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos</td></tr>'
-              : dataVisible.map(p => _renderFilaPedido(p)).join('')}
-          </tbody>
+          <tbody id="ped-tbody"></tbody>
         </table>
       </div>
     `
-    window._pedidosData = data
-  } catch(e) {
+    _pedRender()
+  } catch (e) {
     content.innerHTML = '<p style="padding:2rem;color:red">Error conectando con el servidor</p>'
   }
 }
-window.filtrarPedidos = () => {
-  const buscar = document.getElementById('ped-buscar').value.toLowerCase()
-  const filas = document.querySelectorAll('#content tbody tr')
-  filas.forEach(fila => {
-    const texto = fila.textContent.toLowerCase()
-    fila.style.display = texto.includes(buscar) ? '' : 'none'
-  })
+
+// ── Filtros combinables: texto + estado + pago + fechas + etiqueta rápida ─────────────────────────
+function _pedFiltrados() {
+  const F = window._pedF
+  const data = window._pedidosData || []
+  const hoyIso = (d) => new Date(d).toISOString().slice(0, 10)
+  let l = data
+  switch (F.pill) {
+    case 'pendiente_pago': l = data.filter(p => p.status === 'pendiente_pago'); break
+    case 'abandonado': l = data.filter(p => p.status === 'checkout_iniciado'); break
+    case 'credito': l = data.filter(p => p.forma_pago === 'credito'); break
+    case 'por_enviar': l = data.filter(window._pedEsPorEnviar); break
+    case 'enviados_viejos': l = data.filter(p => p.status === 'enviado' && window._pedDias(p.enviado_at || p.created_at) >= 7); break
+    case 'apartado': l = data.filter(p => p.status === 'apartado'); break
+    case '': l = data.filter(p => !_PED_NO_REAL.includes(p.status)); break
+    default: l = data.filter(p => p.canal === F.pill && !_PED_NO_REAL.includes(p.status))
+  }
+  if (F.estado) l = l.filter(p => p.status === F.estado)
+  if (F.pago) l = l.filter(p => (p.mp_preference_id ? 'mercadopago' : p.forma_pago) === F.pago)
+  if (F.desde) l = l.filter(p => p.created_at && hoyIso(p.created_at) >= F.desde)
+  if (F.hasta) l = l.filter(p => p.created_at && hoyIso(p.created_at) <= F.hasta)
+  const q = (F.q || '').trim().toLowerCase()
+  if (q) {
+    l = l.filter(p => {
+      const items = (p.pedido_items || []).map(i => `${i.nombre || ''} ${i.color || ''}`).join(' ')
+      const hay = [p.id, (p.id || '').slice(0, 8), p.clientes && p.clientes.nombre, p.nombre_cliente, p.email_cliente, p.telefono_cliente,
+        p.clientes && p.clientes.telefono, p.numero_guia, p.paqueteria, items].filter(Boolean).join(' ').toLowerCase()
+      return q.split(/\s+/).every(t => hay.includes(t))
+    })
+  }
+  return l
 }
 
-window.cargarPedidosFiltro = (filtro) => {
-  const data = window._pedidosData || []
-  // "Todos" oculta borradores (están en Carritos) y abandonados
-  let filtrados = data.filter(p => p.status !== 'checkout_iniciado' && p.status !== 'borrador')
-  if (filtro === 'pendiente_pago') {
-    filtrados = data.filter(p => p.status === 'pendiente_pago')
-  } else if (filtro === 'abandonado') {
-    filtrados = data.filter(p => p.status === 'checkout_iniciado')
-  } else if (filtro === 'credito') {
-    filtrados = data.filter(p => p.forma_pago === 'credito')
-  } else if (filtro === 'por_enviar') {
-    filtrados = data.filter(p => p.status === 'pagado' && (p.mp_preference_id || p.mp_payment_id || p.canal === 'mercadolibre' || p.canal === 'shein' || p.canal === 'walmart' || p.canal === 'amazon'))
-  } else if (filtro) {
-    // Igual que "Todos": un borrador/checkout_iniciado no es una venta real,
-    // no debe aparecer mezclado al filtrar por canal (Web/Sucursal/WhatsApp/ML).
-    filtrados = data.filter(p => p.canal === filtro && p.status !== 'checkout_iniciado' && p.status !== 'borrador')
-  }
-
-  // Marcar botón activo
-  document.querySelectorAll('#content .btn[onclick^="cargarPedidosFiltro"]').forEach(btn => {
-    btn.classList.remove('btn-primary')
-    btn.classList.add('btn-secondary')
-  })
-  const btnActivo = document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('${filtro}')"]`)
-    || document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`)
-  if (btnActivo && filtro === '') {
-    const btnTodos = document.querySelector(`#content .btn[onclick="cargarPedidosFiltro('')"]`)
-    if (btnTodos) { btnTodos.classList.add('btn-primary'); btnTodos.classList.remove('btn-secondary') }
-  } else if (btnActivo) {
-    btnActivo.classList.add('btn-primary'); btnActivo.classList.remove('btn-secondary')
-  }
-
-  const tbody = document.querySelector('#content tbody')
+function _pedRender() {
+  const tbody = document.getElementById('ped-tbody')
   if (!tbody) return
+  const l = _pedFiltrados()
+  const hasta = window._pedPagina
+  const visibles = l.slice(0, hasta)
+  tbody.innerHTML = l.length === 0
+    ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos con esos filtros</td></tr>'
+    : visibles.map(_renderFilaPedido).join('') +
+      (l.length > hasta ? `<tr><td colspan="8" style="text-align:center;padding:14px"><button class="btn btn-secondary" onclick="window._pedPagina+=100;_pedRender()">Mostrar más (${l.length - hasta} restantes)</button></td></tr>` : '')
+  const c = document.getElementById('ped-contador')
+  if (c) c.textContent = `${l.length} pedido${l.length === 1 ? '' : 's'}`
+  document.querySelectorAll('#ped-filtros .pill-filter').forEach(b => b.classList.toggle('pill-active', b.dataset.pill === window._pedF.pill))
+}
 
-  if (filtrados.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;padding:2rem">No hay pedidos con ese filtro</td></tr>'
-    return
+window._pedFiltroCambio = () => {
+  const v = (id) => document.getElementById(id)?.value || ''
+  Object.assign(window._pedF, { q: v('ped-buscar'), estado: v('ped-estado'), pago: v('ped-pago'), desde: v('ped-desde'), hasta: v('ped-hasta') })
+  window._pedPagina = 100
+  _pedRender()
+}
+window.filtrarPedidos = window._pedFiltroCambio
+window.cargarPedidosFiltro = (filtro) => {
+  window._pedF.pill = filtro || ''
+  window._pedPagina = 100
+  _pedRender()
+}
+window._pedLimpiarFiltros = () => {
+  ;['ped-buscar', 'ped-estado', 'ped-pago', 'ped-desde', 'ped-hasta'].forEach(id => { const e = document.getElementById(id); if (e) e.value = '' })
+  window._pedF = { pill: '', estado: '', pago: '', desde: '', hasta: '', q: '' }
+  window._pedPagina = 100
+  _pedRender()
+}
+
+// ── Lista de surtido: cuántos pares de cada modelo/color/talla hay que sacar para los pedidos por enviar ──
+window.mostrarListaSurtido = () => {
+  const pedidos = (window._pedidosData || []).filter(window._pedEsPorEnviar)
+  const mapa = {}
+  pedidos.forEach(p => (p.pedido_items || []).forEach(i => {
+    const nombre = String(i.nombre || 'Producto').trim()
+    const k = `${nombre}|${i.color || ''}|${i.talla || ''}`
+    if (!mapa[k]) mapa[k] = { nombre, color: i.color || '', talla: i.talla || '', pares: 0, pedidos: new Set() }
+    mapa[k].pares += Number(i.cantidad) || 0
+    mapa[k].pedidos.add(p.id.slice(0, 6).toUpperCase())
+  }))
+  const filas = Object.values(mapa).sort((a, b) => a.nombre.localeCompare(b.nombre) || a.color.localeCompare(b.color) || (parseFloat(a.talla) || 0) - (parseFloat(b.talla) || 0))
+  const total = filas.reduce((s, f) => s + f.pares, 0)
+  const tabla = filas.length ? `
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead><tr style="text-align:left;color:#64748b;font-size:0.72rem;text-transform:uppercase"><th style="padding:6px">Modelo</th><th style="padding:6px">Color</th><th style="padding:6px">Talla</th><th style="padding:6px;text-align:right">Pares</th><th style="padding:6px">Pedidos</th></tr></thead>
+      <tbody>${filas.map(f => `<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px">${f.nombre}</td><td style="padding:6px">${f.color}</td><td style="padding:6px">${f.talla}</td><td style="padding:6px;text-align:right;font-weight:700">${f.pares}</td><td style="padding:6px;color:#94a3b8;font-size:0.72rem">${[...f.pedidos].map(x => '#' + x).join(' ')}</td></tr>`).join('')}</tbody>
+    </table>` : '<p style="color:#888;text-align:center;padding:1.5rem">No hay pedidos por enviar.</p>'
+  const modal = document.createElement('div')
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:22px;max-width:760px;width:100%;max-height:88vh;overflow:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">📋 Lista de surtido</h3><button onclick="this.closest('div[style*=fixed]').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 12px">${pedidos.length} pedido${pedidos.length === 1 ? '' : 's'} por enviar · ${total} par${total === 1 ? '' : 'es'} en total. Sirve para sacar todo de una vez del almacén.</p>
+      ${tabla}
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" ${filas.length ? '' : 'disabled'} onclick="imprimirListaSurtido()">🖨️ Imprimir</button><button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">Cerrar</button></div>
+    </div>`
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove() })
+  document.body.appendChild(modal)
+  window._surtidoHTML = `<h2 style="font-family:sans-serif">Lista de surtido — ${new Date().toLocaleDateString('es-MX')}</h2><p style="font-family:sans-serif;color:#555">${pedidos.length} pedidos · ${total} pares</p>${tabla}`
+}
+window.imprimirListaSurtido = () => {
+  const w = window.open('', '_blank')
+  if (!w) { alert('El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes.'); return }
+  w.document.write(`<!doctype html><meta charset="utf-8"><title>Lista de surtido</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border-bottom:1px solid #ccc;text-align:left}</style>${window._surtidoHTML || ''}`)
+  w.document.close(); w.focus(); setTimeout(() => w.print(), 300)
+}
+
+// ── Guías en lote: registrar el envío de varios pedidos a la vez ──────────────────────────────────
+window.mostrarGuiasLote = () => {
+  const pedidos = (window._pedidosData || []).filter(window._pedEsPorEnviar)
+    .sort((a, b) => new Date(a.confirmado_at || a.created_at) - new Date(b.confirmado_at || b.created_at)).slice(0, 100)
+  if (!pedidos.length) { alert('No hay pedidos por enviar.'); return }
+  const ultima = localStorage.getItem('ped_ultima_paqueteria') || ''
+  const opts = ['FedEx', 'Estafeta', 'DHL', 'otra'].map(x => `<option value="${x}" ${x === ultima ? 'selected' : ''}>${x}</option>`).join('')
+  const modal = document.createElement('div')
+  modal.id = 'modal-guias-lote'
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px'
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:22px;max-width:760px;width:100%;max-height:90vh;overflow:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">🚚 Guías en lote</h3><button onclick="document.getElementById('modal-guias-lote').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">Escribe la guía de cada pedido que ya mandaste. Los que dejes vacíos no se tocan. Al guardar, a cada cliente le llega su aviso por WhatsApp y correo.</p>
+      <label style="font-size:0.78rem;color:#475569">Paquetería para todos: <select id="lote-paq" class="form-input" style="display:inline-block;width:auto;font-size:0.82rem">${opts}</select></label>
+      <div style="margin-top:10px">${pedidos.map(p => {
+        const cli = p.clientes ? p.clientes.nombre : (p.nombre_cliente || 'Sin cliente')
+        const dias = window._pedDias(p.confirmado_at || p.created_at)
+        return `<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eef0f4;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px"><strong style="font-size:0.84rem">${cli}</strong><br><span style="font-size:0.7rem;color:#94a3b8;font-family:monospace">#${p.id.slice(0, 8).toUpperCase()} · $${parseFloat(p.total || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })} · ${dias >= 3 ? '🔴' : dias >= 1 ? '🟡' : '🟢'} ${dias} d</span></div>
+          <input class="form-input lote-guia" data-id="${p.id}" placeholder="Número de guía" style="width:190px;font-family:monospace;font-size:0.82rem">
+        </div>`
+      }).join('')}</div>
+      <p id="lote-resultado" style="display:none;font-size:0.8rem;margin:10px 0 0"></p>
+      <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" id="lote-guardar" onclick="guardarGuiasLote()">Guardar guías</button><button class="btn btn-secondary" onclick="document.getElementById('modal-guias-lote').remove()">Cancelar</button></div>
+    </div>`
+  document.body.appendChild(modal)
+}
+window.guardarGuiasLote = async () => {
+  const paq = document.getElementById('lote-paq').value
+  const filas = [...document.querySelectorAll('.lote-guia')].map(i => ({ id: i.dataset.id, paqueteria: paq, numero_guia: i.value.trim() })).filter(f => f.numero_guia)
+  const res = document.getElementById('lote-resultado')
+  if (!filas.length) { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Escribe al menos una guía.'; return }
+  const btn = document.getElementById('lote-guardar')
+  btn.disabled = true; btn.textContent = 'Guardando...'
+  try {
+    const r = await fetch(API + '/pedidos/marcar-enviado-lote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pedidos: filas }) })
+    const d = await r.json()
+    if (!r.ok) throw new Error(d.error || 'No se pudo guardar')
+    localStorage.setItem('ped_ultima_paqueteria', paq)
+    const ok = d.resultados.filter(x => x.ok).length
+    const fallos = d.resultados.filter(x => !x.ok)
+    if (!fallos.length) {
+      document.getElementById('modal-guias-lote').remove()
+      window.mostrarToastPanel(`✅ ${ok} pedido${ok === 1 ? '' : 's'} marcado${ok === 1 ? '' : 's'} como enviado${ok === 1 ? '' : 's'}`)
+      await cargarPedidos()
+    } else {
+      res.style.display = 'block'; res.style.color = '#b91c1c'
+      res.innerHTML = `Se guardaron ${ok}. No se pudieron ${fallos.length}: ` + fallos.map(f => `#${String(f.id).slice(0, 8).toUpperCase()} (${f.error})`).join(', ')
+      btn.disabled = false; btn.textContent = 'Guardar guías'
+      await cargarPedidos().catch(() => {})
+    }
+  } catch (e) {
+    res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = 'Error: ' + e.message
+    btn.disabled = false; btn.textContent = 'Guardar guías'
   }
-
-  tbody.innerHTML = filtrados.map(p => _renderFilaPedido(p)).join('')
 }
 
 window.mostrarFormPedido = async () => {
@@ -11382,8 +11517,10 @@ window.marcarEnvioCoordinado = async (pedidoId) => {
 
 window.cancelarPedido = async (id) => {
   if (!confirm('¿Cancelar este pedido? Si ya estaba confirmado se devolverá el stock automáticamente.')) return
+  const motivo = prompt('¿Por qué se cancela? (queda en el historial del pedido; puedes dejarlo vacío)', '')
+  if (motivo === null) return
   try {
-    const res = await fetch(API + '/pedidos/' + id + '/cancelar', { method: 'POST' })
+    const res = await fetch(API + '/pedidos/' + id + '/cancelar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ motivo }) })
     const data = await res.json()
     if (data.ok) {
       alert(data.stock_devuelto ? 'Pedido cancelado. Stock devuelto al inventario.' : 'Pedido cancelado.')
@@ -29347,3 +29484,29 @@ window._wmSincronizarInventario = async (btn) => {
     btn.disabled = false
   }
 }
+
+
+// ── Historial del pedido (quién cambió qué y cuándo) en el detalle ────────────────────────────────
+;(() => {
+  const original = window.verPedido
+  window.verPedido = async (id) => {
+    await original(id)
+    try {
+      const res = await fetch(API + '/pedidos/' + id + '/historial')
+      const filas = res.ok ? await res.json() : []
+      const content = document.getElementById('content')
+      if (!content || !Array.isArray(filas)) return
+      const etiqueta = { enviado: '🚚 Enviado', entregado: '🎉 Entregado', cancelado: '❌ Cancelado', confirmado: '✅ Confirmado', estado: '🔄 Cambio de estado' }
+      const html = `<div class="table-card" style="padding:1.25rem;margin-top:1rem">
+        <p style="font-weight:700;color:#0f172a;margin:0 0 10px">🕘 Historial del pedido</p>
+        ${filas.length === 0 ? '<p style="color:#94a3b8;font-size:0.82rem;margin:0">Todavía no hay movimientos registrados (solo se guardan los hechos desde hoy).</p>' : filas.map(f => `
+          <div style="display:flex;gap:12px;padding:8px 0;border-top:1px solid #f1f5f9;font-size:0.82rem">
+            <span style="color:#94a3b8;white-space:nowrap;min-width:120px">${new Date(f.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}</span>
+            <span style="flex:1"><strong>${etiqueta[f.accion] || f.accion}</strong>${f.detalle ? ` · <span style="color:#475569">${String(f.detalle).replace(/</g, '&lt;')}</span>` : ''}</span>
+            <span style="color:#94a3b8">${String(f.usuario || '').replace(/</g, '&lt;')}</span>
+          </div>`).join('')}
+      </div>`
+      content.insertAdjacentHTML('beforeend', html)
+    } catch (e) {}
+  }
+})()
