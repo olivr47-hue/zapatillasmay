@@ -338,13 +338,13 @@ function renderPC() {
       </span>
       <span>Carrito</span>
     </button>
-    <button class="pc-nav-item pc-bn-item${pc.tab === 'pedidos' ? ' activo' : ''}" onclick="pcIrA('pedidos')" aria-label="Mis pedidos">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
-      <span>Pedidos</span>
+    <button class="pc-nav-item pc-bn-item${pc.tab === 'vender' ? ' activo' : ''}" onclick="pcIrA('vender')" aria-label="Vender">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.4-.9-1.4-1.4-2.8-1.4-1.6 0-2.7.8-2.7 2 0 3 5.6 1.4 5.6 4.3 0 1.2-1.1 2.1-2.9 2.1-1.5 0-2.6-.6-3-1.6M12 6.5v11"/></svg>
+      <span>Vender</span>
     </button>
-    <button class="pc-nav-item pc-bn-item${pc.tab === 'cuenta' ? ' activo' : ''}" onclick="pcIrA('cuenta')" aria-label="Mi cuenta">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-      <span>Cuenta</span>
+    <button id="pc-bn-mas" class="pc-nav-item pc-bn-item${['registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(pc.tab) ? ' activo' : ''}" onclick="pcToggleSidebar()" aria-label="Más opciones">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span>Más</span>
     </button>
   </nav>
 
@@ -373,8 +373,12 @@ function renderPC() {
     @keyframes spin { to { transform: rotate(360deg) } }
     #pc-bottomnav { display: none; }
     @media (max-width: 768px) {
-      #pc-sidebar { position:fixed;left:0;top:0;bottom:0;z-index:200;transform:translateX(-100%);transition:transform 0.25s; }
+      /* El menú queda POR ENCIMA de la barra de abajo (antes esa barra tapaba "Cambiar tema" y "Cerrar sesión") y se desplaza
+         si no cabe en pantallas bajas (ahora tiene 10 secciones). */
+      #pc-sidebar { position:fixed;left:0;top:0;bottom:0;z-index:230;transform:translateX(-100%);transition:transform 0.25s;
+        overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:env(safe-area-inset-bottom); }
       #pc-sidebar.open { transform:translateX(0); }
+      #pc-sidebar-overlay { z-index:220 !important; }
       #pc-topbar { display:flex!important; }
       #pc-content { padding:20px 16px!important; }
       .pc-prod-grid { grid-template-columns:repeat(2,1fr)!important; gap:10px!important; }
@@ -400,6 +404,10 @@ function renderPC() {
         -webkit-tap-highlight-color: transparent;
       }
       .pc-bn-item span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+      /* La regla general .pc-nav-item (más abajo) pisaba el tamaño de letra y la separación de estos botones: los textos salían
+         grandes y cortados ("Pro…", "Ven…"). Con el id gana siempre. */
+      #pc-bottomnav .pc-bn-item { font-size: 0.62rem; gap: 2px; padding: 6px 1px; width: auto; justify-content: flex-start; text-align: center; border-radius: 10px; }
+      #pc-bottomnav.pc-bn-compacto .pc-bn-item { font-size: 0.55rem; }
       .pc-bn-item svg { width: 20px; height: 20px; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
       .pc-bn-item:active { transform: scale(0.92); }
       .pc-bn-item:active svg { transform: scale(1.12); }
@@ -520,6 +528,8 @@ function pcIrA(tab, _fromBack) {
     const t = el.getAttribute('onclick')?.match(/'(\w+)'/)?.[1]
     el.classList.toggle('activo', t === tab)
   })
+  // "Más" (móvil) se ilumina cuando estás en una sección que vive dentro de ese menú
+  document.getElementById('pc-bn-mas')?.classList.toggle('activo', ['registro', 'catalogos', 'apartados', 'pedidos', 'sugerencias', 'cuenta'].includes(tab))
   const content = document.getElementById('pc-content')
   if (!content) return
   // El polling en vivo del carrito solo debe correr mientras esa pestaña está
@@ -764,6 +774,8 @@ function renderInicio(el) {
       ${[
         { icon:'👟', label:'Ver catálogo', tab:'catalogo' },
         { icon:'💰', label:'Vender', tab:'vender' },
+        { icon:'📒', label:'Mi registro', tab:'registro' },
+        { icon:'📥', label:'Catálogos', tab:'catalogos' },
         { icon:'🛒', label:'Carrito', tab:'carrito' },
         { icon:'📦', label:'Mis pedidos',  tab:'pedidos' },
         { icon:'💡', label:'Sugerencias',  tab:'sugerencias' },
