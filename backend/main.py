@@ -10,6 +10,7 @@ from routers import productos, sucursales, inventario, clientes, pedidos, imagen
 from routers import empleados
 from routers import seo
 from routers import tiktok
+from routers import tiktok_excel
 from routers import catalogos
 from routers import mercadolibre
 from routers import shein
@@ -209,6 +210,7 @@ app.include_router(chatbot.router)
 # campanas.py (envío por WhatsApp NO oficial, vía QR/Evolution) está APAGADO desde 2026-10-04: casi bloquean el número del negocio.
 # El archivo se conserva en backend/routers/campanas.py por si algún día se quiere recuperar; para eso basta volver a importarlo e incluirlo aquí.
 app.include_router(tiktok.router)
+app.include_router(tiktok_excel.router)
 app.include_router(catalogos.router)
 app.include_router(mercadolibre.router)
 app.include_router(shein.router)

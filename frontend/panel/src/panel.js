@@ -102,6 +102,7 @@ const modulos = [
   { id: 'shein', icon: '🛍️', label: 'SHEIN', section: 'Integraciones', soloAdmin: true },
   { id: 'walmart', icon: '🏬', label: 'Walmart', section: 'Integraciones', soloAdmin: true },
   { id: 'amazon', icon: '📦', label: 'Amazon', section: 'Integraciones', soloAdmin: true },
+  { id: 'tiktok', icon: '🎵', label: 'TikTok Shop', section: 'Integraciones', soloAdmin: true },
   { id: 'notificaciones', icon: '🔔', label: 'Notificaciones push', section: 'Integraciones', soloAdmin: true },
   { id: 'correo', icon: '📧', label: 'Correo corporativo', section: 'Principal', soloAdmin: true },
   { id: 'analytics', icon: '📊', label: 'Google Analytics', section: 'Integraciones', soloAdmin: true },
@@ -663,6 +664,7 @@ async function cargarModulo(id) {
     case 'shein': await cargarShein(); break;
     case 'walmart': await cargarWalmart(); break;
     case 'amazon': await cargarAmazon(); break;
+    case 'tiktok': await cargarTikTok(); break;
     case 'notificaciones': await cargarNotificaciones(); break;
     case 'correo': await cargarCorreoCorporativo(); break;
     case 'analytics':    await cargarAnalyticsGA(); break;
@@ -20755,30 +20757,6 @@ async function cargarSEO() {
         </div>
 
         <div class="table-card" style="padding:2rem;margin-bottom:1rem">
-          <h3 style="margin-bottom:0.5rem">🎵 TikTok Shop — Sincronización</h3>
-          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem">
-            Descarga los archivos Excel listos para subir al <b>TikTok Shop Seller Center</b>.<br>
-            <b>Paso 1:</b> Importa todos los productos (primera vez).<br>
-            <b>Paso 2:</b> Actualiza el stock cuando cambie tu inventario.
-          </p>
-          <div style="display:flex;gap:1rem;flex-wrap:wrap">
-            <button onclick="descargarExcelTikTok(this,'import-excel','tiktok_importacion.csv')"
-               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#6366f1;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
-              📥 Descargar Excel de Importación
-            </button>
-            <button onclick="descargarExcelTikTok(this,'stock-excel','tiktok_stock.csv')"
-               style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.2rem;background:#10B981;color:#fff;border-radius:8px;font-weight:600;font-size:0.9rem;border:none;cursor:pointer">
-              📊 Descargar Excel de Stock
-            </button>
-          </div>
-          <div style="margin-top:1rem;padding:0.8rem;background:var(--bg-secondary);border-radius:8px;font-size:0.78rem;color:var(--text-muted)">
-            <b>Cómo usar:</b>
-            1. Elimina los productos actuales en TikTok Shop.
-            2. Descarga "Excel de Importación" → súbelo en <i>Gestionar productos → Agregar producto</i>.
-            3. Cuando cambie tu stock, descarga "Excel de Stock" y súbelo en <i>Administrar existencias → Reabastecer en lote</i>.
-          </div>
-        </div>
-        <div class="table-card" style="padding:2rem;margin-bottom:1rem">
           <h3 style="margin-bottom:1.5rem">SEO General</h3>
           <div style="display:grid;gap:1rem">
             <div>
@@ -22877,28 +22855,100 @@ window.mlFiltrarPubs = (q) => {
 }
 
 // ═══════════════════════════════════════════════════════
-window.descargarExcelTikTok = async function(btn, endpoint, filename) {
-  const textoOriginal = btn.innerHTML
-  try {
-    btn.innerHTML = '⏳ Generando...'
-    btn.disabled = true
-    const res = await fetch(`${API}/tiktok/${endpoint}`)
-    if (!res.ok) { const txt = await res.text(); throw new Error(`Error ${res.status}: ${txt}`) }
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  } catch(e) {
-    alert('Error al descargar el archivo: ' + e.message)
-  } finally {
-    btn.innerHTML = textoOriginal
-    btn.disabled = false
+// ─── TIKTOK SHOP (sin API: Excel para subir a mano) ───────────────────────────
+// La conexión automática de TikTok exige RFC de persona moral; mientras tanto el servidor arma los dos archivos que
+// TikTok sí deja subir: existencias ("Reabastecer en lote") y productos nuevos ("Importar en lote").
+async function cargarTikTok() {
+  const content = document.getElementById('content')
+  const inp = 'width:100%;padding:0.5rem;border:1px solid #ddd;border-radius:8px;font-size:0.82rem;background:#fff'
+  content.innerHTML = `
+    <div class="mkt-page-wrap" style="padding:1.5rem 2rem;max-width:900px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.15rem">
+        <div style="width:32px;height:32px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;font-size:16px">🎵</div>
+        <h2 style="margin:0;font-size:1.25rem">TikTok Shop</h2>
+      </div>
+      <p style="color:#888;font-size:0.85rem;margin:2px 0 1.25rem 42px">Dos archivos de Excel listos para subir a TikTok: existencias al día y productos nuevos.</p>
+
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.4rem;margin-bottom:1rem">
+        <h3 style="margin:0 0 4px;font-size:1rem">1 · Actualizar existencias</h3>
+        <ol style="font-size:0.82rem;color:#666;margin:0 0 0.8rem 18px;padding:0;line-height:1.6">
+          <li>En TikTok Seller Center: <i>Gestionar productos → Administrar existencias → Reabastecer en lote → Descargar todos los SKU</i>.</li>
+          <li>Sube aquí ese archivo (el que termina en <code>_all_file</code>, no el de bajo stock).</li>
+          <li>Descarga el resultado y súbelo en <i>Reabastecer en lote</i>.</li>
+        </ol>
+        <input type="file" id="tk-file-exist" accept=".xlsx" style="${inp};margin-bottom:0.6rem">
+        <button class="btn btn-primary" onclick="window._tkGenerar('existencias', this)">📊 Generar archivo de existencias</button>
+        <div id="tk-res-existencias" style="margin-top:0.8rem"></div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #eee;border-radius:14px;padding:1.4rem;margin-bottom:1rem">
+        <h3 style="margin:0 0 4px;font-size:1rem">2 · Subir productos nuevos</h3>
+        <ol style="font-size:0.82rem;color:#666;margin:0 0 0.8rem 18px;padding:0;line-height:1.6">
+          <li>En TikTok: <i>Agregar producto → Importar en lote → Descargar plantilla</i> (descárgala nueva cada vez).</li>
+          <li>Sube aquí la plantilla y el mismo archivo de existencias del paso 1: así solo salen los modelos que <b>todavía no están</b> en TikTok.</li>
+          <li>Descarga el resultado y súbelo en <i>Importar en lote</i>.</li>
+        </ol>
+        <label style="font-size:0.76rem;color:#888">Plantilla de importación</label>
+        <input type="file" id="tk-file-plant" accept=".xlsx" style="${inp};margin-bottom:0.5rem">
+        <label style="font-size:0.76rem;color:#888">Archivo de existencias de TikTok (el mismo del paso 1)</label>
+        <input type="file" id="tk-file-exist2" accept=".xlsx" style="${inp};margin-bottom:0.6rem">
+        <button class="btn btn-primary" onclick="window._tkGenerar('nuevos', this)">🆕 Generar productos nuevos</button>
+        <div id="tk-res-nuevos" style="margin-top:0.8rem"></div>
+      </div>
+
+      <div style="padding:0.9rem 1.1rem;background:#eff6ff;border-radius:10px;font-size:0.8rem;color:#1e3a8a">
+        <b>¿Por qué no es automático?</b> TikTok solo da acceso a su API a vendedores con RFC de persona moral. Mientras tanto esto toma 2 minutos
+        y corre en el servidor (ya no necesitas el script de tu computadora). Los precios son los de la tienda (+$80, sin sumar en ofertas) y las fotos
+        se ajustan al tamaño que pide TikTok.
+      </div>
+    </div>`
+}
+
+window._tkGenerar = async (tipo, btn) => {
+  const esc = window._escWA
+  const get = (id) => (document.getElementById(id) || {}).files && document.getElementById(id).files[0]
+  const fd = new FormData()
+  if (tipo === 'existencias') {
+    const f = get('tk-file-exist'); if (!f) { alert('Elige el archivo de existencias que descargaste de TikTok.'); return }
+    fd.append('archivo', f)
+  } else {
+    const pl = get('tk-file-plant'), ex = get('tk-file-exist2')
+    if (!pl || !ex) { alert('Elige la plantilla de importación y el archivo de existencias de TikTok.'); return }
+    fd.append('plantilla', pl); fd.append('existencias', ex)
   }
+  const out = document.getElementById('tk-res-' + tipo)
+  const orig = btn.innerHTML; btn.innerHTML = '⏳ Generando...'; btn.disabled = true
+  out.innerHTML = ''
+  try {
+    const res = await fetch(`${API}/tiktok/excel/${tipo}`, { method: 'POST', body: fd })
+    const d = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(d.detail || d.error || ('Error ' + res.status))
+    const r = d.resumen || {}
+    if (d.sin_nuevos) {
+      out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;color:#166534">✅ ${esc(d.mensaje)}</div>`
+      return
+    }
+    window._tkUltimo = window._tkUltimo || {}
+    window._tkUltimo[tipo] = { nombre: d.nombre, b64: d.archivo_base64 }
+    const detalle = tipo === 'existencias'
+      ? `${r.skus_en_tiktok} SKU(s) en TikTok · con existencias: ${r.con_stock} · agotados: ${r.agotados}${r.sin_match_en_erp ? ` · <b style="color:#b45309">sin match en el ERP: ${r.sin_match_en_erp}</b> (se dejan en 0): ${(r.ejemplos_sin_match || []).map(esc).join(', ')}` : ''}`
+      : `${r.productos_nuevos} modelo(s) nuevo(s) · ${r.filas} fila(s) (color/talla) · ya en TikTok: ${r.ya_en_tiktok}<br><span style="color:#666">${(r.ejemplos || []).map(esc).join(' · ')}</span>`
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#f0fdf4;color:#166534">✅ Listo. ${detalle}</div>
+      <button class="btn btn-secondary" style="margin-top:8px" onclick="window._tkDescargar('${tipo}')">⬇️ Descargar ${esc(d.nombre)}</button>`
+  } catch (e) {
+    out.innerHTML = `<div style="padding:0.7rem 0.9rem;border-radius:8px;font-size:0.82rem;background:#fef2f2;color:#991b1b">${esc(e.message)}</div>`
+  } finally { btn.innerHTML = orig; btn.disabled = false }
+}
+
+window._tkDescargar = (tipo) => {
+  const u = (window._tkUltimo || {})[tipo]
+  if (!u) return
+  const bin = atob(u.b64); const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+  const a = document.createElement('a'); a.href = url; a.download = u.nombre
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
 // ─── MERCADOLIBRE ─────────────────────────────────────────────────────────────
