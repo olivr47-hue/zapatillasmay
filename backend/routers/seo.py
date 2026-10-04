@@ -1128,7 +1128,7 @@ def _guia_tarjetas(prods):
     for p in prods[:8]:
         img = (p.get("imagen_principal") or "").strip()
         if "res.cloudinary.com" in img and "/upload/" in img:
-            img = img.replace("/upload/", "/upload/w_360,h_450,c_fill,g_auto,f_auto,q_auto/", 1)
+            img = img.replace("/upload/", "/upload/w_360,h_450,c_pad,b_rgb:f5ece2,f_auto,q_auto/", 1)
         slug_p = p.get("slug") or p.get("sku_interno") or ""
         nombre = _esc_pagina((p.get("nombre") or slug_p).strip())
         tarjetas.append(f'<a class="g-card" href="/producto/{_esc_pagina(slug_p)}"><img src="{_esc_pagina(img)}" alt="{nombre}" loading="lazy" width="360" height="450">{nombre}</a>')
