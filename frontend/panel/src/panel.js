@@ -1,4 +1,5 @@
 import QRCode from 'qrcode'
+import './redes.js'
 
 const API = '/api'
 // SHEIN /publicar (real, no preview) sube muchas fotos con reintentos y puede
@@ -94,6 +95,7 @@ const modulos = [
   { id: 'conversaciones', icon: '💬', label: 'Conversaciones', section: 'Ventas' },
   { id: 'envios', icon: '📣', label: 'Envíos masivos', section: 'Ventas' },
   { id: 'catalogos', icon: '📖', label: 'Catálogos', section: 'Catalogo', soloAdmin: true },
+  { id: 'redes', icon: '📣', label: 'Publicaciones', section: 'Catalogo', soloAdmin: true },
   { id: 'orden-home', icon: '🏠', label: 'Orden en Home', section: 'Catalogo', soloAdmin: true },
   { id: 'generar-nombres', icon: '✏️', label: 'Generar nombres', section: 'Catalogo', soloAdmin: true },
   { id: 'mercadolibre', icon: '🛒', label: 'MercadoLibre', section: 'Integraciones', soloAdmin: true },
@@ -630,6 +632,7 @@ async function cargarModulo(id) {
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando...</p>'
   switch(id) {
     case 'catalogos': await cargarCatalogos(); break
+    case 'redes': await window.cargarRedes(); break
     case 'dashboard': content.innerHTML = renderDashboardHTML(); setTimeout(() => cargarDashboard(), 100); break
     case 'productos': await cargarProductos(); break
     case 'resenas': await cargarResenasModeracion(); break

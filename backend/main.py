@@ -57,7 +57,7 @@ _PREFIJOS_PROTEGIDOS = (
     "/campanas", "/crm", "/emails", "/catalogos", "/merchant", "/businessprofile",
     "/searchconsole", "/push", "/imagenes", "/sucursales", "/carrito-abandonado",
     "/resenas", "/sugerencias", "/referidos", "/pinterest", "/catalogo",
-    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal", "/novedades",
+    "/seo", "/config", "/feed", "/productos/generar-seo", "/pagos/terminal", "/novedades", "/redes",
 )
 # (método o "*", regex del path completo)
 _PUBLICAS = [(m, _re.compile(r)) for m, r in (
@@ -229,6 +229,8 @@ app.include_router(push.router)
 app.include_router(emails.router)
 from routers import novedades
 app.include_router(novedades.router)
+from routers import redes
+app.include_router(redes.router)
 
 # ── Hilo en segundo plano: procesar carritos abandonados cada 15 min ──
 import threading, time as _time
