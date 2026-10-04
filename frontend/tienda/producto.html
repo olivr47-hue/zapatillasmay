@@ -1369,7 +1369,7 @@ function irACarrito() {
   // Meta CAPI: AddToCart server-side
   try {
     const _usuarioProd = (() => { try { return JSON.parse(localStorage.getItem('usuario') || 'null') } catch(e) { return null } })()
-    fetch('/api/pagos/meta/evento', {
+    fetch(API + '/pagos/meta/evento', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event_name: 'AddToCart', event_source_url: location.href,
