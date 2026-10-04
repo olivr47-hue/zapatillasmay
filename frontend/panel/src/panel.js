@@ -10067,15 +10067,12 @@ function _renderFilaPedido(p) {
   const porEnviar = window._pedEsPorEnviar(p)
   const esEnviado = p.status === 'enviado'
   const diasEsperando = window._pedDias(p.confirmado_at || p.created_at)
-  const diasEnviado = window._pedDias(p.enviado_at || p.created_at)
 
-  // Semáforo: cuánto lleva esperando envío (rojo = 3+ días) o sin confirmar la entrega (enviado hace 7+ días)
+  // Semáforo: cuánto lleva esperando envío (rojo = 3+ días). Una vez enviado ya no se da seguimiento a la entrega
   let semaforo = ''
   if (porEnviar) {
     const [c, bg, txt] = diasEsperando >= 3 ? ['#b91c1c', '#fee2e2', `🔴 ${diasEsperando} días sin enviar`] : diasEsperando >= 1 ? ['#b45309', '#fef3c7', `🟡 ${diasEsperando} día${diasEsperando > 1 ? 's' : ''} sin enviar`] : ['#166534', '#dcfce7', '🟢 Nuevo']
     semaforo = `<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:${bg};color:${c}">${txt}</span>`
-  } else if (esEnviado && diasEnviado >= 7) {
-    semaforo = `<br><span style="display:inline-block;margin-top:3px;font-size:0.66rem;font-weight:700;padding:2px 8px;border-radius:100px;background:#fef3c7;color:#b45309">⏳ Enviado hace ${diasEnviado} días</span>`
   }
 
   const btn = (txt, onclick, estilo = '') => `<button class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem;${estilo}" onclick="${onclick}">${txt}</button>`
@@ -10084,8 +10081,7 @@ function _renderFilaPedido(p) {
     acciones = `${btn('🚚 Enviar', `abrirModalEnvio('${p.id}')`, 'background:#1565c0;border-color:#1565c0;color:#fff')}
       ${btn('🏪 Entrega directa', `marcarEntregadoPedido('${p.id}', true)`)}`
   } else if (esEnviado) {
-    acciones = `${p.tracking_url ? `<a href="${p.tracking_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem">📍 Rastrear</a>` : ''}
-      ${btn('✅ Entregado', `marcarEntregadoPedido('${p.id}', false)`)}`
+    acciones = `${p.tracking_url ? `<a href="${p.tracking_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:5px 9px;font-size:0.72rem">📍 Rastrear</a>` : ''}`
   }
 
   const guiaInfo = p.numero_guia && (esEnviado || p.status === 'entregado')
