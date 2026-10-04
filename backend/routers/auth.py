@@ -536,7 +536,7 @@ def newsletter_subscribe(request: Request, datos: dict):
                     <div style="background:#fdf8f5;border-radius:10px;padding:20px;margin-bottom:24px">
                       <p style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#c8967a;margin:0 0 12px">Lo que te espera:</p>
                       <p style="font-size:0.88rem;color:#444;margin:6px 0">✨ Nuevos modelos cada semana</p>
-                      <p style="font-size:0.88rem;color:#444;margin:6px 0">🏷️ Precios de mayoreo desde 3 pares</p>
+                      <p style="font-size:0.88rem;color:#444;margin:6px 0">🏷️ Descuento automático desde 3 pares</p>
                       <p style="font-size:0.88rem;color:#444;margin:6px 0">🚚 Envíos a todo México</p>
                       <p style="font-size:0.88rem;color:#444;margin:6px 0">👠 Fabricado en León, Guanajuato</p>
                     </div>

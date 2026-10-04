@@ -254,7 +254,7 @@ def _producto_ssr_inner(sku: str, request: Request):
         _partes.append("Con " + ", ".join(_det) + ".")
     if colores:
         _partes.append("Disponible en " + ", ".join(colores[:6]) + ".")
-    _partes.append("Mayoreo automático desde 3 pares y envíos a todo México.")
+    _partes.append("Descuento automático desde 3 pares y envíos a todo México.")
     desc_unica = " ".join(_partes)
     # Meta description única: prioriza la del panel si es suficientemente larga; si no, usa la generada automáticamente
     desc = (meta_desc if (meta_desc and len(meta_desc) >= 130) else desc_unica)[:160]
@@ -565,35 +565,35 @@ _PAGINAS_H1 = {
     "tenis":       "Tenis de Dama Mayoreo León Guanajuato — Moda Deportiva | Zapatillas May",
     "nina":        "Calzado para Niña Mayoreo León Guanajuato — Cómodo y Resistente | Zapatillas May",
     "accesorios":  "Accesorios de Moda Mayoreo León Guanajuato | Zapatillas May",
-    "mayoreo":     "Mayoreo de Calzado Dama sin Mínimo desde 3 Pares — León Guanajuato | Zapatillas May",
+    "mayoreo":     "Calzado de Dama al Mayoreo en León, Guanajuato — Portal para Mayoristas | Zapatillas May",
     "ofertas":     "Ofertas de Calzado de Dama León Guanajuato — Precios Especiales | Zapatillas May",
 }
 
 _PAGINAS_SEO = {
     "tacones": ("Zapatillas y Tacones de Dama | Zapatillas May — León",
-                "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México."),
+                "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares: aguja, bloque y plataforma. Envíos a todo México."),
     "sandalias": ("Sandalias de Dama — Mayoreo y Menudeo | Zapatillas May",
-                  "Sandalias de moda para dama hechas en León, Guanajuato. Precios de mayoreo desde 3 pares, casuales y de fiesta. Envíos a todo México."),
+                  "Sandalias de moda para dama hechas en León, Guanajuato. Descuento automático desde 3 pares, casuales y de fiesta. Envíos a todo México."),
     "botas": ("Botas de Mujer y Dama — Mayoreo y Menudeo | Zapatillas May",
-              "Botas de mujer y dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro, en cuero y sintético. Envíos a todo México."),
+              "Botas de mujer y dama fabricadas en León, Guanajuato. Descuento automático desde 3 pares, en cuero y sintético. Envíos a todo México."),
     "botines": ("Botines de Dama — Mayoreo y Menudeo | Zapatillas May",
-                "Botines de moda para dama hechos en León, Guanajuato. Precios de mayoreo desde 3 pares sin registro, los últimos estilos. Envíos a todo México."),
+                "Botines de moda para dama hechos en León, Guanajuato. Descuento automático desde 3 pares, los últimos estilos. Envíos a todo México."),
     "flats": ("Flats y Zapatos Bajos de Dama — Mayoreo | Zapatillas May",
-              "Flats y zapatos bajos de dama, cómodos y de moda, fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México."),
+              "Flats y zapatos bajos de dama, cómodos y de moda, fabricados en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México."),
     "plataformas": ("Plataformas de Dama — Mayoreo y Menudeo | Zapatillas May",
-                    "Plataformas de moda para dama hechas en León, Guanajuato. Altura con comodidad, mayoreo desde 3 pares. Envíos a todo México."),
+                    "Plataformas de moda para dama hechas en León, Guanajuato. Altura con comodidad, descuento desde 3 pares. Envíos a todo México."),
     "tenis": ("Tenis de Dama — Mayoreo y Menudeo | Zapatillas May",
-              "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro, estilo urbano y deportivo. Envíos a todo México."),
+              "Tenis de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares, estilo urbano y deportivo. Envíos a todo México."),
     "nina": ("Calzado para Niña — Mayoreo y Menudeo | Zapatillas May",
-             "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, mayoreo desde 3 pares. Envíos a todo México."),
+             "Calzado de moda para niña fabricado en León, Guanajuato. Cómodo y resistente, descuento desde 3 pares. Envíos a todo México."),
     "accesorios": ("Accesorios — Zapatillas May León, Guanajuato",
                    "Accesorios para complementar tu look en Zapatillas May. Fabricado en León, Guanajuato. Mayoreo y menudeo con envíos a todo México."),
-    "mayoreo": ("Mayoreo de Calzado desde 3 Pares | Zapatillas May",
-                "Compra calzado de dama a precio de mayoreo desde 3 pares, sin registro especial. Fabricado en León, Guanajuato. Envíos a todo México."),
+    "mayoreo": ("Calzado de Dama al Mayoreo en León — Fábrica | Zapatillas May",
+                "Fábrica de calzado de dama en León, Guanajuato: mayoreo por corrida, catálogo con fotos y precios para zapaterías y revendedoras. Registro gratis en el Portal de Mayoristas."),
     "ofertas": ("Ofertas de Calzado de Dama | Zapatillas May",
                 "Aprovecha las ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México."),
     "nosotros": ("Sobre Nosotras — Fábrica de Calzado | Zapatillas May",
-                 "Conoce Zapatillas May, fabricante de calzado femenino de moda en León, Guanajuato. Calidad artesanal a precio de mayoreo y menudeo."),
+                 "Conoce Zapatillas May, fabricante de calzado femenino de moda en León, Guanajuato. Calidad artesanal en menudeo y mayoreo (Portal de Mayoristas)."),
     "envios": ("Envíos a todo México | Zapatillas May",
                "Información de envíos de Zapatillas May: cobertura nacional, tiempos y costos, con envío gratis desde cierto monto. León, Guanajuato."),
     "contacto": ("Contacto | Zapatillas May — León, Guanajuato",
@@ -601,7 +601,7 @@ _PAGINAS_SEO = {
     "tabla-tallas": ("Tabla de Tallas | Zapatillas May",
                      "Consulta la tabla de tallas de Zapatillas May para elegir tu medida correcta. Calzado de dama fabricado en León, Guanajuato."),
     "como-comprar": ("Cómo Comprar — Menudeo y Mayoreo | Zapatillas May",
-                     "Guía paso a paso para comprar en Zapatillas May: menudeo y mayoreo desde 3 pares, formas de pago y envíos a todo México."),
+                     "Guía paso a paso para comprar en Zapatillas May: menudeo con descuento desde 3 pares, mayoreo en el portal, formas de pago y envíos a todo México."),
     "privacidad": ("Aviso de Privacidad | Zapatillas May",
                    "Aviso de privacidad de Zapatillas May. Conoce cómo recopilamos, protegemos y usamos tus datos personales conforme a la ley mexicana."),
     "politica-de-devoluciones": ("Política de Devoluciones — 30 Días | Zapatillas May",
@@ -617,7 +617,7 @@ _PAGINAS_CONTENT = {
   <p style="color:#7a6055;margin-bottom:24px">Fabricante de calzado femenino en León, Guanajuato</p>
   <p>Somos una empresa familiar fabricante de calzado femenino de moda con sede en <strong>León, Guanajuato</strong>, la capital mundial del calzado. Llevamos años produciendo tacones, sandalias, botas, botines, flats y plataformas con materiales de calidad y diseños actuales.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Directo del fabricante</h2>
-  <p>Al comprar en Zapatillas May adquieres calzado directamente de la fábrica, sin intermediarios. Eso nos permite ofrecerte precios competitivos tanto en menudeo como en <strong>mayoreo desde 3 pares</strong>, sin necesidad de registro ni mínimos absurdos.</p>
+  <p>Al comprar en Zapatillas May adquieres calzado directamente de la fábrica, sin intermediarios. Eso nos permite ofrecerte precios competitivos tanto en menudeo (con <strong>descuento automático desde 3 pares</strong>) como en mayoreo por corrida a través del Portal de Mayoristas.</p>
   <h2 style="font-size:1.2rem;margin-top:32px">Precios de mayoreo automáticos</h2>
   <ul style="padding-left:20px">
     <li>1–2 pares: precio de menudeo</li>
@@ -695,7 +695,7 @@ _PAGINAS_CONTENT = {
   <ol style="padding-left:20px">
     <li style="margin-bottom:10px"><strong>Explora el catálogo</strong> — navega por categoría o usa el buscador para encontrar tu modelo.</li>
     <li style="margin-bottom:10px"><strong>Elige talla y color</strong> — selecciona la variante que quieras en la página del producto.</li>
-    <li style="margin-bottom:10px"><strong>Agrega al carrito</strong> — el precio de mayoreo se aplica automáticamente al agregar 3 o más pares.</li>
+    <li style="margin-bottom:10px"><strong>Agrega al carrito</strong> — el descuento por varios pares se aplica automáticamente al agregar 3 o más pares.</li>
     <li style="margin-bottom:10px"><strong>Elige tu forma de pago</strong> — tarjeta, SPEI, OXXO o MercadoPago.</li>
     <li style="margin-bottom:10px"><strong>Recibe en 1–3 días hábiles</strong> — con guía de rastreo por correo.</li>
   </ol>
@@ -722,15 +722,15 @@ _PAGINAS_CONTENT = {
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px">
       <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">📥 Catálogos por categoría</span>
       <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">👟 Arma tu corrida</span>
-      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">💰 Precios de mayoreo</span>
+      <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">💰 Precios de mayoreo (solo en el portal)</span>
       <span style="background:rgba(255,255,255,0.18);border-radius:100px;padding:6px 14px;font-size:0.78rem;font-weight:600">📱 Pide desde tu celular</span>
     </div>
     <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:white;color:#E91E8C;font-weight:800;text-decoration:none;padding:13px 32px;border-radius:100px;font-size:0.95rem">Entrar al portal de mayoristas →</a>
   </div>
-  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Mayoreo de Calzado — Sin Mínimo Absurdo</h2>
-  <p style="color:#7a6055;margin-bottom:24px">Desde 3 pares, sin registro especial · León, Guanajuato</p>
-  <p>En Zapatillas May puedes comprar a precio de mayoreo desde <strong>3 pares</strong>, sin necesidad de registro, RFC ni trámite especial: el descuento de 3 a 5 pares se aplica automáticamente en el carrito. Para precios de 6 pares en adelante, corrida completa y catálogo con fotos, regístrate gratis en el Portal de Mayoristas.</p>
-  <h2 style="font-size:1.2rem;margin-top:28px">Ejemplo de precios de mayoreo</h2>
+  <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Calzado de Dama al Mayoreo — Fábrica en León, Guanajuato</h2>
+  <p style="color:#7a6055;margin-bottom:24px">Para zapaterías, boutiques y revendedoras · Envíos a todo México</p>
+  <p>Somos fabricantes de calzado de dama en León, Guanajuato. Si compras para revender, el <strong>Portal de Mayoristas</strong> te da tu catálogo con fotos, tus precios de mayoreo, el armado de tu corrida por talla y color y el seguimiento de tus pedidos. El registro es gratuito.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Cómo bajan los precios según lo que compras</h2>
   <table style="width:100%;border-collapse:collapse;margin-top:12px">
     <thead><tr style="background:#f5ece2">
       <th style="padding:8px 12px;text-align:left;border:1px solid #e8d8cc">Cantidad</th>
@@ -739,7 +739,7 @@ _PAGINAS_CONTENT = {
     </tr></thead>
     <tbody>
       <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">1–2 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Precio de menudeo</td><td style="padding:8px 12px;border:1px solid #e8d8cc">zapatillasmay.mx</td></tr>
-      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$60 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">zapatillasmay.mx (automático)</td></tr>
+      <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">3–5 pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$60 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">zapatillasmay.mx (descuento automático en el carrito)</td></tr>
       <tr><td style="padding:8px 12px;border:1px solid #e8d8cc">6+ pares</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$100 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Portal de Mayoristas</td></tr>
       <tr style="background:#fdf8f4"><td style="padding:8px 12px;border:1px solid #e8d8cc">Corrida completa</td><td style="padding:8px 12px;border:1px solid #e8d8cc">−$180 MXN por par</td><td style="padding:8px 12px;border:1px solid #e8d8cc">Portal de Mayoristas</td></tr>
     </tbody>
@@ -751,8 +751,11 @@ _PAGINAS_CONTENT = {
     <p style="margin:0 0 16px;color:#7a6055">Entra a nuestro Portal de Mayoristas: precios especiales, arma tu corrida por talla y color, descarga catálogos y haz tu pedido directo.</p>
     <a href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener" style="display:inline-block;background:#E91E8C;color:white;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px">Entrar al portal de mayoristas →</a>
   </div>
-  <h2 style="font-size:1.2rem;margin-top:28px">Sin registro para empezar</h2>
-  <p>No necesitas cuenta especial ni autorización previa para comprar 3 a 5 pares a precio de mayoreo desde tu primer pedido en zapatillasmay.mx. Para precios de 6 pares en adelante y corridas completas, el registro en el Portal de Mayoristas es gratuito.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">¿Solo quieres unos cuantos pares?</h2>
+  <p>Si tu compra es para ti o para pocos pares, puedes comprar directo en <a href="/" style="color:#E91E8C">zapatillasmay.mx</a>: desde 3 pares el descuento de $60 por par se aplica automáticamente en el carrito, sin registro. Para 6 pares en adelante y corridas completas, el registro en el Portal de Mayoristas es gratuito.</p>
+  <h2 style="font-size:1.2rem;margin-top:28px">Mayoreo por tipo de calzado</h2>
+  <p>Fabricamos y surtimos <a href="/sandalias" style="color:#E91E8C">sandalias</a>, <a href="/tacones" style="color:#E91E8C">tacones</a>, <a href="/botas" style="color:#E91E8C">botas</a>, <a href="/botines" style="color:#E91E8C">botines</a>, <a href="/flats" style="color:#E91E8C">flats</a>, <a href="/plataformas" style="color:#E91E8C">plataformas</a> y <a href="/tenis" style="color:#E91E8C">tenis</a> de dama. Entra al portal para ver el catálogo completo con fotos y tus precios.</p>
+  <p style="margin-top:18px"><a href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20mayoreo" target="_blank" rel="noopener" style="display:inline-block;border:2px solid #25D366;color:#128C4A;font-weight:700;text-decoration:none;padding:10px 24px;border-radius:100px">Escríbenos por WhatsApp para mayoreo</a></p>
 </section>""",
     "privacidad": """
 <section style="max-width:700px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
@@ -801,8 +804,8 @@ _FAQS: dict[str, list[dict]] = {
     "tacones": [
         {"q": "¿Qué tipos de tacones venden?",
          "a": "Vendemos tacones de aguja, bloque, cuña, plataforma y kitten heel para dama, todos fabricados en León, Guanajuato. Contamos con modelos para oficina, eventos especiales y uso diario en una amplia variedad de colores y materiales."},
-        {"q": "¿Puedo comprar tacones al mayoreo sin registro?",
-         "a": "Sí. El mayoreo es automático desde 3 pares: no necesitas registro, RFC ni trámite especial. Con 3–5 pares el descuento es $60 MXN por par. El precio de 6 o más pares ($100 MXN por par) y de corrida completa (hasta $180 MXN por par) están disponibles solo en el Portal de Mayoristas, con registro gratuito."},
+        {"q": "¿Hay descuento si compro varios pares de tacones?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Qué tallas manejan en tacones?",
          "a": "La mayoría de nuestros modelos de tacones están disponibles en tallas del 22 al 27 (numeración mexicana), equivalentes a las tallas 5 a 10 US. Algunos modelos especiales pueden tener rango reducido; consulta la ficha de cada producto."},
         {"q": "¿Hacen envíos de tacones a todo México?",
@@ -811,8 +814,8 @@ _FAQS: dict[str, list[dict]] = {
     "sandalias": [
         {"q": "¿Qué estilos de sandalias tienen disponibles?",
          "a": "Contamos con sandalias casuales, de fiesta, de cuña, planas y con tiras para dama, fabricadas en León, Guanajuato. Tenemos modelos para playa, uso diario y eventos en materiales como cuero sintético, textil y charol."},
-        {"q": "¿Puedo comprar sandalias al mayoreo?",
-         "a": "Sí, vendemos sandalias al mayoreo desde 3 pares sin registro especial. El descuento de $60 MXN por par (3–5 pares) se aplica automáticamente en el carrito. El precio de 6 o más pares ($100 MXN por par) y de corrida completa (hasta $180 MXN por par) están disponibles solo en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de sandalias?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Las sandalias están disponibles en talla grande?",
          "a": "Manejamos tallas del 22 al 27 (MX) en la mayoría de modelos de sandalias. Si necesitas una talla especial o tienes dudas sobre disponibilidad, escríbenos por WhatsApp antes de realizar tu pedido."},
         {"q": "¿Cuánto tarda en llegar un pedido de sandalias?",
@@ -821,8 +824,8 @@ _FAQS: dict[str, list[dict]] = {
     "botas": [
         {"q": "¿Qué tipos de botas para mujer tienen?",
          "a": "Manejamos botas altas, medianas y cortas para mujer en materiales como cuero sintético, charol y textil. Nuestros modelos van desde botas de moda urbana hasta botas vaqueras y de temporada, fabricadas en León, Guanajuato."},
-        {"q": "¿Venden botas al mayoreo?",
-         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 pares sin ningún trámite: $60 MXN de descuento por par con 3–5 pares. El precio de 6 o más pares ($100 MXN por par) y de corrida completa (hasta $180 MXN por par) están disponibles solo en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de botas?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Las botas tienen garantía de fabricación?",
          "a": "Sí. Aceptamos devoluciones y cambios dentro de los 30 días naturales si el producto presenta defecto de fabricación. En ese caso cubrimos el costo del envío de devolución."},
         {"q": "¿Tienen botas para temporada de frío?",
@@ -831,8 +834,8 @@ _FAQS: dict[str, list[dict]] = {
     "botines": [
         {"q": "¿Qué estilos de botines manejan?",
          "a": "Tenemos botines con tacón, botines planos, con hebilla, con cremallera y con elástico para dama. Todos fabricados en León, Guanajuato en materiales de calidad: cuero sintético, ante, charol y textil."},
-        {"q": "¿Puedo comprar botines al mayoreo sin ser tienda?",
-         "a": "Sí, cualquier persona puede comprar a precio de mayoreo. Solo necesitas agregar 3 o más pares al carrito y el descuento se aplica solo. No se requiere RFC, registro de negocio ni trámite previo."},
+        {"q": "¿Hay descuento por varios pares de botines?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Los botines vienen en corrida completa de tallas?",
          "a": "Sí, pero la corrida completa (un mismo modelo en todas las tallas disponibles) con el mejor precio por par ($180 MXN menos que el precio de menudeo) está disponible solo en el Portal de Mayoristas."},
         {"q": "¿Hacen envíos de botines a todo México?",
@@ -841,8 +844,8 @@ _FAQS: dict[str, list[dict]] = {
     "flats": [
         {"q": "¿Qué son los flats y qué modelos tienen?",
          "a": "Los flats son zapatos de piso sin tacón, cómodos para uso diario. En Zapatillas May manejamos flats tipo bailarina, mocasín, loafer y puntiagudos para dama, fabricados en León, Guanajuato en cuero sintético, charol y textil."},
-        {"q": "¿Tienen flats al mayoreo?",
-         "a": "Sí, los flats también aplican para el mayoreo automático desde 3 pares: el precio baja $60 MXN por par con 3–5 pares. El precio de 6 o más pares ($100 por par) y de corrida completa (hasta $180) están disponibles solo en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de flats?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Los flats son cómodos para usar todo el día?",
          "a": "Sí. Nuestros flats están diseñados para uso prolongado con plantilla acolchada y horma cómoda. Son ideales para oficina, school y uso cotidiano. Puedes consultar los detalles de materiales y suela en la ficha de cada modelo."},
         {"q": "¿Puedo devolver unos flats si no son de mi talla?",
@@ -853,16 +856,16 @@ _FAQS: dict[str, list[dict]] = {
          "a": "Nuestras plataformas para dama varían entre 3 y 10 cm de altura de base, dependiendo del modelo. Puedes ver la altura exacta en la ficha técnica de cada producto. Fabricadas en León, Guanajuato."},
         {"q": "¿Las plataformas son cómodas para uso prolongado?",
          "a": "Sí. La plataforma distribuye el peso del pie de forma más uniforme que un tacón alto tradicional, lo que las hace más cómodas para caminar. Nuestros modelos incluyen plantilla acolchada y suela antiderrapante."},
-        {"q": "¿Tienen plataformas al mayoreo?",
-         "a": "Sí. Mayoreo automático desde 3 pares sin registro: $60 MXN de descuento por par con 3–5 pares. El precio de 6 o más pares ($100 por par) y de corrida completa (hasta $180) están disponibles solo en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de plataformas?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿En qué materiales están disponibles las plataformas?",
          "a": "Manejamos plataformas en cuero sintético, charol, ante y textil en distintos colores de temporada. Consulta el catálogo actualizado en nuestra tienda en línea."},
     ],
     "tenis": [
         {"q": "¿Qué tipo de tenis para dama venden?",
          "a": "Vendemos tenis de moda urbana y casual para dama, fabricados en León, Guanajuato. Nuestros modelos incluyen tenis plataforma, tenis chunky y tenis ligeros para uso diario en materiales textiles y sintéticos."},
-        {"q": "¿Los tenis aplican para mayoreo?",
-         "a": "Sí. El mayoreo automático aplica desde 3 pares: $60 MXN menos por par con 3–5 pares, sin registro ni trámite previo. El precio de 6 o más pares ($100 por par) y de corrida completa (hasta $180) están disponibles solo en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de tenis?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Tienen tenis deportivos o solo de moda?",
          "a": "Nuestro catálogo está enfocado en tenis de moda y estilo urbano para dama. No manejamos tenis deportivos de alto rendimiento. Son ideales para uso casual, escolar y street style."},
         {"q": "¿Cuánto tarda el envío de tenis?",
@@ -871,8 +874,8 @@ _FAQS: dict[str, list[dict]] = {
     "nina": [
         {"q": "¿Qué tipos de calzado para niña manejan?",
          "a": "Tenemos zapatillas, sandalias, botines y zapatos escolares para niña, fabricados en León, Guanajuato. Los modelos están diseñados para ser cómodos, resistentes y de moda para las más pequeñas."},
-        {"q": "¿Venden calzado de niña al mayoreo?",
-         "a": "Sí, el mayoreo automático aplica desde 3 pares sin registro: $60 MXN de descuento por par con 3–5 pares. Para 6 o más pares y corrida completa (hasta $180 MXN por par), regístrate gratis en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varios pares de calzado de niña?",
+         "a": "Sí. Con 3–5 pares el descuento es de $60 MXN por par y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más pares: −$100 MXN por par; corrida completa: hasta −$180 MXN por par) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Qué tallas manejan en calzado para niña?",
          "a": "Manejamos tallas infantiles desde el 14 hasta el 21 (MX) aproximadamente, dependiendo del modelo. Consulta la ficha de cada producto o escríbenos por WhatsApp para verificar disponibilidad en tallas específicas."},
         {"q": "¿El calzado de niña es de buena calidad y resistente?",
@@ -881,22 +884,22 @@ _FAQS: dict[str, list[dict]] = {
     "accesorios": [
         {"q": "¿Qué tipo de accesorios venden?",
          "a": "Manejamos accesorios de moda para complementar tus outfits: bolsas, cinturones y complementos de moda fabricados o distribuidos desde León, Guanajuato. El catálogo se actualiza con cada temporada."},
-        {"q": "¿Los accesorios tienen precio de mayoreo?",
-         "a": "Sí. El precio de mayoreo aplica automáticamente desde 3 piezas en el carrito: $60 MXN de descuento por pieza (3–5), sin registro especial. Para 6 o más piezas y corrida completa (hasta $180 MXN por pieza), regístrate gratis en el Portal de Mayoristas."},
+        {"q": "¿Hay descuento por varias piezas de accesorios?",
+         "a": "Sí. Con 3–5 piezas el descuento es de $60 MXN por pieza y se aplica solo en el carrito, sin registro. Los precios de mayoreo (6 o más piezas: −$100 MXN por pieza; corrida completa: hasta −$180 MXN por pieza) están en el Portal de Mayoristas, con registro gratuito."},
         {"q": "¿Hacen envíos de accesorios a todo México?",
          "a": "Sí. Enviamos accesorios a toda la República Mexicana en 1 a 3 días hábiles. El envío es gratis en pedidos de $1,299 MXN o más."},
     ],
     "mayoreo": [
-        {"q": "¿Cuántos pares necesito comprar para obtener precio de mayoreo?",
-         "a": "Solo necesitas 3 pares para activar el precio de mayoreo. El descuento de $60 MXN por par (3–5 pares) es automático en el carrito, sin registro. El precio de 6 o más pares ($100 MXN por par) y de corrida completa (hasta $180 MXN por par) están disponibles solo en el Portal de Mayoristas."},
-        {"q": "¿Necesito RFC o estar registrada como negocio para comprar al mayoreo?",
-         "a": "No, para comprar 3 a 5 pares: agrega los pares al carrito en zapatillasmay.mx y el precio baja automáticamente, sin RFC ni aprobación previa. Para precios de 6 pares en adelante y corrida completa sí necesitas una cuenta gratuita en el Portal de Mayoristas."},
-        {"q": "¿Puedo mezclar modelos y tallas en mi pedido de mayoreo?",
-         "a": "Sí. Puedes combinar diferentes modelos, colores y tallas en un mismo pedido. El precio de mayoreo se calcula sobre el total de pares en el carrito, no por modelo."},
+        {"q": "¿Cómo compro calzado al mayoreo en Zapatillas May?",
+         "a": "Regístrate gratis en el Portal de Mayoristas (portal.zapatillasmay.mx): ahí ves el catálogo completo con fotos, tus precios de mayoreo, armas tu corrida por talla y color y haces tu pedido directo con la fábrica en León, Guanajuato."},
+        {"q": "¿Hay descuento si compro pocos pares en la tienda en línea?",
+         "a": "Sí. Desde 3 pares el descuento es de $60 MXN por par y se aplica automáticamente en el carrito de zapatillasmay.mx, sin registro ni RFC. Con 6 o más pares ($100 MXN menos por par) y corrida completa (hasta $180 MXN menos por par) los precios están en el Portal de Mayoristas."},
+        {"q": "¿Puedo mezclar modelos y tallas en mi pedido?",
+         "a": "Sí. Puedes combinar diferentes modelos, colores y tallas en un mismo pedido. El descuento se calcula sobre el total de pares en el carrito, no por modelo."},
         {"q": "¿Qué es una corrida completa?",
-         "a": "Una corrida es un mismo modelo en todos sus colores y tallas disponibles. Es la opción ideal para tiendas y revendedoras, y da el mejor precio: $180 MXN menos por par vs. precio de menudeo. Está disponible solo en el Portal de Mayoristas."},
+         "a": "Una corrida es un mismo modelo en todos sus colores y tallas disponibles. Es la opción ideal para tiendas y revendedoras y da el mejor precio: hasta $180 MXN menos por par que el menudeo. Está disponible solo en el Portal de Mayoristas."},
         {"q": "¿Hacen envíos de pedidos de mayoreo a todo México?",
-         "a": "Sí. Enviamos a toda la República Mexicana en 1 a 3 días hábiles. Los pedidos grandes de mayoreo se envían por paquetería terrestre con número de guía para rastreo. También despachamos a EE.UU. y Canadá."},
+         "a": "Sí. Enviamos a toda la República Mexicana en 1 a 3 días hábiles. Los pedidos grandes se envían por paquetería terrestre con número de guía para rastreo. También despachamos a EE.UU. y Canadá."},
     ],
     "ofertas": [
         {"q": "¿Cómo puedo aprovechar las ofertas de Zapatillas May?",
@@ -1003,17 +1006,17 @@ def pagina_ssr(slug: str):
         # (soluciona "Duplicate, Google chose different canonical than user").
         # El JS carga el catálogo debajo; esta sección queda como acceso rápido.
         _CAT_DESCS = {
-            "tacones":     "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares sin registro: aguja, bloque y plataforma. Envíos a todo México.",
-            "sandalias":   "Sandalias de dama hechas en León, Guanajuato: casuales, de fiesta y de cuña. Mayoreo desde 3 pares. Envíos a todo México.",
-            "botas":       "Botas de mujer y dama fabricadas en León, Guanajuato. Mayoreo desde 3 pares sin registro. Envíos a todo México.",
-            "botines":     "Botines de dama de temporada fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
-            "flats":       "Flats y zapatos bajos de dama, cómodos y de moda, hechos en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
-            "plataformas": "Plataformas de dama con altura y comodidad, fabricadas en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
-            "tenis":       "Tenis de moda para dama fabricados en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
-            "nina":        "Calzado para niña cómodo y resistente, fabricado en León, Guanajuato. Mayoreo desde 3 pares. Envíos a todo México.",
+            "tacones":     "Zapatillas y tacones de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares: aguja, bloque y plataforma. Envíos a todo México.",
+            "sandalias":   "Sandalias de dama hechas en León, Guanajuato: casuales, de fiesta y de cuña. Descuento automático desde 3 pares. Envíos a todo México.",
+            "botas":       "Botas de mujer y dama fabricadas en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
+            "botines":     "Botines de dama de temporada fabricados en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
+            "flats":       "Flats y zapatos bajos de dama, cómodos y de moda, hechos en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
+            "plataformas": "Plataformas de dama con altura y comodidad, fabricadas en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
+            "tenis":       "Tenis de moda para dama fabricados en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
+            "nina":        "Calzado para niña cómodo y resistente, fabricado en León, Guanajuato. Descuento automático desde 3 pares. Envíos a todo México.",
             "accesorios":  "Accesorios de moda de Zapatillas May, fabricados en León, Guanajuato. Mayoreo y menudeo con envíos a todo México.",
             "ofertas":     "Ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México.",
-            "mayoreo":     "Compra calzado de dama a precio de mayoreo desde 3 pares, sin registro especial. Fabricado en León, Guanajuato.",
+            "mayoreo":     "Fábrica de calzado de dama en León, Guanajuato: mayoreo por corrida, catálogo con fotos y precios para zapaterías y revendedoras. Registro gratis en el Portal de Mayoristas.",
         }
         h1_seo = _PAGINAS_H1.get(slug)
         _cat_desc_txt = _CAT_DESCS.get(slug, "")
@@ -1465,7 +1468,7 @@ def llms_txt():
             "# Zapatillas May",
             "",
             "> Tienda de calzado femenino de moda fabricado en León, Guanajuato, México. "
-            "Venta a mayoreo (desde 3 pares, sin registro especial) y menudeo. "
+            "Venta a menudeo (descuento automático desde 3 pares) y mayoreo en el Portal de Mayoristas. "
             "Tacones, sandalias, botas, botines, flats, plataformas y más. Envíos a todo México. "
             "Precios de mayoreo automáticos: a más pares, mejor precio por par.",
             "",
