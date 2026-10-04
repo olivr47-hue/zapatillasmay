@@ -15192,7 +15192,12 @@ const _HIST_TIPOS = {
   'traspaso_entrada': { label: 'Traspaso entrada', badge: 'badge-info' },
   'cambio_salida': { label: 'Cambio salida', badge: 'badge-info' },
   'cambio_entrada': { label: 'Cambio entrada', badge: 'badge-info' },
+  'apartado': { label: 'Apartado', badge: 'badge-warning' },
+  'salida': { label: 'Venta marketplace', badge: 'badge-success' },
 }
+// Solo estos movimientos se pueden cancelar con un clic: los demás (ventas, apartados, ajustes) tienen un pedido detrás y se
+// corrigen desde su pedido (cancelar solo el movimiento dejaría el inventario y el pedido desacuerdo).
+const _HIST_CANCELABLES = ['entrada', 'traspaso_entrada', 'traspaso_salida', 'cambio_entrada', 'cambio_salida']
 
 // Varios "motivo" de movimientos_inventario traen el id del pedido u orden de
 // compra que los generó (ej. "Venta pedido {id}", "Recepcion de mercancia -
@@ -15224,15 +15229,16 @@ function _filaHistorial(m) {
     <td style="font-size:0.78rem;color:var(--text-muted)">${new Date(m.created_at).toLocaleString('es-MX')}</td>
     <td><span class="badge ${tipo_info.badge}">${tipo_info.label}</span></td>
     <td><strong>${_escSugerencia(m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '—')}</strong></td>
-    <td>${m.variantes ? m.variantes.color || '—' : '—'}</td>
-    <td>${m.variantes ? m.variantes.talla || '—' : '—'}</td>
+    <td>${_escSugerencia(m.variantes ? m.variantes.color || '—' : '—')}</td>
+    <td>${_escSugerencia(m.variantes ? m.variantes.talla || '—' : '—')}</td>
     <td>${m.sucursales ? m.sucursales.nombre || '—' : '—'}</td>
-    <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}</td>
-    <td style="font-size:0.82rem">${_escSugerencia(m.usuario || 'Admin')}</td>
+    <td style="font-weight:600;color:${cantidad > 0 ? 'var(--green)' : 'var(--red)'}">${cantidad > 0 ? '+' : ''}${cantidad}${m.cantidad_anterior != null ? `<br><span style="font-weight:400;font-size:0.7rem;color:var(--text-muted)">${m.cantidad_anterior} → ${Number(m.cantidad_anterior) + cantidad}</span>` : ''}</td>
+    <td style="font-size:0.82rem">${m.usuario ? _escSugerencia(m.usuario) : '<span style="color:var(--text-muted)">Sistema</span>'}</td>
     <td style="font-size:0.82rem;color:var(--text-muted)">${_escSugerencia(m.motivo || '—')}${ref ? ` <span style="color:#1565c0;font-weight:600;white-space:nowrap">🔗 ver ${ref.tipo}</span>` : ''}</td>
     <td onclick="event.stopPropagation()">
-      ${m.tipo !== 'venta' && m.tipo !== 'ajuste' ? `
+      ${_HIST_CANCELABLES.includes(m.tipo) ? `
       <button class="btn btn-secondary" style="padding:4px 8px;font-size:0.72rem;color:#c62828;border-color:#c62828"
+              title="${m.tipo.startsWith('traspaso') ? 'Revierte solo ESTE lado del traspaso: cancela también el otro' : 'Revierte el cambio en el inventario'}"
               onclick="cancelarMovimiento('${m.id}', ${Number(m.cantidad) || 0}, '${m.variante_id}', '${m.sucursal_id}', '${m.tipo}')">
         Cancelar
       </button>` : ''}
@@ -15244,18 +15250,24 @@ async function cargarHistorial() {
   const content = document.getElementById('content')
   const desdeInput = document.getElementById('hist-desde')
   const hastaInput = document.getElementById('hist-hasta')
+  // Fechas en hora de México (toISOString es UTC: después de las 6 pm daba el día siguiente)
+  const f = (d) => d.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' })
   const hoy = new Date()
-  const hace30 = new Date(hoy); hace30.setDate(hace30.getDate() - 30)
-  const desde = (desdeInput && desdeInput.value) || hace30.toISOString().slice(0, 10)
-  const hasta = (hastaInput && hastaInput.value) || hoy.toISOString().slice(0, 10)
+  const hace30 = new Date(hoy.getTime() - 30 * 86400000)
+  const desde = (desdeInput && desdeInput.value) || f(hace30)
+  const hasta = (hastaInput && hastaInput.value) || f(hoy)
   content.innerHTML = '<p style="padding:2rem;color:#888">Cargando historial...</p>'
   try {
     const res = await fetch(API + '/movimientos/?desde=' + desde + '&hasta=' + hasta)
     const data = await res.json()
+    if (!Array.isArray(data)) throw new Error('respuesta inesperada')
+    window._historialData = data
+    window._histPag = 150
     content.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px" id="hist-resumen"></div>
       <div class="table-card">
-        <div class="table-header">
-          <h3>Historial de movimientos (${data.length})</h3>
+        <div class="table-header" style="flex-wrap:wrap;gap:8px">
+          <h3 id="hist-titulo">Historial de movimientos (${data.length})</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <label style="font-size:0.78rem;color:var(--text-muted);display:flex;align-items:center;gap:4px">Desde
               <input type="date" class="form-input" id="hist-desde" value="${desde}" style="max-width:150px">
@@ -15264,29 +15276,31 @@ async function cargarHistorial() {
               <input type="date" class="form-input" id="hist-hasta" value="${hasta}" style="max-width:150px">
             </label>
             <button class="btn btn-primary" style="font-size:0.82rem" onclick="cargarHistorial()">Aplicar</button>
-            <select class="form-input" id="hist-tipo" style="max-width:160px" onchange="filtrarHistorial()">
+            <select class="form-input" id="hist-tipo" style="max-width:170px" onchange="filtrarHistorial()">
               <option value="">Todos los tipos</option>
               <option value="venta">Ventas</option>
-              <option value="entrada">Entradas</option>
+              <option value="salida">Ventas marketplace</option>
+              <option value="apartado">Apartados</option>
+              <option value="entrada">Entradas (mercancía)</option>
               <option value="ajuste">Ajustes</option>
-              <option value="traspaso_salida">Traspasos</option>
-              <option value="cambio_salida">Cambios</option>
+              <option value="traspaso">Traspasos</option>
+              <option value="cambio">Cambios</option>
             </select>
-            <input class="form-input" id="hist-buscar" placeholder="Buscar..." style="max-width:200px" oninput="filtrarHistorial()">
+            <input class="form-input" id="hist-buscar" placeholder="Producto, SKU, color, talla, usuario o motivo..." style="max-width:260px" oninput="filtrarHistorial()">
+            <button class="btn btn-secondary" style="font-size:0.78rem" onclick="exportarHistorialCSV()">⬇ Excel (CSV)</button>
           </div>
         </div>
+        <div style="overflow-x:auto">
         <table>
           <thead>
             <tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th>Color</th><th>Talla</th><th>Sucursal</th><th>Cantidad</th><th>Usuario</th><th>Motivo</th><th>Acción</th></tr>
           </thead>
-          <tbody id="hist-tbody">
-            ${data.length === 0
-              ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No hay movimientos en ese rango de fechas</td></tr>'
-              : data.map(_filaHistorial).join('')}
-          </tbody>
+          <tbody id="hist-tbody"></tbody>
         </table>
+        </div>
+        <div id="hist-mas" style="text-align:center;padding:12px"></div>
       </div>`
-    window._historialData = data
+    window.filtrarHistorial()
   } catch(e) {
     content.innerHTML = '<p style="padding:2rem;color:var(--red)">Error conectando con el servidor</p>'
   }
@@ -15318,24 +15332,54 @@ window.cancelarMovimiento = async (id, cantidad, varianteId, sucursalId, tipo) =
   }
 }
 
-window.filtrarHistorial = () => {
-  const tipo = document.getElementById('hist-tipo').value
-  const buscar = document.getElementById('hist-buscar').value.toLowerCase()
-  const data = window._historialData || []
-  const filtrados = data.filter(m => {
-    if (tipo && m.tipo !== tipo) return false
-    if (buscar) {
-      const nombre = (m.variantes && m.variantes.productos ? m.variantes.productos.nombre : '').toLowerCase()
-      const motivo = (m.motivo || '').toLowerCase()
-      if (!nombre.includes(buscar) && !motivo.includes(buscar)) return false
+window._histFiltrados = () => {
+  const tipo = document.getElementById('hist-tipo')?.value || ''
+  const q = (document.getElementById('hist-buscar')?.value || '').toLowerCase().trim()
+  return (window._historialData || []).filter(m => {
+    if (tipo && !(m.tipo === tipo || m.tipo.startsWith(tipo + '_'))) return false
+    if (q) {
+      const v = m.variantes || {}, pr = v.productos || {}
+      const texto = [pr.nombre, pr.sku_interno, v.sku, v.color, v.talla, m.usuario, m.motivo, (m.sucursales || {}).nombre].filter(Boolean).join(' ').toLowerCase()
+      if (!q.split(/\s+/).every(t => texto.includes(t))) return false
     }
     return true
   })
+}
+window.filtrarHistorial = () => {
   const tbody = document.getElementById('hist-tbody')
   if (!tbody) return
-  tbody.innerHTML = filtrados.length === 0
+  const l = window._histFiltrados()
+  const hasta = window._histPag || 150
+  tbody.innerHTML = l.length === 0
     ? '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">No se encontraron movimientos</td></tr>'
-    : filtrados.map(_filaHistorial).join('')
+    : l.slice(0, hasta).map(_filaHistorial).join('')
+  const mas = document.getElementById('hist-mas')
+  if (mas) mas.innerHTML = l.length > hasta ? `<button class="btn btn-secondary" onclick="window._histPag+=150;filtrarHistorial()">Mostrar más (${l.length - hasta} restantes)</button>` : ''
+  const t = document.getElementById('hist-titulo')
+  if (t) t.textContent = `Historial de movimientos (${l.length}${l.length !== (window._historialData || []).length ? ' de ' + window._historialData.length : ''})`
+  // Resumen del rango filtrado
+  const suma = (fn) => l.filter(fn).reduce((s, m) => s + (Number(m.cantidad) || 0), 0)
+  const entradas = suma(m => m.tipo === 'entrada'), ventas = -suma(m => m.tipo === 'venta' || m.tipo === 'salida'), apart = -suma(m => m.tipo === 'apartado')
+  const ajNeto = suma(m => m.tipo === 'ajuste')
+  const r = document.getElementById('hist-resumen')
+  if (r) {
+    const k = (v, lab, col, bg) => `<div style="background:${bg};border-radius:12px;padding:10px 14px;border:1px solid ${col}33"><div style="font-size:1.3rem;font-weight:800;color:${col}">${v}</div><div style="font-size:0.7rem;color:${col};font-weight:600">${lab}</div></div>`
+    r.innerHTML = k(`+${entradas}`, 'Pares que entraron', '#1565c0', '#eff6ff') + k(ventas, 'Pares vendidos', '#15803d', '#f0fdf4') + k(apart, 'Pares apartados', '#92400e', '#fffbeb') + k((ajNeto > 0 ? '+' : '') + ajNeto, 'Ajustes (neto)', ajNeto < 0 ? '#b91c1c' : '#475569', '#f8fafc')
+  }
+}
+window.exportarHistorialCSV = () => {
+  const l = window._histFiltrados()
+  if (!l.length) { alert('No hay movimientos para exportar.'); return }
+  const csv = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'
+  const filas = [['Fecha', 'Tipo', 'Producto', 'SKU', 'Color', 'Talla', 'Sucursal', 'Cantidad', 'Antes', 'Usuario', 'Motivo']]
+  l.forEach(m => {
+    const v = m.variantes || {}, pr = v.productos || {}
+    filas.push([new Date(m.created_at).toLocaleString('es-MX'), m.tipo, pr.nombre, pr.sku_interno || v.sku, v.color, v.talla, (m.sucursales || {}).nombre, m.cantidad, m.cantidad_anterior, m.usuario || 'Sistema', m.motivo])
+  })
+  const blob = new Blob(['\ufeff' + filas.map(f => f.map(csv).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob); a.download = 'historial_movimientos.csv'
+  document.body.appendChild(a); a.click(); a.remove()
 }
 
 async function cargarDashboard() {

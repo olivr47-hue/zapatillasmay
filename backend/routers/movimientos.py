@@ -4,6 +4,30 @@ from database import supabase_get, supabase_get_all, supabase_post, supabase_pat
 from cache import cache_invalidate_prefix
 from security import require_staff
 
+
+def _usuario(staff, datos=None):
+    """Quién hizo el movimiento: el nombre de la persona con sesión (antes todo quedaba como 'Admin' o vacío)."""
+    if isinstance(staff, dict):
+        n = staff.get("nombre") or staff.get("email")
+        if n:
+            return str(n)[:60]
+    return str((datos or {}).get("usuario") or "Admin")[:60]
+
+
+def _rango_mx(desde, hasta):
+    """Filtro de fechas en hora de México (UTC-6): un día va de las 06:00Z a las 06:00Z del siguiente."""
+    import datetime as _dt
+    f = ""
+    if desde:
+        f += f"&created_at=gte.{desde}T06:00:00Z"
+    if hasta:
+        try:
+            sig = (_dt.date.fromisoformat(str(hasta)[:10]) + _dt.timedelta(days=1)).isoformat()
+            f += f"&created_at=lt.{sig}T06:00:00Z"
+        except ValueError:
+            pass
+    return f
+
 router = APIRouter(prefix="/movimientos", tags=["Movimientos"])
 
 @router.get("/")
@@ -17,11 +41,10 @@ def listar_movimientos(desde: str = None, hasta: str = None, ligero: bool = Fals
             # variante, producto y sucursal anidados: varios MB para usar solo 4 campos de 2,300 filas.
             filtro = "movimientos_inventario?order=created_at.desc&tipo=in.(venta,salida)&select=tipo,variante_id,cantidad,created_at"
         else:
-            filtro = "movimientos_inventario?order=created_at.desc&select=*,variantes(*,productos(nombre)),sucursales(nombre)"
-        if desde:
-            filtro += f"&created_at=gte.{desde}T00:00:00"
-        if hasta:
-            filtro += f"&created_at=lte.{hasta}T23:59:59"
+            # Solo las columnas que usa la pantalla (antes traía variante y producto completos, con fotos y textos largos)
+            filtro = ("movimientos_inventario?order=created_at.desc&select=id,tipo,cantidad,cantidad_anterior,motivo,usuario,created_at,"
+                      "variante_id,sucursal_id,variantes(color,talla,sku,productos(nombre,sku_interno)),sucursales(nombre)")
+        filtro += _rango_mx(desde, hasta)
         return supabase_get_all(filtro)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
@@ -38,7 +61,7 @@ def ajuste_inventario(datos: dict, _staff=Depends(require_staff)):
         variante_id = datos.get("variante_id")
         sucursal_id = datos.get("sucursal_id")
         motivo = datos.get("motivo", "Ajuste manual")
-        usuario = datos.get("usuario", "Admin")
+        usuario = _usuario(_staff, datos)
         delta = datos.get("delta")
         stock_minimo = datos.get("stock_minimo")
 
@@ -115,7 +138,8 @@ def entrada_mercancia(datos: dict, _staff=Depends(require_staff)):
             "sucursal_id": sucursal_id,
             "cantidad": cantidad,
             "cantidad_anterior": cantidad_anterior,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         cache_invalidate_prefix("inventario")
@@ -146,7 +170,8 @@ def registrar_cambio(datos: dict, _staff=Depends(require_staff)):
             "variante_origen_id": variante_origen_id,
             "variante_destino_id": variante_destino_id,
             "sucursal_id": sucursal_id,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         supabase_post("movimientos_inventario", {
@@ -154,7 +179,8 @@ def registrar_cambio(datos: dict, _staff=Depends(require_staff)):
             "variante_id": variante_destino_id,
             "sucursal_id": sucursal_id,
             "cantidad": -1,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         supabase_post("movimientos_inventario", {
@@ -162,7 +188,8 @@ def registrar_cambio(datos: dict, _staff=Depends(require_staff)):
             "variante_id": variante_origen_id,
             "sucursal_id": sucursal_id,
             "cantidad": 1,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         cache_invalidate_prefix("inventario")
@@ -195,7 +222,8 @@ def registrar_traspaso(datos: dict, _staff=Depends(require_staff)):
             "variante_id": variante_id,
             "sucursal_id": sucursal_origen_id,
             "cantidad": -cantidad,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         supabase_post("movimientos_inventario", {
@@ -203,7 +231,8 @@ def registrar_traspaso(datos: dict, _staff=Depends(require_staff)):
             "variante_id": variante_id,
             "sucursal_id": sucursal_destino_id,
             "cantidad": cantidad,
-            "motivo": motivo
+            "motivo": motivo,
+            "usuario": _usuario(_staff, datos)
         })
 
         cache_invalidate_prefix("inventario")
