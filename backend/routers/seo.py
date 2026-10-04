@@ -590,6 +590,12 @@ _PAGINAS_SEO = {
                    "Accesorios para complementar tu look en Zapatillas May. Fabricado en León, Guanajuato. Mayoreo y menudeo con envíos a todo México."),
     "mayoreo": ("Calzado de Dama al Mayoreo en León — Fábrica | Zapatillas May",
                 "Fábrica de calzado de dama en León, Guanajuato: mayoreo por corrida, catálogo con fotos y precios para zapaterías y revendedoras. Registro gratis en el Portal de Mayoristas."),
+    "guias": ("Guías de calzado para dama | Zapatillas May — León",
+              "Guías prácticas de Zapatillas May: cómo elegir la altura de tu tacón y cómo comprar calzado al mayoreo directo de fábrica en León, Guanajuato."),
+    "guia-tacones-8-vs-10-cm": ("Tacones de 8 cm o de 10 cm: cuál elegir | Zapatillas May",
+                                "Guía para elegir entre tacón de 8 y de 10 cm: comodidad, ocasiones de uso y consejos de talla, con modelos reales fabricados en León, Guanajuato."),
+    "guia-comprar-calzado-mayoreo-leon": ("Cómo comprar calzado al mayoreo en León, Gto. | Zapatillas May",
+                                          "Guía para zapaterías y revendedoras: cómo comprar calzado de dama al mayoreo directo de fábrica en León, qué es una corrida y cómo registrarte en el portal."),
     "ofertas": ("Ofertas de Calzado de Dama | Zapatillas May",
                 "Aprovecha las ofertas de calzado femenino de Zapatillas May: tacones, sandalias y más a precios especiales. Envíos a todo México."),
     "nosotros": ("Sobre Nosotras — Fábrica de Calzado | Zapatillas May",
@@ -610,7 +616,14 @@ _PAGINAS_SEO = {
 
 
 # Contenido HTML visible para Google en páginas informacionales (sin JS)
+_GUIA_INDEX_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-strip{display:none!important}.guia a.g-link{color:#E91E8C}.guia h2{font-size:1.25rem;margin-top:30px}.guia table{width:100%;border-collapse:collapse;margin:14px 0}.guia th,.guia td{padding:9px 12px;border:1px solid #e8d8cc;text-align:left;font-size:0.92rem;vertical-align:top}.guia th{background:#f5ece2}.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:14px 0}.g-card{display:block;text-decoration:none;color:#3a2e28;font-size:0.82rem;line-height:1.35}.g-card img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:12px;background:#f5ece2;display:block;margin-bottom:6px}.g-cta{margin:30px 0;padding:22px 24px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:14px;text-align:center}.g-btn{display:inline-block;background:#E91E8C;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px}</style><section class="guia" style="max-width:760px;margin:96px auto 40px;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.75">\n  <p style="margin:0 0 6px;font-size:0.85rem"><a class="g-link" href="/">Inicio</a> › Guías</p>\n  <h1 style="font-size:1.9rem;font-weight:700;margin:0 0 8px">Guías de calzado para dama</h1>\n  <p style="color:#7a6055">Consejos prácticos de la fábrica de Zapatillas May, en León, Guanajuato.</p>\n  <h2><a class="g-link" href="/guia-tacones-8-vs-10-cm">Tacones de 8 cm o de 10 cm: cuál elegir</a></h2>\n  <p>Comodidad, ocasiones de uso y consejos de talla para decidir la altura de tu próximo tacón, con modelos reales de nuestro catálogo.</p>\n  <h2><a class="g-link" href="/guia-comprar-calzado-mayoreo-leon">Cómo comprar calzado al mayoreo en León</a></h2>\n  <p>Para zapaterías, boutiques y revendedoras: qué es una corrida, cómo funciona el Portal de Mayoristas y cómo hacer tu primer pedido directo con la fábrica.</p>\n</section>'
+_GUIA_TACONES_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-strip{display:none!important}.guia a.g-link{color:#E91E8C}.guia h2{font-size:1.25rem;margin-top:30px}.guia table{width:100%;border-collapse:collapse;margin:14px 0}.guia th,.guia td{padding:9px 12px;border:1px solid #e8d8cc;text-align:left;font-size:0.92rem;vertical-align:top}.guia th{background:#f5ece2}.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:14px 0}.g-card{display:block;text-decoration:none;color:#3a2e28;font-size:0.82rem;line-height:1.35}.g-card img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:12px;background:#f5ece2;display:block;margin-bottom:6px}.g-cta{margin:30px 0;padding:22px 24px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:14px;text-align:center}.g-btn{display:inline-block;background:#E91E8C;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px}</style><section class="guia" style="max-width:760px;margin:96px auto 40px;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.75">\n  <p style="margin:0 0 6px;font-size:0.85rem"><a class="g-link" href="/">Inicio</a> › <a class="g-link" href="/guias">Guías</a> › Tacones de 8 vs 10 cm</p>\n  <h1 style="font-size:1.9rem;font-weight:700;margin:0 0 8px">Tacones de 8 cm o de 10 cm: cuál elegir</h1>\n  <p style="color:#7a6055">Por el equipo de Zapatillas May · fábrica de calzado de dama en León, Guanajuato</p>\n  <p>Entre un tacón de 8 cm y uno de 10 cm solo hay dos centímetros, pero se nota mucho al caminar, al estar de pie varias horas y al combinar con la ropa. Esta guía te ayuda a decidir según cómo lo vas a usar.</p>\n  <h2>Comparativa rápida</h2>\n  <table>\n    <thead><tr><th></th><th>Tacón de 8 cm</th><th>Tacón de 10 cm</th></tr></thead>\n    <tbody>\n      <tr><td>Para quién</td><td>Quien busca elegancia sin sacrificar tanta comodidad</td><td>Quien quiere el máximo estilizado y está acostumbrada al tacón alto</td></tr>\n      <tr><td>Uso recomendado</td><td>Oficina, cenas, eventos de varias horas</td><td>Fiestas, bodas, salidas de noche, sesiones de fotos</td></tr>\n      <tr><td>Al caminar</td><td>Más estable; el pie queda menos inclinado</td><td>Exige más equilibrio y se cansa antes el empeine</td></tr>\n      <tr><td>Con plataforma al frente</td><td>Casi se siente como un tacón más bajo</td><td>Una plataforma de 1–2 cm reduce la inclinación real del pie</td></tr>\n    </tbody>\n  </table>\n  <h2>Cómo elegir según la ocasión</h2>\n  <ul>\n    <li><strong>Si los vas a usar mucho tiempo:</strong> empieza por 8 cm, y si te gustan más altos busca un modelo con plataforma o con tacón de bloque, que reparte mejor el peso que uno de aguja.</li>\n    <li><strong>Si es para un evento específico:</strong> 10 cm da la silueta más alargada en vestidos y faldas largas.</li>\n    <li><strong>Si no estás segura:</strong> prueba una altura intermedia como 9 cm, o elige 8 cm con detalles (tiras, pulsera al tobillo) que den sujeción.</li>\n  </ul>\n  <h2>Consejos para que te queden bien</h2>\n  <ul>\n    <li>Pruébalos por la tarde, cuando el pie está un poco más hinchado, para que no te aprieten al final del día.</li>\n    <li>Revisa la <a class="g-link" href="/tabla-tallas">tabla de tallas</a> y mide tu pie; si estás entre dos tallas, elige la mayor en modelos de punta cerrada.</li>\n    <li>Las tiras al tobillo ayudan a que el pie no se deslice hacia adelante en tacones altos.</li>\n    <li>Camina con ellos unos minutos en casa antes de estrenarlos en un evento largo.</li>\n  </ul>\n  <h2>Modelos de 8 cm</h2>\n  <!--GUIA_TACONES_8-->\n  <h2>Modelos de 10 cm</h2>\n  <!--GUIA_TACONES_10-->\n  <div class="g-cta">\n    <p style="font-size:1.05rem;font-weight:700;margin:0 0 6px">Ver todos los tacones</p>\n    <p style="margin:0 0 16px;color:#7a6055">Filtra por color y talla, y si compras 3 o más pares el descuento se aplica solo en el carrito. Envíos a todo México.</p>\n    <a class="g-btn" href="/tacones">Ver tacones →</a>\n  </div>\n  <h2>Preguntas frecuentes</h2>\n  <p><strong>¿Cuál es la altura de tacón más cómoda?</strong><br>Depende de cada persona, pero para uso de varias horas la mayoría prefiere alturas de 5 a 8 cm, sobre todo en bloque o con plataforma.</p>\n  <p><strong>¿Cada modelo indica su altura?</strong><br>Sí, la ficha de cada producto muestra la altura del tacón en centímetros.</p>\n  <p><strong>¿Hacen envíos a todo México?</strong><br>Sí, enviamos a toda la República en 1 a 3 días hábiles.</p>\n</section>'
+_GUIA_MAYOREO_HTML = '<style>#hero-section,.section,.banner-mayoreo,.cro-trust-strip{display:none!important}.guia a.g-link{color:#E91E8C}.guia h2{font-size:1.25rem;margin-top:30px}.guia table{width:100%;border-collapse:collapse;margin:14px 0}.guia th,.guia td{padding:9px 12px;border:1px solid #e8d8cc;text-align:left;font-size:0.92rem;vertical-align:top}.guia th{background:#f5ece2}.g-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:14px 0}.g-card{display:block;text-decoration:none;color:#3a2e28;font-size:0.82rem;line-height:1.35}.g-card img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:12px;background:#f5ece2;display:block;margin-bottom:6px}.g-cta{margin:30px 0;padding:22px 24px;background:linear-gradient(135deg,#fdf0f6,#fdf8f4);border:1px solid #f5c9e0;border-radius:14px;text-align:center}.g-btn{display:inline-block;background:#E91E8C;color:#fff;font-weight:700;text-decoration:none;padding:12px 28px;border-radius:100px}</style><section class="guia" style="max-width:760px;margin:96px auto 40px;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.75">\n  <p style="margin:0 0 6px;font-size:0.85rem"><a class="g-link" href="/">Inicio</a> › <a class="g-link" href="/guias">Guías</a> › Cómo comprar al mayoreo</p>\n  <h1 style="font-size:1.9rem;font-weight:700;margin:0 0 8px">Cómo comprar calzado al mayoreo en León, Guanajuato</h1>\n  <p style="color:#7a6055">Guía para zapaterías, boutiques y revendedoras · directo con la fábrica</p>\n  <p>León es la capital del calzado en México, pero comprar al mayoreo sin conocer a nadie puede ser confuso. Zapatillas May es fábrica de calzado de dama y atiende pedidos de mayoreo a todo el país a través de su <strong>Portal de Mayoristas</strong>. Así funciona.</p>\n  <h2>1. Regístrate en el portal (gratis)</h2>\n  <p>Crea tu cuenta en <a class="g-link" href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener">portal.zapatillasmay.mx</a>. No necesitas tener un local establecido para empezar. Dentro verás el catálogo completo con fotos y tus precios de mayoreo.</p>\n  <h2>2. Entiende qué es una corrida</h2>\n  <p>Una corrida es un mismo modelo en todos los colores y tallas disponibles. Es lo más cómodo para surtir una tienda porque cubres todas las tallas de tus clientas, y es la forma de comprar con el mejor precio por par.</p>\n  <h2>3. Cómo bajan los precios según el volumen</h2>\n  <table>\n    <thead><tr><th>Cantidad</th><th>Descuento por par</th><th>Dónde</th></tr></thead>\n    <tbody>\n      <tr><td>1–2 pares</td><td>Precio de menudeo</td><td>Tienda en línea</td></tr>\n      <tr><td>3–5 pares</td><td>−$60 MXN</td><td>Tienda en línea (automático en el carrito)</td></tr>\n      <tr><td>6 o más pares</td><td>−$100 MXN</td><td>Portal de Mayoristas</td></tr>\n      <tr><td>Corrida completa</td><td>Hasta −$180 MXN</td><td>Portal de Mayoristas</td></tr>\n    </tbody>\n  </table>\n  <p>Los precios de mayoreo se manejan únicamente en el portal; los de la tienda en línea son de menudeo.</p>\n  <h2>4. Arma tu pedido</h2>\n  <p>En el portal armas tu carrito mezclando modelos, colores y tallas, y puedes apartar tus pares. Después das seguimiento a tu pedido desde la misma cuenta.</p>\n  <h2>5. Envío a todo México</h2>\n  <p>Los pedidos de mayoreo se envían por paquetería con número de guía para rastreo. También despachamos a Estados Unidos y Canadá.</p>\n  <h2>Consejos para tu primer pedido</h2>\n  <ul>\n    <li>Combina estilos: así pruebas qué rota mejor en tu zona antes de comprar más de un solo modelo.</li>\n    <li>Revisa la <a class="g-link" href="/tabla-tallas">tabla de tallas</a> para que tus clientas elijan bien y bajen las devoluciones.</li>\n    <li>Si tienes dudas, escríbenos por WhatsApp y una asesora te ayuda a armar el pedido.</li>\n  </ul>\n  <div class="g-cta">\n    <p style="font-size:1.05rem;font-weight:700;margin:0 0 6px">¿Lista para surtir tu tienda?</p>\n    <p style="margin:0 0 16px;color:#7a6055">Regístrate gratis y ve tu catálogo con precios de mayoreo.</p>\n    <a class="g-btn" href="https://portal.zapatillasmay.mx" target="_blank" rel="noopener">Entrar al portal de mayoristas →</a>\n    <p style="margin:14px 0 0"><a class="g-link" href="https://wa.me/5214792244560?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20mayoreo" target="_blank" rel="noopener">o escríbenos por WhatsApp</a></p>\n  </div>\n</section>'
+
 _PAGINAS_CONTENT = {
+    "guias": _GUIA_INDEX_HTML,
+    "guia-tacones-8-vs-10-cm": _GUIA_TACONES_HTML,
+    "guia-comprar-calzado-mayoreo-leon": _GUIA_MAYOREO_HTML,
     "nosotros": """
 <section style="max-width:800px;margin:40px auto;padding:0 20px;font-family:DM Sans,sans-serif;color:#3a2e28;line-height:1.7">
   <h2 style="font-size:1.8rem;font-weight:700;margin-bottom:8px">Sobre Zapatillas May</h2>
@@ -991,6 +1004,12 @@ def pagina_ssr(slug: str):
                 1
             )
 
+        if slug in _GUIAS_SLUGS:
+            try:
+                template = _guia_extras(slug, template, titulo, desc, canonical)
+            except Exception as e:
+                print(f"[seo] guia extras error ({slug}): {e}")
+
         # ItemList + BreadcrumbList schema para categorías (rich results en SERP)
         _cat_productos = []
         try:
@@ -1099,6 +1118,53 @@ def pagina_ssr(slug: str):
 
     cache_set(_ck_ssr, template, ttl=900)  # 15 min
     return HTMLResponse(content=template)
+
+
+_GUIAS_SLUGS = {"guias", "guia-tacones-8-vs-10-cm", "guia-comprar-calzado-mayoreo-leon"}
+
+
+def _guia_tarjetas(prods):
+    tarjetas = []
+    for p in prods[:8]:
+        img = (p.get("imagen_principal") or "").strip()
+        if "res.cloudinary.com" in img and "/upload/" in img:
+            img = img.replace("/upload/", "/upload/w_360,h_450,c_fill,g_auto,f_auto,q_auto/", 1)
+        slug_p = p.get("slug") or p.get("sku_interno") or ""
+        nombre = _esc_pagina((p.get("nombre") or slug_p).strip())
+        tarjetas.append(f'<a class="g-card" href="/producto/{_esc_pagina(slug_p)}"><img src="{_esc_pagina(img)}" alt="{nombre}" loading="lazy" width="360" height="450">{nombre}</a>')
+    return '<div class="g-grid">' + "".join(tarjetas) + '</div>' if tarjetas else '<p>Consulta los modelos disponibles en la categoría de tacones.</p>'
+
+
+def _guia_extras(slug, template, titulo, desc, canonical):
+    """Inyecta modelos reales (por altura de tacón) en la guía de tacones y el schema Article/Breadcrumb de las guías."""
+    if slug == "guia-tacones-8-vs-10-cm":
+        ck = "guia_tacones_prods"
+        grupos = cache_get(ck)
+        if grupos is None:
+            filas = supabase_get("productos?activo=eq.true&categoria=eq.tacones&select=id,slug,sku_interno,nombre,imagen_principal,altura_tacon,es_oferta,updated_at&order=updated_at.desc&limit=300") or []
+            filas = [x for x in _sin_oferta_interna(filas) if (x.get("imagen_principal") or "").strip()]
+            def _alt(x):
+                try:
+                    return float(x.get("altura_tacon"))
+                except Exception:
+                    return None
+            grupos = {"8": [x for x in filas if _alt(x) == 8.0], "10": [x for x in filas if _alt(x) == 10.0]}
+            cache_set(ck, grupos, ttl=900)
+        template = template.replace("<!--GUIA_TACONES_8-->", _guia_tarjetas(grupos["8"]))
+        template = template.replace("<!--GUIA_TACONES_10-->", _guia_tarjetas(grupos["10"]))
+    ld = []
+    if slug != "guias":
+        ld.append({"@context": "https://schema.org", "@type": "Article", "headline": titulo.split(" |")[0], "description": desc,
+                   "mainEntityOfPage": canonical, "inLanguage": "es-MX",
+                   "author": {"@type": "Organization", "name": "Zapatillas May"},
+                   "publisher": {"@type": "Organization", "name": "Zapatillas May", "logo": {"@type": "ImageObject", "url": "https://zapatillasmay.mx/logo.png"}}})
+    miga = [{"@type": "ListItem", "position": 1, "name": "Inicio", "item": "https://zapatillasmay.mx/"},
+            {"@type": "ListItem", "position": 2, "name": "Guías", "item": "https://zapatillasmay.mx/guias"}]
+    if slug != "guias":
+        miga.append({"@type": "ListItem", "position": 3, "name": titulo.split(" |")[0], "item": canonical})
+    ld.append({"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": miga})
+    bloque = "\n".join(f'<script type="application/ld+json">{json.dumps(x, ensure_ascii=False)}</script>' for x in ld)
+    return template.replace("</head>", bloque + "\n</head>", 1)
 
 
 def _esc_pagina(s):
@@ -1343,6 +1409,9 @@ def sitemap():
             'https://zapatillasmay.mx/politica-de-devoluciones',
             'https://zapatillasmay.mx/tabla-tallas',
             'https://zapatillasmay.mx/como-comprar',
+            'https://zapatillasmay.mx/guias',
+            'https://zapatillasmay.mx/guia-tacones-8-vs-10-cm',
+            'https://zapatillasmay.mx/guia-comprar-calzado-mayoreo-leon',
         ]
         for cat in categorias:
             slug_cat = _CAT_SLUG.get(cat.lower(), cat.lower())
