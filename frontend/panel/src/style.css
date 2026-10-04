@@ -1779,3 +1779,14 @@ td:last-child,  th:last-child  { padding-right:18px; }
   .wa-input-toolbar::-webkit-scrollbar { display: none; }
   .wa-input-toolbar .wa-tool-btn { flex-shrink: 0; }
 }
+
+/* Pestañas de canal (Todos · WhatsApp · Messenger · Instagram · Comentarios): píldoras legibles que se deslizan de lado.
+   Antes el estilo en línea las encogía hasta encimarse unas con otras. */
+#wa-canal-tabs { gap: 6px; padding: 4px; }
+#wa-canal-tabs .wa-estado-tab { flex: 0 0 auto !important; min-width: 0 !important; width: auto !important; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; font-size: 0.78rem; line-height: 1.2; }
+
+@media (max-width: 900px) {
+  /* Pista visual de que la fila se desliza hacia los lados */
+  #wa-canal-tabs, .wa-filters { -webkit-mask-image: linear-gradient(to right, #000 88%, transparent); mask-image: linear-gradient(to right, #000 88%, transparent); scroll-snap-type: x proximity; }
+  #wa-canal-tabs .wa-estado-tab, .wa-filters .wa-pill { scroll-snap-align: start; }
+}
