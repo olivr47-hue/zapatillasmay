@@ -2432,4 +2432,6 @@
       transform: none !important;
     }
   }
-  
+
+/* En móvil las páginas internas no esconden el contenido hasta hacer scroll (se veían huecos vacíos / bloques a medias) */
+@media (max-width:768px){ #pagina-contenido [data-animate], #pagina-contenido [data-animate].in-view { opacity:1 !important; transform:none !important; transition:none !important; } }
