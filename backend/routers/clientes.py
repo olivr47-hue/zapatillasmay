@@ -53,6 +53,59 @@ def resumen_clientes(_staff=Depends(require_staff)):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
+@router.post("/enviar-correo")
+def enviar_correo_clientes(datos: dict, _staff=Depends(require_staff)):
+    """Envía un correo (plantilla de la tienda) a varios clientes elegidos en el panel.
+    datos: {"ids": [...], "asunto": "...", "mensaje": "... {nombre} ..."}.
+    Se omiten los correos inválidos y los compartidos por varios clientes (no identifican a nadie). Máximo 80 por envío (el
+    plan gratis de Resend permite 100 al día). El envío corre en segundo plano y queda en el historial de Correo corporativo."""
+    import re as _re, threading, time
+    ids = [str(i) for i in (datos.get("ids") or []) if _re.fullmatch(r"[0-9a-fA-F-]{36}", str(i))]
+    asunto = str(datos.get("asunto") or "").strip()[:150]
+    mensaje = str(datos.get("mensaje") or "").strip()[:3000]
+    if not ids:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "No hay clientes seleccionados"})
+    if not asunto or not mensaje:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Escribe el asunto y el mensaje"})
+    if len(ids) > 80:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Máximo 80 correos por envío (límite diario del plan gratis de Resend: 100)"})
+    filas = []
+    for i in range(0, len(ids), 40):
+        filas += supabase_get(f"clientes?id=in.({','.join(ids[i:i + 40])})&select=id,nombre,email") or []
+    por_correo = {}
+    for f in filas:
+        e = (f.get("email") or "").strip().lower()
+        if e:
+            por_correo.setdefault(e, []).append(f)
+    destinos, omitidos = [], {"sin_correo": 0, "invalido": 0, "compartido": 0}
+    for f in filas:
+        e = (f.get("email") or "").strip().lower()
+        if not e:
+            omitidos["sin_correo"] += 1
+        elif not _re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", e):
+            omitidos["invalido"] += 1
+        elif len(por_correo.get(e, [])) > 1 or len(supabase_get("clientes?email=eq." + __import__("urllib.parse").parse.quote(e, safe="") + "&select=id&limit=2") or []) > 1:
+            omitidos["compartido"] += 1
+        else:
+            destinos.append((e, f.get("nombre") or ""))
+    if not destinos:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Ninguno de los seleccionados tiene un correo válido y propio", "omitidos": omitidos})
+
+    def _enviar_todos(lista, asunto_, mensaje_):
+        from email_utils import enviar_email, email_mensaje_cliente
+        for correo, nombre in lista:
+            try:
+                primer = (nombre.split() or [""])[0].capitalize() or "Cliente"
+                html = email_mensaje_cliente(nombre, mensaje_.replace("{nombre}", primer))
+                enviar_email(correo, asunto_.replace("{nombre}", primer), html, tipo="mensaje_cliente", reply_to="contacto@zapatillasmay.mx")
+            except Exception as e:
+                print(f"[clientes] correo a {correo} falló: {e}")
+            time.sleep(0.7)   # Resend permite ~2 envíos por segundo
+
+    threading.Thread(target=_enviar_todos, args=(destinos, asunto, mensaje), daemon=True).start()
+    return {"ok": True, "enviando": len(destinos), "omitidos": omitidos}
+
+
 @router.get("/{id}")
 def obtener_cliente(id: str, credentials: HTTPAuthorizationCredentials = Depends(bearer_opcional)):
     if not cliente_autorizado(id, credentials):

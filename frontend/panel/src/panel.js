@@ -6442,6 +6442,7 @@ async function cargarClientes() {
         <div id="cli-barra-envio" style="display:none;position:sticky;top:0;z-index:20;background:#fdf2f8;border:1px solid #f9a8d4;border-radius:10px;margin:0 1.5rem 0.75rem;padding:8px 12px;align-items:center;gap:10px;flex-wrap:wrap">
           <strong id="cli-sel-n" style="font-size:0.85rem;color:#be185d"></strong>
           <button class="btn btn-primary" style="font-size:0.8rem;padding:6px 12px" onclick="abrirEnvioMensajeClientes()">💬 Enviar mensaje por WhatsApp</button>
+          <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px;color:#E91E8C;border-color:#f9a8d4" onclick="abrirCorreoSeleccion()">📧 Enviar correo</button>
           <button class="btn btn-secondary" style="font-size:0.75rem;padding:5px 10px" onclick="_cliSelNinguno()">Quitar selección</button>
         </div>
         <div id="cli-lista">
@@ -9638,6 +9639,7 @@ window.verCliente = async (id) => {
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${c.telefono ? `<a href="https://wa.me/${c.lada || '52'}${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary" style="background:#25D366;color:white;border-color:#25D366">💬 WhatsApp</a>` : ''}
+            <button class="btn btn-secondary" style="color:#E91E8C;border-color:#f9a8d4" onclick="abrirCorreoUno('${c.id}')">📧 Correo</button>
             <button class="btn btn-secondary" onclick="mostrarFormCliente('${c.id}')">✏️ Editar</button>
             ${(c.tipo === 'zapateria' || c.tipo === 'mayoreo') ? `<button class="btn btn-secondary" onclick="darAccesoPortal('${c.id}')">🔑 Dar acceso al portal</button>` : ''}
             <button class="btn btn-secondary" onclick="mostrarNotaCreditoCliente('${c.id}', '${_ja(c.nombre)}')">🧾 Nota de crédito</button>
@@ -30351,4 +30353,78 @@ window._cargarHistorialCarrito = async (pedidoId) => {
         <span style="color:#94a3b8">${esc(f.usuario || '')}</span></div>`).join('') : '<p style="font-size:0.78rem;color:#94a3b8;margin:8px 0 0">Todavía no hay movimientos registrados.</p>'}
     </details>`)
   } catch (e) {}
+}
+
+
+// ═══ Clientes → correo (plantilla de la tienda, por Resend) ═══════════════════════════════════════════
+window.abrirCorreoSeleccion = () => {
+  const ids = new Set([...document.querySelectorAll('.cli-sel:checked')].map(c => c.dataset.id))
+  window.abrirCorreoClientes((window._clientesData || []).filter(c => ids.has(c.id)))
+}
+window.abrirCorreoUno = async (id) => {
+  let c = (window._clientesData || []).find(x => x.id === id)
+  if (!c) {
+    try { const r = await fetch(API + '/clientes/' + id).then(r => r.json()); c = Array.isArray(r) ? r[0] : r } catch (e) {}
+  }
+  if (!c) { alert('No se pudo cargar el cliente'); return }
+  window.abrirCorreoClientes([c])
+}
+window.abrirCorreoClientes = (clientes) => {
+  if (!clientes.length) return
+  const esc = window._escWA
+  const valido = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((e || '').trim())
+  const conCorreo = clientes.filter(c => valido(c.email))
+  const sin = clientes.length - conCorreo.length
+  window._correoSel = conCorreo.map(c => c.id)
+  const msgs = (typeof window._msgPredicados === 'function') ? window._msgPredicados() : []
+  document.getElementById('modal-correo-cli')?.remove()
+  const m = document.createElement('div')
+  m.id = 'modal-correo-cli'
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:12px'
+  m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:20px;max-width:600px;width:100%;max-height:92vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h3 style="margin:0">📧 Enviar correo a ${conCorreo.length} cliente${conCorreo.length === 1 ? '' : 's'}</h3><button onclick="document.getElementById('modal-correo-cli').remove()" style="background:#f5f5f5;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer">✕</button></div>
+    ${sin ? `<p style="font-size:0.78rem;color:#b45309;margin:0 0 8px">⚠️ ${sin} de los seleccionados no tienen un correo válido y se omiten.</p>` : ''}
+    <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px">El correo sale con el diseño de la tienda (logo, botón "Ver los modelos" y pie). Los correos compartidos por varios clientes se omiten automáticamente. Plan gratis de Resend: máximo 100 correos al día.</p>
+    ${conCorreo.length > 1 ? `<details style="margin-bottom:10px"><summary style="font-size:0.78rem;color:#64748b;cursor:pointer">Ver destinatarios</summary><div style="font-size:0.74rem;color:#475569;max-height:110px;overflow:auto;margin-top:4px">${conCorreo.map(c => esc(c.nombre) + ' &lt;' + esc(c.email) + '&gt;').join('<br>')}</div></details>` : (conCorreo[0] ? `<p style="font-size:0.8rem;margin:0 0 10px">Para: <strong>${esc(conCorreo[0].nombre)}</strong> &lt;${esc(conCorreo[0].email)}&gt;</p>` : '')}
+    <label style="font-size:0.78rem;color:#64748b">Mensaje predeterminado</label>
+    <select id="cor-pred" class="form-input" style="margin:4px 0 8px" onchange="_corCargarPred()">
+      <option value="">— Escribir uno nuevo —</option>${msgs.map((x, i) => `<option value="${i}">${esc(x.t)}</option>`).join('')}
+    </select>
+    <label style="font-size:0.78rem;color:#64748b">Asunto</label>
+    <input id="cor-asunto" class="form-input" maxlength="150" placeholder="Ej. Novedades de Zapatillas May 👠" style="width:100%;margin:4px 0 8px">
+    <label style="font-size:0.78rem;color:#64748b">Mensaje <span style="color:#94a3b8">({nombre} se cambia por el primer nombre de cada cliente)</span></label>
+    <textarea id="cor-msg" class="form-input" rows="6" maxlength="3000" placeholder="Hola {nombre}, ..." style="width:100%;margin:4px 0 10px"></textarea>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" id="cor-enviar" style="flex:1" onclick="enviarCorreoClientesUI()" ${conCorreo.length ? '' : 'disabled'}>Enviar a ${conCorreo.length} cliente${conCorreo.length === 1 ? '' : 's'}</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('modal-correo-cli').remove()">Cancelar</button></div>
+    <p id="cor-res" style="font-size:0.8rem;margin:10px 0 0;display:none"></p>
+  </div>`
+  document.body.appendChild(m)
+}
+window._corCargarPred = () => {
+  const i = document.getElementById('cor-pred').value
+  if (i === '') return
+  const x = (window._msgPredicados ? window._msgPredicados() : [])[parseInt(i)]
+  if (!x) return
+  document.getElementById('cor-msg').value = x.m
+  if (!document.getElementById('cor-asunto').value) document.getElementById('cor-asunto').value = x.t + ' — Zapatillas May'
+}
+window.enviarCorreoClientesUI = async () => {
+  const asunto = document.getElementById('cor-asunto').value.trim()
+  const mensaje = document.getElementById('cor-msg').value.trim()
+  const res = document.getElementById('cor-res'), btn = document.getElementById('cor-enviar')
+  const err = (t) => { res.style.display = 'block'; res.style.color = '#b91c1c'; res.textContent = t }
+  if (!asunto || !mensaje) { err('Escribe el asunto y el mensaje.'); return }
+  const ids = window._correoSel || []
+  if (!confirm(`¿Enviar este correo a ${ids.length} cliente${ids.length === 1 ? '' : 's'}? Salen correos reales.`)) return
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  try {
+    const r = await fetch(API + '/clientes/enviar-correo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, asunto, mensaje }) })
+    const d = await r.json().catch(() => ({}))
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo enviar')
+    const o = d.omitidos || {}
+    const om = (o.sin_correo || 0) + (o.invalido || 0) + (o.compartido || 0)
+    res.style.display = 'block'; res.style.color = '#15803d'
+    res.innerHTML = `✅ Se están enviando <strong>${d.enviando}</strong> correo${d.enviando === 1 ? '' : 's'} (tarda unos segundos por cada diez).` + (om ? `<br><span style="color:#b45309">Omitidos: ${om}${o.compartido ? ` (${o.compartido} con correo compartido)` : ''}.</span>` : '') + '<br>Revisa el resultado en Correo corporativo → Historial.'
+    btn.textContent = 'Enviado'
+  } catch (e) { err('Error: ' + e.message); btn.disabled = false; btn.textContent = 'Enviar' }
 }

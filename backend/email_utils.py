@@ -454,6 +454,25 @@ def email_resumen_carrito(pedido: dict, items: list, anticipo: float = 0.0, modo
     return asunto, _base_html(contenido, pre)
 
 
+def email_mensaje_cliente(nombre: str, mensaje: str):
+    """Correo de personal a una clienta (promociones, avisos, seguimiento). `mensaje` ya trae el {nombre} resuelto;
+    se escapa, se respetan los saltos de línea y los links se vuelven tocables."""
+    import re as _re
+    primer = _h.escape((nombre or "").split()[0].capitalize()) if (nombre or "").strip() else ""
+    cuerpo = _h.escape(mensaje or "")
+    cuerpo = _re.sub(r'((?:https?://|www\.)[^\s<]+)', lambda m: (
+        f'<a href="{m.group(1) if m.group(1).lower().startswith("http") else "https://" + m.group(1)}" '
+        f'style="color:#b5687a;font-weight:700;word-break:break-all">{m.group(1)}</a>'), cuerpo)
+    cuerpo = cuerpo.replace("\n", "<br>")
+    contenido = f"""
+      <h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:#2A1A0E">{("Hola " + primer + " 👋") if primer else "Hola 👋"}</h1>
+      <p style="margin:0 0 22px;font-size:15px;line-height:1.75;color:#5b4d44">{cuerpo}</p>
+      {_boton("Ver los modelos →", "https://zapatillasmay.mx")}
+      <p style="margin:22px 0 0;font-size:11px;color:#a89a90;text-align:center;line-height:1.6">
+        Recibes este correo porque eres clienta de Zapatillas May. Si ya no quieres recibir mensajes, responde con la palabra BAJA.</p>"""
+    return _base_html(contenido, (mensaje or "")[:110])
+
+
 def email_pedido_pendiente_spei(pedido: dict):
     """Retorna (subject, html) para email de SPEI pendiente al cliente."""
     nombre    = _h.escape((pedido.get("nombre_cliente") or "Clienta").split()[0].capitalize())
