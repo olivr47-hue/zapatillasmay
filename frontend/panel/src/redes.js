@@ -351,7 +351,7 @@ function escribirTexto(prods, opts) {
 }
 
 // ── estado y pantalla ──
-const S = { prods: [], variantes: [], sel: [], publicados: new Set(), imgs: [], estado: null, textos: { etiqueta: '', tituloCollage: '', cierre: '', pie: '', porProd: {} } }
+const S = { prods: [], variantes: [], sel: [], publicados: new Set(), imgs: [], estado: null, galerias: {}, fotos: {}, textos: { etiqueta: '', tituloCollage: '', cierre: '', pie: '', porProd: {} } }
 
 function datosProducto(p) {
   const vars = S.variantes.filter(v => v.producto_id === p.id)
@@ -362,7 +362,8 @@ function datosProducto(p) {
   const corto = String(p.nombre || '').replace(/\s+/g, ' ').trim()
   const titulo = corto.length > 46 ? corto.slice(0, 46).replace(/\s+\S*$/, '') : corto
   const precio = (parseFloat(p.precio_menudeo) || 0) + (p.es_oferta ? 0 : 80)   // el mismo precio que ve la clienta en la tienda
-  return { id: p.id, titulo, precio: Math.round(precio), colores, foto: p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
+  const elegida = S.fotos[p.id] && S.fotos[p.id].principal
+  return { id: p.id, titulo, precio: Math.round(precio), colores, foto: elegida || p.imagen_principal || (colores[0] && colores[0].foto) || '', tallas: tallas.length ? `${tallas[0]}–${tallas[tallas.length - 1]}` : '' }
 }
 
 window.cargarRedes = async function () {
@@ -391,6 +392,15 @@ window.cargarRedes = async function () {
     .rs-wrap{max-width:1100px}
     .rs-card{background:#fff;border:1px solid #eef0f4;border-radius:16px;padding:16px 18px;margin-bottom:14px}
     .rs-h{font-size:0.78rem;font-weight:700;color:#be185d;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px}
+    .rs-gal{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin}
+    .rs-ft{position:relative;flex:0 0 auto;width:78px;cursor:pointer;border-radius:12px;border:2px solid #eee;background:#faf6f4;padding:0;overflow:hidden}
+    .rs-ft img{display:block;width:100%;height:96px;object-fit:cover}
+    .rs-ft.pri{border-color:#E91E8C;box-shadow:0 0 0 2px rgba(233,30,140,.18)}
+    .rs-ft.ext{border-color:#16a34a}
+    .rs-ft .rs-tag{position:absolute;left:0;right:0;top:0;text-align:center;font-size:0.6rem;font-weight:800;color:#fff;background:#E91E8C;padding:2px 0}
+    .rs-ft .rs-mas{position:absolute;right:4px;bottom:22px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(255,255,255,.95);box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:0.95rem;font-weight:800;color:#555;cursor:pointer;line-height:1;padding:0}
+    .rs-ft.ext .rs-mas{background:#16a34a;color:#fff}
+    .rs-ft .rs-col{display:block;font-size:0.62rem;color:#666;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .rs-chip{display:inline-flex;align-items:center;gap:8px;border:1.5px solid #e2e8f0;border-radius:12px;padding:5px 10px 5px 5px;margin:0 6px 6px 0;cursor:pointer;font-size:0.76rem;background:#fff}
     .rs-chip.on{border-color:#E91E8C;background:#fdf2f8}
     .rs-chip img{width:38px;height:38px;object-fit:cover;border-radius:8px}
@@ -451,6 +461,12 @@ window.cargarRedes = async function () {
       </div>
     </div>
 
+    <div class="rs-card" id="rs-fotos-card" style="display:none">
+      <p class="rs-h">Fotos de cada modelo <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· elige la foto y el color que quieres mostrar</span></p>
+      <p style="font-size:0.76rem;color:#64748b;margin:0 0 10px"><b style="color:#E91E8C">Toca una foto</b> para usarla como principal (la del collage, la portada y la primera imagen). <b style="color:#16a34a">Toca el ＋</b> de otras fotos para sumarlas como imágenes extra del carrusel.</p>
+      <div id="rs-fotos"></div>
+    </div>
+
     <div class="rs-card" id="rs-textos" style="display:none">
       <p class="rs-h">Textos de las imágenes <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8">· cámbialos como quieras, la vista previa se actualiza sola</span></p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
@@ -508,6 +524,8 @@ window.rsToggle = (id) => {
   document.querySelectorAll('#rs-nuevos .rs-chip').forEach(c => c.classList.toggle('on', S.sel.includes(c.dataset.id)))
   const cont = document.getElementById('rs-elegidos')
   window.rsPintarTextos()
+  window.rsPintarFotos()
+  S.sel.forEach(id => cargarGaleria(id).then(() => window.rsPintarFotos()))
   cont.innerHTML = S.sel.length ? S.sel.map(id => { const p = S.prods.find(x => x.id === id); return p ? `<span class="rs-chip on" onclick="rsToggle('${esc(id)}')"><img src="${esc(p.imagen_principal)}"><span>${esc(String(p.nombre).split(' ').slice(0, 3).join(' '))} ✕</span></span>` : '' }).join('') : ''
   window.rsGenerar()
 }
@@ -626,6 +644,62 @@ function rsPintarEncuadre(urls) {
   })
 }
 
+// ── fotos de cada modelo: todas las fotos de todos los colores para escoger la principal y las extras ──
+const miniatura = (u) => (u && u.includes('res.cloudinary.com') && u.includes('/upload/')) ? u.replace('/upload/', '/upload/w_200,h_240,c_fill,g_auto,q_auto/') : u
+async function cargarGaleria(pid) {
+  if (S.galerias[pid]) return
+  S.galerias[pid] = []      // marcador: ya se está cargando
+  const base = S.prods.find(p => p.id === pid); if (!base) return
+  const url = (x) => typeof x === 'string' ? x : (x && x.url) || ''
+  const porUrl = new Map()  // url -> {color, hex}
+  let vars = []
+  try { const r = await fetch(`${API}/variantes/producto/${encodeURIComponent(pid)}`); vars = await r.json(); if (!Array.isArray(vars)) vars = [] } catch (e) { vars = [] }
+  vars.forEach(v => { [v.foto_url, ...(Array.isArray(v.imagenes) ? v.imagenes : [])].map(url).filter(Boolean).forEach(u => { if (!porUrl.has(u)) porUrl.set(u, { color: v.color || '', hex: v.color_hex || '' }) }) })
+  const lista = [], vistos = new Set()
+  const add = (u, etiquetaPortada) => { u = url(u); if (!u || vistos.has(u)) return; vistos.add(u); const c = porUrl.get(u) || {}; lista.push({ url: u, color: c.color || '', hex: c.hex || '', portada: !!etiquetaPortada }) }
+  add(base.imagen_principal, true)
+  ;(Array.isArray(base.imagenes) ? base.imagenes : []).forEach(u => add(u))
+  porUrl.forEach((_, u) => add(u))
+  S.galerias[pid] = lista
+}
+window.rsPintarFotos = () => {
+  const card = document.getElementById('rs-fotos-card'), cont = document.getElementById('rs-fotos')
+  if (!card || !cont) return
+  card.style.display = S.sel.length ? 'block' : 'none'
+  cont.innerHTML = S.sel.map(id => {
+    const base = S.prods.find(p => p.id === id); if (!base) return ''
+    const gal = S.galerias[id]
+    const d = datosProducto(base), f = S.fotos[id] || {}, extras = f.extras || []
+    const cuerpo = !gal ? '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Cargando fotos...</p>'
+      : !gal.length ? '<p style="font-size:0.78rem;color:#94a3b8;margin:0">Este modelo no tiene fotos.</p>'
+      : `<div class="rs-gal">${gal.map((g, i) => {
+        const pri = g.url === d.foto, ext = extras.includes(g.url)
+        return `<div class="rs-ft ${pri ? 'pri' : ''} ${ext ? 'ext' : ''}" onclick="rsFotoPrincipal('${esc(id)}',${i})" title="${esc(g.color || (g.portada ? 'Portada' : 'Foto'))}">
+          ${pri ? '<span class="rs-tag">PRINCIPAL</span>' : ''}<img src="${esc(miniatura(g.url))}" loading="lazy" alt="">
+          ${pri ? '' : `<button class="rs-mas" title="${ext ? 'Quitar del carrusel' : 'Agregar al carrusel'}" onclick="event.stopPropagation();rsFotoExtra('${esc(id)}',${i})">${ext ? '✓' : '＋'}</button>`}
+          <span class="rs-col">${g.hex ? `<i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(g.hex)};border:1px solid rgba(0,0,0,.2);margin-right:3px"></i>` : ''}${esc(g.color || (g.portada ? 'Portada' : 'Foto'))}</span>
+        </div>`
+      }).join('')}</div>`
+    return `<div style="margin-bottom:6px"><p style="margin:0 0 4px;font-size:0.82rem;font-weight:700;color:#334155">${esc(d.titulo)}</p>${cuerpo}</div>`
+  }).join('')
+}
+window.rsFotoPrincipal = (id, i) => {
+  const g = (S.galerias[id] || [])[i]; if (!g) return
+  const f = S.fotos[id] = S.fotos[id] || { extras: [] }
+  f.principal = g.url
+  f.extras = (f.extras || []).filter(u => u !== g.url)
+  window.rsPintarFotos(); window.rsGenerar()
+}
+window.rsFotoExtra = (id, i) => {
+  const g = (S.galerias[id] || [])[i]; if (!g) return
+  const f = S.fotos[id] = S.fotos[id] || { extras: [] }
+  f.extras = f.extras || []
+  const k = f.extras.indexOf(g.url)
+  if (k >= 0) f.extras.splice(k, 1)
+  else { if (f.extras.length >= 5) { alert('Máximo 5 fotos extra por modelo.'); return } f.extras.push(g.url) }
+  window.rsPintarFotos(); window.rsGenerar()
+}
+
 let _gen = 0
 window.rsGenerar = async () => {
   const mi = ++_gen
@@ -653,10 +727,14 @@ window.rsGenerar = async () => {
   const delProducto = async (p) => {
     const urls = [p.foto]
     if (porColor) p.colores.forEach(c => { if (c.foto && !urls.includes(c.foto)) urls.push(c.foto) })
-    for (const [i, u] of urls.slice(0, 4).entries()) {
+    ;((S.fotos[p.id] && S.fotos[p.id].extras) || []).forEach(u => { if (!urls.includes(u)) urls.push(u) })
+    const manual = !!(S.fotos[p.id] && S.fotos[p.id].principal)
+    const colorDe = (u) => ((S.galerias[p.id] || []).find(g => g.url === u) || {}).color || (p.colores.find(c => c.foto === u) || {}).n || ''
+    for (const [i, u] of urls.slice(0, 6).entries()) {
       usada(u)
-      const colorLam = i > 0 ? (p.colores.find(c => c.foto === u) || {}).n : ''
-      laminas.push(await laminaProducto(F, E, { ...p, colorLamina: colorLam }, u, { ...opts, colorNombre: i > 0 }, i))
+      // si se eligió otra foto como principal (o es una imagen extra), la lámina dice de qué color es
+      const colorLam = (i > 0 || manual) ? colorDe(u) : ''
+      laminas.push(await laminaProducto(F, E, { ...p, colorLamina: colorLam }, u, { ...opts, colorNombre: !!colorLam }, i))
     }
   }
   if (OPT.tipo === 'collage') {
