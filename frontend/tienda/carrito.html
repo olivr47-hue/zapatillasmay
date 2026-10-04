@@ -403,7 +403,8 @@ function render() {
     </div>`
 
   document.getElementById('resumen-box').innerHTML = resumenHTML
-  document.getElementById('modal-total').textContent = '$' + totalFinal.toFixed(0) + ' MXN'
+  const _mt = document.getElementById('modal-total')   // ya no existe en la página: antes esta línea lanzaba error y cortaba el resto (botón de WhatsApp, total, pixeles)
+  if (_mt) _mt.textContent = '$' + totalFinal.toFixed(0) + ' MXN'
   // Actualizar texto del botón con el total
   const btnText = document.getElementById('btn-checkout-text')
   if (btnText) btnText.textContent = `Finalizar compra · $${totalFinal.toFixed(0)} MXN`
